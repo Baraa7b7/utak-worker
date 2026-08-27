@@ -1,0 +1,39 @@
+name = "utak-worker"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+
+# ------------------------------------------------------------
+# Non-secret vars — safe to commit.
+# Update if Meta rolls Graph API version or if Odoo hostname changes.
+# ------------------------------------------------------------
+[vars]
+META_PHONE_NUMBER_ID = "1351691708016803"
+META_WABA_ID         = "2144001136512196"
+META_GRAPH_VERSION   = "v22.0"                     # bump when Meta deprecates
+
+ODOO_URL   = "https://utakfresh.odoo.com"
+ODOO_DB    = "utakfresh"
+ODOO_LOGIN = "REPLACE_ME"                          # Odoo user email used ONLY for session-auth fallback
+
+CLAUDE_MODEL_CLASSIFY = "claude-haiku-4-5-20251001"
+CLAUDE_MODEL_REPLY    = "claude-sonnet-5"
+
+# ------------------------------------------------------------
+# KV: message dedup, 24h TTL
+# Create with:  wrangler kv namespace create MSG_DEDUP
+#               wrangler kv namespace create MSG_DEDUP --preview
+# Paste the returned IDs below.
+# ------------------------------------------------------------
+[[kv_namespaces]]
+binding    = "MSG_DEDUP"
+id         = "REPLACE_WITH_KV_ID"
+preview_id = "REPLACE_WITH_PREVIEW_ID"
+
+# ------------------------------------------------------------
+# Secrets — NEVER commit. Set via:
+#   wrangler secret put META_APP_SECRET
+#   wrangler secret put META_ACCESS_TOKEN
+#   wrangler secret put META_VERIFY_TOKEN
+#   wrangler secret put ODOO_API_KEY
+#   wrangler secret put ANTHROPIC_API_KEY
+# ------------------------------------------------------------

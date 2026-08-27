@@ -42,7 +42,7 @@ async function call<T = unknown>(
 ): Promise<T> {
   const url = `${env.ODOO_URL}/json/2/${model}/${method}`;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (authMode === "apikey") headers["X-Api-Key"] = env.ODOO_API_KEY;
+  if (authMode === "apikey") headers["Authorization"] = `Bearer ${env.ODOO_API_KEY}`;
   if (authMode === "session" && sessionCookie) headers["Cookie"] = sessionCookie;
 
   const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });

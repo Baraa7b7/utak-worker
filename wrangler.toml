@@ -13,7 +13,7 @@ META_GRAPH_VERSION   = "v22.0"                     # bump when Meta deprecates
 
 ODOO_URL   = "https://utakfresh.odoo.com"
 ODOO_DB    = "utakfresh"
-ODOO_LOGIN = "REPLACE_ME"                          # Odoo user email used ONLY for session-auth fallback
+ODOO_LOGIN = "admin@utakfresh.com"                          # Odoo user email used ONLY for session-auth fallback
 
 CLAUDE_MODEL_CLASSIFY = "claude-haiku-4-5-20251001"
 CLAUDE_MODEL_REPLY    = "claude-sonnet-5"
@@ -26,8 +26,8 @@ CLAUDE_MODEL_REPLY    = "claude-sonnet-5"
 # ------------------------------------------------------------
 [[kv_namespaces]]
 binding    = "MSG_DEDUP"
-id         = "REPLACE_WITH_KV_ID"
-preview_id = "REPLACE_WITH_PREVIEW_ID"
+id         = "1e77d51cf1154af1aef076d1d31905a6"
+preview_id = "b423e1498d624696ac10ed101c621742"
 
 # ------------------------------------------------------------
 # Secrets — NEVER commit. Set via:

@@ -91,7 +91,7 @@ export async function findCustomerByWhatsApp(env: Env, e164: string): Promise<Od
       ["customer_rank", ">", 0],
       "|",
       ["x_whatsapp_number", "=", e164],
-      ["mobile", "=", e164],
+      ["phone", "=", e164],
     ],
     fields: ["id", "name", "customer_rank", "x_whatsapp_number"],
     limit: 1,
@@ -116,7 +116,7 @@ export async function createCustomer(env: Env, name: string, e164: string): Prom
     vals_list: [
       {
         name: name || e164,
-        mobile: e164,
+        phone: e164,
         x_whatsapp_number: e164,
         customer_rank: 1,
       },

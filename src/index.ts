@@ -1,4 +1,4 @@
-// UTAK Cloudflare Worker — v1 entry point.
+// UTAK Cloudflare Worker — v2 entry point.
 // Endpoints:
 //   GET  /             → sanity ping
 //   GET  /health       → Odoo smoke test + timestamp
@@ -6,11 +6,11 @@
 //   POST /webhook      → Meta events (HMAC-verified, deduped, routed)
 
 import type { Env } from "./config";
-import { handleVerify, verifySignature, parseWebhook, sendText } from "./meta";
+import { handleVerify, verifySignature, parseWebhook, sendText, sendButtons } from "./meta";
 import { seenBefore, markSeen } from "./dedup";
 import { findOrCreateCustomer, findSupplierByWhatsApp, smokeTest } from "./odoo";
 import { classifyIntent } from "./claude";
-import { dispatch } from "./router";
+import { dispatch, type RouterReply } from "./router";
 import type { SenderType } from "./types";
 
 export default {
@@ -18,7 +18,7 @@ export default {
     const url = new URL(request.url);
 
     if (request.method === "GET" && url.pathname === "/") {
-      return new Response("UTAK Worker v1", { status: 200 });
+      return new Response("UTAK Worker v2", { status: 200 });
     }
 
     if (request.method === "GET" && url.pathname === "/health") {
@@ -51,12 +51,9 @@ export default {
         return new Response("bad json", { status: 400 });
       }
 
-      // Handle inline. Meta gives us ~20s before it retries; v1 flow completes in ~2-3s.
-      // If we exceed that regularly, promote heavy work to ctx.waitUntil() + Queue.
       try {
         await handleWebhook(env, payload);
       } catch (e) {
-        // Log but always ack — otherwise Meta hammers us with retries.
         console.error("webhook handler error", (e as Error)?.stack ?? e);
       }
       return new Response("ok", { status: 200 });
@@ -70,13 +67,12 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
   const messages = parseWebhook(payload);
 
   for (const msg of messages) {
-    // v1: text only
-    if (msg.type !== "text" || !msg.text) continue;
+    // v2: accept text AND interactive (button/list replies)
+    if (msg.type !== "text" && msg.type !== "interactive" && msg.type !== "button") continue;
+    if (!msg.text && !msg.buttonId) continue;
 
-    // Dedup: Meta will re-deliver on any non-2xx or timeout
     if (await seenBefore(env, msg.messageId)) continue;
 
-    // Sender-type resolution: supplier lookup first (rarer, exact match on x_whatsapp_number)
     const supplier = await findSupplierByWhatsApp(env, msg.from);
 
     let senderType: SenderType;
@@ -86,19 +82,32 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
       senderType = "supplier";
       partner = supplier;
     } else {
-      // Not a supplier → treat as customer (create if new)
       partner = await findOrCreateCustomer(env, msg.from, msg.profileName);
       senderType = "customer";
     }
 
-    const { intent } = await classifyIntent(env, msg.text, senderType);
-    const reply = await dispatch(env, { msg, intent, senderType, partner });
-
-    if (reply) {
-      await sendText(env, msg.from, reply);
+    // Buttons skip classification (router handles by buttonId).
+    let intent: import("./types").Intent = "other";
+    if (msg.type === "text") {
+      const c = await classifyIntent(env, msg.text, senderType);
+      intent = c.intent;
     }
 
+    const reply: RouterReply = await dispatch(env, { msg, intent, senderType, partner });
+
+    await sendReply(env, msg.from, reply);
     await markSeen(env, msg.messageId);
+  }
+}
+
+async function sendReply(env: Env, to: string, reply: RouterReply): Promise<void> {
+  if (reply.buttons && reply.buttons.length > 0) {
+    const body = reply.bodyBeforeButtons ?? reply.text ?? "";
+    await sendButtons(env, to, body, reply.buttons);
+    return;
+  }
+  if (reply.text && reply.text.trim()) {
+    await sendText(env, to, reply.text);
   }
 }
 

@@ -1,5 +1,5 @@
 // Meta WhatsApp Cloud API glue.
-// Handles: GET verify challenge, POST HMAC verification, payload parsing, outbound text send.
+// Handles: GET verify challenge, POST HMAC verification, payload parsing, outbound text + interactive buttons.
 
 import type { Env } from "./config";
 import type { NormalizedMessage } from "./types";
@@ -16,8 +16,6 @@ export function handleVerify(url: URL, env: Env): Response {
 }
 
 // ---- POST /webhook — HMAC-SHA256 signature verification ----
-// Meta sends `X-Hub-Signature-256: sha256=<hex>` computed over the raw request body
-// using META_APP_SECRET as the HMAC key.
 export async function verifySignature(
   rawBody: string,
   signatureHeader: string | null,
@@ -50,7 +48,7 @@ function timingSafeEqual(a: string, b: string): boolean {
 
 // ---- Parse Meta webhook payload ----
 // One POST may contain multiple entries and multiple messages.
-// Status-update events have no `messages` key and produce zero results — we skip them.
+// v2: also handles `interactive` messages (button/list replies).
 export function parseWebhook(payload: unknown): NormalizedMessage[] {
   const out: NormalizedMessage[] = [];
   // deno-lint-ignore no-explicit-any
@@ -66,22 +64,40 @@ export function parseWebhook(payload: unknown): NormalizedMessage[] {
         if (c?.wa_id) nameByFrom.set(c.wa_id, c?.profile?.name ?? "");
       }
 
-      for (const m of messages as {
-        id?: string;
-        from?: string;
-        type?: string;
-        timestamp?: string;
-        text?: { body?: string };
-      }[]) {
+      // deno-lint-ignore no-explicit-any
+      for (const m of messages as any[]) {
         if (!m?.id || !m?.from) continue;
+
+        let text = "";
+        let buttonId: string | undefined;
+
+        if (m.type === "text") {
+          text = m?.text?.body ?? "";
+        } else if (m.type === "interactive") {
+          const btn = m?.interactive?.button_reply;
+          const list = m?.interactive?.list_reply;
+          if (btn) {
+            buttonId = btn.id;
+            text = btn.title ?? "";
+          } else if (list) {
+            buttonId = list.id;
+            text = list.title ?? "";
+          }
+        } else if (m.type === "button") {
+          // template quick-reply button
+          buttonId = m?.button?.payload;
+          text = m?.button?.text ?? "";
+        }
+
         out.push({
           messageId: m.id,
           from: `+${m.from}`,
           fromRaw: m.from,
           profileName: nameByFrom.get(m.from) ?? "",
-          text: m?.text?.body ?? "",
+          text,
           timestamp: m.timestamp ?? "",
           type: m.type ?? "unknown",
+          buttonId,
         });
       }
     }
@@ -103,6 +119,39 @@ export async function sendText(env: Env, to: string, body: string): Promise<Resp
       to: to.replace(/^\+/, ""),
       type: "text",
       text: { body },
+    }),
+  });
+}
+
+// ---- Send interactive button message (up to 3 buttons) ----
+export async function sendButtons(
+  env: Env,
+  to: string,
+  bodyText: string,
+  buttons: Array<{ id: string; title: string }>,
+): Promise<Response> {
+  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/${env.META_PHONE_NUMBER_ID}/messages`;
+  // Meta caps: max 3 buttons, id ≤ 256 chars, title ≤ 20 chars.
+  const safeButtons = buttons.slice(0, 3).map((b) => ({
+    type: "reply",
+    reply: { id: b.id.slice(0, 256), title: b.title.slice(0, 20) },
+  }));
+
+  return fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.META_ACCESS_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      to: to.replace(/^\+/, ""),
+      type: "interactive",
+      interactive: {
+        type: "button",
+        body: { text: bodyText.slice(0, 1024) },
+        action: { buttons: safeButtons },
+      },
     }),
   });
 }

@@ -1,21 +1,34 @@
 // Anthropic API wrapper.
-// Two entry points:
-//   classifyIntent — Haiku, cheap, every message
-//   composeReply   — Sonnet, only when a Claude-authored reply is required
+// Three entry points:
+//   classifyIntent   — Haiku, cheap, every message
+//   extractOrderItems — Sonnet, only on place_order / add_to_order
+//   composeReply     — Sonnet, only when a Claude-authored reply is required
 
 import type { Env } from "./config";
 import {
   ANTHROPIC_API_URL,
   ANTHROPIC_VERSION,
   SYSTEM_PROMPT_CLASSIFY,
+  SYSTEM_PROMPT_EXTRACT_ORDER,
   SYSTEM_PROMPT_REPLY,
 } from "./config";
-import type { ClassifyResult, Intent, SenderType } from "./types";
+import type {
+  CatalogProduct,
+  ClassifyResult,
+  ExtractedOrderItem,
+  Intent,
+  SenderType,
+} from "./types";
 
 const VALID_INTENTS: readonly Intent[] = [
   "greeting",
   "product_inquiry",
   "place_order",
+  "add_to_order",
+  "request_quotation",
+  "confirm_order",
+  "edit_order",
+  "cancel_order",
   "supplier_price_reply",
   "complaint",
   "other",
@@ -54,6 +67,14 @@ async function callClaude(
   return first?.text ?? "";
 }
 
+function stripFences(raw: string): string {
+  return raw
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/```$/, "")
+    .trim();
+}
+
 export async function classifyIntent(
   env: Env,
   text: string,
@@ -67,22 +88,71 @@ export async function classifyIntent(
     200,
   );
 
-  // Tolerate accidental code fences; parse the JSON body.
   try {
-    const cleaned = raw
-      .trim()
-      .replace(/^```(?:json)?\s*/i, "")
-      .replace(/```$/, "")
-      .trim();
-    const parsed = JSON.parse(cleaned) as { intent?: string; confidence?: number };
+    const parsed = JSON.parse(stripFences(raw)) as { intent?: string; confidence?: number };
     const intent = (VALID_INTENTS as readonly string[]).includes(parsed?.intent ?? "")
       ? (parsed.intent as Intent)
       : "other";
     const confidence = typeof parsed?.confidence === "number" ? parsed.confidence : 0;
     return { intent, confidence };
   } catch {
-    // Model returned non-JSON — degrade gracefully.
     return { intent: "other", confidence: 0 };
+  }
+}
+
+// Build a compact catalog view for the extractor — only what Sonnet needs.
+function serializeCatalogForPrompt(catalog: CatalogProduct[]): string {
+  return JSON.stringify(
+    catalog.map((p) => ({
+      id: p.id,
+      name: p.name,
+      packagings: p.packagings.map((pk) => ({
+        id: pk.id,
+        name: pk.name,
+        default: pk.is_default,
+      })),
+    })),
+  );
+}
+
+export async function extractOrderItems(
+  env: Env,
+  messageText: string,
+  catalog: CatalogProduct[],
+  customerName: string,
+): Promise<ExtractedOrderItem[]> {
+  if (catalog.length === 0) return [];
+
+  const userMsg = [
+    `CATALOG:`,
+    serializeCatalogForPrompt(catalog),
+    ``,
+    `CUSTOMER: ${customerName}`,
+    `MESSAGE: ${messageText}`,
+  ].join("\n");
+
+  const raw = await callClaude(env, env.CLAUDE_MODEL_REPLY, SYSTEM_PROMPT_EXTRACT_ORDER, userMsg, 1500);
+
+  try {
+    const parsed = JSON.parse(stripFences(raw));
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((it: unknown) => {
+        // deno-lint-ignore no-explicit-any
+        const r = it as any;
+        return {
+          product_id: Number(r?.product_id ?? 0) | 0,
+          product_name_raw: String(r?.product_name_raw ?? ""),
+          packaging_id: Number(r?.packaging_id ?? 0) | 0,
+          packaging_name_raw: r?.packaging_name_raw ? String(r.packaging_name_raw) : undefined,
+          quantity: Number(r?.quantity ?? 0),
+          notes: r?.notes ? String(r.notes) : undefined,
+        } as ExtractedOrderItem;
+      })
+      .filter((it) => it.quantity > 0);
+  } catch (e) {
+    console.error("extractOrderItems parse failed", (e as Error)?.message, raw.slice(0, 200));
+    return [];
   }
 }
 

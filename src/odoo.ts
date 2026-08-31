@@ -847,37 +847,68 @@ export async function markPurchaseListSent(env: Env, id: number): Promise<void> 
   });
 }
 
+// v4.1: mark the list done. Order-state transition happens at cron time now
+// (see transitionOrdersToInPurchase); here we only flip lines pending→purchased
+// for the specific orders that were on this list.
 export async function markPurchaseListDone(env: Env, id: number): Promise<void> {
   await call(env, "x_purchase_list", "write", {
     ids: [id],
     vals: { x_status: "done", x_ahmad_confirmed_at: nowOdoo() },
   });
-  // Bump each confirmed line to purchased + each order to in_purchase
-  const today = riyadhToday();
-  const orders = await call<Array<{ id: number }>>(env, "x_daily_order", "search_read", {
-    domain: [["x_order_date", "=", today], ["x_state", "=", "confirmed"]],
+  const orderIds = await getOrderIdsFromPurchaseList(env, id);
+  if (orderIds.length === 0) return;
+
+  const lines = await call<Array<{ id: number }>>(env, "x_daily_order_line", "search_read", {
+    domain: [["x_order_id", "in", orderIds], ["x_status", "=", "pending"]],
+    fields: ["id"],
+    limit: 5000,
+  });
+  if (lines.length > 0) {
+    await call(env, "x_daily_order_line", "write", {
+      ids: lines.map((l) => l.id),
+      vals: { x_status: "purchased" },
+    });
+  }
+}
+
+// v4.1: extract unique order_ids from the aggregated_items JSON on a list.
+export async function getOrderIdsFromPurchaseList(env: Env, id: number): Promise<number[]> {
+  const rows = await call<Array<{ x_aggregated_items: string | false }>>(
+    env,
+    "x_purchase_list",
+    "search_read",
+    { domain: [["id", "=", id]], fields: ["x_aggregated_items"], limit: 1 },
+  );
+  const raw = rows[0]?.x_aggregated_items;
+  if (typeof raw !== "string" || !raw) return [];
+  try {
+    const items = JSON.parse(raw) as Array<{ order_ids?: number[] }>;
+    const s = new Set<number>();
+    for (const it of items) for (const oid of it.order_ids ?? []) s.add(oid);
+    return Array.from(s);
+  } catch {
+    return [];
+  }
+}
+
+// v4.1: called by the 21:15 cron right after the purchase list is created.
+// Locks the orders into "in_purchase" so downstream flows are day-safe.
+export async function transitionOrdersToInPurchase(env: Env, orderIds: number[]): Promise<void> {
+  if (orderIds.length === 0) return;
+  // Only flip orders currently in "confirmed" — protects against re-runs and
+  // guards against sweeping in orders that were cancelled between aggregate
+  // and this call.
+  const eligible = await call<Array<{ id: number }>>(env, "x_daily_order", "search_read", {
+    domain: [["id", "in", orderIds], ["x_state", "=", "confirmed"]],
     fields: ["id"],
     limit: 500,
   });
-  if (orders.length > 0) {
-    const ids = orders.map((o) => o.id);
-    await call(env, "x_daily_order", "write", {
-      ids,
-      vals: { x_state: "in_purchase" },
-    });
-    // Also flip lines pending → purchased
-    const lines = await call<Array<{ id: number }>>(env, "x_daily_order_line", "search_read", {
-      domain: [["x_order_id", "in", ids], ["x_status", "=", "pending"]],
-      fields: ["id"],
-      limit: 5000,
-    });
-    if (lines.length > 0) {
-      await call(env, "x_daily_order_line", "write", {
-        ids: lines.map((l) => l.id),
-        vals: { x_status: "purchased" },
-      });
-    }
-  }
+  if (eligible.length === 0) return;
+  const ids = eligible.map((o) => o.id);
+  await call(env, "x_daily_order", "write", {
+    ids,
+    vals: { x_state: "in_purchase" },
+  });
 }
 
 export async function getLatestPurchaseListToday(env: Env): Promise<number | null> {
@@ -894,19 +925,26 @@ export async function getLatestPurchaseListToday(env: Env): Promise<number | nul
 // ---- Build route stops for one driver from all confirmed lines ----
 // Simple assignment: if driver has neighborhoods set, pick orders whose
 // x_delivery_neighborhood matches one of them; otherwise round-robin split.
+// v4.1: takes an optional orderIds scope. When provided (the purchase-done flow
+// passes the exact orders from the list), we filter by id — day-safe. If omitted
+// we fall back to today's in_purchase orders for backwards compatibility.
 export async function buildAndCreateRoutesForDrivers(
   env: Env,
+  orderIds?: number[],
 ): Promise<Array<{ routeId: number; driver: TeamMember; stops: RouteStop[] }>> {
   const drivers = await getTeamMembersByRole(env, "driver");
   if (drivers.length === 0) return [];
 
   const today = riyadhToday();
+  const domain = orderIds && orderIds.length > 0
+    ? [["id", "in", orderIds], ["x_state", "=", "in_purchase"]]
+    : [["x_order_date", "=", today], ["x_state", "=", "in_purchase"]];
   const orders = await call<Array<{
     id: number;
     x_customer_id: [number, string] | false;
     x_delivery_neighborhood: string | false;
   }>>(env, "x_daily_order", "search_read", {
-    domain: [["x_order_date", "=", today], ["x_state", "=", "in_purchase"]],
+    domain,
     fields: ["id", "x_customer_id", "x_delivery_neighborhood"],
     limit: 500,
   });
@@ -939,14 +977,14 @@ export async function buildAndCreateRoutesForDrivers(
   }
 
   // Fetch order lines for line summaries
-  const orderIds = orders.map((o) => o.id);
+  const scopedOrderIds = orders.map((o) => o.id);
   const lines = await call<Array<{
     x_order_id: [number, string] | false;
     x_product_tmpl_id: [number, string] | false;
     x_packaging_id: [number, string] | false;
     x_quantity: number;
   }>>(env, "x_daily_order_line", "search_read", {
-    domain: [["x_order_id", "in", orderIds], ["x_status", "=", "purchased"]],
+    domain: [["x_order_id", "in", scopedOrderIds], ["x_status", "=", "purchased"]],
     fields: ["x_order_id", "x_product_tmpl_id", "x_packaging_id", "x_quantity"],
     limit: 5000,
   });
@@ -1126,6 +1164,50 @@ export async function getOrderCustomer(
               : typeof p.phone === "string" ? p.phone : "";
   return { id: p.id, name: p.name, phone };
 }
+// ============================================================
+// v4.1 — Delivery neighborhood helpers
+// Order intake must capture a neighborhood before a quotation goes out,
+// otherwise driver routing has nothing to match on. We remember it per
+// customer on res.partner so returning customers don't get asked again.
+// ============================================================
+
+export async function getPartnerNeighborhood(env: Env, partnerId: number): Promise<string> {
+  const rows = await call<Array<{ x_delivery_neighborhood: string | false }>>(
+    env,
+    "res.partner",
+    "search_read",
+    { domain: [["id", "=", partnerId]], fields: ["x_delivery_neighborhood"], limit: 1 },
+  );
+  const v = rows[0]?.x_delivery_neighborhood;
+  return typeof v === "string" ? v.trim() : "";
+}
+
+export async function savePartnerNeighborhood(
+  env: Env,
+  partnerId: number,
+  neighborhood: string,
+): Promise<void> {
+  const clean = neighborhood.trim();
+  if (!clean) return;
+  await call(env, "res.partner", "write", {
+    ids: [partnerId],
+    vals: { x_delivery_neighborhood: clean },
+  });
+}
+
+export async function setOrderNeighborhood(
+  env: Env,
+  orderId: number,
+  neighborhood: string,
+): Promise<void> {
+  const clean = neighborhood.trim();
+  if (!clean) return;
+  await call(env, "x_daily_order", "write", {
+    ids: [orderId],
+    vals: { x_delivery_neighborhood: clean },
+  });
+}
+
 // ============================================================
 // v5 — Invoice & Payment helpers
 // Append these to the END of src/odoo.ts (before the final closing).

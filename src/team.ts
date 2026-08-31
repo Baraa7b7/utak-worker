@@ -23,9 +23,11 @@ import {
   createPurchaseListRecord,
   getConfirmedLinesForToday,
   getLatestPurchaseListToday,
+  getOrderIdsFromPurchaseList,
   getTeamMembersByRole,
   markPurchaseListDone,
   markPurchaseListSent,
+  transitionOrdersToInPurchase,
 } from "./odoo";
 import { sendButtons, sendText } from "./meta";
 
@@ -59,6 +61,14 @@ export async function aggregateAndDispatchToWarehouse(env: Env): Promise<void> {
 
   const items = aggregatePurchaseList(lines);
   const listId = await createPurchaseListRecord(env, items);
+
+  // v4.1: lock the exact orders that made it onto this list into in_purchase
+  // NOW, so downstream flows (purchase_done → build routes) don't depend on
+  // the button being tapped on the same Riyadh day.
+  const orderIdsOnList = Array.from(
+    new Set(items.flatMap((it) => it.order_ids ?? [])),
+  );
+  await transitionOrdersToInPurchase(env, orderIdsOnList);
 
   const warehouseMembers = await getTeamMembersByRole(env, "warehouse");
   if (warehouseMembers.length === 0) {
@@ -109,8 +119,11 @@ export async function warehouseConfirmedPurchase(
   env: Env,
   listId: number,
 ): Promise<{ routesDispatched: number; ordersMoved: number }> {
+  // v4.1: fetch the exact orders from the list BEFORE marking done, then pass
+  // them to route building — decouples routing from "today's" date filter.
+  const orderIdsOnList = await getOrderIdsFromPurchaseList(env, listId);
   await markPurchaseListDone(env, listId);
-  const routes = await buildAndCreateRoutesForDrivers(env);
+  const routes = await buildAndCreateRoutesForDrivers(env, orderIdsOnList);
 
   let ordersMoved = 0;
   for (const r of routes) {

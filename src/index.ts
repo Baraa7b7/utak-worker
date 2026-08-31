@@ -8,7 +8,15 @@
 import type { Env } from "./config";
 import { handleVerify, verifySignature, parseWebhook, sendText, sendButtons } from "./meta";
 import { seenBefore, markSeen } from "./dedup";
-import { findOrCreateCustomer, findSupplierByWhatsApp, findTeamMemberByWhatsApp, markStopIssue, smokeTest } from "./odoo";
+import {
+  findOrCreateCustomer,
+  findSupplierByWhatsApp,
+  findTeamMemberByWhatsApp,
+  markStopIssue,
+  savePartnerNeighborhood,
+  setOrderNeighborhood,
+  smokeTest,
+} from "./odoo";
 import { classifyIntent } from "./claude";
 import { dispatch, type RouterReply } from "./router";
 import type { SenderType, OdooPartner } from "./types";
@@ -171,6 +179,36 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
 
     const partner = await findOrCreateCustomer(env, msg.from, msg.profileName);
     const senderType: SenderType = "customer";
+
+    // v4.1: if we're waiting on this customer for a neighborhood answer, treat
+    // this text as the answer, save it, and resume by forcing the quotation
+    // request intent — no classifier round trip.
+    if (msg.type === "text") {
+      const pendingKey = `pending_neighborhood:${partner.id}`;
+      const pendingOrderId = await env.MSG_DEDUP.get(pendingKey);
+      if (pendingOrderId) {
+        const orderId = Number(pendingOrderId);
+        const neigh = msg.text.trim();
+        if (neigh.length >= 2 && neigh.length <= 60) {
+          await savePartnerNeighborhood(env, partner.id, neigh);
+          await setOrderNeighborhood(env, orderId, neigh);
+          await env.MSG_DEDUP.delete(pendingKey);
+          const reply: RouterReply = await dispatch(env, {
+            msg: { ...msg, text: "خلاص" },
+            intent: "request_quotation",
+            senderType,
+            partner,
+          });
+          await sendReply(env, msg.from, reply);
+          await markSeen(env, msg.messageId);
+          continue;
+        }
+        // Answer too short/long — nudge without dropping the KV marker
+        await sendText(env, msg.from, "اكتب لي اسم الحي فقط، من فضلك 🙏");
+        await markSeen(env, msg.messageId);
+        continue;
+      }
+    }
 
     // Buttons skip classification (router handles by buttonId).
     let intent: import("./types").Intent = "other";

@@ -11,7 +11,9 @@ import {
   fetchCatalog,
   findOrCreateTodayOrder,
   getOrderSummary,
+  getPartnerNeighborhood,
   logMessageAnalysis,
+  setOrderNeighborhood,
   updateOrderState,
 } from "./odoo";
 import {
@@ -173,6 +175,29 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
 
   // If customer also said "خلاص/جهزه" in same message, go straight to quotation
   if (quotationInline) {
+    // v4.1: neighborhood is required before any quotation goes out. If we don't
+    // have one on the partner yet, park the flow and ask.
+    const neigh = await getPartnerNeighborhood(env, partner.id);
+    if (!neigh) {
+      await env.MSG_DEDUP.put(
+        `pending_neighborhood:${partner.id}`,
+        String(orderId),
+        { expirationTtl: 60 * 30 },
+      );
+      return {
+        text: [
+          (created ? "بديت لك طلب جديد ✅" : "أضفنا لطلبك ✅"),
+          addedSummary,
+          unknownWarn,
+          urgencyNote,
+          ``,
+          `📍 قبل ما نجهّز الكوتيشن — من أي حي التوصيل؟ (اكتب اسم الحي فقط)`,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      };
+    }
+    await setOrderNeighborhood(env, orderId, neigh);
     const q = await createQuotationRecord(env, orderId);
     await updateOrderState(env, orderId, "waiting_confirmation");
     return {
@@ -182,6 +207,7 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
         unknownWarn,
         urgencyNote,
         ``,
+        `📍 التوصيل إلى: ${neigh}`,
         `📄 الكوتيشن رقم ${q.number} — راجع الأصناف واختر:`,
       ]
         .filter(Boolean)
@@ -228,6 +254,20 @@ async function handleQuotationRequest(env: Env, input: RouterInput): Promise<Rou
     return { text: "طلبك فاضي — أضف أصناف أول ثم أجهز الكوتيشن." };
   }
 
+  // v4.1: block quotation if we don't know the delivery neighborhood yet.
+  const neigh = await getPartnerNeighborhood(env, partner.id);
+  if (!neigh) {
+    await env.MSG_DEDUP.put(
+      `pending_neighborhood:${partner.id}`,
+      String(orderId),
+      { expirationTtl: 60 * 30 },
+    );
+    return {
+      text: `📍 قبل ما نجهّز الكوتيشن — من أي حي التوصيل؟ (اكتب اسم الحي فقط)`,
+    };
+  }
+  await setOrderNeighborhood(env, orderId, neigh);
+
   const q = await createQuotationRecord(env, orderId);
   await updateOrderState(env, orderId, "waiting_confirmation");
 
@@ -240,6 +280,7 @@ async function handleQuotationRequest(env: Env, input: RouterInput): Promise<Rou
       `📄 الكوتيشن رقم ${q.number}`,
       linesText,
       ``,
+      `📍 التوصيل إلى: ${neigh}`,
       `الأسعار النهائية عند التسليم. اختر:`,
     ].join("\n"),
     buttons: quotationButtons(orderId),

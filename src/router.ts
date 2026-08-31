@@ -19,6 +19,11 @@ import {
   isOrderingHoursOpen,
   isQuotationTrigger,
 } from "./hours";
+import {
+  notifyCustomerDelivered,
+  warehouseConfirmedPurchase,
+} from "./team";
+import { markStopDelivered, markStopIssue } from "./odoo";
 
 export interface RouterInput {
   msg: NormalizedMessage;
@@ -63,8 +68,9 @@ export async function dispatch(env: Env, input: RouterInput): Promise<RouterRepl
     }
 
     case "supplier_price_reply":
-      // v3 will parse prices; v2 just acknowledges.
-      return { text: "استلمنا رسالتك، جاري المعالجة. شكراً لك." };
+      // v3+: suppliers are routed directly from index.ts before reaching here.
+      // This case only fires if a non-supplier phone was misclassified.
+      return { text: "" };
 
     case "place_order":
     case "add_to_order":
@@ -112,8 +118,8 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
   // Also accept "خلاص/جهزه" tacked on the end of an order message
   const quotationInline = isQuotationTrigger(msg.text);
 
-  // Ordering hours check
-  if (!isOrderingHoursOpen()) {
+  // Ordering hours check (v3: also honours the 06:00 KV flag)
+  if (!(await isOrderingHoursOpen(env))) {
     return {
       text: "استقبال الطلبات مقفول حالياً. طلبك يوصلك بكرة الصبح إن شاء الله 🌿\n(ساعات الاستقبال 6 صباحاً – 9 مساءً)",
     };
@@ -256,6 +262,87 @@ async function handleButton(
   buttonId: string,
   partner: OdooPartner | null,
 ): Promise<RouterReply> {
+  // ---- v5: collector confirmed cash/transfer ----
+  if (buttonId.startsWith("collect_cash_") || buttonId.startsWith("collect_transfer_")) {
+    const { handleCollectionButton } = await import("./invoice");
+    const result = await handleCollectionButton(env, buttonId, partner?.id ?? null);
+    if (result) return { text: result.text };
+  }
+
+  // ---- v4: warehouse confirmed the purchase list ----
+  const mPurchase = /^purchase_done_(\d+)$/.exec(buttonId);
+  if (mPurchase) {
+    const listId = Number(mPurchase[1]);
+    await logMessageAnalysis(env, {
+      customerId: partner?.id ?? null,
+      text: buttonId,
+      intent: "purchase_done",
+      actionTaken: `button:purchase_done:${listId}`,
+    });
+    const { routesDispatched, ordersMoved } = await warehouseConfirmedPurchase(env, listId);
+    return {
+      text: `تمام 👍 تم إرسال المسارات لـ ${routesDispatched} سواق (${ordersMoved} توصيلة).`,
+    };
+  }
+
+  // ---- v4: driver marked stop delivered ----
+  const mDelivered = /^delivered_(\d+)$/.exec(buttonId);
+  if (mDelivered) {
+    const orderId = Number(mDelivered[1]);
+    await logMessageAnalysis(env, {
+      customerId: partner?.id ?? null,
+      text: buttonId,
+      intent: "delivered",
+      actionTaken: `button:delivered:${orderId}`,
+    });
+    const { routeId, allDone } = await markStopDelivered(env, orderId);
+    // v5: create invoice + dispatch to customer & collector
+    try {
+      const { createAndDispatchInvoiceForOrder } = await import("./invoice");
+      await createAndDispatchInvoiceForOrder(env, orderId);
+    } catch (e) {
+      console.warn(`[delivered] invoice dispatch failed for order ${orderId}`, (e as Error).message);
+    }
+    // Fetch order + customer to notify
+    try {
+      const { getOrderCustomer } = await import("./odoo");
+      const cust = await getOrderCustomer(env, orderId);
+      if (cust) {
+        await notifyCustomerDelivered(env, cust.phone, cust.name, orderId);
+      }
+    } catch (e) {
+      console.error("[delivered] notify customer failed", (e as Error)?.message);
+    }
+    return {
+      text: allDone
+        ? `تم التسليم ✅ — خلصت مسارك اليوم. شكراً 🙏`
+        : `تم التسليم ✅ — التوصيلة الجاية بانتظارك.`,
+    };
+  }
+
+  // ---- v4: driver reported issue ----
+  const mIssue = /^delivery_issue_(\d+)$/.exec(buttonId);
+  if (mIssue) {
+    const orderId = Number(mIssue[1]);
+    await logMessageAnalysis(env, {
+      customerId: partner?.id ?? null,
+      text: buttonId,
+      intent: "delivery_issue",
+      actionTaken: `button:delivery_issue:${orderId}`,
+    });
+    // Record placeholder issue; driver's next text becomes the note (handled below in dispatch)
+    await markStopIssue(env, orderId, "(بانتظار تفاصيل من السواق)");
+    // Stash pending-issue marker in KV so next text from this driver captures the note
+    if (partner?.id) {
+      await env.MSG_DEDUP.put(
+        `pending_issue:${partner.id}`,
+        String(orderId),
+        { expirationTtl: 60 * 30 },
+      );
+    }
+    return { text: `تمام، اكتب لي وش المشكلة بالضبط (رسالة واحدة) وأنا أسجّلها لبراء.` };
+  }
+
   const m = /^(confirm_order|edit_order|cancel_order)_(\d+)$/.exec(buttonId);
   if (!m) {
     return { text: "زر غير معروف." };

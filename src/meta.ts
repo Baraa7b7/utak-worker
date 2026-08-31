@@ -123,6 +123,42 @@ export async function sendText(env: Env, to: string, body: string): Promise<Resp
   });
 }
 
+// ---- v3: Send an approved template message (one body parameter for now) ----
+// Meta template call. `bodyParams` maps to {{1}}, {{2}}, ... in the template body.
+export async function sendTemplate(
+  env: Env,
+  to: string,
+  templateName: string,
+  language: string,
+  bodyParams: string[] = [],
+): Promise<Response> {
+  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/${env.META_PHONE_NUMBER_ID}/messages`;
+  const components =
+    bodyParams.length > 0
+      ? [{
+          type: "body",
+          parameters: bodyParams.map((t) => ({ type: "text", text: t })),
+        }]
+      : [];
+  return fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.META_ACCESS_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      to: to.replace(/^\+/, ""),
+      type: "template",
+      template: {
+        name: templateName,
+        language: { code: language || "ar" },
+        components,
+      },
+    }),
+  });
+}
+
 // ---- Send interactive button message (up to 3 buttons) ----
 export async function sendButtons(
   env: Env,

@@ -10,6 +10,7 @@ import {
   ANTHROPIC_VERSION,
   SYSTEM_PROMPT_CLASSIFY,
   SYSTEM_PROMPT_EXTRACT_ORDER,
+  SYSTEM_PROMPT_EXTRACT_SUPPLIER_PRICES,
   SYSTEM_PROMPT_REPLY,
 } from "./config";
 import type {
@@ -18,6 +19,8 @@ import type {
   ExtractedOrderItem,
   Intent,
   SenderType,
+  SupplierPricesExtract,
+  SupplierPriceItem,
 } from "./types";
 
 const VALID_INTENTS: readonly Intent[] = [
@@ -158,4 +161,72 @@ export async function extractOrderItems(
 
 export async function composeReply(env: Env, context: string): Promise<string> {
   return await callClaude(env, env.CLAUDE_MODEL_REPLY, SYSTEM_PROMPT_REPLY, context, 500);
+}
+
+// v3 — Parse a supplier's price reply into structured line items.
+export async function extractSupplierPrices(
+  env: Env,
+  args: {
+    supplierName: string;
+    replyText: string;
+    products: Array<{ id: number; name: string }>;
+    packagings: Array<{ id: number; name: string; product_id: number; is_default: boolean }>;
+  },
+): Promise<SupplierPricesExtract> {
+  // Build compact catalog view: one product per block with its packagings
+  const catalogLines = args.products.map((p) => {
+    const pks = args.packagings
+      .filter((k) => k.product_id === p.id)
+      .map((k) => `  {packaging_id:${k.id}, name:"${k.name}"${k.is_default ? ", default:true" : ""}}`)
+      .join("\n");
+    return `product_id:${p.id}, name:"${p.name}"\n${pks || "  (no packagings)"}`;
+  }).join("\n\n");
+
+  const userMsg = [
+    `SUPPLIER: ${args.supplierName}`,
+    ``,
+    `CATALOG:`,
+    catalogLines,
+    ``,
+    `MESSAGE:`,
+    args.replyText,
+  ].join("\n");
+
+  const raw = await callClaude(
+    env,
+    env.CLAUDE_MODEL_REPLY,
+    SYSTEM_PROMPT_EXTRACT_SUPPLIER_PRICES,
+    userMsg,
+    1500,
+  );
+
+  try {
+    const parsed = JSON.parse(stripFences(raw));
+    const pricesRaw: unknown[] = Array.isArray(parsed?.prices) ? parsed.prices : [];
+    const unrecogRaw: unknown[] = Array.isArray(parsed?.unrecognized) ? parsed.unrecognized : [];
+
+    const prices: SupplierPriceItem[] = pricesRaw
+      // deno-lint-ignore no-explicit-any
+      .map((r: any) => ({
+        product_id: Number(r?.product_id ?? 0) | 0,
+        packaging_id: Number(r?.packaging_id ?? 0) | 0,
+        cost_price: Number(r?.cost_price ?? 0),
+        actual_weight_kg:
+          typeof r?.actual_weight_kg === "number" && r.actual_weight_kg > 0
+            ? Number(r.actual_weight_kg)
+            : null,
+        notes: r?.notes ? String(r.notes) : null,
+      }))
+      .filter(
+        (p) => p.product_id > 0 && p.packaging_id > 0 && p.cost_price > 0,
+      );
+
+    return {
+      prices,
+      unrecognized: unrecogRaw.map((u) => String(u)),
+    };
+  } catch (e) {
+    console.error("extractSupplierPrices parse failed", (e as Error)?.message, raw.slice(0, 200));
+    return { prices: [], unrecognized: [] };
+  }
 }

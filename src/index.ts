@@ -8,12 +8,57 @@
 import type { Env } from "./config";
 import { handleVerify, verifySignature, parseWebhook, sendText, sendButtons } from "./meta";
 import { seenBefore, markSeen } from "./dedup";
-import { findOrCreateCustomer, findSupplierByWhatsApp, smokeTest } from "./odoo";
+import { findOrCreateCustomer, findSupplierByWhatsApp, findTeamMemberByWhatsApp, markStopIssue, smokeTest } from "./odoo";
 import { classifyIntent } from "./claude";
 import { dispatch, type RouterReply } from "./router";
-import type { SenderType } from "./types";
+import type { SenderType, OdooPartner } from "./types";
+import {
+  askAllSuppliersForPrices,
+  handleSupplierReply,
+  openOrderingWindow,
+  updateSupplierReliabilityScores,
+} from "./suppliers";
+import {
+  aggregateAndDispatchToWarehouse,
+  closeUnconfirmedOrders,
+} from "./team";
 
 export default {
+  // v3 — cron dispatcher
+  async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    const cron = event.cron;
+    console.log(`[scheduled] cron=${cron} at ${new Date().toISOString()}`);
+    try {
+      switch (cron) {
+        case "0 23 * * *":
+          await askAllSuppliersForPrices(env);
+          break;
+        case "0 2 * * *":
+          await updateSupplierReliabilityScores(env);
+          break;
+        case "0 3 * * *":
+          await openOrderingWindow(env);
+          break;
+        // v4:
+        case "0 18 * * *":              // 21:00 Riyadh
+          await closeUnconfirmedOrders(env);
+          break;
+        case "15 18 * * *":             // 21:15 Riyadh
+          await aggregateAndDispatchToWarehouse(env);
+          break;
+        case "0 15 * * *": {
+          const { sendDailyCollectionSummary } = await import("./invoice");
+          await sendDailyCollectionSummary(env);
+          break;
+        }
+        default:
+          console.warn(`[scheduled] unhandled cron: ${cron}`);
+      }
+    } catch (e) {
+      console.error(`[scheduled] cron ${cron} failed`, (e as Error)?.stack ?? e);
+    }
+  },
+
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
@@ -75,16 +120,57 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
 
     const supplier = await findSupplierByWhatsApp(env, msg.from);
 
-    let senderType: SenderType;
-    let partner;
-
+    // v3: suppliers bypass classifier + dispatch — their messages are always
+    // price replies. We need supplied_product_ids + WhatsApp number here, so
+    // fetch them lazily from Odoo.
     if (supplier) {
-      senderType = "supplier";
-      partner = supplier;
-    } else {
-      partner = await findOrCreateCustomer(env, msg.from, msg.profileName);
-      senderType = "customer";
+      const enriched = await enrichSupplier(env, supplier);
+      const replyText = await handleSupplierReply(env, enriched, msg.text, msg.messageId);
+      if (replyText) await sendText(env, msg.from, replyText);
+      await markSeen(env, msg.messageId);
+      continue;
     }
+
+    // v4: team member detection. Team members interact via buttons + free-text
+    // notes (for issues). They must NOT create customer records or hit Claude.
+    const teamMember = await findTeamMemberByWhatsApp(env, msg.from);
+    if (teamMember) {
+      if (msg.type === "interactive" && msg.buttonId) {
+        // Route buttons: warehouse purchase_done, driver delivered/issue
+        const reply: RouterReply = await dispatch(env, {
+          msg,
+          intent: "other",
+          senderType: "customer",   // reuse RouterInput shape; not used for buttons
+          partner: { id: teamMember.id, name: teamMember.name, x_whatsapp_number: teamMember.x_whatsapp_number },
+        });
+        await sendReply(env, msg.from, reply);
+      } else if (msg.type === "text") {
+        // Free text from a team member — check for pending issue note capture
+        const pendingKey = `pending_issue:${teamMember.id}`;
+        const pendingOrderId = await env.MSG_DEDUP.get(pendingKey);
+        if (pendingOrderId) {
+          const orderId = Number(pendingOrderId);
+          await markStopIssue(env, orderId, msg.text);
+          await env.MSG_DEDUP.delete(pendingKey);
+          if (env.OWNER_WHATSAPP) {
+            await sendText(
+              env,
+              env.OWNER_WHATSAPP,
+              `⚠️ مشكلة توصيل\nسواق: ${teamMember.name}\nطلب: #${orderId}\nالمشكلة: ${msg.text}`,
+            );
+          }
+          await sendText(env, msg.from, "تم تسجيل المشكلة، براء بيراجعها 🙏");
+        } else {
+          // Unrecognised free text from team member — soft ack
+          await sendText(env, msg.from, `مرحبا ${teamMember.name} 👋 استخدم الأزرار عشان نأكد الحالة.`);
+        }
+      }
+      await markSeen(env, msg.messageId);
+      continue;
+    }
+
+    const partner = await findOrCreateCustomer(env, msg.from, msg.profileName);
+    const senderType: SenderType = "customer";
 
     // Buttons skip classification (router handles by buttonId).
     let intent: import("./types").Intent = "other";
@@ -98,6 +184,20 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
     await sendReply(env, msg.from, reply);
     await markSeen(env, msg.messageId);
   }
+}
+
+// v3 — hydrate the supplier partner with fields needed by handleSupplierReply
+async function enrichSupplier(env: Env, supplier: OdooPartner): Promise<OdooPartner & {
+  x_supplied_product_ids: number[];
+  x_whatsapp_number: string;
+}> {
+  const { readPartnerSupplierFields } = await import("./odoo");
+  const extra = await readPartnerSupplierFields(env, supplier.id);
+  return {
+    ...supplier,
+    x_supplied_product_ids: extra?.x_supplied_product_ids ?? [],
+    x_whatsapp_number: extra?.x_whatsapp_number ?? supplier.x_whatsapp_number ?? "",
+  };
 }
 
 async function sendReply(env: Env, to: string, reply: RouterReply): Promise<void> {

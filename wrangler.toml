@@ -18,6 +18,9 @@ ODOO_LOGIN = "admin@utakfresh.com"                          # Odoo user email us
 CLAUDE_MODEL_CLASSIFY = "claude-haiku-4-5-20251001"
 CLAUDE_MODEL_REPLY    = "claude-sonnet-5"
 
+# v3: Baraa's phone for supplier failure alerts + missing-supplier morning summary
+OWNER_WHATSAPP = "+966505154962"
+
 # ------------------------------------------------------------
 # KV: message dedup, 24h TTL
 # Create with:  wrangler kv namespace create MSG_DEDUP
@@ -37,3 +40,17 @@ preview_id = "b423e1498d624696ac10ed101c621742"
 #   wrangler secret put ODOO_API_KEY
 #   wrangler secret put ANTHROPIC_API_KEY
 # ------------------------------------------------------------
+
+# ------------------------------------------------------------
+# v3 — Cron triggers (Cloudflare Workers Free tier: up to 3 cron routes)
+# Riyadh is UTC+3 (no DST).
+# ------------------------------------------------------------
+[triggers]
+crons = [
+  "0 23 * * *",   # 02:00 Riyadh — v3: ask all active suppliers for daily prices
+  "0 2 * * *",    # 05:00 Riyadh — v3: recompute supplier reliability scores
+  "0 3 * * *",    # 06:00 Riyadh — v3: open ordering flag + missing-supplier alert
+  "0 18 * * *",   # 21:00 Riyadh — v4: close unconfirmed orders
+  "15 18 * * *",  # 21:15 Riyadh — v4: aggregate + dispatch purchase list to warehouse
+  "0 15 * * *"    # 18:00 Riyadh — v5: daily collection summary
+]

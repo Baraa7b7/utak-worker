@@ -74,3 +74,95 @@ export interface ExtractedOrderItem {
   quantity: number;
   notes?: string;
 }
+
+// v3 — supplier flow
+
+export interface SupplierPriceItem {
+  product_id: number;
+  packaging_id: number;
+  cost_price: number;
+  actual_weight_kg: number | null;
+  notes: string | null;
+}
+
+export interface SupplierPricesExtract {
+  prices: SupplierPriceItem[];
+  unrecognized: string[];
+}
+
+export interface PricingConfig {
+  id: number;
+  x_operations_margin_percent: number;
+  x_profit_margin_percent: number;
+}
+
+export interface SupplierForAsk {
+  id: number;
+  name: string;
+  x_whatsapp_number: string;
+  x_supplied_product_ids: number[];
+}
+
+export interface SupplierLogRow {
+  id: number;
+  x_supplier_id: [number, string] | false;
+  x_sent_at: string;
+  x_replied_at: string | false;
+  x_prices_received_count?: number;
+  x_status: "sent" | "replied" | "no_reply" | "parsed";
+}
+
+export interface WhatsAppTemplateRow {
+  id: number;
+  x_meta_template_id: string;   // real Meta name once approved; "PENDING_..." until then
+  x_language: string;           // e.g. "ar"
+  x_purpose: string;
+}
+
+// ============================================================
+// v4 — team roles & orchestration
+// ============================================================
+
+export type TeamRole = "customer" | "driver" | "collector" | "warehouse";
+
+export interface TeamMember {
+  id: number;
+  name: string;
+  x_whatsapp_number: string;
+  x_role: TeamRole;
+  x_neighborhoods?: number[];   // ids of x_neighborhood
+}
+
+// A row in the aggregated purchase list Ahmad receives at 21:15
+export interface PurchaseListItem {
+  product_id: number;
+  product_name: string;
+  packaging_id: number;
+  packaging_name: string;
+  total_quantity: number;
+  order_ids: number[];          // orders contributing to this line
+}
+
+// A confirmed order line as pulled for aggregation
+export interface ConfirmedLine {
+  order_id: number;
+  customer_id: number;
+  customer_name: string;
+  neighborhood: string;
+  product_id: number;
+  product_name: string;
+  packaging_id: number;
+  packaging_name: string;
+  quantity: number;
+}
+
+// A stop assigned to a driver's route
+export interface RouteStop {
+  order_id: number;
+  customer_id: number;
+  customer_name: string;
+  customer_phone: string;
+  neighborhood: string;
+  sequence: number;
+  line_summary: string;         // "طماطم فلين × 5، خيار جرم × 3"
+}

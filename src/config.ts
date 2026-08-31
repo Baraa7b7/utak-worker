@@ -19,6 +19,9 @@ export interface Env {
   CLAUDE_MODEL_CLASSIFY: string;
   CLAUDE_MODEL_REPLY: string;
 
+  // v3
+  OWNER_WHATSAPP: string;   // Baraa's phone, E.164 with '+'
+
   // ---- Bindings ----
   MSG_DEDUP: KVNamespace;
 }
@@ -34,6 +37,25 @@ export const CATALOG_CACHE_TTL_SECONDS = 60 * 60;
 // v2: ordering hours (Riyadh local time, 24h)
 export const ORDERING_HOURS_OPEN = 6;    // 06:00 open
 export const ORDERING_HOURS_CLOSE = 21;  // 21:00 close (cutoff)
+
+// v3: KV flag key set by the 06:00 cron, TTL 20h so it clears before next morning
+export const ORDERING_OPEN_KEY = (yyyyMmDd: string) => `ordering_open_${yyyyMmDd}`;
+export const ORDERING_OPEN_TTL_SECONDS = 20 * 60 * 60;
+
+// v3: supplier template purposes (must match x_whatsapp_template.x_purpose)
+export const TMPL_SUPPLIER_ASK = "supplier_ask";
+export const TMPL_SUPPLIER_CONFIRM = "supplier_confirm";
+
+// v4: team template purposes (registered in x_whatsapp_template once Meta-approved;
+// until then, team.ts falls back to plain sendText — team members are internal users
+// so the 24h window rule doesn't bite the way it does for customers)
+export const TMPL_AHMAD_PURCHASE_LIST = "ahmad_purchase_list";
+export const TMPL_DRIVER_ROUTE        = "driver_route";
+export const TMPL_COLLECTION_LIST     = "collection_list";
+
+// v3: defaults if pricing config missing/empty
+export const DEFAULT_OPS_MARGIN_PCT = 15;
+export const DEFAULT_PROFIT_MARGIN_PCT = 20;
 
 // v2: urgency keywords → still create order for next-day, but flag it
 export const URGENCY_KEYWORDS = [
@@ -105,3 +127,26 @@ Matching rules:
 - If the customer says just "طماطم" with no quantity, default quantity=1.
 - Ignore greetings, questions, and non-order text — only extract items they're actually requesting.
 - Return an empty array [] if no items can be extracted.`;
+
+// ---- Supplier price extraction — Sonnet, only on supplier reply ----
+export const SYSTEM_PROMPT_EXTRACT_SUPPLIER_PRICES = `You extract wholesale price quotes from a supplier's Arabic WhatsApp reply.
+
+You will receive:
+1) The supplier's name and the CATALOG of products they supply — each with available packagings (فلين/جرم/كرتون/كيس/طبق/كيلو).
+2) A MESSAGE (may be terse, may include weights, may list several items).
+
+Return ONLY a JSON object (no prose, no markdown, no backticks):
+{
+  "prices": [
+    {"product_id": <int>, "packaging_id": <int>, "cost_price": <number>, "actual_weight_kg": <number|null>, "notes": "<string|null>"}
+  ],
+  "unrecognized": ["<raw line the message had but you couldn't map>"]
+}
+
+Rules:
+- Match Arabic product names fuzzily (طماطم=بندورة, خيار=قثاء, بطاطس=بطاطا).
+- If packaging is not explicit, pick the product's default packaging (default=true).
+- cost_price is a plain number in SAR (drop "ريال", "ر.س", "sar", commas).
+- actual_weight_kg only if supplier mentioned the actual crate weight (e.g. "الكرتون طلع 9 كيلو") — else null.
+- NEVER invent a product not in the catalog. Put unmappable lines in "unrecognized".
+- If the message is a greeting / question / non-price text, return {"prices": [], "unrecognized": []}.`;

@@ -100,7 +100,7 @@ Intents (pick exactly one):
 
 Notes:
 - If sender_type is "supplier", strongly prefer supplier_price_reply for messages with numbers.
-- If message contains BOTH quantities AND a quotation phrase, prefer request_quotation.
+- If message contains BOTH quantities AND a quotation phrase, prefer place_order (the order handler creates the quotation inline when it sees "خلاص"/"جهزه" in the same message).
 - Short "ok"/"تمام"/"طيب" after a bot message = other (buttons handle confirmation, not free text).`;
 
 // ---- Reply composer — Sonnet, only for free-form Arabic replies ----

@@ -70,6 +70,7 @@ export function parseWebhook(payload: unknown): NormalizedMessage[] {
 
         let text = "";
         let buttonId: string | undefined;
+        let location: NormalizedMessage["location"] | undefined;
 
         if (m.type === "text") {
           text = m?.text?.body ?? "";
@@ -87,6 +88,22 @@ export function parseWebhook(payload: unknown): NormalizedMessage[] {
           // template quick-reply button
           buttonId = m?.button?.payload;
           text = m?.button?.text ?? "";
+        } else if (m.type === "location") {
+          // v4.2 — customer shared a WhatsApp location
+          const loc = m?.location;
+          const lat = typeof loc?.latitude === "number" ? loc.latitude : Number(loc?.latitude);
+          const lng = typeof loc?.longitude === "number" ? loc.longitude : Number(loc?.longitude);
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            location = {
+              latitude: lat,
+              longitude: lng,
+              name: typeof loc?.name === "string" ? loc.name : undefined,
+              address: typeof loc?.address === "string" ? loc.address : undefined,
+            };
+            // Preserve a human-readable version in `text` too, so anything that
+            // only inspects text (e.g. logs) still sees something meaningful.
+            text = [loc?.name, loc?.address].filter(Boolean).join(" — ") || `📍 ${lat},${lng}`;
+          }
         }
 
         out.push({
@@ -98,6 +115,7 @@ export function parseWebhook(payload: unknown): NormalizedMessage[] {
           timestamp: m.timestamp ?? "",
           type: m.type ?? "unknown",
           buttonId,
+          location,
         });
       }
     }
@@ -155,6 +173,34 @@ export async function sendTemplate(
         language: { code: language || "ar" },
         components,
       },
+    }),
+  });
+}
+
+// ---- v4.2: Send a WhatsApp location message (opens in Waze/Google Maps) ----
+export async function sendLocation(
+  env: Env,
+  to: string,
+  latitude: number,
+  longitude: number,
+  name?: string,
+  address?: string,
+): Promise<Response> {
+  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/${env.META_PHONE_NUMBER_ID}/messages`;
+  const loc: Record<string, unknown> = { latitude, longitude };
+  if (name) loc.name = name.slice(0, 1000);
+  if (address) loc.address = address.slice(0, 1000);
+  return fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.META_ACCESS_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      to: to.replace(/^\+/, ""),
+      type: "location",
+      location: loc,
     }),
   });
 }

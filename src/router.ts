@@ -11,8 +11,10 @@ import {
   fetchCatalog,
   findOrCreateTodayOrder,
   getOrderSummary,
+  getPartnerLocation,
   getPartnerNeighborhood,
   logMessageAnalysis,
+  setOrderLocation,
   setOrderNeighborhood,
   updateOrderState,
 } from "./odoo";
@@ -175,10 +177,11 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
 
   // If customer also said "خلاص/جهزه" in same message, go straight to quotation
   if (quotationInline) {
-    // v4.1: neighborhood is required before any quotation goes out. If we don't
-    // have one on the partner yet, park the flow and ask.
-    const neigh = await getPartnerNeighborhood(env, partner.id);
-    if (!neigh) {
+    // v4.2: precise location preferred; saved neighborhood text is acceptable
+    // fallback. Missing both → park the flow and ask for a location share.
+    const loc = await getPartnerLocation(env, partner.id);
+    const neigh = loc?.neighborhood || (await getPartnerNeighborhood(env, partner.id));
+    if (!loc && !neigh) {
       await env.MSG_DEDUP.put(
         `pending_neighborhood:${partner.id}`,
         String(orderId),
@@ -191,13 +194,23 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
           unknownWarn,
           urgencyNote,
           ``,
-          `📍 قبل ما نجهّز الكوتيشن — من أي حي التوصيل؟ (اكتب اسم الحي فقط)`,
+          `📍 قبل ما نجهّز الكوتيشن — أرسل موقع التوصيل`,
+          `اضغط 📎 → موقع → إرسال موقعي الحالي`,
+          `(أو موقع محدد لو التوصيل لمكان ثاني)`,
         ]
           .filter(Boolean)
           .join("\n"),
       };
     }
-    await setOrderNeighborhood(env, orderId, neigh);
+    // Carry saved defaults down to the order record
+    if (loc) {
+      await setOrderLocation(env, orderId, loc.latitude, loc.longitude, loc.neighborhood);
+    } else if (neigh) {
+      await setOrderNeighborhood(env, orderId, neigh);
+    }
+    const deliveryLine = loc
+      ? `📍 التوصيل إلى: ${loc.neighborhood || "الموقع المحفوظ"} (${loc.mapUrl})`
+      : `📍 التوصيل إلى: ${neigh}`;
     const q = await createQuotationRecord(env, orderId);
     await updateOrderState(env, orderId, "waiting_confirmation");
     return {
@@ -207,7 +220,7 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
         unknownWarn,
         urgencyNote,
         ``,
-        `📍 التوصيل إلى: ${neigh}`,
+        deliveryLine,
         `📄 الكوتيشن رقم ${q.number} — راجع الأصناف واختر:`,
       ]
         .filter(Boolean)
@@ -254,19 +267,29 @@ async function handleQuotationRequest(env: Env, input: RouterInput): Promise<Rou
     return { text: "طلبك فاضي — أضف أصناف أول ثم أجهز الكوتيشن." };
   }
 
-  // v4.1: block quotation if we don't know the delivery neighborhood yet.
-  const neigh = await getPartnerNeighborhood(env, partner.id);
-  if (!neigh) {
+  // v4.2: precise location preferred; saved neighborhood text is acceptable
+  // fallback. Missing both → park the flow and ask for a location share.
+  const loc = await getPartnerLocation(env, partner.id);
+  const neigh = loc?.neighborhood || (await getPartnerNeighborhood(env, partner.id));
+  if (!loc && !neigh) {
     await env.MSG_DEDUP.put(
       `pending_neighborhood:${partner.id}`,
       String(orderId),
       { expirationTtl: 60 * 30 },
     );
     return {
-      text: `📍 قبل ما نجهّز الكوتيشن — من أي حي التوصيل؟ (اكتب اسم الحي فقط)`,
+      text: [
+        `📍 قبل ما نجهّز الكوتيشن — أرسل موقع التوصيل`,
+        `اضغط 📎 → موقع → إرسال موقعي الحالي`,
+        `(أو موقع محدد لو التوصيل لمكان ثاني)`,
+      ].join("\n"),
     };
   }
-  await setOrderNeighborhood(env, orderId, neigh);
+  if (loc) {
+    await setOrderLocation(env, orderId, loc.latitude, loc.longitude, loc.neighborhood);
+  } else if (neigh) {
+    await setOrderNeighborhood(env, orderId, neigh);
+  }
 
   const q = await createQuotationRecord(env, orderId);
   await updateOrderState(env, orderId, "waiting_confirmation");
@@ -275,12 +298,16 @@ async function handleQuotationRequest(env: Env, input: RouterInput): Promise<Rou
     .map((l) => `• ${l.product} ${l.packaging} × ${l.qty}`)
     .join("\n");
 
+  const deliveryLine = loc
+    ? `📍 التوصيل إلى: ${loc.neighborhood || "الموقع المحفوظ"} (${loc.mapUrl})`
+    : `📍 التوصيل إلى: ${neigh}`;
+
   return {
     bodyBeforeButtons: [
       `📄 الكوتيشن رقم ${q.number}`,
       linesText,
       ``,
-      `📍 التوصيل إلى: ${neigh}`,
+      deliveryLine,
       `الأسعار النهائية عند التسليم. اختر:`,
     ].join("\n"),
     buttons: quotationButtons(orderId),

@@ -29,7 +29,7 @@ import {
   markPurchaseListSent,
   transitionOrdersToInPurchase,
 } from "./odoo";
-import { sendButtons, sendText } from "./meta";
+import { sendButtons, sendLocation, sendText } from "./meta";
 
 // ============================================================
 // 21:00 Riyadh — auto-cancel unconfirmed orders
@@ -166,6 +166,26 @@ async function sendDriverRoute(
   await sendText(env, driver.x_whatsapp_number, trimmed);
 
   for (const s of stops) {
+    // v4.2 — before the button message, send the delivery location.
+    // A WhatsApp location message opens in Waze/Google Maps with one tap,
+    // which is the whole point of collecting the customer's real coordinates.
+    if (typeof s.latitude === "number" && typeof s.longitude === "number") {
+      await sendLocation(
+        env,
+        driver.x_whatsapp_number,
+        s.latitude,
+        s.longitude,
+        `#${s.order_id} — ${s.customer_name}`,
+        s.neighborhood || undefined,
+      );
+    } else if (s.map_url) {
+      await sendText(
+        env,
+        driver.x_whatsapp_number,
+        `📍 #${s.order_id} — ${s.customer_name}\n${s.map_url}`,
+      );
+    }
+
     const stopBody = `توصيلة #${s.order_id} — ${s.customer_name}${s.neighborhood ? " (" + s.neighborhood + ")" : ""}\n${s.line_summary}`;
     await sendButtons(env, driver.x_whatsapp_number, stopBody.slice(0, 1024), [
       { id: `delivered_${s.order_id}`, title: "تم التسليم ✅" },

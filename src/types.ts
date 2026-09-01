@@ -33,8 +33,15 @@ export interface NormalizedMessage {
   profileName: string;  // Meta contact profile name, may be empty
   text: string;         // Message body (text or button title)
   timestamp: string;    // Meta's unix seconds as string
-  type: string;         // 'text' | 'interactive' | ...
+  type: string;         // 'text' | 'interactive' | 'location' | ...
   buttonId?: string;    // For interactive button replies, e.g. "confirm_order_42"
+  // v4.2 — WhatsApp location share payload (customer taps 📎 → موقع → إرسال)
+  location?: {
+    latitude: number;
+    longitude: number;
+    name?: string;
+    address?: string;
+  };
 }
 
 export interface OdooPartner {
@@ -165,4 +172,9 @@ export interface RouteStop {
   neighborhood: string;
   sequence: number;
   line_summary: string;         // "طماطم فلين × 5، خيار جرم × 3"
+  // v4.2 — precise delivery location (WhatsApp location share). Optional
+  // because legacy orders / partners might not have it yet.
+  latitude?: number;
+  longitude?: number;
+  map_url?: string;
 }

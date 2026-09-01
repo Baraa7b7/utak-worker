@@ -943,9 +943,19 @@ export async function buildAndCreateRoutesForDrivers(
     id: number;
     x_customer_id: [number, string] | false;
     x_delivery_neighborhood: string | false;
+    x_delivery_latitude: number | false;
+    x_delivery_longitude: number | false;
+    x_delivery_map_url: string | false;
   }>>(env, "x_daily_order", "search_read", {
     domain,
-    fields: ["id", "x_customer_id", "x_delivery_neighborhood"],
+    fields: [
+      "id",
+      "x_customer_id",
+      "x_delivery_neighborhood",
+      "x_delivery_latitude",
+      "x_delivery_longitude",
+      "x_delivery_map_url",
+    ],
     limit: 500,
   });
   if (orders.length === 0) return [];
@@ -959,21 +969,43 @@ export async function buildAndCreateRoutesForDrivers(
   );
   const neighNameToId = new Map(neighRows.map((n) => [n.x_name.trim(), n.id]));
 
-  // Fetch customer phones
+  // Fetch customer phones + partner-level location fallback
   const custIds = orders
     .map((o) => (Array.isArray(o.x_customer_id) ? (o.x_customer_id as [number, string])[0] : 0))
     .filter((n) => n > 0);
-  const customers = await call<Array<{ id: number; phone: string | false; x_whatsapp_number: string | false }>>(
-    env,
-    "res.partner",
-    "search_read",
-    { domain: [["id", "in", custIds]], fields: ["id", "phone", "x_whatsapp_number"], limit: 500 },
-  );
+  const customers = await call<Array<{
+    id: number;
+    phone: string | false;
+    x_whatsapp_number: string | false;
+    x_delivery_latitude: number | false;
+    x_delivery_longitude: number | false;
+    x_delivery_map_url: string | false;
+  }>>(env, "res.partner", "search_read", {
+    domain: [["id", "in", custIds]],
+    fields: [
+      "id",
+      "phone",
+      "x_whatsapp_number",
+      "x_delivery_latitude",
+      "x_delivery_longitude",
+      "x_delivery_map_url",
+    ],
+    limit: 500,
+  });
   const custPhoneMap = new Map<number, string>();
+  const custLocMap = new Map<number, { lat: number; lng: number; url: string }>();
   for (const c of customers) {
     const phone = typeof c.x_whatsapp_number === "string" ? c.x_whatsapp_number
                 : typeof c.phone === "string" ? c.phone : "";
     custPhoneMap.set(c.id, phone);
+    const lat = typeof c.x_delivery_latitude === "number" ? c.x_delivery_latitude : 0;
+    const lng = typeof c.x_delivery_longitude === "number" ? c.x_delivery_longitude : 0;
+    if (lat !== 0 || lng !== 0) {
+      const url = typeof c.x_delivery_map_url === "string" && c.x_delivery_map_url
+        ? c.x_delivery_map_url
+        : googleMapsUrl(lat, lng);
+      custLocMap.set(c.id, { lat, lng, url });
+    }
   }
 
   // Fetch order lines for line summaries
@@ -1020,6 +1052,26 @@ export async function buildAndCreateRoutesForDrivers(
     }
 
     const stops = driverAssignments.get(chosenDriver.id)!;
+    // v4.2: prefer order-level coords, fall back to partner-level default
+    const orderLat = typeof o.x_delivery_latitude === "number" ? o.x_delivery_latitude : 0;
+    const orderLng = typeof o.x_delivery_longitude === "number" ? o.x_delivery_longitude : 0;
+    let latitude: number | undefined;
+    let longitude: number | undefined;
+    let map_url: string | undefined;
+    if (orderLat !== 0 || orderLng !== 0) {
+      latitude = orderLat;
+      longitude = orderLng;
+      map_url = typeof o.x_delivery_map_url === "string" && o.x_delivery_map_url
+        ? o.x_delivery_map_url
+        : googleMapsUrl(orderLat, orderLng);
+    } else {
+      const partnerLoc = custLocMap.get(custId);
+      if (partnerLoc) {
+        latitude = partnerLoc.lat;
+        longitude = partnerLoc.lng;
+        map_url = partnerLoc.url;
+      }
+    }
     stops.push({
       order_id: o.id,
       customer_id: custId,
@@ -1028,6 +1080,9 @@ export async function buildAndCreateRoutesForDrivers(
       neighborhood: neighName,
       sequence: (stops.length + 1) * 10,
       line_summary: (summaryByOrder.get(o.id) ?? []).join("، "),
+      latitude,
+      longitude,
+      map_url,
     });
   }
 
@@ -1169,6 +1224,8 @@ export async function getOrderCustomer(
 // Order intake must capture a neighborhood before a quotation goes out,
 // otherwise driver routing has nothing to match on. We remember it per
 // customer on res.partner so returning customers don't get asked again.
+// v4.2 upgraded this to a precise WhatsApp location share (lat/lng + map URL);
+// neighborhood text remains as a coarse grouping label + fallback.
 // ============================================================
 
 export async function getPartnerNeighborhood(env: Env, partnerId: number): Promise<string> {
@@ -1206,6 +1263,201 @@ export async function setOrderNeighborhood(
     ids: [orderId],
     vals: { x_delivery_neighborhood: clean },
   });
+}
+
+// ---------------------------------------------------------------
+// v4.2 — precise delivery location (lat/lng + generated map URL).
+// Stored on res.partner (customer-wide default) and x_daily_order (per-order
+// override, e.g. delivery to a different site today).
+// ---------------------------------------------------------------
+
+export interface DeliveryLocation {
+  latitude: number;
+  longitude: number;
+  mapUrl: string;
+  neighborhood: string; // may be empty
+}
+
+function googleMapsUrl(lat: number, lng: number): string {
+  return `https://maps.google.com/?q=${lat},${lng}`;
+}
+
+export async function getPartnerLocation(
+  env: Env,
+  partnerId: number,
+): Promise<DeliveryLocation | null> {
+  const rows = await call<Array<{
+    x_delivery_latitude: number | false;
+    x_delivery_longitude: number | false;
+    x_delivery_map_url: string | false;
+    x_delivery_neighborhood: string | false;
+  }>>(env, "res.partner", "search_read", {
+    domain: [["id", "=", partnerId]],
+    fields: [
+      "x_delivery_latitude",
+      "x_delivery_longitude",
+      "x_delivery_map_url",
+      "x_delivery_neighborhood",
+    ],
+    limit: 1,
+  });
+  const r = rows[0];
+  if (!r) return null;
+  const lat = typeof r.x_delivery_latitude === "number" ? r.x_delivery_latitude : 0;
+  const lng = typeof r.x_delivery_longitude === "number" ? r.x_delivery_longitude : 0;
+  if (lat === 0 && lng === 0) return null;
+  return {
+    latitude: lat,
+    longitude: lng,
+    mapUrl: typeof r.x_delivery_map_url === "string" && r.x_delivery_map_url
+      ? r.x_delivery_map_url
+      : googleMapsUrl(lat, lng),
+    neighborhood: typeof r.x_delivery_neighborhood === "string" ? r.x_delivery_neighborhood : "",
+  };
+}
+
+export async function savePartnerLocation(
+  env: Env,
+  partnerId: number,
+  lat: number,
+  lng: number,
+  neighborhood?: string,
+): Promise<void> {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+  const vals: Record<string, unknown> = {
+    x_delivery_latitude: lat,
+    x_delivery_longitude: lng,
+    x_delivery_map_url: googleMapsUrl(lat, lng),
+  };
+  if (neighborhood && neighborhood.trim()) {
+    vals.x_delivery_neighborhood = neighborhood.trim();
+  }
+  await call(env, "res.partner", "write", { ids: [partnerId], vals });
+}
+
+export async function setOrderLocation(
+  env: Env,
+  orderId: number,
+  lat: number,
+  lng: number,
+  neighborhood?: string,
+): Promise<void> {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+  const vals: Record<string, unknown> = {
+    x_delivery_latitude: lat,
+    x_delivery_longitude: lng,
+    x_delivery_map_url: googleMapsUrl(lat, lng),
+  };
+  if (neighborhood && neighborhood.trim()) {
+    vals.x_delivery_neighborhood = neighborhood.trim();
+  }
+  await call(env, "x_daily_order", "write", { ids: [orderId], vals });
+}
+
+// Fetch a stop's location for driver dispatch — order-level overrides partner-level.
+export async function getOrderDeliveryLocation(
+  env: Env,
+  orderId: number,
+): Promise<DeliveryLocation | null> {
+  const rows = await call<Array<{
+    x_delivery_latitude: number | false;
+    x_delivery_longitude: number | false;
+    x_delivery_map_url: string | false;
+    x_delivery_neighborhood: string | false;
+    x_customer_id: [number, string] | false;
+  }>>(env, "x_daily_order", "search_read", {
+    domain: [["id", "=", orderId]],
+    fields: [
+      "x_delivery_latitude",
+      "x_delivery_longitude",
+      "x_delivery_map_url",
+      "x_delivery_neighborhood",
+      "x_customer_id",
+    ],
+    limit: 1,
+  });
+  const r = rows[0];
+  if (!r) return null;
+  const lat = typeof r.x_delivery_latitude === "number" ? r.x_delivery_latitude : 0;
+  const lng = typeof r.x_delivery_longitude === "number" ? r.x_delivery_longitude : 0;
+  if (lat !== 0 || lng !== 0) {
+    return {
+      latitude: lat,
+      longitude: lng,
+      mapUrl: typeof r.x_delivery_map_url === "string" && r.x_delivery_map_url
+        ? r.x_delivery_map_url
+        : googleMapsUrl(lat, lng),
+      neighborhood: typeof r.x_delivery_neighborhood === "string" ? r.x_delivery_neighborhood : "",
+    };
+  }
+  // Fallback: partner-level default
+  const partnerId = Array.isArray(r.x_customer_id) ? r.x_customer_id[0] : 0;
+  if (!partnerId) return null;
+  return getPartnerLocation(env, partnerId);
+}
+
+// ---------------------------------------------------------------
+// v4.2 — one-shot migration: idempotently create the 3 location fields
+// on res.partner and x_daily_order. Called from POST /admin/migrate.
+// ---------------------------------------------------------------
+
+interface FieldSpec {
+  name: string;
+  label: string;
+  ttype: "float" | "char";
+}
+
+const LOCATION_FIELDS: FieldSpec[] = [
+  { name: "x_delivery_latitude", label: "Delivery Latitude", ttype: "float" },
+  { name: "x_delivery_longitude", label: "Delivery Longitude", ttype: "float" },
+  { name: "x_delivery_map_url", label: "Delivery Map URL", ttype: "char" },
+];
+
+const LOCATION_MODELS = ["res.partner", "x_daily_order"];
+
+export async function ensureLocationFields(env: Env): Promise<{
+  created: Array<{ model: string; field: string }>;
+  existed: Array<{ model: string; field: string }>;
+}> {
+  const created: Array<{ model: string; field: string }> = [];
+  const existed: Array<{ model: string; field: string }> = [];
+
+  for (const modelName of LOCATION_MODELS) {
+    // Look up ir.model id for this model
+    const modelRows = await call<Array<{ id: number }>>(env, "ir.model", "search_read", {
+      domain: [["model", "=", modelName]],
+      fields: ["id"],
+      limit: 1,
+    });
+    const modelId = modelRows[0]?.id;
+    if (!modelId) {
+      throw new Error(`ir.model not found for ${modelName}`);
+    }
+
+    for (const spec of LOCATION_FIELDS) {
+      const existing = await call<Array<{ id: number }>>(env, "ir.model.fields", "search_read", {
+        domain: [["model", "=", modelName], ["name", "=", spec.name]],
+        fields: ["id"],
+        limit: 1,
+      });
+      if (existing.length > 0) {
+        existed.push({ model: modelName, field: spec.name });
+        continue;
+      }
+      await call(env, "ir.model.fields", "create", {
+        vals_list: [{
+          name: spec.name,
+          field_description: spec.label,
+          model: modelName,
+          model_id: modelId,
+          ttype: spec.ttype,
+          state: "manual",
+        }],
+      });
+      created.push({ model: modelName, field: spec.name });
+    }
+  }
+  return { created, existed };
 }
 
 // ============================================================

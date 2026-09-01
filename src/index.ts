@@ -9,11 +9,14 @@ import type { Env } from "./config";
 import { handleVerify, verifySignature, parseWebhook, sendText, sendButtons } from "./meta";
 import { seenBefore, markSeen } from "./dedup";
 import {
+  ensureLocationFields,
   findOrCreateCustomer,
   findSupplierByWhatsApp,
   findTeamMemberByWhatsApp,
   markStopIssue,
+  savePartnerLocation,
   savePartnerNeighborhood,
+  setOrderLocation,
   setOrderNeighborhood,
   smokeTest,
 } from "./odoo";
@@ -91,6 +94,24 @@ export default {
       return handleVerify(url, env);
     }
 
+    // v4.2 — one-shot Odoo schema migration: creates x_delivery_latitude /
+    // x_delivery_longitude / x_delivery_map_url on res.partner and x_daily_order.
+    // Idempotent (safe to call multiple times). Token-guarded by ADMIN_TOKEN
+    // secret — set with: npx wrangler secret put ADMIN_TOKEN
+    if (request.method === "POST" && url.pathname === "/admin/migrate") {
+      const token = url.searchParams.get("token") ?? request.headers.get("x-admin-token") ?? "";
+      const expected = (env as unknown as { ADMIN_TOKEN?: string }).ADMIN_TOKEN ?? "";
+      if (!expected || token !== expected) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      try {
+        const result = await ensureLocationFields(env);
+        return json({ ok: true, ...result });
+      } catch (e) {
+        return json({ ok: false, error: (e as Error).message }, 500);
+      }
+    }
+
     if (request.method === "POST" && url.pathname === "/webhook") {
       const raw = await request.text();
       const sig = request.headers.get("x-hub-signature-256");
@@ -120,9 +141,15 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
   const messages = parseWebhook(payload);
 
   for (const msg of messages) {
-    // v2: accept text AND interactive (button/list replies)
-    if (msg.type !== "text" && msg.type !== "interactive" && msg.type !== "button") continue;
-    if (!msg.text && !msg.buttonId) continue;
+    // v4.2: accept text, interactive (button/list replies), button (template
+    // quick-reply), and location shares.
+    if (
+      msg.type !== "text" &&
+      msg.type !== "interactive" &&
+      msg.type !== "button" &&
+      msg.type !== "location"
+    ) continue;
+    if (!msg.text && !msg.buttonId && !msg.location) continue;
 
     if (await seenBefore(env, msg.messageId)) continue;
 
@@ -180,19 +207,48 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
     const partner = await findOrCreateCustomer(env, msg.from, msg.profileName);
     const senderType: SenderType = "customer";
 
-    // v4.1: if we're waiting on this customer for a neighborhood answer, treat
-    // this text as the answer, save it, and resume by forcing the quotation
-    // request intent — no classifier round trip.
-    if (msg.type === "text") {
-      const pendingKey = `pending_neighborhood:${partner.id}`;
-      const pendingOrderId = await env.MSG_DEDUP.get(pendingKey);
-      if (pendingOrderId) {
-        const orderId = Number(pendingOrderId);
+    // v4.2: pending_neighborhood — actually now "pending_location" semantically.
+    // Preferred answer = WhatsApp location share (precise lat/lng). Text answer
+    // still accepted as fallback (coarse neighborhood only, no coords).
+    const pendingKey = `pending_neighborhood:${partner.id}`;
+    const pendingOrderId = await env.MSG_DEDUP.get(pendingKey);
+
+    if (pendingOrderId) {
+      const orderId = Number(pendingOrderId);
+
+      // Case A: precise location share — save coords + resume with quotation
+      if (msg.type === "location" && msg.location) {
+        const { latitude, longitude, name, address } = msg.location;
+        const neigh = (name ?? address ?? "").trim().slice(0, 60);
+        await savePartnerLocation(env, partner.id, latitude, longitude, neigh);
+        await setOrderLocation(env, orderId, latitude, longitude, neigh);
+        await env.MSG_DEDUP.delete(pendingKey);
+        const reply: RouterReply = await dispatch(env, {
+          msg: { ...msg, text: "خلاص" },
+          intent: "request_quotation",
+          senderType,
+          partner,
+        });
+        await sendReply(env, msg.from, reply);
+        await markSeen(env, msg.messageId);
+        continue;
+      }
+
+      // Case B: text answer — save as neighborhood (fallback, no coords)
+      if (msg.type === "text") {
         const neigh = msg.text.trim();
         if (neigh.length >= 2 && neigh.length <= 60) {
           await savePartnerNeighborhood(env, partner.id, neigh);
           await setOrderNeighborhood(env, orderId, neigh);
           await env.MSG_DEDUP.delete(pendingKey);
+          // Gentle prompt: text-only means we won't have precise coords for
+          // driver routing — ask for a proper location share too, but don't
+          // block the quotation flow.
+          await sendText(
+            env,
+            msg.from,
+            `حفظنا الحي: ${neigh} ✅\nلو تقدر ترسل موقعك من قوقل مابس (📎 → موقع → موقعي الحالي) بيوصلك السائق أدق مرة جاية 🌿`,
+          );
           const reply: RouterReply = await dispatch(env, {
             msg: { ...msg, text: "خلاص" },
             intent: "request_quotation",
@@ -203,11 +259,26 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
           await markSeen(env, msg.messageId);
           continue;
         }
-        // Answer too short/long — nudge without dropping the KV marker
-        await sendText(env, msg.from, "اكتب لي اسم الحي فقط، من فضلك 🙏");
+        // Too short/long — nudge without dropping the KV marker
+        await sendText(
+          env,
+          msg.from,
+          "أرسل موقعك من قوقل مابس (📎 → موقع → موقعي الحالي)، أو اكتب اسم الحي فقط 🙏",
+        );
         await markSeen(env, msg.messageId);
         continue;
       }
+    }
+
+    // v4.2: location share outside a pending flow → update partner's saved
+    // default so future orders route to the new spot. Short ack, no further processing.
+    if (msg.type === "location" && msg.location) {
+      const { latitude, longitude, name, address } = msg.location;
+      const neigh = (name ?? address ?? "").trim().slice(0, 60);
+      await savePartnerLocation(env, partner.id, latitude, longitude, neigh);
+      await sendText(env, msg.from, "حفظنا موقعك للتوصيل ✅ طلباتك الجاية بيوصلك السائق مباشرة.");
+      await markSeen(env, msg.messageId);
+      continue;
     }
 
     // Buttons skip classification (router handles by buttonId).

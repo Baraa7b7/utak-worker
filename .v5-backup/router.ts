@@ -354,8 +354,10 @@ async function handleButton(
   if (mStandingConfirm) {
     const sid = Number(mStandingConfirm[1]);
     await logMessageAnalysis(env, {
-      customerId: partner?.id ?? null, text: buttonId,
-      intent: "standing_confirm", actionTaken: `button:standing_confirm:${sid}`,
+      customerId: partner?.id ?? null,
+      text: buttonId,
+      intent: "standing_confirm",
+      actionTaken: `button:standing_confirm:${sid}`,
     });
     return { text: await handleStandingConfirm(env, sid) };
   }
@@ -363,8 +365,10 @@ async function handleButton(
   if (mStandingEdit) {
     const sid = Number(mStandingEdit[1]);
     await logMessageAnalysis(env, {
-      customerId: partner?.id ?? null, text: buttonId,
-      intent: "standing_edit", actionTaken: `button:standing_edit:${sid}`,
+      customerId: partner?.id ?? null,
+      text: buttonId,
+      intent: "standing_edit",
+      actionTaken: `button:standing_edit:${sid}`,
     });
     return { text: await handleStandingEdit(env, sid) };
   }
@@ -372,8 +376,10 @@ async function handleButton(
   if (mStandingSkip) {
     const sid = Number(mStandingSkip[1]);
     await logMessageAnalysis(env, {
-      customerId: partner?.id ?? null, text: buttonId,
-      intent: "standing_skip", actionTaken: `button:standing_skip:${sid}`,
+      customerId: partner?.id ?? null,
+      text: buttonId,
+      intent: "standing_skip",
+      actionTaken: `button:standing_skip:${sid}`,
     });
     return { text: await handleStandingSkip(env, sid) };
   }

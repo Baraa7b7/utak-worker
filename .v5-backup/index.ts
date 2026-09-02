@@ -63,6 +63,7 @@ export default {
           break;
         }
         case "0 14 * * *": {
+          // v6.1: 17:00 Riyadh — standing-order reminders
           const { sendStandingOrderReminders } = await import("./standing");
           await sendStandingOrderReminders(env);
           break;

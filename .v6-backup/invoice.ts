@@ -98,7 +98,7 @@ export async function createAndDispatchInvoiceForOrder(
   // ---- Send to customer via approved template ----
   // invoice_customer_v2 params: name, invoiceNumber, lineItems, total
   const linesFormatted = pricedLines
-    .map(p => `• ${p.product} × ${p.qty} = ${p.line_total} ر.س`)
+    .map(p => `• ${p.name} × ${p.qty} = ${p.line_total} ر.س`)
     .join("\n");
   try {
     const resp = await sendTemplateByPurpose(env, order.customer_whatsapp, T.CUSTOMER_INVOICE,

@@ -58,38 +58,17 @@ export async function askAllSuppliersForPrices(env: Env): Promise<void> {
     return;
   }
 
-  // batch: fetch all product names once for suppliers in this run
-  const allProductIds = [...new Set(suppliers.flatMap((s) => s.x_supplied_product_ids || []))];
-  const catalog = allProductIds.length
-    ? await fetchSupplierCatalog(env, allProductIds)
-    : { products: [], packagings: [] };
-  const productNameById = new Map(catalog.products.map((p) => [p.id, p.name]));
-
   let sent = 0;
   let failed = 0;
-  let skippedEmpty = 0;
   for (const s of suppliers) {
     try {
-      const productNames = (s.x_supplied_product_ids || [])
-        .map((id) => productNameById.get(id))
-        .filter((n): n is string => !!n);
-      if (productNames.length === 0) {
-        console.warn(
-          `[cron 02:00] supplier ${s.id} (${s.name}) has no catalog products — skipping`,
-        );
-        skippedEmpty++;
-        continue;
-      }
-      // Meta template var rules: no newlines/tabs/4+ spaces. Comma-separated is safe.
-      const productList = productNames.join("، ");
-
       const logId = await createSupplierAskLog(env, s.id);
       const res = await sendTemplate(
         env,
         s.x_whatsapp_number,
         tmpl.x_meta_template_id,
         tmpl.x_language || "ar",
-        [productList],
+        [s.name],
       );
       if (!res.ok) {
         const body = (await res.text()).slice(0, 200);
@@ -105,9 +84,7 @@ export async function askAllSuppliersForPrices(env: Env): Promise<void> {
       console.error(`[cron 02:00] supplier ${s.id} error`, (e as Error)?.message);
     }
   }
-  console.log(
-    `[cron 02:00] done. asked=${sent} failed=${failed} skipped_empty=${skippedEmpty} total=${suppliers.length}`,
-  );
+  console.log(`[cron 02:00] done. asked=${sent} failed=${failed} total=${suppliers.length}`);
 }
 
 // ============================================================

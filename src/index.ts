@@ -111,6 +111,28 @@ export default {
       }
     }
 
+    // TEMPORARY — /admin/test-invoice?id=<invoice_id>
+    // Re-sends an existing invoice's PDF template via the normal send path.
+    if (request.method === "GET" && url.pathname === "/admin/test-invoice") {
+      const token = url.searchParams.get("token") ?? request.headers.get("x-admin-token") ?? "";
+      const expected = env.ADMIN_TOKEN ?? "";
+      if (!expected || token !== expected) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      const idParam = url.searchParams.get("id");
+      if (!idParam) return json({ error: "missing id" }, 400);
+      const id = Number(idParam);
+      if (!Number.isFinite(id) || id <= 0) return json({ error: "invalid id" }, 400);
+      try {
+        const { resendInvoicePdfById } = await import("./invoice");
+        const origin = `${url.protocol}//${url.host}`;
+        const result = await resendInvoicePdfById(env, id, origin);
+        return json(result, result.ok ? 200 : 502);
+      } catch (e) {
+        return json({ ok: false, error: (e as Error).message }, 500);
+      }
+    }
+
     // 2026-09-05 — invoice PDF preview + optional R2 upload
     if (request.method === "GET" && url.pathname === "/test-invoice") {
       const token = url.searchParams.get("token") ?? request.headers.get("x-admin-token") ?? "";

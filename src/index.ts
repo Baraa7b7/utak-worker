@@ -1,9 +1,15 @@
 // UTAK Cloudflare Worker — v2 entry point.
 // Endpoints:
-//   GET  /             → sanity ping
-//   GET  /health       → Odoo smoke test + timestamp
-//   GET  /webhook      → Meta verification challenge
-//   POST /webhook      → Meta events (HMAC-verified, deduped, routed)
+//   GET  /                            → sanity ping
+//   GET  /health                      → Odoo smoke test
+//   GET  /webhook                     → Meta verification
+//   POST /webhook                     → Meta events
+//   POST /admin/migrate               → Odoo schema migration (token-guarded)
+//   GET  /test-invoice                → PDF preview (token-guarded)
+//        ?token=X                     → test data (مطعم النخيل)
+//        ?token=X&id=147              → real Odoo invoice #147
+//        ?token=X&id=147&save=1       → generate + upload to R2, return JSON URL
+//   GET  /invoice-pdf/{num}/{tok}.pdf → PUBLIC PDF from R2 (HMAC-signed)
 
 import type { Env } from "./config";
 import { handleVerify, verifySignature, parseWebhook, sendText, sendButtons } from "./meta";
@@ -35,28 +41,16 @@ import {
 } from "./team";
 
 export default {
-  // v3 — cron dispatcher
   async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     const cron = event.cron;
     console.log(`[scheduled] cron=${cron} at ${new Date().toISOString()}`);
     try {
       switch (cron) {
-        case "0 23 * * *":
-          await askAllSuppliersForPrices(env);
-          break;
-        case "0 2 * * *":
-          await updateSupplierReliabilityScores(env);
-          break;
-        case "0 3 * * *":
-          await openOrderingWindow(env);
-          break;
-        // v4:
-        case "0 18 * * *":              // 21:00 Riyadh
-          await closeUnconfirmedOrders(env);
-          break;
-        case "15 18 * * *":             // 21:15 Riyadh
-          await aggregateAndDispatchToWarehouse(env);
-          break;
+        case "0 23 * * *": await askAllSuppliersForPrices(env); break;
+        case "0 2 * * *": await updateSupplierReliabilityScores(env); break;
+        case "0 3 * * *": await openOrderingWindow(env); break;
+        case "0 18 * * *": await closeUnconfirmedOrders(env); break;
+        case "15 18 * * *": await aggregateAndDispatchToWarehouse(env); break;
         case "0 15 * * *": {
           const { sendDailyCollectionSummary } = await import("./invoice");
           await sendDailyCollectionSummary(env);
@@ -68,13 +62,11 @@ export default {
           break;
         }
         case "0 5 * * *": {
-          // v7: 08:00 Riyadh — daily outreach (feedback, pay_remind, inactive)
           const { runDailyOutreach } = await import("./outreach");
           await runDailyOutreach(env);
           break;
         }
-        default:
-          console.warn(`[scheduled] unhandled cron: ${cron}`);
+        default: console.warn(`[scheduled] unhandled cron: ${cron}`);
       }
     } catch (e) {
       console.error(`[scheduled] cron ${cron} failed`, (e as Error)?.stack ?? e);
@@ -105,13 +97,9 @@ export default {
       return handleVerify(url, env);
     }
 
-    // v4.2 — one-shot Odoo schema migration: creates x_delivery_latitude /
-    // x_delivery_longitude / x_delivery_map_url on res.partner and x_daily_order.
-    // Idempotent (safe to call multiple times). Token-guarded by ADMIN_TOKEN
-    // secret — set with: npx wrangler secret put ADMIN_TOKEN
     if (request.method === "POST" && url.pathname === "/admin/migrate") {
       const token = url.searchParams.get("token") ?? request.headers.get("x-admin-token") ?? "";
-      const expected = (env as unknown as { ADMIN_TOKEN?: string }).ADMIN_TOKEN ?? "";
+      const expected = env.ADMIN_TOKEN ?? "";
       if (!expected || token !== expected) {
         return json({ error: "unauthorized" }, 401);
       }
@@ -121,6 +109,102 @@ export default {
       } catch (e) {
         return json({ ok: false, error: (e as Error).message }, 500);
       }
+    }
+
+    // 2026-09-05 — invoice PDF preview + optional R2 upload
+    if (request.method === "GET" && url.pathname === "/test-invoice") {
+      const token = url.searchParams.get("token") ?? request.headers.get("x-admin-token") ?? "";
+      const expected = env.ADMIN_TOKEN ?? "";
+      if (!expected || token !== expected) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      try {
+        const {
+          generateInvoicePDF,
+          buildInvoicePDFDataFromOdoo,
+          uploadInvoiceToR2,
+          TEST_INVOICE_DATA,
+        } = await import("./invoice");
+
+        const idParam = url.searchParams.get("id");
+        const shouldSave = url.searchParams.get("save") === "1";
+
+        let data;
+        let filenameHint: string;
+
+        if (idParam) {
+          const id = Number(idParam);
+          if (!Number.isFinite(id) || id <= 0) {
+            return json({ error: "invalid id" }, 400);
+          }
+          data = await buildInvoicePDFDataFromOdoo(env, id);
+          if (!data) return json({ error: `invoice ${id} not found` }, 404);
+          filenameHint = `utak-invoice-${data.invoiceNumber}.pdf`;
+        } else {
+          data = TEST_INVOICE_DATA;
+          filenameHint = `utak-test-invoice.pdf`;
+        }
+
+        const pdfBytes = await generateInvoicePDF(data, env);
+
+        // save=1 → upload to R2 + return JSON with public URL
+        if (shouldSave) {
+          const origin = `${url.protocol}//${url.host}`;
+          const result = await uploadInvoiceToR2(env, pdfBytes, data.invoiceNumber, origin);
+          return json({
+            ok: true,
+            invoiceNumber: data.invoiceNumber,
+            size: result.size,
+            publicUrl: result.publicUrl,
+            r2Key: result.key,
+          });
+        }
+
+        // Default → return PDF inline
+        return new Response(pdfBytes, {
+          status: 200,
+          headers: {
+            "Content-Type": "application/pdf",
+            "Content-Disposition": `inline; filename="${filenameHint}"`,
+            "Cache-Control": "no-store",
+          },
+        });
+      } catch (e) {
+        return json({ ok: false, error: (e as Error).message }, 500);
+      }
+    }
+
+    // 2026-09-05 — PUBLIC endpoint: serves invoice PDF from R2 by signed URL.
+    // Path shape: /invoice-pdf/{invoiceNumber}/{token}.pdf
+    // No auth token needed — signature in path is the security.
+    if (request.method === "GET" && url.pathname.startsWith("/invoice-pdf/")) {
+      const path = url.pathname.substring("/invoice-pdf/".length);
+      const match = /^(.+?)\/([a-f0-9]{16})\.pdf$/.exec(path);
+      if (!match) return new Response("not found", { status: 404 });
+
+      const invoiceNumber = match[1];
+      const providedToken = match[2];
+
+      if (!env.ADMIN_TOKEN) {
+        return new Response("service misconfigured", { status: 500 });
+      }
+
+      const { verifyInvoiceToken } = await import("./invoice");
+      const valid = await verifyInvoiceToken(env.ADMIN_TOKEN, invoiceNumber, providedToken);
+      if (!valid) return new Response("not found", { status: 404 });
+
+      const key = `invoices/${invoiceNumber}.pdf`;
+      const obj = await env.INVOICES_BUCKET.get(key);
+      if (!obj) return new Response("not found", { status: 404 });
+
+      return new Response(obj.body, {
+        status: 200,
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `inline; filename="${invoiceNumber}.pdf"`,
+          "Cache-Control": "public, max-age=3600",
+        },
+      });
     }
 
     if (request.method === "POST" && url.pathname === "/webhook") {
@@ -152,8 +236,6 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
   const messages = parseWebhook(payload);
 
   for (const msg of messages) {
-    // v4.2: accept text, interactive (button/list replies), button (template
-    // quick-reply), and location shares.
     if (
       msg.type !== "text" &&
       msg.type !== "interactive" &&
@@ -165,10 +247,6 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
     if (await seenBefore(env, msg.messageId)) continue;
 
     const supplier = await findSupplierByWhatsApp(env, msg.from);
-
-    // v3: suppliers bypass classifier + dispatch — their messages are always
-    // price replies. We need supplied_product_ids + WhatsApp number here, so
-    // fetch them lazily from Odoo.
     if (supplier) {
       const enriched = await enrichSupplier(env, supplier);
       const replyText = await handleSupplierReply(env, enriched, msg.text, msg.messageId);
@@ -177,21 +255,15 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
       continue;
     }
 
-    // v4: team member detection. Team members interact via buttons + free-text
-    // notes (for issues). They must NOT create customer records or hit Claude.
     const teamMember = await findTeamMemberByWhatsApp(env, msg.from);
     if (teamMember) {
       if (msg.type === "interactive" && msg.buttonId) {
-        // Route buttons: warehouse purchase_done, driver delivered/issue
         const reply: RouterReply = await dispatch(env, {
-          msg,
-          intent: "other",
-          senderType: "customer",   // reuse RouterInput shape; not used for buttons
+          msg, intent: "other", senderType: "customer",
           partner: { id: teamMember.id, name: teamMember.name, x_whatsapp_number: teamMember.x_whatsapp_number },
         });
         await sendReply(env, msg.from, reply);
       } else if (msg.type === "text") {
-        // Free text from a team member — check for pending issue note capture
         const pendingKey = `pending_issue:${teamMember.id}`;
         const pendingOrderId = await env.MSG_DEDUP.get(pendingKey);
         if (pendingOrderId) {
@@ -199,15 +271,11 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
           await markStopIssue(env, orderId, msg.text);
           await env.MSG_DEDUP.delete(pendingKey);
           if (env.OWNER_WHATSAPP) {
-            await sendText(
-              env,
-              env.OWNER_WHATSAPP,
-              `⚠️ مشكلة توصيل\nسواق: ${teamMember.name}\nطلب: #${orderId}\nالمشكلة: ${msg.text}`,
-            );
+            await sendText(env, env.OWNER_WHATSAPP,
+              `⚠️ مشكلة توصيل\nسواق: ${teamMember.name}\nطلب: #${orderId}\nالمشكلة: ${msg.text}`);
           }
           await sendText(env, msg.from, "تم تسجيل المشكلة، براء بيراجعها 🙏");
         } else {
-          // Unrecognised free text from team member — soft ack
           await sendText(env, msg.from, `مرحبا ${teamMember.name} 👋 استخدم الأزرار عشان نأكد الحالة.`);
         }
       }
@@ -215,31 +283,24 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
       continue;
     }
 
-    // v7: first-contact welcome — before create-if-missing, check if customer exists
     const { findCustomerByWhatsApp } = await import("./odoo");
     const existing = await findCustomerByWhatsApp(env, msg.from);
     if (!existing && msg.type === "text") {
-      // brand new customer → send welcome template, THEN create record
       try {
         const { sendTemplateByPurpose, T } = await import("./templates");
         await sendTemplateByPurpose(env, msg.from, T.CUSTOMER_WELCOME,
           [msg.profileName || "صديقنا"]);
       } catch (e) { console.warn("[welcome] send failed", (e as Error).message); }
-      // still create the customer record so their next message routes normally
     }
     const partner = await findOrCreateCustomer(env, msg.from, msg.profileName);
     const senderType: SenderType = "customer";
 
-    // v4.2: pending_neighborhood — actually now "pending_location" semantically.
-    // Preferred answer = WhatsApp location share (precise lat/lng). Text answer
-    // still accepted as fallback (coarse neighborhood only, no coords).
     const pendingKey = `pending_neighborhood:${partner.id}`;
     const pendingOrderId = await env.MSG_DEDUP.get(pendingKey);
 
     if (pendingOrderId) {
       const orderId = Number(pendingOrderId);
 
-      // Case A: precise location share — save coords + resume with quotation
       if (msg.type === "location" && msg.location) {
         const { latitude, longitude, name, address } = msg.location;
         const neigh = (name ?? address ?? "").trim().slice(0, 60);
@@ -249,52 +310,37 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
         const reply: RouterReply = await dispatch(env, {
           msg: { ...msg, text: "خلاص" },
           intent: "request_quotation",
-          senderType,
-          partner,
+          senderType, partner,
         });
         await sendReply(env, msg.from, reply);
         await markSeen(env, msg.messageId);
         continue;
       }
 
-      // Case B: text answer — save as neighborhood (fallback, no coords)
       if (msg.type === "text") {
         const neigh = msg.text.trim();
         if (neigh.length >= 2 && neigh.length <= 60) {
           await savePartnerNeighborhood(env, partner.id, neigh);
           await setOrderNeighborhood(env, orderId, neigh);
           await env.MSG_DEDUP.delete(pendingKey);
-          // Gentle prompt: text-only means we won't have precise coords for
-          // driver routing — ask for a proper location share too, but don't
-          // block the quotation flow.
-          await sendText(
-            env,
-            msg.from,
-            `حفظنا الحي: ${neigh} ✅\nلو تقدر ترسل موقعك من قوقل مابس (📎 → موقع → موقعي الحالي) بيوصلك السائق أدق مرة جاية 🌿`,
-          );
+          await sendText(env, msg.from,
+            `حفظنا الحي: ${neigh} ✅\nلو تقدر ترسل موقعك من قوقل مابس (📎 → موقع → موقعي الحالي) بيوصلك السائق أدق مرة جاية 🌿`);
           const reply: RouterReply = await dispatch(env, {
             msg: { ...msg, text: "خلاص" },
             intent: "request_quotation",
-            senderType,
-            partner,
+            senderType, partner,
           });
           await sendReply(env, msg.from, reply);
           await markSeen(env, msg.messageId);
           continue;
         }
-        // Too short/long — nudge without dropping the KV marker
-        await sendText(
-          env,
-          msg.from,
-          "أرسل موقعك من قوقل مابس (📎 → موقع → موقعي الحالي)، أو اكتب اسم الحي فقط 🙏",
-        );
+        await sendText(env, msg.from,
+          "أرسل موقعك من قوقل مابس (📎 → موقع → موقعي الحالي)، أو اكتب اسم الحي فقط 🙏");
         await markSeen(env, msg.messageId);
         continue;
       }
     }
 
-    // v4.2: location share outside a pending flow → update partner's saved
-    // default so future orders route to the new spot. Short ack, no further processing.
     if (msg.type === "location" && msg.location) {
       const { latitude, longitude, name, address } = msg.location;
       const neigh = (name ?? address ?? "").trim().slice(0, 60);
@@ -304,7 +350,6 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
       continue;
     }
 
-    // Buttons skip classification (router handles by buttonId).
     let intent: import("./types").Intent = "other";
     if (msg.type === "text") {
       const c = await classifyIntent(env, msg.text, senderType);
@@ -318,7 +363,6 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
   }
 }
 
-// v3 — hydrate the supplier partner with fields needed by handleSupplierReply
 async function enrichSupplier(env: Env, supplier: OdooPartner): Promise<OdooPartner & {
   x_supplied_product_ids: number[];
   x_whatsapp_number: string;

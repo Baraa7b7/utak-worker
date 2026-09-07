@@ -6,3 +6,9 @@ dist/
 *.log
 src.v1.backup.*/
 .v5-backup/
+
+# Local backup files (never commit)
+*.bak
+*.bak2
+*.old
+.v8-backup/

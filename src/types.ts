@@ -136,8 +136,9 @@ export interface TeamMember {
   id: number;
   name: string;
   x_whatsapp_number: string;
-  x_role: TeamRole;
-  x_neighborhoods?: number[];   // ids of x_neighborhood
+  x_role: TeamRole;                // primary/queried role (backward compat)
+  x_role_codes?: TeamRole[];       // all roles from x_role_ids many2many (v8+)
+  x_neighborhoods?: number[];      // ids of x_neighborhood
 }
 
 // A row in the aggregated purchase list Ahmad receives at 21:15

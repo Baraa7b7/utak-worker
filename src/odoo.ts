@@ -648,6 +648,20 @@ import type {
   RouteStop,
 } from "./types";
 
+// ---- Employee role cache (v8: many2many x_role_ids) ----
+let ROLE_CODE_CACHE: Map<number, TeamRole> | null = null;
+async function getRoleCodeMap(env: Env): Promise<Map<number, TeamRole>> {
+  if (ROLE_CODE_CACHE) return ROLE_CODE_CACHE;
+  const rows = await call<Array<{ id: number; x_code: string }>>(
+    env,
+    "x_employee_role",
+    "search_read",
+    { domain: [], fields: ["id", "x_code"], limit: 20 },
+  );
+  ROLE_CODE_CACHE = new Map(rows.map((r) => [r.id, r.x_code as TeamRole]));
+  return ROLE_CODE_CACHE;
+}
+
 // ---- Team members (drivers / collector / warehouse) by role ----
 export async function getTeamMembersByRole(
   env: Env,
@@ -657,22 +671,29 @@ export async function getTeamMembersByRole(
     id: number;
     name: string;
     x_whatsapp_number: string | false;
-    x_role: string | false;
+    x_role_ids: number[] | false;
     x_neighborhoods: number[] | false;
   }>>(env, "res.partner", "search_read", {
-    domain: [["x_role", "=", role], ["active", "=", true]],
-    fields: ["id", "name", "x_whatsapp_number", "x_role", "x_neighborhoods"],
+    domain: [["x_role_ids.x_code", "=", role], ["active", "=", true]],
+    fields: ["id", "name", "x_whatsapp_number", "x_role_ids", "x_neighborhoods"],
     limit: 50,
   });
+  const roleMap = await getRoleCodeMap(env);
   return rows
     .filter((r) => typeof r.x_whatsapp_number === "string" && r.x_whatsapp_number.length > 3)
-    .map((r) => ({
-      id: r.id,
-      name: r.name,
-      x_whatsapp_number: r.x_whatsapp_number as string,
-      x_role: role,
-      x_neighborhoods: Array.isArray(r.x_neighborhoods) ? r.x_neighborhoods : [],
-    }));
+    .map((r) => {
+      const codes: TeamRole[] = Array.isArray(r.x_role_ids)
+        ? (r.x_role_ids.map((id) => roleMap.get(id)).filter(Boolean) as TeamRole[])
+        : [role];
+      return {
+        id: r.id,
+        name: r.name,
+        x_whatsapp_number: r.x_whatsapp_number as string,
+        x_role: role,
+        x_role_codes: codes,
+        x_neighborhoods: Array.isArray(r.x_neighborhoods) ? r.x_neighborhoods : [],
+      };
+    });
 }
 
 export async function findTeamMemberByWhatsApp(
@@ -683,26 +704,32 @@ export async function findTeamMemberByWhatsApp(
     id: number;
     name: string;
     x_whatsapp_number: string | false;
-    x_role: string | false;
+    x_role_ids: number[] | false;
     x_neighborhoods: number[] | false;
   }>>(env, "res.partner", "search_read", {
     domain: [
       "|",
       ["x_whatsapp_number", "=", e164],
       ["phone", "=", e164],
-      ["x_role", "in", ["driver", "collector", "warehouse"]],
+      ["x_role_ids", "!=", false],
       ["active", "=", true],
     ],
-    fields: ["id", "name", "x_whatsapp_number", "x_role", "x_neighborhoods"],
+    fields: ["id", "name", "x_whatsapp_number", "x_role_ids", "x_neighborhoods"],
     limit: 1,
   });
   const r = rows[0];
-  if (!r || typeof r.x_role !== "string") return null;
+  if (!r || !Array.isArray(r.x_role_ids) || r.x_role_ids.length === 0) return null;
+  const roleMap = await getRoleCodeMap(env);
+  const codes = r.x_role_ids
+    .map((id) => roleMap.get(id))
+    .filter(Boolean) as TeamRole[];
+  if (codes.length === 0) return null;
   return {
     id: r.id,
     name: r.name,
     x_whatsapp_number: typeof r.x_whatsapp_number === "string" ? r.x_whatsapp_number : e164,
-    x_role: r.x_role as TeamRole,
+    x_role: codes[0],           // backward compat: primary role
+    x_role_codes: codes,        // all roles (v8+)
     x_neighborhoods: Array.isArray(r.x_neighborhoods) ? r.x_neighborhoods : [],
   };
 }
@@ -1718,7 +1745,7 @@ export async function getCollectorTeamMembers(
   type Row = { id: number; name: string; phone: string | false; x_whatsapp_number: string | false };
   const rows = await call<Row[]>(env, "res.partner", "search_read", {
     domain: [
-      ["x_role", "=", "collector"],
+      ["x_role_ids.x_code", "=", "collector"],
       ["active", "=", true],
     ],
     fields: ["id", "name", "phone", "x_whatsapp_number"],

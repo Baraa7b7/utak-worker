@@ -45,12 +45,18 @@ export interface QuickReplyPayload {
  * @param buttonPayloads — for templates with QUICK_REPLY buttons: assign a payload per button index.
  *                        Omit to accept Meta's default (which sends the button text back).
  */
+export type HeaderMedia =
+  | { type: "document"; link: string; filename: string }
+  | { type: "image"; link: string }
+  | { type: "video"; link: string };
+
 export async function sendTemplateByPurpose(
   env: Env,
   to: string,
   purpose: string,
   bodyParams: string[] = [],
   buttonPayloads: QuickReplyPayload[] = [],
+  headerMedia?: HeaderMedia,
 ): Promise<Response | null> {
   const mapping = await fetchMapping(env, purpose);
   if (!mapping) {
@@ -58,6 +64,17 @@ export async function sendTemplateByPurpose(
     return null;
   }
   const components: any[] = [];
+  if (headerMedia) {
+    const param: any = { type: headerMedia.type };
+    if (headerMedia.type === "document") {
+      param.document = { link: headerMedia.link, filename: headerMedia.filename };
+    } else if (headerMedia.type === "image") {
+      param.image = { link: headerMedia.link };
+    } else if (headerMedia.type === "video") {
+      param.video = { link: headerMedia.link };
+    }
+    components.push({ type: "header", parameters: [param] });
+  }
   if (bodyParams.length > 0) {
     components.push({
       type: "body",
@@ -110,6 +127,7 @@ export const T = {
   CUSTOMER_DELIVERY_INCOMING: "customer_delivery_incoming",
   CUSTOMER_DELIVERY_DONE: "customer_delivery_done",
   CUSTOMER_INVOICE: "customer_invoice",
+  CUSTOMER_INVOICE_PDF: "customer_invoice_pdf",
   CUSTOMER_PAY_REMIND: "customer_pay_remind",
   CUSTOMER_INACTIVE: "customer_inactive",
   CUSTOMER_FEEDBACK: "customer_feedback",

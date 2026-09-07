@@ -13,6 +13,7 @@ export interface Env {
   META_PHONE_NUMBER_ID: string;
   META_WABA_ID: string;
   META_GRAPH_VERSION: string;
+  WORKER_ORIGIN: string;
   ODOO_URL: string;
   ODOO_DB: string;
   ODOO_LOGIN: string;
@@ -24,6 +25,13 @@ export interface Env {
 
   // ---- Bindings ----
   MSG_DEDUP: KVNamespace;
+  INVOICES_BUCKET: R2Bucket;
+
+  // ---- Optional secrets ----
+  ADMIN_TOKEN?: string;
+  GOTENBERG_URL?: string;
+  GOTENBERG_USER?: string;
+  GOTENBERG_PASSWORD?: string;
 }
 
 export const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";

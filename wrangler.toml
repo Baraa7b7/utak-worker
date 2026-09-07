@@ -7,6 +7,7 @@ compatibility_date = "2026-08-01"
 # Update if Meta rolls Graph API version or if Odoo hostname changes.
 # ------------------------------------------------------------
 [vars]
+WORKER_ORIGIN = "https://utak-worker.utak-business.workers.dev"
 META_PHONE_NUMBER_ID = "1351691708016803"
 META_WABA_ID         = "2144001136512196"
 META_GRAPH_VERSION   = "v22.0"                     # bump when Meta deprecates
@@ -56,3 +57,11 @@ crons = [
   "0 14 * * *",   # 17:00 Riyadh — v6.1: standing-order reminders
   "0 5 * * *"     # 08:00 Riyadh — v7: daily outreach (feedback, pay_remind, inactive)
 ]
+
+# ------------------------------------------------------------
+# R2: invoice PDF archive (added 2026-09-05)
+# ------------------------------------------------------------
+[[r2_buckets]]
+binding     = "INVOICES_BUCKET"
+bucket_name = "utak-invoices"
+

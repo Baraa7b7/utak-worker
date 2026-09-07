@@ -108,26 +108,21 @@ export async function createAndDispatchInvoiceForOrder(
     day: "2-digit", month: "short", year: "numeric",
   });
 
+  // TEMP (until Meta business_verification approved): use text template + PDF link inside body.
+  // TODO after CR + Meta verification: restore document-header path with T.CUSTOMER_INVOICE_PDF.
+  const linesWithPdf = pdfUrl
+    ? `${linesFormatted}\n\n📄 الفاتورة الكاملة (PDF): ${pdfUrl}`
+    : linesFormatted;
   try {
-    let resp: Response | null = null;
-    if (pdfUrl) {
-      // New path: send utak_invoice_pdf_v1 with document header
-      resp = await sendTemplateByPurpose(
-        env,
-        order.customer_whatsapp,
-        T.CUSTOMER_INVOICE_PDF,
-        [order.customer_name || "", invoiceNumber, invoiceDate, String(total)],
-        [],
-        { type: "document", link: pdfUrl, filename: `${invoiceNumber}.pdf` },
-      );
-    }
+    const resp = await sendTemplateByPurpose(
+      env,
+      order.customer_whatsapp,
+      T.CUSTOMER_INVOICE,
+      [order.customer_name || "", invoiceNumber, linesWithPdf, String(total)],
+    );
     if (!resp || !resp.ok) {
-      // Fallback: old text template
-      resp = await sendTemplateByPurpose(env, order.customer_whatsapp, T.CUSTOMER_INVOICE,
-        [order.customer_name || "", invoiceNumber, linesFormatted, String(total)]);
-    }
-    if (!resp || !resp.ok) {
-      const customerText = buildCustomerInvoiceText(invoiceNumber, pricedLines, subtotal, total);
+      const customerText = buildCustomerInvoiceText(invoiceNumber, pricedLines, subtotal, total)
+        + (pdfUrl ? `\n\n📄 ${pdfUrl}` : "");
       await sendText(env, order.customer_whatsapp, customerText);
     }
     await writeInvoice(env, invoiceId, { x_sent_to_customer_at: nowOdoo() });

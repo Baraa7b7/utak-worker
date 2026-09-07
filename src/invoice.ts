@@ -680,67 +680,6 @@ export async function buildInvoicePDFDataFromOdoo(
 // Test data
 // --------------------------------------------------------------
 
-// --------------------------------------------------------------
-// TEMPORARY — /admin/test-invoice helper.
-// Re-sends an existing invoice's PDF template to its customer,
-// without creating a new x_invoice record. Reuses the same
-// send path (buildInvoicePDFDataFromOdoo → PDF → R2 → template).
-// --------------------------------------------------------------
-export async function resendInvoicePdfById(
-  env: Env,
-  invoiceId: number,
-  workerOrigin: string,
-): Promise<{
-  ok: boolean;
-  invoice_id: number;
-  invoice_number: string;
-  customer_phone: string;
-  pdf_url: string;
-  meta_response: { status: number; body: unknown };
-}> {
-  const invoice = await getInvoiceById(env, invoiceId);
-  if (!invoice) throw new Error(`invoice ${invoiceId} not found`);
-  if (!invoice.orderId) throw new Error(`invoice ${invoiceId} has no linked order`);
-
-  const order = await getOrderForInvoicing(env, invoice.orderId);
-  if (!order) throw new Error(`order ${invoice.orderId} not found`);
-
-  const data = await buildInvoicePDFDataFromOdoo(env, invoiceId);
-  if (!data) throw new Error(`could not build PDF data for invoice ${invoiceId}`);
-
-  const pdfBytes = await generateInvoicePDF(data, env);
-  const uploaded = await uploadInvoiceToR2(env, pdfBytes, invoice.number, workerOrigin);
-
-  const invoiceDate = new Date().toLocaleDateString("en-GB", {
-    day: "2-digit", month: "short", year: "numeric",
-  });
-
-  const resp = await sendTemplateByPurpose(
-    env,
-    order.customer_whatsapp,
-    T.CUSTOMER_INVOICE_PDF,
-    [order.customer_name || "", invoice.number, invoiceDate, String(invoice.total)],
-    [],
-    { type: "document", link: uploaded.publicUrl, filename: `${invoice.number}.pdf` },
-  );
-
-  let metaBody: unknown = null;
-  const metaStatus = resp?.status ?? 0;
-  if (resp) {
-    try { metaBody = await resp.clone().json(); }
-    catch { metaBody = await resp.text().catch(() => null); }
-  }
-
-  return {
-    ok: resp?.ok ?? false,
-    invoice_id: invoiceId,
-    invoice_number: invoice.number,
-    customer_phone: order.customer_whatsapp,
-    pdf_url: uploaded.publicUrl,
-    meta_response: { status: metaStatus, body: metaBody },
-  };
-}
-
 export const TEST_INVOICE_DATA: InvoicePDFData = {
   invoiceNumber: 'INV-2026-0147',
   invoiceDate: '05 Sep 2026',

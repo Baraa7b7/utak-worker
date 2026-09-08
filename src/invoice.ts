@@ -18,6 +18,15 @@ import {
 } from "./odoo";
 import { sendText, sendButtons } from "./meta";
 import { sendTemplateByPurpose, T } from "./templates";
+import {
+  BRAND_COLORS,
+  computePageMetrics,
+  escapeHTML,
+  formatMoney,
+  renderPDFShell,
+  type PageMetrics,
+  type PartyInfo,
+} from "./pdf-template";
 
 // --------------------------------------------------------------
 // 5.2 — createAndDispatchInvoiceForOrder (unchanged)
@@ -343,7 +352,7 @@ export interface InvoiceLineItem {
 
 export interface InvoicePDFData {
   invoiceNumber: string;
-  invoiceDate: string;
+  invoiceDate: Date;
   customer: {
     name: string;
     contactPerson?: string;
@@ -358,162 +367,83 @@ export interface InvoicePDFData {
   paymentTerms?: string;
 }
 
-function formatMoney(n: number): string {
-  const rounded = Math.round(n * 100) / 100;
-  return rounded.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }) + ' ريال';
-}
-
-function escapeHtml(str: string): string {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function formatDateEn(d: Date): string {
-  return d.toLocaleDateString('en-US', {
-    day: '2-digit', month: 'short', year: 'numeric',
-  });
-}
-
-const UTAK_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" style="width:60px;height:60px;display:block;"><rect width="100" height="100" fill="#F7F5F0"/><g transform="translate(19,19) scale(0.62)"><path d="M25 16 v40 a25 25 0 0 0 50 0 V38.5" fill="none" stroke="#1E5A41" stroke-width="15" stroke-linecap="round"/><rect x="66.25" y="6" width="17.5" height="17.5" fill="#E07B39"/></g></svg>`;
-
-export function renderInvoiceHTML(data: InvoicePDFData): string {
-  const dense = data.items.length > 12;
-  const gap = dense ? '16px' : '24px';
-  const preTable = dense ? '20px' : '40px';
-  const postTable = dense ? '24px' : '40px';
-  const tailMin = dense ? '0px' : '40px';
-  const thPad = dense ? '6px 0' : '10px 0';
-  const rowHeight = dense
-    ? Math.max(15, Math.floor(385 / data.items.length)) + 'px'
-    : '36px';
-
-  const rowsHtml = data.items.map((item) => `
-    <tr style="border-bottom: 0.25px solid #E8E4DE;">
-      <td style="height: ${rowHeight}; text-align: right; font-size: 12px; font-weight: 400; padding: 0 12px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(item.name)}</td>
-      <td style="height: ${rowHeight}; text-align: right; font-size: 12px; font-weight: 400; color: #6B6863; padding: 0 12px 0 0;">${escapeHtml(item.pack)}</td>
-      <td style="height: ${rowHeight}; text-align: left; font-size: 12px; font-weight: 400; direction: ltr;">${item.qty}</td>
-      <td style="height: ${rowHeight}; text-align: left; font-size: 12px; font-weight: 400; direction: ltr; color: #6B6863;">${formatMoney(item.price)}</td>
-      <td style="height: ${rowHeight}; text-align: left; font-size: 12px; font-weight: 400; direction: ltr;">${formatMoney(item.total)}</td>
+// Middle slot for an invoice: the line-items table.
+function renderInvoiceBodyHTML(
+  items: InvoiceLineItem[],
+  m: PageMetrics,
+): string {
+  const rowsHtml = items
+    .map(
+      (item) => `
+    <tr style="border-bottom: 0.25px solid ${BRAND_COLORS.borderSoft};">
+      <td style="height: ${m.rowHeight}; text-align: right; font-size: 12px; font-weight: 400; padding: 0 12px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHTML(item.name)}</td>
+      <td style="height: ${m.rowHeight}; text-align: right; font-size: 12px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; padding: 0 12px 0 0;">${escapeHTML(item.pack)}</td>
+      <td style="height: ${m.rowHeight}; text-align: left; font-size: 12px; font-weight: 400; direction: ltr;">${item.qty}</td>
+      <td style="height: ${m.rowHeight}; text-align: left; font-size: 12px; font-weight: 400; direction: ltr; color: ${BRAND_COLORS.inkMuted};">${formatMoney(item.price)}</td>
+      <td style="height: ${m.rowHeight}; text-align: left; font-size: 12px; font-weight: 400; direction: ltr;">${formatMoney(item.total)}</td>
     </tr>
-  `).join('');
+  `,
+    )
+    .join("");
 
-  const paymentTerms = data.paymentTerms || 'الدفع خلال ٣٠ يوماً من تاريخ الفاتورة. تحويل بنكي أو نقداً عند التسليم.';
-
-  return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@200;300;400;500;600&display=swap" rel="stylesheet">
-<style>
-  html, body { margin: 0; padding: 0; background: #F7F5F0; }
-  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  @page { size: A4; margin: 0; }
-  @media print {
-    html, body { background: #F7F5F0; }
-    .utak-page { box-shadow: none !important; margin: 0 !important; }
-  }
-</style>
-</head>
-<body>
-<div dir="rtl" style="font-family: 'IBM Plex Sans Arabic', 'Tajawal', sans-serif; font-feature-settings: 'tnum' 1; background: #F7F5F0;">
-  <div class="utak-page" style="position: relative; width: 210mm; height: 297mm; box-sizing: border-box; padding: 20mm; background: #F7F5F0; color: #1A1815; display: flex; flex-direction: column; overflow: hidden;">
-    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 160px; font-weight: 200; letter-spacing: 0.06em; color: #1E5A41; opacity: 0.04; pointer-events: none; user-select: none; white-space: nowrap;">UTAK</div>
-    <div style="position: relative; display: flex; align-items: flex-start; justify-content: space-between;">
-      <div style="display: flex; flex-direction: column; gap: 8px;">
-        ${UTAK_LOGO_SVG}
-        <div style="display: flex; flex-direction: column; gap: 2px;">
-          <div style="font-size: 24px; font-weight: 500; color: #1E5A41; letter-spacing: 0.02em; white-space: nowrap;">UTAK — يو تاك</div>
-          <div style="font-size: 10px; font-weight: 400; color: #6B6863; letter-spacing: 0.14em;">توزيع منتجات زراعية طازجة</div>
-        </div>
-      </div>
-      <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 10px; direction: ltr; text-align: left;">
-        <div style="font-size: 32px; font-weight: 300; line-height: 1; direction: rtl;">فاتورة</div>
-        <div style="display: flex; flex-direction: column; gap: 4px;">
-          <div style="display: flex; align-items: center; gap: 7px;">
-            <span style="width: 4px; height: 4px; border-radius: 50%; background: #E07B39; display: inline-block;"></span>
-            <span style="font-size: 13px; font-weight: 400;">${escapeHtml(data.invoiceNumber)}</span>
-          </div>
-          <div style="font-size: 13px; font-weight: 400; color: #6B6863;">${escapeHtml(data.invoiceDate)}</div>
-        </div>
-      </div>
-    </div>
-    <div style="height: ${gap};"></div>
-    <div style="height: 0; border-top: 0.5px solid #1E5A41;"></div>
-    <div style="height: ${gap};"></div>
-    <div style="position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 32px;">
-      <div style="display: flex; flex-direction: column; gap: 10px;">
-        <div style="font-size: 10px; font-weight: 500; color: #6B6863; letter-spacing: 0.2em;">فاتورة إلى / BILL TO</div>
-        <div style="display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 400;">
-          <div>${escapeHtml(data.customer.name)}</div>
-          ${data.customer.contactPerson ? `<div style="color: #6B6863;">${escapeHtml(data.customer.contactPerson)}</div>` : ''}
-          <div style="color: #6B6863;">${escapeHtml(data.customer.address)}</div>
-          <div style="color: #6B6863; direction: ltr; text-align: right;">${escapeHtml(data.customer.phone)}</div>
-        </div>
-      </div>
-      <div style="display: flex; flex-direction: column; gap: 10px; text-align: left;">
-        <div style="font-size: 10px; font-weight: 500; color: #6B6863; letter-spacing: 0.2em;">من / FROM</div>
-        <div style="display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 400;">
-          <div>UTAK — يو تاك</div>
-          <div style="color: #6B6863;">الرياض، المملكة العربية السعودية</div>
-          <div style="color: #6B6863; direction: ltr;">care@utak.com</div>
-          <div style="color: #6B6863; direction: ltr;">+966 58 004 0467</div>
-        </div>
-      </div>
-    </div>
-    <div style="height: ${preTable};"></div>
-    <table style="position: relative; width: 100%; border-collapse: collapse; table-layout: fixed;">
+  return `<table style="position: relative; width: 100%; border-collapse: collapse; table-layout: fixed;">
       <thead>
-        <tr style="border-top: 0.5px solid #1A1815; border-bottom: 0.5px solid #1A1815;">
-          <th style="width: 40%; text-align: right; font-size: 10px; font-weight: 500; color: #6B6863; letter-spacing: 0.16em; padding: ${thPad};">الصنف</th>
-          <th style="width: 20%; text-align: right; font-size: 10px; font-weight: 500; color: #6B6863; letter-spacing: 0.16em; padding: ${thPad};">العبوة</th>
-          <th style="width: 10%; text-align: left; font-size: 10px; font-weight: 500; color: #6B6863; letter-spacing: 0.16em; padding: ${thPad};">الكمية</th>
-          <th style="width: 15%; text-align: left; font-size: 10px; font-weight: 500; color: #6B6863; letter-spacing: 0.16em; padding: ${thPad};">السعر</th>
-          <th style="width: 15%; text-align: left; font-size: 10px; font-weight: 500; color: #6B6863; letter-spacing: 0.16em; padding: ${thPad};">الإجمالي</th>
+        <tr style="border-top: 0.5px solid ${BRAND_COLORS.borderStrong}; border-bottom: 0.5px solid ${BRAND_COLORS.borderStrong};">
+          <th style="width: 40%; text-align: right; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${m.thPad};">الصنف</th>
+          <th style="width: 20%; text-align: right; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${m.thPad};">العبوة</th>
+          <th style="width: 10%; text-align: left; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${m.thPad};">الكمية</th>
+          <th style="width: 15%; text-align: left; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${m.thPad};">السعر</th>
+          <th style="width: 15%; text-align: left; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${m.thPad};">الإجمالي</th>
         </tr>
       </thead>
       <tbody>${rowsHtml}</tbody>
-    </table>
-    <div style="height: ${postTable};"></div>
-    <div style="position: relative; display: flex; justify-content: flex-end;">
+    </table>`;
+}
+
+// Bottom-right totals block for an invoice.
+function renderInvoiceTotalsHTML(
+  subtotal: number,
+  discount: number,
+  vatAmount: number,
+  grandTotal: number,
+): string {
+  return `<div style="position: relative; display: flex; justify-content: flex-end;">
       <div style="width: 40%; display: flex; flex-direction: column; gap: 9px;">
-        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: #6B6863;"><span>المجموع الفرعي</span><span style="direction: ltr;">${formatMoney(data.subtotal)}</span></div>
-        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: #6B6863;"><span>الخصم</span><span style="direction: ltr;">${formatMoney(data.discount)}</span></div>
-        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: #6B6863;"><span>ضريبة القيمة المضافة (١٥٪)</span><span style="direction: ltr;">${formatMoney(data.vatAmount)}</span></div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>المجموع الفرعي</span><span style="direction: ltr;">${formatMoney(subtotal)}</span></div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>الخصم</span><span style="direction: ltr;">${formatMoney(discount)}</span></div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>ضريبة القيمة المضافة (١٥٪)</span><span style="direction: ltr;">${formatMoney(vatAmount)}</span></div>
         <div style="height: 6px;"></div>
-        <div style="height: 0; border-top: 0.5px solid #1A1815;"></div>
-        <div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 8px;"><span style="font-size: 12px; font-weight: 500; color: #1A1815;">الإجمالي</span><span style="font-size: 20px; font-weight: 500; color: #1E5A41; direction: ltr;">${formatMoney(data.grandTotal)}</span></div>
+        <div style="height: 0; border-top: 0.5px solid ${BRAND_COLORS.borderStrong};"></div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 8px;"><span style="font-size: 12px; font-weight: 500; color: ${BRAND_COLORS.ink};">الإجمالي</span><span style="font-size: 20px; font-weight: 500; color: ${BRAND_COLORS.primary}; direction: ltr;">${formatMoney(grandTotal)}</span></div>
       </div>
-    </div>
-    <div style="flex: 1; min-height: ${tailMin};"></div>
-    <div style="position: relative;">
-      <div style="height: 0; border-top: 0.25px solid #E8E4DE;"></div>
-      <div style="height: 20px;"></div>
-      <div style="display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: flex-start;">
-        <div style="display: flex; flex-direction: column; gap: 6px;">
-          <div style="font-size: 10px; font-weight: 500; color: #6B6863; letter-spacing: 0.2em;">شروط الدفع</div>
-          <div style="font-size: 10px; font-weight: 400; color: #6B6863; line-height: 1.7; max-width: 62%;">${escapeHtml(paymentTerms)}</div>
-        </div>
-        <div style="width: 80px; height: 80px; border: 0.5px dashed #C9C4BC; display: flex; align-items: center; justify-content: center; text-align: center;">
-          <span style="font-size: 7px; font-weight: 400; color: #C9C4BC; letter-spacing: 0.1em; line-height: 1.6;">ZATCA<br>QR</span>
-        </div>
-      </div>
-      <div style="height: 18px;"></div>
-      <div style="text-align: center; font-size: 10px; font-weight: 400; color: #6B6863; letter-spacing: 0.08em;">شكراً لثقتكم في UTAK — يو تاك</div>
-    </div>
-  </div>
-</div>
-</body>
-</html>`;
+    </div>`;
+}
+
+export function renderInvoiceHTML(data: InvoicePDFData): string {
+  const pageMetrics = computePageMetrics(data.items.length);
+  const billTo: PartyInfo = {
+    name: data.customer.name,
+    contactName: data.customer.contactPerson,
+    address: data.customer.address,
+    phone: data.customer.phone,
+  };
+
+  return renderPDFShell({
+    documentTitle: "فاتورة",
+    documentNumber: data.invoiceNumber,
+    documentDate: data.invoiceDate,
+    billTo,
+    bodyHTML: renderInvoiceBodyHTML(data.items, pageMetrics),
+    totalsHTML: renderInvoiceTotalsHTML(
+      data.subtotal,
+      data.discount,
+      data.vatAmount,
+      data.grandTotal,
+    ),
+    footerNote: data.paymentTerms,
+    showZatcaQR: true,
+    pageMetrics,
+  });
 }
 
 export async function generateInvoicePDF(
@@ -662,7 +592,7 @@ export async function buildInvoicePDFDataFromOdoo(
 
   return {
     invoiceNumber: invoice.number,
-    invoiceDate: formatDateEn(new Date()),
+    invoiceDate: new Date(),
     customer: {
       name: order.customer_name || 'عميل',
       address: order.neighborhood || 'الرياض',
@@ -682,7 +612,7 @@ export async function buildInvoicePDFDataFromOdoo(
 
 export const TEST_INVOICE_DATA: InvoicePDFData = {
   invoiceNumber: 'INV-2026-0147',
-  invoiceDate: '05 Sep 2026',
+  invoiceDate: new Date('2026-09-05T12:00:00Z'),
   customer: {
     name: 'مطعم النخيل',
     contactPerson: 'أ. محمد الشمري',

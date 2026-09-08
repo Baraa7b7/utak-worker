@@ -23,6 +23,12 @@ export const BRAND_COLORS = {
 
 export const BRAND_FONT = "IBM Plex Sans Arabic";
 
+// Real UTAK avatar logo (light background variant), inlined as a data URI so
+// Gotenberg never has to fetch it. Swap the base64 payload when the mark
+// changes — source: Desktop/Utak/logos kit/svg/utak-avatar-light.svg
+export const UTAK_LOGO_DATA_URL =
+  "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI0Y3RjVGMCIvPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDE5LDE5KSBzY2FsZSgwLjYyKSI+PHBhdGggZD0iTTI1IDE2IHY0MCBhMjUgMjUgMCAwIDAgNTAgMCBWMzguNSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMUU1QTQxIiBzdHJva2Utd2lkdGg9IjE1IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cmVjdCB4PSI2Ni4yNSIgeT0iNiIgd2lkdGg9IjE3LjUiIGhlaWdodD0iMTcuNSIgZmlsbD0iI0UwN0IzOSIvPjwvZz48L3N2Zz4=";
+
 // Company info block that appears in the FROM slot by default.
 // TODO: promote to env-driven config once ZATCA registration + CR + VAT numbers land.
 export const BRAND_INFO = {
@@ -148,9 +154,7 @@ function renderHeader(
   const dateStr = formatDateArabic(documentDate);
   return `<div style="position: relative; display: flex; align-items: flex-start; justify-content: space-between;">
       <div style="display: flex; flex-direction: column; gap: 8px;">
-        <div style="width: 60px; height: 60px; border: 0.5px solid ${BRAND_COLORS.primary}; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: ${BRAND_COLORS.bgPage};">
-          <span style="font-size: 24px; font-weight: 500; color: ${BRAND_COLORS.primary}; letter-spacing: 0.02em; line-height: 1;">U</span>
-        </div>
+        <img src="${UTAK_LOGO_DATA_URL}" style="width: 60px; height: 60px; display: block;" alt="UTAK" />
         <div style="display: flex; flex-direction: column; gap: 2px;">
           <div style="font-size: 24px; font-weight: 500; color: ${BRAND_COLORS.primary}; letter-spacing: 0.02em; white-space: nowrap;">${escapeHTML(BRAND_INFO.nameAr)}</div>
           <div style="font-size: 10px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.14em;">${escapeHTML(BRAND_INFO.tagline)}</div>

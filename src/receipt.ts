@@ -216,7 +216,7 @@ function mapMethod(m: string | false): string {
   return (typeof m === "string" && m) ? m : "-";
 }
 
-// ---- Test data ----
+// ---- Test data — 3 invoices, ~4500 SAR total ----
 export const TEST_RECEIPT_DATA: ReceiptPDFData = {
   receiptNumber: "RCP-2026-0018",
   receiptDate: new Date("2026-09-08T14:20:00Z"),
@@ -227,9 +227,9 @@ export const TEST_RECEIPT_DATA: ReceiptPDFData = {
     phone: "+966 55 214 8830",
   },
   payments: [
-    { invoiceNumber: "UTAK-INV-20260901-003", invoiceDate: "2026-09-01", amount: 1842, method: "نقد" },
-    { invoiceNumber: "UTAK-INV-20260903-007", invoiceDate: "2026-09-03", amount: 2410, method: "تحويل بنكي" },
+    { invoiceNumber: "UTAK-INV-20260901-003", invoiceDate: "2026-09-01", amount: 1517, method: "نقد" },
+    { invoiceNumber: "UTAK-INV-20260903-007", invoiceDate: "2026-09-03", amount: 2015, method: "تحويل بنكي" },
     { invoiceNumber: "UTAK-INV-20260905-002", invoiceDate: "2026-09-05", amount: 968, method: "نقد" },
   ],
-  totalReceived: 5220,
+  totalReceived: 4500,
 };

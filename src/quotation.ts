@@ -215,7 +215,7 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-// ---- Test data ----
+// ---- Test data — 6 items, ~1500 SAR total ----
 export const TEST_QUOTATION_DATA: QuotationPDFData = {
   quotationNumber: "QUO-2026-0032",
   quotationDate: new Date("2026-09-08T09:00:00Z"),
@@ -226,14 +226,15 @@ export const TEST_QUOTATION_DATA: QuotationPDFData = {
     phone: "+966 55 214 8830",
   },
   items: [
-    { name: "طماطم شيري كرزية درجة أولى", pack: "كرتون ٨ كجم", qty: 6, price: 45, total: 270 },
+    { name: "طماطم شيري كرزية درجة أولى", pack: "كرتون ٨ كجم", qty: 5, price: 45, total: 225 },
     { name: "خيار بلدي", pack: "كرتون ٥ كجم", qty: 8, price: 28, total: 224 },
     { name: "خس آيسبرغ", pack: "كرتون ١٢ حبة", qty: 4, price: 55, total: 220 },
-    { name: "بطاطس", pack: "كيس ٢٥ كجم", qty: 6, price: 68, total: 408 },
-    { name: "ليمون بلدي", pack: "كرتون ١٠ كجم", qty: 5, price: 72, total: 360 },
+    { name: "بطاطس", pack: "كيس ٢٥ كجم", qty: 4, price: 68, total: 272 },
+    { name: "ليمون بلدي", pack: "كرتون ١٠ كجم", qty: 4, price: 72, total: 288 },
+    { name: "بقدونس طازج", pack: "ربطة × ٢٠", qty: 12, price: 24, total: 288 },
   ],
-  subtotal: 1482,
+  subtotal: 1517,
   discount: 0,
   vatAmount: 0,
-  grandTotal: 1482,
+  grandTotal: 1517,
 };

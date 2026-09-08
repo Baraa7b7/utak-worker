@@ -209,12 +209,12 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-// ---- Test data ----
+// ---- Test data — supplier "خضار الرياض", 4 items ----
 export const TEST_PURCHASE_ORDER_DATA: PurchaseOrderPDFData = {
   poNumber: "PO-2026-0042",
   poDate: new Date("2026-09-08T21:15:00Z"),
   supplier: {
-    name: "مؤسسة الأسواق المركزية للخضار",
+    name: "خضار الرياض",
     contactPerson: "أ. أحمد الغامدي",
     address: "سوق الجملة، الرياض",
     phone: "+966 55 900 4400",
@@ -222,11 +222,9 @@ export const TEST_PURCHASE_ORDER_DATA: PurchaseOrderPDFData = {
   items: [
     { name: "طماطم شيري كرزية درجة أولى", pack: "كرتون ٨ كجم", qty: 30, price: 32, total: 960 },
     { name: "خيار بلدي", pack: "كرتون ٥ كجم", qty: 40, price: 18, total: 720 },
-    { name: "خس آيسبرغ", pack: "كرتون ١٢ حبة", qty: 20, price: 42, total: 840 },
     { name: "بطاطس", pack: "كيس ٢٥ كجم", qty: 25, price: 55, total: 1375 },
     { name: "ليمون بلدي", pack: "كرتون ١٠ كجم", qty: 22, price: 60, total: 1320 },
-    { name: "فلفل رومي ملون", pack: "كرتون ٥ كجم", qty: 30, price: 46, total: 1380 },
   ],
-  subtotal: 6595,
-  grandTotal: 6595,
+  subtotal: 4375,
+  grandTotal: 4375,
 };

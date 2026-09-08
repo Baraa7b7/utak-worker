@@ -176,6 +176,8 @@ export default {
 
     // TEMPORARY test endpoints for the new PDF doc suite (quotation / receipt /
     // delivery-note / purchase-order). Preview only — no R2, no WhatsApp.
+    // If ?id is missing or 0 → uses each module's TEST_* mock data (visual
+    // preview against empty Odoo tables). If id > 0 → fetches from Odoo.
     // Remove once the docs are wired into their real triggers.
     {
       const suite = [
@@ -184,6 +186,7 @@ export default {
           folder: "quotations",
           load: async () => await import("./quotation"),
           build: (m: typeof import("./quotation"), id: number) => m.buildQuotationPDFDataFromOdoo(env, id),
+          mock: (m: typeof import("./quotation")) => m.TEST_QUOTATION_DATA,
           gen: (m: typeof import("./quotation"), d: unknown) => m.generateQuotationPDF(d as import("./quotation").QuotationPDFData, env),
           numberOf: (d: unknown) => (d as import("./quotation").QuotationPDFData).quotationNumber,
         },
@@ -192,6 +195,7 @@ export default {
           folder: "receipts",
           load: async () => await import("./receipt"),
           build: (m: typeof import("./receipt"), id: number) => m.buildReceiptPDFDataFromOdoo(env, id),
+          mock: (m: typeof import("./receipt")) => m.TEST_RECEIPT_DATA,
           gen: (m: typeof import("./receipt"), d: unknown) => m.generateReceiptPDF(d as import("./receipt").ReceiptPDFData, env),
           numberOf: (d: unknown) => (d as import("./receipt").ReceiptPDFData).receiptNumber,
         },
@@ -200,6 +204,7 @@ export default {
           folder: "delivery-notes",
           load: async () => await import("./delivery-note"),
           build: (m: typeof import("./delivery-note"), id: number) => m.buildDeliveryNotePDFDataFromOdoo(env, id),
+          mock: (m: typeof import("./delivery-note")) => m.TEST_DELIVERY_NOTE_DATA,
           gen: (m: typeof import("./delivery-note"), d: unknown) => m.generateDeliveryNotePDF(d as import("./delivery-note").DeliveryNotePDFData, env),
           numberOf: (d: unknown) => (d as import("./delivery-note").DeliveryNotePDFData).deliveryNumber,
         },
@@ -208,6 +213,7 @@ export default {
           folder: "purchase-orders",
           load: async () => await import("./purchase-order"),
           build: (m: typeof import("./purchase-order"), id: number) => m.buildPurchaseOrderPDFDataFromOdoo(env, id),
+          mock: (m: typeof import("./purchase-order")) => m.TEST_PURCHASE_ORDER_DATA,
           gen: (m: typeof import("./purchase-order"), d: unknown) => m.generatePurchaseOrderPDF(d as import("./purchase-order").PurchaseOrderPDFData, env),
           numberOf: (d: unknown) => (d as import("./purchase-order").PurchaseOrderPDFData).poNumber,
         },
@@ -221,15 +227,22 @@ export default {
           return json({ error: "unauthorized" }, 401);
         }
         const idParam = url.searchParams.get("id");
-        if (!idParam) return json({ ok: false, error: "missing id" }, 400);
-        const id = Number(idParam);
-        if (!Number.isFinite(id) || id <= 0) return json({ ok: false, error: "invalid id" }, 400);
+        const id = idParam ? Number(idParam) : 0;
+        if (idParam && !Number.isFinite(id)) {
+          return json({ ok: false, error: "invalid id" }, 400);
+        }
 
         try {
           const mod = await hit.load();
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const data = await (hit.build as any)(mod, id);
-          if (!data) return json({ ok: false, error: "not found" }, 404);
+          let data: unknown;
+          if (id > 0) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            data = await (hit.build as any)(mod, id);
+            if (!data) return json({ ok: false, error: "not found" }, 404);
+          } else {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            data = (hit.mock as any)(mod);
+          }
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const pdfBytes: Uint8Array = await (hit.gen as any)(mod, data);
           const filename = `utak-${hit.folder}-${hit.numberOf(data)}.pdf`;

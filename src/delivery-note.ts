@@ -195,7 +195,7 @@ export async function buildDeliveryNotePDFDataFromOdoo(
   };
 }
 
-// ---- Test data ----
+// ---- Test data — 5 items, no prices ----
 export const TEST_DELIVERY_NOTE_DATA: DeliveryNotePDFData = {
   deliveryNumber: "DLV-2026-0091",
   deliveryDate: new Date("2026-09-08T10:00:00Z"),
@@ -206,11 +206,10 @@ export const TEST_DELIVERY_NOTE_DATA: DeliveryNotePDFData = {
     phone: "+966 55 214 8830",
   },
   items: [
-    { name: "طماطم شيري كرزية درجة أولى", pack: "كرتون ٨ كجم", qty: 6 },
+    { name: "طماطم شيري كرزية درجة أولى", pack: "كرتون ٨ كجم", qty: 5 },
     { name: "خيار بلدي", pack: "كرتون ٥ كجم", qty: 8 },
     { name: "خس آيسبرغ", pack: "كرتون ١٢ حبة", qty: 4 },
-    { name: "بطاطس", pack: "كيس ٢٥ كجم", qty: 6 },
-    { name: "ليمون بلدي", pack: "كرتون ١٠ كجم", qty: 5 },
-    { name: "بقدونس طازج", pack: "ربطة × ٢٠", qty: 6 },
+    { name: "بطاطس", pack: "كيس ٢٥ كجم", qty: 4 },
+    { name: "ليمون بلدي", pack: "كرتون ١٠ كجم", qty: 4 },
   ],
 };

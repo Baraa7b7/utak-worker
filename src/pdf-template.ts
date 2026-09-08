@@ -271,3 +271,114 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
 </body>
 </html>`;
 }
+
+// ============================================================================
+// Shared PDF rendering helper — every doc goes through Gotenberg the same way.
+// ============================================================================
+
+export interface GotenbergEnv {
+  GOTENBERG_URL?: string;
+  GOTENBERG_USER?: string;
+  GOTENBERG_PASSWORD?: string;
+}
+
+export async function htmlToPDF(html: string, env: GotenbergEnv): Promise<Uint8Array> {
+  const gotenbergUrl = env.GOTENBERG_URL;
+  const gotenbergUser = env.GOTENBERG_USER;
+  const gotenbergPass = env.GOTENBERG_PASSWORD;
+
+  if (!gotenbergUrl || !gotenbergUser || !gotenbergPass) {
+    throw new Error("Gotenberg env vars missing: GOTENBERG_URL/USER/PASSWORD");
+  }
+
+  const formData = new FormData();
+  formData.append("files", new Blob([html], { type: "text/html" }), "index.html");
+  formData.append("paperWidth", "8.27");
+  formData.append("paperHeight", "11.69");
+  formData.append("marginTop", "0");
+  formData.append("marginBottom", "0");
+  formData.append("marginLeft", "0");
+  formData.append("marginRight", "0");
+  formData.append("printBackground", "true");
+  formData.append("waitDelay", "2s");
+
+  const auth = "Basic " + btoa(`${gotenbergUser}:${gotenbergPass}`);
+  const response = await fetch(`${gotenbergUrl}/forms/chromium/convert/html`, {
+    method: "POST",
+    headers: { Authorization: auth },
+    body: formData,
+  });
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Gotenberg ${response.status}: ${errText}`);
+  }
+  return new Uint8Array(await response.arrayBuffer());
+}
+
+// HMAC-SHA256 signed token — same shape used for invoice R2 URLs.
+export async function signDocToken(secret: string, docId: string): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(docId));
+  return Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .slice(0, 16);
+}
+
+export interface R2BucketLike {
+  put(
+    key: string,
+    value: Uint8Array,
+    options?: {
+      httpMetadata?: { contentType?: string; contentDisposition?: string };
+      customMetadata?: Record<string, string>;
+    },
+  ): Promise<unknown>;
+}
+
+export interface UploadPDFEnv {
+  ADMIN_TOKEN?: string;
+  INVOICES_BUCKET: R2BucketLike;
+}
+
+/**
+ * Uploads a PDF to R2 under `${folder}/${docNumber}.pdf` and returns a signed URL
+ * shaped `/${urlPrefix}/${docNumber}/${token}.pdf` on `workerOrigin`.
+ * A serve endpoint for non-invoice `urlPrefix` values may not exist yet —
+ * the URL is future-facing; the R2 object itself is written immediately.
+ */
+export async function uploadPDFToR2(
+  env: UploadPDFEnv,
+  args: {
+    pdfBytes: Uint8Array;
+    folder: string;      // e.g. "quotations"
+    urlPrefix: string;   // e.g. "quotation-pdf"
+    docNumber: string;
+    workerOrigin: string;
+  },
+): Promise<{ key: string; publicUrl: string; size: number }> {
+  if (!env.ADMIN_TOKEN) {
+    throw new Error("ADMIN_TOKEN missing — required to sign PDF URLs");
+  }
+  const key = `${args.folder}/${args.docNumber}.pdf`;
+  await env.INVOICES_BUCKET.put(key, args.pdfBytes, {
+    httpMetadata: {
+      contentType: "application/pdf",
+      contentDisposition: `inline; filename="${args.docNumber}.pdf"`,
+    },
+    customMetadata: {
+      docNumber: args.docNumber,
+      uploadedAt: new Date().toISOString(),
+    },
+  });
+  const token = await signDocToken(env.ADMIN_TOKEN, args.docNumber);
+  const publicUrl = `${args.workerOrigin}/${args.urlPrefix}/${args.docNumber}/${token}.pdf`;
+  return { key, publicUrl, size: args.pdfBytes.byteLength };
+}

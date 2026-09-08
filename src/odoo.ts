@@ -39,7 +39,7 @@ async function authenticateSession(env: Env): Promise<void> {
   authMode = "session";
 }
 
-async function call<T = unknown>(
+export async function call<T = unknown>(
   env: Env,
   model: string,
   method: string,

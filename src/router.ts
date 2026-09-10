@@ -51,7 +51,7 @@ export async function dispatch(env: Env, input: RouterInput): Promise<RouterRepl
   const { msg, intent, senderType, partner } = input;
 
   // ---- Button replies short-circuit intent classification ----
-  if (msg.type === "interactive" && msg.buttonId) {
+  if (msg.buttonId) {
     return await handleButton(env, msg.buttonId, partner);
   }
 

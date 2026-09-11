@@ -165,10 +165,20 @@ export async function buildQuotationPDFDataFromOdoo(
     x_sent_at: string | false;
     create_date: string | false;
   };
-  const rows = await call<QuoRow[]>(env, "x_quotation", "read", {
-    ids: [quotationId],
-    fields: ["id", "x_quotation_number", "x_order_id", "x_sent_at", "create_date"],
-  });
+  let rows: QuoRow[];
+  try {
+    rows = await call<QuoRow[]>(env, "x_quotation", "read", {
+      ids: [quotationId],
+      fields: ["id", "x_quotation_number", "x_order_id", "x_sent_at", "create_date"],
+    });
+  } catch (e) {
+    console.error(
+      "[q-issue] step 1 FAILED:",
+      (e as Error).message,
+      (e as Error).stack,
+    );
+    throw e;
+  }
   const q = rows[0];
   if (!q) return null;
   if (!q.x_order_id) {
@@ -249,22 +259,62 @@ export async function createAndDispatchQuotationForRecord(
   env: Env,
   quotationId: number,
 ): Promise<QuotationDispatchResult | null> {
-  const data = await buildQuotationPDFDataFromOdoo(env, quotationId);
+  let data: QuotationPDFData | null;
+  try {
+    data = await buildQuotationPDFDataFromOdoo(env, quotationId);
+  } catch (e) {
+    console.error(
+      "[q-issue] step 2 FAILED:",
+      (e as Error).message,
+      (e as Error).stack,
+    );
+    throw e;
+  }
   if (!data) {
     console.warn(`[quotation] record ${quotationId} not found`);
     return null;
   }
 
-  const pdfBytes = await generateQuotationPDF(data, env);
-  const uploaded = await uploadQuotationToR2(
-    env,
-    pdfBytes,
-    data.quotationNumber,
-    env.WORKER_ORIGIN,
-  );
-  console.log(
-    `[quotation] PDF generated & uploaded: ${uploaded.size} bytes → ${uploaded.publicUrl}`,
-  );
+  let html: string;
+  try {
+    html = renderQuotationHTML(data);
+  } catch (e) {
+    console.error(
+      "[q-issue] step 3 FAILED:",
+      (e as Error).message,
+      (e as Error).stack,
+    );
+    throw e;
+  }
+
+  let pdfBytes: Uint8Array;
+  try {
+    pdfBytes = await htmlToPDF(html, env);
+  } catch (e) {
+    console.error(
+      "[q-issue] step 4 FAILED:",
+      (e as Error).message,
+      (e as Error).stack,
+    );
+    throw e;
+  }
+
+  let uploaded: { key: string; publicUrl: string; size: number };
+  try {
+    uploaded = await uploadQuotationToR2(
+      env,
+      pdfBytes,
+      data.quotationNumber,
+      env.WORKER_ORIGIN,
+    );
+  } catch (e) {
+    console.error(
+      "[q-issue] step 5 FAILED:",
+      (e as Error).message,
+      (e as Error).stack,
+    );
+    throw e;
+  }
 
   const customerPhone = data.customer.phone;
   const quotationDate = data.quotationDate.toLocaleDateString("en-GB", {
@@ -321,7 +371,12 @@ export async function createAndDispatchQuotationForRecord(
         }
       }
     } catch (e) {
-      console.warn(`[quotation] failed to send to customer`, (e as Error).message);
+      console.error(
+        "[q-issue] step 7 FAILED:",
+        (e as Error).message,
+        (e as Error).stack,
+      );
+      throw e;
     }
   }
 
@@ -331,6 +386,13 @@ export async function createAndDispatchQuotationForRecord(
       vals: { x_sent_at: nowOdoo() },
     });
   } catch (e) {
+    console.error(
+      "[q-issue] step 8 FAILED:",
+      (e as Error).message,
+      (e as Error).stack,
+    );
+    // Kept best-effort — a write-back failure must not undo a WhatsApp send
+    // that already reached the customer. Prior behavior was warn-and-continue.
     console.warn(`[quotation] failed to update x_sent_at`, (e as Error).message);
   }
 

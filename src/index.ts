@@ -222,6 +222,14 @@ export default {
       if (!env.INTERNAL_WEBHOOK_SECRET) {
         return json({ error: "service misconfigured — INTERNAL_WEBHOOK_SECRET missing" }, 500);
       }
+
+      let body: { quotation_id?: number; _id?: number; _model?: string } = {};
+      try {
+        body = (await request.json()) as typeof body;
+      } catch {
+        return json({ error: "bad json" }, 400);
+      }
+
       const providedToken = url.searchParams.get("token") ?? "";
       if (
         !providedToken ||
@@ -230,12 +238,6 @@ export default {
         return json({ error: "unauthorized" }, 401);
       }
 
-      let body: { quotation_id?: number; _id?: number; _model?: string } = {};
-      try {
-        body = (await request.json()) as typeof body;
-      } catch {
-        return json({ error: "bad json" }, 400);
-      }
       if (body._model && body._model !== "x_quotation") {
         return json({ error: `unexpected model: ${body._model}` }, 400);
       }
@@ -244,21 +246,34 @@ export default {
         return json({ error: "invalid quotation_id / _id" }, 400);
       }
 
-      try {
-        const { createAndDispatchQuotationForRecord } = await import("./quotation");
-        const result = await createAndDispatchQuotationForRecord(env, qid);
-        if (!result) return json({ error: `quotation ${qid} not found` }, 404);
-        return json({
-          success: true,
-          quotation_id: result.quotationId,
-          quotation_number: result.number,
-          pdf_url: result.pdfUrl,
-          pdf_size: result.pdfSize,
-          message_id: result.messageId,
-        });
-      } catch (e) {
-        return json({ success: false, error: (e as Error).message }, 500);
-      }
+      // Async response pattern: return 202 immediately so Odoo's Server
+      // Action releases the row lock. The Worker keeps running the full
+      // pipeline in ctx.waitUntil — reading the same x_quotation record
+      // was deadlocking against Odoo's own transactional lock and hitting
+      // the 2-minute Odoo webhook timeout → "Canceled".
+      ctx.waitUntil(
+        (async () => {
+          try {
+            const { createAndDispatchQuotationForRecord } = await import("./quotation");
+            const result = await createAndDispatchQuotationForRecord(env, qid);
+            if (!result) {
+              console.warn("[q-issue] background pipeline: quotation not found for id:", qid);
+              return;
+            }
+          } catch (e) {
+            console.error(
+              "[q-issue] background pipeline FAILED:",
+              (e as Error).message,
+              (e as Error).stack,
+            );
+          }
+        })(),
+      );
+
+      return new Response(
+        JSON.stringify({ status: "accepted", quotation_id: qid }),
+        { status: 202, headers: { "Content-Type": "application/json" } },
+      );
     }
 
     // 2026-09-09 — quotation dry-run: build PDF, optionally upload to R2, NEVER sends WhatsApp.

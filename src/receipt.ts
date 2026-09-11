@@ -3,6 +3,7 @@
 
 import type { Env } from "./config";
 import { call } from "./odoo";
+import { sendText } from "./meta";
 import {
   BRAND_COLORS,
   computePageMetrics,
@@ -10,6 +11,7 @@ import {
   formatMoney,
   htmlToPDF,
   renderPDFShell,
+  signDocToken,
   uploadPDFToR2,
   type PageMetrics,
   type PartyInfo,
@@ -195,7 +197,12 @@ export async function buildReceiptPDFDataFromOdoo(
   const rawDate = (p.x_collected_at || p.create_date) as string | false;
   const receiptDate = rawDate ? new Date(String(rawDate).replace(" ", "T") + "Z") : new Date();
   const invNum = typeof inv.x_invoice_number === "string" ? inv.x_invoice_number : String(invoiceId);
-  const receiptNumber = `RCP-${new Date().getFullYear()}-${String(paymentId).padStart(4, "0")}`;
+  // UTAK-R-YYYYMMDD-NNN — date from x_collected_at, counter = paymentId % 999
+  const yyyy = receiptDate.getUTCFullYear();
+  const mm = String(receiptDate.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(receiptDate.getUTCDate()).padStart(2, "0");
+  const counter = String(paymentId % 999).padStart(3, "0");
+  const receiptNumber = `UTAK-R-${yyyy}${mm}${dd}-${counter}`;
 
   return {
     receiptNumber,
@@ -214,6 +221,149 @@ function mapMethod(m: string | false): string {
   if (m === "cash") return "نقد";
   if (m === "transfer") return "تحويل بنكي";
   return (typeof m === "string" && m) ? m : "-";
+}
+
+// ---- Verify a `/receipt-pdf/{num}/{tok}.pdf` signed token ----
+export async function verifyReceiptToken(
+  secret: string,
+  receiptNumber: string,
+  token: string,
+): Promise<boolean> {
+  const expected = await signDocToken(secret, receiptNumber);
+  return expected === token;
+}
+
+// ---- Orchestrate: build → PDF → R2 → WhatsApp → write-back ----
+export interface ReceiptDispatchResult {
+  paymentId: number;
+  number: string;
+  pdfUrl: string;
+  pdfSize: number;
+  messageId: string | null;
+}
+
+export async function createAndDispatchReceiptForRecord(
+  env: Env,
+  paymentId: number,
+): Promise<ReceiptDispatchResult | null> {
+  let data: ReceiptPDFData | null;
+  try {
+    data = await buildReceiptPDFDataFromOdoo(env, paymentId);
+  } catch (e) {
+    console.error(
+      "[r-issue] step 1 FAILED:",
+      (e as Error).message,
+      (e as Error).stack,
+    );
+    throw e;
+  }
+  if (!data) {
+    console.warn(`[receipt] record ${paymentId} not found`);
+    return null;
+  }
+
+  let pdfBytes: Uint8Array;
+  try {
+    pdfBytes = await generateReceiptPDF(data, env);
+  } catch (e) {
+    console.error(
+      "[r-issue] step 2 FAILED:",
+      (e as Error).message,
+      (e as Error).stack,
+    );
+    throw e;
+  }
+
+  let uploaded: { key: string; publicUrl: string; size: number };
+  try {
+    uploaded = await uploadReceiptToR2(
+      env,
+      pdfBytes,
+      data.receiptNumber,
+      env.WORKER_ORIGIN,
+    );
+  } catch (e) {
+    console.error(
+      "[r-issue] step 3 FAILED:",
+      (e as Error).message,
+      (e as Error).stack,
+    );
+    throw e;
+  }
+
+  const customerPhone = data.customer.phone;
+  const amount = data.totalReceived;
+  const method = data.payments[0]?.method || "-";
+
+  let messageId: string | null = null;
+  if (!customerPhone) {
+    console.warn(`[receipt] ${paymentId} has no customer WhatsApp — skipping send`);
+  } else {
+    try {
+      // Plain-text fallback pending an approved receipt template (mirrors quotation).
+      const body = [
+        `✅ تم استلام دفعتك`,
+        `رقم الإيصال: ${data.receiptNumber}`,
+        `المبلغ: ${amount} ر.س`,
+        `طريقة الدفع: ${method}`,
+        ``,
+        `الإيصال: ${uploaded.publicUrl}`,
+        ``,
+        `شكراً لتعاملكم مع UTAK 🌿`,
+      ].join("\n");
+      const resp = await sendText(env, customerPhone, body);
+      if (resp?.ok) {
+        try {
+          const j = (await resp.json()) as { messages?: Array<{ id?: string }> };
+          messageId = j?.messages?.[0]?.id ?? null;
+        } catch {
+          /* ignore parse error — Meta returned non-JSON */
+        }
+      }
+    } catch (e) {
+      console.error(
+        "[r-issue] step 4 FAILED:",
+        (e as Error).message,
+        (e as Error).stack,
+      );
+      throw e;
+    }
+  }
+
+  // Warn-and-continue: a write-back failure must not undo a WhatsApp send
+  // that already reached the customer.
+  try {
+    await call<boolean>(env, "x_payment", "write", {
+      ids: [paymentId],
+      vals: {
+        x_studio_char_1_1: data.receiptNumber,
+        x_studio_datetime_1_1: nowOdoo(),
+        x_studio_char_2: uploaded.publicUrl,
+      },
+    });
+  } catch (e) {
+    console.error(
+      "[r-issue] step 5 FAILED:",
+      (e as Error).message,
+      (e as Error).stack,
+    );
+    console.warn(
+      `[receipt] failed to write-back x_payment fields for ${paymentId}`,
+      (e as Error).message,
+    );
+  }
+
+  return {
+    paymentId,
+    number: data.receiptNumber,
+    pdfUrl: uploaded.publicUrl,
+    pdfSize: uploaded.size,
+    messageId,
+  };
+}
+
+function nowOdoo(): string {
+  return new Date().toISOString().replace("T", " ").slice(0, 19);
 }
 
 // ---- Test data — 3 invoices, ~4500 SAR total ----

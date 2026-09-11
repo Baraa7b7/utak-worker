@@ -15,6 +15,8 @@
 //        ?token=X&id=32               → return PDF inline
 //        ?token=X&id=32&save=1        → upload to R2, return JSON URL
 //   GET  /quotation-pdf/{num}/{tok}.pdf → PUBLIC quotation PDF from R2 (HMAC-signed)
+//   POST /internal/receipt-issue      → Odoo webhook: build+send receipt PDF (token-guarded via ?token=)
+//   GET  /receipt-pdf/{num}/{tok}.pdf → PUBLIC receipt PDF from R2 (HMAC-signed)
 
 import type { Env } from "./config";
 import { handleVerify, verifySignature, parseWebhook, sendText, sendButtons } from "./meta";
@@ -276,6 +278,63 @@ export default {
       );
     }
 
+    // 2026-09-12 — Odoo → Worker: issue a receipt (build PDF + send WhatsApp).
+    // Auth + async-response pattern mirrors /internal/quotation-issue exactly.
+    // Body: Odoo Automated Action sends `{"id": <recordId>}`; also accept `_id`
+    // and `payment_id` so manual/curl callers keep working.
+    if (request.method === "POST" && url.pathname === "/internal/receipt-issue") {
+      if (!env.INTERNAL_WEBHOOK_SECRET) {
+        return json({ error: "service misconfigured — INTERNAL_WEBHOOK_SECRET missing" }, 500);
+      }
+
+      let body: { id?: number; payment_id?: number; _id?: number; _model?: string } = {};
+      try {
+        body = (await request.json()) as typeof body;
+      } catch {
+        return json({ error: "bad json" }, 400);
+      }
+
+      const providedToken = url.searchParams.get("token") ?? "";
+      if (
+        !providedToken ||
+        !timingSafeEqual(providedToken, env.INTERNAL_WEBHOOK_SECRET)
+      ) {
+        return json({ error: "unauthorized" }, 401);
+      }
+
+      if (body._model && body._model !== "x_payment") {
+        return json({ error: `unexpected model: ${body._model}` }, 400);
+      }
+      const pid = Number(body.id ?? body.payment_id ?? body._id);
+      if (!Number.isFinite(pid) || pid <= 0) {
+        return json({ error: "invalid id / payment_id / _id" }, 400);
+      }
+
+      ctx.waitUntil(
+        (async () => {
+          try {
+            const { createAndDispatchReceiptForRecord } = await import("./receipt");
+            const result = await createAndDispatchReceiptForRecord(env, pid);
+            if (!result) {
+              console.warn("[r-issue] background pipeline: payment not found for id:", pid);
+              return;
+            }
+          } catch (e) {
+            console.error(
+              "[r-issue] background pipeline FAILED:",
+              (e as Error).message,
+              (e as Error).stack,
+            );
+          }
+        })(),
+      );
+
+      return new Response(
+        JSON.stringify({ status: "accepted", payment_id: pid }),
+        { status: 202, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
     // 2026-09-09 — quotation dry-run: build PDF, optionally upload to R2, NEVER sends WhatsApp.
     // Mirrors /test-invoice. Will be removed after we're confident in the flow.
     if (request.method === "GET" && url.pathname === "/admin/dry-run-quotation") {
@@ -365,6 +424,44 @@ export default {
         headers: {
           "Content-Type": "application/pdf",
           "Content-Disposition": `inline; filename="${quotationNumber}.pdf"`,
+          "Cache-Control": "public, max-age=3600",
+        },
+      });
+    }
+
+    // 2026-09-12 — PUBLIC: serves receipt PDF from R2 by signed URL.
+    // Path shape: /receipt-pdf/{receiptNumber}/{token}.pdf
+    // R2 key written by uploadReceiptToR2 → `receipts/{receiptNumber}.pdf`.
+    if (request.method === "GET" && url.pathname.startsWith("/receipt-pdf/")) {
+      const path = url.pathname.substring("/receipt-pdf/".length);
+      const match = /^(.+?)\/([a-f0-9]{16})\.pdf$/.exec(path);
+      if (!match) return new Response("not found", { status: 404 });
+
+      let receiptNumber: string;
+      try {
+        receiptNumber = decodeURIComponent(match[1]);
+      } catch {
+        return new Response("not found", { status: 404 });
+      }
+      const providedToken = match[2];
+
+      if (!env.ADMIN_TOKEN) {
+        return new Response("service misconfigured", { status: 500 });
+      }
+
+      const { verifyReceiptToken } = await import("./receipt");
+      const valid = await verifyReceiptToken(env.ADMIN_TOKEN, receiptNumber, providedToken);
+      if (!valid) return new Response("not found", { status: 404 });
+
+      const key = `receipts/${receiptNumber}.pdf`;
+      const obj = await env.INVOICES_BUCKET.get(key);
+      if (!obj) return new Response("not found", { status: 404 });
+
+      return new Response(obj.body, {
+        status: 200,
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `inline; filename="${receiptNumber}.pdf"`,
           "Cache-Control": "public, max-age=3600",
         },
       });

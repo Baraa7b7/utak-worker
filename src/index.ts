@@ -16,6 +16,7 @@
 //        ?token=X&id=32&save=1        → upload to R2, return JSON URL
 //   GET  /quotation-pdf/{num}/{tok}.pdf → PUBLIC quotation PDF from R2 (HMAC-signed)
 //   POST /internal/receipt-issue      → Odoo webhook: build+send receipt PDF (token-guarded via ?token=)
+//   GET  /admin/test-receipt          → run receipt pipeline sync w/ per-step trace (token-guarded, sends real WA)
 //   GET  /receipt-pdf/{num}/{tok}.pdf → PUBLIC receipt PDF from R2 (HMAC-signed)
 
 import type { Env } from "./config";
@@ -333,6 +334,127 @@ export default {
         JSON.stringify({ status: "accepted", payment_id: pid }),
         { status: 202, headers: { "Content-Type": "application/json" } },
       );
+    }
+
+    // 2026-09-12 — Diagnostic: run the full receipt pipeline SYNCHRONOUSLY with
+    // per-step try/catch, so a failing step is visible in the JSON response
+    // instead of hiding in a Worker log line. Mirrors createAndDispatchReceiptForRecord
+    // but does NOT call it — a local copy of each step keeps the error boundary
+    // per-step. Sends real WhatsApp + writes back to Odoo — treat as a test-fire,
+    // not a dry-run.
+    if (request.method === "GET" && url.pathname === "/admin/test-receipt") {
+      const token = url.searchParams.get("token") ?? request.headers.get("x-admin-token") ?? "";
+      const expected = env.ADMIN_TOKEN ?? "";
+      if (!expected || token !== expected) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      const idParam = url.searchParams.get("id");
+      const paymentId = Number(idParam);
+      if (!Number.isFinite(paymentId) || paymentId <= 0) {
+        return json({ error: "invalid id" }, 400);
+      }
+
+      const steps: Record<string, string> = {
+        "1_build_data": "pending",
+        "2_generate_pdf": "pending",
+        "3_upload_r2": "pending",
+        "4_send_whatsapp": "pending",
+        "5_writeback": "pending",
+      };
+      let receiptNumber = "";
+      let pdfUrl = "";
+
+      const {
+        buildReceiptPDFDataFromOdoo,
+        generateReceiptPDF,
+        uploadReceiptToR2,
+      } = await import("./receipt");
+      const { call } = await import("./odoo");
+
+      // Step 1 — build from Odoo
+      const built = await (async () => {
+        try {
+          const d = await buildReceiptPDFDataFromOdoo(env, paymentId);
+          if (!d) {
+            steps["1_build_data"] = `error: payment ${paymentId} not found`;
+            return null;
+          }
+          steps["1_build_data"] = "ok";
+          receiptNumber = d.receiptNumber;
+          return d;
+        } catch (e) {
+          steps["1_build_data"] = `error: ${(e as Error).message}`;
+          return null;
+        }
+      })();
+      if (!built) return json({ paymentId, steps, receiptNumber, pdfUrl });
+
+      // Step 2 — Gotenberg
+      let pdfBytes: Uint8Array | null = null;
+      try {
+        pdfBytes = await generateReceiptPDF(built, env);
+        steps["2_generate_pdf"] = "ok";
+      } catch (e) {
+        steps["2_generate_pdf"] = `error: ${(e as Error).message}`;
+      }
+      if (!pdfBytes) return json({ paymentId, steps, receiptNumber, pdfUrl });
+
+      // Step 3 — R2 upload (returns signed URL)
+      let uploaded: { key: string; publicUrl: string; size: number } | null = null;
+      try {
+        uploaded = await uploadReceiptToR2(env, pdfBytes, built.receiptNumber, env.WORKER_ORIGIN);
+        pdfUrl = uploaded.publicUrl;
+        steps["3_upload_r2"] = `ok: ${uploaded.publicUrl}`;
+      } catch (e) {
+        steps["3_upload_r2"] = `error: ${(e as Error).message}`;
+      }
+      if (!uploaded) return json({ paymentId, steps, receiptNumber, pdfUrl });
+
+      // Step 4 — WhatsApp (plain-text fallback, mirrors orchestrator)
+      const customerPhone = built.customer.phone;
+      if (!customerPhone) {
+        steps["4_send_whatsapp"] = "skipped: no phone";
+      } else {
+        try {
+          const method = built.payments[0]?.method || "-";
+          const body = [
+            `✅ تم استلام دفعتك`,
+            `رقم الإيصال: ${built.receiptNumber}`,
+            `المبلغ: ${built.totalReceived} ر.س`,
+            `طريقة الدفع: ${method}`,
+            ``,
+            `الإيصال: ${uploaded.publicUrl}`,
+            ``,
+            `شكراً لتعاملكم مع UTAK 🌿`,
+          ].join("\n");
+          const resp = await sendText(env, customerPhone, body);
+          if (!resp || !resp.ok) {
+            const errText = resp ? await resp.text().catch(() => "") : "no response";
+            steps["4_send_whatsapp"] = `error: ${resp?.status ?? "?"} ${errText.slice(0, 200)}`;
+          } else {
+            steps["4_send_whatsapp"] = "ok";
+          }
+        } catch (e) {
+          steps["4_send_whatsapp"] = `error: ${(e as Error).message}`;
+        }
+      }
+
+      // Step 5 — Odoo write-back
+      try {
+        await call<boolean>(env, "x_payment", "write", {
+          ids: [paymentId],
+          vals: {
+            x_studio_char_1_1: built.receiptNumber,
+            x_studio_datetime_1_1: new Date().toISOString().replace("T", " ").slice(0, 19),
+            x_studio_char_2: uploaded.publicUrl,
+          },
+        });
+        steps["5_writeback"] = "ok";
+      } catch (e) {
+        steps["5_writeback"] = `error: ${(e as Error).message}`;
+      }
+
+      return json({ paymentId, steps, receiptNumber, pdfUrl });
     }
 
     // 2026-09-09 — quotation dry-run: build PDF, optionally upload to R2, NEVER sends WhatsApp.

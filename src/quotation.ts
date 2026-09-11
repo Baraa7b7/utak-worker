@@ -3,6 +3,8 @@
 
 import type { Env } from "./config";
 import { getOrderForInvoicing, getLatestSalePrice, call } from "./odoo";
+import { sendText } from "./meta";
+import { sendTemplateByPurpose, T } from "./templates";
 import {
   BRAND_COLORS,
   computePageMetrics,
@@ -10,6 +12,7 @@ import {
   formatMoney,
   htmlToPDF,
   renderPDFShell,
+  signDocToken,
   uploadPDFToR2,
   type PageMetrics,
   type PartyInfo,
@@ -134,13 +137,20 @@ export async function uploadQuotationToR2(
   quotationNumber: string,
   workerOrigin: string,
 ): Promise<{ key: string; publicUrl: string; size: number }> {
-  return await uploadPDFToR2(env, {
+  const result = await uploadPDFToR2(env, {
     pdfBytes,
     folder: "quotations",
     urlPrefix: "quotation-pdf",
     docNumber: quotationNumber,
     workerOrigin,
   });
+  // URL-encode the {num} segment. The R2 key stays raw; the GET
+  // /quotation-pdf/:num/:tok.pdf handler decodeURIComponent()s before
+  // R2 lookup and HMAC verification. uploadPDFToR2 already required
+  // ADMIN_TOKEN, so the non-null assertion is safe here.
+  const token = await signDocToken(env.ADMIN_TOKEN!, quotationNumber);
+  const publicUrl = `${workerOrigin}/quotation-pdf/${encodeURIComponent(quotationNumber)}/${token}.pdf`;
+  return { ...result, publicUrl };
 }
 
 // ---- Build from a real Odoo x_quotation record ----
@@ -188,9 +198,10 @@ export async function buildQuotationPDFDataFromOdoo(
     });
   }
 
-  const number = (typeof q.x_quotation_number === "string" && q.x_quotation_number)
-    ? q.x_quotation_number
-    : `QUO-${new Date().getFullYear()}-${String(quotationId).padStart(4, "0")}`;
+  if (typeof q.x_quotation_number !== "string" || !q.x_quotation_number) {
+    throw new Error(`Missing x_quotation_number on record ${quotationId}`);
+  }
+  const number = q.x_quotation_number;
 
   const rawDate = (q.x_sent_at || q.create_date) as string | false;
   const quotationDate = rawDate ? new Date(String(rawDate).replace(" ", "T") + "Z") : new Date();
@@ -213,6 +224,127 @@ export async function buildQuotationPDFDataFromOdoo(
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+// ---- Verify a `/quotation-pdf/{num}/{tok}.pdf` signed token ----
+export async function verifyQuotationToken(
+  secret: string,
+  quotationNumber: string,
+  token: string,
+): Promise<boolean> {
+  const expected = await signDocToken(secret, quotationNumber);
+  return expected === token;
+}
+
+// ---- Orchestrate: build → PDF → R2 → WhatsApp → mark sent ----
+export interface QuotationDispatchResult {
+  quotationId: number;
+  number: string;
+  pdfUrl: string;
+  pdfSize: number;
+  messageId: string | null;
+}
+
+export async function createAndDispatchQuotationForRecord(
+  env: Env,
+  quotationId: number,
+): Promise<QuotationDispatchResult | null> {
+  const data = await buildQuotationPDFDataFromOdoo(env, quotationId);
+  if (!data) {
+    console.warn(`[quotation] record ${quotationId} not found`);
+    return null;
+  }
+
+  const pdfBytes = await generateQuotationPDF(data, env);
+  const uploaded = await uploadQuotationToR2(
+    env,
+    pdfBytes,
+    data.quotationNumber,
+    env.WORKER_ORIGIN,
+  );
+  console.log(
+    `[quotation] PDF generated & uploaded: ${uploaded.size} bytes → ${uploaded.publicUrl}`,
+  );
+
+  const customerPhone = data.customer.phone;
+  const quotationDate = data.quotationDate.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+
+  let messageId: string | null = null;
+  if (!customerPhone) {
+    console.warn(`[quotation] ${quotationId} has no customer WhatsApp — skipping send`);
+  } else {
+    try {
+      let resp: Response | null = null;
+      try {
+        resp = await sendTemplateByPurpose(
+          env,
+          customerPhone,
+          T.CUSTOMER_QUOTATION_PDF,
+          [
+            data.customer.name || "",
+            data.quotationNumber,
+            quotationDate,
+            String(data.grandTotal),
+          ],
+          [],
+          { type: "document", link: uploaded.publicUrl, filename: `${data.quotationNumber}.pdf` },
+        );
+      } catch (e) {
+        console.warn(`[quotation] template send threw`, (e as Error).message);
+      }
+
+      if (!resp || !resp.ok) {
+        // Fallback: plain text with PDF link (works even before Meta approves utak_v2_quotation_pdf)
+        const body = [
+          `📄 عرض السعر رقم ${data.quotationNumber}`,
+          ``,
+          `العميل: ${data.customer.name}`,
+          `الإجمالي: ${data.grandTotal} ر.س`,
+          ``,
+          `الملف: ${uploaded.publicUrl}`,
+          ``,
+          `العرض ساري ٧ أيام. شكراً لتعاملكم مع UTAK 🌿`,
+        ].join("\n");
+        resp = await sendText(env, customerPhone, body);
+      }
+
+      if (resp?.ok) {
+        try {
+          const j = (await resp.json()) as { messages?: Array<{ id?: string }> };
+          messageId = j?.messages?.[0]?.id ?? null;
+        } catch {
+          /* ignore parse error — Meta returned non-JSON */
+        }
+      }
+    } catch (e) {
+      console.warn(`[quotation] failed to send to customer`, (e as Error).message);
+    }
+  }
+
+  try {
+    await call<boolean>(env, "x_quotation", "write", {
+      ids: [quotationId],
+      vals: { x_sent_at: nowOdoo() },
+    });
+  } catch (e) {
+    console.warn(`[quotation] failed to update x_sent_at`, (e as Error).message);
+  }
+
+  return {
+    quotationId,
+    number: data.quotationNumber,
+    pdfUrl: uploaded.publicUrl,
+    pdfSize: uploaded.size,
+    messageId,
+  };
+}
+
+function nowOdoo(): string {
+  return new Date().toISOString().replace("T", " ").slice(0, 19);
 }
 
 // ---- Test data — 6 items, ~1500 SAR total ----

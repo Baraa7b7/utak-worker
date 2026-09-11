@@ -128,6 +128,7 @@ export const T = {
   CUSTOMER_DELIVERY_DONE: "customer_delivery_done",
   CUSTOMER_INVOICE: "customer_invoice",
   CUSTOMER_INVOICE_PDF: "customer_invoice_pdf",
+  CUSTOMER_QUOTATION_PDF: "customer_quotation_pdf",
   CUSTOMER_PAY_REMIND: "customer_pay_remind",
   CUSTOMER_INACTIVE: "customer_inactive",
   CUSTOMER_FEEDBACK: "customer_feedback",

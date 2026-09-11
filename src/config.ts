@@ -32,6 +32,8 @@ export interface Env {
   GOTENBERG_URL?: string;
   GOTENBERG_USER?: string;
   GOTENBERG_PASSWORD?: string;
+  /** HMAC-SHA256 shared secret for Odoo → Worker internal webhooks (e.g. /internal/quotation-issue). */
+  INTERNAL_WEBHOOK_SECRET?: string;
 }
 
 export const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";

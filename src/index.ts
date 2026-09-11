@@ -10,6 +10,11 @@
 //        ?token=X&id=147              → real Odoo invoice #147
 //        ?token=X&id=147&save=1       → generate + upload to R2, return JSON URL
 //   GET  /invoice-pdf/{num}/{tok}.pdf → PUBLIC PDF from R2 (HMAC-signed)
+//   POST /internal/quotation-issue    → Odoo webhook: build+send quotation PDF (token-guarded via ?token=)
+//   GET  /admin/dry-run-quotation     → build a quotation PDF without sending WhatsApp (token-guarded)
+//        ?token=X&id=32               → return PDF inline
+//        ?token=X&id=32&save=1        → upload to R2, return JSON URL
+//   GET  /quotation-pdf/{num}/{tok}.pdf → PUBLIC quotation PDF from R2 (HMAC-signed)
 
 import type { Env } from "./config";
 import { handleVerify, verifySignature, parseWebhook, sendText, sendButtons } from "./meta";
@@ -207,6 +212,149 @@ export default {
       });
     }
 
+    // 2026-09-10 — Odoo → Worker: issue a quotation (build PDF + send WhatsApp).
+    // Auth: shared token in ?token=... URL query, compared time-safe to
+    // INTERNAL_WEBHOOK_SECRET. Odoo 19 SaaS "Send Webhook Notification" can't
+    // send custom headers or sign the body, so HMAC isn't an option there.
+    // Body: Odoo sends `{"_action": "...", "_id": <recordId>, "_model": "x_quotation"}`.
+    // We accept `quotation_id` too so manual/curl callers keep working.
+    if (request.method === "POST" && url.pathname === "/internal/quotation-issue") {
+      if (!env.INTERNAL_WEBHOOK_SECRET) {
+        return json({ error: "service misconfigured — INTERNAL_WEBHOOK_SECRET missing" }, 500);
+      }
+      const providedToken = url.searchParams.get("token") ?? "";
+      if (
+        !providedToken ||
+        !timingSafeEqual(providedToken, env.INTERNAL_WEBHOOK_SECRET)
+      ) {
+        return json({ error: "unauthorized" }, 401);
+      }
+
+      let body: { quotation_id?: number; _id?: number; _model?: string } = {};
+      try {
+        body = (await request.json()) as typeof body;
+      } catch {
+        return json({ error: "bad json" }, 400);
+      }
+      if (body._model && body._model !== "x_quotation") {
+        return json({ error: `unexpected model: ${body._model}` }, 400);
+      }
+      const qid = Number(body.quotation_id ?? body._id);
+      if (!Number.isFinite(qid) || qid <= 0) {
+        return json({ error: "invalid quotation_id / _id" }, 400);
+      }
+
+      try {
+        const { createAndDispatchQuotationForRecord } = await import("./quotation");
+        const result = await createAndDispatchQuotationForRecord(env, qid);
+        if (!result) return json({ error: `quotation ${qid} not found` }, 404);
+        return json({
+          success: true,
+          quotation_id: result.quotationId,
+          quotation_number: result.number,
+          pdf_url: result.pdfUrl,
+          pdf_size: result.pdfSize,
+          message_id: result.messageId,
+        });
+      } catch (e) {
+        return json({ success: false, error: (e as Error).message }, 500);
+      }
+    }
+
+    // 2026-09-09 — quotation dry-run: build PDF, optionally upload to R2, NEVER sends WhatsApp.
+    // Mirrors /test-invoice. Will be removed after we're confident in the flow.
+    if (request.method === "GET" && url.pathname === "/admin/dry-run-quotation") {
+      const token = url.searchParams.get("token") ?? request.headers.get("x-admin-token") ?? "";
+      const expected = env.ADMIN_TOKEN ?? "";
+      if (!expected || token !== expected) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      const idParam = url.searchParams.get("id");
+      try {
+        const {
+          buildQuotationPDFDataFromOdoo,
+          generateQuotationPDF,
+          uploadQuotationToR2,
+          TEST_QUOTATION_DATA,
+        } = await import("./quotation");
+
+        let data;
+        if (idParam) {
+          const id = Number(idParam);
+          if (!Number.isFinite(id) || id <= 0) {
+            return json({ error: "invalid id" }, 400);
+          }
+          data = await buildQuotationPDFDataFromOdoo(env, id);
+          if (!data) return json({ error: `quotation ${id} not found` }, 404);
+        } else {
+          data = TEST_QUOTATION_DATA;
+        }
+
+        const pdfBytes = await generateQuotationPDF(data, env);
+        const shouldSave = url.searchParams.get("save") === "1";
+
+        if (shouldSave) {
+          const origin = `${url.protocol}//${url.host}`;
+          const result = await uploadQuotationToR2(env, pdfBytes, data.quotationNumber, origin);
+          return json({
+            ok: true,
+            quotationNumber: data.quotationNumber,
+            size: result.size,
+            publicUrl: result.publicUrl,
+            r2Key: result.key,
+          });
+        }
+
+        return new Response(pdfBytes, {
+          status: 200,
+          headers: {
+            "Content-Type": "application/pdf",
+            "Content-Disposition": `inline; filename="utak-quotation-${data.quotationNumber}.pdf"`,
+            "Cache-Control": "no-store",
+          },
+        });
+      } catch (e) {
+        return json({ ok: false, error: (e as Error).message }, 500);
+      }
+    }
+
+    // 2026-09-09 — PUBLIC: serves quotation PDF from R2 by signed URL.
+    // Path shape: /quotation-pdf/{quotationNumber}/{token}.pdf
+    if (request.method === "GET" && url.pathname.startsWith("/quotation-pdf/")) {
+      const path = url.pathname.substring("/quotation-pdf/".length);
+      const match = /^(.+?)\/([a-f0-9]{16})\.pdf$/.exec(path);
+      if (!match) return new Response("not found", { status: 404 });
+
+      let quotationNumber: string;
+      try {
+        quotationNumber = decodeURIComponent(match[1]);
+      } catch {
+        return new Response("not found", { status: 404 });
+      }
+      const providedToken = match[2];
+
+      if (!env.ADMIN_TOKEN) {
+        return new Response("service misconfigured", { status: 500 });
+      }
+
+      const { verifyQuotationToken } = await import("./quotation");
+      const valid = await verifyQuotationToken(env.ADMIN_TOKEN, quotationNumber, providedToken);
+      if (!valid) return new Response("not found", { status: 404 });
+
+      const key = `quotations/${quotationNumber}.pdf`;
+      const obj = await env.INVOICES_BUCKET.get(key);
+      if (!obj) return new Response("not found", { status: 404 });
+
+      return new Response(obj.body, {
+        status: 200,
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `inline; filename="${quotationNumber}.pdf"`,
+          "Cache-Control": "public, max-age=3600",
+        },
+      });
+    }
+
     if (request.method === "POST" && url.pathname === "/webhook") {
       const raw = await request.text();
       const sig = request.headers.get("x-hub-signature-256");
@@ -392,4 +540,11 @@ function json(obj: unknown, status = 200): Response {
     status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
 }

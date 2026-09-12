@@ -4,7 +4,12 @@
 import type { Env } from "./config";
 import { isRecipientAllowed, parseAllowlist, runtimeMode } from "./config";
 import type { NormalizedMessage } from "./types";
-import { captureOutbound } from "./sim";
+import {
+  extractRealWamid,
+  generateFakeWamid,
+  recordOutbound,
+  synthesizeMetaResponse,
+} from "./sim";
 
 // ---- GET /webhook — Meta verification handshake ----
 export function handleVerify(url: URL, env: Env): Response {
@@ -138,16 +143,33 @@ export function parseWebhook(payload: unknown): NormalizedMessage[] {
 //      number must start with one of the listed prefixes. Applies in
 //      every mode — sim, pilot, prod alike. Unset = production allow-all.
 //
-// After the guards, dispatch:
-//   • SIMULATION_MODE=true → captureOutbound (D1, synthetic wamid)
-//   • PILOT_MODE=true      → real Meta send (allowlist already enforced)
-//   • Neither              → real Meta send
+// Two independent criteria drive dispatch after the guards:
+//
+//   • "Test mode?" (sim OR pilot) → recordOutbound writes a sim_outbound row
+//     with the appropriate wamid. Both modes generate rows that /sim/purge
+//     is later able to find and clean up (paired with the x_is_simulation
+//     stamp that odoo.ts::call adds on the Odoo side).
+//   • "Real send?" (pilot OR prod) → POST to graph.facebook.com. In pilot
+//     the response's real wamid is the one we store in D1; in sim we skip
+//     the network and use a synthetic wamid.
 // ============================================================
 function metaErrorResponse(message: string, type: string, status: number): Response {
   return new Response(
     JSON.stringify({ error: { message, type } }),
     { status, headers: { "Content-Type": "application/json" } },
   );
+}
+
+async function metaRealSend(env: Env, body: Record<string, unknown>): Promise<Response> {
+  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/${env.META_PHONE_NUMBER_ID}/messages`;
+  return fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.META_ACCESS_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
 }
 
 export async function fetchMeta(
@@ -168,21 +190,41 @@ export async function fetchMeta(
     return metaErrorResponse(msg, "AllowlistBlocked", 403);
   }
 
+  // ---- sim: capture only, no real send ----
   if (rm.mode === "sim") {
-    return captureOutbound(env, { body });
+    const wamid = generateFakeWamid();
+    try {
+      await recordOutbound(env, { body, wamid, delivered: false });
+    } catch (e) {
+      // A missing D1 or hard insert failure is fatal in sim: silently
+      // dropping messages would give agents false-passing runs.
+      const msg = (e as Error)?.message ?? String(e);
+      console.error("[fetchMeta] sim recordOutbound failed", msg);
+      return metaErrorResponse(msg, "SimStorageError", 500);
+    }
+    return synthesizeMetaResponse(to, wamid);
   }
 
-  // pilot + prod share the same real-send path — the allowlist above is
-  // what makes pilot safer than prod.
-  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/${env.META_PHONE_NUMBER_ID}/messages`;
-  return fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.META_ACCESS_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+  // ---- pilot: real send + capture, tied by real wamid ----
+  if (rm.mode === "pilot") {
+    const resp = await metaRealSend(env, body);
+    const wamid = await extractRealWamid(resp);
+    try {
+      await recordOutbound(env, { body, wamid, delivered: resp.ok });
+    } catch (e) {
+      // Best-effort in pilot: the message was already delivered to Meta,
+      // so a D1 write failure must NOT flip the caller's success path.
+      // Loud log so operators notice /sim/purge coverage will be short.
+      console.error(
+        "[fetchMeta] pilot recordOutbound failed — real send succeeded, D1 row missing",
+        (e as Error)?.message ?? String(e),
+      );
+    }
+    return resp;
+  }
+
+  // ---- prod: unchanged ----
+  return metaRealSend(env, body);
 }
 
 // ---- Send outbound text via Meta Graph API ----

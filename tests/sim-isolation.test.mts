@@ -94,7 +94,7 @@ type Scenario = {
 
 const scenarios: Scenario[] = [
   {
-    name: "prod (neither flag set)",
+    name: "prod (neither flag set) — must NEVER stamp",
     env: makeEnv({}),
     expectFlagOnCreate: false,
     expectFlagOnWrite: false,
@@ -106,28 +106,32 @@ const scenarios: Scenario[] = [
     expectFlagOnWrite: false,
   },
   {
-    name: "pilot only",
-    env: makeEnv({ PILOT_MODE: "true", SIM_ALLOWLIST: "+96650" }),
-    expectFlagOnCreate: false,
-    expectFlagOnWrite: false,
-  },
-  {
-    name: "sim only",
+    name: "sim only — stamp on create",
     env: makeEnv({ SIMULATION_MODE: "true" }),
     expectFlagOnCreate: true,
     expectFlagOnWrite: false,
   },
   {
-    name: "SIMULATION_MODE truthy-but-not-'true' ('1')",
+    name: "pilot only — stamp on create (real send happens in fetchMeta)",
+    env: makeEnv({ PILOT_MODE: "true", SIM_ALLOWLIST: "+96650" }),
+    expectFlagOnCreate: true,
+    expectFlagOnWrite: false,
+  },
+  {
+    name: "both flags true (misconfig) — fail-closed to stamping",
+    env: makeEnv({ SIMULATION_MODE: "true", PILOT_MODE: "true", SIM_ALLOWLIST: "+96650" }),
+    expectFlagOnCreate: true,
+    expectFlagOnWrite: false,
+  },
+  {
+    name: "SIMULATION_MODE truthy-but-not-'true' ('1') — strict === guards typos",
     env: makeEnv({ SIMULATION_MODE: "1" }),
-    // Strict === "true" so anything else is prod. Guards typo drift.
     expectFlagOnCreate: false,
     expectFlagOnWrite: false,
   },
   {
-    name: "SIMULATION_MODE uppercase 'TRUE'",
-    env: makeEnv({ SIMULATION_MODE: "TRUE" }),
-    // Same reason. Config must be exact.
+    name: "PILOT_MODE uppercase 'TRUE' — strict === guards typos",
+    env: makeEnv({ PILOT_MODE: "TRUE" }),
     expectFlagOnCreate: false,
     expectFlagOnWrite: false,
   },
@@ -135,21 +139,20 @@ const scenarios: Scenario[] = [
 
 const models = Array.from(SIM_MARKED_MODELS);
 
-// Models NOT in SIM_MARKED_MODELS — used to prove even sim mode leaves
+// Models NOT in SIM_MARKED_MODELS — used to prove even sim/pilot modes leave
 // out-of-scope models untouched. Includes:
 //  - ir.model.fields: Odoo infrastructure, must never be stamped
 //  - product.template: shared catalog, never sim-owned
-//  - x_supplier_price_request_log: intentionally omitted per Baraa's list
-//  - x_collection_item: intentionally omitted per Baraa's list
+//  - x_collection_item: no create call in the Worker, cascades from parent
 const NON_MARKED_MODELS = [
   "ir.model.fields",
   "product.template",
-  "x_supplier_price_request_log",
   "x_collection_item",
 ];
 
 // Authoritative list Baraa manually adds x_is_simulation on in Odoo.
 // The test also proves SIM_MARKED_MODELS matches this exactly.
+// 15 models as of 2026-09-12 (x_supplier_price_request_log restored).
 const EXPECTED_MARKED = [
   "res.partner",
   "x_daily_order",
@@ -164,6 +167,7 @@ const EXPECTED_MARKED = [
   "x_standing_order",
   "x_complaint",
   "x_daily_price",
+  "x_supplier_price_request_log",
   "x_message_analysis",
 ];
 
@@ -244,10 +248,13 @@ for (const s of scenarios) {
 }
 
 // ---------- v6Call delegation check ----------
-// Proves that createComplaint (which used to bypass call()) now stamps in sim.
-console.log("\n[v6-append] v6Call delegates to call() → x_is_simulation stamped in sim mode");
+// Proves that createComplaint (which used to bypass call()) now stamps in BOTH
+// sim and pilot — the two "test mode" worlds — and NOT in prod.
+console.log("\n[v6-append] v6Call delegates to call() → stamps in sim AND pilot, never in prod");
 {
   const { createComplaint } = await import("../src/odoo-v6-append.ts");
+
+  // sim
   captured = [];
   await createComplaint(makeEnv({ SIMULATION_MODE: "true" }), {
     customerId: 1,
@@ -255,14 +262,27 @@ console.log("\n[v6-append] v6Call delegates to call() → x_is_simulation stampe
     severity: "low",
     text: "sim test",
   });
-  const complaintBody = captured[0]?.body;
-  const complaintFlag = bodyHasFlag(complaintBody);
   assert(
     `createComplaint via v6Call in sim → x_is_simulation present`,
-    complaintFlag === true,
-    `body=${JSON.stringify(complaintBody)}`,
+    bodyHasFlag(captured[0]?.body) === true,
+    `body=${JSON.stringify(captured[0]?.body)}`,
   );
 
+  // pilot
+  captured = [];
+  await createComplaint(makeEnv({ PILOT_MODE: "true", SIM_ALLOWLIST: "+96650" }), {
+    customerId: 1,
+    type: "quality",
+    severity: "low",
+    text: "pilot test",
+  });
+  assert(
+    `createComplaint via v6Call in pilot → x_is_simulation present`,
+    bodyHasFlag(captured[0]?.body) === true,
+    `body=${JSON.stringify(captured[0]?.body)}`,
+  );
+
+  // prod
   captured = [];
   await createComplaint(makeEnv({}), {
     customerId: 1,
@@ -270,10 +290,9 @@ console.log("\n[v6-append] v6Call delegates to call() → x_is_simulation stampe
     severity: "low",
     text: "prod test",
   });
-  const prodComplaintFlag = bodyHasFlag(captured[0]?.body);
   assert(
     `createComplaint via v6Call in prod → x_is_simulation absent`,
-    prodComplaintFlag === false,
+    bodyHasFlag(captured[0]?.body) === false,
     `body=${JSON.stringify(captured[0]?.body)}`,
   );
 }
@@ -291,6 +310,6 @@ if (failed > 0) {
   globalThis.fetch = originalFetch;
   process.exit(1);
 }
-console.log(`\n✅ ALL PASSED — injection is exactly gated by SIMULATION_MODE === "true"\n`);
+console.log(`\n✅ ALL PASSED — injection is exactly gated by isTestMode(env) (SIMULATION_MODE OR PILOT_MODE === "true")\n`);
 globalThis.fetch = originalFetch;
 process.exit(0);

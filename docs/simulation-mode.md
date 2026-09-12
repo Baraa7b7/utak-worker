@@ -2,11 +2,19 @@
 
 Three worlds, one codebase, decided per deploy:
 
-| Mode | Env vars set | Meta calls | Recipients allowed |
-|---|---|---|---|
-| **prod** | none | real | anyone (unless `SIM_ALLOWLIST` is set) |
-| **pilot** | `PILOT_MODE=true` + non-empty `SIM_ALLOWLIST` | real | allowlist only (fail-closed if empty) |
-| **sim** | `SIMULATION_MODE=true` | captured to D1, no Meta calls | anyone captured; allowlist can layer on |
+| Mode | Env vars set | Meta calls | Odoo rows stamped | `sim_outbound` written | Recipients allowed |
+|---|---|---|---|---|---|
+| **prod** | none | real | no | no | anyone (unless `SIM_ALLOWLIST` is set) |
+| **pilot** | `PILOT_MODE=true` + non-empty `SIM_ALLOWLIST` | real | **yes** | **yes** (real wamid) | allowlist only (fail-closed if empty) |
+| **sim** | `SIMULATION_MODE=true` | captured to D1, no Meta calls | yes | yes (synthetic wamid) | anyone captured; allowlist can layer on |
+
+Two independent criteria drive this:
+
+- **`isTestMode(env)`** — true when sim OR pilot. Gates stamping + capture.
+- **`shouldRealSend(env)`** — true when pilot OR prod. Gates the Meta fetch.
+
+Pilot exists specifically so a live trial with real WhatsApp numbers keeps
+producing rows `/sim/purge` can find and reset afterwards.
 
 `SIMULATION_MODE` and `PILOT_MODE` are mutually exclusive — the runtime
 refuses to send if both are true. `SIM_ALLOWLIST` is a **second, independent

@@ -3,7 +3,7 @@
 // Auth: Bearer <ODOO_API_KEY>; on 401 falls back once to /web/session/authenticate.
 
 import type { Env } from "./config";
-import { CATALOG_CACHE_KEY, CATALOG_CACHE_TTL_SECONDS, SIM_MARKED_MODELS } from "./config";
+import { CATALOG_CACHE_KEY, CATALOG_CACHE_TTL_SECONDS, SIM_MARKED_MODELS, isTestMode } from "./config";
 import type {
   OdooPartner,
   CatalogProduct,
@@ -67,15 +67,20 @@ export async function call<T = unknown>(
   if (authMode === "session" && sessionCookie) headers["Cookie"] = sessionCookie;
 
   // ------------------------------------------------------------
-  // SIMULATION_MODE: stamp x_is_simulation=true on every create for
-  // models in SIM_MARKED_MODELS. Applied here — the single Odoo gateway —
-  // so every downstream helper is covered without touching business logic.
+  // TEST MODE stamps x_is_simulation=true on every create for models in
+  // SIM_MARKED_MODELS. Applied here — the single Odoo gateway — so every
+  // downstream helper is covered without touching business logic.
+  //
+  // "Test mode" = SIMULATION_MODE OR PILOT_MODE. Both worlds create rows
+  // that /sim/purge must be able to clean up afterwards; only the outbound
+  // WhatsApp behavior differs (captured vs really-sent), handled in
+  // src/meta.ts::fetchMeta.
   //
   // Odoo JSON-2 create uses either `vals_list: [{...}, ...]` (batch) or
   // `values: {...}` (single). We patch whichever form is present.
   // ------------------------------------------------------------
   if (
-    env.SIMULATION_MODE === "true" &&
+    isTestMode(env) &&
     method === "create" &&
     SIM_MARKED_MODELS.has(model)
   ) {

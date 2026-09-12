@@ -77,38 +77,39 @@ export async function setCurrentRunId(env: Env, runId: string): Promise<void> {
 }
 
 // ------------------------------------------------------------
-// Outbound interception (called from meta.ts::fetchMeta)
+// Outbound recording (called from meta.ts::fetchMeta)
+//
+// Two operations, one usable in either sim or pilot mode:
+//   recordOutbound         — write one row to sim_outbound (D1). Throws
+//                            on hard failure; the caller decides whether
+//                            to surface it or log-and-continue.
+//   synthesizeMetaResponse — build a Meta-shaped success Response. Used
+//                            in sim mode where no real send happens.
+//
+// Splitting these lets pilot mode reuse recordOutbound with the REAL
+// wamid extracted from the actual Meta response, and lets sim mode
+// pair it with a synthetic wamid so the caller still gets a JSON body
+// that looks exactly like graph.facebook.com's.
 // ------------------------------------------------------------
 
-export interface MetaOutboundRequest {
-  /** The full JSON body the caller would have POSTed to graph.facebook.com. */
+export interface RecordOutboundInput {
+  /** The full JSON body that was (sim) OR was about to be (pilot) POSTed to Meta. */
   body: Record<string, unknown>;
+  /** The wamid to save. Synthetic in sim, real in pilot. */
+  wamid: string;
+  /** Whether the Meta send actually succeeded. Sim always passes false. */
+  delivered: boolean;
 }
 
-/**
- * Record one outbound message and return a Response identical in shape to a
- * successful Meta Graph API response so callers never see a difference.
- */
-export async function captureOutbound(env: Env, req: MetaOutboundRequest): Promise<Response> {
+export async function recordOutbound(env: Env, input: RecordOutboundInput): Promise<void> {
   if (!env.SIM_DB) {
-    // Refuse loudly rather than pretend to log — an unbound D1 would drop
-    // messages silently and give false negatives in agent tests.
-    return new Response(
-      JSON.stringify({
-        error: {
-          message: "SIMULATION_MODE=true but SIM_DB binding missing",
-          type: "SimConfigError",
-        },
-      }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
-    );
+    throw new Error("SIM_DB binding missing — sim_outbound cannot be written");
   }
 
   const runId = await getCurrentRunId(env);
-  const wamid = generateFakeWamid();
   const ts = Date.now();
 
-  const body = req.body as {
+  const body = input.body as {
     to?: string;
     type?: string;
     text?: { body?: string };
@@ -128,10 +129,8 @@ export async function captureOutbound(env: Env, req: MetaOutboundRequest): Promi
     body_text = body.text?.body ?? null;
   } else if (msg_type === "template" && body.template) {
     template_name = body.template.name ?? null;
-    // Flatten template components → array of {type, values} for easy inspection.
     const comps = (body.template.components ?? []) as Array<Record<string, unknown>>;
     variables_json = JSON.stringify(comps);
-    // Best-effort body text = the body-component parameters concatenated.
     const bodyComp = comps.find((c) => c.type === "body") as
       | { parameters?: Array<{ text?: string }> }
       | undefined;
@@ -152,48 +151,60 @@ export async function captureOutbound(env: Env, req: MetaOutboundRequest): Promi
     attachment = JSON.stringify(body.location);
   }
 
-  try {
-    await env.SIM_DB.prepare(
-      `INSERT INTO sim_outbound
-       (run_id, ts_ms, to_number, msg_type, template_name, variables_json, body_text, attachment, wamid, raw_request)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-      .bind(
-        runId,
-        ts,
-        to_number,
-        msg_type,
-        template_name,
-        variables_json,
-        body_text,
-        attachment,
-        wamid,
-        JSON.stringify(req.body),
-      )
-      .run();
-  } catch (e) {
-    console.error("[sim] D1 insert failed", (e as Error)?.message);
-    return new Response(
-      JSON.stringify({
-        error: {
-          message: `sim_outbound insert failed: ${(e as Error)?.message}`,
-          type: "SimStorageError",
-        },
-      }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
-    );
-  }
+  // The `delivered` flag rides in the raw_request blob (schema didn't have
+  // a column and adding one is a migration Baraa hasn't approved yet).
+  const rawWithFlag = JSON.stringify({ ...(input.body as object), __delivered: input.delivered });
 
-  // Response shape mirrors Meta's real success:
-  //   {"messaging_product":"whatsapp","contacts":[...],"messages":[{"id":"wamid...","message_status":"accepted"}]}
+  await env.SIM_DB.prepare(
+    `INSERT INTO sim_outbound
+     (run_id, ts_ms, to_number, msg_type, template_name, variables_json, body_text, attachment, wamid, raw_request)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+    .bind(
+      runId,
+      ts,
+      to_number,
+      msg_type,
+      template_name,
+      variables_json,
+      body_text,
+      attachment,
+      input.wamid,
+      rawWithFlag,
+    )
+    .run();
+}
+
+/**
+ * Build a Meta-shaped 200 response so sim callers see the same JSON
+ * (`messaging_product`, `contacts`, `messages[0].id`) as a real send.
+ */
+export function synthesizeMetaResponse(to: string, wamid: string): Response {
   return new Response(
     JSON.stringify({
       messaging_product: "whatsapp",
-      contacts: [{ input: to_number, wa_id: to_number }],
+      contacts: [{ input: to, wa_id: to }],
       messages: [{ id: wamid, message_status: "accepted" }],
     }),
     { status: 200, headers: { "Content-Type": "application/json" } },
   );
+}
+
+/**
+ * Try to read the real wamid Meta returned. Never throws — a parse
+ * failure surfaces as a labeled placeholder so the D1 row is still
+ * useful for /sim/purge coverage.
+ */
+export async function extractRealWamid(resp: Response): Promise<string> {
+  try {
+    const clone = resp.clone();
+    const j = (await clone.json()) as { messages?: Array<{ id?: string }> };
+    const id = j?.messages?.[0]?.id;
+    if (typeof id === "string" && id) return id;
+  } catch {
+    /* ignore — fall through */
+  }
+  return `wamid.PILOT.no_id.${Date.now()}`;
 }
 
 // ------------------------------------------------------------

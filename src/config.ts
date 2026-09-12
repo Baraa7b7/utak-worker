@@ -143,6 +143,31 @@ export function isRecipientAllowed(env: Env, to: string): boolean {
   return list.some((p) => normalized.startsWith(p));
 }
 
+/**
+ * Two independent criteria, kept explicitly separate.
+ *
+ * `isTestMode`  = "should Odoo creates be stamped with x_is_simulation AND
+ *                 should outbound messages be recorded in sim_outbound?"
+ *   → true for sim AND pilot.
+ *   → drives the injection in src/odoo.ts::call and the D1 record in fetchMeta.
+ *   → also used by /sim/purge as the criterion for "this row is disposable".
+ *
+ * `shouldRealSend` = "should we actually POST to graph.facebook.com?"
+ *   → false for sim; true for pilot and prod.
+ *   → drives whether fetchMeta hits Meta.
+ *
+ * A "misconfig" env (both flags true, or pilot with empty allowlist) is
+ * treated as test mode — fail-closed — so no unstamped row can slip
+ * through while the operator sorts the config out.
+ */
+export function isTestMode(env: Env): boolean {
+  return env.SIMULATION_MODE === "true" || env.PILOT_MODE === "true";
+}
+
+export function shouldRealSend(env: Env): boolean {
+  return env.SIMULATION_MODE !== "true";
+}
+
 // ============================================================
 // Simulation-mode constants
 // ============================================================
@@ -153,17 +178,14 @@ export function isRecipientAllowed(env: Env, to: string): boolean {
  * x_is_simulation field manually in Odoo — a create against a model without
  * the field raises an Odoo ORM error.
  *
- * Authoritative list, 14 models (bumped 2026-09-12):
+ * Authoritative list, 15 models (bumped 2026-09-12):
  *   res.partner, x_daily_order, x_daily_order_line, x_quotation, x_invoice,
  *   x_payment, x_delivery_route, x_delivery_stop, x_purchase_list,
  *   x_collection_task, x_standing_order, x_complaint, x_daily_price,
- *   x_message_analysis.
+ *   x_supplier_price_request_log, x_message_analysis.
  *
  * Deliberately NOT in the list:
  *  - product.template: shared catalog, never sim-owned.
- *  - x_supplier_price_request_log: log created by createSupplierAskLog.
- *    Baraa's list omits it — sim rows in this log will be indistinguishable
- *    from prod rows until the field is added there too.
  *  - x_collection_item: no create call in the Worker; if a child row model,
  *    it cascades from x_collection_task.
  *  - x_standing_order_line: only read in the Worker; created by hand in Odoo.
@@ -182,6 +204,7 @@ export const SIM_MARKED_MODELS: ReadonlySet<string> = new Set([
   "x_standing_order",
   "x_complaint",
   "x_daily_price",
+  "x_supplier_price_request_log",
   "x_message_analysis",
 ]);
 
@@ -204,6 +227,7 @@ export const SIM_PURGE_ORDER: readonly string[] = [
   "x_standing_order",
   "x_complaint",
   "x_daily_price",
+  "x_supplier_price_request_log", // between x_daily_price and x_message_analysis, per §7
   "x_message_analysis",
   "res.partner", // archived, not deleted — see purgeSimulationData
 ];

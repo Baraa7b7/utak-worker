@@ -1,11 +1,34 @@
 # Purge order + isolation guarantees
 
-## The 14 marked models (authoritative)
+## Two independent criteria
+
+Two separate questions decide behavior at the seam:
+
+1. **"Are we in test mode?"** — `isTestMode(env)` in `src/config.ts`.
+   True when `SIMULATION_MODE=true` OR `PILOT_MODE=true`. This gates:
+   - the `x_is_simulation=true` stamp in `src/odoo.ts::call`
+   - the `sim_outbound` row written by `recordOutbound` in `fetchMeta`
+2. **"Do we actually POST to Meta?"** — `shouldRealSend(env)`. True when
+   NOT `SIMULATION_MODE=true` (i.e., pilot or prod). This gates the real
+   `graph.facebook.com` fetch.
+
+Result matrix:
+
+| Mode | Stamp x_is_simulation? | Record sim_outbound? | Real Meta send? |
+|---|---|---|---|
+| prod | no | no | yes |
+| sim | yes | yes (synthetic wamid) | no |
+| pilot | yes | yes (real wamid from Meta) | yes |
+
+Pilot exists precisely so a live-fire trial with real WhatsApp numbers
+still produces rows /sim/purge can find and clean up afterwards.
+
+## The 15 marked models (authoritative)
 
 Baraa manually adds the `x_is_simulation` boolean field (default `false`) on
-these fourteen models in Odoo. Every row the sim worker creates on any of
-them gets the flag stamped inside `src/odoo.ts::call` before the request
-leaves the Worker.
+these fifteen models in Odoo. Every row the sim OR pilot worker creates on
+any of them gets the flag stamped inside `src/odoo.ts::call` before the
+request leaves the Worker.
 
 | # | Model | Written by |
 |---|---|---|
@@ -22,7 +45,8 @@ leaves the Worker.
 | 11 | `x_standing_order` | (created in Odoo by hand; sim may write vals) |
 | 12 | `x_complaint` | `createComplaint` (odoo-v6-append.ts) |
 | 13 | `x_daily_price` | `createDailyPrice` |
-| 14 | `x_message_analysis` | `logMessageAnalysis` |
+| 14 | `x_supplier_price_request_log` | `createSupplierAskLog` |
+| 15 | `x_message_analysis` | `logMessageAnalysis` |
 
 `SIM_MARKED_MODELS` in `src/config.ts` holds this exact set. Drift between
 the two is a fatal condition: the isolation test (`tests/sim-isolation.test.mts`)
@@ -30,15 +54,11 @@ asserts equality against the hard-coded reference list every run.
 
 ## Models deliberately NOT marked
 
-Baraa's list omits four models the code touches. The isolation test proves
-each of them stays UNTOUCHED in every mode:
+Baraa's list omits these; the isolation test proves each stays UNTOUCHED
+in every mode:
 
 - **`product.template`** — shared catalog. Sim never creates products;
   every read is a lookup.
-- **`x_supplier_price_request_log`** — supplier-ask log created by
-  `createSupplierAskLog`. Baraa's list omits it deliberately, so sim rows
-  in this log will be indistinguishable from prod rows until the field is
-  added there too. Reported to Baraa; awaiting decision.
 - **`x_collection_item`** — no `create` call in the Worker; if a child row
   model of `x_collection_task`, it cascades via `ondelete=cascade`.
 - **`ir.model.fields`** / **`ir.access`** / other `ir.*` — Odoo
@@ -71,6 +91,7 @@ x_daily_order
 x_standing_order
 x_complaint
 x_daily_price
+x_supplier_price_request_log
 x_message_analysis
 res.partner  ← archived (active=false), never deleted
 ```

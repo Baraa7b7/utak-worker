@@ -147,7 +147,27 @@ export function isRecipientAllowed(env: Env, to: string): boolean {
 // Simulation-mode constants
 // ============================================================
 
-/** Odoo models the sim wrapper marks with x_is_simulation=true on every create. */
+/**
+ * Odoo models the sim wrapper marks with x_is_simulation=true on every create.
+ * MUST stay in exact lockstep with the models on which Baraa has added the
+ * x_is_simulation field manually in Odoo — a create against a model without
+ * the field raises an Odoo ORM error.
+ *
+ * Authoritative list, 14 models (bumped 2026-09-12):
+ *   res.partner, x_daily_order, x_daily_order_line, x_quotation, x_invoice,
+ *   x_payment, x_delivery_route, x_delivery_stop, x_purchase_list,
+ *   x_collection_task, x_standing_order, x_complaint, x_daily_price,
+ *   x_message_analysis.
+ *
+ * Deliberately NOT in the list:
+ *  - product.template: shared catalog, never sim-owned.
+ *  - x_supplier_price_request_log: log created by createSupplierAskLog.
+ *    Baraa's list omits it — sim rows in this log will be indistinguishable
+ *    from prod rows until the field is added there too.
+ *  - x_collection_item: no create call in the Worker; if a child row model,
+ *    it cascades from x_collection_task.
+ *  - x_standing_order_line: only read in the Worker; created by hand in Odoo.
+ */
 export const SIM_MARKED_MODELS: ReadonlySet<string> = new Set([
   "res.partner",
   "x_daily_order",
@@ -155,15 +175,38 @@ export const SIM_MARKED_MODELS: ReadonlySet<string> = new Set([
   "x_quotation",
   "x_invoice",
   "x_payment",
-  "x_purchase_list",
   "x_delivery_route",
   "x_delivery_stop",
+  "x_purchase_list",
   "x_collection_task",
-  "x_collection_item",
+  "x_standing_order",
+  "x_complaint",
   "x_daily_price",
-  "x_supplier_price_request_log",
   "x_message_analysis",
 ]);
+
+/**
+ * The exact order /sim/purge deletes in, respecting foreign-key constraints.
+ * Children first, parents last. res.partner is never deleted — it is
+ * archived (active=false) at the end because Odoo refuses to unlink a
+ * partner referenced by any surviving row.
+ */
+export const SIM_PURGE_ORDER: readonly string[] = [
+  "x_daily_order_line",
+  "x_delivery_stop",
+  "x_payment",
+  "x_invoice",
+  "x_quotation",
+  "x_collection_task",
+  "x_delivery_route",
+  "x_purchase_list",
+  "x_daily_order",
+  "x_standing_order",
+  "x_complaint",
+  "x_daily_price",
+  "x_message_analysis",
+  "res.partner", // archived, not deleted — see purgeSimulationData
+];
 
 /**
  * Models the startup guard scans for any non-sim record. Deliberately narrow —

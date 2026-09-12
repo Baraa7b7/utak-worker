@@ -14,7 +14,7 @@
 // ============================================================
 
 import type { Env } from "./config";
-import { SIM_GUARD_MODELS, SIM_MARKED_MODELS, runtimeMode } from "./config";
+import { SIM_GUARD_MODELS, SIM_MARKED_MODELS, SIM_PURGE_ORDER, runtimeMode } from "./config";
 import { call as odooCall } from "./odoo";
 
 // ------------------------------------------------------------
@@ -316,42 +316,147 @@ export async function guardSimulationOdoo(env: Env): Promise<GuardResult> {
 
 export interface PurgeReport {
   dry_run: boolean;
-  per_model: { model: string; count: number; ids_sample: number[] }[];
-  total: number;
+  order: readonly string[];
+  per_model: PurgeModelResult[];
+  total_matched: number;
+  total_deleted: number;
+  total_archived: number;
+  errors: number;
 }
 
+export interface PurgeModelResult {
+  model: string;
+  action: "unlink" | "archive" | "skip";
+  matched: number;
+  ids_sample: number[];
+  deleted?: number;
+  archived?: number;
+  error?: string;
+}
+
+/**
+ * Purge every row carrying x_is_simulation=true, in the fixed FK-safe order
+ * declared in SIM_PURGE_ORDER. Fail-tolerant: a failure on any one model
+ * logs and continues; the final report tells Baraa exactly what worked and
+ * what did not.
+ *
+ * Invariant enforced by construction: every search / unlink domain includes
+ * `["x_is_simulation", "=", true]`. There is no code path in this function
+ * that can delete rows without that filter — if you edit this function,
+ * that invariant is what to protect first.
+ *
+ * res.partner is archived (write active=false), never deleted, because Odoo
+ * refuses to unlink a partner referenced by any surviving row (order, log,
+ * message, external system).
+ */
 export async function purgeSimulationData(
   env: Env,
   opts: { confirm: boolean },
 ): Promise<PurgeReport> {
-  const per_model: PurgeReport["per_model"] = [];
-  let total = 0;
-  for (const model of SIM_MARKED_MODELS) {
+  const SIM_FLAG_FILTER: readonly [string, string, boolean] = [
+    "x_is_simulation",
+    "=",
+    true,
+  ];
+  const per_model: PurgeModelResult[] = [];
+  let total_matched = 0;
+  let total_deleted = 0;
+  let total_archived = 0;
+  let errors = 0;
+
+  for (const model of SIM_PURGE_ORDER) {
+    if (!SIM_MARKED_MODELS.has(model)) {
+      // Guardrail: purge order must never target a model we do not stamp.
+      per_model.push({
+        model,
+        action: "skip",
+        matched: 0,
+        ids_sample: [],
+        error: "in SIM_PURGE_ORDER but not in SIM_MARKED_MODELS — refusing to touch",
+      });
+      errors++;
+      continue;
+    }
+
     let ids: number[] = [];
     try {
       ids = await odooCall<number[]>(env, model, "search", {
-        domain: [["x_is_simulation", "=", true]],
+        domain: [SIM_FLAG_FILTER],
         limit: 100000,
       });
     } catch (e) {
-      // Field probably absent on this model — treat as zero rather than
-      // aborting the whole purge; report it so Baraa can see coverage gaps.
-      console.warn(`[sim/purge] ${model} search failed`, (e as Error)?.message);
+      const msg = (e as Error)?.message ?? String(e);
+      console.error(`[sim/purge] ${model} search failed`, msg);
+      per_model.push({
+        model,
+        action: "skip",
+        matched: 0,
+        ids_sample: [],
+        error: `search: ${msg}`,
+      });
+      errors++;
       continue;
     }
-    if (ids.length === 0) continue;
-    per_model.push({ model, count: ids.length, ids_sample: ids.slice(0, 5) });
-    total += ids.length;
-    if (opts.confirm) {
-      // Odoo unlink takes an array of ids as the first positional arg.
+    total_matched += ids.length;
+
+    // res.partner: archive, not delete
+    if (model === "res.partner") {
+      const entry: PurgeModelResult = {
+        model,
+        action: "archive",
+        matched: ids.length,
+        ids_sample: ids.slice(0, 5),
+      };
+      if (ids.length > 0 && opts.confirm) {
+        try {
+          await odooCall(env, model, "write", {
+            ids,
+            vals: { active: false },
+          });
+          entry.archived = ids.length;
+          total_archived += ids.length;
+        } catch (e) {
+          const msg = (e as Error)?.message ?? String(e);
+          console.error(`[sim/purge] archive ${model} failed`, msg);
+          entry.error = `archive: ${msg}`;
+          errors++;
+        }
+      }
+      per_model.push(entry);
+      continue;
+    }
+
+    // Everything else: unlink with the sim-flag domain baked in (via search)
+    const entry: PurgeModelResult = {
+      model,
+      action: "unlink",
+      matched: ids.length,
+      ids_sample: ids.slice(0, 5),
+    };
+    if (ids.length > 0 && opts.confirm) {
       try {
         await odooCall(env, model, "unlink", { ids });
+        entry.deleted = ids.length;
+        total_deleted += ids.length;
       } catch (e) {
-        console.error(`[sim/purge] unlink ${model} failed`, (e as Error)?.message);
+        const msg = (e as Error)?.message ?? String(e);
+        console.error(`[sim/purge] unlink ${model} failed`, msg);
+        entry.error = `unlink: ${msg}`;
+        errors++;
       }
     }
+    per_model.push(entry);
   }
-  return { dry_run: !opts.confirm, per_model, total };
+
+  return {
+    dry_run: !opts.confirm,
+    order: SIM_PURGE_ORDER,
+    per_model,
+    total_matched,
+    total_deleted,
+    total_archived,
+    errors,
+  };
 }
 
 // ------------------------------------------------------------

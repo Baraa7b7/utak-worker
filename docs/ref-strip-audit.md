@@ -63,6 +63,29 @@ Total: 13 leak sites in 2 files. All patched.
   which is populated from `fetchCatalog` → `search_read` on the raw `name`
   field. Confirmed clean.
 
+## The two customer-facing PDFs — confirmed clean
+
+Owner's original complaint singled out **invoice PDF** and **quotation PDF**.
+Both feed from the same function; both are clean:
+
+| PDF | Data feeder | Product-line source |
+|---|---|---|
+| Invoice PDF | `buildInvoicePDFDataFromOdoo` in [`src/invoice.ts:558`](../src/invoice.ts) → uses `order.lines[].product_name` | `getOrderForInvoicing` at [`src/odoo.ts:~1659`](../src/odoo.ts), which wraps the many2one display through `stripRef` |
+| Quotation PDF | `buildQuotationPDFDataFromOdoo` in [`src/quotation.ts:157`](../src/quotation.ts) → uses `order.lines[].product_name` | same function: `getOrderForInvoicing` (shared between the two PDF flows) |
+
+The `customer_name` shown at the top of each PDF comes from
+`getOrderForInvoicing`'s explicit `res.partner.read(fields:["name"])` — a
+raw name field with no many2one display formatting — so no `[REF]` can
+appear there regardless of any `ref` on the partner.
+
+Rendering sites in the HTML templates:
+- [`src/invoice.ts:379`](../src/invoice.ts) — `${escapeHTML(item.name)}` writes the product name into the PDF row
+- [`src/quotation.ts:58`](../src/quotation.ts) — same shape for the quotation PDF
+
+`escapeHTML` is HTML-safe encoding; it doesn't strip `[…]`. That strip
+happens once, at the boundary in `getOrderForInvoicing`, and nothing
+downstream needs to know about it.
+
 ## If a new caller adds a many2one read
 
 Rule: any `[id, name][1]` that ends up in an outbound WhatsApp text,

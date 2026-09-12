@@ -18,6 +18,9 @@
 //   POST /internal/receipt-issue      → Odoo webhook: build+send receipt PDF (token-guarded via ?token=)
 //   GET  /admin/test-receipt          → run receipt pipeline sync w/ per-step trace (token-guarded, sends real WA)
 //   GET  /receipt-pdf/{num}/{tok}.pdf → PUBLIC receipt PDF from R2 (HMAC-signed)
+//   GET  /admin/test-delivery-note    → run delivery-note pipeline sync w/ per-step trace (token-guarded, sends real WA)
+//        ?token=X&stop_id=42          → drives stop #42, phone auto-resolved from route driver
+//   GET  /delivery-note-pdf/{num}/{tok}.pdf → PUBLIC delivery-note PDF from R2 (HMAC-signed)
 
 import type { Env } from "./config";
 import { handleVerify, verifySignature, parseWebhook, sendText, sendButtons } from "./meta";
@@ -587,6 +590,208 @@ export default {
           "Cache-Control": "public, max-age=3600",
         },
       });
+    }
+
+    // Phase 3 — PUBLIC: serves delivery-note PDF from R2 by signed URL.
+    // Path shape: /delivery-note-pdf/{deliveryNumber}/{token}.pdf
+    // R2 key written by uploadDeliveryNoteToR2 → `delivery-notes/{deliveryNumber}.pdf`.
+    if (request.method === "GET" && url.pathname.startsWith("/delivery-note-pdf/")) {
+      const path = url.pathname.substring("/delivery-note-pdf/".length);
+      const match = /^(.+?)\/([a-f0-9]{16})\.pdf$/.exec(path);
+      if (!match) return new Response("not found", { status: 404 });
+
+      let deliveryNumber: string;
+      try {
+        deliveryNumber = decodeURIComponent(match[1]);
+      } catch {
+        return new Response("not found", { status: 404 });
+      }
+      const providedToken = match[2];
+
+      if (!env.ADMIN_TOKEN) {
+        return new Response("service misconfigured", { status: 500 });
+      }
+
+      const { verifyDeliveryNoteToken } = await import("./delivery-note");
+      const valid = await verifyDeliveryNoteToken(env.ADMIN_TOKEN, deliveryNumber, providedToken);
+      if (!valid) return new Response("not found", { status: 404 });
+
+      const key = `delivery-notes/${deliveryNumber}.pdf`;
+      const obj = await env.INVOICES_BUCKET.get(key);
+      if (!obj) return new Response("not found", { status: 404 });
+
+      return new Response(obj.body, {
+        status: 200,
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `inline; filename="${deliveryNumber}.pdf"`,
+          "Cache-Control": "public, max-age=3600",
+        },
+      });
+    }
+
+    // Phase 3 — diagnostic: run the full delivery-note pipeline for a single
+    // stop with per-step trace. Sends real WhatsApp + writes back to Odoo.
+    // Mirrors /admin/test-receipt. Driver phone is resolved from the stop's
+    // route.x_driver_id → res.partner.x_whatsapp_number.
+    if (request.method === "GET" && url.pathname === "/admin/test-delivery-note") {
+      const token = url.searchParams.get("token") ?? request.headers.get("x-admin-token") ?? "";
+      const expected = env.ADMIN_TOKEN ?? "";
+      if (!expected || token !== expected) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      const idParam = url.searchParams.get("stop_id");
+      const stopId = Number(idParam);
+      if (!Number.isFinite(stopId) || stopId <= 0) {
+        return json({ error: "invalid stop_id" }, 400);
+      }
+
+      const steps: Record<string, string> = {
+        "1_build_data": "pending",
+        "2_generate_pdf": "pending",
+        "3_upload_r2": "pending",
+        "4_send_whatsapp": "pending",
+        "5_writeback": "pending",
+      };
+      let deliveryNumber = "";
+      let pdfUrl = "";
+      let driverPhone = "";
+
+      const {
+        buildDeliveryNotePDFDataFromOdoo,
+        generateDeliveryNotePDF,
+        uploadDeliveryNoteToR2,
+      } = await import("./delivery-note");
+      const { call } = await import("./odoo");
+
+      // Resolve driver phone from stop → route → partner (best-effort).
+      try {
+        const stopRows = await call<Array<{ x_route_id: [number, string] | false }>>(
+          env,
+          "x_delivery_stop",
+          "read",
+          { ids: [stopId], fields: ["x_route_id"] },
+        );
+        const routeId = stopRows[0]?.x_route_id ? stopRows[0].x_route_id[0] : 0;
+        if (routeId) {
+          const routeRows = await call<Array<{ x_driver_id: [number, string] | false }>>(
+            env,
+            "x_delivery_route",
+            "read",
+            { ids: [routeId], fields: ["x_driver_id"] },
+          );
+          const driverId = routeRows[0]?.x_driver_id ? routeRows[0].x_driver_id[0] : 0;
+          if (driverId) {
+            const partnerRows = await call<Array<{ phone: string | false; x_whatsapp_number: string | false }>>(
+              env,
+              "res.partner",
+              "read",
+              { ids: [driverId], fields: ["phone", "x_whatsapp_number"] },
+            );
+            const p = partnerRows[0];
+            if (p) {
+              driverPhone = (typeof p.x_whatsapp_number === "string" && p.x_whatsapp_number)
+                || (typeof p.phone === "string" && p.phone)
+                || "";
+            }
+          }
+        }
+      } catch {
+        /* leave driverPhone empty — step 4 will report skipped */
+      }
+
+      // Step 1 — build from Odoo
+      const built = await (async () => {
+        try {
+          const d = await buildDeliveryNotePDFDataFromOdoo(env, stopId);
+          if (!d) {
+            steps["1_build_data"] = `error: stop ${stopId} not found`;
+            return null;
+          }
+          steps["1_build_data"] = "ok";
+          deliveryNumber = d.deliveryNumber;
+          return d;
+        } catch (e) {
+          steps["1_build_data"] = `error: ${(e as Error).message}`;
+          return null;
+        }
+      })();
+      if (!built) return json({ stopId, driverPhone, steps, deliveryNumber, pdfUrl });
+
+      // Step 2 — Gotenberg
+      let pdfBytes: Uint8Array | null = null;
+      try {
+        pdfBytes = await generateDeliveryNotePDF(built, env);
+        steps["2_generate_pdf"] = "ok";
+      } catch (e) {
+        steps["2_generate_pdf"] = `error: ${(e as Error).message}`;
+      }
+      if (!pdfBytes) return json({ stopId, driverPhone, steps, deliveryNumber, pdfUrl });
+
+      // Step 3 — R2 upload (returns signed URL)
+      let uploaded: { key: string; publicUrl: string; size: number } | null = null;
+      try {
+        uploaded = await uploadDeliveryNoteToR2(env, pdfBytes, built.deliveryNumber, env.WORKER_ORIGIN);
+        pdfUrl = uploaded.publicUrl;
+        steps["3_upload_r2"] = `ok: ${uploaded.publicUrl}`;
+      } catch (e) {
+        steps["3_upload_r2"] = `error: ${(e as Error).message}`;
+      }
+      if (!uploaded) return json({ stopId, driverPhone, steps, deliveryNumber, pdfUrl });
+
+      // Step 4 — WhatsApp to driver
+      if (!driverPhone) {
+        steps["4_send_whatsapp"] = "skipped: no driver phone";
+      } else {
+        try {
+          // Look up order id for the message body (best-effort)
+          let orderIdForMsg = 0;
+          try {
+            const rows = await call<Array<{ x_order_id: [number, string] | false }>>(
+              env,
+              "x_delivery_stop",
+              "read",
+              { ids: [stopId], fields: ["x_order_id"] },
+            );
+            if (rows[0]?.x_order_id) orderIdForMsg = rows[0].x_order_id[0];
+          } catch {
+            /* ignore */
+          }
+          const body = [
+            `📦 إذن تسليم للطلب ${orderIdForMsg || built.deliveryNumber}`,
+            `العميل: ${built.customer.name}`,
+            `الحي: ${built.customer.address}`,
+            ``,
+            `الوثيقة: ${uploaded.publicUrl}`,
+          ].join("\n");
+          const resp = await sendText(env, driverPhone, body);
+          if (!resp || !resp.ok) {
+            const errText = resp ? await resp.text().catch(() => "") : "no response";
+            steps["4_send_whatsapp"] = `error: ${resp?.status ?? "?"} ${errText.slice(0, 200)}`;
+          } else {
+            steps["4_send_whatsapp"] = "ok";
+          }
+        } catch (e) {
+          steps["4_send_whatsapp"] = `error: ${(e as Error).message}`;
+        }
+      }
+
+      // Step 5 — Odoo write-back
+      try {
+        await call<boolean>(env, "x_delivery_stop", "write", {
+          ids: [stopId],
+          vals: {
+            x_delivery_note_number: built.deliveryNumber,
+            x_delivery_note_url: uploaded.publicUrl,
+            x_dn_sent_at: new Date().toISOString().replace("T", " ").slice(0, 19),
+          },
+        });
+        steps["5_writeback"] = "ok";
+      } catch (e) {
+        steps["5_writeback"] = `error: ${(e as Error).message}`;
+      }
+
+      return json({ stopId, driverPhone, steps, deliveryNumber, pdfUrl });
     }
 
     if (request.method === "POST" && url.pathname === "/webhook") {

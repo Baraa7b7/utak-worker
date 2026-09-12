@@ -1131,13 +1131,19 @@ export async function buildAndCreateRoutesForDrivers(
     });
     const routeId = routeIds[0];
 
-    await call<number[]>(env, "x_delivery_stop", "create", {
+    const stopIds = await call<number[]>(env, "x_delivery_stop", "create", {
       vals_list: stops.map((s) => ({
         x_route_id: routeId,
         x_order_id: s.order_id,
         x_sequence: s.sequence,
         x_status: "pending",
       })),
+    });
+    // Phase 3 — attach the created stop id to each RouteStop so the
+    // dispatcher can generate a per-stop delivery note. `create` returns
+    // ids in the same order as vals_list.
+    stops.forEach((s, i) => {
+      s.stop_id = stopIds[i];
     });
 
     // Flip contributing orders to in_delivery

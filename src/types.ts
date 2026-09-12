@@ -178,4 +178,7 @@ export interface RouteStop {
   latitude?: number;
   longitude?: number;
   map_url?: string;
+  // Phase 3 — set after buildAndCreateRoutesForDrivers persists the stop,
+  // so the driver-route dispatcher can attach a delivery-note PDF per stop.
+  stop_id?: number;
 }

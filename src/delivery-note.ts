@@ -3,12 +3,14 @@
 
 import type { Env } from "./config";
 import { call } from "./odoo";
+import { sendText } from "./meta";
 import {
   BRAND_COLORS,
   computePageMetrics,
   escapeHTML,
   htmlToPDF,
   renderPDFShell,
+  signDocToken,
   uploadPDFToR2,
   type PageMetrics,
   type PartyInfo,
@@ -193,6 +195,118 @@ export async function buildDeliveryNotePDFDataFromOdoo(
     },
     items,
   };
+}
+
+// ---- Verify a `/delivery-note-pdf/{num}/{tok}.pdf` signed token ----
+export async function verifyDeliveryNoteToken(
+  secret: string,
+  deliveryNumber: string,
+  token: string,
+): Promise<boolean> {
+  const expected = await signDocToken(secret, deliveryNumber);
+  return expected === token;
+}
+
+// ---- Orchestrate: build → PDF → R2 → WhatsApp driver → write-back ----
+export interface DeliveryNoteDispatchResult {
+  stopId: number;
+  number: string;
+  pdfUrl: string;
+  pdfSize: number;
+  messageId: string | null;
+}
+
+export async function createAndDispatchDeliveryNoteForStop(
+  env: Env,
+  stopId: number,
+  driverPhone: string,
+): Promise<DeliveryNoteDispatchResult | null> {
+  const data = await buildDeliveryNotePDFDataFromOdoo(env, stopId);
+  if (!data) {
+    console.warn(`[delivery-note] stop ${stopId} not found`);
+    return null;
+  }
+
+  const pdfBytes = await generateDeliveryNotePDF(data, env);
+  const uploaded = await uploadDeliveryNoteToR2(
+    env,
+    pdfBytes,
+    data.deliveryNumber,
+    env.WORKER_ORIGIN,
+  );
+
+  // Look up the linked order id to include in the driver-facing message.
+  let orderId = 0;
+  try {
+    const rows = await call<Array<{ x_order_id: [number, string] | false }>>(
+      env,
+      "x_delivery_stop",
+      "read",
+      { ids: [stopId], fields: ["x_order_id"] },
+    );
+    if (rows[0]?.x_order_id) orderId = rows[0].x_order_id[0];
+  } catch {
+    /* non-fatal — the message just loses the order number */
+  }
+
+  let messageId: string | null = null;
+  if (!driverPhone) {
+    console.warn(`[delivery-note] stop ${stopId} — no driver phone, skipping send`);
+  } else {
+    const body = [
+      `📦 إذن تسليم للطلب ${orderId || data.deliveryNumber}`,
+      `العميل: ${data.customer.name}`,
+      `الحي: ${data.customer.address}`,
+      ``,
+      `الوثيقة: ${uploaded.publicUrl}`,
+    ].join("\n");
+    try {
+      const resp = await sendText(env, driverPhone, body);
+      if (resp?.ok) {
+        try {
+          const j = (await resp.json()) as { messages?: Array<{ id?: string }> };
+          messageId = j?.messages?.[0]?.id ?? null;
+        } catch {
+          /* ignore parse error — Meta returned non-JSON */
+        }
+      }
+    } catch (e) {
+      console.warn(
+        `[delivery-note] send failed for stop ${stopId}`,
+        (e as Error)?.message,
+      );
+    }
+  }
+
+  // Warn-and-continue: a write-back failure must not undo a driver message
+  // that already left the worker.
+  try {
+    await call<boolean>(env, "x_delivery_stop", "write", {
+      ids: [stopId],
+      vals: {
+        x_delivery_note_number: data.deliveryNumber,
+        x_delivery_note_url: uploaded.publicUrl,
+        x_dn_sent_at: nowOdoo(),
+      },
+    });
+  } catch (e) {
+    console.warn(
+      `[delivery-note] write-back failed for stop ${stopId}`,
+      (e as Error)?.message,
+    );
+  }
+
+  return {
+    stopId,
+    number: data.deliveryNumber,
+    pdfUrl: uploaded.publicUrl,
+    pdfSize: uploaded.size,
+    messageId,
+  };
+}
+
+function nowOdoo(): string {
+  return new Date().toISOString().replace("T", " ").slice(0, 19);
 }
 
 // ---- Test data — 5 items, no prices ----

@@ -31,6 +31,7 @@ import {
 } from "./odoo";
 import { sendButtons, sendLocation, sendText } from "./meta";
 import { sendTemplateByPurpose, T } from "./templates";
+import { createAndDispatchDeliveryNoteForStop } from "./delivery-note";
 
 // ============================================================
 // 21:00 Riyadh — auto-cancel unconfirmed orders
@@ -198,6 +199,24 @@ async function sendDriverRoute(
         env,
         driver.x_whatsapp_number,
         `📍 #${s.order_id} — ${s.customer_name}\n${s.map_url}`,
+      );
+    }
+
+    // Phase 3 — before the driver_stop button prompt, generate + send the
+    // delivery-note PDF for this stop. Warn-and-continue: a delivery-note
+    // failure must not block the driver from getting the stop buttons.
+    if (typeof s.stop_id === "number") {
+      try {
+        await createAndDispatchDeliveryNoteForStop(env, s.stop_id, driver.x_whatsapp_number);
+      } catch (e) {
+        console.warn(
+          `[sendDriverRoute] delivery-note failed for stop ${s.stop_id}`,
+          (e as Error)?.message,
+        );
+      }
+    } else {
+      console.warn(
+        `[sendDriverRoute] stop for order ${s.order_id} has no stop_id — skipping delivery note`,
       );
     }
 

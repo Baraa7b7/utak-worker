@@ -50,6 +50,17 @@ import {
   aggregateAndDispatchToWarehouse,
   closeUnconfirmedOrders,
 } from "./team";
+import {
+  buildInjectedWebhookPayload,
+  guardSimulationOdoo,
+  isNonProd,
+  purgeSimulationData,
+  readOutbound,
+  resetOutboundRun,
+  verifySimSecret,
+  type InjectInput,
+} from "./sim";
+import { parseAllowlist, runtimeMode } from "./config";
 
 export default {
   async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
@@ -815,9 +826,164 @@ export default {
       return new Response("ok", { status: 200 });
     }
 
+    // ============================================================
+    // /sim/* — simulation-mode control plane
+    // Every endpoint requires SIMULATION_MODE=true AND a valid SIM_SECRET.
+    // Refusing in production ensures a stray call from a leaked URL cannot
+    // trigger anything against the live worker.
+    // ============================================================
+    if (url.pathname.startsWith("/sim/")) {
+      const simResp = await handleSimRoute(request, url, env);
+      if (simResp) return simResp;
+    }
+
     return new Response("not found", { status: 404 });
   },
 };
+
+// ------------------------------------------------------------
+// /sim/* handlers
+// ------------------------------------------------------------
+async function handleSimRoute(
+  request: Request,
+  url: URL,
+  env: Env,
+): Promise<Response | null> {
+  if (!isNonProd(env)) {
+    return json({ error: "sim/pilot mode not enabled on this worker" }, 404);
+  }
+  const secret =
+    url.searchParams.get("secret") ??
+    request.headers.get("x-sim-secret") ??
+    "";
+  if (!verifySimSecret(env, secret)) {
+    return json({ error: "unauthorized" }, 401);
+  }
+
+  // GET /sim/mode — report which mode we're in and the allowlist state
+  if (request.method === "GET" && url.pathname === "/sim/mode") {
+    const rm = runtimeMode(env);
+    const allowlist = parseAllowlist(env);
+    return json({
+      mode: rm.mode,
+      misconfig: rm.misconfig,
+      allowlist: {
+        set: allowlist.length > 0,
+        entries: allowlist.length,
+        entries_masked: allowlist.map((p) =>
+          p.length > 6 ? `${p.slice(0, 6)}…` : p,
+        ),
+      },
+    });
+  }
+
+  // POST /sim/inject — inject an incoming WhatsApp message
+  if (request.method === "POST" && url.pathname === "/sim/inject") {
+    let input: InjectInput;
+    try {
+      input = (await request.json()) as InjectInput;
+    } catch {
+      return json({ error: "bad json" }, 400);
+    }
+    if (!input?.from || !input?.type) {
+      return json({ error: "missing from/type" }, 400);
+    }
+    const { payload, wamid } = buildInjectedWebhookPayload(input);
+    try {
+      await handleWebhook(env, payload);
+    } catch (e) {
+      return json({ error: (e as Error)?.message ?? "handler failed", wamid }, 500);
+    }
+    return json({ ok: true, injected_wamid: wamid });
+  }
+
+  // GET /sim/outbound?run_id=X — list captured messages for a run
+  if (request.method === "GET" && url.pathname === "/sim/outbound") {
+    const runId = url.searchParams.get("run_id");
+    if (!runId) return json({ error: "missing run_id" }, 400);
+    const rows = await readOutbound(env, runId);
+    return json({ run_id: runId, count: rows.length, messages: rows });
+  }
+
+  // POST /sim/reset?run_id=X — wipe one run's captured messages
+  if (request.method === "POST" && url.pathname === "/sim/reset") {
+    const runId = url.searchParams.get("run_id");
+    if (!runId) return json({ error: "missing run_id" }, 400);
+    const deleted = await resetOutboundRun(env, runId);
+    return json({ run_id: runId, deleted });
+  }
+
+  // POST /sim/purge  (dry-run)
+  // POST /sim/purge?confirm=1  (actually deletes)
+  if (request.method === "POST" && url.pathname === "/sim/purge") {
+    const confirm = url.searchParams.get("confirm") === "1";
+    try {
+      const report = await purgeSimulationData(env, { confirm });
+      return json({ ok: true, ...report });
+    } catch (e) {
+      return json({ error: (e as Error)?.message ?? "purge failed" }, 500);
+    }
+  }
+
+  // POST /sim/trigger?job=<name> — run a scheduled job right now
+  if (request.method === "POST" && url.pathname === "/sim/trigger") {
+    const job = url.searchParams.get("job");
+    if (!job) return json({ error: "missing job" }, 400);
+    try {
+      const result = await runSimJob(env, job);
+      return json({ ok: true, job, result });
+    } catch (e) {
+      return json({ error: (e as Error)?.message ?? "trigger failed", job }, 500);
+    }
+  }
+
+  // GET /sim/guard — dry-run the Odoo guard (call before flipping sim on)
+  if (request.method === "GET" && url.pathname === "/sim/guard") {
+    const g = await guardSimulationOdoo(env);
+    return json(g, g.ok ? 200 : 409);
+  }
+
+  return null;
+}
+
+async function runSimJob(env: Env, job: string): Promise<unknown> {
+  switch (job) {
+    case "ask_suppliers":
+      await askAllSuppliersForPrices(env);
+      return "askAllSuppliersForPrices done";
+    case "reliability_scores":
+      await updateSupplierReliabilityScores(env);
+      return "updateSupplierReliabilityScores done";
+    case "open_ordering":
+      await openOrderingWindow(env);
+      return "openOrderingWindow done";
+    case "close_unconfirmed":
+      await closeUnconfirmedOrders(env);
+      return "closeUnconfirmedOrders done";
+    case "aggregate_purchase":
+      await aggregateAndDispatchToWarehouse(env);
+      return "aggregateAndDispatchToWarehouse done";
+    case "collection_summary": {
+      const { sendDailyCollectionSummary } = await import("./invoice");
+      await sendDailyCollectionSummary(env);
+      return "sendDailyCollectionSummary done";
+    }
+    case "standing_reminders": {
+      const { sendStandingOrderReminders } = await import("./standing");
+      const r = await sendStandingOrderReminders(env);
+      return r;
+    }
+    case "daily_outreach": {
+      const { runDailyOutreach } = await import("./outreach");
+      await runDailyOutreach(env);
+      return "runDailyOutreach done";
+    }
+    default:
+      throw new Error(
+        `unknown job '${job}'. valid: ask_suppliers | reliability_scores | open_ordering | close_unconfirmed | aggregate_purchase | collection_summary | standing_reminders | daily_outreach`,
+      );
+  }
+}
 
 async function handleWebhook(env: Env, payload: unknown): Promise<void> {
   const messages = parseWebhook(payload);

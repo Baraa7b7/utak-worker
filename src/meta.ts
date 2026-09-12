@@ -2,7 +2,9 @@
 // Handles: GET verify challenge, POST HMAC verification, payload parsing, outbound text + interactive buttons.
 
 import type { Env } from "./config";
+import { isRecipientAllowed, parseAllowlist, runtimeMode } from "./config";
 import type { NormalizedMessage } from "./types";
+import { captureOutbound } from "./sim";
 
 // ---- GET /webhook — Meta verification handshake ----
 export function handleVerify(url: URL, env: Env): Response {
@@ -123,8 +125,55 @@ export function parseWebhook(payload: unknown): NormalizedMessage[] {
   return out;
 }
 
-// ---- Send outbound text via Meta Graph API ----
-export async function sendText(env: Env, to: string, body: string): Promise<Response> {
+// ============================================================
+// The single interception point.
+//
+// Every outbound Meta call (sendText / sendTemplate / sendLocation /
+// sendButtons here, plus sendTemplateByPurpose in templates.ts) funnels
+// through fetchMeta. Two independent guards run BEFORE any dispatch:
+//
+//   1. Runtime-mode sanity: refuse when SIMULATION_MODE and PILOT_MODE
+//      are both set, or when PILOT_MODE lacks SIM_ALLOWLIST.
+//   2. Phone-range allowlist (SIM_ALLOWLIST): if set, the recipient's
+//      number must start with one of the listed prefixes. Applies in
+//      every mode — sim, pilot, prod alike. Unset = production allow-all.
+//
+// After the guards, dispatch:
+//   • SIMULATION_MODE=true → captureOutbound (D1, synthetic wamid)
+//   • PILOT_MODE=true      → real Meta send (allowlist already enforced)
+//   • Neither              → real Meta send
+// ============================================================
+function metaErrorResponse(message: string, type: string, status: number): Response {
+  return new Response(
+    JSON.stringify({ error: { message, type } }),
+    { status, headers: { "Content-Type": "application/json" } },
+  );
+}
+
+export async function fetchMeta(
+  env: Env,
+  body: Record<string, unknown>,
+): Promise<Response> {
+  const rm = runtimeMode(env);
+  if (rm.misconfig) {
+    console.error(`[fetchMeta] refusing send — ${rm.misconfig}`);
+    return metaErrorResponse(rm.misconfig, "RuntimeMisconfig", 500);
+  }
+
+  const to = String((body as { to?: unknown }).to ?? "");
+  if (!isRecipientAllowed(env, to)) {
+    const list = parseAllowlist(env);
+    const msg = `to=${to} not permitted by SIM_ALLOWLIST (${list.length} entries)`;
+    console.warn(`[fetchMeta] BLOCKED by allowlist: ${msg}`);
+    return metaErrorResponse(msg, "AllowlistBlocked", 403);
+  }
+
+  if (rm.mode === "sim") {
+    return captureOutbound(env, { body });
+  }
+
+  // pilot + prod share the same real-send path — the allowlist above is
+  // what makes pilot safer than prod.
   const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/${env.META_PHONE_NUMBER_ID}/messages`;
   return fetch(url, {
     method: "POST",
@@ -132,12 +181,17 @@ export async function sendText(env: Env, to: string, body: string): Promise<Resp
       Authorization: `Bearer ${env.META_ACCESS_TOKEN}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      messaging_product: "whatsapp",
-      to: to.replace(/^\+/, ""),
-      type: "text",
-      text: { body },
-    }),
+    body: JSON.stringify(body),
+  });
+}
+
+// ---- Send outbound text via Meta Graph API ----
+export async function sendText(env: Env, to: string, body: string): Promise<Response> {
+  return fetchMeta(env, {
+    messaging_product: "whatsapp",
+    to: to.replace(/^\+/, ""),
+    type: "text",
+    text: { body },
   });
 }
 
@@ -150,7 +204,6 @@ export async function sendTemplate(
   language: string,
   bodyParams: string[] = [],
 ): Promise<Response> {
-  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/${env.META_PHONE_NUMBER_ID}/messages`;
   const components =
     bodyParams.length > 0
       ? [{
@@ -158,22 +211,15 @@ export async function sendTemplate(
           parameters: bodyParams.map((t) => ({ type: "text", text: t })),
         }]
       : [];
-  return fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.META_ACCESS_TOKEN}`,
-      "Content-Type": "application/json",
+  return fetchMeta(env, {
+    messaging_product: "whatsapp",
+    to: to.replace(/^\+/, ""),
+    type: "template",
+    template: {
+      name: templateName,
+      language: { code: language || "ar" },
+      components,
     },
-    body: JSON.stringify({
-      messaging_product: "whatsapp",
-      to: to.replace(/^\+/, ""),
-      type: "template",
-      template: {
-        name: templateName,
-        language: { code: language || "ar" },
-        components,
-      },
-    }),
   });
 }
 
@@ -186,22 +232,14 @@ export async function sendLocation(
   name?: string,
   address?: string,
 ): Promise<Response> {
-  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/${env.META_PHONE_NUMBER_ID}/messages`;
   const loc: Record<string, unknown> = { latitude, longitude };
   if (name) loc.name = name.slice(0, 1000);
   if (address) loc.address = address.slice(0, 1000);
-  return fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.META_ACCESS_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      messaging_product: "whatsapp",
-      to: to.replace(/^\+/, ""),
-      type: "location",
-      location: loc,
-    }),
+  return fetchMeta(env, {
+    messaging_product: "whatsapp",
+    to: to.replace(/^\+/, ""),
+    type: "location",
+    location: loc,
   });
 }
 
@@ -212,28 +250,20 @@ export async function sendButtons(
   bodyText: string,
   buttons: Array<{ id: string; title: string }>,
 ): Promise<Response> {
-  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/${env.META_PHONE_NUMBER_ID}/messages`;
   // Meta caps: max 3 buttons, id ≤ 256 chars, title ≤ 20 chars.
   const safeButtons = buttons.slice(0, 3).map((b) => ({
     type: "reply",
     reply: { id: b.id.slice(0, 256), title: b.title.slice(0, 20) },
   }));
 
-  return fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.META_ACCESS_TOKEN}`,
-      "Content-Type": "application/json",
+  return fetchMeta(env, {
+    messaging_product: "whatsapp",
+    to: to.replace(/^\+/, ""),
+    type: "interactive",
+    interactive: {
+      type: "button",
+      body: { text: bodyText.slice(0, 1024) },
+      action: { buttons: safeButtons },
     },
-    body: JSON.stringify({
-      messaging_product: "whatsapp",
-      to: to.replace(/^\+/, ""),
-      type: "interactive",
-      interactive: {
-        type: "button",
-        body: { text: bodyText.slice(0, 1024) },
-        action: { buttons: safeButtons },
-      },
-    }),
   });
 }

@@ -3,7 +3,7 @@
 // Auth: Bearer <ODOO_API_KEY>; on 401 falls back once to /web/session/authenticate.
 
 import type { Env } from "./config";
-import { CATALOG_CACHE_KEY, CATALOG_CACHE_TTL_SECONDS } from "./config";
+import { CATALOG_CACHE_KEY, CATALOG_CACHE_TTL_SECONDS, SIM_MARKED_MODELS } from "./config";
 import type {
   OdooPartner,
   CatalogProduct,
@@ -16,6 +16,22 @@ type AuthMode = "apikey" | "session";
 
 let authMode: AuthMode = "apikey";
 let sessionCookie: string | null = null;
+
+/**
+ * Odoo's `name_get` returns many2one display strings like `"[UTAK-VEG-001] طماطم"`
+ * whenever the target model has a `default_code` / `ref` and it is set. Every
+ * customer-facing surface (PDFs, WhatsApp text, buttons) reads these strings
+ * verbatim, so the raw form leaks internal SKUs into invoices / driver
+ * routes / delivery notes.
+ *
+ * `stripRef` peels the leading bracketed segment and its trailing whitespace
+ * exactly once — the input's inner text (which may itself contain brackets)
+ * is preserved untouched. A no-op on strings without the prefix.
+ */
+export function stripRef(name: string | undefined | null): string {
+  if (!name) return "";
+  return name.replace(/^\s*\[[^\]]*\]\s*/, "");
+}
 
 async function authenticateSession(env: Env): Promise<void> {
   const res = await fetch(`${env.ODOO_URL}/web/session/authenticate`, {
@@ -49,6 +65,27 @@ export async function call<T = unknown>(
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (authMode === "apikey") headers["Authorization"] = `Bearer ${env.ODOO_API_KEY}`;
   if (authMode === "session" && sessionCookie) headers["Cookie"] = sessionCookie;
+
+  // ------------------------------------------------------------
+  // SIMULATION_MODE: stamp x_is_simulation=true on every create for
+  // models in SIM_MARKED_MODELS. Applied here — the single Odoo gateway —
+  // so every downstream helper is covered without touching business logic.
+  //
+  // Odoo JSON-2 create uses either `vals_list: [{...}, ...]` (batch) or
+  // `values: {...}` (single). We patch whichever form is present.
+  // ------------------------------------------------------------
+  if (
+    env.SIMULATION_MODE === "true" &&
+    method === "create" &&
+    SIM_MARKED_MODELS.has(model)
+  ) {
+    const b = body as { vals_list?: Array<Record<string, unknown>>; values?: Record<string, unknown> };
+    if (Array.isArray(b.vals_list)) {
+      for (const v of b.vals_list) if (v && typeof v === "object") v.x_is_simulation = true;
+    } else if (b.values && typeof b.values === "object") {
+      b.values.x_is_simulation = true;
+    }
+  }
 
   const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
   const text = await res.text();
@@ -115,16 +152,67 @@ export async function findSupplierByWhatsApp(env: Env, e164: string): Promise<Od
   return rows[0] ?? null;
 }
 
+/**
+ * Fetch — or create if missing — the `customer` row in x_employee_role.
+ * Only ever creates the "customer" role. Never staff roles (driver,
+ * warehouse, collector, admin). Result is cached in ROLE_CODE_CACHE.
+ *
+ * A stray failure during the role search must NOT prevent partner creation
+ * — the fallback path is documented in createCustomer below.
+ */
+async function ensureCustomerRoleId(env: Env): Promise<number | null> {
+  // Cache path
+  if (ROLE_CODE_CACHE) {
+    for (const [id, code] of ROLE_CODE_CACHE) if (code === "customer") return id;
+  }
+  try {
+    const found = await call<Array<{ id: number }>>(env, "x_employee_role", "search_read", {
+      domain: [["x_code", "=", "customer"]],
+      fields: ["id"],
+      limit: 1,
+    });
+    if (found[0]) {
+      if (ROLE_CODE_CACHE) ROLE_CODE_CACHE.set(found[0].id, "customer");
+      return found[0].id;
+    }
+    const ids = await call<number[]>(env, "x_employee_role", "create", {
+      vals_list: [{ x_name: "Customer", x_code: "customer" }],
+    });
+    const id = ids[0];
+    if (ROLE_CODE_CACHE) ROLE_CODE_CACHE.set(id, "customer");
+    console.log(`[roles] created customer role id=${id} in x_employee_role`);
+    return id;
+  } catch (e) {
+    // Common causes: x_name field named differently, or ACL blocks role
+    // creation. Log loudly — partner creation still proceeds without role.
+    console.error(
+      "[roles] ensureCustomerRoleId failed — partner will be created without a role",
+      (e as Error)?.message,
+    );
+    return null;
+  }
+}
+
 export async function createCustomer(env: Env, name: string, e164: string): Promise<number> {
+  // Rule (v8+): every partner auto-created from an incoming WhatsApp message
+  // gets the `customer` role explicitly. Never a staff role, regardless of
+  // what the message text says — spec §8. This eliminates the "pending
+  // no-role" rows we were accumulating.
+  const customerRoleId = await ensureCustomerRoleId(env);
+  const values: Record<string, unknown> = {
+    name: name || e164,
+    phone: e164,
+    x_whatsapp_number: e164,
+    customer_rank: 1,
+  };
+  if (customerRoleId !== null) {
+    // Odoo M2M "add" command; keeps any pre-existing role ids untouched
+    // (there won't be any on a brand-new row, but the tuple form is stable
+    // across Odoo versions).
+    values.x_role_ids = [[4, customerRoleId, 0]];
+  }
   const ids = await call<number[]>(env, "res.partner", "create", {
-    vals_list: [
-      {
-        name: name || e164,
-        phone: e164,
-        x_whatsapp_number: e164,
-        customer_rank: 1,
-      },
-    ],
+    vals_list: [values],
   });
   return ids[0];
 }
@@ -313,8 +401,8 @@ export async function getOrderSummary(
     id: order.id,
     state: order.x_state,
     lines: lines.map((l) => ({
-      product: l.x_product_tmpl_id ? l.x_product_tmpl_id[1] : "?",
-      packaging: l.x_packaging_id ? l.x_packaging_id[1] : "?",
+      product: l.x_product_tmpl_id ? stripRef(l.x_product_tmpl_id[1]) : "?",
+      packaging: l.x_packaging_id ? stripRef(l.x_packaging_id[1]) : "?",
       qty: l.x_quantity,
     })),
   };
@@ -799,12 +887,12 @@ export async function getConfirmedLinesForToday(env: Env): Promise<ConfirmedLine
       return {
         order_id: orderId,
         customer_id: cust ? cust[0] : 0,
-        customer_name: cust ? cust[1] : "",
+        customer_name: cust ? stripRef(cust[1]) : "",
         neighborhood: typeof order.x_delivery_neighborhood === "string" ? order.x_delivery_neighborhood : "",
         product_id: prod[0],
-        product_name: prod[1],
+        product_name: stripRef(prod[1]),
         packaging_id: pk[0],
-        packaging_name: pk[1],
+        packaging_name: stripRef(pk[1]),
         quantity: l.x_quantity,
       };
     });
@@ -1051,8 +1139,8 @@ export async function buildAndCreateRoutesForDrivers(
   for (const l of lines) {
     if (!Array.isArray(l.x_order_id) || !Array.isArray(l.x_product_tmpl_id) || !Array.isArray(l.x_packaging_id)) continue;
     const oid = (l.x_order_id as [number, string])[0];
-    const pname = (l.x_product_tmpl_id as [number, string])[1];
-    const pkname = (l.x_packaging_id as [number, string])[1];
+    const pname = stripRef((l.x_product_tmpl_id as [number, string])[1]);
+    const pkname = stripRef((l.x_packaging_id as [number, string])[1]);
     const arr = summaryByOrder.get(oid) ?? [];
     arr.push(`${pname} ${pkname} × ${l.x_quantity}`);
     summaryByOrder.set(oid, arr);
@@ -1066,7 +1154,7 @@ export async function buildAndCreateRoutesForDrivers(
   for (const o of orders) {
     if (!Array.isArray(o.x_customer_id)) continue;
     const custId = (o.x_customer_id as [number, string])[0];
-    const custName = (o.x_customer_id as [number, string])[1];
+    const custName = stripRef((o.x_customer_id as [number, string])[1]);
     const neighName = typeof o.x_delivery_neighborhood === "string" ? o.x_delivery_neighborhood.trim() : "";
     const neighId = neighName ? neighNameToId.get(neighName) : undefined;
 
@@ -1568,9 +1656,9 @@ export async function getOrderForInvoicing(
     lines: usable.map((l) => ({
       id: l.id,
       product_id: l.x_product_tmpl_id ? l.x_product_tmpl_id[0] : 0,
-      product_name: l.x_product_tmpl_id ? l.x_product_tmpl_id[1] : "?",
+      product_name: l.x_product_tmpl_id ? stripRef(l.x_product_tmpl_id[1]) : "?",
       packaging_id: l.x_packaging_id ? l.x_packaging_id[0] : 0,
-      packaging_name: l.x_packaging_id ? l.x_packaging_id[1] : "",
+      packaging_name: l.x_packaging_id ? stripRef(l.x_packaging_id[1]) : "",
       quantity: l.x_quantity,
       unit_price: typeof l.x_unit_price === "number" && l.x_unit_price > 0 ? l.x_unit_price : null,
     })),
@@ -1803,7 +1891,7 @@ export async function getUnpaidInvoicesWithCustomer(
       id: i.id,
       number: i.x_invoice_number,
       total: i.x_total,
-      customer_name: o?.x_customer_id ? o.x_customer_id[1] : "عميل",
+      customer_name: o?.x_customer_id ? stripRef(o.x_customer_id[1]) : "عميل",
       neighborhood: o?.x_delivery_neighborhood || "",
     };
   });

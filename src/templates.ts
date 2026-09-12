@@ -3,6 +3,7 @@
 // and sends via Meta Graph API with body params + button payloads.
 // ============================================================
 import type { Env } from "./config";
+import { fetchMeta } from "./meta";
 
 // Meta template name resolution is cached in-memory per Worker isolate.
 // The mapping rarely changes; if it does, redeploy or wait ~24h for
@@ -89,23 +90,15 @@ export async function sendTemplateByPurpose(
       parameters: [{ type: "payload", payload: b.payload }],
     });
   }
-  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/${env.META_PHONE_NUMBER_ID}/messages`;
-  return fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.META_ACCESS_TOKEN}`,
-      "Content-Type": "application/json",
+  return fetchMeta(env, {
+    messaging_product: "whatsapp",
+    to: to.replace(/^\+/, ""),
+    type: "template",
+    template: {
+      name: mapping.name,
+      language: { code: mapping.language },
+      components,
     },
-    body: JSON.stringify({
-      messaging_product: "whatsapp",
-      to: to.replace(/^\+/, ""),
-      type: "template",
-      template: {
-        name: mapping.name,
-        language: { code: mapping.language },
-        components,
-      },
-    }),
   });
 }
 

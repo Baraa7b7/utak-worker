@@ -34,7 +34,146 @@ export interface Env {
   GOTENBERG_PASSWORD?: string;
   /** HMAC-SHA256 shared secret for Odoo → Worker internal webhooks (e.g. /internal/quotation-issue). */
   INTERNAL_WEBHOOK_SECRET?: string;
+
+  // ============================================================
+  // Simulation-mode env (only bound in [env.sim], undefined in prod).
+  // Reads: `env.SIMULATION_MODE === "true"` — never truthiness on the raw
+  // string, since wrangler surfaces bools as strings.
+  // ============================================================
+  /** "true" only in the sim worker. Any other value = production behavior. */
+  SIMULATION_MODE?: string;
+  /** Shared secret gating every /sim/* endpoint (inject/outbound/reset/purge/trigger). */
+  SIM_SECRET?: string;
+  /** D1 binding for the sim_outbound log. Only bound on the sim worker. */
+  SIM_DB?: D1Database;
+
+  /**
+   * PILOT_MODE — sends REAL Meta messages, but only to numbers permitted by
+   * SIM_ALLOWLIST. Not the same worker as sim; a pilot deploy is a third
+   * environment ([env.pilot]) sitting between sim and prod. Mutually
+   * exclusive with SIMULATION_MODE. Requires a non-empty SIM_ALLOWLIST.
+   */
+  PILOT_MODE?: string;
+
+  /**
+   * Second, independent phone-range guard. Comma-separated list of E.164
+   * prefixes or exact numbers; each entry begins with '+'. Every outbound
+   * WhatsApp send is refused unless the recipient starts with at least
+   * one entry.
+   *
+   * Semantics deliberately independent of SIMULATION_MODE / PILOT_MODE:
+   * - unset  → allow all (production default)
+   * - set    → strict allow-list, applied to sim / pilot / prod alike
+   * - PILOT_MODE=true REQUIRES this to be non-empty (fail-closed)
+   *
+   * Examples: "+96650,+96651"  or "+966505154962,+966580040467"
+   */
+  SIM_ALLOWLIST?: string;
 }
+
+// ============================================================
+// Runtime mode helpers
+// ============================================================
+
+export type RuntimeMode = "sim" | "pilot" | "prod";
+
+export interface RuntimeModeResult {
+  mode: RuntimeMode;
+  /** Set to a non-null string when the env is misconfigured; callers must refuse to act on it. */
+  misconfig: string | null;
+}
+
+/**
+ * Single source of truth for which "world" the Worker is running in.
+ * Callers that mutate state (Meta send, /sim/*) branch on this rather than
+ * reading env.SIMULATION_MODE directly, so any future mode has one place
+ * to slot in.
+ */
+export function runtimeMode(env: Env): RuntimeModeResult {
+  const sim = env.SIMULATION_MODE === "true";
+  const pilot = env.PILOT_MODE === "true";
+  const allowlist = (env.SIM_ALLOWLIST ?? "").trim();
+
+  if (sim && pilot) {
+    return {
+      mode: "sim", // sim wins if both accidentally set, but flag misconfig loud
+      misconfig: "SIMULATION_MODE and PILOT_MODE both true — mutually exclusive; refusing to act",
+    };
+  }
+  if (pilot && !allowlist) {
+    return {
+      mode: "pilot",
+      misconfig: "PILOT_MODE=true requires non-empty SIM_ALLOWLIST — refusing to send to open recipients",
+    };
+  }
+  if (sim) return { mode: "sim", misconfig: null };
+  if (pilot) return { mode: "pilot", misconfig: null };
+  return { mode: "prod", misconfig: null };
+}
+
+/**
+ * Parses SIM_ALLOWLIST into normalized prefixes.
+ * Never throws — a malformed entry is dropped with a warn.
+ */
+export function parseAllowlist(env: Env): string[] {
+  const raw = (env.SIM_ALLOWLIST ?? "").trim();
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => {
+      if (!s) return false;
+      if (!s.startsWith("+")) {
+        console.warn(`[allowlist] dropping entry '${s}' — must start with '+'`);
+        return false;
+      }
+      return true;
+    });
+}
+
+/**
+ * `to` may arrive with or without a leading '+' (Meta strips it in outbound
+ * bodies). We normalize before comparing so both forms match the same
+ * allowlist entry.
+ */
+export function isRecipientAllowed(env: Env, to: string): boolean {
+  const list = parseAllowlist(env);
+  if (list.length === 0) return true; // unset = production behavior
+  const normalized = to.startsWith("+") ? to : `+${to}`;
+  return list.some((p) => normalized.startsWith(p));
+}
+
+// ============================================================
+// Simulation-mode constants
+// ============================================================
+
+/** Odoo models the sim wrapper marks with x_is_simulation=true on every create. */
+export const SIM_MARKED_MODELS: ReadonlySet<string> = new Set([
+  "res.partner",
+  "x_daily_order",
+  "x_daily_order_line",
+  "x_quotation",
+  "x_invoice",
+  "x_payment",
+  "x_purchase_list",
+  "x_delivery_route",
+  "x_delivery_stop",
+  "x_collection_task",
+  "x_collection_item",
+  "x_daily_price",
+  "x_supplier_price_request_log",
+  "x_message_analysis",
+]);
+
+/**
+ * Models the startup guard scans for any non-sim record. Deliberately narrow —
+ * matches the spec: "نماذج الطلبات أو الفواتير أو الكوتيشنات".
+ */
+export const SIM_GUARD_MODELS: readonly string[] = [
+  "x_daily_order",
+  "x_quotation",
+  "x_invoice",
+];
 
 export const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 export const ANTHROPIC_VERSION = "2023-06-01";

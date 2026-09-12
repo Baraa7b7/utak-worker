@@ -65,3 +65,120 @@ crons = [
 binding     = "INVOICES_BUCKET"
 bucket_name = "utak-invoices"
 
+# ============================================================
+# [env.sim] — isolated simulation deployment.
+#
+# Deploys as a SEPARATE worker `utak-worker-sim` with its own KV, D1, R2.
+# The production `utak-worker` above is UNTOUCHED — nothing in this block
+# affects it. Runs the exact same code with SIMULATION_MODE flipped on;
+# fetchMeta() in src/meta.ts intercepts every outbound Meta call and writes
+# to the sim_outbound D1 table instead of hitting graph.facebook.com.
+#
+# Deploy with:  wrangler deploy --env sim
+# Tail with:    wrangler tail utak-worker-sim
+#
+# Cron triggers deliberately omitted — sim jobs are driven manually via
+# POST /sim/trigger?job=<name> so a whole day can be compressed into minutes.
+#
+# Required one-time setup on this Cloudflare account:
+#   wrangler kv namespace create SIM_MSG_DEDUP --env sim
+#   wrangler kv namespace create SIM_MSG_DEDUP --env sim --preview
+#   wrangler d1 create utak-worker-sim-db
+#   wrangler d1 execute utak-worker-sim-db --file=./schema/sim_outbound.sql --env=sim --remote
+#   wrangler r2 bucket create utak-invoices-sim
+# then paste the returned KV ids and D1 database_id below.
+# ============================================================
+[env.sim]
+name = "utak-worker-sim"
+
+[env.sim.vars]
+WORKER_ORIGIN        = "https://utak-worker-sim.utak-business.workers.dev"
+META_PHONE_NUMBER_ID = "1351691708016803"
+META_WABA_ID         = "2144001136512196"
+META_GRAPH_VERSION   = "v22.0"
+ODOO_URL             = "https://utakfresh.odoo.com"     # same Odoo — sim rows carry x_is_simulation=true
+ODOO_DB              = "utakfresh"
+ODOO_LOGIN           = "admin@utakfresh.com"
+CLAUDE_MODEL_CLASSIFY = "claude-haiku-4-5-20251001"
+CLAUDE_MODEL_REPLY    = "claude-sonnet-5"
+OWNER_WHATSAPP        = "+966505154962"
+SIMULATION_MODE       = "true"                          # the switch fetchMeta() reads
+# Second independent guard — layer on top of SIMULATION_MODE. Leave empty on
+# sim (D1 capture already blocks Meta calls), or set to Baraa's own number
+# for a belt-and-suspenders sim run:
+#   SIM_ALLOWLIST = "+966505154962"
+SIM_ALLOWLIST         = ""
+
+# Secrets on the sim worker (set once, mirrored from prod plus one new):
+#   wrangler secret put META_APP_SECRET       --env sim
+#   wrangler secret put META_ACCESS_TOKEN     --env sim
+#   wrangler secret put META_VERIFY_TOKEN     --env sim
+#   wrangler secret put ODOO_API_KEY          --env sim
+#   wrangler secret put ANTHROPIC_API_KEY     --env sim
+#   wrangler secret put SIM_SECRET            --env sim   # NEW: gates /sim/* endpoints
+
+[[env.sim.kv_namespaces]]
+binding    = "MSG_DEDUP"
+id         = "PASTE_SIM_KV_ID_HERE"
+preview_id = "PASTE_SIM_KV_PREVIEW_ID_HERE"
+
+[[env.sim.d1_databases]]
+binding       = "SIM_DB"
+database_name = "utak-worker-sim-db"
+database_id   = "PASTE_SIM_D1_ID_HERE"
+
+[[env.sim.r2_buckets]]
+binding     = "INVOICES_BUCKET"
+bucket_name = "utak-invoices-sim"
+
+# ============================================================
+# [env.pilot] — real Meta sends, restricted to SIM_ALLOWLIST
+#
+# The middle tier between sim (no real sends) and prod (open to everyone).
+# Purpose: run one live day against Baraa's personal circle before opening
+# to real customers. PILOT_MODE=true + a non-empty SIM_ALLOWLIST are BOTH
+# required — the runtime refuses to send otherwise.
+#
+# A pilot deploy is a THIRD worker; it does not touch prod or sim. Same
+# schema/D1 setup pattern as sim (create your own kv/d1/r2 names).
+# ============================================================
+[env.pilot]
+name = "utak-worker-pilot"
+
+[env.pilot.vars]
+WORKER_ORIGIN        = "https://utak-worker-pilot.utak-business.workers.dev"
+META_PHONE_NUMBER_ID = "1351691708016803"
+META_WABA_ID         = "2144001136512196"
+META_GRAPH_VERSION   = "v22.0"
+ODOO_URL             = "https://utakfresh.odoo.com"
+ODOO_DB              = "utakfresh"
+ODOO_LOGIN           = "admin@utakfresh.com"
+CLAUDE_MODEL_CLASSIFY = "claude-haiku-4-5-20251001"
+CLAUDE_MODEL_REPLY    = "claude-sonnet-5"
+OWNER_WHATSAPP        = "+966505154962"
+PILOT_MODE            = "true"
+# REQUIRED: at least Baraa's number, plus any test partners.
+SIM_ALLOWLIST         = "+966505154962"
+
+# Secrets on the pilot worker (mirror prod plus SIM_SECRET for /sim/mode):
+#   wrangler secret put META_APP_SECRET       --env pilot
+#   wrangler secret put META_ACCESS_TOKEN     --env pilot
+#   wrangler secret put META_VERIFY_TOKEN     --env pilot
+#   wrangler secret put ODOO_API_KEY          --env pilot
+#   wrangler secret put ANTHROPIC_API_KEY     --env pilot
+#   wrangler secret put SIM_SECRET            --env pilot
+
+[[env.pilot.kv_namespaces]]
+binding    = "MSG_DEDUP"
+id         = "PASTE_PILOT_KV_ID_HERE"
+preview_id = "PASTE_PILOT_KV_PREVIEW_ID_HERE"
+
+# Pilot does not need D1 (no sim_outbound capture in pilot mode).
+# If /sim/inject is desired for controlled walkthroughs, provision D1 as
+# in [env.sim] — captureOutbound only runs when SIMULATION_MODE=true, so
+# the binding sits unused otherwise.
+
+[[env.pilot.r2_buckets]]
+binding     = "INVOICES_BUCKET"
+bucket_name = "utak-invoices-pilot"
+

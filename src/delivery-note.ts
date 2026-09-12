@@ -2,7 +2,7 @@
 // Uses the shared renderPDFShell — no prices, no totals.
 
 import type { Env } from "./config";
-import { call } from "./odoo";
+import { call, stripRef } from "./odoo";
 import { sendText } from "./meta";
 import {
   BRAND_COLORS,
@@ -176,8 +176,8 @@ export async function buildDeliveryNotePDFDataFromOdoo(
   const items: DeliveryNoteItem[] = lines
     .filter((l) => l.x_status !== "unavailable")
     .map((l) => ({
-      name: l.x_product_tmpl_id ? l.x_product_tmpl_id[1] : "?",
-      pack: l.x_packaging_id ? l.x_packaging_id[1] : "-",
+      name: l.x_product_tmpl_id ? stripRef(l.x_product_tmpl_id[1]) : "?",
+      pack: l.x_packaging_id ? stripRef(l.x_packaging_id[1]) : "-",
       qty: l.x_quantity,
     }));
 

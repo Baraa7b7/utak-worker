@@ -196,7 +196,7 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
       names,
     ].join("\n");
     try {
-      await sendText(env, env.OWNER_WHATSAPP, alertText);
+      await sendText(env, env.OWNER_WHATSAPP, alertText, { purpose: "owner_alert" });
     } catch (e) {
       console.warn("[order] alertOwner (deactivated) failed", (e as Error)?.message);
     }

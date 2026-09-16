@@ -400,7 +400,7 @@ export async function openOrderingWindow(env: Env): Promise<void> {
 async function alertOwner(env: Env, text: string): Promise<void> {
   if (!env.OWNER_WHATSAPP) return;
   try {
-    await sendText(env, env.OWNER_WHATSAPP, text);
+    await sendText(env, env.OWNER_WHATSAPP, text, { purpose: "owner_alert" });
   } catch (e) {
     console.error("alertOwner failed", (e as Error)?.message);
   }

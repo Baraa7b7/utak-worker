@@ -135,11 +135,18 @@ export function parseWebhook(payload: unknown): NormalizedMessage[] {
 //
 // Every outbound Meta call (sendText / sendTemplate / sendLocation /
 // sendButtons here, plus sendTemplateByPurpose in templates.ts) funnels
-// through fetchMeta. Two independent guards run BEFORE any dispatch:
+// through fetchMeta. Three independent guards run BEFORE any dispatch:
 //
 //   1. Runtime-mode sanity: refuse when SIMULATION_MODE and PILOT_MODE
 //      are both set, or when PILOT_MODE lacks SIM_ALLOWLIST.
-//   2. Phone-range allowlist (SIM_ALLOWLIST): if set, the recipient's
+//   2. Owner-guard (2026-09-16): if the recipient equals OWNER_WHATSAPP
+//      after E.164 digit normalization, only purposes in the owner
+//      allowlist are permitted. Every customer / supplier / team path
+//      (welcome, quotation, invoice, collection, standing, pay_remind,
+//      feedback, inactive, supplier_ask, driver_*) is refused with
+//      [owner-guard] blocked purpose=<x>. Owner is a manager only —
+//      never a message target on any customer flow.
+//   3. Phone-range allowlist (SIM_ALLOWLIST): if set, the recipient's
 //      number must start with one of the listed prefixes. Applies in
 //      every mode — sim, pilot, prod alike. Unset = production allow-all.
 //
@@ -153,6 +160,40 @@ export function parseWebhook(payload: unknown): NormalizedMessage[] {
 //     the response's real wamid is the one we store in D1; in sim we skip
 //     the network and use a synthetic wamid.
 // ============================================================
+
+// Options threaded from every send wrapper to fetchMeta. `purpose` is the
+// only thing the owner-guard cares about; add other fields here if the
+// send layer ever grows further metadata.
+export interface SendOpts {
+  purpose?: string;
+}
+
+// Purposes permitted to reach OWNER_WHATSAPP. Anything else addressed at
+// the owner is a coding mistake — treat it as such and block loudly.
+//   • "owner_alert"    — plain-text alerts sent via sendText(env, OWNER, ...)
+//                        from complaint / router / suppliers / team /
+//                        quotation / index (driver stop issue).
+//   • "owner_summary"  — the approved Meta template T.OWNER_SUMMARY, in
+//                        case a future cron uses sendTemplateByPurpose to
+//                        deliver the daily summary to the owner.
+const OWNER_ALLOWED_PURPOSES: ReadonlySet<string> = new Set([
+  "owner_alert",
+  "owner_summary",
+]);
+
+function ownerDigits(env: Env): string {
+  return String(env.OWNER_WHATSAPP ?? "").replace(/[^0-9]/g, "");
+}
+
+function toDigits(to: string): string {
+  return String(to ?? "").replace(/[^0-9]/g, "");
+}
+
+function isOwnerRecipient(env: Env, to: string): boolean {
+  const owner = ownerDigits(env);
+  return owner.length > 0 && toDigits(to) === owner;
+}
+
 function metaErrorResponse(message: string, type: string, status: number): Response {
   return new Response(
     JSON.stringify({ error: { message, type } }),
@@ -175,6 +216,7 @@ async function metaRealSend(env: Env, body: Record<string, unknown>): Promise<Re
 export async function fetchMeta(
   env: Env,
   body: Record<string, unknown>,
+  opts: SendOpts = {},
 ): Promise<Response> {
   const rm = runtimeMode(env);
   if (rm.misconfig) {
@@ -183,6 +225,24 @@ export async function fetchMeta(
   }
 
   const to = String((body as { to?: unknown }).to ?? "");
+
+  // ---- owner-guard (allowlist by purpose) ----
+  // Runs BEFORE the SIM_ALLOWLIST check so the log line names the real
+  // reason. The owner number is a management inbox: it must never be the
+  // audience of a customer-flow send, whatever the environment.
+  if (isOwnerRecipient(env, to)) {
+    const p = opts.purpose ?? "";
+    if (!OWNER_ALLOWED_PURPOSES.has(p)) {
+      const shown = p || "(none)";
+      console.warn(`[owner-guard] blocked purpose=${shown}`);
+      return metaErrorResponse(
+        `owner-guard: purpose=${shown} not permitted for owner recipient`,
+        "OwnerGuardBlocked",
+        403,
+      );
+    }
+  }
+
   if (!isRecipientAllowed(env, to)) {
     const list = parseAllowlist(env);
     const msg = `to=${to} not permitted by SIM_ALLOWLIST (${list.length} entries)`;
@@ -228,13 +288,18 @@ export async function fetchMeta(
 }
 
 // ---- Send outbound text via Meta Graph API ----
-export async function sendText(env: Env, to: string, body: string): Promise<Response> {
+export async function sendText(
+  env: Env,
+  to: string,
+  body: string,
+  opts: SendOpts = {},
+): Promise<Response> {
   return fetchMeta(env, {
     messaging_product: "whatsapp",
     to: to.replace(/^\+/, ""),
     type: "text",
     text: { body },
-  });
+  }, opts);
 }
 
 // ---- v3: Send an approved template message (one body parameter for now) ----
@@ -245,6 +310,7 @@ export async function sendTemplate(
   templateName: string,
   language: string,
   bodyParams: string[] = [],
+  opts: SendOpts = {},
 ): Promise<Response> {
   const components =
     bodyParams.length > 0
@@ -262,7 +328,7 @@ export async function sendTemplate(
       language: { code: language || "ar" },
       components,
     },
-  });
+  }, opts);
 }
 
 // ---- v4.2: Send a WhatsApp location message (opens in Waze/Google Maps) ----
@@ -273,6 +339,7 @@ export async function sendLocation(
   longitude: number,
   name?: string,
   address?: string,
+  opts: SendOpts = {},
 ): Promise<Response> {
   const loc: Record<string, unknown> = { latitude, longitude };
   if (name) loc.name = name.slice(0, 1000);
@@ -282,7 +349,7 @@ export async function sendLocation(
     to: to.replace(/^\+/, ""),
     type: "location",
     location: loc,
-  });
+  }, opts);
 }
 
 // ---- Send interactive button message (up to 3 buttons) ----
@@ -291,6 +358,7 @@ export async function sendButtons(
   to: string,
   bodyText: string,
   buttons: Array<{ id: string; title: string }>,
+  opts: SendOpts = {},
 ): Promise<Response> {
   // Meta caps: max 3 buttons, id ≤ 256 chars, title ≤ 20 chars.
   const safeButtons = buttons.slice(0, 3).map((b) => ({
@@ -307,5 +375,5 @@ export async function sendButtons(
       body: { text: bodyText.slice(0, 1024) },
       action: { buttons: safeButtons },
     },
-  });
+  }, opts);
 }

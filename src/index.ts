@@ -1067,7 +1067,8 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
           await env.MSG_DEDUP.delete(pendingKey);
           if (env.OWNER_WHATSAPP) {
             await sendText(env, env.OWNER_WHATSAPP,
-              `⚠️ مشكلة توصيل\nسواق: ${teamMember.name}\nطلب: #${orderId}\nالمشكلة: ${msg.text}`);
+              `⚠️ مشكلة توصيل\nسواق: ${teamMember.name}\nطلب: #${orderId}\nالمشكلة: ${msg.text}`,
+              { purpose: "owner_alert" });
           }
           await sendText(env, msg.from, "تم تسجيل المشكلة، براء بيراجعها 🙏");
         } else {
@@ -1076,6 +1077,25 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
       }
       await markSeen(env, msg.messageId);
       continue;
+    }
+
+    // ---- owner-guard (inbound) ----
+    // A message from OWNER_WHATSAPP is never a customer conversation:
+    // no findOrCreateCustomer, no welcome template, no order creation.
+    // If the sender is a registered supplier or team member the earlier
+    // branches already handled it; anything reaching here from the owner
+    // is a manager reaching out on the customer number by mistake or for
+    // testing — log the fact and ignore.
+    if (env.OWNER_WHATSAPP) {
+      const ownerDigits = env.OWNER_WHATSAPP.replace(/[^0-9]/g, "");
+      const fromDigits = msg.from.replace(/[^0-9]/g, "");
+      if (ownerDigits && ownerDigits === fromDigits) {
+        console.log(
+          `[owner-guard] inbound skip from=${msg.from} type=${msg.type}`,
+        );
+        await markSeen(env, msg.messageId);
+        continue;
+      }
     }
 
     const { findCustomerByWhatsApp } = await import("./odoo");

@@ -44,6 +44,7 @@ export async function closeUnconfirmedOrders(env: Env): Promise<void> {
       env,
       env.OWNER_WHATSAPP,
       `📊 إقفال الطلبات\nتم إلغاء ${ids.length} طلب لم يُؤكَّد اليوم.`,
+      { purpose: "owner_alert" },
     );
   }
 }
@@ -56,7 +57,7 @@ export async function aggregateAndDispatchToWarehouse(env: Env): Promise<void> {
   if (lines.length === 0) {
     console.log("[cron 21:15] no confirmed lines today");
     if (env.OWNER_WHATSAPP) {
-      await sendText(env, env.OWNER_WHATSAPP, "📊 21:15\nلا يوجد طلبات مؤكدة اليوم — ما تم إنشاء قائمة شراء.");
+      await sendText(env, env.OWNER_WHATSAPP, "📊 21:15\nلا يوجد طلبات مؤكدة اليوم — ما تم إنشاء قائمة شراء.", { purpose: "owner_alert" });
     }
     return;
   }
@@ -80,6 +81,7 @@ export async function aggregateAndDispatchToWarehouse(env: Env): Promise<void> {
         env,
         env.OWNER_WHATSAPP,
         "⚠️ ما يوجد موظف مستودع (warehouse) مسجّل. القائمة أنشئت (id=" + listId + ") لكن ما اتبعثت.",
+        { purpose: "owner_alert" },
       );
     }
     return;
@@ -148,6 +150,7 @@ export async function warehouseConfirmedPurchase(
       env,
       env.OWNER_WHATSAPP,
       `🚚 تم إرسال المسارات\n- عدد السواقين: ${routes.length}\n- عدد التوصيلات: ${ordersMoved}`,
+      { purpose: "owner_alert" },
     );
   }
   return { routesDispatched: routes.length, ordersMoved };

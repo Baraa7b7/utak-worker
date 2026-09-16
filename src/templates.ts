@@ -99,7 +99,7 @@ export async function sendTemplateByPurpose(
       language: { code: mapping.language },
       components,
     },
-  });
+  }, { purpose });
 }
 
 // ---- Purpose constants (all 19) ----

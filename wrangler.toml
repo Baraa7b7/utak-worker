@@ -109,11 +109,16 @@ ODOO_LOGIN           = "admin@utakfresh.com"
 CLAUDE_MODEL_CLASSIFY = "claude-haiku-4-5-20251001"
 CLAUDE_MODEL_REPLY    = "claude-sonnet-5"
 OWNER_WHATSAPP        = "+966505154962"
-SIMULATION_MODE       = "true"                          # the switch fetchMeta() reads
-# Second independent guard — layer on top of SIMULATION_MODE. After the 2026-09-12
-# runtimeMode widen, sim now ALSO fails-closed on an empty allowlist. Locked to
-# Baraa's number only — one entry, no more.
-SIM_ALLOWLIST         = "+966505154962"
+# 2026-09-16 — PILOT_MODE on the sim worker itself (no separate [env.pilot]
+# deploy). runtimeMode() treats SIMULATION_MODE=true AND PILOT_MODE=true as
+# mutually-exclusive misconfig; SIMULATION_MODE is therefore flipped off so
+# fetchMeta actually reaches Meta for the pilot round. isTestMode() still
+# returns true via PILOT_MODE, so odoo.ts::call keeps stamping
+# x_is_simulation=true on new rows and /sim/purge can clean them up.
+SIMULATION_MODE       = "false"                         # the switch fetchMeta() reads
+PILOT_MODE            = "true"                          # real Meta sends restricted to SIM_ALLOWLIST
+# رقم المالك (تنبيهات فقط) + عميل pilot واحد — قرار 2026-09-16
+SIM_ALLOWLIST         = "+966505154962,+966536251307"
 
 # Secrets on the sim worker (set once, mirrored from prod plus one new):
 #   wrangler secret put META_APP_SECRET       --env sim

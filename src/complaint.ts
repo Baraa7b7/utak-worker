@@ -73,7 +73,7 @@ export async function handleComplaint(
 النوع: ${typeArabic}
 الرسالة: "${text.slice(0, 200)}"
 ${orderId ? `طلب مرتبط: #${orderId}` : ""}`;
-    try { await sendText(env, owner, notif); }
+    try { await sendText(env, owner, notif, { purpose: "owner_alert" }); }
     catch (e) { console.error("[complaint] notify failed:", (e as Error).message); }
   }
   return "نعتذر عن الإزعاج 🙏 وصلنا ملاحظتك وسنتواصل معك خلال ساعة لحل المشكلة.";

@@ -451,7 +451,13 @@ export async function createQuotationRecord(
         x_order_id: orderId,
         x_quotation_number: number,
         x_customer_response: "pending",
-        x_sent_at: new Date().toISOString().replace("T", " ").slice(0, 19),
+        // x_sent_at deliberately omitted (Odoo default = false). The only
+        // legitimate writer is the dispatcher's step-8 write in
+        // src/quotation.ts:~482 after the message actually reaches Meta.
+        // Pre-setting it here defeated the "blocked ⇒ x_sent_at empty"
+        // guarantee — buildQuotationPDFDataFromOdoo falls back to
+        // create_date for the PDF's date field, so leaving x_sent_at empty
+        // is safe.
       },
     ],
   });

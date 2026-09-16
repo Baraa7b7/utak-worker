@@ -91,12 +91,23 @@ bucket_name = "utak-invoices"
 [env.sim]
 name = "utak-worker-sim"
 
-# Explicitly empty — top-level [triggers] is inheritable in wrangler, so
-# without this block sim would fire the same 8 crons on the SAME Odoo tenant
-# with SIMULATION_MODE stamps. Even though D1 capture blocks real Meta sends,
-# duplicate cron work on shared Odoo is unacceptable. Belt-and-suspenders.
+# مفعّلة على sim لأن crons الإنتاج أُوقفت يدوياً من Dashboard طوال الـpilot — قرار 2026-09-16
+# Mirror of the top-level [triggers] block verbatim. Prod's own triggers stay
+# defined in wrangler.toml but are paused on the Cloudflare dashboard for the
+# pilot window; when the dashboard toggle is flipped back on, this block must
+# be reset to crons = [] to prevent sim + prod duplicate cron work on the same
+# Odoo tenant.
 [env.sim.triggers]
-crons = []
+crons = [
+  "0 23 * * *",   # 02:00 Riyadh — v3: ask all active suppliers for daily prices
+  "0 2 * * *",    # 05:00 Riyadh — v3: recompute supplier reliability scores
+  "0 3 * * *",    # 06:00 Riyadh — v3: open ordering flag + missing-supplier alert
+  "0 18 * * *",   # 21:00 Riyadh — v4: close unconfirmed orders
+  "15 18 * * *",  # 21:15 Riyadh — v4: aggregate + dispatch purchase list to warehouse
+  "0 15 * * *",   # 18:00 Riyadh — v5: daily collection summary
+  "0 14 * * *",   # 17:00 Riyadh — v6.1: standing-order reminders
+  "0 5 * * *"     # 08:00 Riyadh — v7: daily outreach (feedback, pay_remind, inactive)
+]
 
 [env.sim.vars]
 WORKER_ORIGIN        = "https://utak-worker-sim.utak-business.workers.dev"
@@ -117,8 +128,8 @@ OWNER_WHATSAPP        = "+966505154962"
 # x_is_simulation=true on new rows and /sim/purge can clean them up.
 SIMULATION_MODE       = "false"                         # the switch fetchMeta() reads
 PILOT_MODE            = "true"                          # real Meta sends restricted to SIM_ALLOWLIST
-# رقم المالك (تنبيهات فقط) + عميل pilot واحد — قرار 2026-09-16
-SIM_ALLOWLIST         = "+966505154962,+966536251307"
+# المالك (تنبيهات فقط) + عميل pilot + المورد أحمد حسان — قرار 2026-09-16
+SIM_ALLOWLIST         = "+966505154962,+966536251307,+966571777704"
 
 # Secrets on the sim worker (set once, mirrored from prod plus one new):
 #   wrangler secret put META_APP_SECRET       --env sim

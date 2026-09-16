@@ -91,6 +91,13 @@ bucket_name = "utak-invoices"
 [env.sim]
 name = "utak-worker-sim"
 
+# Explicitly empty — top-level [triggers] is inheritable in wrangler, so
+# without this block sim would fire the same 8 crons on the SAME Odoo tenant
+# with SIMULATION_MODE stamps. Even though D1 capture blocks real Meta sends,
+# duplicate cron work on shared Odoo is unacceptable. Belt-and-suspenders.
+[env.sim.triggers]
+crons = []
+
 [env.sim.vars]
 WORKER_ORIGIN        = "https://utak-worker-sim.utak-business.workers.dev"
 META_PHONE_NUMBER_ID = "1351691708016803"
@@ -103,11 +110,10 @@ CLAUDE_MODEL_CLASSIFY = "claude-haiku-4-5-20251001"
 CLAUDE_MODEL_REPLY    = "claude-sonnet-5"
 OWNER_WHATSAPP        = "+966505154962"
 SIMULATION_MODE       = "true"                          # the switch fetchMeta() reads
-# Second independent guard — layer on top of SIMULATION_MODE. Leave empty on
-# sim (D1 capture already blocks Meta calls), or set to Baraa's own number
-# for a belt-and-suspenders sim run:
-#   SIM_ALLOWLIST = "+966505154962"
-SIM_ALLOWLIST         = ""
+# Second independent guard — layer on top of SIMULATION_MODE. After the 2026-09-12
+# runtimeMode widen, sim now ALSO fails-closed on an empty allowlist. Locked to
+# Baraa's number only — one entry, no more.
+SIM_ALLOWLIST         = "+966505154962"
 
 # Secrets on the sim worker (set once, mirrored from prod plus one new):
 #   wrangler secret put META_APP_SECRET       --env sim
@@ -119,13 +125,13 @@ SIM_ALLOWLIST         = ""
 
 [[env.sim.kv_namespaces]]
 binding    = "MSG_DEDUP"
-id         = "PASTE_SIM_KV_ID_HERE"
-preview_id = "PASTE_SIM_KV_PREVIEW_ID_HERE"
+id         = "998122f32d7b46c2a45cf01acec3cb0e"
+preview_id = "c23e6070ddfb419d83f2700d382b41c9"
 
 [[env.sim.d1_databases]]
 binding       = "SIM_DB"
 database_name = "utak-worker-sim-db"
-database_id   = "PASTE_SIM_D1_ID_HERE"
+database_id   = "f0631ac1-9659-4d5c-bc35-05797afe50c7"
 
 [[env.sim.r2_buckets]]
 binding     = "INVOICES_BUCKET"
@@ -144,6 +150,12 @@ bucket_name = "utak-invoices-sim"
 # ============================================================
 [env.pilot]
 name = "utak-worker-pilot"
+
+# CRITICAL: pilot sends REAL Meta messages. Inheriting the prod crons would
+# fire the same daily jobs on the same Meta phone number = duplicate live
+# sends to real customers. This block prevents that. Keep [] until pilot day.
+[env.pilot.triggers]
+crons = []
 
 [env.pilot.vars]
 WORKER_ORIGIN        = "https://utak-worker-pilot.utak-business.workers.dev"

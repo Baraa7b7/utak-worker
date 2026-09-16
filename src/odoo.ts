@@ -253,10 +253,20 @@ export async function fetchCatalog(env: Env): Promise<CatalogProduct[]> {
     }
   }
 
-  // Fetch active products
+  // Fetch active products.
+  // 2026-09-15: x_is_active_for_sale is a manual boolean the operator toggles
+  // per product from Odoo (Studio-created but managed by ir.model.fields —
+  // see ensureProductActiveField below). A product without the flag set is
+  // hidden from customer ordering AND from supplier ask messages, without
+  // deploying code. Default=false, so a fresh product is inactive until
+  // Baraa flips it on in Odoo.
   type ProdRow = { id: number; name: string; default_code?: string | false };
   const products = await call<ProdRow[]>(env, "product.template", "search_read", {
-    domain: [["active", "=", true], ["sale_ok", "=", true]],
+    domain: [
+      ["active", "=", true],
+      ["sale_ok", "=", true],
+      ["x_is_active_for_sale", "=", true],
+    ],
     fields: ["id", "name", "default_code"],
     limit: 500,
   });
@@ -1593,6 +1603,199 @@ export async function ensureLocationFields(env: Env): Promise<{
 }
 
 // ============================================================
+// 2026-09-15 — Product active-for-sale flag
+//
+// One boolean on product.template — x_is_active_for_sale — that the operator
+// toggles from Odoo without any deploy. Its readers are:
+//   • fetchCatalog (odoo.ts:~245): filters customer-facing extraction
+//   • findDeactivatedProductMatches (odoo.ts, below): reverse-lookup for
+//     alerting the owner when a customer requests a deactivated product
+//   • askAllSuppliersForPrices (suppliers.ts): intersects each supplier's
+//     supplied products with the active-for-sale set before asking
+//
+// Default=false — a fresh product is invisible to the ordering flow until
+// activated in Odoo. Idempotent: re-running returns existed:true, no writes.
+// ============================================================
+export async function ensureProductActiveField(env: Env): Promise<
+  { created: boolean; existed: boolean; model_id: number; field_id: number | null }
+> {
+  const modelName = "product.template";
+  const fieldName = "x_is_active_for_sale";
+
+  // Look up ir.model id for product.template — the FK target for the field.
+  const modelRows = await call<Array<{ id: number }>>(env, "ir.model", "search_read", {
+    domain: [["model", "=", modelName]],
+    fields: ["id"],
+    limit: 1,
+  });
+  const modelId = modelRows[0]?.id;
+  if (!modelId) {
+    throw new Error(`ir.model not found for ${modelName}`);
+  }
+
+  const existing = await call<Array<{ id: number }>>(env, "ir.model.fields", "search_read", {
+    domain: [["model", "=", modelName], ["name", "=", fieldName]],
+    fields: ["id"],
+    limit: 1,
+  });
+  if (existing.length > 0) {
+    return { created: false, existed: true, model_id: modelId, field_id: existing[0].id };
+  }
+
+  const createdIds = await call<number[]>(env, "ir.model.fields", "create", {
+    vals_list: [{
+      name: fieldName,
+      field_description: "Active for sale (manual)",
+      model: modelName,
+      model_id: modelId,
+      ttype: "boolean",
+      state: "manual",
+    }],
+  });
+  return { created: true, existed: false, model_id: modelId, field_id: createdIds[0] ?? null };
+}
+
+/**
+ * Insert x_is_active_for_sale into product.template's form, list, and search
+ * views via inherited `ir.ui.view` records — no Developer Mode, no Studio.
+ * Each inherited view is uniquely named and idempotent: re-running returns
+ * existed:true and skips the create.
+ *
+ * View arch templates use xpath position="inside" on the root element of the
+ * respective base view. Root tag is detected from the base arch so this
+ * survives Odoo's `<tree>` → `<list>` rename in v17+.
+ */
+export async function ensureProductActiveViews(env: Env): Promise<{
+  form: { id: number; existed: boolean; arch: string };
+  list: { id: number; existed: boolean; arch: string };
+  search: { id: number; existed: boolean; arch: string };
+}> {
+  type ViewRow = { id: number; name: string; arch: string; type: string };
+  const baseViews = await call<ViewRow[]>(env, "ir.ui.view", "search_read", {
+    domain: [
+      ["model", "=", "product.template"],
+      ["inherit_id", "=", false],
+      // Odoo 19: list views live under type="list", not "tree" (v17 rename).
+      ["type", "in", ["form", "list", "search"]],
+    ],
+    fields: ["id", "name", "arch", "type"],
+    order: "id asc",
+    limit: 30,
+  });
+  const baseForm = baseViews.find((v) => v.type === "form");
+  const baseList = baseViews.find((v) => v.type === "list");
+  const baseSearch = baseViews.find((v) => v.type === "search");
+  if (!baseForm) throw new Error("no base form view found for product.template");
+  if (!baseList) throw new Error("no base list view found for product.template");
+  if (!baseSearch) throw new Error("no base search view found for product.template");
+
+  const NAME_FORM = "utak.product.template.form.x_is_active_for_sale";
+  const NAME_LIST = "utak.product.template.list.x_is_active_for_sale";
+  const NAME_SEARCH = "utak.product.template.search.x_is_active_for_sale";
+
+  // Arch templates — position="inside" on the root always resolves; a
+  // narrower xpath (e.g. //notebook/page[@name='sales']) would break on
+  // any Odoo module that renames or hides the sales tab.
+  const archForm = `<?xml version="1.0"?>
+<data>
+  <xpath expr="//sheet" position="inside">
+    <group string="حالة البيع اليومية" col="2">
+      <field name="x_is_active_for_sale" string="متاح للبيع اليوم" widget="boolean_toggle"/>
+    </group>
+  </xpath>
+</data>`;
+  const archList = `<?xml version="1.0"?>
+<data>
+  <xpath expr="//list" position="inside">
+    <field name="x_is_active_for_sale" string="متاح للبيع اليوم" widget="boolean_toggle" optional="show"/>
+  </xpath>
+</data>`;
+  const archSearch = `<?xml version="1.0"?>
+<data>
+  <xpath expr="//search" position="inside">
+    <filter name="x_active_for_sale_today" string="متاح للبيع اليوم" domain="[('x_is_active_for_sale', '=', True)]"/>
+  </xpath>
+</data>`;
+
+  async function ensureView(
+    name: string,
+    inheritId: number,
+    type: string,
+    arch: string,
+  ): Promise<{ id: number; existed: boolean; arch: string }> {
+    const existing = await call<Array<{ id: number; arch: string }>>(
+      env,
+      "ir.ui.view",
+      "search_read",
+      {
+        domain: [["name", "=", name]],
+        fields: ["id", "arch"],
+        limit: 1,
+      },
+    );
+    if (existing[0]) {
+      return { id: existing[0].id, existed: true, arch: existing[0].arch };
+    }
+    const ids = await call<number[]>(env, "ir.ui.view", "create", {
+      vals_list: [{
+        name,
+        type,
+        model: "product.template",
+        inherit_id: inheritId,
+        mode: "extension",
+        arch_db: arch,
+        priority: 16,
+      }],
+    });
+    return { id: ids[0], existed: false, arch };
+  }
+
+  const form = await ensureView(NAME_FORM, baseForm.id, "form", archForm);
+  const list = await ensureView(NAME_LIST, baseList.id, "list", archList);
+  const search = await ensureView(NAME_SEARCH, baseSearch.id, "search", archSearch);
+  return { form, list, search };
+}
+
+/**
+ * Reverse-lookup for the router's inactive-match alert.
+ *
+ * Given the raw text tokens Sonnet couldn't map to the FILTERED (active-for-sale)
+ * catalog, find products that exist in Odoo but are marked
+ * x_is_active_for_sale=false. Matches by ilike on either direction so common
+ * Arabic near-forms hit (e.g. "بطاطس" vs stored "بطاطس بلدي"). Not a synonym
+ * matcher — a stored "طماطم" will NOT surface when the customer typed
+ * "بندورة" — but good enough to emit a market-intel signal, which is what
+ * the alert is for.
+ */
+export async function findDeactivatedProductMatches(
+  env: Env,
+  rawNames: string[],
+): Promise<Array<{ raw: string; product_id: number; product_name: string }>> {
+  const cleaned = Array.from(
+    new Set(rawNames.map((s) => (s ?? "").trim()).filter((s) => s.length > 1)),
+  );
+  if (cleaned.length === 0) return [];
+  type Row = { id: number; name: string };
+  const deactivated = await call<Row[]>(env, "product.template", "search_read", {
+    domain: [
+      ["active", "=", true],
+      ["sale_ok", "=", true],
+      ["x_is_active_for_sale", "=", false],
+    ],
+    fields: ["id", "name"],
+    limit: 500,
+  });
+  const out: Array<{ raw: string; product_id: number; product_name: string }> = [];
+  for (const raw of cleaned) {
+    const hit = deactivated.find(
+      (p) => p.name.includes(raw) || raw.includes(p.name),
+    );
+    if (hit) out.push({ raw, product_id: hit.id, product_name: hit.name });
+  }
+  return out;
+}
+
+// ============================================================
 // v5 — Invoice & Payment helpers
 // Append these to the END of src/odoo.ts (before the final closing).
 // They rely on the private `call<T>` helper already defined in odoo.ts.
@@ -1677,13 +1880,28 @@ export async function getOrderForInvoicing(
 }
 
 // ---- Look up today's sale price (fallback to any recent price) ----
+// sim-harness (2026-09-13): return a tagged object so upstream can distinguish
+// "today's fresh price" from "stale fallback" from "no price at all". The
+// numeric price and the fallback behaviour are unchanged; only the shape of
+// the return value changed. Callers must read `.price` for the number.
+export type SalePriceLookup = {
+  price: number;
+  source: "today" | "stale" | "missing";
+  price_date: string | null;
+  age_days: number | null;
+};
 export async function getLatestSalePrice(
   env: Env,
   productId: number,
   packagingId: number,
-): Promise<number> {
+): Promise<SalePriceLookup> {
   const today = new Date().toISOString().slice(0, 10);
-  type Row = { x_sale_price: number | false; x_price_sar: number | false };
+  type Row = { x_sale_price: number | false; x_price_sar: number | false; x_date: string | false };
+  const pickPrice = (r: Row): number => {
+    if (typeof r.x_sale_price === "number" && r.x_sale_price > 0) return r.x_sale_price;
+    if (typeof r.x_price_sar === "number" && r.x_price_sar > 0) return r.x_price_sar;
+    return 0;
+  };
   // Prefer today's confirmed/extracted price
   const rows = await call<Row[]>(env, "x_daily_price", "search_read", {
     domain: [
@@ -1691,29 +1909,39 @@ export async function getLatestSalePrice(
       ["x_packaging_id", "=", packagingId],
       ["x_date", "=", today],
     ],
-    fields: ["x_sale_price", "x_price_sar"],
+    fields: ["x_sale_price", "x_price_sar", "x_date"],
     order: "id desc",
     limit: 1,
   });
   if (rows[0]) {
-    if (typeof rows[0].x_sale_price === "number" && rows[0].x_sale_price > 0) return rows[0].x_sale_price;
-    if (typeof rows[0].x_price_sar === "number" && rows[0].x_price_sar > 0) return rows[0].x_price_sar;
+    const price = pickPrice(rows[0]);
+    if (price > 0) {
+      return { price, source: "today", price_date: today, age_days: 0 };
+    }
   }
-  // Fallback: most recent price ever
+  // Fallback: most recent price ever (kept — only tagged, not removed).
   const fallback = await call<Row[]>(env, "x_daily_price", "search_read", {
     domain: [
       ["x_product_tmpl_id", "=", productId],
       ["x_packaging_id", "=", packagingId],
     ],
-    fields: ["x_sale_price", "x_price_sar"],
+    fields: ["x_sale_price", "x_price_sar", "x_date"],
     order: "x_date desc, id desc",
     limit: 1,
   });
   if (fallback[0]) {
-    if (typeof fallback[0].x_sale_price === "number" && fallback[0].x_sale_price > 0) return fallback[0].x_sale_price;
-    if (typeof fallback[0].x_price_sar === "number" && fallback[0].x_price_sar > 0) return fallback[0].x_price_sar;
+    const price = pickPrice(fallback[0]);
+    if (price > 0) {
+      const d = typeof fallback[0].x_date === "string" ? fallback[0].x_date : null;
+      let age_days: number | null = null;
+      if (d) {
+        const ms = new Date(today + "T00:00:00Z").getTime() - new Date(d + "T00:00:00Z").getTime();
+        if (Number.isFinite(ms)) age_days = Math.max(0, Math.round(ms / 86400000));
+      }
+      return { price, source: "stale", price_date: d, age_days };
+    }
   }
-  return 0;
+  return { price: 0, source: "missing", price_date: null, age_days: null };
 }
 
 // ---- Invoice CRUD ----

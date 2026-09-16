@@ -133,6 +133,30 @@ export default {
       }
     }
 
+    // TEMPORARY 2026-09-12 — one-shot partner-dedup audit.
+    // Reads Othman id=8/id=15 with linked-record counts, dumps role state,
+    // audits suppliers, and reports customers missing a delivery neighborhood.
+    // Optional: ?create_pilot=1 creates ONE pilot customer.
+    // NEVER archives, NEVER unlinks. Gate: AUDIT_TOKEN secret.
+    if (request.method === "GET" && url.pathname === "/admin/audit-partners") {
+      const token = url.searchParams.get("token") ?? request.headers.get("x-audit-token") ?? "";
+      const expected = env.AUDIT_TOKEN ?? "";
+      if (!expected || token !== expected) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      try {
+        const { runPartnerAudit } = await import("./audit-partners");
+        const createPilot = url.searchParams.get("create_pilot") === "1";
+        const result = await runPartnerAudit(env, { createPilot });
+        return json({ ok: true, ...result });
+      } catch (e) {
+        return json(
+          { ok: false, error: (e as Error).message, stack: (e as Error).stack },
+          500,
+        );
+      }
+    }
+
     // 2026-09-05 — invoice PDF preview + optional R2 upload
     if (request.method === "GET" && url.pathname === "/test-invoice") {
       const token = url.searchParams.get("token") ?? request.headers.get("x-admin-token") ?? "";
@@ -858,6 +882,24 @@ async function handleSimRoute(
     "";
   if (!verifySimSecret(env, secret)) {
     return json({ error: "unauthorized" }, 401);
+  }
+
+  // TEMPORARY 2026-09-12 — T2 isolation harness.
+  // POST /sim/test-send?to=+9665...&text=...  — calls sendText() directly,
+  // no Odoo, no template lookup, no handleWebhook. Returns the fetchMeta
+  // Response status/body verbatim so a caller can assert AllowlistBlocked
+  // (403) or SIM capture (200 + wamid). Remove once T2 signs off.
+  if (request.method === "POST" && url.pathname === "/sim/test-send") {
+    const to = url.searchParams.get("to") ?? "";
+    const text = url.searchParams.get("text") ?? "T2 probe";
+    if (!to) return json({ error: "missing to" }, 400);
+    const { sendText } = await import("./meta");
+    const resp = await sendText(env, to, text);
+    const body = await resp.text();
+    return json({
+      status: resp.status,
+      body: (() => { try { return JSON.parse(body); } catch { return body; } })(),
+    });
   }
 
   // GET /sim/mode — report which mode we're in and the allowlist state

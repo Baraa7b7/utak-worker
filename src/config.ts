@@ -29,6 +29,8 @@ export interface Env {
 
   // ---- Optional secrets ----
   ADMIN_TOKEN?: string;
+  /** Temporary — scoped auth for /admin/audit-partners diagnostic only. Delete once dedup done. */
+  AUDIT_TOKEN?: string;
   GOTENBERG_URL?: string;
   GOTENBERG_USER?: string;
   GOTENBERG_PASSWORD?: string;
@@ -100,10 +102,19 @@ export function runtimeMode(env: Env): RuntimeModeResult {
       misconfig: "SIMULATION_MODE and PILOT_MODE both true — mutually exclusive; refusing to act",
     };
   }
-  if (pilot && !allowlist) {
+  // Fail-closed guard: any test mode (sim OR pilot) must run against a
+  // non-empty SIM_ALLOWLIST. Widened 2026-09-12 from pilot-only — sim used to
+  // rely on D1 capture as its sole block, but /sim/inject + /sim/trigger can
+  // create the same outbound bodies pilot generates, and one config drift
+  // (SIMULATION_MODE flipped off, D1 unbound, code path changed) would send
+  // open. The allowlist is now a mandatory second gate for both modes.
+  // prod is untouched: sim=false and pilot=false fall through to the
+  // production return below.
+  if ((pilot || sim) && !allowlist) {
     return {
-      mode: "pilot",
-      misconfig: "PILOT_MODE=true requires non-empty SIM_ALLOWLIST — refusing to send to open recipients",
+      mode: pilot ? "pilot" : "sim",
+      misconfig:
+        `${pilot ? "PILOT_MODE" : "SIMULATION_MODE"}=true requires non-empty SIM_ALLOWLIST — refusing to send to open recipients`,
     };
   }
   if (sim) return { mode: "sim", misconfig: null };
@@ -247,8 +258,14 @@ export const ANTHROPIC_VERSION = "2023-06-01";
 export const DEDUP_TTL_SECONDS = 24 * 60 * 60;
 
 // v2: catalog cache in KV, refreshed hourly
-export const CATALOG_CACHE_KEY = "catalog:v1";
-export const CATALOG_CACHE_TTL_SECONDS = 60 * 60;
+// v2 (2026-09-15) — bump forces a re-query after the x_is_active_for_sale
+// filter joined fetchCatalog's domain. Do not touch without also invalidating
+// stale readers.
+export const CATALOG_CACHE_KEY = "catalog:v2";
+// 2026-09-15 — dropped from 1h to 5min. With x_is_active_for_sale as the
+// day-to-day toggle Baraa flips from Odoo mobile, a full hour between the
+// flip and the customer-facing effect is operationally unacceptable.
+export const CATALOG_CACHE_TTL_SECONDS = 5 * 60;
 
 // v2: ordering hours (Riyadh local time, 24h)
 export const ORDERING_HOURS_OPEN = 6;    // 06:00 open

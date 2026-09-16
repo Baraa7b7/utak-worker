@@ -9,6 +9,7 @@ import {
   addOrderLines,
   createQuotationRecord,
   fetchCatalog,
+  findDeactivatedProductMatches,
   findOrCreateTodayOrder,
   getOrderSummary,
   getPartnerLocation,
@@ -18,6 +19,7 @@ import {
   setOrderNeighborhood,
   updateOrderState,
 } from "./odoo";
+import { sendText } from "./meta";
 import {
   containsUrgencyKeywords,
   isOrderingHoursOpen,
@@ -149,21 +151,68 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
   }
 
   const catalog = await fetchCatalog(env);
-  if (catalog.length === 0) {
-    return { text: "النظام يحدّث الكتالوج الحين، حاول بعد دقيقة لو سمحت." };
-  }
+  // 2026-09-15: fetchCatalog is now filtered by x_is_active_for_sale.
+  // Empty catalog can mean either a genuine cache-miss race OR (much more
+  // likely on a fresh setup) that Baraa hasn't activated any products yet.
+  // We still respond with a soft retry — the failure signal for "nothing
+  // active" ends up in the alert emitted below, once the customer names
+  // something specific.
+  const items = catalog.length === 0
+    ? await extractOrderItems(env, msg.text, catalog, partner.name)
+    : await extractOrderItems(env, msg.text, catalog, partner.name);
+  const active = items.filter((it) => it.product_id > 0 && it.packaging_id > 0);
+  const unknownRaw = items.filter((it) => it.product_id === 0);
 
-  const items = await extractOrderItems(env, msg.text, catalog, partner.name);
-  const valid = items.filter((it) => it.product_id > 0 && it.packaging_id > 0);
-  const unknown = items.filter((it) => it.product_id === 0);
+  // 2026-09-15: reverse-lookup the raw names against products flagged
+  // x_is_active_for_sale=false. A hit means the customer explicitly asked
+  // for a product Baraa has deactivated — worth alerting on as market intel.
+  // A miss means the product simply doesn't exist in Odoo (the existing
+  // "not in catalog" warning still applies).
+  const deactivatedMatches = await findDeactivatedProductMatches(
+    env,
+    unknownRaw.map((it) => it.product_name_raw),
+  );
+  const deactivatedRawSet = new Set(deactivatedMatches.map((m) => m.raw));
+  const trulyUnknown = unknownRaw.filter(
+    (it) => !deactivatedRawSet.has(it.product_name_raw.trim()),
+  );
 
-  if (valid.length === 0 && unknown.length === 0) {
+  // Empty-hands short-circuit — nothing to add, nothing to alert on.
+  if (active.length === 0 && trulyUnknown.length === 0 && deactivatedMatches.length === 0) {
     return {
       text: "ما قدرت أفهم الأصناف من رسالتك. اكتب لي مثلاً: طماطم كرتون 3، خيار جرم 5.",
     };
   }
 
-  // Find or create today's draft order
+  // Alert Baraa once per intake — grouped, not per-line — when the customer
+  // asked for at least one deactivated item. Framed as market intel, not an
+  // error: this signal is why we track the flag at all.
+  if (deactivatedMatches.length > 0 && env.OWNER_WHATSAPP) {
+    const names = deactivatedMatches.map((m) => `• ${m.product_name}`).join("\n");
+    const alertText = [
+      `📈 طلب على أصناف غير مفعّلة اليوم`,
+      `العميل: ${partner.name || "بدون اسم"}${partner.x_whatsapp_number ? " — " + partner.x_whatsapp_number : ""}`,
+      ``,
+      names,
+    ].join("\n");
+    try {
+      await sendText(env, env.OWNER_WHATSAPP, alertText);
+    } catch (e) {
+      console.warn("[order] alertOwner (deactivated) failed", (e as Error)?.message);
+    }
+  }
+
+  // If the entire request is inactive/unknown — no order gets created.
+  // Reply politely without exposing the internal reason.
+  if (active.length === 0) {
+    return {
+      text: "بعض الأصناف مو متوفرة اليوم — سجّلنا باقي طلبك 🌿",
+    };
+  }
+
+  // Find or create today's draft order — only when we actually have
+  // something active to add. This is the "لا يُنشأ طلب" branch when
+  // active.length === 0 above.
   const { id: orderId, created } = await findOrCreateTodayOrder(
     env,
     partner.id,
@@ -171,12 +220,12 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
     msg.messageId,
   );
 
-  if (valid.length > 0) {
-    await addOrderLines(env, orderId, valid);
+  if (active.length > 0) {
+    await addOrderLines(env, orderId, active);
   }
 
   // Build summary line for reply
-  const addedSummary = valid
+  const addedSummary = active
     .map((it) => {
       const prod = catalog.find((p) => p.id === it.product_id);
       const pk = prod?.packagings.find((x) => x.id === it.packaging_id);
@@ -186,8 +235,11 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
     })
     .join("\n");
 
-  const unknownWarn = unknown.length
-    ? `\n\n⚠️ ما لقيت في الكتالوج: ${unknown.map((u) => u.product_name_raw).join("، ")}`
+  // Customer-facing signal for the mixed case (some active + some
+  // deactivated OR some active + some genuinely unknown). Same soft line for
+  // both — the internal distinction (deactivated vs unknown) leaks nowhere.
+  const unavailableWarn = deactivatedMatches.length + trulyUnknown.length > 0
+    ? `\n\n🌿 بعض الأصناف مو متوفرة اليوم — سجّلنا باقي طلبك.`
     : "";
 
   const urgencyNote = containsUrgencyKeywords(msg.text)
@@ -210,7 +262,7 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
         text: [
           (created ? "بديت لك طلب جديد ✅" : "أضفنا لطلبك ✅"),
           addedSummary,
-          unknownWarn,
+          unavailableWarn,
           urgencyNote,
           ``,
           `📍 قبل ما نجهّز الكوتيشن — أرسل موقع التوصيل`,
@@ -236,7 +288,7 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
       bodyBeforeButtons: [
         (created ? "بديت لك طلب جديد ✅" : "أضفنا لطلبك ✅"),
         addedSummary,
-        unknownWarn,
+        unavailableWarn,
         urgencyNote,
         ``,
         deliveryLine,
@@ -252,7 +304,7 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
     text: [
       (created ? "بديت لك طلب جديد ✅" : "أضفنا لطلبك ✅"),
       addedSummary,
-      unknownWarn,
+      unavailableWarn,
       urgencyNote,
       ``,
       `تبغى تضيف شي ثاني، ولا نجهز الكوتيشن؟ (اكتب "خلاص" لما تخلّص)`,

@@ -26,6 +26,12 @@ export interface QuotationLineItem {
   total: number;
 }
 
+export interface QuotationPriceWarning {
+  product: string;
+  source: string;
+  age_days: number | null;
+}
+
 export interface QuotationPDFData {
   quotationNumber: string;
   quotationDate: Date;
@@ -40,6 +46,10 @@ export interface QuotationPDFData {
   discount: number;
   vatAmount: number;
   grandTotal: number;
+  // sim-harness (2026-09-13): loud-fail metadata. Never rendered into the
+  // PDF — read by the dispatcher to gate sends and alert the owner.
+  price_warnings: QuotationPriceWarning[];
+  has_blocking_issue: boolean;
 }
 
 const QUOTATION_FOOTER =
@@ -192,10 +202,29 @@ export async function buildQuotationPDFDataFromOdoo(
 
   let subtotal = 0;
   const items: QuotationLineItem[] = [];
+  // sim-harness (2026-09-13): per-line classification. A line priced from
+  // l.unit_price>0 (already cached on the Odoo line) is trusted as "today"
+  // — the daily-price flow wrote it, and we don't re-query. A line that
+  // must fall back to getLatestSalePrice carries whatever tag Odoo returns.
+  const price_warnings: QuotationPriceWarning[] = [];
+  let has_blocking_issue = false;
   for (const l of order.lines) {
     let unit = l.unit_price ?? 0;
+    let source: "today" | "stale" | "missing" = "today";
+    let age_days: number | null = 0;
     if (!unit || unit <= 0) {
-      unit = await getLatestSalePrice(env, l.product_id, l.packaging_id);
+      const lookup = await getLatestSalePrice(env, l.product_id, l.packaging_id);
+      unit = lookup.price;
+      source = lookup.source;
+      age_days = lookup.age_days;
+    }
+    if (source !== "today") {
+      price_warnings.push({
+        product: l.product_name || "صنف",
+        source,
+        age_days,
+      });
+      if (source === "missing") has_blocking_issue = true;
     }
     const total = round2(unit * l.quantity);
     subtotal = round2(subtotal + total);
@@ -229,6 +258,8 @@ export async function buildQuotationPDFDataFromOdoo(
     discount: 0,
     vatAmount: 0,
     grandTotal: subtotal,
+    price_warnings,
+    has_blocking_issue,
   };
 }
 
@@ -253,6 +284,21 @@ export interface QuotationDispatchResult {
   pdfUrl: string;
   pdfSize: number;
   messageId: string | null;
+  // sim-harness (2026-09-13): loud-fail signals. blocked=true means the
+  // customer was NOT messaged and x_sent_at was NOT written.
+  blocked?: boolean;
+  blockReason?: string;
+}
+
+// sim-harness (2026-09-13): local owner-alert helper, mirrors suppliers.ts
+// so quotation.ts stays free of a suppliers ↔ quotation import cycle.
+async function alertOwner(env: Env, text: string): Promise<void> {
+  if (!env.OWNER_WHATSAPP) return;
+  try {
+    await sendText(env, env.OWNER_WHATSAPP, text);
+  } catch (e) {
+    console.error("[quotation alertOwner] failed", (e as Error)?.message);
+  }
 }
 
 export async function createAndDispatchQuotationForRecord(
@@ -273,6 +319,36 @@ export async function createAndDispatchQuotationForRecord(
   if (!data) {
     console.warn(`[quotation] record ${quotationId} not found`);
     return null;
+  }
+
+  // sim-harness (2026-09-13): loud-fail gate. Any line with source="missing"
+  // means we would have sent the customer a quotation with a 0-price row —
+  // silently. Short-circuit before HTML/PDF/R2/send. Never write x_sent_at.
+  if (data.has_blocking_issue) {
+    const missing = data.price_warnings
+      .filter((w) => w.source === "missing")
+      .map((w) => w.product);
+    const reason = `missing prices: ${missing.join(", ") || "(unnamed)"}`;
+    console.error(`[q-issue] BLOCKED quotationId=${quotationId} number=${data.quotationNumber} — ${reason}`);
+    await alertOwner(
+      env,
+      [
+        `🚫 كوتيشن ${data.quotationNumber} (id=${quotationId}) — ما أرسلناه للعميل`,
+        `أصناف بدون سعر في x_daily_price:`,
+        ...missing.map((n) => `• ${n}`),
+        ``,
+        `أدخل الأسعار ثم أعد الإصدار.`,
+      ].join("\n"),
+    );
+    return {
+      quotationId,
+      number: data.quotationNumber,
+      pdfUrl: "",
+      pdfSize: 0,
+      messageId: null,
+      blocked: true,
+      blockReason: reason,
+    };
   }
 
   let html: string;
@@ -325,7 +401,27 @@ export async function createAndDispatchQuotationForRecord(
 
   let messageId: string | null = null;
   if (!customerPhone) {
-    console.warn(`[quotation] ${quotationId} has no customer WhatsApp — skipping send`);
+    // sim-harness (2026-09-13): promote silent skip to explicit failure.
+    // No customer phone → nobody sees the quotation. Alert Baraa, don't
+    // write x_sent_at, return blocked.
+    console.error(`[q-issue] BLOCKED quotationId=${quotationId} number=${data.quotationNumber} — no customer WhatsApp`);
+    await alertOwner(
+      env,
+      [
+        `🚫 كوتيشن ${data.quotationNumber} (id=${quotationId}) — ما أرسلناه للعميل`,
+        `العميل "${data.customer.name}" بدون رقم واتساب في Odoo.`,
+        `الملف جاهز: ${uploaded.publicUrl}`,
+      ].join("\n"),
+    );
+    return {
+      quotationId,
+      number: data.quotationNumber,
+      pdfUrl: uploaded.publicUrl,
+      pdfSize: uploaded.size,
+      messageId: null,
+      blocked: true,
+      blockReason: "no customer WhatsApp",
+    };
   } else {
     try {
       let resp: Response | null = null;
@@ -396,6 +492,23 @@ export async function createAndDispatchQuotationForRecord(
     console.warn(`[quotation] failed to update x_sent_at`, (e as Error).message);
   }
 
+  // sim-harness (2026-09-13): non-blocking price warnings — the send already
+  // went out, but the customer received a quotation priced from stale rows.
+  // Notify the owner so a fresh price can be entered before the next round.
+  if (data.price_warnings.length > 0) {
+    const lines = data.price_warnings.map((w) => {
+      const age = w.age_days === null ? "غير معروف" : `${w.age_days} يوم`;
+      return `• ${w.product} — ${w.source} (${age})`;
+    });
+    await alertOwner(
+      env,
+      [
+        `⚠️ كوتيشن ${data.quotationNumber} (id=${quotationId}) أُرسل بأسعار غير محدَّثة اليوم:`,
+        ...lines,
+      ].join("\n"),
+    );
+  }
+
   return {
     quotationId,
     number: data.quotationNumber,
@@ -431,4 +544,6 @@ export const TEST_QUOTATION_DATA: QuotationPDFData = {
   discount: 0,
   vatAmount: 0,
   grandTotal: 1517,
+  price_warnings: [],
+  has_blocking_issue: false,
 };

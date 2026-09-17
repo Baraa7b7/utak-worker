@@ -903,6 +903,48 @@ export default {
     }
 
 
+    // Item 2 (2026-09-17) — Odoo → Worker: process x_wa_message.x_status='queued'.
+    // Fired by the base.automation (wa_message.on_queued) via ir.actions.server
+    // (wa_message.send_webhook). The full send pipeline (validate → media
+    // upload → Meta send → chatter write-back) lives in handleWaMessageWebhook.
+    // Async response (202 + ctx.waitUntil) so Odoo's row lock releases fast.
+    if (request.method === "POST" && url.pathname === "/odoo/hook/wa") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      let body: { id?: number; _id?: number; _model?: string } = {};
+      try {
+        body = (await request.json()) as typeof body;
+      } catch {
+        return json({ error: "bad json" }, 400);
+      }
+      if (body._model && body._model !== "x_wa_message") {
+        return json({ error: `unexpected model: ${body._model}` }, 400);
+      }
+      const waId = Number(body.id ?? body._id);
+      if (!Number.isFinite(waId) || waId <= 0) {
+        return json({ error: "invalid id / _id" }, 400);
+      }
+      ctx.waitUntil(
+        (async () => {
+          try {
+            const { handleWaMessageWebhook } = await import("./wa-message-send");
+            const result = await handleWaMessageWebhook(env, waId);
+            console.log("[wa-msg hook]", JSON.stringify({ waId, ...result }));
+          } catch (e) {
+            console.error(
+              "[wa-msg hook] failed",
+              (e as Error)?.message,
+              (e as Error)?.stack,
+            );
+          }
+        })(),
+      );
+      return json({ status: "accepted", wa_message_id: waId }, 202);
+    }
+
     // Phase 1 (2026-09-17) — Odoo → Worker: template sync trigger.
     // Fired by the base.automation on x_wa_control.x_sync_requested=true.
     // Also usable via curl for a manual sync. Returns 202 and runs the sync
@@ -1153,6 +1195,40 @@ async function flushPendingLocations(env: Env, to: string, key: string): Promise
 }
 
 async function handleWebhook(env: Env, payload: unknown): Promise<void> {
+  // Item 2 (2026-09-17) — Meta delivery-status callbacks land here alongside
+  // messages. When present, correlate each status update to the matching
+  // x_wa_message by wamid and bump its x_status. Best-effort; a failure never
+  // interrupts inbound-message processing.
+  try {
+    const { updateWaStatusByWamid } = await import("./wa-message-send");
+    // deno-lint-ignore no-explicit-any
+    const entries: any[] = (payload as any)?.entry ?? [];
+    for (const entry of entries) {
+      for (const change of entry?.changes ?? []) {
+        const value = change?.value ?? {};
+        const statuses: unknown[] = value?.statuses ?? [];
+        // deno-lint-ignore no-explicit-any
+        for (const s of statuses as any[]) {
+          const wamid: string | undefined = s?.id;
+          const rawStatus: string | undefined = s?.status;
+          if (!wamid || !rawStatus) continue;
+          const s2 =
+            rawStatus === "sent" || rawStatus === "delivered" ||
+            rawStatus === "read" || rawStatus === "failed"
+              ? rawStatus
+              : null;
+          if (!s2) continue;
+          const errMsg = s?.errors?.[0]?.message
+            ? `Meta ${s.errors[0].code ?? ""}: ${s.errors[0].message}`
+            : undefined;
+          await updateWaStatusByWamid(env, wamid, s2, errMsg);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("[status-callback] failed", (e as Error)?.message);
+  }
+
   const messages = parseWebhook(payload);
 
   for (const msg of messages) {
@@ -1165,6 +1241,36 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
     if (!msg.text && !msg.buttonId && !msg.location) continue;
 
     if (await seenBefore(env, msg.messageId)) continue;
+
+    // Item 2 (2026-09-17) — silent x_wa_message log for every inbound event.
+    // Partner is resolved lazily below; here we do a best-effort match by
+    // whatsapp number so the tab in Odoo shows every incoming ping even for
+    // partners that haven't been created yet (partnerId=null in that case).
+    try {
+      const { logWaMessage } = await import("./wa-message-send");
+      const { findCustomerByWhatsApp, findSupplierByWhatsApp, findTeamMemberByWhatsApp } =
+        await import("./odoo");
+      const [supplierMatch, teamMatch, customerMatch] = await Promise.all([
+        findSupplierByWhatsApp(env, msg.from).catch(() => null),
+        findTeamMemberByWhatsApp(env, msg.from).catch(() => null),
+        findCustomerByWhatsApp(env, msg.from).catch(() => null),
+      ]);
+      const pid = supplierMatch?.id ?? teamMatch?.id ?? customerMatch?.id ?? null;
+      const kind =
+        msg.type === "interactive" || msg.type === "button"
+          ? "button_reply"
+          : "text";
+      await logWaMessage(env, {
+        partnerId: pid,
+        direction: "in",
+        kind,
+        body: msg.text || (msg.buttonId ? `[button:${msg.buttonId}]` : "[location]"),
+        metaMessageId: msg.messageId,
+        status: "received",
+      });
+    } catch (e) {
+      console.warn("[inbound-log] skipped", (e as Error)?.message);
+    }
 
     const supplier = await findSupplierByWhatsApp(env, msg.from);
     if (supplier) {

@@ -841,6 +841,41 @@ export default {
       return json({ stopId, driverPhone, steps, deliveryNumber, pdfUrl });
     }
 
+    // TEMPORARY (item 1, tonight 2026-09-17) — dry-run of the 02:00
+    // supplier-ask cron. Reports per supplier what would be sent, including
+    // the exact template param (list of active-for-sale product names) and
+    // the reason a supplier is blocked (owner-guard / allowlist / no active
+    // products). NEVER calls sendTemplate. NEVER writes to Odoo.
+    //
+    // Header-only auth (X-Admin-Token). Refuses ?token= to keep the token
+    // out of proxy logs / browser history. Uses ODOO_HOOK_TOKEN as the
+    // shared secret (same one wa-template-sync uses).
+    //
+    // Removed by the item 1 cleanup commit.
+    if (request.method === "GET" && url.pathname === "/admin/dry-run-supplier-ask") {
+      if (url.searchParams.has("token")) {
+        return json(
+          { error: "unauthorized — token must be in X-Admin-Token header, not query" },
+          401,
+        );
+      }
+      const providedToken = request.headers.get("x-admin-token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      try {
+        const { runDryRunSupplierAsk } = await import("./dry-run-supplier-ask");
+        const report = await runDryRunSupplierAsk(env);
+        return json({ ok: true, report });
+      } catch (e) {
+        return json(
+          { ok: false, error: (e as Error).message, stack: (e as Error).stack },
+          500,
+        );
+      }
+    }
+
     // Phase 1 — synchronous template sync (inline JSON report). Same
     // guarding as /odoo/hook/wa-template-sync but blocks on the sync so
     // failures surface in the response body instead of the tail.

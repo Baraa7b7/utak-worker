@@ -903,6 +903,103 @@ export default {
     }
 
 
+    // Item 3 (2026-09-17) — Odoo → Worker: "إرسال واتساب" button on a
+    // manual x_quotation. Reuses buildQuotationPDFDataFromOdoo +
+    // renderQuotationHTML + htmlToPDF to produce the PDF, then creates an
+    // x_wa_message row with x_attachment (base64) + x_manual=true + res_model/
+    // res_id set, transitioned to x_status='queued'. The queued automation
+    // fires the send-webhook route, which uploads the media to Meta and
+    // sends {type:'document', document:{id, filename}}.
+    if (request.method === "POST" && url.pathname === "/internal/quotation-wa-send") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      let body: { id?: number; _id?: number; _model?: string } = {};
+      try {
+        body = (await request.json()) as typeof body;
+      } catch {
+        return json({ error: "bad json" }, 400);
+      }
+      if (body._model && body._model !== "x_quotation") {
+        return json({ error: `unexpected model: ${body._model}` }, 400);
+      }
+      const qid = Number(body.id ?? body._id ?? url.searchParams.get("id"));
+      if (!Number.isFinite(qid) || qid <= 0) {
+        return json({ error: "invalid id" }, 400);
+      }
+      // ?dry_run=1 lets a tester stamp x_dry_run=true on the auto-created
+      // x_wa_message so the queued send stops at 'dry_ok' with no Meta call.
+      // Not set by the Odoo button; only used from curl / tests.
+      const dryRun = url.searchParams.get("dry_run") === "1";
+      ctx.waitUntil(
+        (async () => {
+          try {
+            const {
+              buildQuotationPDFDataFromOdoo,
+              generateQuotationPDF,
+              uploadQuotationToR2,
+            } = await import("./quotation");
+            const { call } = await import("./odoo");
+            const { sendOwnerAlert } = await import("./templates");
+            const data = await buildQuotationPDFDataFromOdoo(env, qid);
+            if (!data) {
+              console.warn(`[q-manual-wa] quotation ${qid} not found`);
+              return;
+            }
+            if (data.has_blocking_issue) {
+              const missing = data.missing_products ?? [];
+              const reason = missing.map((n) => `صنف بلا سعر: ${n}`).join(" | ") ||
+                "صنف بلا سعر";
+              console.error(`[q-manual-wa] BLOCKED ${qid} — ${reason}`);
+              await sendOwnerAlert(env,
+                `🚫 عرض يدوي ${data.quotationNumber} (id=${qid}) لم يُرسل — ${reason}`);
+              return;
+            }
+            const pdfBytes = await generateQuotationPDF(data, env);
+            const uploaded = await uploadQuotationToR2(
+              env,
+              pdfBytes,
+              data.quotationNumber,
+              env.WORKER_ORIGIN,
+            );
+            const b64 = arrayBufferToBase64(pdfBytes);
+            const partnerId = data.customer_id;
+            if (!partnerId) {
+              console.error(`[q-manual-wa] no customer_id resolved for quotation ${qid}`);
+              return;
+            }
+            const ids = await call<number[]>(env, "x_wa_message", "create", {
+              vals_list: [{
+                x_partner_id: partnerId,
+                x_direction: "out",
+                x_kind: "document",
+                x_attachment: b64,
+                x_filename: `${data.quotationNumber}.pdf`,
+                x_res_model: "x_quotation",
+                x_res_id: qid,
+                x_manual: true,
+                x_dry_run: dryRun,
+                x_status: "queued",
+                x_body: `عرض سعر ${data.quotationNumber} — الإجمالي ${data.grandTotal} ر.س`,
+              }],
+            });
+            console.log(
+              `[q-manual-wa] queued x_wa_message id=${ids[0]} for quotation ${qid} (PDF ${uploaded.size} bytes)`,
+            );
+          } catch (e) {
+            console.error(
+              "[q-manual-wa] failed",
+              (e as Error)?.message,
+              (e as Error)?.stack,
+            );
+          }
+        })(),
+      );
+      return json({ status: "accepted", quotation_id: qid }, 202);
+    }
+
     // Item 2 (2026-09-17) — Odoo → Worker: process x_wa_message.x_status='queued'.
     // Fired by the base.automation (wa_message.on_queued) via ir.actions.server
     // (wa_message.send_webhook). The full send pipeline (validate → media
@@ -1471,4 +1568,18 @@ function timingSafeEqual(a: string, b: string): boolean {
   let diff = 0;
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
+}
+
+// item3 (2026-09-17) — Uint8Array → base64 (chunked so a large PDF does not
+// exceed the argument limit of String.fromCharCode.apply on some runtimes).
+function arrayBufferToBase64(bytes: Uint8Array): string {
+  let bin = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    bin += String.fromCharCode.apply(
+      null,
+      Array.from(bytes.subarray(i, i + chunk)),
+    );
+  }
+  return btoa(bin);
 }

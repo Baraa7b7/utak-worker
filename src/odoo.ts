@@ -1819,6 +1819,11 @@ export async function getOrderForInvoicing(
     packaging_name: string;
     quantity: number;
     unit_price: number | null;
+    // item3 (2026-09-17) — manual per-line override captured from
+    // x_daily_order_line.x_price_unit_manual. Optional; when > 0 it takes
+    // precedence over unit_price and the getLatestSalePrice fallback in
+    // quotation.ts::buildQuotationPDFDataFromOdoo.
+    price_unit_manual: number | null;
   }>;
 } | null> {
   type OrderRow = {
@@ -1849,12 +1854,21 @@ export async function getOrderForInvoicing(
     x_packaging_id: [number, string] | false;
     x_quantity: number;
     x_unit_price: number | false;
+    x_price_unit_manual: number | false;
     x_status: string;
   };
   const lines = order.x_line_ids.length
     ? await call<LineRow[]>(env, "x_daily_order_line", "read", {
         ids: order.x_line_ids,
-        fields: ["id", "x_product_tmpl_id", "x_packaging_id", "x_quantity", "x_unit_price", "x_status"],
+        fields: [
+          "id",
+          "x_product_tmpl_id",
+          "x_packaging_id",
+          "x_quantity",
+          "x_unit_price",
+          "x_price_unit_manual",
+          "x_status",
+        ],
       })
     : [];
 
@@ -1875,6 +1889,10 @@ export async function getOrderForInvoicing(
       packaging_name: l.x_packaging_id ? stripRef(l.x_packaging_id[1]) : "",
       quantity: l.x_quantity,
       unit_price: typeof l.x_unit_price === "number" && l.x_unit_price > 0 ? l.x_unit_price : null,
+      price_unit_manual:
+        typeof l.x_price_unit_manual === "number" && l.x_price_unit_manual > 0
+          ? l.x_price_unit_manual
+          : null,
     })),
   };
 }

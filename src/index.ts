@@ -69,7 +69,19 @@ export default {
     try {
       switch (cron) {
         case "0 23 * * *": await askAllSuppliersForPrices(env); break;
-        case "0 2 * * *": await updateSupplierReliabilityScores(env); break;
+        case "0 2 * * *":
+          await updateSupplierReliabilityScores(env);
+          // Phase 1 (2026-09-17): daily template sync appended to the 05:00
+          // Riyadh handler after its existing work, in try/catch so a sync
+          // failure never breaks reliability-score scheduling.
+          try {
+            const { runTemplateSync } = await import("./wa-template-sync");
+            const report = await runTemplateSync(env);
+            console.log("[wa-sync 05:00]", JSON.stringify(report));
+          } catch (e) {
+            console.error("[wa-sync 05:00] failed", (e as Error)?.message);
+          }
+          break;
         case "0 3 * * *": await openOrderingWindow(env); break;
         case "0 18 * * *": await closeUnconfirmedOrders(env); break;
         case "15 18 * * *": await aggregateAndDispatchToWarehouse(env); break;
@@ -827,6 +839,48 @@ export default {
       }
 
       return json({ stopId, driverPhone, steps, deliveryNumber, pdfUrl });
+    }
+
+    // Phase 1 — synchronous template sync (inline JSON report). Same
+    // guarding as /odoo/hook/wa-template-sync but blocks on the sync so
+    // failures surface in the response body instead of the tail.
+    if (request.method === "GET" && url.pathname === "/admin/wa-template-sync") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      try {
+        const { runTemplateSync } = await import("./wa-template-sync");
+        const report = await runTemplateSync(env);
+        return json({ ok: true, report });
+      } catch (e) {
+        return json({ ok: false, error: (e as Error).message, stack: (e as Error).stack }, 500);
+      }
+    }
+
+    // Phase 1 (2026-09-17) — Odoo → Worker: template sync trigger.
+    // Fired by the base.automation on x_wa_control.x_sync_requested=true.
+    // Also usable via curl for a manual sync. Returns 202 and runs the sync
+    // in ctx.waitUntil so Odoo's row lock releases immediately.
+    if (request.method === "POST" && url.pathname === "/odoo/hook/wa-template-sync") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      ctx.waitUntil(
+        (async () => {
+          try {
+            const { runTemplateSync } = await import("./wa-template-sync");
+            const report = await runTemplateSync(env);
+            console.log("[wa-sync hook]", JSON.stringify(report));
+          } catch (e) {
+            console.error("[wa-sync hook] failed", (e as Error)?.message);
+          }
+        })(),
+      );
+      return json({ status: "accepted" }, 202);
     }
 
     if (request.method === "POST" && url.pathname === "/webhook") {

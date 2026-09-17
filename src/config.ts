@@ -36,6 +36,8 @@ export interface Env {
   GOTENBERG_PASSWORD?: string;
   /** HMAC-SHA256 shared secret for Odoo → Worker internal webhooks (e.g. /internal/quotation-issue). */
   INTERNAL_WEBHOOK_SECRET?: string;
+  /** Phase 1+: shared token for /odoo/hook/* routes (template sync, manual WA send). */
+  ODOO_HOOK_TOKEN?: string;
 
   // ============================================================
   // Simulation-mode env (only bound in [env.sim], undefined in prod).

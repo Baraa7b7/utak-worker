@@ -269,8 +269,45 @@ export async function fetchMeta(
   if (rm.mode === "pilot") {
     const resp = await metaRealSend(env, body);
     const wamid = await extractRealWamid(resp);
+
+    // On failure, snapshot Meta's status + error body so post-mortem doesn't
+    // require correlated wrangler-tail logs. Body is cloned before any other
+    // reader touches it, so the original resp stays consumable by the caller.
+    let metaStatus: number | undefined = undefined;
+    let metaError: { code: number | null; error_subcode: number | null; message: string } | null =
+      null;
+    if (!resp.ok) {
+      metaStatus = resp.status;
+      try {
+        const errText = await resp.clone().text();
+        let parsed: unknown = null;
+        try {
+          parsed = JSON.parse(errText);
+        } catch {
+          parsed = null;
+        }
+        // deno-lint-ignore no-explicit-any
+        const e = (parsed as any)?.error ?? null;
+        const rawMsg = e?.message ?? errText ?? "";
+        metaError = {
+          code: typeof e?.code === "number" ? e.code : null,
+          error_subcode: typeof e?.error_subcode === "number" ? e.error_subcode : null,
+          message: String(rawMsg).slice(0, 500),
+        };
+      } catch (e) {
+        metaError = {
+          code: null,
+          error_subcode: null,
+          message: String((e as Error)?.message ?? e).slice(0, 500),
+        };
+      }
+      console.warn(
+        `[meta] send failed status=${metaStatus} code=${metaError?.code ?? "null"}`,
+      );
+    }
+
     try {
-      await recordOutbound(env, { body, wamid, delivered: resp.ok });
+      await recordOutbound(env, { body, wamid, delivered: resp.ok, metaStatus, metaError });
     } catch (e) {
       // Best-effort in pilot: the message was already delivered to Meta,
       // so a D1 write failure must NOT flip the caller's success path.

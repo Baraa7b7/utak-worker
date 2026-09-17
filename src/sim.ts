@@ -99,6 +99,10 @@ export interface RecordOutboundInput {
   wamid: string;
   /** Whether the Meta send actually succeeded. Sim always passes false. */
   delivered: boolean;
+  /** Pilot only, on !resp.ok: the HTTP status Meta returned. */
+  metaStatus?: number;
+  /** Pilot only, on !resp.ok: the parsed error {code, error_subcode, message}. */
+  metaError?: { code: number | null; error_subcode: number | null; message: string } | null;
 }
 
 export async function recordOutbound(env: Env, input: RecordOutboundInput): Promise<void> {
@@ -151,9 +155,13 @@ export async function recordOutbound(env: Env, input: RecordOutboundInput): Prom
     attachment = JSON.stringify(body.location);
   }
 
-  // The `delivered` flag rides in the raw_request blob (schema didn't have
-  // a column and adding one is a migration Baraa hasn't approved yet).
-  const rawWithFlag = JSON.stringify({ ...(input.body as object), __delivered: input.delivered });
+  // The `delivered` flag (and, on pilot failures, the Meta status + parsed
+  // error body) ride in the raw_request blob because the D1 schema doesn't
+  // have columns for them and a migration is a separate approval step.
+  const extras: Record<string, unknown> = { __delivered: input.delivered };
+  if (typeof input.metaStatus === "number") extras.__meta_status = input.metaStatus;
+  if (input.metaError) extras.__meta_error = input.metaError;
+  const rawWithFlag = JSON.stringify({ ...(input.body as object), ...extras });
 
   await env.SIM_DB.prepare(
     `INSERT INTO sim_outbound

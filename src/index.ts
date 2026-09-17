@@ -23,7 +23,7 @@
 //   GET  /delivery-note-pdf/{num}/{tok}.pdf → PUBLIC delivery-note PDF from R2 (HMAC-signed)
 
 import type { Env } from "./config";
-import { handleVerify, verifySignature, parseWebhook, sendText, sendButtons } from "./meta";
+import { handleVerify, verifySignature, parseWebhook, sendText, sendButtons, sendLocation } from "./meta";
 import { seenBefore, markSeen } from "./dedup";
 import {
   ensureLocationFields,
@@ -1027,6 +1027,33 @@ async function runSimJob(env: Env, job: string): Promise<unknown> {
   }
 }
 
+// 2026-09-17 — flush deferred sendLocation messages queued in KV by
+// sendDriverRoute under `pending_loc:<driver_phone>` (20h TTL). The team
+// branch calls this on the driver's first inbound; a corrupt payload is
+// dropped after logging so a bad row cannot brick the driver's flow.
+async function flushPendingLocations(env: Env, to: string, key: string): Promise<void> {
+  const raw = await env.MSG_DEDUP.get(key);
+  if (!raw) return;
+  let locs: Array<{ latitude: number; longitude: number; name?: string; address?: string }> = [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) locs = parsed;
+  } catch (e) {
+    console.warn("[pending_loc] parse failed", (e as Error)?.message);
+    await env.MSG_DEDUP.delete(key);
+    return;
+  }
+  for (const l of locs) {
+    if (typeof l?.latitude !== "number" || typeof l?.longitude !== "number") continue;
+    try {
+      await sendLocation(env, to, l.latitude, l.longitude, l.name, l.address);
+    } catch (e) {
+      console.warn("[pending_loc] sendLocation failed", (e as Error)?.message);
+    }
+  }
+  await env.MSG_DEDUP.delete(key);
+}
+
 async function handleWebhook(env: Env, payload: unknown): Promise<void> {
   const messages = parseWebhook(payload);
 
@@ -1052,6 +1079,32 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
 
     const teamMember = await findTeamMemberByWhatsApp(env, msg.from);
     if (teamMember) {
+      // 2026-09-17 — deferred delivery locations. sendDriverRoute stashes
+      // per-stop location messages in KV instead of sending them behind
+      // an unopened 24-hour window; the driver's first inbound flushes
+      // them. Two shapes:
+      //   • "shift_start" button reply → text confirmation THEN locations
+      //   • anything else from the driver → locations first, then the
+      //     regular team handler continues.
+      const pendingLocKey = `pending_loc:${msg.from}`;
+      const isShiftStart =
+        msg.type === "interactive" && msg.buttonId === "shift_start";
+      if (isShiftStart) {
+        try {
+          await sendText(
+            env,
+            msg.from,
+            "تم بدء الدوام ✅ هذي مواقع توصيلات اليوم",
+          );
+          await flushPendingLocations(env, msg.from, pendingLocKey);
+        } catch (e) {
+          console.warn("[shift_start] flush failed", (e as Error)?.message);
+        }
+        await markSeen(env, msg.messageId);
+        continue;
+      }
+      await flushPendingLocations(env, msg.from, pendingLocKey);
+
       if (msg.type === "interactive" && msg.buttonId) {
         const reply: RouterReply = await dispatch(env, {
           msg, intent: "other", senderType: "customer",
@@ -1065,10 +1118,10 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
           const orderId = Number(pendingOrderId);
           await markStopIssue(env, orderId, msg.text);
           await env.MSG_DEDUP.delete(pendingKey);
-          if (env.OWNER_WHATSAPP) {
-            await sendText(env, env.OWNER_WHATSAPP,
-              `⚠️ مشكلة توصيل\nسواق: ${teamMember.name}\nطلب: #${orderId}\nالمشكلة: ${msg.text}`,
-              { purpose: "owner_alert" });
+          {
+            const { sendOwnerAlert } = await import("./templates");
+            await sendOwnerAlert(env,
+              `⚠️ مشكلة توصيل\nسواق: ${teamMember.name}\nطلب: #${orderId}\nالمشكلة: ${msg.text}`);
           }
           await sendText(env, msg.from, "تم تسجيل المشكلة، براء بيراجعها 🙏");
         } else {

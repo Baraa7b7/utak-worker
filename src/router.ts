@@ -20,6 +20,7 @@ import {
   updateOrderState,
 } from "./odoo";
 import { sendText } from "./meta";
+import { sendOwnerAlert } from "./templates";
 import {
   containsUrgencyKeywords,
   isOrderingHoursOpen,
@@ -196,7 +197,7 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
       names,
     ].join("\n");
     try {
-      await sendText(env, env.OWNER_WHATSAPP, alertText, { purpose: "owner_alert" });
+      await sendOwnerAlert(env, alertText);
     } catch (e) {
       console.warn("[order] alertOwner (deactivated) failed", (e as Error)?.message);
     }

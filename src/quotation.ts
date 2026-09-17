@@ -4,7 +4,7 @@
 import type { Env } from "./config";
 import { getOrderForInvoicing, getLatestSalePrice, call } from "./odoo";
 import { sendText } from "./meta";
-import { sendTemplateByPurpose, T } from "./templates";
+import { sendTemplateByPurpose, T, sendOwnerAlert } from "./templates";
 import {
   BRAND_COLORS,
   computePageMetrics,
@@ -293,9 +293,8 @@ export interface QuotationDispatchResult {
 // sim-harness (2026-09-13): local owner-alert helper, mirrors suppliers.ts
 // so quotation.ts stays free of a suppliers ↔ quotation import cycle.
 async function alertOwner(env: Env, text: string): Promise<void> {
-  if (!env.OWNER_WHATSAPP) return;
   try {
-    await sendText(env, env.OWNER_WHATSAPP, text, { purpose: "owner_alert" });
+    await sendOwnerAlert(env, text);
   } catch (e) {
     console.error("[quotation alertOwner] failed", (e as Error)?.message);
   }

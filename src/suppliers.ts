@@ -29,6 +29,7 @@ import {
   writePartner,
 } from "./odoo";
 import { sendTemplate, sendText } from "./meta";
+import { sendOwnerAlert } from "./templates";
 import { extractSupplierPrices } from "./claude";
 import { riyadhDateKey } from "./hours";
 
@@ -111,8 +112,17 @@ export async function askAllSuppliersForPrices(env: Env): Promise<void> {
         }
         continue;
       }
-      // Meta template var rules: no newlines/tabs/4+ spaces. Comma-separated is safe.
-      const productList = productNames.join("، ");
+      // Meta template var rules: no newlines/tabs/4+ spaces, hard cap on
+      // template body ≈ 1024 chars. Collapse whitespace to single spaces
+      // and truncate the joined list to 900 chars so the parameter always
+      // passes Meta's validation, whatever the operator happens to have
+      // stored as a product name in Odoo.
+      const productList = productNames
+        .join("، ")
+        .replace(/[\r\n\t]+/g, " ")
+        .replace(/ {2,}/g, " ")
+        .trim()
+        .slice(0, 900);
 
       const logId = await createSupplierAskLog(env, s.id);
       const res = await sendTemplate(
@@ -398,9 +408,8 @@ export async function openOrderingWindow(env: Env): Promise<void> {
 // helpers
 // ============================================================
 async function alertOwner(env: Env, text: string): Promise<void> {
-  if (!env.OWNER_WHATSAPP) return;
   try {
-    await sendText(env, env.OWNER_WHATSAPP, text, { purpose: "owner_alert" });
+    await sendOwnerAlert(env, text);
   } catch (e) {
     console.error("alertOwner failed", (e as Error)?.message);
   }

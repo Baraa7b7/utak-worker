@@ -49,6 +49,91 @@ before this branch merges into main.
   `sim-harness` for the tonight-readiness check only. Both are removed
   before merge; see the "Phase A cleanup" commit that closes Phase A.
 
+## Items 1–4 (tonight, 2026-09-17)
+
+Prod does not yet know any of the following Odoo schema. Replaying
+each item's script (scripts/item{1,2,3,4}-*.mjs) against the prod
+tenant is required on promotion. Nothing here changes the eight
+cron jobs, the 02:00 supplier ask flow, x_daily_price, the pricing
+formula, x_is_active_for_sale, or SIM_ALLOWLIST — all of those stay
+identical to prod.
+
+### Item 1 — product.template.x_supplier_ids
+- New many2many field on product.template pointing at res.partner,
+  storing rows in the SAME table
+  `x_product_template_res_partner_rel` that already backs
+  res.partner.x_supplied_product_ids — columns reversed
+  (column1=product_template_id, column2=res_partner_id). Writes
+  from either side surface on the other.
+- Two inherited views: product.template.form.utak_suppliers adds
+  a "الموردون" section (widget=many2many_tags, domain
+  supplier_rank>0); res.partner.form.utak_supplied_products adds
+  the "الأصناف اللي يوردها" tab (visible only when supplier_rank>0).
+- Data change kept on this branch: product.template id=105 (Avocado)
+  is linked to res.partner id=30 (أحمد حسان). This must remain in
+  place on prod; do NOT delete it on merge.
+
+### Item 2 — x_wa_message model + queued send pipeline
+- New model x_wa_message (18 x_* fields incl. x_partner_id,
+  x_direction, x_kind, x_template_id, x_params, x_body, x_attachment,
+  x_filename, x_res_model, x_res_id, x_status, x_meta_message_id,
+  x_meta_error, x_processed_at, x_dry_run, x_debug_payload,
+  x_manual). ir.access row for base.group_user (Odoo 19 crud kind).
+- Inverse res.partner.x_wa_message_ids (one2many) so the partner
+  tab has a live recordset.
+- Views: tree, form (statusbar + "إرسال" button via
+  ir.actions.server wa_message.action_queue), search, and inherited
+  res.partner.form.utak_wa_messages tab.
+- Menus: UTAK → "رسائل واتساب" and UTAK → "تحكم واتساب" (the
+  latter reuses the x_wa_control singleton from Phase 1).
+- ir.actions.server wa_message.send_webhook (state=webhook) points
+  at the sim origin. Prod must flip that URL to
+  https://utak-worker.utak-business.workers.dev/odoo/hook/wa
+  along with a prod ODOO_HOOK_TOKEN.
+- base.automation wa_message.on_queued
+  (trigger=on_create_or_write, filter_domain
+  `[["x_status","=","queued"]]`).
+- Inbound webhook side-effect: every incoming Meta message writes an
+  x_wa_message row (direction=in, status=received) via
+  logWaMessage; Meta `statuses` callbacks bump the row's x_status
+  via updateWaStatusByWamid.
+
+### Item 3 — manual quotation
+- x_quotation.x_origin (selection auto/manual, default auto).
+- x_daily_order_line.x_price_unit_manual (float, optional).
+- ir.actions.server quotation.manual_pdf_build (→
+  /internal/quotation-issue) and quotation.manual_wa_send (→
+  /internal/quotation-wa-send). Both webhook URLs bake in the sim
+  hook token and origin — prod must swap both.
+- Inherited x_quotation form view adds an x_origin statusbar + the
+  two header buttons "إصدار PDF" and "إرسال واتساب".
+- Worker: createAndDispatchQuotationForRecord skips WhatsApp send
+  (and x_sent_at write) when x_origin=='manual'. PDF+R2 still runs
+  so the "إصدار PDF" button leaves an up-to-date file. Manual
+  blocked line surfaces "صنف بلا سعر: <name>". Reuse of the
+  existing PDF pipeline means no parallel code path.
+
+### Item 4 — res.partner.x_wa_allowed
+- Boolean field (default false) with label "مسموح واتساب".
+- Inherited res.partner form view adds a "UTAK — واتساب" group
+  exposing the flag.
+- Worker: fetchMeta's allowlist gate becomes a two-stage check —
+  SIM_ALLOWLIST (fast, sync) then, on miss, isPartnerWaAllowed
+  (Odoo-backed with a 60s KV cache under key
+  `wa_allowed:<+E164>`). Owner-guard runs before both and stays
+  non-bypassable, even if the owner's partner row has
+  x_wa_allowed=true.
+- Same two-stage gate is duplicated in handleWaMessageWebhook so
+  the x_wa_message dry_run path enforces the same policy without
+  needing a live Meta call.
+- Inbound alert: unrecognized (non-supplier, non-team) sender whose
+  number fails BOTH gates triggers a one-per-24h owner alert
+  "رقم جديد راسل: <name/phone> — فعّل واتساب أو رد يدوياً"
+  via KV key `wa_unallowed_alert:<+E164>`.
+- The three current allowlisted numbers (+966505154962,
+  +966536251307, +966571777704) stay allowlisted via SIM_ALLOWLIST
+  — nothing about SIM_ALLOWLIST changes.
+
 ## Phase 2, 3, 4 — deferred
 
 Not yet on this branch. Update this file per phase as they land.

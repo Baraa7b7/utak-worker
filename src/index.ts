@@ -1343,10 +1343,20 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
     // Partner is resolved lazily below; here we do a best-effort match by
     // whatsapp number so the tab in Odoo shows every incoming ping even for
     // partners that haven't been created yet (partnerId=null in that case).
+    //
+    // Item 4 (2026-09-17) — attached to the same block, once we know
+    // whether this number is a supplier / team member / already-allowed
+    // customer, alert Baraa about unallowed incoming numbers. Throttled to
+    // once per phone number per 24h via KV so a chatty stranger doesn't
+    // spam the owner inbox.
     try {
       const { logWaMessage } = await import("./wa-message-send");
-      const { findCustomerByWhatsApp, findSupplierByWhatsApp, findTeamMemberByWhatsApp } =
-        await import("./odoo");
+      const {
+        findCustomerByWhatsApp,
+        findSupplierByWhatsApp,
+        findTeamMemberByWhatsApp,
+        isPartnerWaAllowed,
+      } = await import("./odoo");
       const [supplierMatch, teamMatch, customerMatch] = await Promise.all([
         findSupplierByWhatsApp(env, msg.from).catch(() => null),
         findTeamMemberByWhatsApp(env, msg.from).catch(() => null),
@@ -1365,6 +1375,40 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
         metaMessageId: msg.messageId,
         status: "received",
       });
+
+      // item4 — unallowed-inbound alert (24h KV throttle per number).
+      // A supplier / team member is always an authorized actor, whether or
+      // not their number is in SIM_ALLOWLIST, so those branches skip the
+      // alert. The owner-guard block below handles the owner's own inbound.
+      if (!supplierMatch && !teamMatch) {
+        const { isRecipientAllowed } = await import("./config");
+        const allowlistOK = isRecipientAllowed(env, msg.from);
+        const partnerOK = allowlistOK ? true : await isPartnerWaAllowed(env, msg.from);
+        if (!allowlistOK && !partnerOK) {
+          const dedupKey = `wa_unallowed_alert:${msg.from}`;
+          const already = await env.MSG_DEDUP.get(dedupKey);
+          if (!already) {
+            const who =
+              customerMatch?.name || msg.profileName || msg.from;
+            const { sendOwnerAlert } = await import("./templates");
+            try {
+              await sendOwnerAlert(
+                env,
+                `رقم جديد راسل: ${who} (${msg.from}) — فعّل واتساب أو رد يدوياً`,
+              );
+            } catch (e) {
+              console.warn("[wa_unallowed alert send]", (e as Error)?.message);
+            }
+            try {
+              await env.MSG_DEDUP.put(dedupKey, "1", {
+                expirationTtl: 24 * 60 * 60,
+              });
+            } catch (e) {
+              console.warn("[wa_unallowed KV write]", (e as Error)?.message);
+            }
+          }
+        }
+      }
     } catch (e) {
       console.warn("[inbound-log] skipped", (e as Error)?.message);
     }

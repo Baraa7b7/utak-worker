@@ -244,10 +244,18 @@ export async function fetchMeta(
   }
 
   if (!isRecipientAllowed(env, to)) {
-    const list = parseAllowlist(env);
-    const msg = `to=${to} not permitted by SIM_ALLOWLIST (${list.length} entries)`;
-    console.warn(`[fetchMeta] BLOCKED by allowlist: ${msg}`);
-    return metaErrorResponse(msg, "AllowlistBlocked", 403);
+    // item4 (2026-09-17) — second gate: per-partner x_wa_allowed flag,
+    // Odoo-backed with a 60s KV cache. Owner-guard has already run above
+    // and remains non-bypassable; this only affects non-owner recipients.
+    const { isPartnerWaAllowed } = await import("./odoo");
+    const partnerAllowed = await isPartnerWaAllowed(env, to);
+    if (!partnerAllowed) {
+      const list = parseAllowlist(env);
+      const msg = `to=${to} not permitted by SIM_ALLOWLIST (${list.length} entries) and no partner with x_wa_allowed=true`;
+      console.warn(`[fetchMeta] BLOCKED by allowlist: ${msg}`);
+      return metaErrorResponse(msg, "AllowlistBlocked", 403);
+    }
+    console.log(`[fetchMeta] permitted via partner.x_wa_allowed=true to=${to}`);
   }
 
   // ---- sim: capture only, no real send ----

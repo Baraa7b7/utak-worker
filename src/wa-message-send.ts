@@ -265,9 +265,17 @@ export async function handleWaMessageWebhook(
     return await fail("رقم المالك لا يُستخدم كوجهة");
   }
 
-  // 4. SIM_ALLOWLIST — x_manual bypasses this route only.
+  // 4. SIM_ALLOWLIST + item4 per-partner allowlist. x_manual bypasses BOTH
+  //    here (this route only). Owner-guard above stays non-bypassable.
   if (!msg.x_manual && !isRecipientAllowed(env, to)) {
-    return await fail(`الرقم ${to} خارج SIM_ALLOWLIST — فعّل x_manual للتجاوز اليدوي`);
+    const { isPartnerWaAllowed } = await import("./odoo");
+    const partnerOK = await isPartnerWaAllowed(env, to);
+    if (!partnerOK) {
+      return await fail(
+        `الرقم ${to} خارج SIM_ALLOWLIST وبلا x_wa_allowed — فعّل الخانة على الشريك أو x_manual للتجاوز`,
+      );
+    }
+    console.log(`[wa-msg] permitted via partner.x_wa_allowed=true to=${to}`);
   }
 
   // 5. dry_run: validate the rest of the message shape but never send.

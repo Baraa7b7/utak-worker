@@ -157,6 +157,60 @@ export async function findSupplierByWhatsApp(env: Env, e164: string): Promise<Od
   return rows[0] ?? null;
 }
 
+// item4 (2026-09-17) — Per-partner WhatsApp allow-flag lookup with a short
+// KV cache so fetchMeta doesn't re-hit Odoo on every send.
+//
+// isRecipientAllowed (config.ts) reads only SIM_ALLOWLIST prefixes; item4
+// broadens the gate with an Odoo-backed toggle Baraa can flip from the
+// partner form. The two checks run in order — SIM_ALLOWLIST first (fast,
+// synchronous), then this async lookup. Owner-guard always runs before
+// either, so a partner whose number equals OWNER_WHATSAPP stays blocked
+// regardless of x_wa_allowed.
+//
+// Cache key: `wa_allowed:<+E164 normalized>` — 60s TTL per spec. A miss
+// stores false too (short-lived), so a flurry of sends to the same number
+// while Baraa hasn't flipped the flag doesn't spin Odoo either.
+export async function isPartnerWaAllowed(env: Env, to: string): Promise<boolean> {
+  const key = `wa_allowed:${to.startsWith("+") ? to : "+" + to.replace(/^\+*/, "")}`;
+  try {
+    const cached = await env.MSG_DEDUP.get(key);
+    if (cached === "true") return true;
+    if (cached === "false") return false;
+  } catch (e) {
+    console.warn("[wa_allowed cache read]", (e as Error)?.message);
+  }
+  const normalized = to.startsWith("+") ? to : `+${to.replace(/^\+*/, "")}`;
+  let allowed = false;
+  try {
+    const rows = await call<Array<{ id: number; x_wa_allowed: boolean }>>(
+      env,
+      "res.partner",
+      "search_read",
+      {
+        domain: [
+          "&",
+          ["x_wa_allowed", "=", true],
+          "|",
+          ["x_whatsapp_number", "=", normalized],
+          ["phone", "=", normalized],
+        ],
+        fields: ["id", "x_wa_allowed"],
+        limit: 1,
+      },
+    );
+    allowed = rows.length > 0 && !!rows[0].x_wa_allowed;
+  } catch (e) {
+    console.warn("[wa_allowed lookup]", (e as Error)?.message);
+    return false;
+  }
+  try {
+    await env.MSG_DEDUP.put(key, allowed ? "true" : "false", { expirationTtl: 60 });
+  } catch (e) {
+    console.warn("[wa_allowed cache write]", (e as Error)?.message);
+  }
+  return allowed;
+}
+
 /**
  * Fetch — or create if missing — the `customer` row in x_employee_role.
  * Only ever creates the "customer" role. Never staff roles (driver,

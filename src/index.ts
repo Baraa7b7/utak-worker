@@ -844,8 +844,16 @@ export default {
     // Phase 1 — synchronous template sync (inline JSON report). Same
     // guarding as /odoo/hook/wa-template-sync but blocks on the sync so
     // failures surface in the response body instead of the tail.
+    //
+    // Phase A (2026-09-17) — header-only auth. A caller passing ?token=
+    // is either buggy or hostile; refuse before doing anything else. The
+    // Odoo webhook route /odoo/hook/wa-template-sync keeps the query-string
+    // form because Odoo 19 SaaS webhook actions cannot set custom headers.
     if (request.method === "GET" && url.pathname === "/admin/wa-template-sync") {
-      const providedToken = url.searchParams.get("token") ?? "";
+      if (url.searchParams.has("token")) {
+        return json({ error: "unauthorized — token must be in X-Admin-Token header, not query" }, 401);
+      }
+      const providedToken = request.headers.get("x-admin-token") ?? "";
       const expected = env.ODOO_HOOK_TOKEN ?? "";
       if (!expected || !timingSafeEqual(providedToken, expected)) {
         return json({ error: "unauthorized" }, 401);
@@ -858,6 +866,7 @@ export default {
         return json({ ok: false, error: (e as Error).message, stack: (e as Error).stack }, 500);
       }
     }
+
 
     // Phase 1 (2026-09-17) — Odoo → Worker: template sync trigger.
     // Fired by the base.automation on x_wa_control.x_sync_requested=true.

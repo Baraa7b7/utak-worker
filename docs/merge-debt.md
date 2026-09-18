@@ -97,6 +97,47 @@ identical to prod.
   x_wa_message row (direction=in, status=received) via
   logWaMessage; Meta `statuses` callbacks bump the row's x_status
   via updateWaStatusByWamid.
+- **Not logged to x_wa_message (2026-09-18):** the 02:00
+  supplier-ask cron (`askAllSuppliersForPrices` →
+  `sendTemplate` → `fetchMeta`) does NOT create an x_wa_message
+  row. It writes to `x_supplier_ask_log` and, in sim, to
+  `sim_outbound` via `recordOutbound`. If the UTAK «رسائل
+  واتساب» screen should include the daily supplier-ask fan-out,
+  the cleanest hook is to call `logWaMessage(env, {partnerId,
+  direction: 'out', kind: 'template', body: productList,
+  status: 'sent'})` right after the successful `sendTemplate`
+  return in `src/suppliers.ts` (~line 143). Same missing coverage
+  applies to the other cron paths that call `sendTemplate` /
+  `sendText` directly without going through the queued
+  `x_wa_message` pipeline (collection cron, morning report,
+  driver flow). Not fixed in this commit — surfaced only.
+- **Search view filters (2026-09-18).** `x_wa_message.search`
+  (view id 2781) rewritten to expose six filters (واردة / صادرة
+  / مرفوضة / قيد الإرسال / اليوم) plus three group-by toggles
+  (partner / status / direction) and three search fields (partner,
+  body ilike, wamid). `ir.actions.act_window` id 965 now pins
+  `search_view_id` to this view (was unset — Odoo was picking
+  the previous 3-filter arch by default). «اليوم» uses
+  `context_today().strftime('%Y-%m-%d 00:00:00')` — a single
+  expression, no `datetime.combine`, verified through
+  `get_views`. Group-by is written as flat `<filter
+  context="{'group_by': ...}"/>` entries with a `<separator/>`
+  above them: the previous attempt wrapped them in `<group
+  expand="0" string="تجميع حسب">` and Odoo 19.4 silent-rolled
+  the whole search view on that. Script:
+  `scripts/item2-wa-search-filters.mjs` — idempotent; safe to
+  re-run on prod after the initial item2 migration.
+- **Ahmed Hassan Sep 17 19:05 (id=1) x_status blank —
+  diagnosis only.** Row was created without any `x_status` in
+  the `vals_list`, so the column is stored as `NULL` in Postgres.
+  Odoo's Selection widget renders NULL as an empty cell, so the
+  tree column is blank on purpose. Not a rendering bug; the row
+  is genuinely missing a status. Every code-path today
+  (`logWaMessage`, the q-manual-wa create at
+  `src/index.ts:938`) supplies `x_status` on create, so this is
+  a one-off from an early smoke test. No fix applied in this
+  commit — will address separately if we decide to backfill or
+  add a NOT NULL constraint on `x_status`.
 
 ### Item 3 — manual quotation
 - x_quotation.x_origin (selection auto/manual, default auto).

@@ -270,6 +270,134 @@ queued send pipeline (`handleWaMessageWebhook`) that the manual
   `/internal/sale-quotation-wa-send` block in `src/index.ts` (the diff
   is purely additive — no other file changed).
 
+## Item 5 (sim, 2026-09-18) — remove default VAT from the sale flow + neutralize sale_project picker filter
+
+Braa's screen showed two problems on `sale.order.line`:
+
+1. Every new line was stamped with a 15% VAT.
+2. The product picker returned zero UTAK products.
+
+### Diagnosis (fully evidenced, no guesswork)
+
+Sources of the automatic 15% VAT:
+
+- **Company default.** `res.company id=1 utakfresh` had
+  `account_sale_tax_id = [5, "15%"]` and
+  `account_purchase_tax_id = [21, "15%"]`. Odoo stamps this onto any new
+  `product.template.taxes_id` that is created without an explicit value.
+- **Per-product default.** Every one of the 37 existing
+  `product.template` rows carried `taxes_id = [5]` (sale tax id 5, "15%")
+  and `supplier_taxes_id = [21]` (purchase tax id 21, "15%") — copied from
+  the SA fiscal chart when the products were seeded. `sale.order.line` derives
+  its `tax_ids` from `product_id.taxes_id` on create.
+
+Source of the empty product picker:
+
+- **`sale_project` view id=2431**
+  (`sale_project.sale_order_line_view_form_editable`, priority 999,
+  inherits `sale.order.line.form.readonly` id=1256) adds
+  `<attribute name="domain">[('type', '=', 'service')]</attribute>` to
+  `<field name="product_id"/>`. UTAK's 35 seed products are `type='consu'`,
+  so the standalone-form picker on `sale.order.line` filters them all out.
+  This is a `sale_project` behaviour, not a UTAK bug — it exists so that a
+  sale.order tied to a project only offers billable services on a line.
+
+### What Item 5 changes on `utakfresh.odoo.com`
+
+The tenant is shared between sim and prod, so this landed once. Nothing in
+`account.tax` was deleted — the 17 SA-chart taxes are still there,
+including id=5 "15%" and id=21 "15%". They are just no longer applied by
+default.
+
+- **A. Company default cleared.**
+  `res.company.write([1], {account_sale_tax_id: false, account_purchase_tax_id: false})`.
+- **B. Per-product tax cleared** on all 37 `product.template` rows:
+  `taxes_id = [[6, 0, []]]` and `supplier_taxes_id = [[6, 0, []]]`.
+- **C. Picker override view.** New `ir.ui.view` id=2788
+  `utak.sale.order.line.form.no_service_filter` (priority=1000, inherits
+  1256) resets the domain to `[('sale_ok', '=', True)]`, overriding
+  sale_project's view 2431 (priority 999). UTAK consumables now show in the
+  standalone-form picker again; sale_project's own use (project-billing
+  services) is only cosmetically affected when a project-linked line is
+  edited in the standalone form.
+
+`x_is_active_for_sale` (the operational daily-availability boolean on
+`product.template`, id=20045) was **not touched**. `sale_ok` is Odoo's
+"can be sold ever" flag; `x_is_active_for_sale` is UTAK's "on today's
+menu". Do not conflate them.
+
+### Rollback (one command, single script)
+
+The apply script wrote a full snapshot of `res.company` + every touched
+`product.template` (including the exact `taxes_id` / `supplier_taxes_id`
+lists) to `scripts/artifacts/item5-tax-rollback.json` before making any
+change. To reinstate the 15% VAT default and drop the picker override:
+
+```
+node scripts/item5-tax-rollback-restore.mjs
+```
+
+This restores the company default, walks every product row back to its
+snapshot value, and unlinks view id=2788. It is idempotent — safe to
+re-run. If the JSON is lost, the two tax ids to re-apply are
+`account_sale_tax_id=5` and `account_purchase_tax_id=21` (from the SA
+chart on this tenant).
+
+To reactivate later on a per-product basis (partial rollout when the
+accountant decides), write directly:
+
+```
+product.template.write([...utak_ids], { taxes_id: [[6, 0, [5]]] })
+```
+
+### Prod promotion note
+
+Since this is a tenant-level change and the tenant is shared, prod already
+sees it. When promoting `sim-harness` → `main`, **do not re-run**
+`scripts/item5-tax-and-picker-fix.mjs` against prod — the snapshot in
+`scripts/artifacts/item5-tax-rollback.json` was taken from this
+already-cleared state; a second run would overwrite the rollback JSON with
+empty-tax rows and destroy the ability to restore. If a fresh snapshot is
+ever needed for prod, take it before applying anything.
+
+The Worker code is unchanged in Item 5 — no deploy needed. The PDF pipeline
+still passes `vatAmount: 0` to the UTAK shell
+([src/sale-order-quotation.ts:193](../src/sale-order-quotation.ts:193)), and
+`pdf-template.ts` still ships an empty VAT number (`vat: ""` on line 42).
+The "ضريبة القيمة المضافة (١٥٪): 0.00 ر.س" row that renders is a fixed
+visual placeholder; hiding it is a separate template decision.
+
+### Verified 2026-09-18 (Asia/Riyadh)
+
+Via `scripts/item5-verify.mjs`:
+
+- Fresh sale.order.line with product طماطم, qty=4, price=25 →
+  `tax_ids=[]`, `price_subtotal=100`, `price_total=100`.
+- Parent `sale.order.amount_tax=0`, `amount_untaxed=100`, `amount_total=100`.
+- Brand-new `product.template` created with no explicit `taxes_id` reads
+  back as `taxes_id=[]` — proves the company default was really cleared.
+- View 2788 priority=1000 above sale_project view 2431 priority=999.
+- Counts of `x_quotation` (9), `x_daily_order` (13), `x_daily_price` (7),
+  `ir.cron` (56), and the three quotation.manual_* / sale.quotation.wa_send
+  server actions unchanged before → after.
+- The `x_is_active_for_sale` field (id=20045) definition unchanged.
+- Every test row (1 sale.order, 1 sale.order.line, 1 product.template)
+  deleted on the way out. Zero deltas.
+
+### Units — reported, not changed
+
+Braa's screen showed unit "الوحدات" on lines. Confirmed against the
+tenant: all 37 UTAK product templates carry `uom_id=[1,"Units"]`; UTAK's
+"كرتون / كيلو / جرم / كيس / فلين" live on `x_product_packaging` (42 rows,
+already surfaced through the parallel `sale.order.line.x_packaging_id`
+Studio field — see Item 1). No change made to UOM. If Braa wants the
+sale.order.line to show كرتون/كيلو instead of Units, we need to either
+(i) migrate the 35 UTAK templates to `uom_id=31 "كرتون"` (factor 10000,
+which is bizarre — the SaaS Studio-created row needs its `factor` fixed
+to 1 first, or new UOMs `كيلو`/`كرتون`/`جرم`/`كيس` seeded), or
+(ii) rebrand what the line displays via a UOM overlay column. Both are
+follow-ups, not part of Item 5.
+
 ## Phase 2, 3, 4 — deferred
 
 Not yet on this branch. Update this file per phase as they land.

@@ -965,6 +965,102 @@ export default {
       return json({ status: "accepted", quotation_id: qid }, 202);
     }
 
+    // Item 1 (2026-09-18) — parallel build. Odoo → Worker: "إرسال واتساب"
+    // button on a standard sale.order. Reuses the shared UTAK helpers
+    // (renderQuotationHTML + htmlToPDF + uploadQuotationToR2 + x_wa_message
+    // create) exactly like /internal/quotation-wa-send, but the PDF data
+    // comes from sale.order instead of x_quotation. Nothing about the
+    // x_quotation route is touched; both routes coexist.
+    if (request.method === "POST" && url.pathname === "/internal/sale-quotation-wa-send") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      let body: { id?: number; _id?: number; _model?: string } = {};
+      try {
+        body = (await request.json()) as typeof body;
+      } catch {
+        return json({ error: "bad json" }, 400);
+      }
+      if (body._model && body._model !== "sale.order") {
+        return json({ error: `unexpected model: ${body._model}` }, 400);
+      }
+      const soid = Number(body.id ?? body._id ?? url.searchParams.get("id"));
+      if (!Number.isFinite(soid) || soid <= 0) {
+        return json({ error: "invalid id" }, 400);
+      }
+      const dryRun = url.searchParams.get("dry_run") === "1";
+      ctx.waitUntil(
+        (async () => {
+          try {
+            const { buildQuotationPDFDataFromSaleOrder } = await import(
+              "./sale-order-quotation"
+            );
+            const { generateQuotationPDF, uploadQuotationToR2 } = await import(
+              "./quotation"
+            );
+            const { call } = await import("./odoo");
+            const { sendOwnerAlert } = await import("./templates");
+            const data = await buildQuotationPDFDataFromSaleOrder(env, soid);
+            if (!data) {
+              console.warn(`[so-manual-wa] sale.order ${soid} not found`);
+              return;
+            }
+            if (data.has_blocking_issue) {
+              const missing = data.missing_products ?? [];
+              const reason = missing.map((n) => `صنف بلا سعر: ${n}`).join(" | ") ||
+                "صنف بلا سعر";
+              console.error(`[so-manual-wa] BLOCKED ${soid} — ${reason}`);
+              await sendOwnerAlert(
+                env,
+                `🚫 عرض بيع ${data.quotationNumber} (sale.order id=${soid}) لم يُرسل — ${reason}`,
+              );
+              return;
+            }
+            const pdfBytes = await generateQuotationPDF(data, env);
+            const uploaded = await uploadQuotationToR2(
+              env,
+              pdfBytes,
+              data.quotationNumber,
+              env.WORKER_ORIGIN,
+            );
+            const b64 = arrayBufferToBase64(pdfBytes);
+            const partnerId = data.customer_id;
+            if (!partnerId) {
+              console.error(`[so-manual-wa] no customer_id resolved for sale.order ${soid}`);
+              return;
+            }
+            const ids = await call<number[]>(env, "x_wa_message", "create", {
+              vals_list: [{
+                x_partner_id: partnerId,
+                x_direction: "out",
+                x_kind: "document",
+                x_attachment: b64,
+                x_filename: `${data.quotationNumber}.pdf`,
+                x_res_model: "sale.order",
+                x_res_id: soid,
+                x_manual: true,
+                x_dry_run: dryRun,
+                x_status: "queued",
+                x_body: `عرض سعر ${data.quotationNumber} — الإجمالي ${data.grandTotal} ر.س`,
+              }],
+            });
+            console.log(
+              `[so-manual-wa] queued x_wa_message id=${ids[0]} for sale.order ${soid} (PDF ${uploaded.size} bytes)`,
+            );
+          } catch (e) {
+            console.error(
+              "[so-manual-wa] failed",
+              (e as Error)?.message,
+              (e as Error)?.stack,
+            );
+          }
+        })(),
+      );
+      return json({ status: "accepted", sale_order_id: soid }, 202);
+    }
+
     // Item 2 (2026-09-17) — Odoo → Worker: process x_wa_message.x_status='queued'.
     // Fired by the base.automation (wa_message.on_queued) via ir.actions.server
     // (wa_message.send_webhook). The full send pipeline (validate → media

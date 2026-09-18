@@ -192,6 +192,84 @@ identical to prod.
   +966536251307, +966571777704) stay allowlisted via SIM_ALLOWLIST
   — nothing about SIM_ALLOWLIST changes.
 
+## Phase 1 item 1 (parallel build) — sale.order UTAK quotation (2026-09-18)
+
+Parallel build. `x_quotation` and the 02:00 supplier-price flow stay
+identical to prod; nothing about them changes. Adds a second, independent
+"إرسال واتساب" path that reads from a standard `sale.order` and reuses
+the same UTAK PDF shell, R2 upload helper, `x_wa_message` create, and
+queued send pipeline (`handleWaMessageWebhook`) that the manual
+`x_quotation` path already uses.
+
+- **Schema on `utakfresh.odoo.com` (shared sim/prod)**:
+  - `sale.order.line.x_price_unit_manual` — Studio float. Optional; when
+    `> 0` it wins over the standard `price_unit` and over the
+    `x_daily_price` fallback.
+  - `sale.order.line.x_packaging_id` — Studio many2one to
+    `x_product_packaging` (the existing 42-row custom model). Standard
+    `product.packaging` is NOT present on this tenant, so packaging is
+    read from the same source the x_daily_order_line pipeline already
+    uses. No data migration performed or required.
+  - `ir.actions.server` **sale.quotation.wa_send** (state=webhook) →
+    `/internal/sale-quotation-wa-send`. Webhook URL bakes in the sim hook
+    token + origin — **prod must flip the URL** to
+    `https://utak-worker.utak-business.workers.dev/internal/sale-quotation-wa-send`
+    along with the prod `ODOO_HOOK_TOKEN`.
+  - `ir.ui.view` **sale.order.form.utak_wa_button** — inherited form view
+    that injects a single header button "إرسال واتساب (UTAK)" with an
+    Arabic confirm string. Uses `<xpath expr="//header" position="inside">`;
+    the standard `<header>` on `sale.order` is kept intact.
+- **Numbering decision**: no new `ir.sequence` created. Standard
+  `sale.order.name` (`ir.sequence` code `sale.order`, prefix `S`,
+  padding 5 → `S00001…`) is the quotation number. `x_quotation`
+  numbering (`Q-YYYY-NNNN`) is a completely separate sequence — the two
+  cannot collide.
+- **Packaging decision**: `x_packaging_id` many2one on `sale.order.line`
+  reuses the existing `x_product_packaging` (42 rows). Reason: probe
+  confirmed `product.packaging` is not installed on this tenant, so any
+  migration to the standard model would require installing it first.
+  Least intervention wins.
+- **Pricing wiring**: three-tier priority (`x_price_unit_manual` →
+  `price_unit` → `x_daily_price`) is enforced in the Worker inside
+  `buildQuotationPDFDataFromSaleOrder` (in
+  [src/sale-order-quotation.ts](../src/sale-order-quotation.ts)). Odoo
+  Online (saas-19.4) doesn't allow Python compute on pricelist items,
+  and adding an `ir.actions.server` (state=code) `pre-create` hook to
+  auto-fill `price_unit` would be a second write path; the Worker-side
+  read is the simplest working choice. The `x_daily_price` fallback
+  reuses `getLatestSalePrice` byte-for-byte (no formula change).
+- **Missing-price block**: same Arabic surface as the manual
+  `x_quotation` path — "صنف بلا سعر: <name>", owner alert via
+  `sendOwnerAlert`, no `x_wa_message` row created.
+- **All existing barriers reused**: owner-guard (never bypassable),
+  `SIM_ALLOWLIST` + `x_wa_allowed` gate, 24-hour Meta rule (code 131047),
+  `?dry_run=1` for safe testing. The queued `x_wa_message` write to
+  `x_res_model='sale.order'` + `x_res_id=<so id>` flows through the
+  existing `handleWaMessageWebhook` unchanged — this route is generic
+  over `res_model`, so no code fork was needed.
+- **Verified on sim (2026-09-18)** via
+  `scripts/item1-sale-quotation-verify.mjs`:
+  - Three-tier priority produced a valid `dry_ok` with `x_res_model='sale.order'`.
+  - Missing-price line produced no `x_wa_message` row (blocked before create).
+  - Owner-phone destination → `x_status='failed'`,
+    `x_meta_error="رقم المالك لا يُستخدم كوجهة"`.
+  - `x_quotation` count / `x_daily_order` count / `ir.cron` count / the
+    two `quotation.manual_*` server actions (id + webhook_url) all
+    unchanged before vs. after.
+  - Every test row (3 sale.orders, 2 x_wa_messages, 1 temp partner) was
+    deleted on the way out. No real data touched.
+- **Rollback (single script or four RPC calls)**:
+  1. `ir.ui.view.unlink([id=2787])` — the inherited sale.order form view.
+  2. `ir.actions.server.unlink([id=970])` — the `sale.quotation.wa_send`
+     webhook action.
+  3. `ir.model.fields.unlink([id=20155])` — `x_packaging_id` on
+     `sale.order.line`.
+  4. `ir.model.fields.unlink([id=20153])` — `x_price_unit_manual` on
+     `sale.order.line`.
+  Worker rollback: remove `src/sale-order-quotation.ts` and the
+  `/internal/sale-quotation-wa-send` block in `src/index.ts` (the diff
+  is purely additive — no other file changed).
+
 ## Phase 2, 3, 4 — deferred
 
 Not yet on this branch. Update this file per phase as they land.

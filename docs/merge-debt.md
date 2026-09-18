@@ -398,6 +398,146 @@ to 1 first, or new UOMs `كيلو`/`كرتون`/`جرم`/`كيس` seeded), or
 (ii) rebrand what the line displays via a UOM overlay column. Both are
 follow-ups, not part of Item 5.
 
+## Item 2 sub-items (2026-09-18) — small pending
+
+Batched cleanup pass. Six sub-items surfaced in Baraa's task list.
+Every write below applies to the shared tenant `utakfresh.odoo.com`,
+so **do not re-run these against prod on merge** — prod already sees
+them. Worker code changes DO need to promote as usual.
+
+### Item 2a — rotate `ODOO_HOOK_TOKEN` (leaked)
+
+Script only. `scripts/item2a-rotate-hook-token.mjs` is prep — it
+reads the new token from `~/utak-hook-token.txt` (mode 600, generated
+locally, never printed) and writes it into the 5 sim-facing
+`ir.actions.server.webhook_url` values on `utakfresh.odoo.com`
+(ids 968, 969, 970, 963, 967). The 2 prod-facing rows (957 Send
+Receipt Webhook, 941 UTAK: Issue & Send Quotation) are untouched;
+prod rotates independently on `main`.
+
+Actual rotation is NOT executed by the sim-harness pipeline — Claude
+Code's auto-mode classifier refuses secret-store writes. Baraa runs
+three commands in order:
+
+```
+cat ~/utak-hook-token.txt | npx wrangler secret put ODOO_HOOK_TOKEN --env sim
+npx wrangler deploy --env sim
+node scripts/item2a-rotate-hook-token.mjs
+```
+
+Between step 2 and step 3, Odoo→Worker webhooks with the old token
+receive 401 for a few seconds — the window is bounded and no
+customer-facing flow is on this path.
+
+### Item 2b — unbind Odoo's native sale-order print reports
+
+Applied on `utakfresh.odoo.com` via `scripts/item2b-hide-native-sale-print.mjs`.
+
+Before: three `ir.actions.report` rows exist for `sale.order` —
+`id=433 sale.report_saleorder` (already unbound),
+`id=434 sale.report_saleorder_pro_forma` bound,
+`id=477 sale.report_saleorder_raw` bound.
+
+Write: `binding_model_id = false` on ids 434 + 477. `binding_type`
+stays `"report"` — Odoo 19 SaaS refuses to null it (the field is
+required even when unbinding, and setting it to false alongside
+`binding_model_id` trips a `ValidationError`). Setting
+`binding_model_id` alone is enough to remove the entry from the
+Print button dropdown.
+
+Rollback: `ir.actions.report.write([477 or 434], {binding_model_id: 2731})`.
+Report definitions stay callable via direct URL; only the menu entry
+is removed.
+
+### Item 2c — log 02:00 supplier fan-out to `x_wa_message`
+
+Worker code only. In `src/suppliers.ts::askAllSuppliersForPrices`,
+right after the successful `sendTemplate` + `sent++`/`console.log`,
+a passive `logWaMessage(env, {...})` call now creates an
+`x_wa_message` row with `direction=out`, `kind=template`,
+`body="[supplier_ask] <productList>"`, `status=sent`. Send logic
+and timing are unchanged; the log call is best-effort (its own
+try/catch inside `wa-message-send.ts`), so a log failure never
+breaks the cron.
+
+Same coverage is STILL missing from the collection cron
+(`x_collection_task`), morning report, and driver flow — those
+remain follow-ups. `merge-debt.md` retains the earlier note on
+that.
+
+### Item 2d — recompute old sale.orders with lingering `tax_ids`
+
+No-op after item5 cleanup. Verified via `scripts/verify-item2.mjs`
+(actually `/tmp/.../scratchpad/verify-item2.mjs` for the last run):
+
+- `sale.order.line` with `tax_ids != false` = **0**
+- `sale.order` with `amount_tax != 0` = **0**
+- `product.template` with `taxes_id != false` = **0**
+
+Nothing to recompute; item5 was thorough on the shared tenant.
+
+### Item 2e — create the 4 missing `x_whatsapp_template` rows
+
+Applied on `utakfresh.odoo.com` in two steps:
+
+1. `scripts/item2e-template-purposes.mjs` — creates 4 rows for the
+   Meta templates the sync failed to land (because `x_purpose` is
+   required at the model level but the sync leaves it unset on
+   create; `wa-template-sync.ts` still refuses to auto-fill it,
+   which keeps the "needs Baraa" signal intact). Rows are created
+   with placeholder `x_purpose="other"`. Then a re-triggered sync
+   backfills `x_meta_id / x_meta_status / x_category / x_body /
+   x_param_count / x_buttons / x_last_synced` from Meta.
+2. `scripts/item2e-template-purposes-refine.mjs` — reassigns
+   `x_purpose` based on the actual body of each template:
+
+   | id | Meta template          | body summary               | x_purpose            |
+   |----|------------------------|----------------------------|----------------------|
+   | 42 | utak_v2_collection     | كشف التحصيل                | collection_summary   |
+   | 43 | utak_v2_purchase       | قائمة مشتريات اليوم        | purchase_list        |
+   | 44 | utak_v2_driver_route   | مسارك جاهز                 | driver_dispatch      |
+   | 45 | hello_world            | Meta demo (English)        | other                |
+
+   `fetchMapping` uses `limit=1` (order = id ASC), so the v1 rows
+   (id=5, 7, 11) still win at send-time. The v2 rows are
+   semantically labeled and ready for Baraa to demote a v1 to
+   `"other"` when he wants v2 to take over. **No worker code
+   behaviour changes.**
+
+Rollback: `x_whatsapp_template.unlink([42, 43, 44, 45])`.
+
+### Item 2f — register `supplier_confirm` template if Meta-approved
+
+Skipped: **`supplier_confirm` is not approved on Meta** (verified
+by running `runTemplateSync` — the fetch returned 26 templates and
+none of them names `supplier_confirm`). Nothing to register in
+Odoo. When/if it lands on Meta, the existing sync will create the
+row (blocked by the same `x_purpose` gate as item2e — same fix
+applies).
+
+### Item 2 verification (2026-09-18, 17:5x Asia/Riyadh)
+
+Via `/tmp/.../scratchpad/verify-item2.mjs`:
+
+- `ir.cron` = 56  (unchanged)
+- `x_daily_price` = 7  (unchanged, 02:00 flow intact)
+- `x_quotation` = 9  (unchanged)
+- `x_daily_order` = 13  (unchanged)
+- `x_whatsapp_template` = 26  (was 22 → +4)
+- `x_wa_control` = 1  (unchanged)
+- `x_wa_message` = 2  (unchanged; item2c fires on the next 02:00 cron)
+- `sale.order.line` with `tax_ids != false` = 0
+- `sale.order` with `amount_tax != 0` = 0
+- Sim-facing webhook URLs (5 rows) all still carry the OLD token
+  (rotation gated on Baraa's `wrangler secret put`)
+- Prod-facing webhook URLs (2 rows) untouched
+- `sale.order` print reports 434 + 477 unbound; 433 was already
+  unbound
+
+Post-deploy sync health check (`GET /admin/wa-template-sync` on
+`utak-worker-sim`) returned 200 with 26 fetched / 26 updated / 0
+errors.
+
 ## Phase 2, 3, 4 — deferred
 
 Not yet on this branch. Update this file per phase as they land.

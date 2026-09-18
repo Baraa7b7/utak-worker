@@ -114,9 +114,26 @@ identical to prod.
   existing PDF pipeline means no parallel code path.
 
 ### Item 4 — res.partner.x_wa_allowed
-- Boolean field (default false) with label "مسموح واتساب".
+- Boolean field with label "مسموح واتساب".
 - Inherited res.partner form view adds a "UTAK — واتساب" group
   exposing the flag.
+- **Default for new partners flipped to True (2026-09-18).**
+  Implemented as a single `ir.default` row on the field
+  (`field_id`=<x_wa_allowed>, `json_value`="true", no user / no
+  company / no condition). Applies whenever a new res.partner is
+  created without an explicit x_wa_allowed value — regardless of
+  customer_rank / supplier_rank / partner type. To roll back to
+  a False default later, delete that `ir.default` row (or write
+  `json_value`="false" on it). No automation or hook is used —
+  purely native Odoo field default.
+- **Bulk backfill (2026-09-18).** All existing res.partner rows,
+  active AND archived, suppliers / customers / employees / drivers /
+  everything, were flipped to x_wa_allowed=True via
+  `scripts/item4-wa-allowed-default-true.mjs`. Baraa's number
+  (+966505154962) is the only exclusion — his eight partner rows
+  keep whatever value they had (all still False). Prod promotion
+  must re-run the same script after item4-wa-allowed.mjs has
+  landed the field/views.
 - Worker: fetchMeta's allowlist gate becomes a two-stage check —
   SIM_ALLOWLIST (fast, sync) then, on miss, isPartnerWaAllowed
   (Odoo-backed with a 60s KV cache under key

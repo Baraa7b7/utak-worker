@@ -32,6 +32,7 @@ import { sendTemplate, sendText } from "./meta";
 import { sendOwnerAlert } from "./templates";
 import { extractSupplierPrices } from "./claude";
 import { riyadhDateKey } from "./hours";
+import { logWaMessage } from "./wa-message-send";
 
 const nowOdoo = (): string => new Date().toISOString().replace("T", " ").slice(0, 19);
 
@@ -141,6 +142,16 @@ export async function askAllSuppliersForPrices(env: Env): Promise<void> {
       }
       sent++;
       console.log(`[cron 02:00] asked supplier ${s.id} (${s.name}) log=${logId}`);
+      // Item 2c (2026-09-18) — surface the 02:00 supplier fan-out in the
+      // UTAK «رسائل واتساب» tab. Best-effort passive log; a failure here
+      // never breaks the cron. Send logic + timing are unchanged.
+      await logWaMessage(env, {
+        partnerId: s.id,
+        direction: "out",
+        kind: "template",
+        body: `[supplier_ask] ${productList}`,
+        status: "sent",
+      });
     } catch (e) {
       failed++;
       console.error(`[cron 02:00] supplier ${s.id} error`, (e as Error)?.message);

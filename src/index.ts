@@ -1123,6 +1123,78 @@ export default {
       }
     }
 
+    // 2026-09-19 — Odoo customer-invoice PDF download (UTAK-branded).
+    // GET /internal/invoice-pdf?id=<account.move id>&token=<SALE_PDF_DOWNLOAD_TOKEN>
+    // Reads account.move (out_invoice/out_refund only) and renders via the
+    // shared invoice template. showZatcaQR = false while amount_tax === 0.
+    if (request.method === "GET" && url.pathname === "/internal/invoice-pdf") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.SALE_PDF_DOWNLOAD_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return new Response("not found", { status: 404 });
+      }
+      const moveId = Number(url.searchParams.get("id"));
+      if (!Number.isFinite(moveId) || moveId <= 0) {
+        return new Response("not found", { status: 404 });
+      }
+      try {
+        const { buildInvoicePDFDataFromAccountMove, generateInvoicePDF } = await import("./invoice");
+        const data = await buildInvoicePDFDataFromAccountMove(env, moveId);
+        if (!data) {
+          return new Response("not found", { status: 404 });
+        }
+        const pdfBytes = await generateInvoicePDF(data, env);
+        const filename = `${data.invoiceNumber}.pdf`;
+        const body = pdfBytes.slice().buffer;
+        return new Response(body, {
+          status: 200,
+          headers: {
+            "Content-Type": "application/pdf",
+            "Content-Disposition": `attachment; filename="${filename}"`,
+            "Content-Length": String(pdfBytes.byteLength),
+            "Cache-Control": "no-store",
+          },
+        });
+      } catch (e) {
+        console.error("[inv-pdf-download] failed", (e as Error)?.message, (e as Error)?.stack);
+        return new Response("build error", { status: 500 });
+      }
+    }
+
+    // 2026-09-19 — Odoo purchase.order PDF download (UTAK-branded).
+    // GET /internal/purchase-order-pdf?id=<purchase.order id>&token=<SALE_PDF_DOWNLOAD_TOKEN>
+    if (request.method === "GET" && url.pathname === "/internal/purchase-order-pdf") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.SALE_PDF_DOWNLOAD_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return new Response("not found", { status: 404 });
+      }
+      const poId = Number(url.searchParams.get("id"));
+      if (!Number.isFinite(poId) || poId <= 0) {
+        return new Response("not found", { status: 404 });
+      }
+      try {
+        const { buildPurchaseOrderPDFDataFromPurchaseOrder, generatePurchaseOrderPDF } = await import("./purchase-order");
+        const data = await buildPurchaseOrderPDFDataFromPurchaseOrder(env, poId);
+        if (!data) return new Response("not found", { status: 404 });
+        const pdfBytes = await generatePurchaseOrderPDF(data, env);
+        const filename = `${data.poNumber}.pdf`;
+        const body = pdfBytes.slice().buffer;
+        return new Response(body, {
+          status: 200,
+          headers: {
+            "Content-Type": "application/pdf",
+            "Content-Disposition": `attachment; filename="${filename}"`,
+            "Content-Length": String(pdfBytes.byteLength),
+            "Cache-Control": "no-store",
+          },
+        });
+      } catch (e) {
+        console.error("[po-pdf-download] failed", (e as Error)?.message, (e as Error)?.stack);
+        return new Response("build error", { status: 500 });
+      }
+    }
+
     // Item 2 (2026-09-17) — Odoo → Worker: process x_wa_message.x_status='queued'.
     // Fired by the base.automation (wa_message.on_queued) via ir.actions.server
     // (wa_message.send_webhook). The full send pipeline (validate → media

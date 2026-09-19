@@ -16,6 +16,7 @@ import {
   writeOrderLineUnitPrice,
   getOrderCustomerWhatsapp,
   resolvePackagingNames,
+  call,
 } from "./odoo";
 import { sendText, sendButtons } from "./meta";
 import { sendTemplateByPurpose, T } from "./templates";
@@ -445,7 +446,9 @@ export function renderInvoiceHTML(data: InvoicePDFData): string {
       data.grandTotal,
     ),
     footerNote: data.paymentTerms,
-    showZatcaQR: true,
+    // ZATCA QR is only meaningful when there's VAT to attest to. Suppress it
+    // while VAT is inactive (Baraa activates it later).
+    showZatcaQR: data.vatAmount > 0,
     pageMetrics,
   });
 }
@@ -615,6 +618,114 @@ export async function buildInvoicePDFDataFromOdoo(
     discount: 0,
     vatAmount: 0,
     grandTotal: invoice.total,
+  };
+}
+
+// --------------------------------------------------------------
+// Build from a standard Odoo customer invoice (account.move, out_invoice).
+// Parallel reader alongside buildInvoicePDFDataFromOdoo (x_invoice).
+// VAT stays 0 until Baraa activates it — showZatcaQR should be false
+// while amount_tax === 0 (caller decides).
+// --------------------------------------------------------------
+export async function buildInvoicePDFDataFromAccountMove(
+  env: Env,
+  moveId: number,
+): Promise<InvoicePDFData | null> {
+  type MoveHead = {
+    id: number;
+    name: string | false;
+    invoice_date: string | false;
+    date: string | false;
+    partner_id: [number, string] | false;
+    invoice_line_ids: number[];
+    amount_untaxed: number;
+    amount_tax: number;
+    amount_total: number;
+    move_type: string;
+  };
+  const heads = await call<MoveHead[]>(env, "account.move", "read", {
+    ids: [moveId],
+    fields: ["id","name","invoice_date","date","partner_id","invoice_line_ids","amount_untaxed","amount_tax","amount_total","move_type"],
+  });
+  const head = heads[0];
+  if (!head) return null;
+  if (head.move_type !== "out_invoice" && head.move_type !== "out_refund") return null;
+
+  type Partner = { id: number; name: string | false; phone: string | false; street: string | false; city: string | false };
+  const partner = head.partner_id
+    ? (await call<Partner[]>(env, "res.partner", "read", {
+        ids: [head.partner_id[0]],
+        fields: ["id","name","phone","street","city"],
+      }))[0]
+    : null;
+
+  type Line = {
+    id: number;
+    name: string | false;
+    product_id: [number, string] | false;
+    quantity: number;
+    price_unit: number;
+    price_subtotal: number;
+    display_type: string | false;
+  };
+  type ProdProd = { id: number; product_tmpl_id: [number, string] | false };
+  const lines = head.invoice_line_ids.length > 0
+    ? await call<Line[]>(env, "account.move.line", "read", {
+        ids: head.invoice_line_ids,
+        fields: ["id","name","product_id","quantity","price_unit","price_subtotal","display_type"],
+      })
+    : [];
+  const productLines = lines.filter((l) => l.product_id && !l.display_type);
+  const prodIds = Array.from(new Set(productLines.map((l) => l.product_id ? l.product_id[0] : 0).filter((n) => n > 0)));
+  const prods = prodIds.length > 0
+    ? await call<ProdProd[]>(env, "product.product", "read", {
+        ids: prodIds,
+        fields: ["id","product_tmpl_id"],
+      })
+    : [];
+  const tmplByProd = new Map<number, number>();
+  for (const p of prods) if (p.product_tmpl_id) tmplByProd.set(p.id, p.product_tmpl_id[0]);
+
+  const packagingNames = await resolvePackagingNames(
+    env,
+    productLines.map((l) => ({
+      packaging_id: 0,
+      product_id: l.product_id ? (tmplByProd.get(l.product_id[0]) ?? 0) : 0,
+    })),
+  );
+
+  let subtotal = 0;
+  const items: InvoiceLineItem[] = productLines.map((l, i) => {
+    const total = round2(l.price_subtotal);
+    subtotal = round2(subtotal + total);
+    const displayName = (typeof l.name === "string" && l.name)
+      ? l.name.split("\n")[0]
+      : (l.product_id ? l.product_id[1] : "صنف");
+    return {
+      name: displayName,
+      pack: packagingNames[i],
+      qty: l.quantity,
+      price: l.price_unit,
+      total,
+    };
+  });
+
+  const rawDate = head.invoice_date || head.date || null;
+  const invoiceDate = rawDate ? new Date(String(rawDate)) : new Date();
+
+  return {
+    invoiceNumber: (typeof head.name === "string" && head.name) ? head.name : `INV-${moveId}`,
+    invoiceDate,
+    customer: {
+      name: partner?.name || (head.partner_id ? head.partner_id[1] : "عميل"),
+      address: partner?.street || partner?.city || "الرياض",
+      phone: partner?.phone || "",
+    },
+    items,
+    subtotal,
+    discount: 0,
+    vatAmount: head.amount_tax || 0,
+    grandTotal: head.amount_total || subtotal,
   };
 }
 

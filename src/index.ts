@@ -1061,6 +1061,68 @@ export default {
       return json({ status: "accepted", sale_order_id: soid }, 202);
     }
 
+    // 2026-09-19 — browser-facing "تنزيل PDF (UTAK)" button on sale.order.
+    // GET /internal/sale-quotation-pdf?id=<sale_order_id>&token=<SALE_PDF_DOWNLOAD_TOKEN>
+    // → 200 application/pdf attachment (built via the SAME builder that the
+    //   WhatsApp send route uses: buildQuotationPDFDataFromSaleOrder →
+    //   renderQuotationHTML → htmlToPDF). No WhatsApp send, no write-back
+    //   to Odoo, no R2 upload. Token is a dedicated secret independent of
+    //   INTERNAL_WEBHOOK_SECRET and ODOO_HOOK_TOKEN so it can be rotated
+    //   without disturbing existing webhooks. Any auth/id failure returns
+    //   404 (not 401) so a wrong token does not reveal that the endpoint
+    //   exists to a probing browser tab.
+    if (request.method === "GET" && url.pathname === "/internal/sale-quotation-pdf") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.SALE_PDF_DOWNLOAD_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return new Response("not found", { status: 404 });
+      }
+      const soid = Number(url.searchParams.get("id"));
+      if (!Number.isFinite(soid) || soid <= 0) {
+        return new Response("not found", { status: 404 });
+      }
+      try {
+        const { buildQuotationPDFDataFromSaleOrder } = await import(
+          "./sale-order-quotation"
+        );
+        const { generateQuotationPDF } = await import("./quotation");
+        const data = await buildQuotationPDFDataFromSaleOrder(env, soid);
+        if (!data) {
+          return new Response("not found", { status: 404 });
+        }
+        if (data.has_blocking_issue) {
+          const missing = (data.missing_products ?? []).join(", ") || "(unnamed)";
+          console.error(
+            `[so-pdf-download] BLOCKED sale.order ${soid} — صنف بلا سعر: ${missing}`,
+          );
+          return new Response(
+            `صنف بلا سعر: ${missing}`,
+            { status: 409, headers: { "Content-Type": "text/plain; charset=utf-8" } },
+          );
+        }
+        const pdfBytes = await generateQuotationPDF(data, env);
+        const filename = `${data.quotationNumber}.pdf`;
+        // ArrayBuffer copy: Response wants an actual ArrayBuffer, not a Uint8Array's underlying SharedArrayBuffer.
+        const body = pdfBytes.slice().buffer;
+        return new Response(body, {
+          status: 200,
+          headers: {
+            "Content-Type": "application/pdf",
+            "Content-Disposition": `attachment; filename="${filename}"`,
+            "Content-Length": String(pdfBytes.byteLength),
+            "Cache-Control": "no-store",
+          },
+        });
+      } catch (e) {
+        console.error(
+          "[so-pdf-download] failed",
+          (e as Error)?.message,
+          (e as Error)?.stack,
+        );
+        return new Response("build error", { status: 500 });
+      }
+    }
+
     // Item 2 (2026-09-17) — Odoo → Worker: process x_wa_message.x_status='queued'.
     // Fired by the base.automation (wa_message.on_queued) via ir.actions.server
     // (wa_message.send_webhook). The full send pipeline (validate → media

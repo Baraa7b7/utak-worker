@@ -62,8 +62,11 @@ export interface QuotationPDFData {
   missing_products?: string[];
 }
 
+// 2026-09-19 — same-day validity. Old text was "٧ أيام". Since UTAK's cost is
+// the daily supplier price, a 7-day quote is misleading; the new copy ties the
+// quote to the day of issue and to that day's market prices.
 const QUOTATION_FOOTER =
-  "هذا العرض ساري لمدة ٧ أيام من تاريخ الإصدار.";
+  "الأسعار سارية حتى ٩:٠٠ مساءً من تاريخ الإصدار، وتخضع لأسعار السوق اليومية";
 
 // ---- Body: line-items table (same 5 columns as invoice) ----
 export function renderQuotationBodyHTML(
@@ -523,7 +526,7 @@ export async function createAndDispatchQuotationForRecord(
           ``,
           `الملف: ${uploaded.publicUrl}`,
           ``,
-          `العرض ساري ٧ أيام. شكراً لتعاملكم مع UTAK 🌿`,
+          `الأسعار سارية حتى ٩:٠٠ مساءً من تاريخ الإصدار، وتخضع لأسعار السوق اليومية. شكراً لتعاملكم مع UTAK 🌿`,
         ].join("\n");
         resp = await sendText(env, customerPhone, body);
       }

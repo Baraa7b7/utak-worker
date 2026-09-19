@@ -38,6 +38,13 @@ export interface Env {
   INTERNAL_WEBHOOK_SECRET?: string;
   /** Phase 1+: shared token for /odoo/hook/* routes (template sync, manual WA send). */
   ODOO_HOOK_TOKEN?: string;
+  /**
+   * 2026-09-19 — token gating GET /internal/sale-quotation-pdf.
+   * Independent of INTERNAL_WEBHOOK_SECRET and ODOO_HOOK_TOKEN so this
+   * browser-facing URL (Odoo Server Action → ir.actions.act_url) can be
+   * rotated on its own if it leaks into a shared screen or browser history.
+   */
+  SALE_PDF_DOWNLOAD_TOKEN?: string;
 
   // ============================================================
   // Simulation-mode env (only bound in [env.sim], undefined in prod).

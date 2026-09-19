@@ -538,6 +538,80 @@ Post-deploy sync health check (`GET /admin/wa-template-sync` on
 `utak-worker-sim`) returned 200 with 26 fetched / 26 updated / 0
 errors.
 
+## Item 3 (2026-09-19) — parallel purchase.order + supplier_confirm
+
+Two sub-items, both landed on `sim-harness`. Prod sees the tenant-side
+changes already because the tenant is shared; worker code is unchanged
+in item 3 (no `wrangler deploy` needed for the purchase.order flow —
+only for future item-3 wiring).
+
+### Item 3a — Ahmed's purchase.order (parallel to `x_purchase_list`)
+
+Scripts on `utakfresh.odoo.com`:
+
+- `scripts/item3-ahmed-purchase-order.mjs` — creates a **draft**
+  `purchase.order` for supplier أحمد حسان (id=30) sourcing every
+  `x_daily_price` row dated today. Line vals: `product_id` (variant),
+  `product_qty=1`, `price_unit=x_price_sar`, `uom_id` from the variant,
+  `tax_ids=[[6,0,[]]]` (defence-in-depth vs. a future default flip).
+  `origin="UTAK-DAILY"` tags the PO so the script is idempotent by
+  (partner, date, origin) unless `--force`. `--dry_run` prints the plan
+  without writing; `--confirm` also calls `button_confirm`. Left at
+  `draft` by default so the row can be inspected + deleted without
+  accounting impact.
+- `scripts/item3-set-purchase-method.mjs` — **tenant-wide config
+  flip**: every `product.template` with `default_code =like 'UTAK-%'`
+  gets `purchase_method="purchase"` (bill on ordered qty). Necessary
+  because UTAK products are `type='consu'` (no `stock.picking`, no
+  `stock.quant`), so the Odoo default `purchase_method='receive'`
+  pinned `qty_received=0` → `qty_to_invoice=0` → vendor bill
+  `amount=0`. Snapshot in
+  `scripts/artifacts/item3-purchase-method-rollback.json`; matching
+  `scripts/item3-purchase-method-rollback.mjs` restores it.
+- `scripts/item3-verify.mjs` — end-to-end acceptance test (create PO
+  → confirm → create bill → post → snapshot Ahmed's payable ledger
+  → clean up + assert invariants). Safe to re-run any day Ahmed has
+  today's `x_daily_price` rows.
+
+Verified 2026-09-19: BILL/2026/09/0001 posted `amount_untaxed=178.6`,
+`amount_tax=0`, `amount_total=178.6`; Ahmed's payable ledger picked up
+the `-178.60` credit; every invariant (x_purchase_list=2,
+x_daily_price=14, x_quotation=9, ir.cron=56, no UTAK template outside
+`purchase_method='purchase'`) returned to baseline after cleanup.
+
+Worker code unchanged. `x_purchase_list` flow (21:15 cron + PDF to
+Ahmed's WhatsApp) is UNTOUCHED — this is a parallel representation of
+the same buy for the Purchase app + accounting.
+
+`vendor / middleman` decision is punted: products stay `type='consu'`
+so no stock module is engaged; the choice only bites if / when Baraa
+enables inventory tracking.
+
+### Item 3b — `supplier_confirm` template design + pre-registration
+
+Meta template `utak_supplier_confirm_v1` (Arabic, Utility, body with
+2 params + 3 `QUICK_REPLY` buttons) is DESIGNED and Odoo is
+PRE-REGISTERED, but NOT yet submitted to Meta. Baraa submits via
+WhatsApp Business Manager — full spec + step-by-step recipe in
+[docs/supplier-confirm-template.md](supplier-confirm-template.md).
+
+`scripts/item3b-pre-register-supplier-confirm.mjs` created
+`x_whatsapp_template id=46` with `x_purpose='supplier_confirm'`,
+`x_meta_status='PENDING_META'`, `x_missing_in_meta=true`. This is the
+same "avoid the required-field trap" fix as item2e — without the
+placeholder row, once Meta approves, sync would try to CREATE and hit
+HTTP 422 (Purpose required at create).
+
+After Meta approves (usually a few hours), the next sync (05:00 cron
+or manual `/admin/wa-template-sync`) UPDATES id=46 with `x_meta_id`,
+`x_meta_status='APPROVED'`, `x_body`, `x_param_count=2`, `x_buttons`,
+`x_last_synced`, and clears `x_missing_in_meta`. Worker code
+(`sendTemplateByPurpose(..., "supplier_confirm", ...)`) then resolves
+the mapping on the next isolate cold start.
+
+Rollback: `x_whatsapp_template.unlink([46])` and drop the template
+in Meta Business Manager.
+
 ## Phase 2, 3, 4 — deferred
 
 Not yet on this branch. Update this file per phase as they land.

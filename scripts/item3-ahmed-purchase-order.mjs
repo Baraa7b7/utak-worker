@@ -141,6 +141,17 @@ if (existing.length > 0 && !FORCE) {
   process.exit(0);
 }
 
+// Preload default packaging per template as a fallback for lines without an
+// explicit x_daily_price.x_packaging_id.
+const defaultPackByTmpl = new Map();
+if (tmplIds.length > 0) {
+  const defaults = await call("x_product_packaging", "search_read", {
+    domain: [["x_product_tmpl_id","in",tmplIds],["x_is_default","=",true]],
+    fields: ["id","x_product_tmpl_id"],
+  });
+  for (const d of defaults) if (d.x_product_tmpl_id) defaultPackByTmpl.set(d.x_product_tmpl_id[0], d.id);
+}
+
 // Build line values
 const orderLines = [];
 for (const p of prices) {
@@ -151,6 +162,7 @@ for (const p of prices) {
     continue;
   }
   const packName = p.x_packaging_id?.[1] || "";
+  const packId = p.x_packaging_id?.[0] || defaultPackByTmpl.get(tmplId) || false;
   const productName = p.x_product_tmpl_id[1] || v.name;
   const lineName = `${productName}${packName ? ` — ${packName}` : ""}`;
   orderLines.push([0, 0, {
@@ -160,6 +172,7 @@ for (const p of prices) {
     price_unit:  p.x_price_sar,
     uom_id:      v.uom_id?.[0] ?? 1,
     tax_ids:     [[6, 0, []]],  // hard-defend against a future default flip
+    x_packaging_id: packId,    // pinpoint packaging (falls back to product's default)
   }]);
 }
 if (orderLines.length === 0) {

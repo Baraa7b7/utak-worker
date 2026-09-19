@@ -667,12 +667,13 @@ export async function buildInvoicePDFDataFromAccountMove(
     price_unit: number;
     price_subtotal: number;
     display_type: string | false;
+    sale_line_ids: number[];
   };
   type ProdProd = { id: number; product_tmpl_id: [number, string] | false };
   const lines = head.invoice_line_ids.length > 0
     ? await call<Line[]>(env, "account.move.line", "read", {
         ids: head.invoice_line_ids,
-        fields: ["id","name","product_id","quantity","price_unit","price_subtotal","display_type"],
+        fields: ["id","name","product_id","quantity","price_unit","price_subtotal","display_type","sale_line_ids"],
       })
     : [];
   const productLines = lines.filter((l) => l.product_id && !l.display_type);
@@ -686,12 +687,35 @@ export async function buildInvoicePDFDataFromAccountMove(
   const tmplByProd = new Map<number, number>();
   for (const p of prods) if (p.product_tmpl_id) tmplByProd.set(p.id, p.product_tmpl_id[0]);
 
+  // If the invoice was generated from a sale.order, pull packaging from the
+  // linked sale.order.line's x_packaging_id — no new field on account.move.line.
+  // Fall back to the product's default packaging when nothing is linked.
+  type SolPack = { id: number; x_packaging_id: [number, string] | false };
+  const solIds = Array.from(
+    new Set(
+      productLines
+        .flatMap((l) => l.sale_line_ids ?? [])
+        .filter((id) => typeof id === "number" && id > 0),
+    ),
+  );
+  const solPack = solIds.length > 0
+    ? await call<SolPack[]>(env, "sale.order.line", "read", {
+        ids: solIds,
+        fields: ["id","x_packaging_id"],
+      })
+    : [];
+  const packByLine = new Map<number, number>();
+  for (const s of solPack) if (s.x_packaging_id) packByLine.set(s.id, s.x_packaging_id[0]);
+
   const packagingNames = await resolvePackagingNames(
     env,
-    productLines.map((l) => ({
-      packaging_id: 0,
-      product_id: l.product_id ? (tmplByProd.get(l.product_id[0]) ?? 0) : 0,
-    })),
+    productLines.map((l) => {
+      const linkedPack = (l.sale_line_ids ?? []).map((id) => packByLine.get(id) ?? 0).find((n) => n > 0) ?? 0;
+      return {
+        packaging_id: linkedPack,
+        product_id: l.product_id ? (tmplByProd.get(l.product_id[0]) ?? 0) : 0,
+      };
+    }),
   );
 
   let subtotal = 0;

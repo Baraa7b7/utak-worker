@@ -262,12 +262,13 @@ export async function buildPurchaseOrderPDFDataFromPurchaseOrder(
     product_qty: number;
     price_unit: number;
     price_subtotal: number;
+    x_packaging_id: [number, string] | false;
   };
   type ProdProd = { id: number; product_tmpl_id: [number, string] | false };
   const lines = head.order_line.length > 0
     ? await call<Line[]>(env, "purchase.order.line", "read", {
         ids: head.order_line,
-        fields: ["id","name","product_id","product_qty","price_unit","price_subtotal"],
+        fields: ["id","name","product_id","product_qty","price_unit","price_subtotal","x_packaging_id"],
       })
     : [];
   const prodIds = Array.from(new Set(lines.map((l) => l.product_id ? l.product_id[0] : 0).filter((n) => n > 0)));
@@ -280,10 +281,12 @@ export async function buildPurchaseOrderPDFDataFromPurchaseOrder(
   const tmplByProd = new Map<number, number>();
   for (const p of prods) if (p.product_tmpl_id) tmplByProd.set(p.id, p.product_tmpl_id[0]);
 
+  // Read packaging from the line first (Studio m2o x_packaging_id); fall back
+  // to the product's default packaging when the line has none.
   const packagingNames = await resolvePackagingNames(
     env,
     lines.map((l) => ({
-      packaging_id: 0,
+      packaging_id: l.x_packaging_id ? l.x_packaging_id[0] : 0,
       product_id: l.product_id ? (tmplByProd.get(l.product_id[0]) ?? 0) : 0,
     })),
   );

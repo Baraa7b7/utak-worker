@@ -1,0 +1,566 @@
+{
+  "generated_at": "2026-09-19T14:53:25.755Z",
+  "x_type_existed_before": false,
+  "rows": [
+    {
+      "id": 39,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        102,
+        "[UTAK-FRT-007] أناناس"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 47,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        105,
+        "[UTAK-FRT-010] افوكادو"
+      ],
+      "x_approx_weight_kg": 4,
+      "x_is_default": true,
+      "x_sequence": 0
+    },
+    {
+      "id": 11,
+      "x_name": "جرم",
+      "x_product_tmpl_id": [
+        77,
+        "[UTAK-VEG-007] باذنجان"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 20,
+      "x_name": "جرم",
+      "x_product_tmpl_id": [
+        85,
+        "[UTAK-VEG-015] بامية"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 34,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        98,
+        "[UTAK-FRT-003] برتقال"
+      ],
+      "x_approx_weight_kg": 10,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 35,
+      "x_name": "شبكة",
+      "x_product_tmpl_id": [
+        98,
+        "[UTAK-FRT-003] برتقال"
+      ],
+      "x_approx_weight_kg": 15,
+      "x_is_default": false,
+      "x_sequence": 20
+    },
+    {
+      "id": 7,
+      "x_name": "كيس",
+      "x_product_tmpl_id": [
+        74,
+        "[UTAK-VEG-004] بصل"
+      ],
+      "x_approx_weight_kg": 20,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 8,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        74,
+        "[UTAK-VEG-004] بصل"
+      ],
+      "x_approx_weight_kg": 10,
+      "x_is_default": false,
+      "x_sequence": 20
+    },
+    {
+      "id": 5,
+      "x_name": "كيس",
+      "x_product_tmpl_id": [
+        73,
+        "[UTAK-VEG-003] بطاطس"
+      ],
+      "x_approx_weight_kg": 20,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 6,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        73,
+        "[UTAK-VEG-003] بطاطس"
+      ],
+      "x_approx_weight_kg": 10,
+      "x_is_default": false,
+      "x_sequence": 20
+    },
+    {
+      "id": 41,
+      "x_name": "حبة",
+      "x_product_tmpl_id": [
+        104,
+        "[UTAK-FRT-009] بطيخ"
+      ],
+      "x_approx_weight_kg": 6.5,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 42,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        104,
+        "[UTAK-FRT-009] بطيخ"
+      ],
+      "x_approx_weight_kg": 10,
+      "x_is_default": false,
+      "x_sequence": 20
+    },
+    {
+      "id": 46,
+      "x_name": "كيلو",
+      "x_product_tmpl_id": [
+        104,
+        "[UTAK-FRT-009] بطيخ"
+      ],
+      "x_approx_weight_kg": 1,
+      "x_is_default": false,
+      "x_sequence": 0
+    },
+    {
+      "id": 26,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        91,
+        "[UTAK-LEAF-003] بقدونس"
+      ],
+      "x_approx_weight_kg": 4,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 31,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        96,
+        "[UTAK-FRT-001] تفاح"
+      ],
+      "x_approx_weight_kg": 10,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 32,
+      "x_name": "كيس",
+      "x_product_tmpl_id": [
+        96,
+        "[UTAK-FRT-001] تفاح"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": false,
+      "x_sequence": 20
+    },
+    {
+      "id": 14,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        80,
+        "[UTAK-VEG-010] ثوم"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 25,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        90,
+        "[UTAK-LEAF-002] جرجير"
+      ],
+      "x_approx_weight_kg": 4,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 9,
+      "x_name": "جرم",
+      "x_product_tmpl_id": [
+        75,
+        "[UTAK-VEG-005] جزر"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 24,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        89,
+        "[UTAK-LEAF-001] خس"
+      ],
+      "x_approx_weight_kg": 4,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 3,
+      "x_name": "جرم",
+      "x_product_tmpl_id": [
+        72,
+        "[UTAK-VEG-002] خيار"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 4,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        72,
+        "[UTAK-VEG-002] خيار"
+      ],
+      "x_approx_weight_kg": 6,
+      "x_is_default": false,
+      "x_sequence": 20
+    },
+    {
+      "id": 43,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        107,
+        "[UTAK-FRT-011] رمان صغير"
+      ],
+      "x_approx_weight_kg": 0,
+      "x_is_default": true,
+      "x_sequence": 0
+    },
+    {
+      "id": 44,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        108,
+        "[UTAK-FRT-012] رمان كبير"
+      ],
+      "x_approx_weight_kg": 0,
+      "x_is_default": true,
+      "x_sequence": 0
+    },
+    {
+      "id": 37,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "x_approx_weight_kg": 0,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 30,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        95,
+        "[UTAK-LEAF-007] سبانخ"
+      ],
+      "x_approx_weight_kg": 4,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 29,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        94,
+        "[UTAK-LEAF-006] شبت"
+      ],
+      "x_approx_weight_kg": 4,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 1,
+      "x_name": "فلين",
+      "x_product_tmpl_id": [
+        71,
+        "[UTAK-VEG-001] طماطم"
+      ],
+      "x_approx_weight_kg": 5,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 2,
+      "x_name": "جرم",
+      "x_product_tmpl_id": [
+        71,
+        "[UTAK-VEG-001] طماطم"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": false,
+      "x_sequence": 20
+    },
+    {
+      "id": 36,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        99,
+        "[UTAK-FRT-004] عنب"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 21,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        86,
+        "[UTAK-VEG-016] فاصوليا"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 22,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        87,
+        "[UTAK-VEG-017] فجل"
+      ],
+      "x_approx_weight_kg": 5,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 40,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        103,
+        "[UTAK-FRT-008] فراولة"
+      ],
+      "x_approx_weight_kg": 4,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 13,
+      "x_name": "جرم",
+      "x_product_tmpl_id": [
+        79,
+        "[UTAK-VEG-009] فلفل حار"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 12,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        78,
+        "[UTAK-VEG-008] فلفل رومي"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 17,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        82,
+        "[UTAK-VEG-012] قرع"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 19,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        84,
+        "[UTAK-VEG-014] قرنبيط"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 27,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        92,
+        "[UTAK-LEAF-004] كزبرة"
+      ],
+      "x_approx_weight_kg": 4,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 10,
+      "x_name": "جرم",
+      "x_product_tmpl_id": [
+        76,
+        "[UTAK-VEG-006] كوسا"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 23,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        88,
+        "[UTAK-VEG-018] لفت"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 15,
+      "x_name": "جرم",
+      "x_product_tmpl_id": [
+        81,
+        "[UTAK-VEG-011] ليمون"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 16,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        81,
+        "[UTAK-VEG-011] ليمون"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": false,
+      "x_sequence": 20
+    },
+    {
+      "id": 38,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        101,
+        "[UTAK-FRT-006] مانجو"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 18,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        83,
+        "[UTAK-VEG-013] ملفوف"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 33,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        97,
+        "[UTAK-FRT-002] موز أمريكي"
+      ],
+      "x_approx_weight_kg": 14,
+      "x_is_default": true,
+      "x_sequence": 10
+    },
+    {
+      "id": 45,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        109,
+        "[UTAK-FRT-013] موز هندي"
+      ],
+      "x_approx_weight_kg": 13,
+      "x_is_default": true,
+      "x_sequence": 0
+    },
+    {
+      "id": 28,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        93,
+        "[UTAK-LEAF-005] نعناع"
+      ],
+      "x_approx_weight_kg": 4,
+      "x_is_default": true,
+      "x_sequence": 10
+    }
+  ],
+  "act_932": {
+    "id": 932,
+    "name": "التغليف",
+    "res_model": "x_product_packaging",
+    "view_ids": [
+      359
+    ],
+    "view_mode": "list,form",
+    "domain": false,
+    "context": "{}"
+  },
+  "product_tmpl_list_views": [
+    {
+      "id": 604,
+      "name": "product.template.product.list",
+      "priority": 10,
+      "active": true
+    },
+    {
+      "id": 563,
+      "name": "product.template.view.list.tag",
+      "priority": 16,
+      "active": true
+    },
+    {
+      "id": 605,
+      "name": "product.template.list.sellable",
+      "priority": 16,
+      "active": true
+    },
+    {
+      "id": 606,
+      "name": "product.template.list.purchasable",
+      "priority": 16,
+      "active": true
+    },
+    {
+      "id": 2724,
+      "name": "utak.product.template.list",
+      "priority": 20,
+      "active": true
+    }
+  ]
+}

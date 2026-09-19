@@ -2,7 +2,12 @@
 // Uses the shared renderPDFShell for pixel-parity with the invoice.
 
 import type { Env } from "./config";
-import { getOrderForInvoicing, getLatestSalePrice, call } from "./odoo";
+import {
+  call,
+  getLatestSalePrice,
+  getOrderForInvoicing,
+  resolvePackagingNames,
+} from "./odoo";
 import { sendText } from "./meta";
 import { sendTemplateByPurpose, T, sendOwnerAlert } from "./templates";
 import {
@@ -223,11 +228,18 @@ export async function buildQuotationPDFDataFromOdoo(
     throw new Error(`Order ${q.x_order_id[0]} for quotation ${quotationId} not found`);
   }
 
+  const packagingNames = await resolvePackagingNames(
+    env,
+    order.lines.map((l) => ({ packaging_id: l.packaging_id, product_id: l.product_id })),
+  );
+
   let subtotal = 0;
   const items: QuotationLineItem[] = [];
   const price_warnings: QuotationPriceWarning[] = [];
   let has_blocking_issue = false;
+  let lineIdx = -1;
   for (const l of order.lines) {
+    lineIdx++;
     // item3 price priority (both auto and manual quotations):
     //   1) x_price_unit_manual on the line (>0), if set
     //   2) l.unit_price already cached on the Odoo line (>0)
@@ -269,7 +281,7 @@ export async function buildQuotationPDFDataFromOdoo(
     subtotal = round2(subtotal + total);
     items.push({
       name: l.product_name || "صنف",
-      pack: l.packaging_name || "-",
+      pack: packagingNames[lineIdx],
       qty: l.quantity,
       price: unit,
       total,

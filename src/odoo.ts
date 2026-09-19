@@ -2207,3 +2207,77 @@ export async function getUnpaidInvoicesWithCustomer(
     };
   });
 }
+
+// ---- Resolve packaging labels for the PDF "unit" column ----
+// For every {packaging_id, product_id} request return the packaging's live
+// x_name (rebuilt server-side by the utak.packaging.auto_name automation
+// rule). When packaging_id is 0/absent, fall back to the product's default
+// packaging (x_is_default=true). When the product has no packaging at all,
+// return the em-dash placeholder. Batches all reads into two Odoo calls.
+export const NO_PACKAGING_PLACEHOLDER = "—";
+
+export async function resolvePackagingNames(
+  env: Env,
+  requests: Array<{ packaging_id: number; product_id: number }>,
+): Promise<string[]> {
+  if (requests.length === 0) return [];
+
+  const packagingIds = Array.from(
+    new Set(requests.map((r) => r.packaging_id).filter((id) => id > 0)),
+  );
+  const productIds = Array.from(
+    new Set(
+      requests
+        .filter((r) => !r.packaging_id || r.packaging_id <= 0)
+        .map((r) => r.product_id)
+        .filter((id) => id > 0),
+    ),
+  );
+
+  const packById = new Map<number, string>();
+  if (packagingIds.length > 0) {
+    type Row = { id: number; x_name: string | false };
+    const rows = await call<Row[]>(env, "x_product_packaging", "read", {
+      ids: packagingIds,
+      fields: ["id", "x_name"],
+    });
+    for (const r of rows) {
+      packById.set(r.id, typeof r.x_name === "string" && r.x_name ? r.x_name : NO_PACKAGING_PLACEHOLDER);
+    }
+  }
+
+  const defaultByProduct = new Map<number, string>();
+  if (productIds.length > 0) {
+    type Row = {
+      id: number;
+      x_name: string | false;
+      x_product_tmpl_id: [number, string] | false;
+      x_is_default: boolean;
+      x_sequence: number;
+    };
+    const rows = await call<Row[]>(env, "x_product_packaging", "search_read", {
+      domain: [["x_product_tmpl_id", "in", productIds]],
+      fields: ["id", "x_name", "x_product_tmpl_id", "x_is_default", "x_sequence"],
+      order: "x_product_tmpl_id, x_is_default desc, x_sequence, id",
+    });
+    for (const r of rows) {
+      if (!r.x_product_tmpl_id) continue;
+      const pid = r.x_product_tmpl_id[0];
+      if (defaultByProduct.has(pid)) continue;
+      if (!r.x_is_default) continue;
+      const label =
+        typeof r.x_name === "string" && r.x_name ? r.x_name : NO_PACKAGING_PLACEHOLDER;
+      defaultByProduct.set(pid, label);
+    }
+  }
+
+  return requests.map((r) => {
+    if (r.packaging_id && r.packaging_id > 0) {
+      return packById.get(r.packaging_id) ?? NO_PACKAGING_PLACEHOLDER;
+    }
+    if (r.product_id && r.product_id > 0) {
+      return defaultByProduct.get(r.product_id) ?? NO_PACKAGING_PLACEHOLDER;
+    }
+    return NO_PACKAGING_PLACEHOLDER;
+  });
+}

@@ -3,7 +3,7 @@
 // ("فاتورة إلى / BILL TO"); the CONTENT of that slot is supplier data.
 
 import type { Env } from "./config";
-import { call } from "./odoo";
+import { call, resolvePackagingNames } from "./odoo";
 import {
   BRAND_COLORS,
   computePageMetrics,
@@ -157,7 +157,9 @@ export async function buildPurchaseOrderPDFDataFromOdoo(
   if (!list) return null;
 
   type Agg = {
+    product_id?: number;
     product_name?: string;
+    packaging_id?: number;
     packaging_name?: string;
     total_quantity?: number;
     unit_price?: number;
@@ -172,15 +174,27 @@ export async function buildPurchaseOrderPDFDataFromOdoo(
     }
   }
 
+  // Re-resolve packaging labels at render time. The purchase list stores a
+  // snapshot of packaging_name from when the list was aggregated, but the
+  // packaging refactor rebuilds x_name from x_type + weight — read the live
+  // value so the PO shows what Odoo shows.
+  const packagingNames = await resolvePackagingNames(
+    env,
+    aggregated.map((a) => ({
+      packaging_id: typeof a.packaging_id === "number" ? a.packaging_id : 0,
+      product_id: typeof a.product_id === "number" ? a.product_id : 0,
+    })),
+  );
+
   let subtotal = 0;
-  const items: PurchaseOrderItem[] = aggregated.map((a) => {
+  const items: PurchaseOrderItem[] = aggregated.map((a, i) => {
     const qty = typeof a.total_quantity === "number" ? a.total_quantity : 0;
     const price = typeof a.unit_price === "number" ? a.unit_price : 0;
     const total = round2(qty * price);
     subtotal = round2(subtotal + total);
     return {
       name: a.product_name || "صنف",
-      pack: a.packaging_name || "-",
+      pack: packagingNames[i],
       qty,
       price,
       total,

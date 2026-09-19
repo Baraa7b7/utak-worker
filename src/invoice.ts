@@ -15,6 +15,7 @@ import {
   getUnpaidInvoicesWithCustomer,
   writeOrderLineUnitPrice,
   getOrderCustomerWhatsapp,
+  resolvePackagingNames,
 } from "./odoo";
 import { sendText, sendButtons } from "./meta";
 import { sendTemplateByPurpose, T } from "./templates";
@@ -574,10 +575,17 @@ export async function buildInvoicePDFDataFromOdoo(
     throw new Error(`Order ${invoice.orderId} for invoice ${invoice.number} not found`);
   }
 
+  const packagingNames = await resolvePackagingNames(
+    env,
+    order.lines.map((l) => ({ packaging_id: l.packaging_id, product_id: l.product_id })),
+  );
+
   let subtotal = 0;
   const items: InvoiceLineItem[] = [];
 
+  let lineIdx = -1;
   for (const l of order.lines) {
+    lineIdx++;
     let unit = l.unit_price ?? 0;
     if (!unit || unit <= 0) {
       // sim-harness (2026-09-13): unpack .price from tagged lookup result.
@@ -587,7 +595,7 @@ export async function buildInvoicePDFDataFromOdoo(
     subtotal = round2(subtotal + total);
     items.push({
       name: l.product_name || 'صنف',
-      pack: l.packaging_name || '-',
+      pack: packagingNames[lineIdx],
       qty: l.quantity,
       price: unit,
       total,

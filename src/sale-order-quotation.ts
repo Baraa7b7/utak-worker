@@ -20,7 +20,12 @@
 // from the same source both paths already use.
 
 import type { Env } from "./config";
-import { call, getLatestSalePrice, stripRef } from "./odoo";
+import {
+  call,
+  getLatestSalePrice,
+  resolvePackagingNames,
+  stripRef,
+} from "./odoo";
 import type { QuotationLineItem, QuotationPDFData, QuotationPriceWarning } from "./quotation";
 
 interface SaleOrderRow {
@@ -109,15 +114,29 @@ export async function buildQuotationPDFDataFromSaleOrder(
     if (p.product_tmpl_id) templateByProduct.set(p.id, p.product_tmpl_id[0]);
   }
 
+  // sale.order.line.product_id → product.product; packaging lookups are keyed
+  // on product.template. Resolve display names for the "unit" column in one
+  // batch, falling back to the product's default packaging when the line has
+  // none, or to the em-dash placeholder when the product itself has none.
+  const packagingNames = await resolvePackagingNames(
+    env,
+    lines.map((l) => ({
+      packaging_id: l.x_packaging_id ? l.x_packaging_id[0] : 0,
+      product_id: l.product_id ? templateByProduct.get(l.product_id[0]) ?? 0 : 0,
+    })),
+  );
+
   let subtotal = 0;
   const items: QuotationLineItem[] = [];
   const price_warnings: QuotationPriceWarning[] = [];
   const missing_products: string[] = [];
   let has_blocking_issue = false;
 
+  let lineIdx = -1;
   for (const l of lines) {
+    lineIdx++;
     const productName = l.product_id ? stripRef(l.product_id[1]) : "صنف";
-    const packagingName = l.x_packaging_id ? stripRef(l.x_packaging_id[1]) : "-";
+    const packagingName = packagingNames[lineIdx];
     const qty = l.product_uom_qty;
 
     const manualUnit =

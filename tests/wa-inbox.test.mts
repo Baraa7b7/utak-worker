@@ -120,58 +120,120 @@ assert("empty gives <p></p>",
   textToHtml("") === "<p></p>");
 
 // ============================================================
-// 3. isInside24hWindow (mocked Odoo)
+// 3. isInside24hWindow — KV first, then Odoo fallbacks
 // ============================================================
-console.log("\n[3] isInside24hWindow — reads from x_wa_message and x_message_analysis");
-const { isInside24hWindow } = await import("../src/wa-inbox.ts");
+console.log("\n[3] isInside24hWindow — KV first, Odoo fallback, UTC boundaries");
+const { isInside24hWindow, kvLastInboundTs, parseMetaTimestampMs } = await import("../src/wa-inbox.ts");
 
-// case 3a: no rows → closed
+// case 3a: nothing anywhere → closed
 reset();
 mockResponses.set("x_wa_message.search_read", []);
 mockResponses.set("x_message_analysis.search_read", []);
+mockResponses.set("mail.message.search_read", []);
 {
   const ok = await isInside24hWindow(makeEnv(), 100);
-  assert("no rows → false", ok === false);
+  assert("no evidence anywhere → false", ok === false);
 }
 
-// case 3b: recent x_wa_message row → open
+// case 3b: recent x_wa_message row → open (KV empty; Odoo fallback path)
 reset();
 const now = Date.now();
 const recent = new Date(now - 60 * 60 * 1000).toISOString().replace("T", " ").slice(0, 19);
 mockResponses.set("x_wa_message.search_read", [{ create_date: recent }]);
 mockResponses.set("x_message_analysis.search_read", []);
+mockResponses.set("mail.message.search_read", []);
 {
   const ok = await isInside24hWindow(makeEnv(), 100);
-  assert("recent x_wa_message → true", ok === true);
+  assert("recent x_wa_message.create_date → true", ok === true);
 }
 
-// case 3c: old row → closed
+// case 3c: old x_wa_message + old classifier → closed
 reset();
 const old = new Date(now - 48 * 60 * 60 * 1000).toISOString().replace("T", " ").slice(0, 19);
 mockResponses.set("x_wa_message.search_read", [{ create_date: old }]);
-mockResponses.set("x_message_analysis.search_read", []);
+mockResponses.set("x_message_analysis.search_read", [{ x_created_at: old }]);
+mockResponses.set("mail.message.search_read", []);
 {
   const ok = await isInside24hWindow(makeEnv(), 100);
-  assert("old x_wa_message → false", ok === false);
+  assert("both old + no channel history → false", ok === false);
 }
 
-// case 3d: only x_message_analysis is recent → open
+// case 3d: only x_message_analysis recent → open
 reset();
 mockResponses.set("x_wa_message.search_read", []);
 mockResponses.set("x_message_analysis.search_read", [{ x_created_at: recent }]);
+mockResponses.set("mail.message.search_read", []);
 {
   const ok = await isInside24hWindow(makeEnv(), 100);
   assert("recent x_message_analysis → true", ok === true);
 }
 
-// case 3e: both old
+// case 3e: KV holds a recent Meta timestamp → open, Odoo not queried at all
 reset();
 mockResponses.set("x_wa_message.search_read", [{ create_date: old }]);
 mockResponses.set("x_message_analysis.search_read", [{ x_created_at: old }]);
+mockResponses.set("mail.message.search_read", []);
+{
+  const env = makeEnv();
+  await env.MSG_DEDUP.put(kvLastInboundTs(100), String(now - 2 * 60 * 60 * 1000)); // 2h ago
+  const ok = await isInside24hWindow(env, 100);
+  assert("KV recent → open even when Odoo says old", ok === true);
+  const odooCalls = captured.filter(
+    (c) => String(c.url).includes("/json/2/x_wa_message/search_read") ||
+           String(c.url).includes("/json/2/x_message_analysis/search_read"),
+  );
+  assert("KV hit short-circuits Odoo reads", odooCalls.length === 0,
+    `unexpected Odoo reads: ${odooCalls.length}`);
+}
+
+// case 3f: KV old, Odoo old, mail.message on channel recent → open (safety net)
+reset();
+mockResponses.set("x_wa_message.search_read", []);
+mockResponses.set("x_message_analysis.search_read", []);
+mockResponses.set("mail.message.search_read", [{ date: recent }]);
 {
   const ok = await isInside24hWindow(makeEnv(), 100);
-  assert("both old → false", ok === false);
+  assert("recent mail.message on channel → true (safety net)", ok === true);
 }
+
+// case 3g: UTC boundary — exactly 24h - 1ms ago is still inside, exactly 24h ago is outside
+reset();
+mockResponses.set("x_wa_message.search_read", []);
+mockResponses.set("x_message_analysis.search_read", []);
+mockResponses.set("mail.message.search_read", []);
+{
+  const env = makeEnv();
+  // 24h + 1s ago: definitely outside
+  await env.MSG_DEDUP.put(kvLastInboundTs(101), String(now - (24 * 60 * 60 * 1000 + 1000)));
+  const outside = await isInside24hWindow(env, 101);
+  assert("24h + 1s ago → outside", outside === false);
+  // 5 minutes ago: inside
+  await env.MSG_DEDUP.put(kvLastInboundTs(102), String(now - 5 * 60 * 1000));
+  const inside = await isInside24hWindow(env, 102);
+  assert("5min ago → inside", inside === true);
+  // exactly the cutoff boundary: 24h - 100ms ago → inside
+  await env.MSG_DEDUP.put(kvLastInboundTs(103), String(now - (24 * 60 * 60 * 1000 - 100)));
+  const inside2 = await isInside24hWindow(env, 103);
+  assert("24h - 100ms → inside", inside2 === true);
+}
+
+// case 3h: partnerId=0 always false (owner-guard failure path shouldn't leak)
+reset();
+{
+  const ok = await isInside24hWindow(makeEnv(), 0);
+  assert("partnerId=0 → false without any I/O", ok === false);
+  assert("no fetches issued for partnerId=0", captured.length === 0);
+}
+
+// case 3i: parseMetaTimestampMs — pure helper for the timestamp gate
+assert("parseMetaTimestampMs undefined → null", parseMetaTimestampMs(undefined) === null);
+assert("parseMetaTimestampMs empty → null", parseMetaTimestampMs("") === null);
+assert("parseMetaTimestampMs unix seconds → ms",
+  parseMetaTimestampMs("1727280000") === 1727280000 * 1000);
+assert("parseMetaTimestampMs already ms → passthrough",
+  parseMetaTimestampMs(String(1727280000 * 1000)) === 1727280000 * 1000);
+assert("parseMetaTimestampMs negative → null", parseMetaTimestampMs("-5") === null);
+assert("parseMetaTimestampMs non-numeric → null", parseMetaTimestampMs("abc") === null);
 
 // ============================================================
 // 4. evaluateInboxReplyMessage — author gate

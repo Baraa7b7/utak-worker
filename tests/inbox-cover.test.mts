@@ -147,18 +147,26 @@ reset();
   assert("customer route", r.route === "customer" && r.partnerId === 41);
 }
 
-// 2d: owner short-circuits mirror
+// 2d: owner now mirrors (fix 2026-09-20) — the short-circuit that used to
+// drop Baraa's own test messages is gone; the route is still tagged "owner"
+// so the customer-bot routing in index.ts stays quiet.
 reset();
+mockResponses.set("res.partner.search_read", []);            // no team / supplier / customer
+mockResponses.set("x_employee_role.search_read", [{ id: 5 }]); // findOrCreateCustomer create prerequisite
+mockResponses.set("res.partner.create", [4242]);             // partner id for the owner-as-customer row
+// After create, ensureInboxChannel reads x_wa_channel_id and getBaraaPartnerId
+// needs an internal user with a partner.
+mockResponses.set("res.partner.read", [{ id: 4242, x_wa_channel_id: [77, "واتساب · #4242"] }]);
+mockResponses.set("res.users.search_read", [{ id: 2, partner_id: [7, "Baraa"] }]);
 {
   const r = await ingestInbound(
     makeEnv(),
     { partnerId: 0, partnerName: "", wamid: "wamid_4", type: "text", text: "hi",
       from: "+966505154962", profileName: "Baraa" },
   );
-  assert("owner returns route=owner", r.route === "owner");
-  assert("owner mirrored=false with skip=owner",
-    r.mirrored === false && r.skip === "owner");
-  assert("owner has no partner id", r.partnerId === null);
+  assert("owner marked as route=owner", r.route === "owner");
+  assert("owner mirrored=true (message reaches Discuss)", r.mirrored === true);
+  assert("owner gets a partner id", r.partnerId === 4242);
 }
 
 // 2e: new-partner path when no match anywhere — creates via findOrCreateCustomer
@@ -192,16 +200,19 @@ mockResponses.set("res.partner.create", [5555]);
 }
 
 // ============================================================
-// 3. ingestInbound source stamping (x_wa_message)
+// 3. ingestInbound source stamping (x_wa_message) + Meta timestamp
 // ============================================================
-console.log("\n[3] source stamping");
+console.log("\n[3] source stamping + Meta timestamp");
 reset();
 mockPartnerWithChannel(9, 19);
 {
+  // Meta timestamp = an hour ago (unix seconds as string)
+  const oneHourAgoSec = String(Math.floor(Date.now() / 1000) - 3600);
+  const env = makeEnv();
   await ingestInbound(
-    makeEnv(),
+    env,
     { partnerId: 0, partnerName: "", wamid: "wamid_7", type: "text", text: "hi",
-      from: "+966545816832", profileName: "Omar" },
+      from: "+966545816832", profileName: "Omar", metaTimestamp: oneHourAgoSec },
     { team: { id: 9, name: "عمر" }, supplier: null, customer: null },
   );
   const created = captured.filter(
@@ -214,6 +225,30 @@ mockPartnerWithChannel(9, 19);
   assert("x_direction = 'in'", vals.x_direction === "in");
   assert("x_meta_message_id set", vals.x_meta_message_id === "wamid_7");
   assert("x_partner_id = 9", vals.x_partner_id === 9);
+  // x_processed_at should reflect the Meta timestamp, not now.
+  const procAt = String(vals.x_processed_at ?? "");
+  const expected = new Date(Number(oneHourAgoSec) * 1000).toISOString().replace("T", " ").slice(0, 19);
+  assert("x_processed_at set to Meta timestamp", procAt === expected,
+    `got ${procAt}, expected ${expected}`);
+  // KV wa_inbox:last_in_ts:9 should hold the Meta ms.
+  // deno-lint-ignore no-explicit-any
+  const kvVal = await (env as any).MSG_DEDUP.get("wa_inbox:last_in_ts:9");
+  assert("KV last_in_ts stored", kvVal === String(Number(oneHourAgoSec) * 1000));
+
+  // Mirror should use discuss.channel.message_post (live update via bus), not
+  // mail.message.create directly.
+  const posts = captured.filter(
+    (c) => String(c.url).endsWith("/discuss.channel/message_post"),
+  );
+  const creates = captured.filter(
+    (c) => String(c.url).endsWith("/mail.message/create"),
+  );
+  assert("mirror uses discuss.channel.message_post", posts.length >= 1);
+  assert("mirror does NOT use mail.message.create", creates.length === 0);
+  // deno-lint-ignore no-explicit-any
+  const postArgs = (posts[0]?.body as any) ?? {};
+  assert("message_post uses body_is_html=true", postArgs.body_is_html === true);
+  assert("message_post targets the channel", Array.isArray(postArgs.ids) && postArgs.ids[0] === 19);
 }
 
 // ============================================================
@@ -230,13 +265,14 @@ mockResponses.set("res.partner.search_read", [{ id: 42 }]); // UTAK بوت
 {
   const { echoOutbound } = await import("../src/wa-inbox.ts");
   await echoOutbound(makeEnv(), 30, "أحمد", "مرحبا يا شريكنا");
-  const created = captured.filter(
-    (c) => String(c.url).endsWith("/mail.message/create"),
+  const posts = captured.filter(
+    (c) => String(c.url).endsWith("/discuss.channel/message_post"),
   );
-  assert("mail.message.create called once", created.length === 1);
+  assert("discuss.channel.message_post called once", posts.length === 1);
   // deno-lint-ignore no-explicit-any
-  const vals = (created[0]?.body as any)?.vals_list?.[0] ?? {};
-  const body = String(vals.body ?? "");
+  const args = (posts[0]?.body as any) ?? {};
+  const body = String(args.body ?? "");
+  assert("body_is_html=true so styling is preserved", args.body_is_html === true);
   assert("body includes 🤖 آلي prefix", body.includes("🤖 آلي"));
   assert("body includes original text", body.includes("مرحبا يا شريكنا"));
   assert("body uses green/left-border style",
@@ -251,12 +287,12 @@ mockResponses.set("res.partner.search_read", [{ id: 42 }]);
 {
   const { echoOutbound } = await import("../src/wa-inbox.ts");
   await echoOutbound(makeEnv(), 30, "أحمد", "التفاصيل", "customer_welcome");
-  const created = captured.filter(
-    (c) => String(c.url).endsWith("/mail.message/create"),
+  const posts = captured.filter(
+    (c) => String(c.url).endsWith("/discuss.channel/message_post"),
   );
   // deno-lint-ignore no-explicit-any
-  const vals = (created[0]?.body as any)?.vals_list?.[0] ?? {};
-  const body = String(vals.body ?? "");
+  const args = (posts[0]?.body as any) ?? {};
+  const body = String(args.body ?? "");
   assert("template label rendered as '🤖 آلي · customer_welcome'",
     body.includes("🤖 آلي · customer_welcome"));
 }

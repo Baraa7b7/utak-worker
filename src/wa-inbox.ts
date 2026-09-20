@@ -162,12 +162,13 @@ export async function ensureInboxChannel(
 
 /**
  * Post `body` (HTML) to `channelId` as `authorPartnerId`. Uses
- * mail.message.create directly instead of discuss.channel.message_post
- * because message_post's body arg is TEXT (Odoo escapes and re-wraps in
- * <p>), which would double-wrap our already-HTML bodies and turn the tags
- * into visible &lt;p&gt; text. Direct create stores the HTML verbatim,
- * matching what backfilled rows look like.
- * Returns true on success.
+ * discuss.channel.message_post with body_is_html=true so Odoo:
+ *   1. keeps our HTML verbatim (probe 2026-09-20: body_is_html bypasses the
+ *      plaintext2html wrap that turned `<b>` into `&lt;b&gt;` on plain calls);
+ *   2. broadcasts the bus.bus notification `discuss.channel/new_message`,
+ *      which is what makes the message appear in the Discuss UI live without
+ *      a page refresh. mail.message.create alone did neither.
+ * Returns true on success. Failure is non-fatal for the caller.
  */
 export async function postToChannel(
   env: Env,
@@ -177,18 +178,18 @@ export async function postToChannel(
   attachmentIds: number[] = [],
 ): Promise<boolean> {
   try {
-    const vals: Record<string, unknown> = {
-      model: "discuss.channel",
-      res_id: channelId,
+    const args: Record<string, unknown> = {
+      ids: [channelId],
+      body,
+      body_is_html: true,
       message_type: "comment",
       author_id: authorPartnerId,
-      body,
+      subtype_xmlid: "mail.mt_comment",
     };
     if (attachmentIds.length > 0) {
-      // m2m command form Odoo 19 JSON-2 accepts for attachment_ids on create.
-      vals.attachment_ids = attachmentIds.map((id) => [4, id]);
+      args.attachment_ids = attachmentIds;
     }
-    await call(env, "mail.message", "create", { vals_list: [vals] });
+    await call(env, "discuss.channel", "message_post", args);
     return true;
   } catch (e) {
     console.warn("[wa-inbox] postToChannel failed", (e as Error).message);
@@ -499,7 +500,7 @@ export function phoneTail(s: string): string {
 
 export async function ingestInbound(
   env: Env,
-  m: InboundForInbox & { from: string; profileName?: string },
+  m: InboundForInbox & { from: string; profileName?: string; metaTimestamp?: string },
   looked?: {
     team?: { id: number; name: string } | null;
     supplier?: { id: number; name: string } | null;
@@ -509,9 +510,13 @@ export async function ingestInbound(
   const fromTail = phoneTail(m.from);
   const ownerDigits = (env.OWNER_WHATSAPP || "").replace(/[^0-9]/g, "");
   const fromDigits = m.from.replace(/[^0-9]/g, "");
-  if (ownerDigits && fromDigits && ownerDigits === fromDigits) {
-    return { fromTail, partnerId: null, partnerName: "", route: "owner", mirrored: false, skip: "owner" };
-  }
+  const isOwner = Boolean(ownerDigits && fromDigits && ownerDigits === fromDigits);
+  // 2026-09-20 (fix) — the owner short-circuit used to return early with
+  // mirrored=false. That made Baraa's own test messages invisible in the
+  // inbox even though the mirror was the whole point. We now proceed through
+  // the same lookup+mirror path; `route` is still reported as "owner" so
+  // callers that want to skip customer-bot routing can, but the Discuss
+  // channel receives the message like any other partner.
 
   // Team → supplier → customer → new. Passed-in matches let the caller
   // reuse a Promise.all it did for other reasons; we still fall back to
@@ -559,6 +564,24 @@ export async function ingestInbound(
     }
   }
 
+  // Owner override: if this is Baraa's own personal number, report route
+  // as "owner" so the caller's customer-bot routing skips it, even though
+  // the mirror still runs.
+  if (isOwner) route = "owner";
+
+  // 2026-09-20 (fix) — record Meta's own timestamp for the sender BEFORE the
+  // mirror so the 24h-window check can trust it even if x_wa_message row
+  // creation fails downstream. The Meta timestamp is unix seconds as a
+  // string. Fallback to now() if Meta didn't send one (very rare).
+  const metaMs = parseMetaTimestampMs(m.metaTimestamp) ?? Date.now();
+  try {
+    await env.MSG_DEDUP.put(kvLastInboundTs(matched.id), String(metaMs), {
+      expirationTtl: LAST_INBOUND_TTL,
+    });
+  } catch (e) {
+    console.warn("[inbox ingest] KV write last_in_ts failed:", (e as Error).message);
+  }
+
   // Log x_wa_message with source='inbound'. Best-effort; a KV / Odoo hiccup
   // must not stop the mirror below.
   const bodyForLog =
@@ -582,6 +605,7 @@ export async function ingestInbound(
       metaMessageId: m.wamid,
       status: "received",
       source: "inbound",
+      metaTimestampMs: metaMs,
     });
   } catch (e) {
     console.warn("[inbox ingest] logWaMessage failed:", (e as Error).message);
@@ -609,6 +633,29 @@ export async function ingestInbound(
       skip: `mirror: ${(e as Error).message}`,
     };
   }
+}
+
+// -------------------------------------------------------------
+// 24h window — KV state + Meta timestamp
+// -------------------------------------------------------------
+
+/** KV key holding the unix-ms timestamp of the last inbound Meta message per partner. */
+export function kvLastInboundTs(partnerId: number): string {
+  return `wa_inbox:last_in_ts:${partnerId}`;
+}
+const LAST_INBOUND_TTL = 25 * 60 * 60; // 25h so a fresh inbound still fits inside the 24h window
+
+/**
+ * Parse a Meta webhook `timestamp` (unix seconds as string) into unix ms in
+ * UTC. Returns null if the value is missing or not a positive number.
+ */
+export function parseMetaTimestampMs(v: string | undefined): number | null {
+  if (!v) return null;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  // Meta docs say the value is unix seconds. Accept ms too (n > 1e12) for
+  // safety, so a caller passing already-converted ms still gets it right.
+  return n > 1e12 ? Math.floor(n) : Math.floor(n * 1000);
 }
 
 // -------------------------------------------------------------
@@ -647,28 +694,65 @@ export function htmlToText(html: string): string {
 
 /**
  * Returns true iff `partnerId` has an inbound WhatsApp event newer than 24h.
- * Sources: latest x_wa_message with x_direction='in', OR latest
- * x_message_analysis.x_created_at. Any read failure defers to "closed" so we
- * do not accidentally send free-form text into a stale window.
+ * Sources (in order, first that yields a fresh unix-ms wins the compare):
+ *   1. KV `wa_inbox:last_in_ts:<partnerId>` — Meta's own timestamp for the
+ *      most recent inbound, written by ingestInbound. This is the primary
+ *      source because it reflects Meta's own clock, in UTC, and never lags
+ *      behind Odoo write latency.
+ *   2. x_wa_message with x_direction='in' — the audit tab in Odoo. Uses
+ *      x_processed_at (Meta timestamp, set by logWaMessage on inbound) with
+ *      create_date as a legacy fallback for pre-fix rows.
+ *   3. x_message_analysis.x_created_at — classifier records; kept for
+ *      backward compat with prior conversations that never hit x_wa_message.
+ *   4. mail.message on the partner's Discuss channel authored by the partner
+ *      themselves — the mirror row. Safety net so a channel with visible
+ *      inbounds is never wrongly reported closed.
+ * All comparisons in UTC unix ms. A read failure on a source is treated as
+ * "no evidence" (never as "closed"), so one failing lookup does not lock the
+ * user out when another source has the answer.
  */
 export async function isInside24hWindow(env: Env, partnerId: number): Promise<boolean> {
   if (!partnerId) return false;
   const cutoff = Date.now() - 24 * 60 * 60 * 1000;
   let latest = 0;
+
+  // (1) KV — the fastest and most accurate source.
   try {
-    const rows = await call<Array<{ create_date: string }>>(env, "x_wa_message", "search_read", {
-      domain: [["x_partner_id", "=", partnerId], ["x_direction", "=", "in"]],
-      fields: ["create_date"],
-      order: "create_date desc",
-      limit: 1,
-    });
-    if (rows[0]?.create_date) {
-      const t = Date.parse(rows[0].create_date.replace(" ", "T") + "Z");
+    const raw = await env.MSG_DEDUP.get(kvLastInboundTs(partnerId));
+    if (raw) {
+      const t = Number(raw);
+      if (Number.isFinite(t) && t > 0) latest = Math.max(latest, t);
+    }
+  } catch (e) {
+    console.warn("[wa-inbox] window read KV failed", (e as Error).message);
+  }
+  if (latest > cutoff) return true;
+
+  // (2) x_wa_message.x_processed_at (Meta timestamp), fallback to create_date.
+  try {
+    const rows = await call<Array<{ create_date: string; x_processed_at: string | false }>>(
+      env,
+      "x_wa_message",
+      "search_read",
+      {
+        domain: [["x_partner_id", "=", partnerId], ["x_direction", "=", "in"]],
+        fields: ["create_date", "x_processed_at"],
+        order: "create_date desc",
+        limit: 1,
+      },
+    );
+    const r = rows[0];
+    const src = (typeof r?.x_processed_at === "string" && r.x_processed_at) || r?.create_date;
+    if (src) {
+      const t = Date.parse(String(src).replace(" ", "T") + "Z");
       if (Number.isFinite(t)) latest = Math.max(latest, t);
     }
   } catch (e) {
     console.warn("[wa-inbox] window read x_wa_message failed", (e as Error).message);
   }
+  if (latest > cutoff) return true;
+
+  // (3) x_message_analysis.
   try {
     const rows = await call<Array<{ x_created_at: string }>>(env, "x_message_analysis", "search_read", {
       domain: [["x_customer_id", "=", partnerId]],
@@ -683,6 +767,30 @@ export async function isInside24hWindow(env: Env, partnerId: number): Promise<bo
   } catch (e) {
     console.warn("[wa-inbox] window read x_message_analysis failed", (e as Error).message);
   }
+  if (latest > cutoff) return true;
+
+  // (4) mail.message on the partner's Discuss channel authored by the partner
+  //     themselves (safety net for pre-fix conversations where the mirror
+  //     ran but no x_wa_message row was ever written).
+  try {
+    const rows = await call<Array<{ date: string }>>(env, "mail.message", "search_read", {
+      domain: [
+        ["model", "=", "discuss.channel"],
+        ["author_id", "=", partnerId],
+        ["message_type", "=", "comment"],
+      ],
+      fields: ["date"],
+      order: "date desc",
+      limit: 1,
+    });
+    if (rows[0]?.date) {
+      const t = Date.parse(String(rows[0].date).replace(" ", "T") + "Z");
+      if (Number.isFinite(t)) latest = Math.max(latest, t);
+    }
+  } catch (e) {
+    console.warn("[wa-inbox] window read mail.message failed", (e as Error).message);
+  }
+
   return latest > cutoff;
 }
 

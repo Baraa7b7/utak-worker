@@ -1667,6 +1667,10 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           media: msg.media,
           from: msg.from,
           profileName: msg.profileName,
+          // 2026-09-20 (fix) — Meta's own timestamp (unix seconds as string)
+          // for the 24h-window source of truth; see parseMetaTimestampMs in
+          // wa-inbox.ts.
+          metaTimestamp: msg.timestamp,
         },
         {
           team: t ? { id: t.id, name: t.name } : null,

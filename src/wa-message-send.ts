@@ -480,15 +480,26 @@ export interface LogInboundArgs {
    */
   source?: "auto" | "manual" | "inbound";
   manual?: boolean;
+  /**
+   * 2026-09-20 (fix) — unix ms of the source-of-truth timestamp for this
+   * event. On inbound, callers pass Meta's own timestamp (already parsed
+   * to ms by parseMetaTimestampMs); the value lands in x_processed_at so
+   * the 24h-window check reads a Meta clock, not our own. Omitted →
+   * fall back to now().
+   */
+  metaTimestampMs?: number;
 }
 
 export async function logWaMessage(env: Env, a: LogInboundArgs): Promise<void> {
   try {
+    const processedAt = typeof a.metaTimestampMs === "number" && Number.isFinite(a.metaTimestampMs)
+      ? new Date(a.metaTimestampMs).toISOString().replace("T", " ").slice(0, 19)
+      : nowOdoo();
     const vals: Record<string, unknown> = {
       x_direction: a.direction,
       x_kind: a.kind,
       x_status: a.status ?? (a.direction === "in" ? "received" : "sent"),
-      x_processed_at: nowOdoo(),
+      x_processed_at: processedAt,
     };
     if (a.partnerId) vals.x_partner_id = a.partnerId;
     if (a.body) vals.x_body = a.body.slice(0, 2000);

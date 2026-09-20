@@ -61,6 +61,11 @@ import {
   type InjectInput,
 } from "./sim";
 import { parseAllowlist, runtimeMode } from "./config";
+import {
+  classifySignatureFailure,
+  handleSignatureFailure,
+  readRecentSignatureFailures,
+} from "./webhook-alert";
 
 export default {
   async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
@@ -116,11 +121,22 @@ export default {
 
     if (request.method === "GET" && url.pathname === "/health") {
       const odoo = await smokeTest(env);
+      // 2026-09-21 — surface the 7-day signature-failure counter so one
+      // curl on /health is enough to know if webhook rejects are silently
+      // piling up, without waiting on the daily WhatsApp alert to fire.
+      const sigFailures = await readRecentSignatureFailures(env, 7).catch(
+        () => [] as { date: string; count: number }[],
+      );
+      const sigFailuresTotal = sigFailures.reduce((a, b) => a + b.count, 0);
       return json(
         {
           status: odoo.ok ? "ok" : "degraded",
           odoo: odoo.ok ? `connected (${odoo.mode})` : "failed",
           error: odoo.ok ? undefined : odoo.error,
+          sigFailures: {
+            totalLast7Days: sigFailuresTotal,
+            byDay: sigFailures,
+          },
           timestamp: new Date().toISOString(),
         },
         odoo.ok ? 200 : 503,
@@ -1308,7 +1324,21 @@ export default {
       const raw = await request.text();
       const sig = request.headers.get("x-hub-signature-256");
       const ok = await verifySignature(raw, sig, env);
-      if (!ok) return new Response("bad signature", { status: 401 });
+      if (!ok) {
+        // 2026-09-21 — silent-outage insurance. Log the rejection, bump the
+        // daily KV counter and (once per Riyadh calendar day) fire a
+        // WhatsApp alert to OWNER_WHATSAPP so a rotated / mismatched
+        // META_APP_SECRET can never sit undetected for ten days again.
+        // Runs via ctx.waitUntil so the 401 returns without waiting on KV
+        // or Meta; any error inside stays inside the module.
+        const failureTask = handleSignatureFailure(env, {
+          rawBodyLength: raw.length,
+          signatureHeader: sig,
+          reason: classifySignatureFailure(sig),
+        });
+        ctx.waitUntil(failureTask);
+        return new Response("bad signature", { status: 401 });
+      }
 
       let payload: unknown;
       try {

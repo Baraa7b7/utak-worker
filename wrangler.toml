@@ -46,17 +46,39 @@ preview_id = "b423e1498d624696ac10ed101c621742"
 # v3 — Cron triggers (Cloudflare Workers Free tier: up to 3 cron routes)
 # Riyadh is UTC+3 (no DST).
 # ------------------------------------------------------------
+# ⚠️ prod crons موقوفة نهائياً في هذا الملف — قرار 2026-09-16
+#    (مؤكَّد بصرياً من لوحة Cloudflare يوم 2026-09-21: "No cron triggers configured").
+#
+# لماذا فارغة: التشغيل الحقيقي للـpilot يجري على utak-worker-sim مع
+# PILOT_MODE=true وSIM_ALLOWLIST محدودة. جدولة prod أُوقفت يدوياً من
+# Cloudflare dashboard، لكن أي `wrangler deploy` مستقبلي (بدون --env) كان
+# سيعيد كتابة الثمانية من هذا الملف — فتشتغل المهام مرتين على نفس Odoo
+# tenant ونفس رقم واتساب، ونسخة prod بلا PILOT_MODE وبلا SIM_ALLOWLIST أي
+# ترسل لكل الأرقام. تفريغ crons هنا يجعل الإيقاف دائماً في الملف نفسه،
+# فأي redeploy لاحق لا يعيد الجدولة عرَضياً.
+#
+# متى تُعاد: عند الانتقال الحقيقي إلى prod (نهاية الـpilot). الخطوات مرتبة
+# ولا تُقلَب:
+#   1) أوقف [env.sim.triggers] أولاً بجعلها crons = []، ثم انشر sim
+#      (wrangler deploy --env sim). هذا يوقف جدولة sim قبل تفعيل جدولة prod.
+#   2) تحقّق من Cloudflare dashboard و`wrangler tail utak-worker-sim` أن
+#      utak-worker-sim لم يعد يشغّل الكرونات.
+#   3) انسخ المواعيد الثمانية من الكتلة المحفوظة أدناه إلى crons = [ ... ]
+#      هنا حرفياً (بنفس التعليقات).
+#   4) `wrangler deploy` (بدون --env) لإعادة تفعيل جدولة prod.
+#
+# المواعيد المحفوظة للاستعادة (بنسخ ولصق حرفياً — لا تعدّل بدون سبب):
+#   "0 23 * * *",   # 02:00 Riyadh — v3: ask all active suppliers for daily prices
+#   "0 2 * * *",    # 05:00 Riyadh — v3: recompute supplier reliability scores
+#   "0 3 * * *",    # 06:00 Riyadh — v3: open ordering flag + missing-supplier alert
+#   "0 18 * * *",   # 21:00 Riyadh — v4: close unconfirmed orders
+#   "15 18 * * *",  # 21:15 Riyadh — v4: aggregate + dispatch purchase list to warehouse
+#   "0 15 * * *",   # 18:00 Riyadh — v5: daily collection summary
+#   "0 14 * * *",   # 17:00 Riyadh — v6.1: standing-order reminders
+#   "0 5 * * *"     # 08:00 Riyadh — v7: daily outreach (feedback, pay_remind, inactive)
+# ------------------------------------------------------------
 [triggers]
-crons = [
-  "0 23 * * *",   # 02:00 Riyadh — v3: ask all active suppliers for daily prices
-  "0 2 * * *",    # 05:00 Riyadh — v3: recompute supplier reliability scores
-  "0 3 * * *",    # 06:00 Riyadh — v3: open ordering flag + missing-supplier alert
-  "0 18 * * *",   # 21:00 Riyadh — v4: close unconfirmed orders
-  "15 18 * * *",  # 21:15 Riyadh — v4: aggregate + dispatch purchase list to warehouse
-  "0 15 * * *",   # 18:00 Riyadh — v5: daily collection summary
-  "0 14 * * *",   # 17:00 Riyadh — v6.1: standing-order reminders
-  "0 5 * * *"     # 08:00 Riyadh — v7: daily outreach (feedback, pay_remind, inactive)
-]
+crons = []
 
 # ------------------------------------------------------------
 # R2: invoice PDF archive (added 2026-09-05)

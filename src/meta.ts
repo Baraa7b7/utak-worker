@@ -186,6 +186,16 @@ export function parseWebhook(payload: unknown): NormalizedMessage[] {
 // send layer ever grows further metadata.
 export interface SendOpts {
   purpose?: string;
+  /**
+   * 2026-09-20 — request-scoped ExecutionContext. When present, the Discuss
+   * inbox echo is dispatched via ctx.waitUntil so the send returns as soon
+   * as Meta's response comes back; the mirror mail.message.create runs in
+   * the background and the Worker instance is held open until it settles.
+   * Callers on the hot path (handleInboxReplyHook, /webhook) pass their
+   * request's ctx; callers without one (crons, scripts) leave it unset and
+   * fall back to the awaited path — never a fire-and-forget promise.
+   */
+  ctx?: ExecutionContext;
 }
 
 // Purposes permitted to reach OWNER_WHATSAPP. Anything else addressed at
@@ -291,12 +301,13 @@ export async function fetchMeta(
       return metaErrorResponse(msg, "SimStorageError", 500);
     }
     // 2026-09-20 (inbox) — echo the send into the recipient's Discuss
-    // channel so Baraa sees a unified conversation. Awaited (not fire-
-    // and-forget) because a Worker instance can be recycled the moment
-    // fetchMeta returns; every failure inside is already try/catch'd and
-    // never affects the send's return path.
-    try { await echoOutboundToInbox(env, to, body); }
-    catch (e) { console.warn("[fetchMeta] sim echo failed:", (e as Error).message); }
+    // channel so Baraa sees a unified conversation. When a ctx is
+    // threaded from the request handler we dispatch via ctx.waitUntil so
+    // the send returns as fast as Meta let us — the mirror still runs to
+    // completion in the background. Without ctx we await, so a script
+    // caller never turns the echo into a fire-and-forget promise the
+    // Worker might reclaim mid-flight.
+    await dispatchEcho(env, to, body, opts.ctx);
     return synthesizeMetaResponse(to, wamid);
   }
 
@@ -353,8 +364,7 @@ export async function fetchMeta(
       );
     }
     if (resp.ok) {
-      try { await echoOutboundToInbox(env, to, body); }
-      catch (e) { console.warn("[fetchMeta] pilot echo failed:", (e as Error).message); }
+      await dispatchEcho(env, to, body, opts.ctx);
     }
     return resp;
   }
@@ -362,10 +372,36 @@ export async function fetchMeta(
   // ---- prod: unchanged ----
   const prodResp = await metaRealSend(env, body);
   if (prodResp.ok) {
-    try { await echoOutboundToInbox(env, to, body); }
-    catch (e) { console.warn("[fetchMeta] prod echo failed:", (e as Error).message); }
+    await dispatchEcho(env, to, body, opts.ctx);
   }
   return prodResp;
+}
+
+/**
+ * Route the inbox echo to the right lifecycle:
+ *   - With ctx: schedule via ctx.waitUntil so fetchMeta returns immediately
+ *     and the Worker instance stays alive until the mirror settles.
+ *   - Without ctx: await it inline so no unattached promise gets orphaned
+ *     if the Worker is recycled the moment fetchMeta returns.
+ *
+ * Awaiting this function is a no-op in the ctx path and a real wait in the
+ * fallback — both are safe; the caller's total latency is bounded by which
+ * one is in play.
+ */
+async function dispatchEcho(
+  env: Env,
+  to: string,
+  body: Record<string, unknown>,
+  ctx: ExecutionContext | undefined,
+): Promise<void> {
+  const task = echoOutboundToInbox(env, to, body).catch((e) =>
+    console.warn("[fetchMeta] echo failed:", (e as Error).message),
+  );
+  if (ctx) {
+    ctx.waitUntil(task);
+    return;
+  }
+  await task;
 }
 
 // -------------------------------------------------------------

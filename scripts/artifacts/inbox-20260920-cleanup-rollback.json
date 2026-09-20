@@ -1,0 +1,97 @@
+{
+  "generated_at": "2026-09-20T04:24:21.070Z",
+  "before": {
+    "partner_43": {
+      "id": 43,
+      "name": "smoke test (+966536251307)",
+      "phone": "+966536251307",
+      "x_whatsapp_number": "+966536251307",
+      "x_wa_channel_id": [
+        5,
+        "واتساب · smoke test (+966536251307)"
+      ],
+      "x_wa_allowed": true,
+      "customer_rank": 0,
+      "active": true
+    },
+    "partner_34": {
+      "id": 34,
+      "name": "TEMP-item3-customer",
+      "phone": false,
+      "x_whatsapp_number": "+966571777704",
+      "x_wa_channel_id": [
+        15,
+        "واتساب · TEMP-item3-customer"
+      ],
+      "customer_rank": 1,
+      "active": false
+    },
+    "channel_5": {
+      "id": 5,
+      "name": "واتساب · smoke test (+966536251307)",
+      "channel_type": "group",
+      "x_wa_partner_id": [
+        43,
+        "smoke test (+966536251307)"
+      ],
+      "message_ids": []
+    },
+    "channel_15": {
+      "id": 15,
+      "name": "واتساب · TEMP-item3-customer",
+      "channel_type": "group",
+      "x_wa_partner_id": [
+        34,
+        "TEMP-item3-customer"
+      ],
+      "message_ids": [
+        1933
+      ]
+    },
+    "messages_ch15": [
+      {
+        "id": 1933,
+        "author_id": [
+          42,
+          "UTAK بوت"
+        ],
+        "body": "<p>عرض سعر UTAK-Q-20260917-BAD002 — الإجمالي 15 ر.س</p>",
+        "date": "2026-09-17 19:05:08"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "unlinked_messages_ch15": [
+        1933
+      ]
+    },
+    {
+      "cleared_x_wa_channel_id": 34
+    },
+    {
+      "unlinked_channel": 15
+    },
+    {
+      "unlinked_channel": 5
+    },
+    {
+      "unlinked_partner": 43
+    },
+    {
+      "backfill_map_pruned": {
+        "before": 27,
+        "after": 26,
+        "dropped": [
+          {
+            "source_model": "x_wa_message",
+            "source_id": 7,
+            "mail_message_id": 1933,
+            "partner_id": 34,
+            "direction": "out"
+          }
+        ]
+      }
+    }
+  ]
+}

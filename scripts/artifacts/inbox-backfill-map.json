@@ -6,10 +6,6 @@
       "channel_id": 14
     },
     {
-      "partner_id": 34,
-      "channel_id": 15
-    },
-    {
       "partner_id": 15,
       "channel_id": 16
     },
@@ -44,13 +40,6 @@
       "source_id": 1,
       "mail_message_id": 1932,
       "partner_id": 30,
-      "direction": "out"
-    },
-    {
-      "source_model": "x_wa_message",
-      "source_id": 7,
-      "mail_message_id": 1933,
-      "partner_id": 34,
       "direction": "out"
     },
     {

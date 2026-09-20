@@ -35,6 +35,7 @@ interface ReplyResult {
 export async function handleInboxReplyHook(
   env: Env,
   mailMessageId: number,
+  ctx?: ExecutionContext,
 ): Promise<ReplyResult> {
   const gate: ReplyGate = await evaluateInboxReplyMessage(env, mailMessageId);
   if (!gate.send) {
@@ -92,7 +93,7 @@ export async function handleInboxReplyHook(
   // and the SIM_ALLOWLIST + x_wa_allowed gate, so a rejected recipient
   // shows up as a non-ok response here.
   const to = partnerPhone.startsWith("+") ? partnerPhone : `+${partnerPhone.replace(/[^0-9]/g, "")}`;
-  const resp = await sendText(env, to, bodyText, { purpose: "inbox_reply" });
+  const resp = await sendText(env, to, bodyText, { purpose: "inbox_reply", ctx });
   if (!resp.ok) {
     let errText = "";
     try { errText = (await resp.clone().text()).slice(0, 200); } catch { /* ignore */ }

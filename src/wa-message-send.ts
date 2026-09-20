@@ -206,6 +206,7 @@ interface HandleResult {
 export async function handleWaMessageWebhook(
   env: Env,
   waId: number,
+  ctx?: ExecutionContext,
 ): Promise<HandleResult> {
   const msg = await fetchWaMessage(env, waId);
   if (!msg) return { ok: false, final_status: "missing", reason: `no row ${waId}` };
@@ -366,7 +367,7 @@ export async function handleWaMessageWebhook(
         to: to.replace(/^\+/, ""),
         type: "text",
         text: { body: (msg.x_body || "").slice(0, 4096) },
-      }, { purpose: "wa_message_manual" });
+      }, { purpose: "wa_message_manual", ctx });
     } else if (isTemplate && tmpl) {
       const components =
         paramsArray.length > 0
@@ -384,7 +385,7 @@ export async function handleWaMessageWebhook(
           language: { code: tmpl.x_language || "ar" },
           components,
         },
-      }, { purpose: "wa_message_manual" });
+      }, { purpose: "wa_message_manual", ctx });
     } else if (isDocument) {
       const mediaId = await uploadMediaToMeta(
         env,
@@ -396,7 +397,7 @@ export async function handleWaMessageWebhook(
         to: to.replace(/^\+/, ""),
         type: "document",
         document: { id: mediaId, filename: (msg.x_filename as string) || "file" },
-      }, { purpose: "wa_message_manual" });
+      }, { purpose: "wa_message_manual", ctx });
     } else {
       return await fail(`نوع غير مدعوم: ${kind}`);
     }

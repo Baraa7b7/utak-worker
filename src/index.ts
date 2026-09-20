@@ -1224,7 +1224,7 @@ export default {
         (async () => {
           try {
             const { handleInboxReplyHook } = await import("./wa-inbox-reply");
-            const result = await handleInboxReplyHook(env, mmId);
+            const result = await handleInboxReplyHook(env, mmId, ctx);
             console.log("[wa-inbox hook]", JSON.stringify({ mmId, ...result }));
           } catch (e) {
             console.error(
@@ -1266,7 +1266,7 @@ export default {
         (async () => {
           try {
             const { handleWaMessageWebhook } = await import("./wa-message-send");
-            const result = await handleWaMessageWebhook(env, waId);
+            const result = await handleWaMessageWebhook(env, waId, ctx);
             console.log("[wa-msg hook]", JSON.stringify({ waId, ...result }));
           } catch (e) {
             console.error(
@@ -1719,7 +1719,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
     if (supplier) {
       const enriched = await enrichSupplier(env, supplier);
       const replyText = await handleSupplierReply(env, enriched, msg.text, msg.messageId);
-      if (replyText) await sendText(env, msg.from, replyText);
+      if (replyText) await sendText(env, msg.from, replyText, { ctx });
       await markSeen(env, msg.messageId);
       continue;
     }
@@ -1742,6 +1742,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
             env,
             msg.from,
             "تم بدء الدوام ✅ هذي مواقع توصيلات اليوم",
+            { ctx },
           );
           await flushPendingLocations(env, msg.from, pendingLocKey);
         } catch (e) {
@@ -1757,7 +1758,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           msg, intent: "other", senderType: "customer",
           partner: { id: teamMember.id, name: teamMember.name, x_whatsapp_number: teamMember.x_whatsapp_number },
         });
-        await sendReply(env, msg.from, reply);
+        await sendReply(env, msg.from, reply, ctx);
       } else if (msg.type === "text") {
         const pendingKey = `pending_issue:${teamMember.id}`;
         const pendingOrderId = await env.MSG_DEDUP.get(pendingKey);
@@ -1770,9 +1771,9 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
             await sendOwnerAlert(env,
               `⚠️ مشكلة توصيل\nسواق: ${teamMember.name}\nطلب: #${orderId}\nالمشكلة: ${msg.text}`);
           }
-          await sendText(env, msg.from, "تم تسجيل المشكلة، براء بيراجعها 🙏");
+          await sendText(env, msg.from, "تم تسجيل المشكلة، براء بيراجعها 🙏", { ctx });
         } else {
-          await sendText(env, msg.from, `مرحبا ${teamMember.name} 👋 استخدم الأزرار عشان نأكد الحالة.`);
+          await sendText(env, msg.from, `مرحبا ${teamMember.name} 👋 استخدم الأزرار عشان نأكد الحالة.`, { ctx });
         }
       }
       await markSeen(env, msg.messageId);
@@ -1827,7 +1828,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           intent: "request_quotation",
           senderType, partner,
         });
-        await sendReply(env, msg.from, reply);
+        await sendReply(env, msg.from, reply, ctx);
         await markSeen(env, msg.messageId);
         continue;
       }
@@ -1839,18 +1840,20 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           await setOrderNeighborhood(env, orderId, neigh);
           await env.MSG_DEDUP.delete(pendingKey);
           await sendText(env, msg.from,
-            `حفظنا الحي: ${neigh} ✅\nلو تقدر ترسل موقعك من قوقل مابس (📎 → موقع → موقعي الحالي) بيوصلك السائق أدق مرة جاية 🌿`);
+            `حفظنا الحي: ${neigh} ✅\nلو تقدر ترسل موقعك من قوقل مابس (📎 → موقع → موقعي الحالي) بيوصلك السائق أدق مرة جاية 🌿`,
+            { ctx });
           const reply: RouterReply = await dispatch(env, {
             msg: { ...msg, text: "خلاص" },
             intent: "request_quotation",
             senderType, partner,
           });
-          await sendReply(env, msg.from, reply);
+          await sendReply(env, msg.from, reply, ctx);
           await markSeen(env, msg.messageId);
           continue;
         }
         await sendText(env, msg.from,
-          "أرسل موقعك من قوقل مابس (📎 → موقع → موقعي الحالي)، أو اكتب اسم الحي فقط 🙏");
+          "أرسل موقعك من قوقل مابس (📎 → موقع → موقعي الحالي)، أو اكتب اسم الحي فقط 🙏",
+          { ctx });
         await markSeen(env, msg.messageId);
         continue;
       }
@@ -1860,7 +1863,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       const { latitude, longitude, name, address } = msg.location;
       const neigh = (name ?? address ?? "").trim().slice(0, 60);
       await savePartnerLocation(env, partner.id, latitude, longitude, neigh);
-      await sendText(env, msg.from, "حفظنا موقعك للتوصيل ✅ طلباتك الجاية بيوصلك السائق مباشرة.");
+      await sendText(env, msg.from, "حفظنا موقعك للتوصيل ✅ طلباتك الجاية بيوصلك السائق مباشرة.", { ctx });
       await markSeen(env, msg.messageId);
       continue;
     }
@@ -1873,7 +1876,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
 
     const reply: RouterReply = await dispatch(env, { msg, intent, senderType, partner });
 
-    await sendReply(env, msg.from, reply);
+    await sendReply(env, msg.from, reply, ctx);
     await markSeen(env, msg.messageId);
   }
 }
@@ -1891,14 +1894,19 @@ async function enrichSupplier(env: Env, supplier: OdooPartner): Promise<OdooPart
   };
 }
 
-async function sendReply(env: Env, to: string, reply: RouterReply): Promise<void> {
+async function sendReply(
+  env: Env,
+  to: string,
+  reply: RouterReply,
+  ctx?: ExecutionContext,
+): Promise<void> {
   if (reply.buttons && reply.buttons.length > 0) {
     const body = reply.bodyBeforeButtons ?? reply.text ?? "";
-    await sendButtons(env, to, body, reply.buttons);
+    await sendButtons(env, to, body, reply.buttons, { ctx });
     return;
   }
   if (reply.text && reply.text.trim()) {
-    await sendText(env, to, reply.text);
+    await sendText(env, to, reply.text, { ctx });
   }
 }
 

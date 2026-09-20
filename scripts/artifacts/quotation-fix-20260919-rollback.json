@@ -1,0 +1,67 @@
+{
+  "purpose": "Rollback snapshot for the 2026-09-19 quotation-fix change. Any Odoo mutation the apply script performs is recorded here BEFORE the write so it can be undone with scripts/quotation-fix-20260919-rollback.mjs (dry-run only).",
+  "captured_at": "2026-09-19",
+  "environment": {
+    "odoo_url": "https://utakfresh.odoo.com",
+    "odoo_db": "utakfresh",
+    "note": "Odoo tenant is SHARED between sim and prod. Every field below reflects the state observed on the shared tenant BEFORE apply."
+  },
+  "cloudflare": {
+    "sim_worker": "utak-worker-sim",
+    "note": "The new SALE_PDF_DOWNLOAD_TOKEN secret was set only on env=sim via `wrangler secret put SALE_PDF_DOWNLOAD_TOKEN --env sim`. To rotate: `wrangler secret put SALE_PDF_DOWNLOAD_TOKEN --env sim` again with a fresh 64-hex value, then update the Server Action's webhook_url via the apply script. To remove: `wrangler secret delete SALE_PDF_DOWNLOAD_TOKEN --env sim`."
+  },
+  "planned_mutations": [
+    {
+      "id": "ir.actions.report:433:binding_model_id",
+      "model": "ir.actions.report",
+      "record_id": 433,
+      "field": "binding_model_id",
+      "before": false,
+      "after": false,
+      "note": "sale.report_saleorder (standard Odoo Quotation report). Already unbound long before this change (write_date 2026-08-24). No mutation planned — apply script is a no-op for this row, script only re-asserts binding_model_id=false idempotently and logs BEFORE."
+    },
+    {
+      "id": "res.company:1:quotation_validity_days",
+      "model": "res.company",
+      "record_id": 1,
+      "field": "quotation_validity_days",
+      "before": 30,
+      "after": 0,
+      "note": "Company-level default. New quotations are created with validity_date = date_order (i.e. same day) when days=0."
+    },
+    {
+      "id": "ir.actions.server:new:sale.quotation.pdf_download",
+      "model": "ir.actions.server",
+      "record_id": null,
+      "before": null,
+      "after": {
+        "name": "sale.quotation.pdf_download",
+        "model_id": 2731,
+        "state": "code",
+        "code": "action = {'type': 'ir.actions.act_url', 'url': 'https://utak-worker-sim.utak-business.workers.dev/internal/sale-quotation-pdf?id=' + str(record.id) + '&token=<REDACTED>', 'target': 'new'}",
+        "binding_type": "action",
+        "binding_view_types": "list,form"
+      },
+      "note": "New server action returning ir.actions.act_url. Token embedded in code as plaintext (same pattern as id=970's webhook_url). Rollback: unlink this row (script prints the new id post-apply)."
+    },
+    {
+      "id": "ir.ui.view:sale.order.form.utak_pdf_button:arch",
+      "model": "ir.ui.view",
+      "record_id": null,
+      "before": null,
+      "after": {
+        "name": "sale.order.form.utak_pdf_button",
+        "type": "form",
+        "model": "sale.order",
+        "inherit_id": "sale.view_order_form",
+        "arch": "<data><xpath expr=\"//header\" position=\"inside\"><button name=\"{server_action_id}\" string=\"تنزيل PDF (UTAK)\" type=\"action\" class=\"btn-secondary\"/></xpath></data>"
+      },
+      "note": "New view row adding the header button next to the existing إرسال واتساب (UTAK). Rollback: unlink this ir.ui.view row (script prints the new id post-apply)."
+    }
+  ],
+  "post_apply_ids": {
+    "server_action_id": 971,
+    "view_id": 2789,
+    "note": "The apply script writes actual ids here after the create() call so rollback can find them."
+  }
+}

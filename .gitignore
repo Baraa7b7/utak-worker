@@ -12,3 +12,7 @@ src.v1.backup.*/
 *.bak2
 *.old
 .v8-backup/
+.env.sim-verify
+
+# Root-level generated PDFs (delivery-note, purchase-order, quotation, receipt)
+/*.pdf

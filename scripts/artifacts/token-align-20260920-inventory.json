@@ -1,0 +1,175 @@
+{
+  "generated_at": "2026-09-20T09:36:54.484Z",
+  "odoo_url": "https://utakfresh.odoo.com",
+  "odoo_db": "utakfresh",
+  "expected": [
+    941,
+    957,
+    963,
+    967,
+    968,
+    969,
+    970,
+    971,
+    974,
+    975,
+    979
+  ],
+  "missing": [],
+  "extras": [],
+  "rows": [
+    {
+      "id": 941,
+      "name": "UTAK: Issue & Send Quotation",
+      "state": "webhook",
+      "model": "UTAK Quotation",
+      "host": "utak-worker-sim.utak-business.workers.dev",
+      "path": "/internal/quotation-issue",
+      "tokenParam": "token",
+      "tokenLast4": "a6ed",
+      "automations": []
+    },
+    {
+      "id": 957,
+      "name": "Send Receipt Webhook",
+      "state": "webhook",
+      "model": "UTAK Payment",
+      "host": "utak-worker-sim.utak-business.workers.dev",
+      "path": "/internal/receipt-issue",
+      "tokenParam": "token",
+      "tokenLast4": "a6ed",
+      "automations": [
+        {
+          "id": 1,
+          "name": "UTAK: Issue & Send Receipt",
+          "active": true,
+          "model": "x_payment",
+          "trigger": "on_create"
+        }
+      ]
+    },
+    {
+      "id": 963,
+      "name": "wa_control.sync_webhook",
+      "state": "webhook",
+      "model": "WhatsApp Control",
+      "host": "utak-worker-sim.utak-business.workers.dev",
+      "path": "/odoo/hook/wa-template-sync",
+      "tokenParam": "token",
+      "tokenLast4": "c637",
+      "automations": [
+        {
+          "id": 6,
+          "name": "wa_control.on_sync_requested",
+          "active": true,
+          "model": "x_wa_control",
+          "trigger": "on_create_or_write"
+        }
+      ]
+    },
+    {
+      "id": 967,
+      "name": "wa_message.send_webhook",
+      "state": "webhook",
+      "model": "WhatsApp Message",
+      "host": "utak-worker-sim.utak-business.workers.dev",
+      "path": "/odoo/hook/wa",
+      "tokenParam": "token",
+      "tokenLast4": "c637",
+      "automations": [
+        {
+          "id": 7,
+          "name": "wa_message.on_queued",
+          "active": true,
+          "model": "x_wa_message",
+          "trigger": "on_create_or_write"
+        }
+      ]
+    },
+    {
+      "id": 968,
+      "name": "quotation.manual_pdf_build",
+      "state": "webhook",
+      "model": "UTAK Quotation",
+      "host": "utak-worker-sim.utak-business.workers.dev",
+      "path": "/internal/quotation-issue",
+      "tokenParam": "token",
+      "tokenLast4": "a6ed",
+      "automations": []
+    },
+    {
+      "id": 969,
+      "name": "quotation.manual_wa_send",
+      "state": "webhook",
+      "model": "UTAK Quotation",
+      "host": "utak-worker-sim.utak-business.workers.dev",
+      "path": "/internal/quotation-wa-send",
+      "tokenParam": "token",
+      "tokenLast4": "c637",
+      "automations": []
+    },
+    {
+      "id": 970,
+      "name": "sale.quotation.wa_send",
+      "state": "webhook",
+      "model": "Sales Order",
+      "host": "utak-worker-sim.utak-business.workers.dev",
+      "path": "/internal/sale-quotation-wa-send",
+      "tokenParam": "token",
+      "tokenLast4": "c637",
+      "automations": []
+    },
+    {
+      "id": 971,
+      "name": "sale.quotation.pdf_download",
+      "state": "code",
+      "model": "Sales Order",
+      "host": "utak-worker-sim.utak-business.workers.dev",
+      "path": "/internal/sale-quotation-pdf",
+      "tokenParam": "",
+      "tokenLast4": "",
+      "automations": []
+    },
+    {
+      "id": 974,
+      "name": "utak.invoice.pdf_download",
+      "state": "code",
+      "model": "Journal Entry",
+      "host": "utak-worker-sim.utak-business.workers.dev",
+      "path": "/internal/invoice-pdf",
+      "tokenParam": "",
+      "tokenLast4": "",
+      "automations": []
+    },
+    {
+      "id": 975,
+      "name": "utak.purchase.pdf_download",
+      "state": "code",
+      "model": "Purchase Order",
+      "host": "utak-worker-sim.utak-business.workers.dev",
+      "path": "/internal/purchase-order-pdf",
+      "tokenParam": "",
+      "tokenLast4": "",
+      "automations": []
+    },
+    {
+      "id": 979,
+      "name": "wa_inbox.reply_webhook",
+      "state": "webhook",
+      "model": "Message",
+      "host": "utak-worker-sim.utak-business.workers.dev",
+      "path": "/odoo/hook/wa-inbox",
+      "tokenParam": "token",
+      "tokenLast4": "c637",
+      "automations": [
+        {
+          "id": 12,
+          "name": "wa_inbox.on_message",
+          "active": true,
+          "model": "mail.message",
+          "trigger": "on_create"
+        }
+      ]
+    }
+  ]
+}

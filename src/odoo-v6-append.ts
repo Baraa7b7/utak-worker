@@ -1,25 +1,20 @@
-// v6 additions — self-contained (own Bearer call helper)
+// v6 additions.
+//
+// v6Call used to be a self-contained Bearer-only Odoo client, which bypassed
+// the sim-injection hook in src/odoo.ts::call. That meant x_standing_order /
+// x_complaint / and any other row created through this file skipped the
+// x_is_simulation stamp in sim mode — a silent isolation gap.
+//
+// Fix: delegate to the same `call` gateway prod uses. Zero behavior change
+// for prod (`call` was already Bearer-first + session fallback); sim runs
+// now stamp every v6 row correctly.
 import type { Env } from "./config";
+import { call } from "./odoo";
 
 async function v6Call<T = unknown>(
   env: Env, model: string, method: string, body: Record<string, unknown>,
 ): Promise<T> {
-  const res = await fetch(`${env.ODOO_URL}/json/2/${model}/${method}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${env.ODOO_API_KEY}`,
-    },
-    body: JSON.stringify(body),
-  });
-  const text = await res.text();
-  let parsed: unknown;
-  try { parsed = JSON.parse(text); } catch { parsed = text; }
-  if (!res.ok) {
-    const p = parsed as any;
-    throw new Error(`odoo ${p?.data?.name ?? res.status}: ${p?.data?.message ?? text.slice(0, 200)}`);
-  }
-  return parsed as T;
+  return call<T>(env, model, method, body);
 }
 
 // ---- v6.1 Standing Orders ----

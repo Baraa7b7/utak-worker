@@ -30,7 +30,7 @@ import {
   transitionOrdersToInPurchase,
 } from "./odoo";
 import { sendButtons, sendLocation, sendText } from "./meta";
-import { sendTemplateByPurpose, T } from "./templates";
+import { sendTemplateByPurpose, T, sendOwnerAlert } from "./templates";
 import { createAndDispatchDeliveryNoteForStop } from "./delivery-note";
 
 // ============================================================
@@ -40,9 +40,8 @@ export async function closeUnconfirmedOrders(env: Env): Promise<void> {
   const ids = await cancelStaleWaitingOrders(env);
   console.log(`[cron 21:00] cancelled ${ids.length} waiting_confirmation orders`);
   if (ids.length > 0 && env.OWNER_WHATSAPP) {
-    await sendText(
+    await sendOwnerAlert(
       env,
-      env.OWNER_WHATSAPP,
       `📊 إقفال الطلبات\nتم إلغاء ${ids.length} طلب لم يُؤكَّد اليوم.`,
     );
   }
@@ -56,7 +55,7 @@ export async function aggregateAndDispatchToWarehouse(env: Env): Promise<void> {
   if (lines.length === 0) {
     console.log("[cron 21:15] no confirmed lines today");
     if (env.OWNER_WHATSAPP) {
-      await sendText(env, env.OWNER_WHATSAPP, "📊 21:15\nلا يوجد طلبات مؤكدة اليوم — ما تم إنشاء قائمة شراء.");
+      await sendOwnerAlert(env, "📊 21:15\nلا يوجد طلبات مؤكدة اليوم — ما تم إنشاء قائمة شراء.");
     }
     return;
   }
@@ -76,9 +75,8 @@ export async function aggregateAndDispatchToWarehouse(env: Env): Promise<void> {
   if (warehouseMembers.length === 0) {
     console.error("[cron 21:15] no warehouse team member found — check res.partner x_role='warehouse'");
     if (env.OWNER_WHATSAPP) {
-      await sendText(
+      await sendOwnerAlert(
         env,
-        env.OWNER_WHATSAPP,
         "⚠️ ما يوجد موظف مستودع (warehouse) مسجّل. القائمة أنشئت (id=" + listId + ") لكن ما اتبعثت.",
       );
     }
@@ -144,9 +142,8 @@ export async function warehouseConfirmedPurchase(
   }
 
   if (env.OWNER_WHATSAPP) {
-    await sendText(
+    await sendOwnerAlert(
       env,
-      env.OWNER_WHATSAPP,
       `🚚 تم إرسال المسارات\n- عدد السواقين: ${routes.length}\n- عدد التوصيلات: ${ordersMoved}`,
     );
   }
@@ -171,6 +168,24 @@ async function sendDriverRoute(
   const body = `${header}\n\n${list}\n${footer}`;
   const trimmed = body.length <= 1024 ? body : body.slice(0, 1020) + "…";
 
+  // 2026-09-17 — shift-start gate. Before the driver_dispatch template we
+  // send an approved team_shift_start template with a QUICK_REPLY button.
+  // Meta lets templates through anytime, but any FOLLOW-UP free-form
+  // (location, text) only reaches the driver AFTER they reply. We use the
+  // button tap as that reply — pending locations sit in KV under
+  // pending_loc:<driver_phone> until the tap flushes them (see
+  // handleWebhook team branch). If the shift template fails or is not
+  // wired up in Odoo yet, we fall through to the old inline behaviour so
+  // pilot is never worse off than before.
+  const shiftResp = await sendTemplateByPurpose(
+    env,
+    driver.x_whatsapp_number,
+    T.TEAM_SHIFT_START,
+    [driver.name || ""],
+    [{ index: 0, payload: "shift_start" }],
+  );
+  const shiftOk = !!shiftResp && shiftResp.ok;
+
   // v7: use approved driver_dispatch template (opens conversation window;
   // per-stop buttons follow inside the 24h window via sendButtons).
   const today = new Date().toISOString().slice(0, 10);
@@ -181,19 +196,36 @@ async function sendDriverRoute(
     await sendText(env, driver.x_whatsapp_number, trimmed);
   }
 
+  const pendingLocations: Array<{
+    latitude: number;
+    longitude: number;
+    name: string;
+    address?: string;
+  }> = [];
+
   for (const s of stops) {
-    // v4.2 — before the button message, send the delivery location.
-    // A WhatsApp location message opens in Waze/Google Maps with one tap,
-    // which is the whole point of collecting the customer's real coordinates.
+    // 2026-09-17 — when the shift-start template lands, defer this
+    // sendLocation until the driver taps the button (flushed in handleWebhook).
+    // If shift-start didn't work, send inline so drivers on today's pilot
+    // still receive locations without regressing on the current behavior.
     if (typeof s.latitude === "number" && typeof s.longitude === "number") {
-      await sendLocation(
-        env,
-        driver.x_whatsapp_number,
-        s.latitude,
-        s.longitude,
-        `#${s.order_id} — ${s.customer_name}`,
-        s.neighborhood || undefined,
-      );
+      if (shiftOk) {
+        pendingLocations.push({
+          latitude: s.latitude,
+          longitude: s.longitude,
+          name: `#${s.order_id} — ${s.customer_name}`,
+          address: s.neighborhood || undefined,
+        });
+      } else {
+        await sendLocation(
+          env,
+          driver.x_whatsapp_number,
+          s.latitude,
+          s.longitude,
+          `#${s.order_id} — ${s.customer_name}`,
+          s.neighborhood || undefined,
+        );
+      }
     } else if (s.map_url) {
       await sendText(
         env,
@@ -240,6 +272,24 @@ async function sendDriverRoute(
         { id: `delivered_${s.order_id}`, title: "تم التسليم ✅" },
         { id: `delivery_issue_${s.order_id}`, title: "فيه مشكلة ⚠️" },
       ]);
+    }
+  }
+
+  // 2026-09-17 — store the deferred locations in KV so the team-branch
+  // webhook handler can flush them on the driver's first inbound
+  // (shift_start button, or any other reply within 20h).
+  if (shiftOk && pendingLocations.length > 0) {
+    try {
+      await env.MSG_DEDUP.put(
+        `pending_loc:${driver.x_whatsapp_number}`,
+        JSON.stringify(pendingLocations),
+        { expirationTtl: 20 * 60 * 60 },
+      );
+    } catch (e) {
+      console.warn(
+        `[sendDriverRoute] failed to queue locations for ${driver.x_whatsapp_number}`,
+        (e as Error)?.message,
+      );
     }
   }
 }

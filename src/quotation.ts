@@ -2,9 +2,14 @@
 // Uses the shared renderPDFShell for pixel-parity with the invoice.
 
 import type { Env } from "./config";
-import { getOrderForInvoicing, getLatestSalePrice, call } from "./odoo";
+import {
+  call,
+  getLatestSalePrice,
+  getOrderForInvoicing,
+  resolvePackagingNames,
+} from "./odoo";
 import { sendText } from "./meta";
-import { sendTemplateByPurpose, T } from "./templates";
+import { sendTemplateByPurpose, T, sendOwnerAlert } from "./templates";
 import {
   BRAND_COLORS,
   computePageMetrics,
@@ -26,6 +31,12 @@ export interface QuotationLineItem {
   total: number;
 }
 
+export interface QuotationPriceWarning {
+  product: string;
+  source: string;
+  age_days: number | null;
+}
+
 export interface QuotationPDFData {
   quotationNumber: string;
   quotationDate: Date;
@@ -40,10 +51,27 @@ export interface QuotationPDFData {
   discount: number;
   vatAmount: number;
   grandTotal: number;
+  // sim-harness (2026-09-13): loud-fail metadata. Never rendered into the
+  // PDF — read by the dispatcher to gate sends and alert the owner.
+  price_warnings: QuotationPriceWarning[];
+  has_blocking_issue: boolean;
+  // item3 (2026-09-17) — read from x_quotation.x_origin. Manual quotations
+  // route through the same buildPDF / renderHTML / htmlToPDF / uploadToR2
+  // helpers but the automatic template send is skipped. The internal-order
+  // customer id + order id + missing product name(s) travel here so
+  // createAndDispatchQuotationForRecord can build a manual-specific block
+  // message ("صنف بلا سعر: ...") without re-reading Odoo.
+  is_manual?: boolean;
+  customer_id?: number;
+  order_id?: number;
+  missing_products?: string[];
 }
 
+// 2026-09-19 — same-day validity. Old text was "٧ أيام". Since UTAK's cost is
+// the daily supplier price, a 7-day quote is misleading; the new copy ties the
+// quote to the day of issue and to that day's market prices.
 const QUOTATION_FOOTER =
-  "هذا العرض ساري لمدة ٧ أيام من تاريخ الإصدار.";
+  "الأسعار سارية حتى ٩:٠٠ مساءً من تاريخ الإصدار، وتخضع لأسعار السوق اليومية";
 
 // ---- Body: line-items table (same 5 columns as invoice) ----
 export function renderQuotationBodyHTML(
@@ -164,12 +192,20 @@ export async function buildQuotationPDFDataFromOdoo(
     x_order_id: [number, string] | false;
     x_sent_at: string | false;
     create_date: string | false;
+    x_origin: string | false;
   };
   let rows: QuoRow[];
   try {
     rows = await call<QuoRow[]>(env, "x_quotation", "read", {
       ids: [quotationId],
-      fields: ["id", "x_quotation_number", "x_order_id", "x_sent_at", "create_date"],
+      fields: [
+        "id",
+        "x_quotation_number",
+        "x_order_id",
+        "x_sent_at",
+        "create_date",
+        "x_origin",
+      ],
     });
   } catch (e) {
     console.error(
@@ -184,24 +220,68 @@ export async function buildQuotationPDFDataFromOdoo(
   if (!q.x_order_id) {
     throw new Error(`Quotation ${quotationId} has no linked order`);
   }
+  // item3 (2026-09-17) — x_origin defaults to auto for existing rows.
+  const isManual = q.x_origin === "manual";
 
   const order = await getOrderForInvoicing(env, q.x_order_id[0]);
   if (!order) {
     throw new Error(`Order ${q.x_order_id[0]} for quotation ${quotationId} not found`);
   }
 
+  const packagingNames = await resolvePackagingNames(
+    env,
+    order.lines.map((l) => ({ packaging_id: l.packaging_id, product_id: l.product_id })),
+  );
+
   let subtotal = 0;
   const items: QuotationLineItem[] = [];
+  const price_warnings: QuotationPriceWarning[] = [];
+  let has_blocking_issue = false;
+  let lineIdx = -1;
   for (const l of order.lines) {
-    let unit = l.unit_price ?? 0;
+    lineIdx++;
+    // item3 price priority (both auto and manual quotations):
+    //   1) x_price_unit_manual on the line (>0), if set
+    //   2) l.unit_price already cached on the Odoo line (>0)
+    //   3) getLatestSalePrice fallback (may return "missing")
+    // Manual quotations skip the daily-price catalog entirely — they accept
+    // any product name — so a line without a manual override AND without a
+    // cached unit_price AND without a recent sale price falls to has_blocking
+    // with the Arabic reason "صنف بلا سعر: <name>".
+    const manualUnit =
+      typeof l.price_unit_manual === "number" && l.price_unit_manual > 0
+        ? l.price_unit_manual
+        : 0;
+    let unit = manualUnit || (l.unit_price ?? 0);
+    let source: "today" | "stale" | "missing" =
+      manualUnit > 0 ? "today" : "today";
+    let age_days: number | null = 0;
     if (!unit || unit <= 0) {
-      unit = await getLatestSalePrice(env, l.product_id, l.packaging_id);
+      const lookup = await getLatestSalePrice(env, l.product_id, l.packaging_id);
+      unit = lookup.price;
+      source = lookup.source;
+      age_days = lookup.age_days;
+    }
+    if (source !== "today") {
+      price_warnings.push({
+        product: l.product_name || "صنف",
+        source,
+        age_days,
+      });
+      if (source === "missing") has_blocking_issue = true;
+    }
+    if (isManual && (!unit || unit <= 0)) {
+      // Manual quotation explicit block: has_blocking_issue is already set
+      // above when source=='missing', but a manual line that goes through
+      // with unit=0 (e.g. the fallback lookup returned 0 without labeling it
+      // "missing") is still an unusable quotation — trip the flag here too.
+      has_blocking_issue = true;
     }
     const total = round2(unit * l.quantity);
     subtotal = round2(subtotal + total);
     items.push({
       name: l.product_name || "صنف",
-      pack: l.packaging_name || "-",
+      pack: packagingNames[lineIdx],
       qty: l.quantity,
       price: unit,
       total,
@@ -216,6 +296,9 @@ export async function buildQuotationPDFDataFromOdoo(
   const rawDate = (q.x_sent_at || q.create_date) as string | false;
   const quotationDate = rawDate ? new Date(String(rawDate).replace(" ", "T") + "Z") : new Date();
 
+  const missing_products = price_warnings
+    .filter((w) => w.source === "missing")
+    .map((w) => w.product);
   return {
     quotationNumber: number,
     quotationDate,
@@ -229,6 +312,12 @@ export async function buildQuotationPDFDataFromOdoo(
     discount: 0,
     vatAmount: 0,
     grandTotal: subtotal,
+    price_warnings,
+    has_blocking_issue,
+    is_manual: isManual,
+    customer_id: order.customer_id,
+    order_id: order.id,
+    missing_products,
   };
 }
 
@@ -253,6 +342,20 @@ export interface QuotationDispatchResult {
   pdfUrl: string;
   pdfSize: number;
   messageId: string | null;
+  // sim-harness (2026-09-13): loud-fail signals. blocked=true means the
+  // customer was NOT messaged and x_sent_at was NOT written.
+  blocked?: boolean;
+  blockReason?: string;
+}
+
+// sim-harness (2026-09-13): local owner-alert helper, mirrors suppliers.ts
+// so quotation.ts stays free of a suppliers ↔ quotation import cycle.
+async function alertOwner(env: Env, text: string): Promise<void> {
+  try {
+    await sendOwnerAlert(env, text);
+  } catch (e) {
+    console.error("[quotation alertOwner] failed", (e as Error)?.message);
+  }
 }
 
 export async function createAndDispatchQuotationForRecord(
@@ -273,6 +376,44 @@ export async function createAndDispatchQuotationForRecord(
   if (!data) {
     console.warn(`[quotation] record ${quotationId} not found`);
     return null;
+  }
+
+  // sim-harness (2026-09-13): loud-fail gate. Any line with source="missing"
+  // means we would have sent the customer a quotation with a 0-price row —
+  // silently. Short-circuit before HTML/PDF/R2/send. Never write x_sent_at.
+  //
+  // item3 (2026-09-17): manual quotations use the same gate but report per
+  // the tonight spec — "صنف بلا سعر: <name>" — so the reason surfaces
+  // exactly at the point of edit.
+  if (data.has_blocking_issue) {
+    const missing = (data.missing_products && data.missing_products.length
+      ? data.missing_products
+      : data.price_warnings.filter((w) => w.source === "missing").map((w) => w.product));
+    const reason = data.is_manual
+      ? missing.map((n) => `صنف بلا سعر: ${n}`).join(" | ") || "صنف بلا سعر"
+      : `missing prices: ${missing.join(", ") || "(unnamed)"}`;
+    console.error(`[q-issue] BLOCKED quotationId=${quotationId} number=${data.quotationNumber} — ${reason}`);
+    await alertOwner(
+      env,
+      [
+        `🚫 كوتيشن ${data.quotationNumber} (id=${quotationId}) — ما أرسلناه للعميل`,
+        data.is_manual ? `عرض يدوي: أصناف بلا سعر:` : `أصناف بدون سعر في x_daily_price:`,
+        ...missing.map((n) => `• ${n}`),
+        ``,
+        data.is_manual
+          ? `أدخل x_price_unit_manual على الأسطر ثم أعد الإرسال.`
+          : `أدخل الأسعار ثم أعد الإصدار.`,
+      ].join("\n"),
+    );
+    return {
+      quotationId,
+      number: data.quotationNumber,
+      pdfUrl: "",
+      pdfSize: 0,
+      messageId: null,
+      blocked: true,
+      blockReason: reason,
+    };
   }
 
   let html: string;
@@ -316,6 +457,26 @@ export async function createAndDispatchQuotationForRecord(
     throw e;
   }
 
+  // item3 (2026-09-17) — manual quotations stop here. The auto-action still
+  // runs (build → PDF → R2) so the "إصدار PDF" button on the manual form
+  // has an up-to-date file behind it, but the customer WhatsApp send only
+  // happens when Baraa explicitly clicks "إرسال واتساب", which fires
+  // /internal/quotation-wa-send. x_sent_at MUST stay unset here — its sole
+  // legitimate writer for a manual quotation is the queued x_wa_message's
+  // send hook.
+  if (data.is_manual) {
+    console.log(
+      `[q-issue] manual quotation ${data.quotationNumber} (id=${quotationId}) — PDF built and uploaded, send skipped`,
+    );
+    return {
+      quotationId,
+      number: data.quotationNumber,
+      pdfUrl: uploaded.publicUrl,
+      pdfSize: uploaded.size,
+      messageId: null,
+    };
+  }
+
   const customerPhone = data.customer.phone;
   const quotationDate = data.quotationDate.toLocaleDateString("en-GB", {
     day: "2-digit",
@@ -325,7 +486,27 @@ export async function createAndDispatchQuotationForRecord(
 
   let messageId: string | null = null;
   if (!customerPhone) {
-    console.warn(`[quotation] ${quotationId} has no customer WhatsApp — skipping send`);
+    // sim-harness (2026-09-13): promote silent skip to explicit failure.
+    // No customer phone → nobody sees the quotation. Alert Baraa, don't
+    // write x_sent_at, return blocked.
+    console.error(`[q-issue] BLOCKED quotationId=${quotationId} number=${data.quotationNumber} — no customer WhatsApp`);
+    await alertOwner(
+      env,
+      [
+        `🚫 كوتيشن ${data.quotationNumber} (id=${quotationId}) — ما أرسلناه للعميل`,
+        `العميل "${data.customer.name}" بدون رقم واتساب في Odoo.`,
+        `الملف جاهز: ${uploaded.publicUrl}`,
+      ].join("\n"),
+    );
+    return {
+      quotationId,
+      number: data.quotationNumber,
+      pdfUrl: uploaded.publicUrl,
+      pdfSize: uploaded.size,
+      messageId: null,
+      blocked: true,
+      blockReason: "no customer WhatsApp",
+    };
   } else {
     try {
       let resp: Response | null = null;
@@ -357,7 +538,7 @@ export async function createAndDispatchQuotationForRecord(
           ``,
           `الملف: ${uploaded.publicUrl}`,
           ``,
-          `العرض ساري ٧ أيام. شكراً لتعاملكم مع UTAK 🌿`,
+          `الأسعار سارية حتى ٩:٠٠ مساءً من تاريخ الإصدار، وتخضع لأسعار السوق اليومية. شكراً لتعاملكم مع UTAK 🌿`,
         ].join("\n");
         resp = await sendText(env, customerPhone, body);
       }
@@ -396,6 +577,23 @@ export async function createAndDispatchQuotationForRecord(
     console.warn(`[quotation] failed to update x_sent_at`, (e as Error).message);
   }
 
+  // sim-harness (2026-09-13): non-blocking price warnings — the send already
+  // went out, but the customer received a quotation priced from stale rows.
+  // Notify the owner so a fresh price can be entered before the next round.
+  if (data.price_warnings.length > 0) {
+    const lines = data.price_warnings.map((w) => {
+      const age = w.age_days === null ? "غير معروف" : `${w.age_days} يوم`;
+      return `• ${w.product} — ${w.source} (${age})`;
+    });
+    await alertOwner(
+      env,
+      [
+        `⚠️ كوتيشن ${data.quotationNumber} (id=${quotationId}) أُرسل بأسعار غير محدَّثة اليوم:`,
+        ...lines,
+      ].join("\n"),
+    );
+  }
+
   return {
     quotationId,
     number: data.quotationNumber,
@@ -431,4 +629,6 @@ export const TEST_QUOTATION_DATA: QuotationPDFData = {
   discount: 0,
   vatAmount: 0,
   grandTotal: 1517,
+  price_warnings: [],
+  has_blocking_issue: false,
 };

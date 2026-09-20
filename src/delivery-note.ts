@@ -2,7 +2,7 @@
 // Uses the shared renderPDFShell — no prices, no totals.
 
 import type { Env } from "./config";
-import { call } from "./odoo";
+import { call, resolvePackagingNames, stripRef } from "./odoo";
 import { sendText } from "./meta";
 import {
   BRAND_COLORS,
@@ -173,13 +173,19 @@ export async function buildDeliveryNotePDFDataFromOdoo(
       })
     : [];
 
-  const items: DeliveryNoteItem[] = lines
-    .filter((l) => l.x_status !== "unavailable")
-    .map((l) => ({
-      name: l.x_product_tmpl_id ? l.x_product_tmpl_id[1] : "?",
-      pack: l.x_packaging_id ? l.x_packaging_id[1] : "-",
-      qty: l.x_quantity,
-    }));
+  const usable = lines.filter((l) => l.x_status !== "unavailable");
+  const packagingNames = await resolvePackagingNames(
+    env,
+    usable.map((l) => ({
+      packaging_id: l.x_packaging_id ? l.x_packaging_id[0] : 0,
+      product_id: l.x_product_tmpl_id ? l.x_product_tmpl_id[0] : 0,
+    })),
+  );
+  const items: DeliveryNoteItem[] = usable.map((l, i) => ({
+    name: l.x_product_tmpl_id ? stripRef(l.x_product_tmpl_id[1]) : "?",
+    pack: packagingNames[i],
+    qty: l.x_quantity,
+  }));
 
   const rawDate = stop.create_date as string | false;
   const deliveryDate = rawDate ? new Date(String(rawDate).replace(" ", "T") + "Z") : new Date();

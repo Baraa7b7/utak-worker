@@ -1,0 +1,558 @@
+{
+  "generated_at": "2026-09-19T19:47:17.093Z",
+  "operations": [
+    {
+      "ts": "2026-09-19T19:47:18.210Z",
+      "model": "purchase.order",
+      "id": 5,
+      "action": "unlink",
+      "before": {
+        "id": 5,
+        "name": "P00007",
+        "state": "draft",
+        "partner_id": [
+          30,
+          "أحمد حسان"
+        ],
+        "origin": "UTAK-CLEANUP-TEST",
+        "date_order": "2026-09-19 12:00:00",
+        "amount_total": 60,
+        "order_line": [
+          29,
+          30
+        ],
+        "order_line_data": [
+          {
+            "id": 29,
+            "product_id": [
+              96,
+              "[UTAK-FRT-001] تفاح"
+            ],
+            "name": "[UTAK-FRT-001] تفاح",
+            "product_qty": 2,
+            "price_unit": 15,
+            "tax_ids": []
+          },
+          {
+            "id": 30,
+            "product_id": [
+              97,
+              "[UTAK-FRT-002] موز أمريكي"
+            ],
+            "name": "[UTAK-FRT-002] موز أمريكي",
+            "product_qty": 2,
+            "price_unit": 15,
+            "tax_ids": []
+          }
+        ]
+      }
+    },
+    {
+      "ts": "2026-09-19T19:47:29.065Z",
+      "model": "purchase.order",
+      "id": 5,
+      "action": "unlink",
+      "before": {
+        "id": 5,
+        "name": "P00007",
+        "state": "draft",
+        "partner_id": [
+          30,
+          "أحمد حسان"
+        ],
+        "origin": "UTAK-CLEANUP-TEST",
+        "date_order": "2026-09-19 12:00:00",
+        "amount_total": 60,
+        "order_line": [
+          29,
+          30
+        ],
+        "order_line_data": [
+          {
+            "id": 29,
+            "product_id": [
+              96,
+              "[UTAK-FRT-001] تفاح"
+            ],
+            "name": "[UTAK-FRT-001] تفاح",
+            "product_qty": 2,
+            "price_unit": 15,
+            "tax_ids": []
+          },
+          {
+            "id": 30,
+            "product_id": [
+              97,
+              "[UTAK-FRT-002] موز أمريكي"
+            ],
+            "name": "[UTAK-FRT-002] موز أمريكي",
+            "product_qty": 2,
+            "price_unit": 15,
+            "tax_ids": []
+          }
+        ]
+      }
+    },
+    {
+      "ts": "2026-09-19T19:47:29.629Z",
+      "model": "account.move",
+      "id": 5,
+      "action": "unlink",
+      "before": {
+        "id": 5,
+        "name": false,
+        "state": "draft",
+        "partner_id": [
+          31,
+          "ابو مكين المعبري"
+        ],
+        "move_type": "out_invoice",
+        "invoice_date": "2026-09-19",
+        "amount_total": 72,
+        "amount_tax": 0,
+        "journal_id": [
+          8,
+          "Sales"
+        ],
+        "invoice_line_ids": [
+          33,
+          34
+        ],
+        "invoice_line_data": [
+          {
+            "id": 33,
+            "product_id": [
+              96,
+              "[UTAK-FRT-001] تفاح"
+            ],
+            "name": "[UTAK-FRT-001] تفاح",
+            "quantity": 3,
+            "price_unit": 12,
+            "tax_ids": []
+          },
+          {
+            "id": 34,
+            "product_id": [
+              97,
+              "[UTAK-FRT-002] موز أمريكي"
+            ],
+            "name": "[UTAK-FRT-002] موز أمريكي",
+            "quantity": 3,
+            "price_unit": 12,
+            "tax_ids": []
+          }
+        ]
+      }
+    },
+    {
+      "ts": "2026-09-19T19:47:55.014Z",
+      "model": "product.template",
+      "id": 97,
+      "action": "write",
+      "before": {
+        "x_is_active_for_sale": true
+      },
+      "vals": {
+        "x_is_active_for_sale": false
+      }
+    },
+    {
+      "ts": "2026-09-19T19:47:55.907Z",
+      "model": "product.template",
+      "id": 109,
+      "action": "write",
+      "before": {
+        "x_is_active_for_sale": true
+      },
+      "vals": {
+        "x_is_active_for_sale": false
+      }
+    },
+    {
+      "ts": "2026-09-19T19:49:35.558Z",
+      "model": "x_whatsapp_template",
+      "id": 46,
+      "action": "write",
+      "before": {
+        "x_meta_status": "PENDING",
+        "x_missing_in_meta": true,
+        "x_last_synced": false
+      },
+      "vals": {
+        "x_meta_status": "APPROVED",
+        "x_missing_in_meta": false,
+        "x_last_synced": "2026-09-19 19:49:35"
+      }
+    },
+    {
+      "ts": "2026-09-19T19:50:13.982Z",
+      "model": "x_whatsapp_template",
+      "id": 4,
+      "action": "write",
+      "before": {
+        "x_label_ar": false
+      },
+      "vals": {
+        "x_label_ar": "طلب أسعار المورّد"
+      }
+    },
+    {
+      "ts": "2026-09-19T19:50:14.313Z",
+      "model": "x_whatsapp_template",
+      "id": 5,
+      "action": "write",
+      "before": {
+        "x_label_ar": false
+      },
+      "vals": {
+        "x_label_ar": "قائمة الشراء"
+      }
+    },
+    {
+      "ts": "2026-09-19T19:50:14.479Z",
+      "model": "x_whatsapp_template",
+      "id": 6,
+      "action": "write",
+      "before": {
+        "x_label_ar": false
+      },
+      "vals": {
+        "x_label_ar": "جاهزية التحميل"
+      }
+    },
+    {
+      "ts": "2026-09-19T19:50:14.504Z",
+      "model": "x_whatsapp_template",
+      "id": 7,
+      "action": "write",
+      "before": {
+        "x_label_ar": false
+      },
+      "vals": {
+        "x_label_ar": "جدول جولة السائق"
+      }
+    },
+    {
+      "ts": "2026-09-19T19:50:14.530Z",
+      "model": "x_whatsapp_template",
+      "id": 8,
+      "action": "write",
+      "before": {
+        "x_label_ar": false
+      },
+      "vals": {
+        "x_label_ar": "محطة توصيل"
+      }
+    },
+    {
+      "ts": "2026-09-19T19:50:14.555Z",
+      "model": "x_whatsapp_template",
+      "id": 9,
+      "action": "write",
+      "before": {
+        "x_label_ar": false
+      },
+      "vals": {
+        "x_label_ar": "تحصيل السائق"
+      }
+    },
+    {
+      "ts": "2026-09-19T19:50:14.630Z",
+      "model": "x_whatsapp_template",
+      "id": 10,
+      "action": "write",
+      "before": {
+        "x_label_ar": false
+      },
+      "vals": {
+        "x_label_ar": "طلب تحصيل"
+      }
+    },
+    {
+      "ts": "2026-09-19T19:50:14.656Z",
+      "model": "x_whatsapp_template",
+      "id": 11,
+      "action": "write",
+      "before": {
+        "x_label_ar": false
+      },
+      "vals": {
+        "x_label_ar": "ملخص التحصيل اليومي"
+      }
+    },
+    {
+      "ts": "2026-09-19T19:50:14.682Z",
+      "model": "x_whatsapp_template",
+      "id": 12,
+      "action": "write",
+      "before": {
+        "x_label_ar": false
+      },
+      "vals": {
+        "x_label_ar": "عمولات"
+      }
+    },
+    {
+      "ts": "2026-09-19T19:50:14.711Z",
+      "model": "x_whatsapp_template",
+      "id": 13,
+      "action": "write",
+      "before": {
+        "x_label_ar": false
+      },
+      "vals": {
+        "x_label_ar": "ملخص المالك"
+      }
+    },
+    {
+      "ts": "2026-09-19T19:50:14.739Z",
+      "model": "x_whatsapp_template",
+      "id": 14,
+      "action": "write",
+      "before": {
+        "x_label_ar": false
+      },
+      "vals": {
+        "x_label_ar": "ترحيب العميل"
+      }
+    },
+    {
+      "ts": "2026-09-19T19:50:15.774Z",
+      "model": "x_whatsapp_template",
+      "id": 15,
+      "action": "write",
+      "before": {
+        "x_label_ar": false
+      },
+      "vals": {
+        "x_label_ar": "تذكير يومي للعميل"
+      }
+    },
+    {
+      "ts": "2026-09-19T19:50:15.801Z",
+      "model": "x_whatsapp_template",
+      "id": 16,
+      "action": "write",
+      "before": {
+        "x_label_ar": false
+      },
+      "vals": {
+        "x_label_ar": "تأكيد الطلب"
+      }
+    },
+    {
+      "ts": "2026-09-19T19:50:15.827Z",
+      "model": "x_whatsapp_template",
+      "id": 17,
+      "action": "write",
+      "before": {
+        "x_label_ar": false
+      },
+      "vals": {
+        "x_label_ar": "التوصيل قادم"
+      }
+    },
+    {
+      "ts": "2026-09-19T19:50:15.852Z",
+      "model": "x_whatsapp_template",
+      "id": 18,
+      "action": "write",
+      "before": {
+        "x_label_ar": false
+      },
+      "vals": {
+        "x_label_ar": "تم التوصيل"
+      }
+    },
+    {
+      "ts": "2026-09-19T19:50:15.878Z",
+      "model": "x_whatsapp_template",
+      "id": 19,
+      "action": "write",
+      "before": {
+        "x_label_ar": false
+      },
+      "vals": {
+        "x_label_ar": "فاتورة العميل (نص)"
+      }
+    },
+    {
+      "ts": "2026-09-19T19:50:15.903Z",
+      "model": "x_whatsapp_template",
+      "id": 20,
+      "action": "write",
+      "before": {
+        "x_label_ar": false
+      },
+      "vals": {
+        "x_label_ar": "تذكير سداد"
+      }
+    },
+    {
+      "ts": "2026-09-19T19:50:15.928Z",
+      "model": "x_whatsapp_template",
+      "id": 21,
+      "action": "write",
+      "before": {
+        "x_label_ar": false
+      },
+      "vals": {
+        "x_label_ar": "تنشيط عميل"
+      }
+    },
+    {
+      "ts": "2026-09-19T19:50:15.953Z",
+      "model": "x_whatsapp_template",
+      "id": 22,
+      "action": "write",
+      "before": {
+        "x_label_ar": false
+      },
+      "vals": {
+        "x_label_ar": "تقييم العميل"
+      }
+    },
+    {
+      "ts": "2026-09-19T19:50:15.979Z",
+      "model": "x_whatsapp_template",
+      "id": 23,
+      "action": "write",
+      "before": {
+        "x_label_ar": false
+      },
+      "vals": {
+        "x_label_ar": "فاتورة العميل (PDF)"
+      }
+    },
+    {
+      "ts": "2026-09-19T19:50:16.004Z",
+      "model": "x_whatsapp_template",
+      "id": 24,
+      "action": "write",
+      "before": {
+        "x_label_ar": false
+      },
+      "vals": {
+        "x_label_ar": "تنبيه المالك"
+      }
+    },
+    {
+      "ts": "2026-09-19T19:50:16.030Z",
+      "model": "x_whatsapp_template",
+      "id": 25,
+      "action": "write",
+      "before": {
+        "x_label_ar": false
+      },
+      "vals": {
+        "x_label_ar": "بداية وردية"
+      }
+    },
+    {
+      "ts": "2026-09-19T19:50:16.055Z",
+      "model": "x_whatsapp_template",
+      "id": 42,
+      "action": "write",
+      "before": {
+        "x_label_ar": false
+      },
+      "vals": {
+        "x_label_ar": "ملخص تحصيل (v2)"
+      }
+    },
+    {
+      "ts": "2026-09-19T19:50:16.207Z",
+      "model": "x_whatsapp_template",
+      "id": 43,
+      "action": "write",
+      "before": {
+        "x_label_ar": false
+      },
+      "vals": {
+        "x_label_ar": "قائمة شراء (v2)"
+      }
+    },
+    {
+      "ts": "2026-09-19T19:50:16.235Z",
+      "model": "x_whatsapp_template",
+      "id": 44,
+      "action": "write",
+      "before": {
+        "x_label_ar": false
+      },
+      "vals": {
+        "x_label_ar": "مسار السائق (v2)"
+      }
+    },
+    {
+      "ts": "2026-09-19T19:50:16.264Z",
+      "model": "x_whatsapp_template",
+      "id": 45,
+      "action": "write",
+      "before": {
+        "x_label_ar": false
+      },
+      "vals": {
+        "x_label_ar": "اختبار (لا يُستخدم)"
+      }
+    },
+    {
+      "ts": "2026-09-19T19:55:10.653Z",
+      "model": "ir.model.fields",
+      "id": 20161,
+      "action": "create",
+      "name": "purchase.order.line.x_packaging_id"
+    },
+    {
+      "ts": "2026-09-19T19:55:11.993Z",
+      "model": "ir.ui.view",
+      "id": 2798,
+      "action": "create",
+      "name": "utak.sale.order.form.packaging_col"
+    },
+    {
+      "ts": "2026-09-19T19:55:12.834Z",
+      "model": "ir.ui.view",
+      "id": 2799,
+      "action": "create",
+      "name": "utak.purchase.order.form.packaging_col"
+    },
+    {
+      "ts": "2026-09-19T19:55:41.100Z",
+      "model": "ir.actions.server",
+      "id": 977,
+      "action": "create",
+      "name": "utak.sale.order.line.default_packaging — action"
+    },
+    {
+      "ts": "2026-09-19T19:55:42.514Z",
+      "model": "base.automation",
+      "id": 10,
+      "action": "create",
+      "name": "utak.sale.order.line.default_packaging"
+    },
+    {
+      "ts": "2026-09-19T19:55:43.418Z",
+      "model": "ir.actions.server",
+      "id": 978,
+      "action": "create",
+      "name": "utak.purchase.order.line.default_packaging — action"
+    },
+    {
+      "ts": "2026-09-19T19:55:44.668Z",
+      "model": "base.automation",
+      "id": 11,
+      "action": "create",
+      "name": "utak.purchase.order.line.default_packaging"
+    },
+    {
+      "ts": "2026-09-19T20:00:36.614Z",
+      "model": "ir.ui.menu",
+      "id": 529,
+      "action": "write",
+      "before": {
+        "web_icon_data": false
+      }
+    }
+  ]
+}

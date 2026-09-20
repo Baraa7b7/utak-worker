@@ -3,6 +3,7 @@
 // and sends via Meta Graph API with body params + button payloads.
 // ============================================================
 import type { Env } from "./config";
+import { fetchMeta } from "./meta";
 
 // Meta template name resolution is cached in-memory per Worker isolate.
 // The mapping rarely changes; if it does, redeploy or wait ~24h for
@@ -89,27 +90,19 @@ export async function sendTemplateByPurpose(
       parameters: [{ type: "payload", payload: b.payload }],
     });
   }
-  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/${env.META_PHONE_NUMBER_ID}/messages`;
-  return fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.META_ACCESS_TOKEN}`,
-      "Content-Type": "application/json",
+  return fetchMeta(env, {
+    messaging_product: "whatsapp",
+    to: to.replace(/^\+/, ""),
+    type: "template",
+    template: {
+      name: mapping.name,
+      language: { code: mapping.language },
+      components,
     },
-    body: JSON.stringify({
-      messaging_product: "whatsapp",
-      to: to.replace(/^\+/, ""),
-      type: "template",
-      template: {
-        name: mapping.name,
-        language: { code: mapping.language },
-        components,
-      },
-    }),
-  });
+  }, { purpose });
 }
 
-// ---- Purpose constants (all 19) ----
+// ---- Purpose constants ----
 export const T = {
   SUPPLIER_ASK: "supplier_ask",
   PURCHASE_LIST: "purchase_list",
@@ -121,6 +114,8 @@ export const T = {
   COLLECTION_SUMMARY: "collection_summary",
   COMMISSION: "commission",
   OWNER_SUMMARY: "owner_summary",
+  OWNER_ALERT: "owner_alert",
+  TEAM_SHIFT_START: "team_shift_start",
   CUSTOMER_WELCOME: "customer_welcome",
   CUSTOMER_DAILY_REMIND: "customer_daily_remind",
   CUSTOMER_ORDER_CONFIRM: "customer_order_confirm",
@@ -133,3 +128,50 @@ export const T = {
   CUSTOMER_INACTIVE: "customer_inactive",
   CUSTOMER_FEEDBACK: "customer_feedback",
 } as const;
+
+// ============================================================
+// Owner-facing alert helper (2026-09-17)
+//
+// Every "Baraa needs to know" event used to go through sendText(env,
+// OWNER_WHATSAPP, ...) — free-form text that Meta refuses outside the
+// 24-hour customer service window. The 06:00 supplier-recap alert
+// silently failed because Baraa hadn't messaged the number that day.
+//
+// Route the same text through an approved template first (`owner_alert`
+// purpose, template `utak_owner_alert`); on any failure — no Odoo
+// mapping, template pending Meta approval, non-2xx Meta response —
+// fall back to the original sendText so behavior is never worse than
+// today.
+//
+// Meta template variable rules: no newline / tab / 4+ consecutive
+// spaces. Alerts often contain \n from string interpolation; sanitize
+// them to " | " and cap at 900 chars so the parameter always passes
+// Meta's validation.
+// ============================================================
+import { sendText } from "./meta";
+
+function sanitizeOwnerAlertParam(text: string): string {
+  return String(text ?? "")
+    .replace(/[\r\n\t]+/g, " | ")
+    .replace(/ {2,}/g, " ")
+    .trim()
+    .slice(0, 900);
+}
+
+export async function sendOwnerAlert(env: Env, text: string): Promise<void> {
+  const owner = env.OWNER_WHATSAPP;
+  if (!owner) return;
+  const original = String(text ?? "");
+  try {
+    const param = sanitizeOwnerAlertParam(original);
+    const resp = await sendTemplateByPurpose(env, owner, T.OWNER_ALERT, [param]);
+    if (resp && resp.ok) return;
+  } catch (e) {
+    console.warn("[owner-alert] template send exception", (e as Error)?.message);
+  }
+  try {
+    await sendText(env, owner, original, { purpose: "owner_alert" });
+  } catch (e) {
+    console.error("[owner-alert] fallback sendText failed", (e as Error)?.message);
+  }
+}

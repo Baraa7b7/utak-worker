@@ -23,7 +23,7 @@
 //   GET  /delivery-note-pdf/{num}/{tok}.pdf → PUBLIC delivery-note PDF from R2 (HMAC-signed)
 
 import type { Env } from "./config";
-import { handleVerify, verifySignature, parseWebhook, sendText, sendButtons } from "./meta";
+import { handleVerify, verifySignature, parseWebhook, sendText, sendButtons, sendLocation } from "./meta";
 import { seenBefore, markSeen } from "./dedup";
 import {
   ensureLocationFields,
@@ -50,6 +50,22 @@ import {
   aggregateAndDispatchToWarehouse,
   closeUnconfirmedOrders,
 } from "./team";
+import {
+  buildInjectedWebhookPayload,
+  guardSimulationOdoo,
+  isNonProd,
+  purgeSimulationData,
+  readOutbound,
+  resetOutboundRun,
+  verifySimSecret,
+  type InjectInput,
+} from "./sim";
+import { parseAllowlist, runtimeMode } from "./config";
+import {
+  classifySignatureFailure,
+  handleSignatureFailure,
+  readRecentSignatureFailures,
+} from "./webhook-alert";
 
 export default {
   async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
@@ -58,7 +74,19 @@ export default {
     try {
       switch (cron) {
         case "0 23 * * *": await askAllSuppliersForPrices(env); break;
-        case "0 2 * * *": await updateSupplierReliabilityScores(env); break;
+        case "0 2 * * *":
+          await updateSupplierReliabilityScores(env);
+          // Phase 1 (2026-09-17): daily template sync appended to the 05:00
+          // Riyadh handler after its existing work, in try/catch so a sync
+          // failure never breaks reliability-score scheduling.
+          try {
+            const { runTemplateSync } = await import("./wa-template-sync");
+            const report = await runTemplateSync(env);
+            console.log("[wa-sync 05:00]", JSON.stringify(report));
+          } catch (e) {
+            console.error("[wa-sync 05:00] failed", (e as Error)?.message);
+          }
+          break;
         case "0 3 * * *": await openOrderingWindow(env); break;
         case "0 18 * * *": await closeUnconfirmedOrders(env); break;
         case "15 18 * * *": await aggregateAndDispatchToWarehouse(env); break;
@@ -93,11 +121,22 @@ export default {
 
     if (request.method === "GET" && url.pathname === "/health") {
       const odoo = await smokeTest(env);
+      // 2026-09-21 — surface the 7-day signature-failure counter so one
+      // curl on /health is enough to know if webhook rejects are silently
+      // piling up, without waiting on the daily WhatsApp alert to fire.
+      const sigFailures = await readRecentSignatureFailures(env, 7).catch(
+        () => [] as { date: string; count: number }[],
+      );
+      const sigFailuresTotal = sigFailures.reduce((a, b) => a + b.count, 0);
       return json(
         {
           status: odoo.ok ? "ok" : "degraded",
           odoo: odoo.ok ? `connected (${odoo.mode})` : "failed",
           error: odoo.ok ? undefined : odoo.error,
+          sigFailures: {
+            totalLast7Days: sigFailuresTotal,
+            byDay: sigFailures,
+          },
           timestamp: new Date().toISOString(),
         },
         odoo.ok ? 200 : 503,
@@ -119,6 +158,30 @@ export default {
         return json({ ok: true, ...result });
       } catch (e) {
         return json({ ok: false, error: (e as Error).message }, 500);
+      }
+    }
+
+    // TEMPORARY 2026-09-12 — one-shot partner-dedup audit.
+    // Reads Othman id=8/id=15 with linked-record counts, dumps role state,
+    // audits suppliers, and reports customers missing a delivery neighborhood.
+    // Optional: ?create_pilot=1 creates ONE pilot customer.
+    // NEVER archives, NEVER unlinks. Gate: AUDIT_TOKEN secret.
+    if (request.method === "GET" && url.pathname === "/admin/audit-partners") {
+      const token = url.searchParams.get("token") ?? request.headers.get("x-audit-token") ?? "";
+      const expected = env.AUDIT_TOKEN ?? "";
+      if (!expected || token !== expected) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      try {
+        const { runPartnerAudit } = await import("./audit-partners");
+        const createPilot = url.searchParams.get("create_pilot") === "1";
+        const result = await runPartnerAudit(env, { createPilot });
+        return json({ ok: true, ...result });
+      } catch (e) {
+        return json(
+          { ok: false, error: (e as Error).message, stack: (e as Error).stack },
+          500,
+        );
       }
     }
 
@@ -794,11 +857,488 @@ export default {
       return json({ stopId, driverPhone, steps, deliveryNumber, pdfUrl });
     }
 
+    // Phase 1 — synchronous template sync (inline JSON report). Same
+    // guarding as /odoo/hook/wa-template-sync but blocks on the sync so
+    // failures surface in the response body instead of the tail.
+    //
+    // Phase A (2026-09-17) — header-only auth. A caller passing ?token=
+    // is either buggy or hostile; refuse before doing anything else. The
+    // Odoo webhook route /odoo/hook/wa-template-sync keeps the query-string
+    // form because Odoo 19 SaaS webhook actions cannot set custom headers.
+    if (request.method === "GET" && url.pathname === "/admin/wa-template-sync") {
+      if (url.searchParams.has("token")) {
+        return json({ error: "unauthorized — token must be in X-Admin-Token header, not query" }, 401);
+      }
+      const providedToken = request.headers.get("x-admin-token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      try {
+        const { runTemplateSync } = await import("./wa-template-sync");
+        const report = await runTemplateSync(env);
+        return json({ ok: true, report });
+      } catch (e) {
+        return json({ ok: false, error: (e as Error).message, stack: (e as Error).stack }, 500);
+      }
+    }
+
+
+    // Item 3 (2026-09-17) — Odoo → Worker: "إرسال واتساب" button on a
+    // manual x_quotation. Reuses buildQuotationPDFDataFromOdoo +
+    // renderQuotationHTML + htmlToPDF to produce the PDF, then creates an
+    // x_wa_message row with x_attachment (base64) + x_manual=true + res_model/
+    // res_id set, transitioned to x_status='queued'. The queued automation
+    // fires the send-webhook route, which uploads the media to Meta and
+    // sends {type:'document', document:{id, filename}}.
+    if (request.method === "POST" && url.pathname === "/internal/quotation-wa-send") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      let body: { id?: number; _id?: number; _model?: string } = {};
+      try {
+        body = (await request.json()) as typeof body;
+      } catch {
+        return json({ error: "bad json" }, 400);
+      }
+      if (body._model && body._model !== "x_quotation") {
+        return json({ error: `unexpected model: ${body._model}` }, 400);
+      }
+      const qid = Number(body.id ?? body._id ?? url.searchParams.get("id"));
+      if (!Number.isFinite(qid) || qid <= 0) {
+        return json({ error: "invalid id" }, 400);
+      }
+      // ?dry_run=1 lets a tester stamp x_dry_run=true on the auto-created
+      // x_wa_message so the queued send stops at 'dry_ok' with no Meta call.
+      // Not set by the Odoo button; only used from curl / tests.
+      const dryRun = url.searchParams.get("dry_run") === "1";
+      ctx.waitUntil(
+        (async () => {
+          try {
+            const {
+              buildQuotationPDFDataFromOdoo,
+              generateQuotationPDF,
+              uploadQuotationToR2,
+            } = await import("./quotation");
+            const { call } = await import("./odoo");
+            const { sendOwnerAlert } = await import("./templates");
+            const data = await buildQuotationPDFDataFromOdoo(env, qid);
+            if (!data) {
+              console.warn(`[q-manual-wa] quotation ${qid} not found`);
+              return;
+            }
+            if (data.has_blocking_issue) {
+              const missing = data.missing_products ?? [];
+              const reason = missing.map((n) => `صنف بلا سعر: ${n}`).join(" | ") ||
+                "صنف بلا سعر";
+              console.error(`[q-manual-wa] BLOCKED ${qid} — ${reason}`);
+              await sendOwnerAlert(env,
+                `🚫 عرض يدوي ${data.quotationNumber} (id=${qid}) لم يُرسل — ${reason}`);
+              return;
+            }
+            const pdfBytes = await generateQuotationPDF(data, env);
+            const uploaded = await uploadQuotationToR2(
+              env,
+              pdfBytes,
+              data.quotationNumber,
+              env.WORKER_ORIGIN,
+            );
+            const b64 = arrayBufferToBase64(pdfBytes);
+            const partnerId = data.customer_id;
+            if (!partnerId) {
+              console.error(`[q-manual-wa] no customer_id resolved for quotation ${qid}`);
+              return;
+            }
+            const ids = await call<number[]>(env, "x_wa_message", "create", {
+              vals_list: [{
+                x_partner_id: partnerId,
+                x_direction: "out",
+                x_kind: "document",
+                x_attachment: b64,
+                x_filename: `${data.quotationNumber}.pdf`,
+                x_res_model: "x_quotation",
+                x_res_id: qid,
+                x_manual: true,
+                x_dry_run: dryRun,
+                x_status: "queued",
+                x_body: `عرض سعر ${data.quotationNumber} — الإجمالي ${data.grandTotal} ر.س`,
+              }],
+            });
+            console.log(
+              `[q-manual-wa] queued x_wa_message id=${ids[0]} for quotation ${qid} (PDF ${uploaded.size} bytes)`,
+            );
+          } catch (e) {
+            console.error(
+              "[q-manual-wa] failed",
+              (e as Error)?.message,
+              (e as Error)?.stack,
+            );
+          }
+        })(),
+      );
+      return json({ status: "accepted", quotation_id: qid }, 202);
+    }
+
+    // Item 1 (2026-09-18) — parallel build. Odoo → Worker: "إرسال واتساب"
+    // button on a standard sale.order. Reuses the shared UTAK helpers
+    // (renderQuotationHTML + htmlToPDF + uploadQuotationToR2 + x_wa_message
+    // create) exactly like /internal/quotation-wa-send, but the PDF data
+    // comes from sale.order instead of x_quotation. Nothing about the
+    // x_quotation route is touched; both routes coexist.
+    if (request.method === "POST" && url.pathname === "/internal/sale-quotation-wa-send") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      let body: { id?: number; _id?: number; _model?: string } = {};
+      try {
+        body = (await request.json()) as typeof body;
+      } catch {
+        return json({ error: "bad json" }, 400);
+      }
+      if (body._model && body._model !== "sale.order") {
+        return json({ error: `unexpected model: ${body._model}` }, 400);
+      }
+      const soid = Number(body.id ?? body._id ?? url.searchParams.get("id"));
+      if (!Number.isFinite(soid) || soid <= 0) {
+        return json({ error: "invalid id" }, 400);
+      }
+      const dryRun = url.searchParams.get("dry_run") === "1";
+      ctx.waitUntil(
+        (async () => {
+          try {
+            const { buildQuotationPDFDataFromSaleOrder } = await import(
+              "./sale-order-quotation"
+            );
+            const { generateQuotationPDF, uploadQuotationToR2 } = await import(
+              "./quotation"
+            );
+            const { call } = await import("./odoo");
+            const { sendOwnerAlert } = await import("./templates");
+            const data = await buildQuotationPDFDataFromSaleOrder(env, soid);
+            if (!data) {
+              console.warn(`[so-manual-wa] sale.order ${soid} not found`);
+              return;
+            }
+            if (data.has_blocking_issue) {
+              const missing = data.missing_products ?? [];
+              const reason = missing.map((n) => `صنف بلا سعر: ${n}`).join(" | ") ||
+                "صنف بلا سعر";
+              console.error(`[so-manual-wa] BLOCKED ${soid} — ${reason}`);
+              await sendOwnerAlert(
+                env,
+                `🚫 عرض بيع ${data.quotationNumber} (sale.order id=${soid}) لم يُرسل — ${reason}`,
+              );
+              return;
+            }
+            const pdfBytes = await generateQuotationPDF(data, env);
+            const uploaded = await uploadQuotationToR2(
+              env,
+              pdfBytes,
+              data.quotationNumber,
+              env.WORKER_ORIGIN,
+            );
+            const b64 = arrayBufferToBase64(pdfBytes);
+            const partnerId = data.customer_id;
+            if (!partnerId) {
+              console.error(`[so-manual-wa] no customer_id resolved for sale.order ${soid}`);
+              return;
+            }
+            const ids = await call<number[]>(env, "x_wa_message", "create", {
+              vals_list: [{
+                x_partner_id: partnerId,
+                x_direction: "out",
+                x_kind: "document",
+                x_attachment: b64,
+                x_filename: `${data.quotationNumber}.pdf`,
+                x_res_model: "sale.order",
+                x_res_id: soid,
+                x_manual: true,
+                x_dry_run: dryRun,
+                x_status: "queued",
+                x_body: `عرض سعر ${data.quotationNumber} — الإجمالي ${data.grandTotal} ر.س`,
+              }],
+            });
+            console.log(
+              `[so-manual-wa] queued x_wa_message id=${ids[0]} for sale.order ${soid} (PDF ${uploaded.size} bytes)`,
+            );
+          } catch (e) {
+            console.error(
+              "[so-manual-wa] failed",
+              (e as Error)?.message,
+              (e as Error)?.stack,
+            );
+          }
+        })(),
+      );
+      return json({ status: "accepted", sale_order_id: soid }, 202);
+    }
+
+    // 2026-09-19 — browser-facing "تنزيل PDF (UTAK)" button on sale.order.
+    // GET /internal/sale-quotation-pdf?id=<sale_order_id>&token=<SALE_PDF_DOWNLOAD_TOKEN>
+    // → 200 application/pdf attachment (built via the SAME builder that the
+    //   WhatsApp send route uses: buildQuotationPDFDataFromSaleOrder →
+    //   renderQuotationHTML → htmlToPDF). No WhatsApp send, no write-back
+    //   to Odoo, no R2 upload. Token is a dedicated secret independent of
+    //   INTERNAL_WEBHOOK_SECRET and ODOO_HOOK_TOKEN so it can be rotated
+    //   without disturbing existing webhooks. Any auth/id failure returns
+    //   404 (not 401) so a wrong token does not reveal that the endpoint
+    //   exists to a probing browser tab.
+    if (request.method === "GET" && url.pathname === "/internal/sale-quotation-pdf") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.SALE_PDF_DOWNLOAD_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return new Response("not found", { status: 404 });
+      }
+      const soid = Number(url.searchParams.get("id"));
+      if (!Number.isFinite(soid) || soid <= 0) {
+        return new Response("not found", { status: 404 });
+      }
+      try {
+        const { buildQuotationPDFDataFromSaleOrder } = await import(
+          "./sale-order-quotation"
+        );
+        const { generateQuotationPDF } = await import("./quotation");
+        const data = await buildQuotationPDFDataFromSaleOrder(env, soid);
+        if (!data) {
+          return new Response("not found", { status: 404 });
+        }
+        if (data.has_blocking_issue) {
+          const missing = (data.missing_products ?? []).join(", ") || "(unnamed)";
+          console.error(
+            `[so-pdf-download] BLOCKED sale.order ${soid} — صنف بلا سعر: ${missing}`,
+          );
+          return new Response(
+            `صنف بلا سعر: ${missing}`,
+            { status: 409, headers: { "Content-Type": "text/plain; charset=utf-8" } },
+          );
+        }
+        const pdfBytes = await generateQuotationPDF(data, env);
+        const filename = `${data.quotationNumber}.pdf`;
+        // ArrayBuffer copy: Response wants an actual ArrayBuffer, not a Uint8Array's underlying SharedArrayBuffer.
+        const body = pdfBytes.slice().buffer;
+        return new Response(body, {
+          status: 200,
+          headers: {
+            "Content-Type": "application/pdf",
+            "Content-Disposition": `attachment; filename="${filename}"`,
+            "Content-Length": String(pdfBytes.byteLength),
+            "Cache-Control": "no-store",
+          },
+        });
+      } catch (e) {
+        console.error(
+          "[so-pdf-download] failed",
+          (e as Error)?.message,
+          (e as Error)?.stack,
+        );
+        return new Response("build error", { status: 500 });
+      }
+    }
+
+    // 2026-09-19 — Odoo customer-invoice PDF download (UTAK-branded).
+    // GET /internal/invoice-pdf?id=<account.move id>&token=<SALE_PDF_DOWNLOAD_TOKEN>
+    // Reads account.move (out_invoice/out_refund only) and renders via the
+    // shared invoice template. showZatcaQR = false while amount_tax === 0.
+    if (request.method === "GET" && url.pathname === "/internal/invoice-pdf") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.SALE_PDF_DOWNLOAD_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return new Response("not found", { status: 404 });
+      }
+      const moveId = Number(url.searchParams.get("id"));
+      if (!Number.isFinite(moveId) || moveId <= 0) {
+        return new Response("not found", { status: 404 });
+      }
+      try {
+        const { buildInvoicePDFDataFromAccountMove, generateInvoicePDF } = await import("./invoice");
+        const data = await buildInvoicePDFDataFromAccountMove(env, moveId);
+        if (!data) {
+          return new Response("not found", { status: 404 });
+        }
+        const pdfBytes = await generateInvoicePDF(data, env);
+        const filename = `${data.invoiceNumber}.pdf`;
+        const body = pdfBytes.slice().buffer;
+        return new Response(body, {
+          status: 200,
+          headers: {
+            "Content-Type": "application/pdf",
+            "Content-Disposition": `attachment; filename="${filename}"`,
+            "Content-Length": String(pdfBytes.byteLength),
+            "Cache-Control": "no-store",
+          },
+        });
+      } catch (e) {
+        console.error("[inv-pdf-download] failed", (e as Error)?.message, (e as Error)?.stack);
+        return new Response("build error", { status: 500 });
+      }
+    }
+
+    // 2026-09-19 — Odoo purchase.order PDF download (UTAK-branded).
+    // GET /internal/purchase-order-pdf?id=<purchase.order id>&token=<SALE_PDF_DOWNLOAD_TOKEN>
+    if (request.method === "GET" && url.pathname === "/internal/purchase-order-pdf") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.SALE_PDF_DOWNLOAD_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return new Response("not found", { status: 404 });
+      }
+      const poId = Number(url.searchParams.get("id"));
+      if (!Number.isFinite(poId) || poId <= 0) {
+        return new Response("not found", { status: 404 });
+      }
+      try {
+        const { buildPurchaseOrderPDFDataFromPurchaseOrder, generatePurchaseOrderPDF } = await import("./purchase-order");
+        const data = await buildPurchaseOrderPDFDataFromPurchaseOrder(env, poId);
+        if (!data) return new Response("not found", { status: 404 });
+        const pdfBytes = await generatePurchaseOrderPDF(data, env);
+        const filename = `${data.poNumber}.pdf`;
+        const body = pdfBytes.slice().buffer;
+        return new Response(body, {
+          status: 200,
+          headers: {
+            "Content-Type": "application/pdf",
+            "Content-Disposition": `attachment; filename="${filename}"`,
+            "Content-Length": String(pdfBytes.byteLength),
+            "Cache-Control": "no-store",
+          },
+        });
+      } catch (e) {
+        console.error("[po-pdf-download] failed", (e as Error)?.message, (e as Error)?.stack);
+        return new Response("build error", { status: 500 });
+      }
+    }
+
+    // 2026-09-20 — Odoo → Worker: Baraa typed a reply inside a WhatsApp
+    // Discuss channel. base.automation on mail.message fires this hook with
+    // { _model: "mail.message", id: <mail.message.id> }; we return 202
+    // immediately and process in ctx.waitUntil so Odoo's row lock releases
+    // fast. Everything a reply needs (channel → partner → phone → 24h
+    // window → send → x_wa_message log) lives in handleInboxReplyHook.
+    if (request.method === "POST" && url.pathname === "/odoo/hook/wa-inbox") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      let body: { id?: number; _id?: number; _model?: string } = {};
+      try {
+        body = (await request.json()) as typeof body;
+      } catch {
+        return json({ error: "bad json" }, 400);
+      }
+      if (body._model && body._model !== "mail.message") {
+        return json({ error: `unexpected model: ${body._model}` }, 400);
+      }
+      const mmId = Number(body.id ?? body._id);
+      if (!Number.isFinite(mmId) || mmId <= 0) {
+        return json({ error: "invalid id / _id" }, 400);
+      }
+      ctx.waitUntil(
+        (async () => {
+          try {
+            const { handleInboxReplyHook } = await import("./wa-inbox-reply");
+            const result = await handleInboxReplyHook(env, mmId, ctx);
+            console.log("[wa-inbox hook]", JSON.stringify({ mmId, ...result }));
+          } catch (e) {
+            console.error(
+              "[wa-inbox hook] failed",
+              (e as Error)?.message,
+              (e as Error)?.stack,
+            );
+          }
+        })(),
+      );
+      return json({ status: "accepted", mail_message_id: mmId }, 202);
+    }
+
+    // Item 2 (2026-09-17) — Odoo → Worker: process x_wa_message.x_status='queued'.
+    // Fired by the base.automation (wa_message.on_queued) via ir.actions.server
+    // (wa_message.send_webhook). The full send pipeline (validate → media
+    // upload → Meta send → chatter write-back) lives in handleWaMessageWebhook.
+    // Async response (202 + ctx.waitUntil) so Odoo's row lock releases fast.
+    if (request.method === "POST" && url.pathname === "/odoo/hook/wa") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      let body: { id?: number; _id?: number; _model?: string } = {};
+      try {
+        body = (await request.json()) as typeof body;
+      } catch {
+        return json({ error: "bad json" }, 400);
+      }
+      if (body._model && body._model !== "x_wa_message") {
+        return json({ error: `unexpected model: ${body._model}` }, 400);
+      }
+      const waId = Number(body.id ?? body._id);
+      if (!Number.isFinite(waId) || waId <= 0) {
+        return json({ error: "invalid id / _id" }, 400);
+      }
+      ctx.waitUntil(
+        (async () => {
+          try {
+            const { handleWaMessageWebhook } = await import("./wa-message-send");
+            const result = await handleWaMessageWebhook(env, waId, ctx);
+            console.log("[wa-msg hook]", JSON.stringify({ waId, ...result }));
+          } catch (e) {
+            console.error(
+              "[wa-msg hook] failed",
+              (e as Error)?.message,
+              (e as Error)?.stack,
+            );
+          }
+        })(),
+      );
+      return json({ status: "accepted", wa_message_id: waId }, 202);
+    }
+
+    // Phase 1 (2026-09-17) — Odoo → Worker: template sync trigger.
+    // Fired by the base.automation on x_wa_control.x_sync_requested=true.
+    // Also usable via curl for a manual sync. Returns 202 and runs the sync
+    // in ctx.waitUntil so Odoo's row lock releases immediately.
+    if (request.method === "POST" && url.pathname === "/odoo/hook/wa-template-sync") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      ctx.waitUntil(
+        (async () => {
+          try {
+            const { runTemplateSync } = await import("./wa-template-sync");
+            const report = await runTemplateSync(env);
+            console.log("[wa-sync hook]", JSON.stringify(report));
+          } catch (e) {
+            console.error("[wa-sync hook] failed", (e as Error)?.message);
+          }
+        })(),
+      );
+      return json({ status: "accepted" }, 202);
+    }
+
     if (request.method === "POST" && url.pathname === "/webhook") {
       const raw = await request.text();
       const sig = request.headers.get("x-hub-signature-256");
       const ok = await verifySignature(raw, sig, env);
-      if (!ok) return new Response("bad signature", { status: 401 });
+      if (!ok) {
+        // 2026-09-21 — silent-outage insurance. Log the rejection, bump the
+        // daily KV counter and (once per Riyadh calendar day) fire a
+        // WhatsApp alert to OWNER_WHATSAPP so a rotated / mismatched
+        // META_APP_SECRET can never sit undetected for ten days again.
+        // Runs via ctx.waitUntil so the 401 returns without waiting on KV
+        // or Meta; any error inside stays inside the module.
+        const failureTask = handleSignatureFailure(env, {
+          rawBodyLength: raw.length,
+          signatureHeader: sig,
+          reason: classifySignatureFailure(sig),
+        });
+        ctx.waitUntil(failureTask);
+        return new Response("bad signature", { status: 401 });
+      }
 
       let payload: unknown;
       try {
@@ -808,48 +1348,459 @@ export default {
       }
 
       try {
-        await handleWebhook(env, payload);
+        await handleWebhook(env, payload, ctx);
       } catch (e) {
         console.error("webhook handler error", (e as Error)?.stack ?? e);
       }
       return new Response("ok", { status: 200 });
     }
 
+    // ============================================================
+    // /sim/* — simulation-mode control plane
+    // Every endpoint requires SIMULATION_MODE=true AND a valid SIM_SECRET.
+    // Refusing in production ensures a stray call from a leaked URL cannot
+    // trigger anything against the live worker.
+    // ============================================================
+    if (url.pathname.startsWith("/sim/")) {
+      const simResp = await handleSimRoute(request, url, env);
+      if (simResp) return simResp;
+    }
+
     return new Response("not found", { status: 404 });
   },
 };
 
-async function handleWebhook(env: Env, payload: unknown): Promise<void> {
+// ------------------------------------------------------------
+// /sim/* handlers
+// ------------------------------------------------------------
+async function handleSimRoute(
+  request: Request,
+  url: URL,
+  env: Env,
+): Promise<Response | null> {
+  if (!isNonProd(env)) {
+    return json({ error: "sim/pilot mode not enabled on this worker" }, 404);
+  }
+  const secret =
+    url.searchParams.get("secret") ??
+    request.headers.get("x-sim-secret") ??
+    "";
+  if (!verifySimSecret(env, secret)) {
+    return json({ error: "unauthorized" }, 401);
+  }
+
+  // TEMPORARY 2026-09-12 — T2 isolation harness.
+  // POST /sim/test-send?to=+9665...&text=...  — calls sendText() directly,
+  // no Odoo, no template lookup, no handleWebhook. Returns the fetchMeta
+  // Response status/body verbatim so a caller can assert AllowlistBlocked
+  // (403) or SIM capture (200 + wamid). Remove once T2 signs off.
+  if (request.method === "POST" && url.pathname === "/sim/test-send") {
+    const to = url.searchParams.get("to") ?? "";
+    const text = url.searchParams.get("text") ?? "T2 probe";
+    if (!to) return json({ error: "missing to" }, 400);
+    const { sendText } = await import("./meta");
+    const resp = await sendText(env, to, text);
+    const body = await resp.text();
+    return json({
+      status: resp.status,
+      body: (() => { try { return JSON.parse(body); } catch { return body; } })(),
+    });
+  }
+
+  // GET /sim/mode — report which mode we're in and the allowlist state
+  if (request.method === "GET" && url.pathname === "/sim/mode") {
+    const rm = runtimeMode(env);
+    const allowlist = parseAllowlist(env);
+    return json({
+      mode: rm.mode,
+      misconfig: rm.misconfig,
+      allowlist: {
+        set: allowlist.length > 0,
+        entries: allowlist.length,
+        entries_masked: allowlist.map((p) =>
+          p.length > 6 ? `${p.slice(0, 6)}…` : p,
+        ),
+      },
+    });
+  }
+
+  // POST /sim/inject — inject an incoming WhatsApp message
+  if (request.method === "POST" && url.pathname === "/sim/inject") {
+    let input: InjectInput;
+    try {
+      input = (await request.json()) as InjectInput;
+    } catch {
+      return json({ error: "bad json" }, 400);
+    }
+    if (!input?.from || !input?.type) {
+      return json({ error: "missing from/type" }, 400);
+    }
+    const { payload, wamid } = buildInjectedWebhookPayload(input);
+    try {
+      await handleWebhook(env, payload);
+    } catch (e) {
+      return json({ error: (e as Error)?.message ?? "handler failed", wamid }, 500);
+    }
+    return json({ ok: true, injected_wamid: wamid });
+  }
+
+  // GET /sim/outbound?run_id=X — list captured messages for a run
+  if (request.method === "GET" && url.pathname === "/sim/outbound") {
+    const runId = url.searchParams.get("run_id");
+    if (!runId) return json({ error: "missing run_id" }, 400);
+    const rows = await readOutbound(env, runId);
+    return json({ run_id: runId, count: rows.length, messages: rows });
+  }
+
+  // POST /sim/reset?run_id=X — wipe one run's captured messages
+  if (request.method === "POST" && url.pathname === "/sim/reset") {
+    const runId = url.searchParams.get("run_id");
+    if (!runId) return json({ error: "missing run_id" }, 400);
+    const deleted = await resetOutboundRun(env, runId);
+    return json({ run_id: runId, deleted });
+  }
+
+  // POST /sim/purge  (dry-run)
+  // POST /sim/purge?confirm=1  (actually deletes)
+  if (request.method === "POST" && url.pathname === "/sim/purge") {
+    const confirm = url.searchParams.get("confirm") === "1";
+    try {
+      const report = await purgeSimulationData(env, { confirm });
+      return json({ ok: true, ...report });
+    } catch (e) {
+      return json({ error: (e as Error)?.message ?? "purge failed" }, 500);
+    }
+  }
+
+  // POST /sim/trigger?job=<name> — run a scheduled job right now
+  if (request.method === "POST" && url.pathname === "/sim/trigger") {
+    const job = url.searchParams.get("job");
+    if (!job) return json({ error: "missing job" }, 400);
+    try {
+      const result = await runSimJob(env, job);
+      return json({ ok: true, job, result });
+    } catch (e) {
+      return json({ error: (e as Error)?.message ?? "trigger failed", job }, 500);
+    }
+  }
+
+  // GET /sim/guard — dry-run the Odoo guard (call before flipping sim on)
+  if (request.method === "GET" && url.pathname === "/sim/guard") {
+    const g = await guardSimulationOdoo(env);
+    return json(g, g.ok ? 200 : 409);
+  }
+
+  return null;
+}
+
+async function runSimJob(env: Env, job: string): Promise<unknown> {
+  switch (job) {
+    case "ask_suppliers":
+      await askAllSuppliersForPrices(env);
+      return "askAllSuppliersForPrices done";
+    case "reliability_scores":
+      await updateSupplierReliabilityScores(env);
+      return "updateSupplierReliabilityScores done";
+    case "open_ordering":
+      await openOrderingWindow(env);
+      return "openOrderingWindow done";
+    case "close_unconfirmed":
+      await closeUnconfirmedOrders(env);
+      return "closeUnconfirmedOrders done";
+    case "aggregate_purchase":
+      await aggregateAndDispatchToWarehouse(env);
+      return "aggregateAndDispatchToWarehouse done";
+    case "collection_summary": {
+      const { sendDailyCollectionSummary } = await import("./invoice");
+      await sendDailyCollectionSummary(env);
+      return "sendDailyCollectionSummary done";
+    }
+    case "standing_reminders": {
+      const { sendStandingOrderReminders } = await import("./standing");
+      const r = await sendStandingOrderReminders(env);
+      return r;
+    }
+    case "daily_outreach": {
+      const { runDailyOutreach } = await import("./outreach");
+      await runDailyOutreach(env);
+      return "runDailyOutreach done";
+    }
+    default:
+      throw new Error(
+        `unknown job '${job}'. valid: ask_suppliers | reliability_scores | open_ordering | close_unconfirmed | aggregate_purchase | collection_summary | standing_reminders | daily_outreach`,
+      );
+  }
+}
+
+// 2026-09-17 — flush deferred sendLocation messages queued in KV by
+// sendDriverRoute under `pending_loc:<driver_phone>` (20h TTL). The team
+// branch calls this on the driver's first inbound; a corrupt payload is
+// dropped after logging so a bad row cannot brick the driver's flow.
+async function flushPendingLocations(env: Env, to: string, key: string): Promise<void> {
+  const raw = await env.MSG_DEDUP.get(key);
+  if (!raw) return;
+  let locs: Array<{ latitude: number; longitude: number; name?: string; address?: string }> = [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) locs = parsed;
+  } catch (e) {
+    console.warn("[pending_loc] parse failed", (e as Error)?.message);
+    await env.MSG_DEDUP.delete(key);
+    return;
+  }
+  for (const l of locs) {
+    if (typeof l?.latitude !== "number" || typeof l?.longitude !== "number") continue;
+    try {
+      await sendLocation(env, to, l.latitude, l.longitude, l.name, l.address);
+    } catch (e) {
+      console.warn("[pending_loc] sendLocation failed", (e as Error)?.message);
+    }
+  }
+  await env.MSG_DEDUP.delete(key);
+}
+
+async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext): Promise<void> {
+  // Item 2 (2026-09-17) — Meta delivery-status callbacks land here alongside
+  // messages. When present, correlate each status update to the matching
+  // x_wa_message by wamid and bump its x_status. Best-effort; a failure never
+  // interrupts inbound-message processing.
+  //
+  // 2026-09-20 (cover) — when Meta reports a failed status, also mirror the
+  // failure into the recipient's Discuss channel as ⚠️ ما انرسلت — Baraa
+  // sees the same "channel is out" cue for late-arriving failures as for
+  // immediate ones. Non-failed states stay silent (they'd double the
+  // channel's noise) but still stamp x_status on x_wa_message.
+  try {
+    const { updateWaStatusByWamid } = await import("./wa-message-send");
+    const { phoneTail } = await import("./wa-inbox");
+    // deno-lint-ignore no-explicit-any
+    const entries: any[] = (payload as any)?.entry ?? [];
+    for (const entry of entries) {
+      for (const change of entry?.changes ?? []) {
+        const value = change?.value ?? {};
+        const statuses: unknown[] = value?.statuses ?? [];
+        // deno-lint-ignore no-explicit-any
+        for (const s of statuses as any[]) {
+          const wamid: string | undefined = s?.id;
+          const rawStatus: string | undefined = s?.status;
+          if (!wamid || !rawStatus) continue;
+          const s2 =
+            rawStatus === "sent" || rawStatus === "delivered" ||
+            rawStatus === "read" || rawStatus === "failed"
+              ? rawStatus
+              : null;
+          if (!s2) continue;
+          const errMsg = s?.errors?.[0]?.message
+            ? `Meta ${s.errors[0].code ?? ""}: ${s.errors[0].message}`
+            : undefined;
+          const to = s?.recipient_id ?? "";
+          console.log(
+            `[inbox] wamid=${wamid.slice(-10)} from=${phoneTail(String(to))} kind=status status=${s2}`,
+          );
+          await updateWaStatusByWamid(env, wamid, s2, errMsg);
+          if (s2 === "failed" && to) {
+            try {
+              const { findCustomerByWhatsApp, findSupplierByWhatsApp, findTeamMemberByWhatsApp } =
+                await import("./odoo");
+              const digits = String(to).replace(/[^0-9]/g, "");
+              const e164 = digits.startsWith("+") ? digits : `+${digits}`;
+              const [t, sup, cus] = await Promise.all([
+                findTeamMemberByWhatsApp(env, e164).catch(() => null),
+                findSupplierByWhatsApp(env, e164).catch(() => null),
+                findCustomerByWhatsApp(env, e164).catch(() => null),
+              ]);
+              const partner = t ?? sup ?? cus;
+              if (partner) {
+                const { echoFailure } = await import("./wa-inbox");
+                await echoFailure(env, partner.id, partner.name, errMsg ?? "Meta failed");
+              }
+            } catch (e) {
+              console.warn("[status-failed mirror]", (e as Error)?.message);
+            }
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("[status-callback] failed", (e as Error)?.message);
+  }
+
   const messages = parseWebhook(payload);
 
   for (const msg of messages) {
-    if (
-      msg.type !== "text" &&
-      msg.type !== "interactive" &&
-      msg.type !== "button" &&
-      msg.type !== "location"
-    ) continue;
-    if (!msg.text && !msg.buttonId && !msg.location) continue;
+    // 2026-09-20 (inbox) — the type filter used to short-circuit ALL non-bot
+    // types (image, audio, video, document, sticker) before the dedup check.
+    // We now still gate the bot on those types below, but the inbox mirror
+    // block that follows works on every wamid, so dedup must happen first
+    // to survive Meta retries. `bot_types` mirrors the original filter.
+    if (!msg.messageId) continue;
+    const botTypes =
+      msg.type === "text" || msg.type === "interactive" ||
+      msg.type === "button" || msg.type === "location";
+    const hasBotContent = Boolean(msg.text || msg.buttonId || msg.location);
+    const hasMedia = Boolean(msg.media?.id);
+    if (!botTypes && !hasMedia) continue;
+    if (botTypes && !hasBotContent && !hasMedia) continue;
 
-    if (await seenBefore(env, msg.messageId)) continue;
+    if (await seenBefore(env, msg.messageId)) {
+      const { phoneTail } = await import("./wa-inbox");
+      console.log(
+        `[inbox] wamid=${msg.messageId.slice(-10)} from=${phoneTail(msg.from)} kind=message dedup=hit skip=already-seen`,
+      );
+      continue;
+    }
 
-    const supplier = await findSupplierByWhatsApp(env, msg.from);
-    if (supplier) {
-      const enriched = await enrichSupplier(env, supplier);
-      const replyText = await handleSupplierReply(env, enriched, msg.text, msg.messageId);
-      if (replyText) await sendText(env, msg.from, replyText);
+    // 2026-09-20 (cover) — single funnel for every inbound. Ingests BEFORE
+    // any team/supplier/customer bot routing so a failure in one of those
+    // branches can never make the message disappear from x_wa_message or
+    // from Baraa's Discuss channel. `ingestInbound`:
+    //   • resolves partner in priority team → supplier → customer → new,
+    //     falling back to findOrCreateCustomer for a brand-new number,
+    //   • writes x_wa_message with x_source='inbound' and status='received',
+    //   • mirrors the message into the partner's Discuss channel as the
+    //     contact (not the bot), and
+    //   • returns a small IngestResult the [inbox] log line prints so
+    //     `wrangler tail` shows exactly what happened to every wamid.
+    //
+    // Team, supplier and customer matches are also passed through to the
+    // bot routing below so we do not re-run the same Odoo lookups a
+    // second time on the hot path.
+    let ingestRoute: "team" | "supplier" | "customer" | "new" | "owner" = "new";
+    let teamMatch: Awaited<ReturnType<typeof findTeamMemberByWhatsApp>> | null = null;
+    let supplierMatch: Awaited<ReturnType<typeof findSupplierByWhatsApp>> | null = null;
+    let customerMatchForRoute: OdooPartner | null = null;
+    try {
+      const {
+        findCustomerByWhatsApp,
+        findSupplierByWhatsApp: fs,
+        findTeamMemberByWhatsApp: ft,
+      } = await import("./odoo");
+      const [t, sup, cus] = await Promise.all([
+        ft(env, msg.from).catch(() => null),
+        fs(env, msg.from).catch(() => null),
+        findCustomerByWhatsApp(env, msg.from).catch(() => null),
+      ]);
+      teamMatch = t;
+      supplierMatch = sup;
+      customerMatchForRoute = cus;
+
+      const { ingestInbound, phoneTail } = await import("./wa-inbox");
+      const ingest = await ingestInbound(
+        env,
+        {
+          partnerId: 0, // placeholder — ingestInbound sets its own from lookups
+          partnerName: "",
+          wamid: msg.messageId,
+          type: msg.type,
+          text: msg.text || undefined,
+          location: msg.location,
+          media: msg.media,
+          from: msg.from,
+          profileName: msg.profileName,
+          // 2026-09-20 (fix) — Meta's own timestamp (unix seconds as string)
+          // for the 24h-window source of truth; see parseMetaTimestampMs in
+          // wa-inbox.ts.
+          metaTimestamp: msg.timestamp,
+        },
+        {
+          team: t ? { id: t.id, name: t.name } : null,
+          supplier: sup ? { id: sup.id, name: sup.name } : null,
+          customer: cus ? { id: cus.id, name: cus.name } : null,
+        },
+      );
+      ingestRoute = ingest.route;
+
+      // Single console line every inbound produces, regardless of route.
+      const skipOrOk = ingest.mirrored
+        ? "ok"
+        : ingest.route === "owner"
+          ? "skip:owner"
+          : `${ingest.skip ? "fail:" + ingest.skip : "skip:unknown"}`;
+      console.log(
+        `[inbox] wamid=${msg.messageId.slice(-10)} from=${phoneTail(msg.from)} kind=message partner=${ingest.partnerId ?? "-"} route=${ingest.route} mirror=${skipOrOk}`,
+      );
+
+      // 2026-09-20 — the unallowed-inbound alert still fires only for
+      // strangers (no team, no supplier match). We keep the 24h KV throttle
+      // and use the same partner name from the customer match if present.
+      if (!sup && !t) {
+        const { isRecipientAllowed } = await import("./config");
+        const { isPartnerWaAllowed } = await import("./odoo");
+        const allowlistOK = isRecipientAllowed(env, msg.from);
+        const partnerOK = allowlistOK ? true : await isPartnerWaAllowed(env, msg.from);
+        if (!allowlistOK && !partnerOK) {
+          const dedupKey = `wa_unallowed_alert:${msg.from}`;
+          const already = await env.MSG_DEDUP.get(dedupKey);
+          if (!already) {
+            const who = cus?.name || msg.profileName || msg.from;
+            const { sendOwnerAlert } = await import("./templates");
+            try {
+              await sendOwnerAlert(
+                env,
+                `رقم جديد راسل: ${who} (${msg.from}) — فعّل واتساب أو رد يدوياً`,
+              );
+            } catch (e) {
+              console.warn("[wa_unallowed alert send]", (e as Error)?.message);
+            }
+            try {
+              await env.MSG_DEDUP.put(dedupKey, "1", { expirationTtl: 24 * 60 * 60 });
+            } catch (e) {
+              console.warn("[wa_unallowed KV write]", (e as Error)?.message);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("[inbound-log] skipped", (e as Error)?.message);
+    }
+
+    // 2026-09-20 (inbox) — bot routing runs only on text / button / location.
+    // Media messages are mirrored above and terminate here (with markSeen so
+    // Meta retries stay dedup'd).
+    if (!botTypes || (!hasBotContent && hasMedia)) {
       await markSeen(env, msg.messageId);
       continue;
     }
 
-    const teamMember = await findTeamMemberByWhatsApp(env, msg.from);
+    // 2026-09-20 (cover) — reuse the team/supplier matches ingestInbound
+    // already resolved. Ordering: team → supplier → customer (a team
+    // member who also has customer_rank must not fall into the customer
+    // path). ingestRoute='owner' short-circuits below via the OWNER guard.
+    const teamMember = teamMatch;
     if (teamMember) {
+      // 2026-09-17 — deferred delivery locations. sendDriverRoute stashes
+      // per-stop location messages in KV instead of sending them behind
+      // an unopened 24-hour window; the driver's first inbound flushes
+      // them. Two shapes:
+      //   • "shift_start" button reply → text confirmation THEN locations
+      //   • anything else from the driver → locations first, then the
+      //     regular team handler continues.
+      const pendingLocKey = `pending_loc:${msg.from}`;
+      const isShiftStart =
+        msg.type === "interactive" && msg.buttonId === "shift_start";
+      if (isShiftStart) {
+        try {
+          await sendText(
+            env,
+            msg.from,
+            "تم بدء الدوام ✅ هذي مواقع توصيلات اليوم",
+            { ctx },
+          );
+          await flushPendingLocations(env, msg.from, pendingLocKey);
+        } catch (e) {
+          console.warn("[shift_start] flush failed", (e as Error)?.message);
+        }
+        await markSeen(env, msg.messageId);
+        continue;
+      }
+      await flushPendingLocations(env, msg.from, pendingLocKey);
+
       if (msg.type === "interactive" && msg.buttonId) {
         const reply: RouterReply = await dispatch(env, {
           msg, intent: "other", senderType: "customer",
           partner: { id: teamMember.id, name: teamMember.name, x_whatsapp_number: teamMember.x_whatsapp_number },
         });
-        await sendReply(env, msg.from, reply);
+        await sendReply(env, msg.from, reply, ctx);
       } else if (msg.type === "text") {
         const pendingKey = `pending_issue:${teamMember.id}`;
         const pendingOrderId = await env.MSG_DEDUP.get(pendingKey);
@@ -857,21 +1808,55 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
           const orderId = Number(pendingOrderId);
           await markStopIssue(env, orderId, msg.text);
           await env.MSG_DEDUP.delete(pendingKey);
-          if (env.OWNER_WHATSAPP) {
-            await sendText(env, env.OWNER_WHATSAPP,
+          {
+            const { sendOwnerAlert } = await import("./templates");
+            await sendOwnerAlert(env,
               `⚠️ مشكلة توصيل\nسواق: ${teamMember.name}\nطلب: #${orderId}\nالمشكلة: ${msg.text}`);
           }
-          await sendText(env, msg.from, "تم تسجيل المشكلة، براء بيراجعها 🙏");
+          await sendText(env, msg.from, "تم تسجيل المشكلة، براء بيراجعها 🙏", { ctx });
         } else {
-          await sendText(env, msg.from, `مرحبا ${teamMember.name} 👋 استخدم الأزرار عشان نأكد الحالة.`);
+          await sendText(env, msg.from, `مرحبا ${teamMember.name} 👋 استخدم الأزرار عشان نأكد الحالة.`, { ctx });
         }
       }
       await markSeen(env, msg.messageId);
       continue;
     }
 
-    const { findCustomerByWhatsApp } = await import("./odoo");
-    const existing = await findCustomerByWhatsApp(env, msg.from);
+    // 2026-09-20 (cover) — supplier path moved AFTER team so a partner
+    // that carries both roles gets the team behaviour first (Omar carries
+    // driver + warehouse + collector on partner 9 and must never fall
+    // into the supplier ask/reply pipeline).
+    const supplier = supplierMatch;
+    if (supplier) {
+      const enriched = await enrichSupplier(env, supplier);
+      const replyText = await handleSupplierReply(env, enriched, msg.text, msg.messageId);
+      if (replyText) await sendText(env, msg.from, replyText, { ctx });
+      await markSeen(env, msg.messageId);
+      continue;
+    }
+
+    // ---- owner-guard (inbound) ----
+    // A message from OWNER_WHATSAPP is never a customer conversation:
+    // no findOrCreateCustomer, no welcome template, no order creation.
+    // If the sender is a registered supplier or team member the earlier
+    // branches already handled it; anything reaching here from the owner
+    // is a manager reaching out on the customer number by mistake or for
+    // testing — log the fact and ignore.
+    if (env.OWNER_WHATSAPP) {
+      const ownerDigits = env.OWNER_WHATSAPP.replace(/[^0-9]/g, "");
+      const fromDigits = msg.from.replace(/[^0-9]/g, "");
+      if (ownerDigits && ownerDigits === fromDigits) {
+        console.log(
+          `[owner-guard] inbound skip from=${msg.from} type=${msg.type}`,
+        );
+        await markSeen(env, msg.messageId);
+        continue;
+      }
+    }
+
+    // 2026-09-20 (cover) — ingestInbound already ran findCustomerByWhatsApp,
+    // so reuse its match rather than re-hit Odoo.
+    const existing = customerMatchForRoute;
     if (!existing && msg.type === "text") {
       try {
         const { sendTemplateByPurpose, T } = await import("./templates");
@@ -899,7 +1884,7 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
           intent: "request_quotation",
           senderType, partner,
         });
-        await sendReply(env, msg.from, reply);
+        await sendReply(env, msg.from, reply, ctx);
         await markSeen(env, msg.messageId);
         continue;
       }
@@ -911,18 +1896,20 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
           await setOrderNeighborhood(env, orderId, neigh);
           await env.MSG_DEDUP.delete(pendingKey);
           await sendText(env, msg.from,
-            `حفظنا الحي: ${neigh} ✅\nلو تقدر ترسل موقعك من قوقل مابس (📎 → موقع → موقعي الحالي) بيوصلك السائق أدق مرة جاية 🌿`);
+            `حفظنا الحي: ${neigh} ✅\nلو تقدر ترسل موقعك من قوقل مابس (📎 → موقع → موقعي الحالي) بيوصلك السائق أدق مرة جاية 🌿`,
+            { ctx });
           const reply: RouterReply = await dispatch(env, {
             msg: { ...msg, text: "خلاص" },
             intent: "request_quotation",
             senderType, partner,
           });
-          await sendReply(env, msg.from, reply);
+          await sendReply(env, msg.from, reply, ctx);
           await markSeen(env, msg.messageId);
           continue;
         }
         await sendText(env, msg.from,
-          "أرسل موقعك من قوقل مابس (📎 → موقع → موقعي الحالي)، أو اكتب اسم الحي فقط 🙏");
+          "أرسل موقعك من قوقل مابس (📎 → موقع → موقعي الحالي)، أو اكتب اسم الحي فقط 🙏",
+          { ctx });
         await markSeen(env, msg.messageId);
         continue;
       }
@@ -932,7 +1919,7 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
       const { latitude, longitude, name, address } = msg.location;
       const neigh = (name ?? address ?? "").trim().slice(0, 60);
       await savePartnerLocation(env, partner.id, latitude, longitude, neigh);
-      await sendText(env, msg.from, "حفظنا موقعك للتوصيل ✅ طلباتك الجاية بيوصلك السائق مباشرة.");
+      await sendText(env, msg.from, "حفظنا موقعك للتوصيل ✅ طلباتك الجاية بيوصلك السائق مباشرة.", { ctx });
       await markSeen(env, msg.messageId);
       continue;
     }
@@ -945,7 +1932,7 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
 
     const reply: RouterReply = await dispatch(env, { msg, intent, senderType, partner });
 
-    await sendReply(env, msg.from, reply);
+    await sendReply(env, msg.from, reply, ctx);
     await markSeen(env, msg.messageId);
   }
 }
@@ -963,14 +1950,19 @@ async function enrichSupplier(env: Env, supplier: OdooPartner): Promise<OdooPart
   };
 }
 
-async function sendReply(env: Env, to: string, reply: RouterReply): Promise<void> {
+async function sendReply(
+  env: Env,
+  to: string,
+  reply: RouterReply,
+  ctx?: ExecutionContext,
+): Promise<void> {
   if (reply.buttons && reply.buttons.length > 0) {
     const body = reply.bodyBeforeButtons ?? reply.text ?? "";
-    await sendButtons(env, to, body, reply.buttons);
+    await sendButtons(env, to, body, reply.buttons, { ctx });
     return;
   }
   if (reply.text && reply.text.trim()) {
-    await sendText(env, to, reply.text);
+    await sendText(env, to, reply.text, { ctx });
   }
 }
 
@@ -986,4 +1978,18 @@ function timingSafeEqual(a: string, b: string): boolean {
   let diff = 0;
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
+}
+
+// item3 (2026-09-17) — Uint8Array → base64 (chunked so a large PDF does not
+// exceed the argument limit of String.fromCharCode.apply on some runtimes).
+function arrayBufferToBase64(bytes: Uint8Array): string {
+  let bin = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    bin += String.fromCharCode.apply(
+      null,
+      Array.from(bytes.subarray(i, i + chunk)),
+    );
+  }
+  return btoa(bin);
 }

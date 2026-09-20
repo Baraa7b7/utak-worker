@@ -1,0 +1,394 @@
+{
+  "generated_at": "2026-09-18T14:11:48.997Z",
+  "company": {
+    "id": 1,
+    "name": "utakfresh",
+    "account_sale_tax_id": [
+      5,
+      "15%"
+    ],
+    "account_purchase_tax_id": [
+      21,
+      "15%"
+    ]
+  },
+  "products": [
+    {
+      "id": 1,
+      "name": "Booking Fees",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Standard delivery",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 71,
+      "name": "طماطم",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 72,
+      "name": "خيار",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 73,
+      "name": "بطاطس",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 74,
+      "name": "بصل",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 75,
+      "name": "جزر",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 76,
+      "name": "كوسا",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 77,
+      "name": "باذنجان",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 78,
+      "name": "فلفل رومي",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 79,
+      "name": "فلفل حار",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 80,
+      "name": "ثوم",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 81,
+      "name": "ليمون",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 82,
+      "name": "قرع",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 83,
+      "name": "ملفوف",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 84,
+      "name": "قرنبيط",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 85,
+      "name": "بامية",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 86,
+      "name": "فاصوليا",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 87,
+      "name": "فجل",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 88,
+      "name": "لفت",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 89,
+      "name": "خس",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 90,
+      "name": "جرجير",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 91,
+      "name": "بقدونس",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 92,
+      "name": "كزبرة",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 93,
+      "name": "نعناع",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 94,
+      "name": "شبت",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 95,
+      "name": "سبانخ",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 96,
+      "name": "تفاح",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 97,
+      "name": "موز",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 98,
+      "name": "برتقال",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 99,
+      "name": "عنب",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 100,
+      "name": "رمان",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 101,
+      "name": "مانجو",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 102,
+      "name": "أناناس",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 103,
+      "name": "فراولة",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 104,
+      "name": "بطيخ",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    },
+    {
+      "id": 105,
+      "name": "افوكادو",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ]
+    }
+  ],
+  "view_2431": {
+    "id": 2431,
+    "name": "sale.order.line.view.form.editable",
+    "priority": 999,
+    "arch": "<data><form position=\"attributes\">\n                <attribute name=\"edit\">true</attribute>\n            </form>\n            <field name=\"product_id\" position=\"attributes\">\n                <attribute name=\"domain\">[('type', '=', 'service')]</attribute>\n                <attribute name=\"context\">{\n                    'default_type': 'service',\n                    'default_service_policy': 'ordered_prepaid',\n                    'form_view_ref': 'sale_project.product_product_form_view_inherit_sale_project',\n                }</attribute>\n            </field>\n        </data>"
+  },
+  "existing_override_view": []
+}

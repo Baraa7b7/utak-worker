@@ -1,0 +1,56 @@
+{
+  "generated_at": "2026-09-20T03:35:53.360Z",
+  "created": {
+    "fields": [
+      {
+        "id": 20163,
+        "model": "res.partner",
+        "name": "x_wa_channel_id"
+      },
+      {
+        "id": 20166,
+        "model": "discuss.channel",
+        "name": "x_wa_partner_id"
+      }
+    ],
+    "partners": [
+      {
+        "id": 42,
+        "name": "UTAK بوت"
+      }
+    ],
+    "menus": [
+      {
+        "id": 565,
+        "name": "💬 المحادثات",
+        "parent_id": 529
+      }
+    ],
+    "server_actions": [
+      {
+        "id": 979,
+        "name": "wa_inbox.reply_webhook"
+      }
+    ],
+    "automations": [
+      {
+        "id": 12,
+        "name": "wa_inbox.on_message"
+      }
+    ]
+  },
+  "mutated": {
+    "cron_62": {
+      "before": {
+        "id": 62,
+        "name": "WhatsApp : Send In Queue Messages",
+        "active": true
+      },
+      "applied_at": "2026-09-20T03:35:58.326Z",
+      "after": {
+        "active": false
+      }
+    }
+  },
+  "utak_bot_partner_id": 42
+}

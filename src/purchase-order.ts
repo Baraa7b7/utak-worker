@@ -3,7 +3,7 @@
 // ("فاتورة إلى / BILL TO"); the CONTENT of that slot is supplier data.
 
 import type { Env } from "./config";
-import { call } from "./odoo";
+import { call, resolvePackagingNames } from "./odoo";
 import {
   BRAND_COLORS,
   computePageMetrics,
@@ -157,7 +157,9 @@ export async function buildPurchaseOrderPDFDataFromOdoo(
   if (!list) return null;
 
   type Agg = {
+    product_id?: number;
     product_name?: string;
+    packaging_id?: number;
     packaging_name?: string;
     total_quantity?: number;
     unit_price?: number;
@@ -172,15 +174,27 @@ export async function buildPurchaseOrderPDFDataFromOdoo(
     }
   }
 
+  // Re-resolve packaging labels at render time. The purchase list stores a
+  // snapshot of packaging_name from when the list was aggregated, but the
+  // packaging refactor rebuilds x_name from x_type + weight — read the live
+  // value so the PO shows what Odoo shows.
+  const packagingNames = await resolvePackagingNames(
+    env,
+    aggregated.map((a) => ({
+      packaging_id: typeof a.packaging_id === "number" ? a.packaging_id : 0,
+      product_id: typeof a.product_id === "number" ? a.product_id : 0,
+    })),
+  );
+
   let subtotal = 0;
-  const items: PurchaseOrderItem[] = aggregated.map((a) => {
+  const items: PurchaseOrderItem[] = aggregated.map((a, i) => {
     const qty = typeof a.total_quantity === "number" ? a.total_quantity : 0;
     const price = typeof a.unit_price === "number" ? a.unit_price : 0;
     const total = round2(qty * price);
     subtotal = round2(subtotal + total);
     return {
       name: a.product_name || "صنف",
-      pack: a.packaging_name || "-",
+      pack: packagingNames[i],
       qty,
       price,
       total,
@@ -207,6 +221,107 @@ export async function buildPurchaseOrderPDFDataFromOdoo(
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+// ---- Build from a standard Odoo purchase.order ----
+// Parallel reader alongside buildPurchaseOrderPDFDataFromOdoo (x_purchase_list).
+// Reads partner_id (supplier) + order_line, resolves packaging from the
+// x_product_packaging fallback per product template.
+export async function buildPurchaseOrderPDFDataFromPurchaseOrder(
+  env: Env,
+  purchaseOrderId: number,
+): Promise<PurchaseOrderPDFData | null> {
+  type POHead = {
+    id: number;
+    name: string | false;
+    date_order: string | false;
+    partner_id: [number, string] | false;
+    order_line: number[];
+    amount_untaxed: number;
+    amount_total: number;
+  };
+  const heads = await call<POHead[]>(env, "purchase.order", "read", {
+    ids: [purchaseOrderId],
+    fields: ["id","name","date_order","partner_id","order_line","amount_untaxed","amount_total"],
+  });
+  const head = heads[0];
+  if (!head) return null;
+
+  type Partner = { id: number; name: string | false; phone: string | false; street: string | false; city: string | false };
+  const partner = head.partner_id
+    ? (await call<Partner[]>(env, "res.partner", "read", {
+        ids: [head.partner_id[0]],
+        fields: ["id","name","phone","street","city"],
+      }))[0]
+    : null;
+
+  type Line = {
+    id: number;
+    name: string | false;
+    product_id: [number, string] | false;
+    product_qty: number;
+    price_unit: number;
+    price_subtotal: number;
+    x_packaging_id: [number, string] | false;
+  };
+  type ProdProd = { id: number; product_tmpl_id: [number, string] | false };
+  const lines = head.order_line.length > 0
+    ? await call<Line[]>(env, "purchase.order.line", "read", {
+        ids: head.order_line,
+        fields: ["id","name","product_id","product_qty","price_unit","price_subtotal","x_packaging_id"],
+      })
+    : [];
+  const prodIds = Array.from(new Set(lines.map((l) => l.product_id ? l.product_id[0] : 0).filter((n) => n > 0)));
+  const prods = prodIds.length > 0
+    ? await call<ProdProd[]>(env, "product.product", "read", {
+        ids: prodIds,
+        fields: ["id","product_tmpl_id"],
+      })
+    : [];
+  const tmplByProd = new Map<number, number>();
+  for (const p of prods) if (p.product_tmpl_id) tmplByProd.set(p.id, p.product_tmpl_id[0]);
+
+  // Read packaging from the line first (Studio m2o x_packaging_id); fall back
+  // to the product's default packaging when the line has none.
+  const packagingNames = await resolvePackagingNames(
+    env,
+    lines.map((l) => ({
+      packaging_id: l.x_packaging_id ? l.x_packaging_id[0] : 0,
+      product_id: l.product_id ? (tmplByProd.get(l.product_id[0]) ?? 0) : 0,
+    })),
+  );
+
+  let subtotal = 0;
+  const items: PurchaseOrderItem[] = lines.map((l, i) => {
+    const total = round2(l.price_subtotal);
+    subtotal = round2(subtotal + total);
+    const displayName = (typeof l.name === "string" && l.name)
+      ? l.name.split("\n")[0]
+      : (l.product_id ? l.product_id[1] : "صنف");
+    return {
+      name: displayName,
+      pack: packagingNames[i],
+      qty: l.product_qty,
+      price: l.price_unit,
+      total,
+    };
+  });
+
+  const rawDate = head.date_order || null;
+  const poDate = rawDate ? new Date(String(rawDate).replace(" ", "T") + "Z") : new Date();
+
+  return {
+    poNumber: (typeof head.name === "string" && head.name) ? head.name : `PO-${purchaseOrderId}`,
+    poDate,
+    supplier: {
+      name: partner?.name || (head.partner_id ? head.partner_id[1] : "المورد"),
+      address: partner?.street || partner?.city || "الرياض",
+      phone: partner?.phone || "",
+    },
+    items,
+    subtotal,
+    grandTotal: head.amount_total || subtotal,
+  };
 }
 
 // ---- Test data — supplier "خضار الرياض", 4 items ----

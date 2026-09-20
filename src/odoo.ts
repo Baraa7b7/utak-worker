@@ -3,7 +3,7 @@
 // Auth: Bearer <ODOO_API_KEY>; on 401 falls back once to /web/session/authenticate.
 
 import type { Env } from "./config";
-import { CATALOG_CACHE_KEY, CATALOG_CACHE_TTL_SECONDS } from "./config";
+import { CATALOG_CACHE_KEY, CATALOG_CACHE_TTL_SECONDS, SIM_MARKED_MODELS, isTestMode } from "./config";
 import type {
   OdooPartner,
   CatalogProduct,
@@ -16,6 +16,22 @@ type AuthMode = "apikey" | "session";
 
 let authMode: AuthMode = "apikey";
 let sessionCookie: string | null = null;
+
+/**
+ * Odoo's `name_get` returns many2one display strings like `"[UTAK-VEG-001] طماطم"`
+ * whenever the target model has a `default_code` / `ref` and it is set. Every
+ * customer-facing surface (PDFs, WhatsApp text, buttons) reads these strings
+ * verbatim, so the raw form leaks internal SKUs into invoices / driver
+ * routes / delivery notes.
+ *
+ * `stripRef` peels the leading bracketed segment and its trailing whitespace
+ * exactly once — the input's inner text (which may itself contain brackets)
+ * is preserved untouched. A no-op on strings without the prefix.
+ */
+export function stripRef(name: string | undefined | null): string {
+  if (!name) return "";
+  return name.replace(/^\s*\[[^\]]*\]\s*/, "");
+}
 
 async function authenticateSession(env: Env): Promise<void> {
   const res = await fetch(`${env.ODOO_URL}/web/session/authenticate`, {
@@ -49,6 +65,32 @@ export async function call<T = unknown>(
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (authMode === "apikey") headers["Authorization"] = `Bearer ${env.ODOO_API_KEY}`;
   if (authMode === "session" && sessionCookie) headers["Cookie"] = sessionCookie;
+
+  // ------------------------------------------------------------
+  // TEST MODE stamps x_is_simulation=true on every create for models in
+  // SIM_MARKED_MODELS. Applied here — the single Odoo gateway — so every
+  // downstream helper is covered without touching business logic.
+  //
+  // "Test mode" = SIMULATION_MODE OR PILOT_MODE. Both worlds create rows
+  // that /sim/purge must be able to clean up afterwards; only the outbound
+  // WhatsApp behavior differs (captured vs really-sent), handled in
+  // src/meta.ts::fetchMeta.
+  //
+  // Odoo JSON-2 create uses either `vals_list: [{...}, ...]` (batch) or
+  // `values: {...}` (single). We patch whichever form is present.
+  // ------------------------------------------------------------
+  if (
+    isTestMode(env) &&
+    method === "create" &&
+    SIM_MARKED_MODELS.has(model)
+  ) {
+    const b = body as { vals_list?: Array<Record<string, unknown>>; values?: Record<string, unknown> };
+    if (Array.isArray(b.vals_list)) {
+      for (const v of b.vals_list) if (v && typeof v === "object") v.x_is_simulation = true;
+    } else if (b.values && typeof b.values === "object") {
+      b.values.x_is_simulation = true;
+    }
+  }
 
   const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
   const text = await res.text();
@@ -115,16 +157,121 @@ export async function findSupplierByWhatsApp(env: Env, e164: string): Promise<Od
   return rows[0] ?? null;
 }
 
-export async function createCustomer(env: Env, name: string, e164: string): Promise<number> {
-  const ids = await call<number[]>(env, "res.partner", "create", {
-    vals_list: [
+// item4 (2026-09-17) — Per-partner WhatsApp allow-flag lookup with a short
+// KV cache so fetchMeta doesn't re-hit Odoo on every send.
+//
+// isRecipientAllowed (config.ts) reads only SIM_ALLOWLIST prefixes; item4
+// broadens the gate with an Odoo-backed toggle Baraa can flip from the
+// partner form. The two checks run in order — SIM_ALLOWLIST first (fast,
+// synchronous), then this async lookup. Owner-guard always runs before
+// either, so a partner whose number equals OWNER_WHATSAPP stays blocked
+// regardless of x_wa_allowed.
+//
+// Cache key: `wa_allowed:<+E164 normalized>` — 60s TTL per spec. A miss
+// stores false too (short-lived), so a flurry of sends to the same number
+// while Baraa hasn't flipped the flag doesn't spin Odoo either.
+export async function isPartnerWaAllowed(env: Env, to: string): Promise<boolean> {
+  const key = `wa_allowed:${to.startsWith("+") ? to : "+" + to.replace(/^\+*/, "")}`;
+  try {
+    const cached = await env.MSG_DEDUP.get(key);
+    if (cached === "true") return true;
+    if (cached === "false") return false;
+  } catch (e) {
+    console.warn("[wa_allowed cache read]", (e as Error)?.message);
+  }
+  const normalized = to.startsWith("+") ? to : `+${to.replace(/^\+*/, "")}`;
+  let allowed = false;
+  try {
+    const rows = await call<Array<{ id: number; x_wa_allowed: boolean }>>(
+      env,
+      "res.partner",
+      "search_read",
       {
-        name: name || e164,
-        phone: e164,
-        x_whatsapp_number: e164,
-        customer_rank: 1,
+        domain: [
+          "&",
+          ["x_wa_allowed", "=", true],
+          "|",
+          ["x_whatsapp_number", "=", normalized],
+          ["phone", "=", normalized],
+        ],
+        fields: ["id", "x_wa_allowed"],
+        limit: 1,
       },
-    ],
+    );
+    allowed = rows.length > 0 && !!rows[0].x_wa_allowed;
+  } catch (e) {
+    console.warn("[wa_allowed lookup]", (e as Error)?.message);
+    return false;
+  }
+  try {
+    await env.MSG_DEDUP.put(key, allowed ? "true" : "false", { expirationTtl: 60 });
+  } catch (e) {
+    console.warn("[wa_allowed cache write]", (e as Error)?.message);
+  }
+  return allowed;
+}
+
+/**
+ * Fetch — or create if missing — the `customer` row in x_employee_role.
+ * Only ever creates the "customer" role. Never staff roles (driver,
+ * warehouse, collector, admin). Result is cached in ROLE_CODE_CACHE.
+ *
+ * A stray failure during the role search must NOT prevent partner creation
+ * — the fallback path is documented in createCustomer below.
+ */
+async function ensureCustomerRoleId(env: Env): Promise<number | null> {
+  // Cache path
+  if (ROLE_CODE_CACHE) {
+    for (const [id, code] of ROLE_CODE_CACHE) if (code === "customer") return id;
+  }
+  try {
+    const found = await call<Array<{ id: number }>>(env, "x_employee_role", "search_read", {
+      domain: [["x_code", "=", "customer"]],
+      fields: ["id"],
+      limit: 1,
+    });
+    if (found[0]) {
+      if (ROLE_CODE_CACHE) ROLE_CODE_CACHE.set(found[0].id, "customer");
+      return found[0].id;
+    }
+    const ids = await call<number[]>(env, "x_employee_role", "create", {
+      vals_list: [{ x_name: "Customer", x_code: "customer" }],
+    });
+    const id = ids[0];
+    if (ROLE_CODE_CACHE) ROLE_CODE_CACHE.set(id, "customer");
+    console.log(`[roles] created customer role id=${id} in x_employee_role`);
+    return id;
+  } catch (e) {
+    // Common causes: x_name field named differently, or ACL blocks role
+    // creation. Log loudly — partner creation still proceeds without role.
+    console.error(
+      "[roles] ensureCustomerRoleId failed — partner will be created without a role",
+      (e as Error)?.message,
+    );
+    return null;
+  }
+}
+
+export async function createCustomer(env: Env, name: string, e164: string): Promise<number> {
+  // Rule (v8+): every partner auto-created from an incoming WhatsApp message
+  // gets the `customer` role explicitly. Never a staff role, regardless of
+  // what the message text says — spec §8. This eliminates the "pending
+  // no-role" rows we were accumulating.
+  const customerRoleId = await ensureCustomerRoleId(env);
+  const values: Record<string, unknown> = {
+    name: name || e164,
+    phone: e164,
+    x_whatsapp_number: e164,
+    customer_rank: 1,
+  };
+  if (customerRoleId !== null) {
+    // Odoo M2M "add" command; keeps any pre-existing role ids untouched
+    // (there won't be any on a brand-new row, but the tuple form is stable
+    // across Odoo versions).
+    values.x_role_ids = [[4, customerRoleId, 0]];
+  }
+  const ids = await call<number[]>(env, "res.partner", "create", {
+    vals_list: [values],
   });
   return ids[0];
 }
@@ -160,10 +307,20 @@ export async function fetchCatalog(env: Env): Promise<CatalogProduct[]> {
     }
   }
 
-  // Fetch active products
+  // Fetch active products.
+  // 2026-09-15: x_is_active_for_sale is a manual boolean the operator toggles
+  // per product from Odoo (Studio-created but managed by ir.model.fields —
+  // see ensureProductActiveField below). A product without the flag set is
+  // hidden from customer ordering AND from supplier ask messages, without
+  // deploying code. Default=false, so a fresh product is inactive until
+  // Baraa flips it on in Odoo.
   type ProdRow = { id: number; name: string; default_code?: string | false };
   const products = await call<ProdRow[]>(env, "product.template", "search_read", {
-    domain: [["active", "=", true], ["sale_ok", "=", true]],
+    domain: [
+      ["active", "=", true],
+      ["sale_ok", "=", true],
+      ["x_is_active_for_sale", "=", true],
+    ],
     fields: ["id", "name", "default_code"],
     limit: 500,
   });
@@ -313,8 +470,8 @@ export async function getOrderSummary(
     id: order.id,
     state: order.x_state,
     lines: lines.map((l) => ({
-      product: l.x_product_tmpl_id ? l.x_product_tmpl_id[1] : "?",
-      packaging: l.x_packaging_id ? l.x_packaging_id[1] : "?",
+      product: l.x_product_tmpl_id ? stripRef(l.x_product_tmpl_id[1]) : "?",
+      packaging: l.x_packaging_id ? stripRef(l.x_packaging_id[1]) : "?",
       qty: l.x_quantity,
     })),
   };
@@ -358,7 +515,13 @@ export async function createQuotationRecord(
         x_order_id: orderId,
         x_quotation_number: number,
         x_customer_response: "pending",
-        x_sent_at: new Date().toISOString().replace("T", " ").slice(0, 19),
+        // x_sent_at deliberately omitted (Odoo default = false). The only
+        // legitimate writer is the dispatcher's step-8 write in
+        // src/quotation.ts:~482 after the message actually reaches Meta.
+        // Pre-setting it here defeated the "blocked ⇒ x_sent_at empty"
+        // guarantee — buildQuotationPDFDataFromOdoo falls back to
+        // create_date for the PDF's date field, so leaving x_sent_at empty
+        // is safe.
       },
     ],
   });
@@ -799,12 +962,12 @@ export async function getConfirmedLinesForToday(env: Env): Promise<ConfirmedLine
       return {
         order_id: orderId,
         customer_id: cust ? cust[0] : 0,
-        customer_name: cust ? cust[1] : "",
+        customer_name: cust ? stripRef(cust[1]) : "",
         neighborhood: typeof order.x_delivery_neighborhood === "string" ? order.x_delivery_neighborhood : "",
         product_id: prod[0],
-        product_name: prod[1],
+        product_name: stripRef(prod[1]),
         packaging_id: pk[0],
-        packaging_name: pk[1],
+        packaging_name: stripRef(pk[1]),
         quantity: l.x_quantity,
       };
     });
@@ -1051,8 +1214,8 @@ export async function buildAndCreateRoutesForDrivers(
   for (const l of lines) {
     if (!Array.isArray(l.x_order_id) || !Array.isArray(l.x_product_tmpl_id) || !Array.isArray(l.x_packaging_id)) continue;
     const oid = (l.x_order_id as [number, string])[0];
-    const pname = (l.x_product_tmpl_id as [number, string])[1];
-    const pkname = (l.x_packaging_id as [number, string])[1];
+    const pname = stripRef((l.x_product_tmpl_id as [number, string])[1]);
+    const pkname = stripRef((l.x_packaging_id as [number, string])[1]);
     const arr = summaryByOrder.get(oid) ?? [];
     arr.push(`${pname} ${pkname} × ${l.x_quantity}`);
     summaryByOrder.set(oid, arr);
@@ -1066,7 +1229,7 @@ export async function buildAndCreateRoutesForDrivers(
   for (const o of orders) {
     if (!Array.isArray(o.x_customer_id)) continue;
     const custId = (o.x_customer_id as [number, string])[0];
-    const custName = (o.x_customer_id as [number, string])[1];
+    const custName = stripRef((o.x_customer_id as [number, string])[1]);
     const neighName = typeof o.x_delivery_neighborhood === "string" ? o.x_delivery_neighborhood.trim() : "";
     const neighId = neighName ? neighNameToId.get(neighName) : undefined;
 
@@ -1494,6 +1657,199 @@ export async function ensureLocationFields(env: Env): Promise<{
 }
 
 // ============================================================
+// 2026-09-15 — Product active-for-sale flag
+//
+// One boolean on product.template — x_is_active_for_sale — that the operator
+// toggles from Odoo without any deploy. Its readers are:
+//   • fetchCatalog (odoo.ts:~245): filters customer-facing extraction
+//   • findDeactivatedProductMatches (odoo.ts, below): reverse-lookup for
+//     alerting the owner when a customer requests a deactivated product
+//   • askAllSuppliersForPrices (suppliers.ts): intersects each supplier's
+//     supplied products with the active-for-sale set before asking
+//
+// Default=false — a fresh product is invisible to the ordering flow until
+// activated in Odoo. Idempotent: re-running returns existed:true, no writes.
+// ============================================================
+export async function ensureProductActiveField(env: Env): Promise<
+  { created: boolean; existed: boolean; model_id: number; field_id: number | null }
+> {
+  const modelName = "product.template";
+  const fieldName = "x_is_active_for_sale";
+
+  // Look up ir.model id for product.template — the FK target for the field.
+  const modelRows = await call<Array<{ id: number }>>(env, "ir.model", "search_read", {
+    domain: [["model", "=", modelName]],
+    fields: ["id"],
+    limit: 1,
+  });
+  const modelId = modelRows[0]?.id;
+  if (!modelId) {
+    throw new Error(`ir.model not found for ${modelName}`);
+  }
+
+  const existing = await call<Array<{ id: number }>>(env, "ir.model.fields", "search_read", {
+    domain: [["model", "=", modelName], ["name", "=", fieldName]],
+    fields: ["id"],
+    limit: 1,
+  });
+  if (existing.length > 0) {
+    return { created: false, existed: true, model_id: modelId, field_id: existing[0].id };
+  }
+
+  const createdIds = await call<number[]>(env, "ir.model.fields", "create", {
+    vals_list: [{
+      name: fieldName,
+      field_description: "Active for sale (manual)",
+      model: modelName,
+      model_id: modelId,
+      ttype: "boolean",
+      state: "manual",
+    }],
+  });
+  return { created: true, existed: false, model_id: modelId, field_id: createdIds[0] ?? null };
+}
+
+/**
+ * Insert x_is_active_for_sale into product.template's form, list, and search
+ * views via inherited `ir.ui.view` records — no Developer Mode, no Studio.
+ * Each inherited view is uniquely named and idempotent: re-running returns
+ * existed:true and skips the create.
+ *
+ * View arch templates use xpath position="inside" on the root element of the
+ * respective base view. Root tag is detected from the base arch so this
+ * survives Odoo's `<tree>` → `<list>` rename in v17+.
+ */
+export async function ensureProductActiveViews(env: Env): Promise<{
+  form: { id: number; existed: boolean; arch: string };
+  list: { id: number; existed: boolean; arch: string };
+  search: { id: number; existed: boolean; arch: string };
+}> {
+  type ViewRow = { id: number; name: string; arch: string; type: string };
+  const baseViews = await call<ViewRow[]>(env, "ir.ui.view", "search_read", {
+    domain: [
+      ["model", "=", "product.template"],
+      ["inherit_id", "=", false],
+      // Odoo 19: list views live under type="list", not "tree" (v17 rename).
+      ["type", "in", ["form", "list", "search"]],
+    ],
+    fields: ["id", "name", "arch", "type"],
+    order: "id asc",
+    limit: 30,
+  });
+  const baseForm = baseViews.find((v) => v.type === "form");
+  const baseList = baseViews.find((v) => v.type === "list");
+  const baseSearch = baseViews.find((v) => v.type === "search");
+  if (!baseForm) throw new Error("no base form view found for product.template");
+  if (!baseList) throw new Error("no base list view found for product.template");
+  if (!baseSearch) throw new Error("no base search view found for product.template");
+
+  const NAME_FORM = "utak.product.template.form.x_is_active_for_sale";
+  const NAME_LIST = "utak.product.template.list.x_is_active_for_sale";
+  const NAME_SEARCH = "utak.product.template.search.x_is_active_for_sale";
+
+  // Arch templates — position="inside" on the root always resolves; a
+  // narrower xpath (e.g. //notebook/page[@name='sales']) would break on
+  // any Odoo module that renames or hides the sales tab.
+  const archForm = `<?xml version="1.0"?>
+<data>
+  <xpath expr="//sheet" position="inside">
+    <group string="حالة البيع اليومية" col="2">
+      <field name="x_is_active_for_sale" string="متاح للبيع اليوم" widget="boolean_toggle"/>
+    </group>
+  </xpath>
+</data>`;
+  const archList = `<?xml version="1.0"?>
+<data>
+  <xpath expr="//list" position="inside">
+    <field name="x_is_active_for_sale" string="متاح للبيع اليوم" widget="boolean_toggle" optional="show"/>
+  </xpath>
+</data>`;
+  const archSearch = `<?xml version="1.0"?>
+<data>
+  <xpath expr="//search" position="inside">
+    <filter name="x_active_for_sale_today" string="متاح للبيع اليوم" domain="[('x_is_active_for_sale', '=', True)]"/>
+  </xpath>
+</data>`;
+
+  async function ensureView(
+    name: string,
+    inheritId: number,
+    type: string,
+    arch: string,
+  ): Promise<{ id: number; existed: boolean; arch: string }> {
+    const existing = await call<Array<{ id: number; arch: string }>>(
+      env,
+      "ir.ui.view",
+      "search_read",
+      {
+        domain: [["name", "=", name]],
+        fields: ["id", "arch"],
+        limit: 1,
+      },
+    );
+    if (existing[0]) {
+      return { id: existing[0].id, existed: true, arch: existing[0].arch };
+    }
+    const ids = await call<number[]>(env, "ir.ui.view", "create", {
+      vals_list: [{
+        name,
+        type,
+        model: "product.template",
+        inherit_id: inheritId,
+        mode: "extension",
+        arch_db: arch,
+        priority: 16,
+      }],
+    });
+    return { id: ids[0], existed: false, arch };
+  }
+
+  const form = await ensureView(NAME_FORM, baseForm.id, "form", archForm);
+  const list = await ensureView(NAME_LIST, baseList.id, "list", archList);
+  const search = await ensureView(NAME_SEARCH, baseSearch.id, "search", archSearch);
+  return { form, list, search };
+}
+
+/**
+ * Reverse-lookup for the router's inactive-match alert.
+ *
+ * Given the raw text tokens Sonnet couldn't map to the FILTERED (active-for-sale)
+ * catalog, find products that exist in Odoo but are marked
+ * x_is_active_for_sale=false. Matches by ilike on either direction so common
+ * Arabic near-forms hit (e.g. "بطاطس" vs stored "بطاطس بلدي"). Not a synonym
+ * matcher — a stored "طماطم" will NOT surface when the customer typed
+ * "بندورة" — but good enough to emit a market-intel signal, which is what
+ * the alert is for.
+ */
+export async function findDeactivatedProductMatches(
+  env: Env,
+  rawNames: string[],
+): Promise<Array<{ raw: string; product_id: number; product_name: string }>> {
+  const cleaned = Array.from(
+    new Set(rawNames.map((s) => (s ?? "").trim()).filter((s) => s.length > 1)),
+  );
+  if (cleaned.length === 0) return [];
+  type Row = { id: number; name: string };
+  const deactivated = await call<Row[]>(env, "product.template", "search_read", {
+    domain: [
+      ["active", "=", true],
+      ["sale_ok", "=", true],
+      ["x_is_active_for_sale", "=", false],
+    ],
+    fields: ["id", "name"],
+    limit: 500,
+  });
+  const out: Array<{ raw: string; product_id: number; product_name: string }> = [];
+  for (const raw of cleaned) {
+    const hit = deactivated.find(
+      (p) => p.name.includes(raw) || raw.includes(p.name),
+    );
+    if (hit) out.push({ raw, product_id: hit.id, product_name: hit.name });
+  }
+  return out;
+}
+
+// ============================================================
 // v5 — Invoice & Payment helpers
 // Append these to the END of src/odoo.ts (before the final closing).
 // They rely on the private `call<T>` helper already defined in odoo.ts.
@@ -1517,6 +1873,11 @@ export async function getOrderForInvoicing(
     packaging_name: string;
     quantity: number;
     unit_price: number | null;
+    // item3 (2026-09-17) — manual per-line override captured from
+    // x_daily_order_line.x_price_unit_manual. Optional; when > 0 it takes
+    // precedence over unit_price and the getLatestSalePrice fallback in
+    // quotation.ts::buildQuotationPDFDataFromOdoo.
+    price_unit_manual: number | null;
   }>;
 } | null> {
   type OrderRow = {
@@ -1547,12 +1908,21 @@ export async function getOrderForInvoicing(
     x_packaging_id: [number, string] | false;
     x_quantity: number;
     x_unit_price: number | false;
+    x_price_unit_manual: number | false;
     x_status: string;
   };
   const lines = order.x_line_ids.length
     ? await call<LineRow[]>(env, "x_daily_order_line", "read", {
         ids: order.x_line_ids,
-        fields: ["id", "x_product_tmpl_id", "x_packaging_id", "x_quantity", "x_unit_price", "x_status"],
+        fields: [
+          "id",
+          "x_product_tmpl_id",
+          "x_packaging_id",
+          "x_quantity",
+          "x_unit_price",
+          "x_price_unit_manual",
+          "x_status",
+        ],
       })
     : [];
 
@@ -1568,23 +1938,42 @@ export async function getOrderForInvoicing(
     lines: usable.map((l) => ({
       id: l.id,
       product_id: l.x_product_tmpl_id ? l.x_product_tmpl_id[0] : 0,
-      product_name: l.x_product_tmpl_id ? l.x_product_tmpl_id[1] : "?",
+      product_name: l.x_product_tmpl_id ? stripRef(l.x_product_tmpl_id[1]) : "?",
       packaging_id: l.x_packaging_id ? l.x_packaging_id[0] : 0,
-      packaging_name: l.x_packaging_id ? l.x_packaging_id[1] : "",
+      packaging_name: l.x_packaging_id ? stripRef(l.x_packaging_id[1]) : "",
       quantity: l.x_quantity,
       unit_price: typeof l.x_unit_price === "number" && l.x_unit_price > 0 ? l.x_unit_price : null,
+      price_unit_manual:
+        typeof l.x_price_unit_manual === "number" && l.x_price_unit_manual > 0
+          ? l.x_price_unit_manual
+          : null,
     })),
   };
 }
 
 // ---- Look up today's sale price (fallback to any recent price) ----
+// sim-harness (2026-09-13): return a tagged object so upstream can distinguish
+// "today's fresh price" from "stale fallback" from "no price at all". The
+// numeric price and the fallback behaviour are unchanged; only the shape of
+// the return value changed. Callers must read `.price` for the number.
+export type SalePriceLookup = {
+  price: number;
+  source: "today" | "stale" | "missing";
+  price_date: string | null;
+  age_days: number | null;
+};
 export async function getLatestSalePrice(
   env: Env,
   productId: number,
   packagingId: number,
-): Promise<number> {
+): Promise<SalePriceLookup> {
   const today = new Date().toISOString().slice(0, 10);
-  type Row = { x_sale_price: number | false; x_price_sar: number | false };
+  type Row = { x_sale_price: number | false; x_price_sar: number | false; x_date: string | false };
+  const pickPrice = (r: Row): number => {
+    if (typeof r.x_sale_price === "number" && r.x_sale_price > 0) return r.x_sale_price;
+    if (typeof r.x_price_sar === "number" && r.x_price_sar > 0) return r.x_price_sar;
+    return 0;
+  };
   // Prefer today's confirmed/extracted price
   const rows = await call<Row[]>(env, "x_daily_price", "search_read", {
     domain: [
@@ -1592,29 +1981,39 @@ export async function getLatestSalePrice(
       ["x_packaging_id", "=", packagingId],
       ["x_date", "=", today],
     ],
-    fields: ["x_sale_price", "x_price_sar"],
+    fields: ["x_sale_price", "x_price_sar", "x_date"],
     order: "id desc",
     limit: 1,
   });
   if (rows[0]) {
-    if (typeof rows[0].x_sale_price === "number" && rows[0].x_sale_price > 0) return rows[0].x_sale_price;
-    if (typeof rows[0].x_price_sar === "number" && rows[0].x_price_sar > 0) return rows[0].x_price_sar;
+    const price = pickPrice(rows[0]);
+    if (price > 0) {
+      return { price, source: "today", price_date: today, age_days: 0 };
+    }
   }
-  // Fallback: most recent price ever
+  // Fallback: most recent price ever (kept — only tagged, not removed).
   const fallback = await call<Row[]>(env, "x_daily_price", "search_read", {
     domain: [
       ["x_product_tmpl_id", "=", productId],
       ["x_packaging_id", "=", packagingId],
     ],
-    fields: ["x_sale_price", "x_price_sar"],
+    fields: ["x_sale_price", "x_price_sar", "x_date"],
     order: "x_date desc, id desc",
     limit: 1,
   });
   if (fallback[0]) {
-    if (typeof fallback[0].x_sale_price === "number" && fallback[0].x_sale_price > 0) return fallback[0].x_sale_price;
-    if (typeof fallback[0].x_price_sar === "number" && fallback[0].x_price_sar > 0) return fallback[0].x_price_sar;
+    const price = pickPrice(fallback[0]);
+    if (price > 0) {
+      const d = typeof fallback[0].x_date === "string" ? fallback[0].x_date : null;
+      let age_days: number | null = null;
+      if (d) {
+        const ms = new Date(today + "T00:00:00Z").getTime() - new Date(d + "T00:00:00Z").getTime();
+        if (Number.isFinite(ms)) age_days = Math.max(0, Math.round(ms / 86400000));
+      }
+      return { price, source: "stale", price_date: d, age_days };
+    }
   }
-  return 0;
+  return { price: 0, source: "missing", price_date: null, age_days: null };
 }
 
 // ---- Invoice CRUD ----
@@ -1803,8 +2202,82 @@ export async function getUnpaidInvoicesWithCustomer(
       id: i.id,
       number: i.x_invoice_number,
       total: i.x_total,
-      customer_name: o?.x_customer_id ? o.x_customer_id[1] : "عميل",
+      customer_name: o?.x_customer_id ? stripRef(o.x_customer_id[1]) : "عميل",
       neighborhood: o?.x_delivery_neighborhood || "",
     };
+  });
+}
+
+// ---- Resolve packaging labels for the PDF "unit" column ----
+// For every {packaging_id, product_id} request return the packaging's live
+// x_name (rebuilt server-side by the utak.packaging.auto_name automation
+// rule). When packaging_id is 0/absent, fall back to the product's default
+// packaging (x_is_default=true). When the product has no packaging at all,
+// return the em-dash placeholder. Batches all reads into two Odoo calls.
+export const NO_PACKAGING_PLACEHOLDER = "—";
+
+export async function resolvePackagingNames(
+  env: Env,
+  requests: Array<{ packaging_id: number; product_id: number }>,
+): Promise<string[]> {
+  if (requests.length === 0) return [];
+
+  const packagingIds = Array.from(
+    new Set(requests.map((r) => r.packaging_id).filter((id) => id > 0)),
+  );
+  const productIds = Array.from(
+    new Set(
+      requests
+        .filter((r) => !r.packaging_id || r.packaging_id <= 0)
+        .map((r) => r.product_id)
+        .filter((id) => id > 0),
+    ),
+  );
+
+  const packById = new Map<number, string>();
+  if (packagingIds.length > 0) {
+    type Row = { id: number; x_name: string | false };
+    const rows = await call<Row[]>(env, "x_product_packaging", "read", {
+      ids: packagingIds,
+      fields: ["id", "x_name"],
+    });
+    for (const r of rows) {
+      packById.set(r.id, typeof r.x_name === "string" && r.x_name ? r.x_name : NO_PACKAGING_PLACEHOLDER);
+    }
+  }
+
+  const defaultByProduct = new Map<number, string>();
+  if (productIds.length > 0) {
+    type Row = {
+      id: number;
+      x_name: string | false;
+      x_product_tmpl_id: [number, string] | false;
+      x_is_default: boolean;
+      x_sequence: number;
+    };
+    const rows = await call<Row[]>(env, "x_product_packaging", "search_read", {
+      domain: [["x_product_tmpl_id", "in", productIds]],
+      fields: ["id", "x_name", "x_product_tmpl_id", "x_is_default", "x_sequence"],
+      order: "x_product_tmpl_id, x_is_default desc, x_sequence, id",
+    });
+    for (const r of rows) {
+      if (!r.x_product_tmpl_id) continue;
+      const pid = r.x_product_tmpl_id[0];
+      if (defaultByProduct.has(pid)) continue;
+      if (!r.x_is_default) continue;
+      const label =
+        typeof r.x_name === "string" && r.x_name ? r.x_name : NO_PACKAGING_PLACEHOLDER;
+      defaultByProduct.set(pid, label);
+    }
+  }
+
+  return requests.map((r) => {
+    if (r.packaging_id && r.packaging_id > 0) {
+      return packById.get(r.packaging_id) ?? NO_PACKAGING_PLACEHOLDER;
+    }
+    if (r.product_id && r.product_id > 0) {
+      return defaultByProduct.get(r.product_id) ?? NO_PACKAGING_PLACEHOLDER;
+    }
+    return NO_PACKAGING_PLACEHOLDER;
   });
 }

@@ -1,0 +1,32 @@
+{
+  "generated_at": "2026-09-20T09:36:41.194Z",
+  "odoo_url": "https://utakfresh.odoo.com",
+  "odoo_db": "utakfresh",
+  "entries": [
+    {
+      "id": 941,
+      "name": "UTAK: Issue & Send Quotation",
+      "before_url_masked": "https://utak-worker.utak-business.workers.dev/internal/quotation-issue?token=****e33a",
+      "before_token_last4": "e33a",
+      "after_url_masked": "https://utak-worker-sim.utak-business.workers.dev/internal/quotation-issue?token=****a6ed",
+      "after_token_last4": "a6ed"
+    },
+    {
+      "id": 957,
+      "name": "Send Receipt Webhook",
+      "before_url_masked": "https://utak-worker.utak-business.workers.dev/internal/receipt-issue?token=****a458",
+      "before_token_last4": "a458",
+      "after_url_masked": "https://utak-worker-sim.utak-business.workers.dev/internal/receipt-issue?token=****a6ed",
+      "after_token_last4": "a6ed"
+    },
+    {
+      "id": 968,
+      "name": "quotation.manual_pdf_build",
+      "before_url_masked": "https://utak-worker-sim.utak-business.workers.dev/internal/quotation-issue?token=****c637",
+      "before_token_last4": "c637",
+      "after_url_masked": "https://utak-worker-sim.utak-business.workers.dev/internal/quotation-issue?token=****a6ed",
+      "after_token_last4": "a6ed"
+    }
+  ],
+  "note": "Full previous URLs live in ~/utak-token-align-rollback.json (mode 600)."
+}

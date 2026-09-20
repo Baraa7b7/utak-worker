@@ -15,6 +15,7 @@ import {
 } from "./config";
 import type { OdooPartner, SupplierLogRow } from "./types";
 import {
+  call,
   createDailyPrice,
   createSupplierAskLog,
   fetchSupplierCatalog,
@@ -28,8 +29,10 @@ import {
   writePartner,
 } from "./odoo";
 import { sendTemplate, sendText } from "./meta";
+import { sendOwnerAlert } from "./templates";
 import { extractSupplierPrices } from "./claude";
 import { riyadhDateKey } from "./hours";
+import { logWaMessage } from "./wa-message-send";
 
 const nowOdoo = (): string => new Date().toISOString().replace("T", " ").slice(0, 19);
 
@@ -65,23 +68,62 @@ export async function askAllSuppliersForPrices(env: Env): Promise<void> {
     : { products: [], packagings: [] };
   const productNameById = new Map(catalog.products.map((p) => [p.id, p.name]));
 
+  // 2026-09-15 — intersect each supplier's supplied products with the
+  // active-for-sale set. A supplier whose supplied ids are all deactivated
+  // is skipped silently (single log entry) so we don't ask for prices on
+  // items we would refuse to sell today.
+  const activeIds = new Set<number>(
+    (await call<Array<{ id: number }>>(env, "product.template", "search_read", {
+      domain: [
+        ["active", "=", true],
+        ["sale_ok", "=", true],
+        ["x_is_active_for_sale", "=", true],
+      ],
+      fields: ["id"],
+      limit: 500,
+    })).map((r) => r.id),
+  );
+
   let sent = 0;
   let failed = 0;
   let skippedEmpty = 0;
+  let skippedNoIntersection = 0;
   for (const s of suppliers) {
     try {
-      const productNames = (s.x_supplied_product_ids || [])
+      // Intersection: supplier's supplied ids ∩ active-for-sale ids
+      const activeSupplied = (s.x_supplied_product_ids || []).filter((id) => activeIds.has(id));
+      const productNames = activeSupplied
         .map((id) => productNameById.get(id))
         .filter((n): n is string => !!n);
       if (productNames.length === 0) {
-        console.warn(
-          `[cron 02:00] supplier ${s.id} (${s.name}) has no catalog products — skipping`,
-        );
-        skippedEmpty++;
+        // Distinguish two skip reasons for the log:
+        //   - supplier's linked products are all deactivated (no intersection)
+        //   - supplier has no linked products at all / none in catalog
+        const supplied = (s.x_supplied_product_ids || []).length;
+        if (supplied > 0) {
+          console.warn(
+            `[cron 02:00] supplier ${s.id} (${s.name}) has ${supplied} supplied product(s), none active-for-sale — skipping`,
+          );
+          skippedNoIntersection++;
+        } else {
+          console.warn(
+            `[cron 02:00] supplier ${s.id} (${s.name}) has no catalog products — skipping`,
+          );
+          skippedEmpty++;
+        }
         continue;
       }
-      // Meta template var rules: no newlines/tabs/4+ spaces. Comma-separated is safe.
-      const productList = productNames.join("، ");
+      // Meta template var rules: no newlines/tabs/4+ spaces, hard cap on
+      // template body ≈ 1024 chars. Collapse whitespace to single spaces
+      // and truncate the joined list to 900 chars so the parameter always
+      // passes Meta's validation, whatever the operator happens to have
+      // stored as a product name in Odoo.
+      const productList = productNames
+        .join("، ")
+        .replace(/[\r\n\t]+/g, " ")
+        .replace(/ {2,}/g, " ")
+        .trim()
+        .slice(0, 900);
 
       const logId = await createSupplierAskLog(env, s.id);
       const res = await sendTemplate(
@@ -100,13 +142,23 @@ export async function askAllSuppliersForPrices(env: Env): Promise<void> {
       }
       sent++;
       console.log(`[cron 02:00] asked supplier ${s.id} (${s.name}) log=${logId}`);
+      // Item 2c (2026-09-18) — surface the 02:00 supplier fan-out in the
+      // UTAK «رسائل واتساب» tab. Best-effort passive log; a failure here
+      // never breaks the cron. Send logic + timing are unchanged.
+      await logWaMessage(env, {
+        partnerId: s.id,
+        direction: "out",
+        kind: "template",
+        body: `[supplier_ask] ${productList}`,
+        status: "sent",
+      });
     } catch (e) {
       failed++;
       console.error(`[cron 02:00] supplier ${s.id} error`, (e as Error)?.message);
     }
   }
   console.log(
-    `[cron 02:00] done. asked=${sent} failed=${failed} skipped_empty=${skippedEmpty} total=${suppliers.length}`,
+    `[cron 02:00] done. asked=${sent} failed=${failed} skipped_empty=${skippedEmpty} skipped_no_intersection=${skippedNoIntersection} total=${suppliers.length}`,
   );
 }
 
@@ -182,6 +234,11 @@ export async function handleSupplierReply(
   const opsMul = 1 + opsPct / 100;
   const profitMul = 1 + profitPct / 100;
 
+  // sim-harness (2026-09-13): capture per-price failures and alert once
+  // after the loop. Prior behaviour swallowed each failure with a bare
+  // console.error, letting a partially-broken supplier reply look successful.
+  const productNameById = new Map(products.map((pr) => [pr.id, pr.name]));
+  const failed: Array<{ product_id: number; product_name: string; reason: string }> = [];
   let created = 0;
   for (const p of extract.prices) {
     const sale = round2(p.cost_price * opsMul * profitMul);
@@ -198,8 +255,26 @@ export async function handleSupplierReply(
       });
       created++;
     } catch (e) {
-      console.error("[supplier reply] createDailyPrice failed", (e as Error)?.message);
+      const reason = (e as Error)?.message ?? String(e);
+      console.error("[supplier reply] createDailyPrice failed", reason);
+      failed.push({
+        product_id: p.product_id,
+        product_name: productNameById.get(p.product_id) ?? `product_id=${p.product_id}`,
+        reason,
+      });
     }
+  }
+  if (failed.length > 0) {
+    const list = failed.map((f) => `• ${f.product_name}`).join("\n");
+    await alertOwner(
+      env,
+      [
+        `⚠️ فشل تخزين ${failed.length} سعر من رد "${supplier.name}":`,
+        list,
+        ``,
+        `نجح ${created} من أصل ${extract.prices.length}. راجع log الـ worker لتفاصيل الأخطاء.`,
+      ].join("\n"),
+    );
   }
 
   if (pendingLog) {
@@ -344,9 +419,8 @@ export async function openOrderingWindow(env: Env): Promise<void> {
 // helpers
 // ============================================================
 async function alertOwner(env: Env, text: string): Promise<void> {
-  if (!env.OWNER_WHATSAPP) return;
   try {
-    await sendText(env, env.OWNER_WHATSAPP, text);
+    await sendOwnerAlert(env, text);
   } catch (e) {
     console.error("alertOwner failed", (e as Error)?.message);
   }

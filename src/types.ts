@@ -33,7 +33,7 @@ export interface NormalizedMessage {
   profileName: string;  // Meta contact profile name, may be empty
   text: string;         // Message body (text or button title)
   timestamp: string;    // Meta's unix seconds as string
-  type: string;         // 'text' | 'interactive' | 'location' | ...
+  type: string;         // 'text' | 'interactive' | 'location' | 'image' | 'audio' | 'video' | 'document' | 'sticker' | ...
   buttonId?: string;    // For interactive button replies, e.g. "confirm_order_42"
   // v4.2 — WhatsApp location share payload (customer taps 📎 → موقع → إرسال)
   location?: {
@@ -41,6 +41,17 @@ export interface NormalizedMessage {
     longitude: number;
     name?: string;
     address?: string;
+  };
+  // 2026-09-20 (inbox) — media payload for image / audio / video / document /
+  // sticker. Only populated when the Meta type is media-shaped. The Discuss
+  // mirror uses it to download bytes from Graph and upload as an attachment;
+  // the customer bot itself does not read it.
+  media?: {
+    id: string;
+    mime_type?: string;
+    filename?: string;
+    voice?: boolean;     // WhatsApp sends audio with voice=true for push-to-talk
+    caption?: string;
   };
 }
 

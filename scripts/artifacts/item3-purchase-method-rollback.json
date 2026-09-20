@@ -1,0 +1,233 @@
+{
+  "snapshot_at": "2026-09-19T14:31:09.710Z",
+  "before": [
+    {
+      "id": 102,
+      "default_code": "UTAK-FRT-007",
+      "name": "أناناس",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 105,
+      "default_code": "UTAK-FRT-010",
+      "name": "افوكادو",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 77,
+      "default_code": "UTAK-VEG-007",
+      "name": "باذنجان",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 85,
+      "default_code": "UTAK-VEG-015",
+      "name": "بامية",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 98,
+      "default_code": "UTAK-FRT-003",
+      "name": "برتقال",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 74,
+      "default_code": "UTAK-VEG-004",
+      "name": "بصل",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 73,
+      "default_code": "UTAK-VEG-003",
+      "name": "بطاطس",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 104,
+      "default_code": "UTAK-FRT-009",
+      "name": "بطيخ",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 91,
+      "default_code": "UTAK-LEAF-003",
+      "name": "بقدونس",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 96,
+      "default_code": "UTAK-FRT-001",
+      "name": "تفاح",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 80,
+      "default_code": "UTAK-VEG-010",
+      "name": "ثوم",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 90,
+      "default_code": "UTAK-LEAF-002",
+      "name": "جرجير",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 75,
+      "default_code": "UTAK-VEG-005",
+      "name": "جزر",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 89,
+      "default_code": "UTAK-LEAF-001",
+      "name": "خس",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 72,
+      "default_code": "UTAK-VEG-002",
+      "name": "خيار",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 107,
+      "default_code": "UTAK-FRT-011",
+      "name": "رمان صغير",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 108,
+      "default_code": "UTAK-FRT-012",
+      "name": "رمان كبير",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 100,
+      "default_code": "UTAK-FRT-005",
+      "name": "رمان وسط",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 95,
+      "default_code": "UTAK-LEAF-007",
+      "name": "سبانخ",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 94,
+      "default_code": "UTAK-LEAF-006",
+      "name": "شبت",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 71,
+      "default_code": "UTAK-VEG-001",
+      "name": "طماطم",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 99,
+      "default_code": "UTAK-FRT-004",
+      "name": "عنب",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 86,
+      "default_code": "UTAK-VEG-016",
+      "name": "فاصوليا",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 87,
+      "default_code": "UTAK-VEG-017",
+      "name": "فجل",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 103,
+      "default_code": "UTAK-FRT-008",
+      "name": "فراولة",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 79,
+      "default_code": "UTAK-VEG-009",
+      "name": "فلفل حار",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 78,
+      "default_code": "UTAK-VEG-008",
+      "name": "فلفل رومي",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 82,
+      "default_code": "UTAK-VEG-012",
+      "name": "قرع",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 84,
+      "default_code": "UTAK-VEG-014",
+      "name": "قرنبيط",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 92,
+      "default_code": "UTAK-LEAF-004",
+      "name": "كزبرة",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 76,
+      "default_code": "UTAK-VEG-006",
+      "name": "كوسا",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 88,
+      "default_code": "UTAK-VEG-018",
+      "name": "لفت",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 81,
+      "default_code": "UTAK-VEG-011",
+      "name": "ليمون",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 101,
+      "default_code": "UTAK-FRT-006",
+      "name": "مانجو",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 83,
+      "default_code": "UTAK-VEG-013",
+      "name": "ملفوف",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 97,
+      "default_code": "UTAK-FRT-002",
+      "name": "موز أمريكي",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 109,
+      "default_code": "UTAK-FRT-013",
+      "name": "موز هندي",
+      "purchase_method": "receive"
+    },
+    {
+      "id": 93,
+      "default_code": "UTAK-LEAF-005",
+      "name": "نعناع",
+      "purchase_method": "receive"
+    }
+  ]
+}

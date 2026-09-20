@@ -1,0 +1,12 @@
+<list string="Purchase Order Lines" create="false">
+                    <field name="order_id"/>
+                    <field name="name"/>
+                    <field name="partner_id" string="Vendor"/>
+                    <field name="product_id"/>
+                    <field name="price_unit"/>
+                    <field name="product_qty"/>
+                    <field name="uom_id" groups="uom.group_uom" widget="many2one_uom"/>
+                    <field name="price_subtotal" widget="monetary"/>
+                    <field name="currency_id" column_invisible="True"/>
+                    <field name="date_planned"/>
+                </list>

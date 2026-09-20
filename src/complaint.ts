@@ -4,6 +4,7 @@ import {
   type ComplaintType, type ComplaintSeverity,
 } from "./odoo-v6-append";
 import { sendText } from "./meta";
+import { sendOwnerAlert } from "./templates";
 
 const COMPLAINT_KEYWORDS = [
   "ناقص","ناقصه","ناقصة","سيء","سيئه","سيئة","تأخر","تاخر","تأخرو","تأخرتوا",
@@ -73,7 +74,7 @@ export async function handleComplaint(
 النوع: ${typeArabic}
 الرسالة: "${text.slice(0, 200)}"
 ${orderId ? `طلب مرتبط: #${orderId}` : ""}`;
-    try { await sendText(env, owner, notif); }
+    try { await sendOwnerAlert(env, notif); }
     catch (e) { console.error("[complaint] notify failed:", (e as Error).message); }
   }
   return "نعتذر عن الإزعاج 🙏 وصلنا ملاحظتك وسنتواصل معك خلال ساعة لحل المشكلة.";

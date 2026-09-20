@@ -1,0 +1,235 @@
+{
+  "generated_at": "2026-09-19T19:24:00.425Z",
+  "operations": [
+    {
+      "ts": "2026-09-19T19:24:02.465Z",
+      "model": "ir.actions.report",
+      "id": 257,
+      "before": {
+        "binding_model_id": [
+          2409,
+          "Journal Entry"
+        ],
+        "binding_type": "report"
+      },
+      "action": "write:unbind"
+    },
+    {
+      "ts": "2026-09-19T19:24:02.540Z",
+      "model": "ir.actions.report",
+      "id": 258,
+      "before": {
+        "binding_model_id": [
+          2409,
+          "Journal Entry"
+        ],
+        "binding_type": "report"
+      },
+      "action": "write:unbind"
+    },
+    {
+      "ts": "2026-09-19T19:24:02.615Z",
+      "model": "ir.actions.report",
+      "id": 259,
+      "before": {
+        "binding_model_id": [
+          2409,
+          "Journal Entry"
+        ],
+        "binding_type": "report"
+      },
+      "action": "write:unbind"
+    },
+    {
+      "ts": "2026-09-19T19:24:03.403Z",
+      "model": "ir.actions.report",
+      "id": 775,
+      "before": {
+        "binding_model_id": [
+          4071,
+          "Purchase Order"
+        ],
+        "binding_type": "report"
+      },
+      "action": "write:unbind"
+    },
+    {
+      "ts": "2026-09-19T19:24:04.173Z",
+      "model": "ir.actions.report",
+      "id": 776,
+      "before": {
+        "binding_model_id": [
+          4071,
+          "Purchase Order"
+        ],
+        "binding_type": "report"
+      },
+      "action": "write:unbind"
+    },
+    {
+      "ts": "2026-09-19T19:24:05.034Z",
+      "model": "ir.ui.view",
+      "id": 2792,
+      "before": null,
+      "action": "create",
+      "name": "utak.sale.order.form.hide_send"
+    },
+    {
+      "ts": "2026-09-19T19:24:05.922Z",
+      "model": "ir.ui.view",
+      "id": 2793,
+      "before": null,
+      "action": "create",
+      "name": "utak.account.move.form.hide_send"
+    },
+    {
+      "ts": "2026-09-19T19:24:06.098Z",
+      "model": "ir.ui.view",
+      "id": 2795,
+      "before": null,
+      "action": "create",
+      "name": "utak.purchase.order.form.hide_send"
+    },
+    {
+      "ts": "2026-09-19T19:24:06.274Z",
+      "model": "ir.actions.server",
+      "id": 974,
+      "before": null,
+      "action": "create",
+      "name": "utak.invoice.pdf_download"
+    },
+    {
+      "ts": "2026-09-19T19:24:06.402Z",
+      "model": "ir.ui.view",
+      "id": 2796,
+      "before": null,
+      "action": "create",
+      "name": "utak.account.move.form.pdf_button"
+    },
+    {
+      "ts": "2026-09-19T19:24:06.654Z",
+      "model": "ir.actions.server",
+      "id": 975,
+      "before": null,
+      "action": "create",
+      "name": "utak.purchase.pdf_download"
+    },
+    {
+      "ts": "2026-09-19T19:24:06.743Z",
+      "model": "ir.ui.view",
+      "id": 2797,
+      "before": null,
+      "action": "create",
+      "name": "utak.purchase.order.form.pdf_button"
+    },
+    {
+      "ts": "2026-09-19T19:26:01.569Z",
+      "model": "ir.model.fields.selection",
+      "id": 3882,
+      "before": null,
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-19T19:26:02.249Z",
+      "model": "ir.actions.server",
+      "id": 972,
+      "before": {
+        "code": "labels = {'carton': 'كرتون', 'bag': 'جرم', 'foam': 'فلين'}\nfor r in records:\n    t = r.x_type\n    if not t:\n        continue\n    if t == 'loose':\n        new_name = 'فرط (بالكيلو)'\n    else:\n        label = labels.get(t, '')\n        w = r.x_approx_weight_kg or 0\n        if w and w > 0:\n            wf = float(w)\n            if wf == int(wf):\n                w_txt = str(int(wf))\n            else:\n                w_txt = ('%f' % wf).rstrip('0').rstrip('.')\n            new_name = label + ' · ' + w_txt + ' كيلو'\n        else:\n            new_name = label\n    if r.x_name != new_name:\n        r.write({'x_name': new_name})"
+      },
+      "action": "write"
+    },
+    {
+      "ts": "2026-09-19T19:26:02.952Z",
+      "model": "x_product_packaging",
+      "id": 35,
+      "before": {
+        "x_type": false,
+        "x_name": "شبكة"
+      },
+      "action": "write"
+    },
+    {
+      "ts": "2026-09-19T19:26:03.730Z",
+      "model": "x_product_packaging",
+      "id": 41,
+      "before": {
+        "x_type": false,
+        "x_name": "حبة",
+        "x_approx_weight_kg": 6.5,
+        "x_is_default": false
+      },
+      "action": "write"
+    },
+    {
+      "ts": "2026-09-19T19:26:38.465Z",
+      "model": "product.template",
+      "id": 104,
+      "before": {
+        "name": "بطيخ",
+        "x_is_active_for_sale": true
+      },
+      "action": "write"
+    },
+    {
+      "ts": "2026-09-19T19:27:12.058Z",
+      "model": "x_product_packaging",
+      "id": 43,
+      "before": {
+        "x_approx_weight_kg": 0
+      },
+      "action": "write"
+    },
+    {
+      "ts": "2026-09-19T19:27:12.091Z",
+      "model": "x_product_packaging",
+      "id": 44,
+      "before": {
+        "x_approx_weight_kg": 0
+      },
+      "action": "write"
+    },
+    {
+      "ts": "2026-09-19T19:27:12.154Z",
+      "model": "x_product_packaging",
+      "id": 37,
+      "before": {
+        "x_approx_weight_kg": 0
+      },
+      "action": "write"
+    },
+    {
+      "ts": "2026-09-19T19:29:59.809Z",
+      "model": "ir.model.fields",
+      "id": 20159,
+      "before": null,
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-19T19:29:59.934Z",
+      "model": "x_whatsapp_template",
+      "id": 46,
+      "before": {
+        "x_label_ar": false
+      },
+      "action": "write"
+    },
+    {
+      "ts": "2026-09-19T19:30:00.688Z",
+      "model": "ir.ui.view",
+      "id": 2723,
+      "before": {
+        "arch": "<list string=\"قوالب الواتساب\" default_order=\"x_purpose, x_name\">\n  <field name=\"x_name\"/>\n  <field name=\"x_meta_template_id\"/>\n  <field name=\"x_purpose\"/>\n  <field name=\"x_language\"/>\n  <field name=\"x_body_preview\" optional=\"show\"/>\n</list>"
+      },
+      "action": "write"
+    },
+    {
+      "ts": "2026-09-19T19:30:01.381Z",
+      "model": "ir.ui.view",
+      "id": 2731,
+      "before": {
+        "arch": "<list string=\"قوالب واتساب\" sample=\"1\">\n            <field name=\"x_purpose\" string=\"الغرض\"/>\n            <field name=\"x_name\" string=\"الاسم الداخلي\"/>\n            <field name=\"x_meta_template_id\" string=\"Meta Template Name\"/>\n            <field name=\"x_language\" string=\"اللغة\"/>\n            <field name=\"x_body_preview\" string=\"معاينة النص\" optional=\"show\"/>\n        </list>"
+      },
+      "action": "write"
+    }
+  ]
+}

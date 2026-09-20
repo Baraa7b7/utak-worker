@@ -15,6 +15,8 @@ import {
   getUnpaidInvoicesWithCustomer,
   writeOrderLineUnitPrice,
   getOrderCustomerWhatsapp,
+  resolvePackagingNames,
+  call,
 } from "./odoo";
 import { sendText, sendButtons } from "./meta";
 import { sendTemplateByPurpose, T } from "./templates";
@@ -54,7 +56,10 @@ export async function createAndDispatchInvoiceForOrder(
   for (const l of order.lines) {
     let unit = l.unit_price ?? 0;
     if (!unit || unit <= 0) {
-      unit = await getLatestSalePrice(env, l.product_id, l.packaging_id);
+      // sim-harness (2026-09-13): getLatestSalePrice now returns a tagged
+      // object. Invoice path only needs the numeric price — pipeline
+      // semantics preserved.
+      unit = (await getLatestSalePrice(env, l.product_id, l.packaging_id)).price;
     }
     const line_total = round2(unit * l.quantity);
     subtotal = round2(subtotal + line_total);
@@ -441,7 +446,9 @@ export function renderInvoiceHTML(data: InvoicePDFData): string {
       data.grandTotal,
     ),
     footerNote: data.paymentTerms,
-    showZatcaQR: true,
+    // ZATCA QR is only meaningful when there's VAT to attest to. Suppress it
+    // while VAT is inactive (Baraa activates it later).
+    showZatcaQR: data.vatAmount > 0,
     pageMetrics,
   });
 }
@@ -571,19 +578,27 @@ export async function buildInvoicePDFDataFromOdoo(
     throw new Error(`Order ${invoice.orderId} for invoice ${invoice.number} not found`);
   }
 
+  const packagingNames = await resolvePackagingNames(
+    env,
+    order.lines.map((l) => ({ packaging_id: l.packaging_id, product_id: l.product_id })),
+  );
+
   let subtotal = 0;
   const items: InvoiceLineItem[] = [];
 
+  let lineIdx = -1;
   for (const l of order.lines) {
+    lineIdx++;
     let unit = l.unit_price ?? 0;
     if (!unit || unit <= 0) {
-      unit = await getLatestSalePrice(env, l.product_id, l.packaging_id);
+      // sim-harness (2026-09-13): unpack .price from tagged lookup result.
+      unit = (await getLatestSalePrice(env, l.product_id, l.packaging_id)).price;
     }
     const total = round2(unit * l.quantity);
     subtotal = round2(subtotal + total);
     items.push({
       name: l.product_name || 'صنف',
-      pack: l.packaging_name || '-',
+      pack: packagingNames[lineIdx],
       qty: l.quantity,
       price: unit,
       total,
@@ -603,6 +618,138 @@ export async function buildInvoicePDFDataFromOdoo(
     discount: 0,
     vatAmount: 0,
     grandTotal: invoice.total,
+  };
+}
+
+// --------------------------------------------------------------
+// Build from a standard Odoo customer invoice (account.move, out_invoice).
+// Parallel reader alongside buildInvoicePDFDataFromOdoo (x_invoice).
+// VAT stays 0 until Baraa activates it — showZatcaQR should be false
+// while amount_tax === 0 (caller decides).
+// --------------------------------------------------------------
+export async function buildInvoicePDFDataFromAccountMove(
+  env: Env,
+  moveId: number,
+): Promise<InvoicePDFData | null> {
+  type MoveHead = {
+    id: number;
+    name: string | false;
+    invoice_date: string | false;
+    date: string | false;
+    partner_id: [number, string] | false;
+    invoice_line_ids: number[];
+    amount_untaxed: number;
+    amount_tax: number;
+    amount_total: number;
+    move_type: string;
+  };
+  const heads = await call<MoveHead[]>(env, "account.move", "read", {
+    ids: [moveId],
+    fields: ["id","name","invoice_date","date","partner_id","invoice_line_ids","amount_untaxed","amount_tax","amount_total","move_type"],
+  });
+  const head = heads[0];
+  if (!head) return null;
+  if (head.move_type !== "out_invoice" && head.move_type !== "out_refund") return null;
+
+  type Partner = { id: number; name: string | false; phone: string | false; street: string | false; city: string | false };
+  const partner = head.partner_id
+    ? (await call<Partner[]>(env, "res.partner", "read", {
+        ids: [head.partner_id[0]],
+        fields: ["id","name","phone","street","city"],
+      }))[0]
+    : null;
+
+  type Line = {
+    id: number;
+    name: string | false;
+    product_id: [number, string] | false;
+    quantity: number;
+    price_unit: number;
+    price_subtotal: number;
+    display_type: string | false;
+    sale_line_ids: number[];
+  };
+  type ProdProd = { id: number; product_tmpl_id: [number, string] | false };
+  const lines = head.invoice_line_ids.length > 0
+    ? await call<Line[]>(env, "account.move.line", "read", {
+        ids: head.invoice_line_ids,
+        fields: ["id","name","product_id","quantity","price_unit","price_subtotal","display_type","sale_line_ids"],
+      })
+    : [];
+  const productLines = lines.filter((l) => l.product_id && !l.display_type);
+  const prodIds = Array.from(new Set(productLines.map((l) => l.product_id ? l.product_id[0] : 0).filter((n) => n > 0)));
+  const prods = prodIds.length > 0
+    ? await call<ProdProd[]>(env, "product.product", "read", {
+        ids: prodIds,
+        fields: ["id","product_tmpl_id"],
+      })
+    : [];
+  const tmplByProd = new Map<number, number>();
+  for (const p of prods) if (p.product_tmpl_id) tmplByProd.set(p.id, p.product_tmpl_id[0]);
+
+  // If the invoice was generated from a sale.order, pull packaging from the
+  // linked sale.order.line's x_packaging_id — no new field on account.move.line.
+  // Fall back to the product's default packaging when nothing is linked.
+  type SolPack = { id: number; x_packaging_id: [number, string] | false };
+  const solIds = Array.from(
+    new Set(
+      productLines
+        .flatMap((l) => l.sale_line_ids ?? [])
+        .filter((id) => typeof id === "number" && id > 0),
+    ),
+  );
+  const solPack = solIds.length > 0
+    ? await call<SolPack[]>(env, "sale.order.line", "read", {
+        ids: solIds,
+        fields: ["id","x_packaging_id"],
+      })
+    : [];
+  const packByLine = new Map<number, number>();
+  for (const s of solPack) if (s.x_packaging_id) packByLine.set(s.id, s.x_packaging_id[0]);
+
+  const packagingNames = await resolvePackagingNames(
+    env,
+    productLines.map((l) => {
+      const linkedPack = (l.sale_line_ids ?? []).map((id) => packByLine.get(id) ?? 0).find((n) => n > 0) ?? 0;
+      return {
+        packaging_id: linkedPack,
+        product_id: l.product_id ? (tmplByProd.get(l.product_id[0]) ?? 0) : 0,
+      };
+    }),
+  );
+
+  let subtotal = 0;
+  const items: InvoiceLineItem[] = productLines.map((l, i) => {
+    const total = round2(l.price_subtotal);
+    subtotal = round2(subtotal + total);
+    const displayName = (typeof l.name === "string" && l.name)
+      ? l.name.split("\n")[0]
+      : (l.product_id ? l.product_id[1] : "صنف");
+    return {
+      name: displayName,
+      pack: packagingNames[i],
+      qty: l.quantity,
+      price: l.price_unit,
+      total,
+    };
+  });
+
+  const rawDate = head.invoice_date || head.date || null;
+  const invoiceDate = rawDate ? new Date(String(rawDate)) : new Date();
+
+  return {
+    invoiceNumber: (typeof head.name === "string" && head.name) ? head.name : `INV-${moveId}`,
+    invoiceDate,
+    customer: {
+      name: partner?.name || (head.partner_id ? head.partner_id[1] : "عميل"),
+      address: partner?.street || partner?.city || "الرياض",
+      phone: partner?.phone || "",
+    },
+    items,
+    subtotal,
+    discount: 0,
+    vatAmount: head.amount_tax || 0,
+    grandTotal: head.amount_total || subtotal,
   };
 }
 

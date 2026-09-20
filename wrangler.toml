@@ -46,7 +46,80 @@ preview_id = "b423e1498d624696ac10ed101c621742"
 # v3 — Cron triggers (Cloudflare Workers Free tier: up to 3 cron routes)
 # Riyadh is UTC+3 (no DST).
 # ------------------------------------------------------------
+# ⚠️ prod crons موقوفة نهائياً في هذا الملف — قرار 2026-09-16
+#    (مؤكَّد بصرياً من لوحة Cloudflare يوم 2026-09-21: "No cron triggers configured").
+#
+# لماذا فارغة: التشغيل الحقيقي للـpilot يجري على utak-worker-sim مع
+# PILOT_MODE=true وSIM_ALLOWLIST محدودة. جدولة prod أُوقفت يدوياً من
+# Cloudflare dashboard، لكن أي `wrangler deploy` مستقبلي (بدون --env) كان
+# سيعيد كتابة الثمانية من هذا الملف — فتشتغل المهام مرتين على نفس Odoo
+# tenant ونفس رقم واتساب، ونسخة prod بلا PILOT_MODE وبلا SIM_ALLOWLIST أي
+# ترسل لكل الأرقام. تفريغ crons هنا يجعل الإيقاف دائماً في الملف نفسه،
+# فأي redeploy لاحق لا يعيد الجدولة عرَضياً.
+#
+# متى تُعاد: عند الانتقال الحقيقي إلى prod (نهاية الـpilot). الخطوات مرتبة
+# ولا تُقلَب:
+#   1) أوقف [env.sim.triggers] أولاً بجعلها crons = []، ثم انشر sim
+#      (wrangler deploy --env sim). هذا يوقف جدولة sim قبل تفعيل جدولة prod.
+#   2) تحقّق من Cloudflare dashboard و`wrangler tail utak-worker-sim` أن
+#      utak-worker-sim لم يعد يشغّل الكرونات.
+#   3) انسخ المواعيد الثمانية من الكتلة المحفوظة أدناه إلى crons = [ ... ]
+#      هنا حرفياً (بنفس التعليقات).
+#   4) `wrangler deploy` (بدون --env) لإعادة تفعيل جدولة prod.
+#
+# المواعيد المحفوظة للاستعادة (بنسخ ولصق حرفياً — لا تعدّل بدون سبب):
+#   "0 23 * * *",   # 02:00 Riyadh — v3: ask all active suppliers for daily prices
+#   "0 2 * * *",    # 05:00 Riyadh — v3: recompute supplier reliability scores
+#   "0 3 * * *",    # 06:00 Riyadh — v3: open ordering flag + missing-supplier alert
+#   "0 18 * * *",   # 21:00 Riyadh — v4: close unconfirmed orders
+#   "15 18 * * *",  # 21:15 Riyadh — v4: aggregate + dispatch purchase list to warehouse
+#   "0 15 * * *",   # 18:00 Riyadh — v5: daily collection summary
+#   "0 14 * * *",   # 17:00 Riyadh — v6.1: standing-order reminders
+#   "0 5 * * *"     # 08:00 Riyadh — v7: daily outreach (feedback, pay_remind, inactive)
+# ------------------------------------------------------------
 [triggers]
+crons = []
+
+# ------------------------------------------------------------
+# R2: invoice PDF archive (added 2026-09-05)
+# ------------------------------------------------------------
+[[r2_buckets]]
+binding     = "INVOICES_BUCKET"
+bucket_name = "utak-invoices"
+
+# ============================================================
+# [env.sim] — isolated simulation deployment.
+#
+# Deploys as a SEPARATE worker `utak-worker-sim` with its own KV, D1, R2.
+# The production `utak-worker` above is UNTOUCHED — nothing in this block
+# affects it. Runs the exact same code with SIMULATION_MODE flipped on;
+# fetchMeta() in src/meta.ts intercepts every outbound Meta call and writes
+# to the sim_outbound D1 table instead of hitting graph.facebook.com.
+#
+# Deploy with:  wrangler deploy --env sim
+# Tail with:    wrangler tail utak-worker-sim
+#
+# Cron triggers deliberately omitted — sim jobs are driven manually via
+# POST /sim/trigger?job=<name> so a whole day can be compressed into minutes.
+#
+# Required one-time setup on this Cloudflare account:
+#   wrangler kv namespace create SIM_MSG_DEDUP --env sim
+#   wrangler kv namespace create SIM_MSG_DEDUP --env sim --preview
+#   wrangler d1 create utak-worker-sim-db
+#   wrangler d1 execute utak-worker-sim-db --file=./schema/sim_outbound.sql --env=sim --remote
+#   wrangler r2 bucket create utak-invoices-sim
+# then paste the returned KV ids and D1 database_id below.
+# ============================================================
+[env.sim]
+name = "utak-worker-sim"
+
+# مفعّلة على sim لأن crons الإنتاج أُوقفت يدوياً من Dashboard طوال الـpilot — قرار 2026-09-16
+# Mirror of the top-level [triggers] block verbatim. Prod's own triggers stay
+# defined in wrangler.toml but are paused on the Cloudflare dashboard for the
+# pilot window; when the dashboard toggle is flipped back on, this block must
+# be reset to crons = [] to prevent sim + prod duplicate cron work on the same
+# Odoo tenant.
+[env.sim.triggers]
 crons = [
   "0 23 * * *",   # 02:00 Riyadh — v3: ask all active suppliers for daily prices
   "0 2 * * *",    # 05:00 Riyadh — v3: recompute supplier reliability scores
@@ -58,10 +131,104 @@ crons = [
   "0 5 * * *"     # 08:00 Riyadh — v7: daily outreach (feedback, pay_remind, inactive)
 ]
 
-# ------------------------------------------------------------
-# R2: invoice PDF archive (added 2026-09-05)
-# ------------------------------------------------------------
-[[r2_buckets]]
+[env.sim.vars]
+WORKER_ORIGIN        = "https://utak-worker-sim.utak-business.workers.dev"
+META_PHONE_NUMBER_ID = "1351691708016803"
+META_WABA_ID         = "2144001136512196"
+META_GRAPH_VERSION   = "v22.0"
+ODOO_URL             = "https://utakfresh.odoo.com"     # same Odoo — sim rows carry x_is_simulation=true
+ODOO_DB              = "utakfresh"
+ODOO_LOGIN           = "admin@utakfresh.com"
+CLAUDE_MODEL_CLASSIFY = "claude-haiku-4-5-20251001"
+CLAUDE_MODEL_REPLY    = "claude-sonnet-5"
+OWNER_WHATSAPP        = "+966505154962"
+# 2026-09-16 — PILOT_MODE on the sim worker itself (no separate [env.pilot]
+# deploy). runtimeMode() treats SIMULATION_MODE=true AND PILOT_MODE=true as
+# mutually-exclusive misconfig; SIMULATION_MODE is therefore flipped off so
+# fetchMeta actually reaches Meta for the pilot round. isTestMode() still
+# returns true via PILOT_MODE, so odoo.ts::call keeps stamping
+# x_is_simulation=true on new rows and /sim/purge can clean them up.
+SIMULATION_MODE       = "false"                         # the switch fetchMeta() reads
+PILOT_MODE            = "true"                          # real Meta sends restricted to SIM_ALLOWLIST
+# المالك (تنبيهات فقط) + عميل pilot + المورد أحمد حسان — قرار 2026-09-16
+SIM_ALLOWLIST         = "+966505154962,+966536251307,+966571777704"
+
+# Secrets on the sim worker (set once, mirrored from prod plus one new):
+#   wrangler secret put META_APP_SECRET       --env sim
+#   wrangler secret put META_ACCESS_TOKEN     --env sim
+#   wrangler secret put META_VERIFY_TOKEN     --env sim
+#   wrangler secret put ODOO_API_KEY          --env sim
+#   wrangler secret put ANTHROPIC_API_KEY     --env sim
+#   wrangler secret put SIM_SECRET            --env sim   # NEW: gates /sim/* endpoints
+
+[[env.sim.kv_namespaces]]
+binding    = "MSG_DEDUP"
+id         = "998122f32d7b46c2a45cf01acec3cb0e"
+preview_id = "c23e6070ddfb419d83f2700d382b41c9"
+
+[[env.sim.d1_databases]]
+binding       = "SIM_DB"
+database_name = "utak-worker-sim-db"
+database_id   = "f0631ac1-9659-4d5c-bc35-05797afe50c7"
+
+[[env.sim.r2_buckets]]
 binding     = "INVOICES_BUCKET"
-bucket_name = "utak-invoices"
+bucket_name = "utak-invoices-sim"
+
+# ============================================================
+# [env.pilot] — real Meta sends, restricted to SIM_ALLOWLIST
+#
+# The middle tier between sim (no real sends) and prod (open to everyone).
+# Purpose: run one live day against Baraa's personal circle before opening
+# to real customers. PILOT_MODE=true + a non-empty SIM_ALLOWLIST are BOTH
+# required — the runtime refuses to send otherwise.
+#
+# A pilot deploy is a THIRD worker; it does not touch prod or sim. Same
+# schema/D1 setup pattern as sim (create your own kv/d1/r2 names).
+# ============================================================
+[env.pilot]
+name = "utak-worker-pilot"
+
+# CRITICAL: pilot sends REAL Meta messages. Inheriting the prod crons would
+# fire the same daily jobs on the same Meta phone number = duplicate live
+# sends to real customers. This block prevents that. Keep [] until pilot day.
+[env.pilot.triggers]
+crons = []
+
+[env.pilot.vars]
+WORKER_ORIGIN        = "https://utak-worker-pilot.utak-business.workers.dev"
+META_PHONE_NUMBER_ID = "1351691708016803"
+META_WABA_ID         = "2144001136512196"
+META_GRAPH_VERSION   = "v22.0"
+ODOO_URL             = "https://utakfresh.odoo.com"
+ODOO_DB              = "utakfresh"
+ODOO_LOGIN           = "admin@utakfresh.com"
+CLAUDE_MODEL_CLASSIFY = "claude-haiku-4-5-20251001"
+CLAUDE_MODEL_REPLY    = "claude-sonnet-5"
+OWNER_WHATSAPP        = "+966505154962"
+PILOT_MODE            = "true"
+# REQUIRED: at least Baraa's number, plus any test partners.
+SIM_ALLOWLIST         = "+966505154962"
+
+# Secrets on the pilot worker (mirror prod plus SIM_SECRET for /sim/mode):
+#   wrangler secret put META_APP_SECRET       --env pilot
+#   wrangler secret put META_ACCESS_TOKEN     --env pilot
+#   wrangler secret put META_VERIFY_TOKEN     --env pilot
+#   wrangler secret put ODOO_API_KEY          --env pilot
+#   wrangler secret put ANTHROPIC_API_KEY     --env pilot
+#   wrangler secret put SIM_SECRET            --env pilot
+
+[[env.pilot.kv_namespaces]]
+binding    = "MSG_DEDUP"
+id         = "PASTE_PILOT_KV_ID_HERE"
+preview_id = "PASTE_PILOT_KV_PREVIEW_ID_HERE"
+
+# Pilot does not need D1 (no sim_outbound capture in pilot mode).
+# If /sim/inject is desired for controlled walkthroughs, provision D1 as
+# in [env.sim] — captureOutbound only runs when SIMULATION_MODE=true, so
+# the binding sits unused otherwise.
+
+[[env.pilot.r2_buckets]]
+binding     = "INVOICES_BUCKET"
+bucket_name = "utak-invoices-pilot"
 

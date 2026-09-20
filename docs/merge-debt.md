@@ -612,6 +612,40 @@ the mapping on the next isolate cold start.
 Rollback: `x_whatsapp_template.unlink([46])` and drop the template
 in Meta Business Manager.
 
+## Inbox — WhatsApp Discuss inbox (2026-09-20)
+
+- **`base.automation` id=12 (`wa_inbox.on_message`) + `ir.actions.server`
+  id=979 (`wa_inbox.reply_webhook`)** live on the shared Odoo tenant and
+  currently point at
+  `https://utak-worker-sim.utak-business.workers.dev/odoo/hook/wa-inbox?token=<ODOO_HOOK_TOKEN>`.
+  On merge to prod, flip the URL to
+  `https://utak-worker.utak-business.workers.dev/…` using the prod
+  ODOO_HOOK_TOKEN. `scripts/inbox-20260920-apply-automation.mjs` derives
+  the token from the existing wa_message.send_webhook (id=967) URL; the
+  same script can be re-run against a prod-URL target.
+- **`/odoo/hook/wa-inbox`** is a new POST route in `src/index.ts`. Runs in
+  ctx.waitUntil and returns 202. Prod must accept the same shape
+  `{_model:"mail.message", id:<mail.message.id>}` with the token in the
+  query string (Odoo 19 SaaS webhook actions cannot set headers).
+- **Discuss channels + partners are SHARED across sim/prod**: created
+  channels (5, 14–23) and the "UTAK بوت" partner (id=42) already live in
+  the tenant. Do NOT recreate them on the prod cutover.
+- **Cron 62** (`WhatsApp : Send In Queue Messages`) has been disabled
+  (`active=false`) on the shared tenant. The prod branch must keep it
+  disabled unless a specific reason arises.
+- **`res.partner.x_wa_channel_id`** (id=20163) and
+  **`discuss.channel.x_wa_partner_id`** (id=20166) are manual fields on
+  the shared tenant. Prod inherits them automatically.
+- **echo path in `fetchMeta`**: every successful send now posts a mirror
+  to the recipient's Discuss channel as UTAK بوت (`echoOutboundToInbox`).
+  The recipient is resolved by phone lookup (`x_whatsapp_number`/`phone`).
+  Owner is skipped. If prod has partners without a channel yet, the
+  first send creates one on the fly.
+- **Backfill rows** (27 mail.message rows recorded in
+  `scripts/artifacts/inbox-backfill-map.json`) are already on the shared
+  tenant. On prod cutover, do NOT re-run inbox-backfill — the map is the
+  source of truth for what has already been imported.
+
 ## Phase 2, 3, 4 — deferred
 
 Not yet on this branch. Update this file per phase as they land.

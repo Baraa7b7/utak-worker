@@ -430,6 +430,9 @@ export async function handleWaMessageWebhook(
     x_meta_message_id: wamid || false,
     x_processed_at: nowOdoo(),
     x_meta_error: false,
+    // 2026-09-20 (cover) — badge source on the row itself; x_manual is the
+    // authoritative flag ("manual send from Odoo").
+    x_source: msg.x_manual ? "manual" : "auto",
   });
   if (msg.x_partner_id) {
     await postChatter(
@@ -467,6 +470,16 @@ export interface LogInboundArgs {
   // link the outbound row to its source.
   resModel?: string;
   resId?: number;
+  /**
+   * 2026-09-20 (inbox cover) — provenance stamp. "auto" = the Worker sent
+   * on its own (bot reply, cron, follow-up). "manual" = a human triggered
+   * the send (Discuss composer, /odoo/hook/wa manual send, x_manual=true).
+   * "inbound" = the message came from Meta into the Worker. Falls back to
+   * an inference from direction+manual when omitted so old callers still
+   * write a sensible value.
+   */
+  source?: "auto" | "manual" | "inbound";
+  manual?: boolean;
 }
 
 export async function logWaMessage(env: Env, a: LogInboundArgs): Promise<void> {
@@ -482,7 +495,28 @@ export async function logWaMessage(env: Env, a: LogInboundArgs): Promise<void> {
     if (a.metaMessageId) vals.x_meta_message_id = a.metaMessageId;
     if (a.resModel) vals.x_res_model = a.resModel;
     if (a.resId) vals.x_res_id = a.resId;
-    await call<number[]>(env, "x_wa_message", "create", { vals_list: [vals] });
+    if (typeof a.manual === "boolean") vals.x_manual = a.manual;
+    const source =
+      a.source ??
+      (a.direction === "in" ? "inbound" : a.manual === true ? "manual" : "auto");
+    // x_source is added by scripts/inbox-cover-20260920-apply.mjs. If Odoo
+    // rejects the field name (studio setup lags a Worker deploy), the whole
+    // insert would fail — retry once without x_source so the audit row is
+    // still created. Best-effort; failure of that retry is still logged.
+    vals.x_source = source;
+    try {
+      await call<number[]>(env, "x_wa_message", "create", { vals_list: [vals] });
+      return;
+    } catch (e) {
+      const em = (e as Error)?.message ?? "";
+      if (/x_source/i.test(em)) {
+        delete vals.x_source;
+        await call<number[]>(env, "x_wa_message", "create", { vals_list: [vals] });
+        console.warn("[logWaMessage] created without x_source — run apply script");
+        return;
+      }
+      throw e;
+    }
   } catch (e) {
     console.warn("[logWaMessage] failed", (e as Error)?.message);
   }

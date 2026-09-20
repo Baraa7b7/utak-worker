@@ -307,7 +307,7 @@ export async function fetchMeta(
     // completion in the background. Without ctx we await, so a script
     // caller never turns the echo into a fire-and-forget promise the
     // Worker might reclaim mid-flight.
-    await dispatchEcho(env, to, body, opts.ctx);
+    await dispatchEcho(env, to, body, opts.ctx, opts.purpose);
     return synthesizeMetaResponse(to, wamid);
   }
 
@@ -364,7 +364,11 @@ export async function fetchMeta(
       );
     }
     if (resp.ok) {
-      await dispatchEcho(env, to, body, opts.ctx);
+      await dispatchEcho(env, to, body, opts.ctx, opts.purpose);
+    } else {
+      // 2026-09-20 (cover) — mirror immediate failures so Baraa sees a
+      // matching "⚠️ ما انرسلت" line in the customer's Discuss channel.
+      await dispatchFailureEcho(env, to, metaError?.message ?? `Meta ${resp.status}`, opts.ctx);
     }
     return resp;
   }
@@ -372,9 +376,49 @@ export async function fetchMeta(
   // ---- prod: unchanged ----
   const prodResp = await metaRealSend(env, body);
   if (prodResp.ok) {
-    await dispatchEcho(env, to, body, opts.ctx);
+    await dispatchEcho(env, to, body, opts.ctx, opts.purpose);
+  } else {
+    let errText = "";
+    try { errText = (await prodResp.clone().text()).slice(0, 200); } catch { /* ignore */ }
+    await dispatchFailureEcho(env, to, errText || `Meta ${prodResp.status}`, opts.ctx);
   }
   return prodResp;
+}
+
+/**
+ * Immediate-failure mirror. Posts "⚠️ ما انرسلت: <reason>" as UTAK بوت into
+ * the recipient's Discuss channel. Best-effort — never affects fetchMeta's
+ * caller path. Owner recipients are silent.
+ */
+async function dispatchFailureEcho(
+  env: Env,
+  to: string,
+  reason: string,
+  ctx: ExecutionContext | undefined,
+): Promise<void> {
+  const task = (async () => {
+    if (isOwnerRecipient(env, to)) return;
+    const digits = toDigits(to);
+    if (!digits) return;
+    try {
+      const { call } = await import("./odoo");
+      const rows = await call<Array<{ id: number; name: string }>>(
+        env, "res.partner", "search_read",
+        {
+          domain: ["|", ["x_whatsapp_number", "ilike", digits], ["phone", "ilike", digits]],
+          fields: ["id", "name"],
+          limit: 1,
+        },
+      );
+      if (!rows[0]) return;
+      const { echoFailure } = await import("./wa-inbox");
+      await echoFailure(env, rows[0].id, rows[0].name, reason);
+    } catch (e) {
+      console.warn("[fetchMeta] dispatchFailureEcho:", (e as Error).message);
+    }
+  })();
+  if (ctx) ctx.waitUntil(task);
+  else await task;
 }
 
 /**
@@ -393,8 +437,9 @@ async function dispatchEcho(
   to: string,
   body: Record<string, unknown>,
   ctx: ExecutionContext | undefined,
+  purpose?: string,
 ): Promise<void> {
-  const task = echoOutboundToInbox(env, to, body).catch((e) =>
+  const task = echoOutboundToInbox(env, to, body, purpose).catch((e) =>
     console.warn("[fetchMeta] echo failed:", (e as Error).message),
   );
   if (ctx) {
@@ -451,6 +496,7 @@ async function echoOutboundToInbox(
   env: Env,
   to: string,
   body: Record<string, unknown>,
+  purpose?: string,
 ): Promise<void> {
   // Owner is not a customer conversation — never echo owner-alert traffic
   // into a Discuss channel.
@@ -473,8 +519,33 @@ async function echoOutboundToInbox(
       },
     );
     if (!rows[0]) return;
+    // 2026-09-20 (cover) — some purposes already log x_wa_message and post
+    // their own Discuss row (Baraa's Discuss reply is already visible as
+    // his own message in the channel). Skip both echo and log to avoid
+    // double-rendering.
+    const HANDLED_BY_CALLER: ReadonlySet<string> = new Set([
+      "inbox_reply",       // wa-inbox-reply.ts writes its own x_wa_message
+      "wa_message_manual", // wa-message-send.ts writes its own x_wa_message
+    ]);
+    if (purpose && HANDLED_BY_CALLER.has(purpose)) return;
+    const templateLabel = body.type === "template" ? purpose : undefined;
     const { echoOutbound } = await import("./wa-inbox");
-    await echoOutbound(env, rows[0].id, rows[0].name, echoText);
+    await echoOutbound(env, rows[0].id, rows[0].name, echoText, templateLabel);
+    // Stamp an x_wa_message row for the auto send so the audit tab shows the
+    // same "آلي" badge next to the mirror line in Discuss.
+    try {
+      const { logWaMessage } = await import("./wa-message-send");
+      await logWaMessage(env, {
+        partnerId: rows[0].id,
+        direction: "out",
+        kind: body.type === "template" ? "template" : "text",
+        body: echoText,
+        source: "auto",
+        status: "sent",
+      });
+    } catch (e) {
+      console.warn("[fetchMeta] echo logWaMessage failed:", (e as Error).message);
+    }
   } catch (e) {
     console.warn("[fetchMeta] echoOutboundToInbox failed:", (e as Error).message);
   }

@@ -1,0 +1,37 @@
+{
+  "generated_at": "2026-09-20T04:50:38.547Z",
+  "created": {
+    "fields": [
+      {
+        "id": 20168,
+        "model": "x_wa_message",
+        "name": "x_source"
+      }
+    ],
+    "views": [
+      {
+        "id": 2800,
+        "name": "x_wa_message.tree.source_badge",
+        "inherit_id": 2775
+      },
+      {
+        "id": 2801,
+        "name": "x_wa_message.form.source_badge",
+        "inherit_id": 2778
+      },
+      {
+        "id": 2802,
+        "name": "x_wa_message.search.source_filter",
+        "inherit_id": 2781
+      }
+    ]
+  },
+  "mutated": {
+    "x_wa_message_backfill": {
+      "applied_at": "2026-09-20T04:51:27.873Z",
+      "inbound_count": 0,
+      "manual_count": 4,
+      "auto_count": 4
+    }
+  }
+}

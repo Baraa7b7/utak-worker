@@ -1534,8 +1534,15 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
   // messages. When present, correlate each status update to the matching
   // x_wa_message by wamid and bump its x_status. Best-effort; a failure never
   // interrupts inbound-message processing.
+  //
+  // 2026-09-20 (cover) — when Meta reports a failed status, also mirror the
+  // failure into the recipient's Discuss channel as ⚠️ ما انرسلت — Baraa
+  // sees the same "channel is out" cue for late-arriving failures as for
+  // immediate ones. Non-failed states stay silent (they'd double the
+  // channel's noise) but still stamp x_status on x_wa_message.
   try {
     const { updateWaStatusByWamid } = await import("./wa-message-send");
+    const { phoneTail } = await import("./wa-inbox");
     // deno-lint-ignore no-explicit-any
     const entries: any[] = (payload as any)?.entry ?? [];
     for (const entry of entries) {
@@ -1556,7 +1563,31 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           const errMsg = s?.errors?.[0]?.message
             ? `Meta ${s.errors[0].code ?? ""}: ${s.errors[0].message}`
             : undefined;
+          const to = s?.recipient_id ?? "";
+          console.log(
+            `[inbox] wamid=${wamid.slice(-10)} from=${phoneTail(String(to))} kind=status status=${s2}`,
+          );
           await updateWaStatusByWamid(env, wamid, s2, errMsg);
+          if (s2 === "failed" && to) {
+            try {
+              const { findCustomerByWhatsApp, findSupplierByWhatsApp, findTeamMemberByWhatsApp } =
+                await import("./odoo");
+              const digits = String(to).replace(/[^0-9]/g, "");
+              const e164 = digits.startsWith("+") ? digits : `+${digits}`;
+              const [t, sup, cus] = await Promise.all([
+                findTeamMemberByWhatsApp(env, e164).catch(() => null),
+                findSupplierByWhatsApp(env, e164).catch(() => null),
+                findCustomerByWhatsApp(env, e164).catch(() => null),
+              ]);
+              const partner = t ?? sup ?? cus;
+              if (partner) {
+                const { echoFailure } = await import("./wa-inbox");
+                await echoFailure(env, partner.id, partner.name, errMsg ?? "Meta failed");
+              }
+            } catch (e) {
+              console.warn("[status-failed mirror]", (e as Error)?.message);
+            }
+          }
         }
       }
     }
@@ -1581,109 +1612,93 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
     if (!botTypes && !hasMedia) continue;
     if (botTypes && !hasBotContent && !hasMedia) continue;
 
-    if (await seenBefore(env, msg.messageId)) continue;
+    if (await seenBefore(env, msg.messageId)) {
+      const { phoneTail } = await import("./wa-inbox");
+      console.log(
+        `[inbox] wamid=${msg.messageId.slice(-10)} from=${phoneTail(msg.from)} kind=message dedup=hit skip=already-seen`,
+      );
+      continue;
+    }
 
-    // Item 2 (2026-09-17) — silent x_wa_message log for every inbound event.
-    // Partner is resolved lazily below; here we do a best-effort match by
-    // whatsapp number so the tab in Odoo shows every incoming ping even for
-    // partners that haven't been created yet (partnerId=null in that case).
+    // 2026-09-20 (cover) — single funnel for every inbound. Ingests BEFORE
+    // any team/supplier/customer bot routing so a failure in one of those
+    // branches can never make the message disappear from x_wa_message or
+    // from Baraa's Discuss channel. `ingestInbound`:
+    //   • resolves partner in priority team → supplier → customer → new,
+    //     falling back to findOrCreateCustomer for a brand-new number,
+    //   • writes x_wa_message with x_source='inbound' and status='received',
+    //   • mirrors the message into the partner's Discuss channel as the
+    //     contact (not the bot), and
+    //   • returns a small IngestResult the [inbox] log line prints so
+    //     `wrangler tail` shows exactly what happened to every wamid.
     //
-    // Item 4 (2026-09-17) — attached to the same block, once we know
-    // whether this number is a supplier / team member / already-allowed
-    // customer, alert Baraa about unallowed incoming numbers. Throttled to
-    // once per phone number per 24h via KV so a chatty stranger doesn't
-    // spam the owner inbox.
-    //
-    // 2026-09-20 (inbox) — the same block also mirrors the inbound into the
-    // contact's Discuss channel. For unknown numbers we resolve/create the
-    // partner here so the mirror has a target. Failure of the mirror never
-    // affects the bot flow: every branch inside runInboxMirror is wrapped
-    // in try/catch and only warns.
+    // Team, supplier and customer matches are also passed through to the
+    // bot routing below so we do not re-run the same Odoo lookups a
+    // second time on the hot path.
+    let ingestRoute: "team" | "supplier" | "customer" | "new" | "owner" = "new";
+    let teamMatch: Awaited<ReturnType<typeof findTeamMemberByWhatsApp>> | null = null;
+    let supplierMatch: Awaited<ReturnType<typeof findSupplierByWhatsApp>> | null = null;
+    let customerMatchForRoute: OdooPartner | null = null;
     try {
-      const { logWaMessage } = await import("./wa-message-send");
       const {
         findCustomerByWhatsApp,
-        findSupplierByWhatsApp,
-        findTeamMemberByWhatsApp,
-        isPartnerWaAllowed,
+        findSupplierByWhatsApp: fs,
+        findTeamMemberByWhatsApp: ft,
       } = await import("./odoo");
-      const [supplierMatch, teamMatch, customerMatch] = await Promise.all([
-        findSupplierByWhatsApp(env, msg.from).catch(() => null),
-        findTeamMemberByWhatsApp(env, msg.from).catch(() => null),
+      const [t, sup, cus] = await Promise.all([
+        ft(env, msg.from).catch(() => null),
+        fs(env, msg.from).catch(() => null),
         findCustomerByWhatsApp(env, msg.from).catch(() => null),
       ]);
-      const pid = supplierMatch?.id ?? teamMatch?.id ?? customerMatch?.id ?? null;
-      const kind: "text" | "template" | "document" | "button_reply" =
-        msg.type === "interactive" || msg.type === "button"
-          ? "button_reply"
-          : (hasMedia && !botTypes) ? "document" : "text";
-      const bodyForLog =
-        msg.text ||
-        (msg.buttonId ? `[button:${msg.buttonId}]` : "") ||
-        (msg.media ? `[${msg.type}:${msg.media.id}${msg.media.filename ? ` ${msg.media.filename}` : ""}]` : "") ||
-        (msg.location ? "[location]" : "") ||
-        `[${msg.type}]`;
-      await logWaMessage(env, {
-        partnerId: pid,
-        direction: "in",
-        kind,
-        body: bodyForLog,
-        metaMessageId: msg.messageId,
-        status: "received",
-      });
+      teamMatch = t;
+      supplierMatch = sup;
+      customerMatchForRoute = cus;
 
-      // 2026-09-20 (inbox) — mirror into Discuss. Skip only the owner
-      // number; the mirror function itself handles missing bot partner /
-      // KV misses / Odoo errors.
-      const ownerDigits = (env.OWNER_WHATSAPP || "").replace(/[^0-9]/g, "");
-      const fromDigits = msg.from.replace(/[^0-9]/g, "");
-      const isOwner = ownerDigits && ownerDigits === fromDigits;
-      if (!isOwner) {
-        const mirrorTask = (async () => {
-          try {
-            let mirrorPid = pid;
-            let mirrorName =
-              supplierMatch?.name ??
-              teamMatch?.name ??
-              customerMatch?.name ??
-              msg.profileName ?? msg.from;
-            if (!mirrorPid) {
-              const { findOrCreateCustomer } = await import("./odoo");
-              const created = await findOrCreateCustomer(env, msg.from, msg.profileName);
-              mirrorPid = created.id;
-              mirrorName = created.name || mirrorName;
-            }
-            const { mirrorInbound } = await import("./wa-inbox");
-            await mirrorInbound(env, {
-              partnerId: mirrorPid,
-              partnerName: mirrorName,
-              wamid: msg.messageId,
-              type: msg.type,
-              text: msg.text || undefined,
-              location: msg.location,
-              media: msg.media,
-            });
-          } catch (e) {
-            console.warn("[wa-inbox mirror] failed:", (e as Error)?.message);
-          }
-        })();
-        if (ctx) ctx.waitUntil(mirrorTask); else await mirrorTask;
-      }
+      const { ingestInbound, phoneTail } = await import("./wa-inbox");
+      const ingest = await ingestInbound(
+        env,
+        {
+          partnerId: 0, // placeholder — ingestInbound sets its own from lookups
+          partnerName: "",
+          wamid: msg.messageId,
+          type: msg.type,
+          text: msg.text || undefined,
+          location: msg.location,
+          media: msg.media,
+          from: msg.from,
+          profileName: msg.profileName,
+        },
+        {
+          team: t ? { id: t.id, name: t.name } : null,
+          supplier: sup ? { id: sup.id, name: sup.name } : null,
+          customer: cus ? { id: cus.id, name: cus.name } : null,
+        },
+      );
+      ingestRoute = ingest.route;
 
-      // item4 — unallowed-inbound alert (24h KV throttle per number).
-      // A supplier / team member is always an authorized actor, whether or
-      // not their number is in SIM_ALLOWLIST, so those branches skip the
-      // alert. The owner-guard block below handles the owner's own inbound.
-      if (!supplierMatch && !teamMatch) {
+      // Single console line every inbound produces, regardless of route.
+      const skipOrOk = ingest.mirrored
+        ? "ok"
+        : ingest.route === "owner"
+          ? "skip:owner"
+          : `${ingest.skip ? "fail:" + ingest.skip : "skip:unknown"}`;
+      console.log(
+        `[inbox] wamid=${msg.messageId.slice(-10)} from=${phoneTail(msg.from)} kind=message partner=${ingest.partnerId ?? "-"} route=${ingest.route} mirror=${skipOrOk}`,
+      );
+
+      // 2026-09-20 — the unallowed-inbound alert still fires only for
+      // strangers (no team, no supplier match). We keep the 24h KV throttle
+      // and use the same partner name from the customer match if present.
+      if (!sup && !t) {
         const { isRecipientAllowed } = await import("./config");
+        const { isPartnerWaAllowed } = await import("./odoo");
         const allowlistOK = isRecipientAllowed(env, msg.from);
         const partnerOK = allowlistOK ? true : await isPartnerWaAllowed(env, msg.from);
         if (!allowlistOK && !partnerOK) {
           const dedupKey = `wa_unallowed_alert:${msg.from}`;
           const already = await env.MSG_DEDUP.get(dedupKey);
           if (!already) {
-            const who =
-              customerMatch?.name || msg.profileName || msg.from;
+            const who = cus?.name || msg.profileName || msg.from;
             const { sendOwnerAlert } = await import("./templates");
             try {
               await sendOwnerAlert(
@@ -1694,9 +1709,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
               console.warn("[wa_unallowed alert send]", (e as Error)?.message);
             }
             try {
-              await env.MSG_DEDUP.put(dedupKey, "1", {
-                expirationTtl: 24 * 60 * 60,
-              });
+              await env.MSG_DEDUP.put(dedupKey, "1", { expirationTtl: 24 * 60 * 60 });
             } catch (e) {
               console.warn("[wa_unallowed KV write]", (e as Error)?.message);
             }
@@ -1715,16 +1728,11 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       continue;
     }
 
-    const supplier = await findSupplierByWhatsApp(env, msg.from);
-    if (supplier) {
-      const enriched = await enrichSupplier(env, supplier);
-      const replyText = await handleSupplierReply(env, enriched, msg.text, msg.messageId);
-      if (replyText) await sendText(env, msg.from, replyText, { ctx });
-      await markSeen(env, msg.messageId);
-      continue;
-    }
-
-    const teamMember = await findTeamMemberByWhatsApp(env, msg.from);
+    // 2026-09-20 (cover) — reuse the team/supplier matches ingestInbound
+    // already resolved. Ordering: team → supplier → customer (a team
+    // member who also has customer_rank must not fall into the customer
+    // path). ingestRoute='owner' short-circuits below via the OWNER guard.
+    const teamMember = teamMatch;
     if (teamMember) {
       // 2026-09-17 — deferred delivery locations. sendDriverRoute stashes
       // per-stop location messages in KV instead of sending them behind
@@ -1780,6 +1788,19 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       continue;
     }
 
+    // 2026-09-20 (cover) — supplier path moved AFTER team so a partner
+    // that carries both roles gets the team behaviour first (Omar carries
+    // driver + warehouse + collector on partner 9 and must never fall
+    // into the supplier ask/reply pipeline).
+    const supplier = supplierMatch;
+    if (supplier) {
+      const enriched = await enrichSupplier(env, supplier);
+      const replyText = await handleSupplierReply(env, enriched, msg.text, msg.messageId);
+      if (replyText) await sendText(env, msg.from, replyText, { ctx });
+      await markSeen(env, msg.messageId);
+      continue;
+    }
+
     // ---- owner-guard (inbound) ----
     // A message from OWNER_WHATSAPP is never a customer conversation:
     // no findOrCreateCustomer, no welcome template, no order creation.
@@ -1799,8 +1820,9 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       }
     }
 
-    const { findCustomerByWhatsApp } = await import("./odoo");
-    const existing = await findCustomerByWhatsApp(env, msg.from);
+    // 2026-09-20 (cover) — ingestInbound already ran findCustomerByWhatsApp,
+    // so reuse its match rather than re-hit Odoo.
+    const existing = customerMatchForRoute;
     if (!existing && msg.type === "text") {
       try {
         const { sendTemplateByPurpose, T } = await import("./templates");

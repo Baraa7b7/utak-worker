@@ -325,6 +325,27 @@ export interface InboundForInbox {
   media?: { id: string; mime_type?: string; filename?: string; voice?: boolean };
 }
 
+// -------------------------------------------------------------
+// Ingest — the single funnel every inbound Meta message flows through.
+// -------------------------------------------------------------
+
+export type InboundRoute = "team" | "supplier" | "customer" | "new" | "owner";
+
+export interface IngestResult {
+  /** last-4 tail of the sender, for the [inbox] log line. */
+  fromTail: string;
+  /** Resolved partner id, or null if the mirror failed to create one. */
+  partnerId: number | null;
+  /** Resolved partner display name (may be empty for a brand-new row). */
+  partnerName: string;
+  /** How we categorized the sender. */
+  route: InboundRoute;
+  /** true when the Discuss mirror + x_wa_message log both succeeded. */
+  mirrored: boolean;
+  /** Populated when mirrored=false; short reason for the [inbox] line. */
+  skip?: string;
+}
+
 /**
  * Mirror one inbound WhatsApp message into the contact's Discuss channel.
  * Every branch is best-effort; the caller must call this from ctx.waitUntil
@@ -397,17 +418,38 @@ function escapeHtml(s: string): string {
 // -------------------------------------------------------------
 
 /**
+ * 2026-09-20 (cover) — visual marker prepended to every bot-authored echo so
+ * Baraa can tell an automatic reply from his own manual replies at a glance.
+ * The green left-border + cream background are best-effort — Odoo's Discuss
+ * HTML sanitizer sometimes strips inline styles; when it does, the "🤖 آلي"
+ * prefix in the text still marks the row and the badge column on
+ * x_wa_message keeps the same distinction machine-readable.
+ */
+const AUTO_STYLE =
+  "border-left: 3px solid #1E5A41; background-color: #F7F5F0; padding: 4px 8px; margin: 0;";
+
+function autoLabelHtml(bodyText: string, templateLabel?: string): string {
+  const prefix = templateLabel
+    ? `🤖 آلي · ${escapeHtml(templateLabel)}`
+    : "🤖 آلي";
+  const escapedBody = escapeHtml(bodyText ?? "").replace(/\n/g, "<br/>");
+  return `<p style="${AUTO_STYLE}"><strong>${prefix}</strong><br/>${escapedBody}</p>`;
+}
+
+/**
  * Post an echo of a successfully-sent outbound WhatsApp message into the
  * recipient's Discuss channel, authored as UTAK بوت.
  *
- * `body` is treated as plain text and wrapped in HTML. `partnerName` is only
- * used when the channel has to be created lazily.
+ * `body` is treated as plain text and wrapped in HTML with the "🤖 آلي"
+ * prefix. `partnerName` is only used when the channel has to be created
+ * lazily.
  */
 export async function echoOutbound(
   env: Env,
   partnerId: number,
   partnerName: string,
   body: string,
+  templateLabel?: string,
 ): Promise<void> {
   if (!partnerId || !body) return;
   const channelId = await ensureInboxChannel(env, partnerId, partnerName);
@@ -417,7 +459,7 @@ export async function echoOutbound(
     console.warn("[wa-inbox] echoOutbound: UTAK بوت partner missing — run apply script");
     return;
   }
-  await postToChannel(env, channelId, bot, textToHtml(body));
+  await postToChannel(env, channelId, bot, autoLabelHtml(body, templateLabel));
 }
 
 /**
@@ -436,6 +478,137 @@ export async function echoFailure(
   const bot = await getBotPartnerId(env);
   if (!bot) return;
   await postToChannel(env, channelId, bot, `<p>⚠️ ما انرسلت: ${escapeHtml(reason)}</p>`);
+}
+
+// -------------------------------------------------------------
+// Ingest — the sole entry point every inbound Meta message uses.
+//
+// Resolves the sender partner in priority team → supplier → customer → new,
+// stamps x_wa_message with x_source='inbound', posts the mirror into the
+// contact's Discuss channel, and returns a small result the caller uses to
+// print a single [inbox] console line. Every failure is contained: the
+// customer bot MUST continue on the caller's own path even if the mirror
+// bookkeeping fails.
+// -------------------------------------------------------------
+
+/** Redact a phone-like string to its last 4 digits, prefixed with "…". */
+export function phoneTail(s: string): string {
+  const d = String(s ?? "").replace(/[^0-9]/g, "");
+  return d ? `…${d.slice(-4)}` : "(none)";
+}
+
+export async function ingestInbound(
+  env: Env,
+  m: InboundForInbox & { from: string; profileName?: string },
+  looked?: {
+    team?: { id: number; name: string } | null;
+    supplier?: { id: number; name: string } | null;
+    customer?: { id: number; name: string } | null;
+  },
+): Promise<IngestResult> {
+  const fromTail = phoneTail(m.from);
+  const ownerDigits = (env.OWNER_WHATSAPP || "").replace(/[^0-9]/g, "");
+  const fromDigits = m.from.replace(/[^0-9]/g, "");
+  if (ownerDigits && fromDigits && ownerDigits === fromDigits) {
+    return { fromTail, partnerId: null, partnerName: "", route: "owner", mirrored: false, skip: "owner" };
+  }
+
+  // Team → supplier → customer → new. Passed-in matches let the caller
+  // reuse a Promise.all it did for other reasons; we still fall back to
+  // fresh lookups on miss.
+  let route: InboundRoute = "new";
+  let matched: { id: number; name: string } | null = null;
+  const lTeam = looked?.team ?? null;
+  const lSupplier = looked?.supplier ?? null;
+  const lCustomer = looked?.customer ?? null;
+  if (lTeam) { matched = { id: lTeam.id, name: lTeam.name }; route = "team"; }
+  else if (lSupplier) { matched = { id: lSupplier.id, name: lSupplier.name }; route = "supplier"; }
+  else if (lCustomer) { matched = { id: lCustomer.id, name: lCustomer.name }; route = "customer"; }
+
+  if (!matched) {
+    // Fall back to fresh lookups (a caller that already did Promise.all
+    // passes them in via `looked` and skips this branch).
+    try {
+      const { findTeamMemberByWhatsApp, findSupplierByWhatsApp, findCustomerByWhatsApp } =
+        await import("./odoo");
+      const [team, sup, cus] = await Promise.all([
+        findTeamMemberByWhatsApp(env, m.from).catch(() => null),
+        findSupplierByWhatsApp(env, m.from).catch(() => null),
+        findCustomerByWhatsApp(env, m.from).catch(() => null),
+      ]);
+      if (team) { matched = { id: team.id, name: team.name }; route = "team"; }
+      else if (sup) { matched = { id: sup.id, name: sup.name }; route = "supplier"; }
+      else if (cus) { matched = { id: cus.id, name: cus.name }; route = "customer"; }
+    } catch (e) {
+      console.warn("[inbox ingest] lookup failed:", (e as Error).message);
+    }
+  }
+
+  // Auto-create if still unmatched. This is a real customer partner (never
+  // a team member), stamped `customer` role — see findOrCreateCustomer for
+  // the audit trail.
+  if (!matched) {
+    try {
+      const { findOrCreateCustomer } = await import("./odoo");
+      const created = await findOrCreateCustomer(env, m.from, m.profileName ?? "");
+      matched = { id: created.id, name: created.name || m.profileName || m.from };
+      route = "new";
+    } catch (e) {
+      const skip = `partner-create: ${(e as Error).message}`;
+      return { fromTail, partnerId: null, partnerName: "", route: "new", mirrored: false, skip };
+    }
+  }
+
+  // Log x_wa_message with source='inbound'. Best-effort; a KV / Odoo hiccup
+  // must not stop the mirror below.
+  const bodyForLog =
+    m.text ||
+    (m.media
+      ? `[${m.type}:${m.media.id}${m.media.filename ? ` ${m.media.filename}` : ""}]`
+      : "") ||
+    (m.location ? "[location]" : "") ||
+    `[${m.type}]`;
+  const kind: "text" | "template" | "document" | "button_reply" =
+    m.type === "interactive" || m.type === "button"
+      ? "button_reply"
+      : (m.media && m.type !== "audio") ? "document" : "text";
+  try {
+    const { logWaMessage } = await import("./wa-message-send");
+    await logWaMessage(env, {
+      partnerId: matched.id,
+      direction: "in",
+      kind,
+      body: bodyForLog,
+      metaMessageId: m.wamid,
+      status: "received",
+      source: "inbound",
+    });
+  } catch (e) {
+    console.warn("[inbox ingest] logWaMessage failed:", (e as Error).message);
+  }
+
+  // Mirror to Discuss
+  try {
+    await mirrorInbound(env, {
+      partnerId: matched.id,
+      partnerName: matched.name,
+      wamid: m.wamid,
+      type: m.type,
+      text: m.text,
+      location: m.location,
+      media: m.media,
+    });
+    return { fromTail, partnerId: matched.id, partnerName: matched.name, route, mirrored: true };
+  } catch (e) {
+    return {
+      fromTail,
+      partnerId: matched.id,
+      partnerName: matched.name,
+      route,
+      mirrored: false,
+      skip: `mirror: ${(e as Error).message}`,
+    };
+  }
 }
 
 // -------------------------------------------------------------

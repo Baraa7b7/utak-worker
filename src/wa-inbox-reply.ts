@@ -108,6 +108,7 @@ export async function handleInboxReplyHook(
 
   // Log x_wa_message; the mirror is already Baraa's own message in the channel
   // so we do NOT post a system echo (that would double-render Baraa's reply).
+  // source="manual" so the audit list badges the row as يدوي.
   try {
     await logWaMessage(env, {
       partnerId: partnerId!,
@@ -117,6 +118,8 @@ export async function handleInboxReplyHook(
       resModel: "mail.message",
       resId: mailMessageId,
       status: "sent",
+      source: "manual",
+      manual: true,
     });
   } catch (e) {
     console.warn("[wa-inbox-reply] logWaMessage failed:", (e as Error).message);

@@ -461,6 +461,11 @@ export interface LogInboundArgs {
   body?: string;
   metaMessageId?: string;
   status?: string;
+  // 2026-09-20 (inbox) — optional back-reference to a mail.message (the
+  // Discuss reply that produced this send) so the audit tab in Odoo can
+  // link the outbound row to its source.
+  resModel?: string;
+  resId?: number;
 }
 
 export async function logWaMessage(env: Env, a: LogInboundArgs): Promise<void> {
@@ -474,6 +479,8 @@ export async function logWaMessage(env: Env, a: LogInboundArgs): Promise<void> {
     if (a.partnerId) vals.x_partner_id = a.partnerId;
     if (a.body) vals.x_body = a.body.slice(0, 2000);
     if (a.metaMessageId) vals.x_meta_message_id = a.metaMessageId;
+    if (a.resModel) vals.x_res_model = a.resModel;
+    if (a.resId) vals.x_res_id = a.resId;
     await call<number[]>(env, "x_wa_message", "create", { vals_list: [vals] });
   } catch (e) {
     console.warn("[logWaMessage] failed", (e as Error)?.message);

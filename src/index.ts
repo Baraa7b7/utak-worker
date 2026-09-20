@@ -1195,6 +1195,49 @@ export default {
       }
     }
 
+    // 2026-09-20 — Odoo → Worker: Baraa typed a reply inside a WhatsApp
+    // Discuss channel. base.automation on mail.message fires this hook with
+    // { _model: "mail.message", id: <mail.message.id> }; we return 202
+    // immediately and process in ctx.waitUntil so Odoo's row lock releases
+    // fast. Everything a reply needs (channel → partner → phone → 24h
+    // window → send → x_wa_message log) lives in handleInboxReplyHook.
+    if (request.method === "POST" && url.pathname === "/odoo/hook/wa-inbox") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      let body: { id?: number; _id?: number; _model?: string } = {};
+      try {
+        body = (await request.json()) as typeof body;
+      } catch {
+        return json({ error: "bad json" }, 400);
+      }
+      if (body._model && body._model !== "mail.message") {
+        return json({ error: `unexpected model: ${body._model}` }, 400);
+      }
+      const mmId = Number(body.id ?? body._id);
+      if (!Number.isFinite(mmId) || mmId <= 0) {
+        return json({ error: "invalid id / _id" }, 400);
+      }
+      ctx.waitUntil(
+        (async () => {
+          try {
+            const { handleInboxReplyHook } = await import("./wa-inbox-reply");
+            const result = await handleInboxReplyHook(env, mmId);
+            console.log("[wa-inbox hook]", JSON.stringify({ mmId, ...result }));
+          } catch (e) {
+            console.error(
+              "[wa-inbox hook] failed",
+              (e as Error)?.message,
+              (e as Error)?.stack,
+            );
+          }
+        })(),
+      );
+      return json({ status: "accepted", mail_message_id: mmId }, 202);
+    }
+
     // Item 2 (2026-09-17) — Odoo → Worker: process x_wa_message.x_status='queued'.
     // Fired by the base.automation (wa_message.on_queued) via ir.actions.server
     // (wa_message.send_webhook). The full send pipeline (validate → media
@@ -1275,7 +1318,7 @@ export default {
       }
 
       try {
-        await handleWebhook(env, payload);
+        await handleWebhook(env, payload, ctx);
       } catch (e) {
         console.error("webhook handler error", (e as Error)?.stack ?? e);
       }
@@ -1486,7 +1529,7 @@ async function flushPendingLocations(env: Env, to: string, key: string): Promise
   await env.MSG_DEDUP.delete(key);
 }
 
-async function handleWebhook(env: Env, payload: unknown): Promise<void> {
+async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext): Promise<void> {
   // Item 2 (2026-09-17) — Meta delivery-status callbacks land here alongside
   // messages. When present, correlate each status update to the matching
   // x_wa_message by wamid and bump its x_status. Best-effort; a failure never
@@ -1524,13 +1567,19 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
   const messages = parseWebhook(payload);
 
   for (const msg of messages) {
-    if (
-      msg.type !== "text" &&
-      msg.type !== "interactive" &&
-      msg.type !== "button" &&
-      msg.type !== "location"
-    ) continue;
-    if (!msg.text && !msg.buttonId && !msg.location) continue;
+    // 2026-09-20 (inbox) — the type filter used to short-circuit ALL non-bot
+    // types (image, audio, video, document, sticker) before the dedup check.
+    // We now still gate the bot on those types below, but the inbox mirror
+    // block that follows works on every wamid, so dedup must happen first
+    // to survive Meta retries. `bot_types` mirrors the original filter.
+    if (!msg.messageId) continue;
+    const botTypes =
+      msg.type === "text" || msg.type === "interactive" ||
+      msg.type === "button" || msg.type === "location";
+    const hasBotContent = Boolean(msg.text || msg.buttonId || msg.location);
+    const hasMedia = Boolean(msg.media?.id);
+    if (!botTypes && !hasMedia) continue;
+    if (botTypes && !hasBotContent && !hasMedia) continue;
 
     if (await seenBefore(env, msg.messageId)) continue;
 
@@ -1544,6 +1593,12 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
     // customer, alert Baraa about unallowed incoming numbers. Throttled to
     // once per phone number per 24h via KV so a chatty stranger doesn't
     // spam the owner inbox.
+    //
+    // 2026-09-20 (inbox) — the same block also mirrors the inbound into the
+    // contact's Discuss channel. For unknown numbers we resolve/create the
+    // partner here so the mirror has a target. Failure of the mirror never
+    // affects the bot flow: every branch inside runInboxMirror is wrapped
+    // in try/catch and only warns.
     try {
       const { logWaMessage } = await import("./wa-message-send");
       const {
@@ -1558,18 +1613,62 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
         findCustomerByWhatsApp(env, msg.from).catch(() => null),
       ]);
       const pid = supplierMatch?.id ?? teamMatch?.id ?? customerMatch?.id ?? null;
-      const kind =
+      const kind: "text" | "template" | "document" | "button_reply" =
         msg.type === "interactive" || msg.type === "button"
           ? "button_reply"
-          : "text";
+          : (hasMedia && !botTypes) ? "document" : "text";
+      const bodyForLog =
+        msg.text ||
+        (msg.buttonId ? `[button:${msg.buttonId}]` : "") ||
+        (msg.media ? `[${msg.type}:${msg.media.id}${msg.media.filename ? ` ${msg.media.filename}` : ""}]` : "") ||
+        (msg.location ? "[location]" : "") ||
+        `[${msg.type}]`;
       await logWaMessage(env, {
         partnerId: pid,
         direction: "in",
         kind,
-        body: msg.text || (msg.buttonId ? `[button:${msg.buttonId}]` : "[location]"),
+        body: bodyForLog,
         metaMessageId: msg.messageId,
         status: "received",
       });
+
+      // 2026-09-20 (inbox) — mirror into Discuss. Skip only the owner
+      // number; the mirror function itself handles missing bot partner /
+      // KV misses / Odoo errors.
+      const ownerDigits = (env.OWNER_WHATSAPP || "").replace(/[^0-9]/g, "");
+      const fromDigits = msg.from.replace(/[^0-9]/g, "");
+      const isOwner = ownerDigits && ownerDigits === fromDigits;
+      if (!isOwner) {
+        const mirrorTask = (async () => {
+          try {
+            let mirrorPid = pid;
+            let mirrorName =
+              supplierMatch?.name ??
+              teamMatch?.name ??
+              customerMatch?.name ??
+              msg.profileName ?? msg.from;
+            if (!mirrorPid) {
+              const { findOrCreateCustomer } = await import("./odoo");
+              const created = await findOrCreateCustomer(env, msg.from, msg.profileName);
+              mirrorPid = created.id;
+              mirrorName = created.name || mirrorName;
+            }
+            const { mirrorInbound } = await import("./wa-inbox");
+            await mirrorInbound(env, {
+              partnerId: mirrorPid,
+              partnerName: mirrorName,
+              wamid: msg.messageId,
+              type: msg.type,
+              text: msg.text || undefined,
+              location: msg.location,
+              media: msg.media,
+            });
+          } catch (e) {
+            console.warn("[wa-inbox mirror] failed:", (e as Error)?.message);
+          }
+        })();
+        if (ctx) ctx.waitUntil(mirrorTask); else await mirrorTask;
+      }
 
       // item4 — unallowed-inbound alert (24h KV throttle per number).
       // A supplier / team member is always an authorized actor, whether or
@@ -1606,6 +1705,14 @@ async function handleWebhook(env: Env, payload: unknown): Promise<void> {
       }
     } catch (e) {
       console.warn("[inbound-log] skipped", (e as Error)?.message);
+    }
+
+    // 2026-09-20 (inbox) — bot routing runs only on text / button / location.
+    // Media messages are mirrored above and terminate here (with markSeen so
+    // Meta retries stay dedup'd).
+    if (!botTypes || (!hasBotContent && hasMedia)) {
+      await markSeen(env, msg.messageId);
+      continue;
     }
 
     const supplier = await findSupplierByWhatsApp(env, msg.from);

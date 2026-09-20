@@ -78,6 +78,7 @@ export function parseWebhook(payload: unknown): NormalizedMessage[] {
         let text = "";
         let buttonId: string | undefined;
         let location: NormalizedMessage["location"] | undefined;
+        let media: NormalizedMessage["media"] | undefined;
 
         if (m.type === "text") {
           text = m?.text?.body ?? "";
@@ -111,6 +112,24 @@ export function parseWebhook(payload: unknown): NormalizedMessage[] {
             // only inspects text (e.g. logs) still sees something meaningful.
             text = [loc?.name, loc?.address].filter(Boolean).join(" — ") || `📍 ${lat},${lng}`;
           }
+        } else if (
+          m.type === "image" || m.type === "audio" || m.type === "video" ||
+          m.type === "document" || m.type === "sticker"
+        ) {
+          // 2026-09-20 (inbox) — extract the media descriptor so the Discuss
+          // mirror can pull the bytes from Graph. The customer bot itself
+          // does not act on media messages, only the mirror does.
+          const raw = m[m.type];
+          if (raw && typeof raw.id === "string") {
+            media = {
+              id: raw.id,
+              mime_type: typeof raw.mime_type === "string" ? raw.mime_type : undefined,
+              filename: typeof raw.filename === "string" ? raw.filename : undefined,
+              voice: raw.voice === true,
+              caption: typeof raw.caption === "string" ? raw.caption : undefined,
+            };
+            text = media.caption ?? "";
+          }
         }
 
         out.push({
@@ -123,6 +142,7 @@ export function parseWebhook(payload: unknown): NormalizedMessage[] {
           type: m.type ?? "unknown",
           buttonId,
           location,
+          media,
         });
       }
     }
@@ -270,6 +290,11 @@ export async function fetchMeta(
       console.error("[fetchMeta] sim recordOutbound failed", msg);
       return metaErrorResponse(msg, "SimStorageError", 500);
     }
+    // 2026-09-20 (inbox) — echo the send into the recipient's Discuss
+    // channel so Baraa sees a unified conversation. Best-effort; every
+    // failure logs a warning and never affects the send's return path.
+    echoOutboundToInbox(env, to, body).catch((e) =>
+      console.warn("[fetchMeta] sim echo failed:", (e as Error).message));
     return synthesizeMetaResponse(to, wamid);
   }
 
@@ -325,11 +350,96 @@ export async function fetchMeta(
         (e as Error)?.message ?? String(e),
       );
     }
+    if (resp.ok) {
+      echoOutboundToInbox(env, to, body).catch((e) =>
+        console.warn("[fetchMeta] pilot echo failed:", (e as Error).message));
+    }
     return resp;
   }
 
   // ---- prod: unchanged ----
-  return metaRealSend(env, body);
+  const prodResp = await metaRealSend(env, body);
+  if (prodResp.ok) {
+    echoOutboundToInbox(env, to, body).catch((e) =>
+      console.warn("[fetchMeta] prod echo failed:", (e as Error).message));
+  }
+  return prodResp;
+}
+
+// -------------------------------------------------------------
+// Inbox echo (2026-09-20). Best-effort mirror of outbound sends into the
+// recipient's Discuss channel as UTAK بوت. Every failure logs a warning
+// and never affects the send's return path.
+// -------------------------------------------------------------
+
+function metaBodyToEchoText(body: Record<string, unknown>): string {
+  const b = body as { type?: string;
+    text?: { body?: string };
+    template?: { name?: string; components?: Array<{ parameters?: Array<{ text?: string }> }> };
+    location?: { latitude?: number; longitude?: number; name?: string; address?: string };
+    interactive?: { body?: { text?: string }; action?: { buttons?: Array<{ reply?: { title?: string } }> } };
+    document?: { filename?: string };
+  };
+  if (b.type === "text") return String(b.text?.body ?? "");
+  if (b.type === "template") {
+    const name = b.template?.name ?? "?";
+    const params = (b.template?.components ?? [])
+      .flatMap((c) => c?.parameters ?? [])
+      .map((p) => p?.text ?? "")
+      .filter(Boolean);
+    return params.length ? `📋 قالب: ${name} (${params.join("، ")})` : `📋 قالب: ${name}`;
+  }
+  if (b.type === "location") {
+    const lat = b.location?.latitude;
+    const lng = b.location?.longitude;
+    const label = b.location?.name ?? b.location?.address ?? "";
+    return `📍 موقع${label ? " · " + label : ""} — https://maps.google.com/?q=${lat},${lng}`;
+  }
+  if (b.type === "interactive") {
+    const text = b.interactive?.body?.text ?? "";
+    const btns = (b.interactive?.action?.buttons ?? [])
+      .map((btn) => btn?.reply?.title ?? "")
+      .filter(Boolean);
+    return btns.length ? `${text}\n[أزرار: ${btns.join(" | ")}]` : text;
+  }
+  if (b.type === "document") {
+    const fn = b.document?.filename ?? "مستند";
+    return `📎 ${fn}`;
+  }
+  return `[${b.type ?? "unknown"}]`;
+}
+
+async function echoOutboundToInbox(
+  env: Env,
+  to: string,
+  body: Record<string, unknown>,
+): Promise<void> {
+  // Owner is not a customer conversation — never echo owner-alert traffic
+  // into a Discuss channel.
+  if (isOwnerRecipient(env, to)) return;
+  const echoText = metaBodyToEchoText(body);
+  if (!echoText) return;
+  // Resolve the partner by phone / whatsapp number, then post as UTAK بوت.
+  const digits = toDigits(to);
+  if (!digits) return;
+  try {
+    const { call } = await import("./odoo");
+    const rows = await call<Array<{ id: number; name: string }>>(
+      env,
+      "res.partner",
+      "search_read",
+      {
+        domain: ["|", ["x_whatsapp_number", "ilike", digits], ["phone", "ilike", digits]],
+        fields: ["id", "name"],
+        limit: 1,
+      },
+    );
+    if (!rows[0]) return;
+    const { echoOutbound } = await import("./wa-inbox");
+    await echoOutbound(env, rows[0].id, rows[0].name, echoText);
+  } catch (e) {
+    console.warn("[fetchMeta] echoOutboundToInbox failed:", (e as Error).message);
+  }
 }
 
 // ---- Send outbound text via Meta Graph API ----

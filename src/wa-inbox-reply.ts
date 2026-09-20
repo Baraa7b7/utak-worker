@@ -1,0 +1,125 @@
+// WhatsApp Discuss inbox — reply pipeline.
+//
+// Called from /odoo/hook/wa-inbox with a mail.message id that a
+// base.automation flagged as a Discuss composer reply on a WhatsApp-inbox
+// channel. Sends the reply out via Meta and mirrors success/failure into
+// the channel as UTAK بوت (only the failure line is added — the success
+// case is already in the channel as Baraa's own message).
+//
+// Every failure path returns a status object rather than throwing, so the
+// hook logs a structured line the operator can grep.
+
+import type { Env } from "./config";
+import {
+  evaluateInboxReplyMessage,
+  echoFailure,
+  isInside24hWindow,
+  type ReplyGate,
+} from "./wa-inbox";
+import { sendText } from "./meta";
+import { logWaMessage } from "./wa-message-send";
+
+interface ReplyResult {
+  ok: boolean;
+  action:
+    | "sent"
+    | "skipped"        // not our concern (bot, echo, non-comment, wrong model)
+    | "attachment_only"// no text body, only attachments (unsupported for now)
+    | "window_closed"
+    | "meta_failed"
+    | "no_phone";
+  skip?: string;
+  metaError?: string;
+}
+
+export async function handleInboxReplyHook(
+  env: Env,
+  mailMessageId: number,
+): Promise<ReplyResult> {
+  const gate: ReplyGate = await evaluateInboxReplyMessage(env, mailMessageId);
+  if (!gate.send) {
+    return { ok: true, action: "skipped", skip: gate.skip ?? "not applicable" };
+  }
+  const {
+    partnerId, partnerName, partnerPhone, body, attachmentCount = 0,
+  } = gate;
+
+  if (!partnerPhone) {
+    await echoFailure(env, partnerId!, partnerName ?? "", "الجهة ما عندها رقم واتساب");
+    return { ok: false, action: "no_phone", skip: "partner has no phone" };
+  }
+
+  const bodyText = (body ?? "").trim();
+
+  // 24h window
+  const inWindow = await isInside24hWindow(env, partnerId!);
+  if (!inWindow) {
+    await echoFailure(
+      env,
+      partnerId!,
+      partnerName ?? "",
+      "انتهت نافذة 24 ساعة. أرسل قالب من بطاقة الجهة أول.",
+    );
+    return { ok: false, action: "window_closed" };
+  }
+
+  // Attachments from the Discuss composer are not sent as media yet — send
+  // the text portion (if any) and note the missing attachments.
+  if (attachmentCount > 0 && bodyText) {
+    await echoFailure(
+      env,
+      partnerId!,
+      partnerName ?? "",
+      "المرفقات من الصندوق غير مدعومة بعد — انرسل النص فقط.",
+    );
+    // fall through and send the text
+  } else if (attachmentCount > 0 && !bodyText) {
+    await echoFailure(
+      env,
+      partnerId!,
+      partnerName ?? "",
+      "المرفقات من الصندوق غير مدعومة بعد — الرسالة ما فيها نص.",
+    );
+    return { ok: false, action: "attachment_only" };
+  }
+
+  if (!bodyText) {
+    // Nothing to send
+    return { ok: true, action: "skipped", skip: "empty body" };
+  }
+
+  // Send via Meta. sendText → fetchMeta already handles the owner-guard
+  // and the SIM_ALLOWLIST + x_wa_allowed gate, so a rejected recipient
+  // shows up as a non-ok response here.
+  const to = partnerPhone.startsWith("+") ? partnerPhone : `+${partnerPhone.replace(/[^0-9]/g, "")}`;
+  const resp = await sendText(env, to, bodyText, { purpose: "inbox_reply" });
+  if (!resp.ok) {
+    let errText = "";
+    try { errText = (await resp.clone().text()).slice(0, 200); } catch { /* ignore */ }
+    await echoFailure(
+      env,
+      partnerId!,
+      partnerName ?? "",
+      `Meta ${resp.status} — ${errText || "فشل الإرسال"}`,
+    );
+    return { ok: false, action: "meta_failed", metaError: `${resp.status}: ${errText}` };
+  }
+
+  // Log x_wa_message; the mirror is already Baraa's own message in the channel
+  // so we do NOT post a system echo (that would double-render Baraa's reply).
+  try {
+    await logWaMessage(env, {
+      partnerId: partnerId!,
+      direction: "out",
+      kind: "text",
+      body: bodyText,
+      resModel: "mail.message",
+      resId: mailMessageId,
+      status: "sent",
+    });
+  } catch (e) {
+    console.warn("[wa-inbox-reply] logWaMessage failed:", (e as Error).message);
+  }
+
+  return { ok: true, action: "sent" };
+}

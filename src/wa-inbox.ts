@@ -110,12 +110,15 @@ export async function ensureInboxChannel(
   const displayName = (partnerName ?? "").trim() || `#${partnerId}`;
   let channelId: number;
   try {
+    // channel_partner_ids on discuss.channel is a computed m2m that Odoo 19
+    // rejects on direct write ("cannot use 'list' as a set element"), so we
+    // create the channel first, then add Baraa as a discuss.channel.member
+    // in a follow-up call.
     const created = await call<number[]>(env, "discuss.channel", "create", {
       vals_list: [{
         name: `واتساب · ${displayName}`,
         channel_type: "group",
         x_wa_partner_id: partnerId,
-        channel_partner_ids: [[6, 0, [baraa]]],
       }],
     });
     channelId = created[0];
@@ -124,22 +127,19 @@ export async function ensureInboxChannel(
     return null;
   }
 
-  // Notification level for Baraa's member row
+  // Add Baraa as a member (with all-messages notifications so his Odoo
+  // mobile pings on every incoming). Non-fatal if it fails — the channel
+  // still exists and mirror posts continue.
   try {
-    const members = await call<Array<{ id: number }>>(env, "discuss.channel.member", "search_read", {
-      domain: [["channel_id", "=", channelId], ["partner_id", "=", baraa]],
-      fields: ["id"],
-      limit: 1,
+    await call(env, "discuss.channel.member", "create", {
+      vals_list: [{
+        channel_id: channelId,
+        partner_id: baraa,
+        custom_notifications: "all",
+      }],
     });
-    if (members[0]) {
-      await call(env, "discuss.channel.member", "write", {
-        ids: [members[0].id],
-        vals: { custom_notifications: "all" },
-      });
-    }
   } catch (e) {
-    console.warn("[wa-inbox] member notification setup failed", (e as Error).message);
-    // non-fatal
+    console.warn("[wa-inbox] member create failed", (e as Error).message);
   }
 
   try {
@@ -162,8 +162,12 @@ export async function ensureInboxChannel(
 
 /**
  * Post `body` (HTML) to `channelId` as `authorPartnerId`. Uses
- * discuss.channel.message_post so Discuss members get the standard bus
- * notification. Returns true on success.
+ * mail.message.create directly instead of discuss.channel.message_post
+ * because message_post's body arg is TEXT (Odoo escapes and re-wraps in
+ * <p>), which would double-wrap our already-HTML bodies and turn the tags
+ * into visible &lt;p&gt; text. Direct create stores the HTML verbatim,
+ * matching what backfilled rows look like.
+ * Returns true on success.
  */
 export async function postToChannel(
   env: Env,
@@ -173,14 +177,18 @@ export async function postToChannel(
   attachmentIds: number[] = [],
 ): Promise<boolean> {
   try {
-    await call(env, "discuss.channel", "message_post", {
-      ids: [channelId],
-      body,
+    const vals: Record<string, unknown> = {
+      model: "discuss.channel",
+      res_id: channelId,
       message_type: "comment",
-      subtype_xmlid: "mail.mt_comment",
       author_id: authorPartnerId,
-      attachment_ids: attachmentIds,
-    });
+      body,
+    };
+    if (attachmentIds.length > 0) {
+      // m2m command form Odoo 19 JSON-2 accepts for attachment_ids on create.
+      vals.attachment_ids = attachmentIds.map((id) => [4, id]);
+    }
+    await call(env, "mail.message", "create", { vals_list: [vals] });
     return true;
   } catch (e) {
     console.warn("[wa-inbox] postToChannel failed", (e as Error).message);

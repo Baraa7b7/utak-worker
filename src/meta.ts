@@ -291,10 +291,12 @@ export async function fetchMeta(
       return metaErrorResponse(msg, "SimStorageError", 500);
     }
     // 2026-09-20 (inbox) — echo the send into the recipient's Discuss
-    // channel so Baraa sees a unified conversation. Best-effort; every
-    // failure logs a warning and never affects the send's return path.
-    echoOutboundToInbox(env, to, body).catch((e) =>
-      console.warn("[fetchMeta] sim echo failed:", (e as Error).message));
+    // channel so Baraa sees a unified conversation. Awaited (not fire-
+    // and-forget) because a Worker instance can be recycled the moment
+    // fetchMeta returns; every failure inside is already try/catch'd and
+    // never affects the send's return path.
+    try { await echoOutboundToInbox(env, to, body); }
+    catch (e) { console.warn("[fetchMeta] sim echo failed:", (e as Error).message); }
     return synthesizeMetaResponse(to, wamid);
   }
 
@@ -351,8 +353,8 @@ export async function fetchMeta(
       );
     }
     if (resp.ok) {
-      echoOutboundToInbox(env, to, body).catch((e) =>
-        console.warn("[fetchMeta] pilot echo failed:", (e as Error).message));
+      try { await echoOutboundToInbox(env, to, body); }
+      catch (e) { console.warn("[fetchMeta] pilot echo failed:", (e as Error).message); }
     }
     return resp;
   }
@@ -360,8 +362,8 @@ export async function fetchMeta(
   // ---- prod: unchanged ----
   const prodResp = await metaRealSend(env, body);
   if (prodResp.ok) {
-    echoOutboundToInbox(env, to, body).catch((e) =>
-      console.warn("[fetchMeta] prod echo failed:", (e as Error).message));
+    try { await echoOutboundToInbox(env, to, body); }
+    catch (e) { console.warn("[fetchMeta] prod echo failed:", (e as Error).message); }
   }
   return prodResp;
 }

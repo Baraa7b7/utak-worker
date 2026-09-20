@@ -25,6 +25,18 @@
         "name": "💬 المحادثات",
         "parent_id": 529
       }
+    ],
+    "server_actions": [
+      {
+        "id": 979,
+        "name": "wa_inbox.reply_webhook"
+      }
+    ],
+    "automations": [
+      {
+        "id": 12,
+        "name": "wa_inbox.on_message"
+      }
     ]
   },
   "mutated": {

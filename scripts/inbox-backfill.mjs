@@ -117,21 +117,19 @@ async function ensureChannel(partnerId, partnerName, baraaId) {
       name: `واتساب · ${displayName}`,
       channel_type: "group",
       x_wa_partner_id: partnerId,
-      channel_partner_ids: [[6, 0, [baraaId]]],
     }],
   });
   const channelId = created[0];
   try {
-    const members = await call("discuss.channel.member", "search_read", {
-      domain: [["channel_id", "=", channelId], ["partner_id", "=", baraaId]],
-      fields: ["id"],
-      limit: 1,
+    await call("discuss.channel.member", "create", {
+      vals_list: [{
+        channel_id: channelId,
+        partner_id: baraaId,
+        custom_notifications: "all",
+      }],
     });
-    if (members[0]) {
-      await call("discuss.channel.member", "write", { ids: [members[0].id], vals: { custom_notifications: "all" } });
-    }
   } catch (e) {
-    console.warn(`  member notif set failed: ${e.message}`);
+    console.warn(`  member create failed: ${e.message}`);
   }
   try {
     await call("res.partner", "write", { ids: [partnerId], vals: { x_wa_channel_id: channelId } });
@@ -159,8 +157,16 @@ function toOdooDate(s) {
 
 async function createMailMessage(vals) {
   if (!APPLY) return -1;
+  // Odoo SaaS rate-limits create bursts; 400ms/call keeps us well under the wall
+  // even during a warm run (the earlier 150ms tripped 429 mid-run).
+  await new Promise((r) => setTimeout(r, 400));
   const ids = await call("mail.message", "create", { vals_list: [vals] });
   return ids[0];
+}
+
+// Persist the map after every N rows so a mid-run 429 does not lose ground.
+function persistIf(counter, everyN = 5) {
+  if (APPLY && counter % everyN === 0) writeMap(state);
 }
 
 async function main() {
@@ -219,6 +225,7 @@ async function main() {
     seenKey.add(key);
     wStats.imported++;
     wStats.byPartner.set(partnerId, (wStats.byPartner.get(partnerId) ?? 0) + 1);
+    persistIf(wStats.imported);
   }
 
   // --- x_message_analysis ---
@@ -269,6 +276,7 @@ async function main() {
     seenKey.add(key);
     aStats.imported++;
     aStats.byPartner.set(partnerId, (aStats.byPartner.get(partnerId) ?? 0) + 1);
+    persistIf(aStats.imported);
   }
 
   if (APPLY) writeMap(state);

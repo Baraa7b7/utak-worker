@@ -646,6 +646,17 @@ in Meta Business Manager.
   tenant. On prod cutover, do NOT re-run inbox-backfill — the map is the
   source of truth for what has already been imported.
 
+## Server actions ← Worker (token alignment, 2026-09-20)
+
+- روابط Odoo ← Worker كلها على sim بتوكنات sim؛ عند الدمج في prod تحتاج
+  توجيه وتوكنات prod. Actions 941/957/968 (all `state=webhook`, all
+  `INTERNAL_WEBHOOK_SECRET`-guarded) were repointed from prod (or the
+  wrong secret) to `utak-worker-sim.utak-business.workers.dev` after the
+  INTERNAL_WEBHOOK_SECRET rotation on sim. See
+  `scripts/token-align-20260920-apply.mjs` and the safe rollback map in
+  `scripts/artifacts/token-align-20260920-rollback.json`. Full previous
+  URLs live in `~/utak-token-align-rollback.json` (mode 600, outside repo).
+
 ## Phase 2, 3, 4 — deferred
 
 Not yet on this branch. Update this file per phase as they land.

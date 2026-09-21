@@ -1,0 +1,47 @@
+{
+  "at": "2026-09-21T04:39:08.364Z",
+  "before": [
+    {
+      "id": 14,
+      "x_meta_template_id": "utak_v2_welcome",
+      "x_language": "ar",
+      "x_label_ar": "ترحيب العميل",
+      "x_name": "ترحيب العميل"
+    },
+    {
+      "id": 16,
+      "x_meta_template_id": "utak_v2_order_confirm",
+      "x_language": "ar",
+      "x_label_ar": "تأكيد الطلب",
+      "x_name": "تأكيد الطلب"
+    },
+    {
+      "id": 17,
+      "x_meta_template_id": "utak_delivery_incoming",
+      "x_language": "ar",
+      "x_label_ar": "التوصيل قادم",
+      "x_name": "التوصيل قادم"
+    },
+    {
+      "id": 18,
+      "x_meta_template_id": "utak_delivery_done",
+      "x_language": "ar",
+      "x_label_ar": "تم التوصيل",
+      "x_name": "تم التوصيل"
+    },
+    {
+      "id": 20,
+      "x_meta_template_id": "utak_v2_pay_remind",
+      "x_language": "ar",
+      "x_label_ar": "تذكير سداد",
+      "x_name": "تذكير سداد"
+    },
+    {
+      "id": 21,
+      "x_meta_template_id": "utak_v2_inactive",
+      "x_language": "ar",
+      "x_label_ar": "تنشيط عميل",
+      "x_name": "تنشيط عميل"
+    }
+  ]
+}

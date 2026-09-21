@@ -153,6 +153,10 @@ PILOT_MODE            = "true"                          # real Meta sends restri
 # المالك (تنبيهات فقط) + عميل pilot + المورد أحمد حسان — قرار 2026-09-16
 SIM_ALLOWLIST         = "+966505154962,+966536251307,+966571777704"
 
+# 2026-09-21 — accounting parallel-write. Kept on sim only until Baraa
+# flips it for prod. tenant مشترك مع prod، فأي قيد مُرحَّل هو قيد حقيقي.
+ACCOUNTING_SYNC       = "true"
+
 # Secrets on the sim worker (set once, mirrored from prod plus one new):
 #   wrangler secret put META_APP_SECRET       --env sim
 #   wrangler secret put META_ACCESS_TOKEN     --env sim

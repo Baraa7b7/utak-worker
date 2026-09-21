@@ -18,6 +18,11 @@ import {
   resolvePackagingNames,
   call,
 } from "./odoo";
+import {
+  isAccountingSyncEnabled,
+  syncInvoiceToAccounting,
+  syncPaymentToAccounting,
+} from "./accounting";
 import { sendText, sendButtons } from "./meta";
 import { sendTemplateByPurpose, T } from "./templates";
 import {
@@ -89,6 +94,32 @@ export async function createAndDispatchInvoiceForOrder(
     tax,
     total,
   });
+
+  // Parallel accounting write. Gated on ACCOUNTING_SYNC and swallows every
+  // failure — the x_invoice row and the WhatsApp send below are the source
+  // of truth, and must not break because the standard-ledger twin fails.
+  if (isAccountingSyncEnabled(env)) {
+    try {
+      const orderLineByProduct = new Map(
+        order.lines.map((l) => [l.id, l.product_id]),
+      );
+      await syncInvoiceToAccounting(env, {
+        invoiceId,
+        existingMoveId: null,
+        invoiceNumber,
+        customerPartnerId: order.customer_id,
+        lines: pricedLines.map((p) => ({
+          product_tmpl_id: orderLineByProduct.get(p.lineId) ?? 0,
+          description: `${p.product} ${p.packaging}`.trim(),
+          quantity: p.qty,
+          price_unit: p.unit,
+        })),
+        expectedTotal: total,
+      });
+    } catch (e) {
+      console.error(`[invoice] accounting sync threw`, (e as Error).message);
+    }
+  }
 
   try {
     await writeOrderLineUnitPrice(env, pricedLines.map(p => ({
@@ -225,6 +256,32 @@ export async function handleCollectionButton(
     x_payment_id: paymentId,
     x_status: "paid",
   });
+
+  // Parallel accounting write for the collection. Only meaningful when the
+  // matching x_invoice was itself twinned into account.move (i.e. created
+  // after ACCOUNTING_SYNC was flipped on). Legacy x_invoice rows with no
+  // move_id are skipped with a warn — never a floating unlinked payment.
+  if (isAccountingSyncEnabled(env)) {
+    try {
+      type LinkRow = { id: number; x_account_move_id: [number, string] | false };
+      const [link] = await call<LinkRow[]>(env, "x_invoice", "read", {
+        ids: [invoiceId],
+        fields: ["id", "x_account_move_id"],
+      });
+      const invoiceMoveId = link?.x_account_move_id ? link.x_account_move_id[0] : null;
+      await syncPaymentToAccounting(env, {
+        paymentId,
+        existingPaymentMoveId: null,
+        invoiceMoveId,
+        invoiceNumber: invoice.number,
+        amount: invoice.total,
+        method,
+      });
+    } catch (e) {
+      console.error(`[collection] accounting sync threw`, (e as Error).message);
+    }
+  }
+
   if (invoice.orderId) {
     await updateOrderState(env, invoice.orderId, "closed");
   }

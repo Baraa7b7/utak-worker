@@ -80,6 +80,21 @@ export interface Env {
    * Examples: "+96650,+96651"  or "+966505154962,+966580040467"
    */
   SIM_ALLOWLIST?: string;
+
+  /**
+   * 2026-09-21 — accounting parallel-write switch.
+   * "true" only in [env.sim.vars] until Baraa turns it on for prod. When
+   * enabled, x_invoice creates get an account.move twin (out_invoice,
+   * posted, no tax) and x_payment creates get an account.payment twin
+   * routed to journal CSHD (cash) or BNK1 (bank). Accounting failure
+   * never blocks the x_* row or the WhatsApp send — the owner is
+   * alerted and the flow continues. Absent / any-other-value = disabled.
+   *
+   * WARNING: the Odoo tenant is shared between sim and prod, so any
+   * posted move is a real move in the company's books. Flip this on
+   * prod only after Baraa's explicit go-ahead.
+   */
+  ACCOUNTING_SYNC?: string;
 }
 
 // ============================================================

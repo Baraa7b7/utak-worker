@@ -1,0 +1,105 @@
+{
+  "generated_at": "2026-09-21T05:18:26.415Z",
+  "created": {
+    "accounts": [
+      {
+        "id": 256,
+        "code": "300010",
+        "name": "رأس المال المدفوع"
+      },
+      {
+        "id": 257,
+        "code": "101007",
+        "name": "كاش السائق"
+      }
+    ],
+    "journals": [
+      {
+        "id": 19,
+        "code": "CSHD",
+        "name": "كاش السائق"
+      }
+    ],
+    "fields": [
+      {
+        "id": 20170,
+        "model": "x_invoice",
+        "name": "x_account_move_id"
+      },
+      {
+        "id": 20172,
+        "model": "x_payment",
+        "name": "x_account_payment_id"
+      }
+    ]
+  },
+  "verified": {
+    "account_500001": {
+      "id": 234,
+      "code": "500001",
+      "name": "Sales Account",
+      "account_type": "income"
+    },
+    "account_400001": {
+      "id": 136,
+      "code": "400001",
+      "name": "Cost of Goods Sold in Trading",
+      "account_type": "expense_direct_cost"
+    },
+    "categories": [
+      {
+        "id": 1,
+        "name": "Goods",
+        "property_account_income_categ_id": [
+          234,
+          "500001 Sales Account"
+        ],
+        "property_account_expense_categ_id": [
+          136,
+          "400001 Cost of Goods Sold in Trading"
+        ]
+      },
+      {
+        "id": 2,
+        "name": "Expenses",
+        "property_account_income_categ_id": [
+          234,
+          "500001 Sales Account"
+        ],
+        "property_account_expense_categ_id": [
+          136,
+          "400001 Cost of Goods Sold in Trading"
+        ]
+      },
+      {
+        "id": 3,
+        "name": "Services",
+        "property_account_income_categ_id": [
+          234,
+          "500001 Sales Account"
+        ],
+        "property_account_expense_categ_id": [
+          136,
+          "400001 Cost of Goods Sold in Trading"
+        ]
+      },
+      {
+        "id": 4,
+        "name": "Deliveries",
+        "property_account_income_categ_id": [
+          234,
+          "500001 Sales Account"
+        ],
+        "property_account_expense_categ_id": [
+          136,
+          "400001 Cost of Goods Sold in Trading"
+        ]
+      }
+    ]
+  },
+  "mutated": {},
+  "equity_account_id": 256,
+  "driver_cash_account_id": 257,
+  "cshd_journal_id": 19,
+  "bnk1_journal_id": 13
+}

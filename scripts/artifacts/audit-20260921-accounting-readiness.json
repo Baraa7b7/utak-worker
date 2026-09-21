@@ -1,0 +1,994 @@
+{
+  "generated_at": "2026-09-21T04:59:15.126Z",
+  "tenant": {
+    "db": "utakfresh",
+    "url": "utakfresh.odoo.com"
+  },
+  "modules": {
+    "sale": {
+      "state": "installed",
+      "version": "saas~19.4.1.2",
+      "shortdesc": "Sales"
+    },
+    "sale_management": {
+      "state": "installed",
+      "version": "saas~19.4.1.0",
+      "shortdesc": "Sales"
+    },
+    "purchase": {
+      "state": "installed",
+      "version": "saas~19.4.1.2",
+      "shortdesc": "Purchase"
+    },
+    "account": {
+      "state": "installed",
+      "version": "saas~19.4.1.5",
+      "shortdesc": "Invoicing"
+    },
+    "account_accountant": {
+      "state": "installed",
+      "version": "saas~19.4.1.1",
+      "shortdesc": "Invoicing"
+    },
+    "stock": {
+      "state": "installed",
+      "version": "saas~19.4.1.1",
+      "shortdesc": "Inventory"
+    },
+    "crm": {
+      "state": "installed",
+      "version": "saas~19.4.1.9",
+      "shortdesc": "CRM"
+    },
+    "hr": {
+      "state": "installed",
+      "version": "saas~19.4.1.1",
+      "shortdesc": "Employees"
+    },
+    "hr_expense": {
+      "state": "uninstalled",
+      "version": "saas~19.4.2.1",
+      "shortdesc": "Expenses"
+    },
+    "l10n_sa": {
+      "state": "installed",
+      "version": "saas~19.4.2.3",
+      "shortdesc": "Saudi Arabia - Accounting"
+    },
+    "l10n_sa_edi": {
+      "state": "uninstalled",
+      "version": "saas~19.4.0.3",
+      "shortdesc": "Saudi Arabia - E-invoicing"
+    },
+    "web_studio": {
+      "state": "installed",
+      "version": "saas~19.4.1.0",
+      "shortdesc": "Studio"
+    },
+    "mail": {
+      "state": "installed",
+      "version": "saas~19.4.1.19",
+      "shortdesc": "Discuss"
+    }
+  },
+  "standard": {
+    "sale_order_by_state": {
+      "total": 2,
+      "by": {
+        "draft": 2,
+        "sent": 0,
+        "sale": 0,
+        "done": 0,
+        "cancel": 0
+      }
+    },
+    "purchase_order_by_state": {
+      "total": 0,
+      "by": {
+        "draft": 0,
+        "sent": 0,
+        "to approve": 0,
+        "purchase": 0,
+        "done": 0,
+        "cancel": 0
+      }
+    },
+    "account_move_by_type": {
+      "total": 0,
+      "by": {
+        "out_invoice": 0,
+        "out_refund": 0,
+        "in_invoice": 0,
+        "in_refund": 0,
+        "out_receipt": 0,
+        "in_receipt": 0,
+        "entry": 0
+      }
+    },
+    "account_move_by_state": {
+      "total": 0,
+      "by": {
+        "draft": 0,
+        "posted": 0,
+        "cancel": 0
+      }
+    },
+    "account_payment_by_state": {
+      "total": 0,
+      "by": {
+        "draft": 0,
+        "in_process": 0,
+        "posted": 0,
+        "sent": 0,
+        "canceled": 0,
+        "cancel": 0,
+        "rejected": 0
+      }
+    },
+    "stock_picking_by_state": {
+      "total": 4,
+      "by": {
+        "draft": 0,
+        "waiting": 0,
+        "confirmed": 0,
+        "assigned": 0,
+        "done": 0,
+        "cancel": 4
+      }
+    },
+    "single_counts": {
+      "account.bank.statement.line": 0,
+      "stock.picking": 4,
+      "stock.quant": 0,
+      "crm.lead": 1,
+      "hr.employee": 0,
+      "hr.expense": "error: HTTP 404 on hr.expense.search_count: {\"name\": \"werkzeug.exceptions.NotFound\", \"message\": \"the model 'hr.expense' does no"
+    }
+  },
+  "custom_models": [
+    {
+      "model": "x_whatsapp_template",
+      "name": "UTAK WhatsApp Template",
+      "transient": false,
+      "count": 52,
+      "last_write": "2026-09-21 04:39:27",
+      "error": null
+    },
+    {
+      "model": "x_product_packaging",
+      "name": "UTAK Product Packaging",
+      "transient": false,
+      "count": 47,
+      "last_write": "2026-09-19 19:27:12",
+      "error": null
+    },
+    {
+      "model": "x_wa_message",
+      "name": "WhatsApp Message",
+      "transient": false,
+      "count": 44,
+      "last_write": "2026-09-21 04:56:37",
+      "error": null
+    },
+    {
+      "model": "x_message_analysis",
+      "name": "UTAK Message Analysis",
+      "transient": false,
+      "count": 34,
+      "last_write": "2026-09-12 17:49:12",
+      "error": null
+    },
+    {
+      "model": "x_supplier_price_request_log",
+      "name": "UTAK Supplier Price Request Log",
+      "transient": false,
+      "count": 20,
+      "last_write": "2026-09-21 02:11:04",
+      "error": null
+    },
+    {
+      "model": "x_daily_order_line",
+      "name": "UTAK Daily Order Line",
+      "transient": false,
+      "count": 16,
+      "last_write": "2026-09-15 08:48:26",
+      "error": null
+    },
+    {
+      "model": "x_daily_price",
+      "name": "UTAK Daily Price",
+      "transient": false,
+      "count": 14,
+      "last_write": "2026-09-19 13:26:30",
+      "error": null
+    },
+    {
+      "model": "x_daily_order",
+      "name": "UTAK Daily Order",
+      "transient": false,
+      "count": 13,
+      "last_write": "2026-09-15 08:48:26",
+      "error": null
+    },
+    {
+      "model": "x_quotation",
+      "name": "UTAK Quotation",
+      "transient": false,
+      "count": 9,
+      "last_write": "2026-09-15 08:55:31",
+      "error": null
+    },
+    {
+      "model": "x_employee_role",
+      "name": "UTAK Employee Role",
+      "transient": false,
+      "count": 4,
+      "last_write": "2026-09-03 15:06:46",
+      "error": null
+    },
+    {
+      "model": "x_payment",
+      "name": "UTAK Payment",
+      "transient": false,
+      "count": 4,
+      "last_write": "2026-09-11 23:03:27",
+      "error": null
+    },
+    {
+      "model": "x_neighborhood",
+      "name": "UTAK Neighborhood",
+      "transient": false,
+      "count": 3,
+      "last_write": "2026-08-29 10:53:27",
+      "error": null
+    },
+    {
+      "model": "x_delivery_route",
+      "name": "UTAK Delivery Route",
+      "transient": false,
+      "count": 2,
+      "last_write": "2026-09-11 18:41:44",
+      "error": null
+    },
+    {
+      "model": "x_delivery_stop",
+      "name": "UTAK Delivery Stop",
+      "transient": false,
+      "count": 2,
+      "last_write": "2026-09-12 01:17:23",
+      "error": null
+    },
+    {
+      "model": "x_invoice",
+      "name": "UTAK Invoice",
+      "transient": false,
+      "count": 2,
+      "last_write": "2026-08-31 07:42:36",
+      "error": null
+    },
+    {
+      "model": "x_purchase_list",
+      "name": "UTAK Purchase List",
+      "transient": false,
+      "count": 2,
+      "last_write": "2026-09-11 18:41:40",
+      "error": null
+    },
+    {
+      "model": "x_collection_item",
+      "name": "UTAK Collection Item",
+      "transient": false,
+      "count": 1,
+      "last_write": "2026-08-29 10:53:48",
+      "error": null
+    },
+    {
+      "model": "x_collection_task",
+      "name": "UTAK Collection Task",
+      "transient": false,
+      "count": 1,
+      "last_write": "2026-08-29 10:53:47",
+      "error": null
+    },
+    {
+      "model": "x_complaint",
+      "name": "UTAK Complaint",
+      "transient": false,
+      "count": 1,
+      "last_write": "2026-09-02 07:32:57",
+      "error": null
+    },
+    {
+      "model": "x_pricing_config",
+      "name": "UTAK Pricing Config",
+      "transient": false,
+      "count": 1,
+      "last_write": "2026-08-29 10:12:34",
+      "error": null
+    },
+    {
+      "model": "x_wa_control",
+      "name": "WhatsApp Control",
+      "transient": false,
+      "count": 1,
+      "last_write": "2026-09-17 14:50:06",
+      "error": null
+    },
+    {
+      "model": "x_standing_order",
+      "name": "UTAK Standing Order",
+      "transient": false,
+      "count": 0,
+      "last_write": null,
+      "error": null
+    },
+    {
+      "model": "x_standing_order_line",
+      "name": "UTAK Standing Order Line",
+      "transient": false,
+      "count": 0,
+      "last_write": null,
+      "error": null
+    }
+  ],
+  "accounting": {
+    "company": {
+      "fields_used": [
+        "id",
+        "name",
+        "country_id",
+        "vat",
+        "currency_id",
+        "fiscalyear_last_month",
+        "fiscalyear_last_day",
+        "account_sale_tax_id",
+        "account_purchase_tax_id",
+        "chart_template",
+        "account_fiscal_country_id",
+        "fiscalyear_lock_date",
+        "tax_lock_date",
+        "sale_lock_date",
+        "purchase_lock_date",
+        "hard_lock_date",
+        "user_fiscalyear_lock_date",
+        "user_tax_lock_date",
+        "user_sale_lock_date",
+        "user_purchase_lock_date",
+        "user_hard_lock_date"
+      ],
+      "rows": [
+        {
+          "id": 1,
+          "name": "utakfresh",
+          "country_id": [
+            192,
+            "Saudi Arabia"
+          ],
+          "vat": false,
+          "currency_id": [
+            151,
+            "SAR"
+          ],
+          "fiscalyear_last_month": "12",
+          "fiscalyear_last_day": 31,
+          "account_sale_tax_id": false,
+          "account_purchase_tax_id": false,
+          "chart_template": "sa",
+          "account_fiscal_country_id": [
+            192,
+            "Saudi Arabia"
+          ],
+          "fiscalyear_lock_date": false,
+          "tax_lock_date": false,
+          "sale_lock_date": false,
+          "purchase_lock_date": false,
+          "hard_lock_date": false,
+          "user_fiscalyear_lock_date": "0001-01-01",
+          "user_tax_lock_date": "0001-01-01",
+          "user_sale_lock_date": "0001-01-01",
+          "user_purchase_lock_date": "0001-01-01",
+          "user_hard_lock_date": "0001-01-01"
+        }
+      ],
+      "lock_date_fields_seen": [
+        "fiscalyear_lock_date",
+        "tax_lock_date",
+        "sale_lock_date",
+        "purchase_lock_date",
+        "hard_lock_date",
+        "user_fiscalyear_lock_date",
+        "user_tax_lock_date",
+        "user_sale_lock_date",
+        "user_purchase_lock_date",
+        "user_hard_lock_date"
+      ]
+    },
+    "journals": [
+      {
+        "id": 13,
+        "name": "Bank",
+        "code": "BNK1",
+        "type": "bank",
+        "active": true,
+        "currency_id": false,
+        "default_account_id": [
+          247,
+          "101001 Bank"
+        ],
+        "move_count": 0
+      },
+      {
+        "id": 12,
+        "name": "Cash Basis Taxes",
+        "code": "CABA",
+        "type": "general",
+        "active": true,
+        "currency_id": false,
+        "default_account_id": false,
+        "move_count": 0
+      },
+      {
+        "id": 11,
+        "name": "Exchange Difference",
+        "code": "EXCH",
+        "type": "general",
+        "active": true,
+        "currency_id": false,
+        "default_account_id": false,
+        "move_count": 0
+      },
+      {
+        "id": 16,
+        "name": "IFRS 16 Right of Use Asset",
+        "code": "IFRS",
+        "type": "general",
+        "active": true,
+        "currency_id": false,
+        "default_account_id": false,
+        "move_count": 0
+      },
+      {
+        "id": 10,
+        "name": "Miscellaneous Operations",
+        "code": "MISC",
+        "type": "general",
+        "active": true,
+        "currency_id": false,
+        "default_account_id": false,
+        "move_count": 0
+      },
+      {
+        "id": 18,
+        "name": "Inventory Valuation",
+        "code": "STJ",
+        "type": "general",
+        "active": true,
+        "currency_id": false,
+        "default_account_id": false,
+        "move_count": 0
+      },
+      {
+        "id": 15,
+        "name": "Tax Adjustments",
+        "code": "TA",
+        "type": "general",
+        "active": true,
+        "currency_id": false,
+        "default_account_id": false,
+        "move_count": 0
+      },
+      {
+        "id": 14,
+        "name": "Tax Returns",
+        "code": "TAX",
+        "type": "general",
+        "active": true,
+        "currency_id": false,
+        "default_account_id": false,
+        "move_count": 0
+      },
+      {
+        "id": 17,
+        "name": "Zakat",
+        "code": "ZAKAT",
+        "type": "general",
+        "active": true,
+        "currency_id": false,
+        "default_account_id": false,
+        "move_count": 0
+      },
+      {
+        "id": 9,
+        "name": "Purchases",
+        "code": "BILL",
+        "type": "purchase",
+        "active": true,
+        "currency_id": false,
+        "default_account_id": [
+          136,
+          "400001 Cost of Goods Sold in Trading"
+        ],
+        "move_count": 0
+      },
+      {
+        "id": 8,
+        "name": "Sales",
+        "code": "INV",
+        "type": "sale",
+        "active": true,
+        "currency_id": false,
+        "default_account_id": [
+          234,
+          "500001 Sales Account"
+        ],
+        "move_count": 0
+      }
+    ],
+    "account_total": 205,
+    "account_by_type": {
+      "asset_current": 25,
+      "asset_fixed": 13,
+      "asset_receivable": 4,
+      "asset_cash": 1,
+      "asset_prepayments": 17,
+      "liability_payable": 4,
+      "liability_current": 20,
+      "liability_credit_card": 4,
+      "liability_non_current": 2,
+      "expense_direct_cost": 2,
+      "expense": 90,
+      "expense_depreciation": 8,
+      "income": 12,
+      "income_other": 2,
+      "equity_unaffected": 1
+    },
+    "account_sample": [
+      {
+        "code": "100001",
+        "name": "Funds in Transit",
+        "type": "asset_current"
+      },
+      {
+        "code": "100101",
+        "name": "Right of use Asset (IFRS 16)",
+        "type": "asset_fixed"
+      },
+      {
+        "code": "100102",
+        "name": "Accumulated Depreciation on Right of use asset (IFRS 16)",
+        "type": "asset_fixed"
+      },
+      {
+        "code": "100103",
+        "name": "VAT Receivable",
+        "type": "asset_receivable"
+      },
+      {
+        "code": "100104",
+        "name": "Land",
+        "type": "asset_fixed"
+      },
+      {
+        "code": "100105",
+        "name": "Construction",
+        "type": "asset_fixed"
+      },
+      {
+        "code": "100106",
+        "name": "Installations",
+        "type": "asset_fixed"
+      },
+      {
+        "code": "100107",
+        "name": "Machine & Tools",
+        "type": "asset_fixed"
+      },
+      {
+        "code": "100108",
+        "name": "Furniture & Equipment",
+        "type": "asset_fixed"
+      },
+      {
+        "code": "100109",
+        "name": "Computer Hardware & Software",
+        "type": "asset_fixed"
+      },
+      {
+        "code": "100110",
+        "name": "Motor Vehicles",
+        "type": "asset_fixed"
+      },
+      {
+        "code": "100111",
+        "name": "Vehicle accessories",
+        "type": "asset_fixed"
+      },
+      {
+        "code": "100112",
+        "name": "Other property",
+        "type": "asset_fixed"
+      },
+      {
+        "code": "100113",
+        "name": "Leasehold Improvement",
+        "type": "asset_fixed"
+      },
+      {
+        "code": "100119",
+        "name": "Amortisation on Leasehold Improvement",
+        "type": "asset_fixed"
+      },
+      {
+        "code": "101001",
+        "name": "Bank",
+        "type": "asset_cash"
+      },
+      {
+        "code": "101002",
+        "name": "Bank Suspense Account",
+        "type": "asset_current"
+      },
+      {
+        "code": "101003",
+        "name": "Outstanding Receipts",
+        "type": "asset_current"
+      },
+      {
+        "code": "101004",
+        "name": "Outstanding Payments",
+        "type": "asset_current"
+      },
+      {
+        "code": "101005",
+        "name": "Main Safe",
+        "type": "asset_current"
+      },
+      {
+        "code": "101006",
+        "name": "Main Safe - Foreign Currency",
+        "type": "asset_current"
+      },
+      {
+        "code": "101060",
+        "name": "VAT Paid to Customs",
+        "type": "asset_current"
+      },
+      {
+        "code": "102010",
+        "name": "Withholding Receivable",
+        "type": "asset_receivable"
+      },
+      {
+        "code": "102011",
+        "name": "Accounts Receivable",
+        "type": "asset_receivable"
+      },
+      {
+        "code": "102012",
+        "name": "Accounts Receivable (PoS)",
+        "type": "asset_receivable"
+      },
+      {
+        "code": "102013",
+        "name": "Post Dated Cheques Received",
+        "type": "asset_current"
+      },
+      {
+        "code": "102014",
+        "name": "Other Receivable",
+        "type": "asset_current"
+      },
+      {
+        "code": "102015",
+        "name": "Other Debtors",
+        "type": "asset_current"
+      },
+      {
+        "code": "103016",
+        "name": "Shipment Insurance",
+        "type": "asset_current"
+      },
+      {
+        "code": "103017",
+        "name": "Shipment Documentation Charges",
+        "type": "asset_current"
+      },
+      {
+        "code": "103018",
+        "name": "Shipment Other Charges",
+        "type": "asset_current"
+      },
+      {
+        "code": "103019",
+        "name": "Handling Difference in Inventory",
+        "type": "asset_current"
+      },
+      {
+        "code": "103020",
+        "name": "Items Delivered to Customs on temprary Base",
+        "type": "asset_current"
+      },
+      {
+        "code": "104020",
+        "name": "Prepaid Expense",
+        "type": "asset_prepayments"
+      },
+      {
+        "code": "104021",
+        "name": "Prepaid Medical Insurance",
+        "type": "asset_prepayments"
+      },
+      {
+        "code": "104022",
+        "name": "Prepaid Life Insurance",
+        "type": "asset_prepayments"
+      },
+      {
+        "code": "104023",
+        "name": "Prepaid Office Rent",
+        "type": "asset_prepayments"
+      },
+      {
+        "code": "104024",
+        "name": "Prepaid Other Insurance",
+        "type": "asset_prepayments"
+      },
+      {
+        "code": "104025",
+        "name": "Prepaid License Fees",
+        "type": "asset_prepayments"
+      },
+      {
+        "code": "104026",
+        "name": "Prepaid Maintenance",
+        "type": "asset_prepayments"
+      }
+    ],
+    "tax_active": [
+      {
+        "id": 24,
+        "name": "15% EX ONLY",
+        "amount": 100,
+        "amount_type": "division",
+        "type_tax_use": "purchase"
+      },
+      {
+        "id": 34,
+        "name": "20% WH MF G",
+        "amount": 20,
+        "amount_type": "division",
+        "type_tax_use": "purchase"
+      },
+      {
+        "id": 32,
+        "name": "15% WH R G",
+        "amount": 15,
+        "amount_type": "division",
+        "type_tax_use": "purchase"
+      },
+      {
+        "id": 21,
+        "name": "15%",
+        "amount": 15,
+        "amount_type": "percent",
+        "type_tax_use": "purchase"
+      },
+      {
+        "id": 33,
+        "name": "15% WH O G",
+        "amount": 15,
+        "amount_type": "division",
+        "type_tax_use": "purchase"
+      },
+      {
+        "id": 22,
+        "name": "15% R C",
+        "amount": 15,
+        "amount_type": "percent",
+        "type_tax_use": "purchase"
+      },
+      {
+        "id": 27,
+        "name": "5% WH R G",
+        "amount": 5,
+        "amount_type": "division",
+        "type_tax_use": "purchase"
+      },
+      {
+        "id": 28,
+        "name": "5% WH AT AF MF G",
+        "amount": 5,
+        "amount_type": "division",
+        "type_tax_use": "purchase"
+      },
+      {
+        "id": 29,
+        "name": "5% WH TC ICS G",
+        "amount": 5,
+        "amount_type": "division",
+        "type_tax_use": "purchase"
+      },
+      {
+        "id": 30,
+        "name": "5% WH D G",
+        "amount": 5,
+        "amount_type": "division",
+        "type_tax_use": "purchase"
+      },
+      {
+        "id": 31,
+        "name": "5% WH IL IRP G",
+        "amount": 5,
+        "amount_type": "division",
+        "type_tax_use": "purchase"
+      },
+      {
+        "id": 23,
+        "name": "15% EX ONLY B",
+        "amount": 0,
+        "amount_type": "percent",
+        "type_tax_use": "purchase"
+      },
+      {
+        "id": 25,
+        "name": "0%",
+        "amount": 0,
+        "amount_type": "percent",
+        "type_tax_use": "purchase"
+      },
+      {
+        "id": 26,
+        "name": "0% EXT",
+        "amount": 0,
+        "amount_type": "percent",
+        "type_tax_use": "purchase"
+      },
+      {
+        "id": 5,
+        "name": "15%",
+        "amount": 15,
+        "amount_type": "percent",
+        "type_tax_use": "sale"
+      },
+      {
+        "id": 15,
+        "name": "0% EX G",
+        "amount": 0,
+        "amount_type": "percent",
+        "type_tax_use": "sale"
+      },
+      {
+        "id": 16,
+        "name": "0% EX S",
+        "amount": 0,
+        "amount_type": "percent",
+        "type_tax_use": "sale"
+      }
+    ],
+    "payment_terms": [
+      {
+        "id": 1,
+        "name": "Immediate Payment",
+        "active": true
+      },
+      {
+        "id": 2,
+        "name": "15 Days",
+        "active": true
+      },
+      {
+        "id": 3,
+        "name": "21 Days",
+        "active": true
+      },
+      {
+        "id": 4,
+        "name": "30 Days",
+        "active": true
+      },
+      {
+        "id": 5,
+        "name": "45 Days",
+        "active": true
+      },
+      {
+        "id": 6,
+        "name": "End of Following Month",
+        "active": true
+      },
+      {
+        "id": 7,
+        "name": "10 Days after End of Next Month",
+        "active": true
+      },
+      {
+        "id": 8,
+        "name": "30% Now, Balance 60 Days",
+        "active": true
+      },
+      {
+        "id": 9,
+        "name": "2/7 Net 30",
+        "active": true
+      },
+      {
+        "id": 10,
+        "name": "90 days, on the 10th",
+        "active": true
+      }
+    ],
+    "products": {
+      "product_product_count": 40,
+      "product_template_count": 40,
+      "tmpl_with_income_account": 0,
+      "tmpl_with_expense_account": 0,
+      "category_count": 4,
+      "category_with_income_account": 4,
+      "category_with_expense_account": 4,
+      "category_sample": [
+        {
+          "id": 4,
+          "name": "Deliveries",
+          "property_account_income_categ_id": [
+            234,
+            "500001 Sales Account"
+          ],
+          "property_account_expense_categ_id": [
+            136,
+            "400001 Cost of Goods Sold in Trading"
+          ]
+        },
+        {
+          "id": 2,
+          "name": "Expenses",
+          "property_account_income_categ_id": [
+            234,
+            "500001 Sales Account"
+          ],
+          "property_account_expense_categ_id": [
+            136,
+            "400001 Cost of Goods Sold in Trading"
+          ]
+        },
+        {
+          "id": 1,
+          "name": "Goods",
+          "property_account_income_categ_id": [
+            234,
+            "500001 Sales Account"
+          ],
+          "property_account_expense_categ_id": [
+            136,
+            "400001 Cost of Goods Sold in Trading"
+          ]
+        },
+        {
+          "id": 3,
+          "name": "Services",
+          "property_account_income_categ_id": [
+            234,
+            "500001 Sales Account"
+          ],
+          "property_account_expense_categ_id": [
+            136,
+            "400001 Cost of Goods Sold in Trading"
+          ]
+        }
+      ],
+      "uom_count": 15
+    },
+    "partners": {
+      "partner_total": 19,
+      "customer_count": 7,
+      "supplier_count": 6,
+      "with_receivable_set": 19,
+      "with_payable_set": 19
+    },
+    "gl_signals": {
+      "posted_moves": 0,
+      "draft_moves": 0,
+      "account_move_line_count": 0,
+      "posted_move_lines": 0
+    }
+  }
+}

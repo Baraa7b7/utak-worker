@@ -10,9 +10,39 @@
 //    x_language filled, x_purpose left empty so automated flows never
 //    auto-select it. Baraa can wire it later via the form.
 //  - Missing in Meta → x_missing_in_meta = true, no delete.
+//
+// Arabic labels (2026-09-21):
+//  - x_label_ar is the source of truth for the human-friendly Arabic name; the
+//    map lives in wa-template-labels.json — one file, one line per template.
+//    A NEW template picks its label from the map (fallback = technical name so
+//    no row ever renders blank). An EXISTING label is never overwritten — if
+//    Baraa renamed a template from the form, that hand-picked name survives
+//    every sync.
+//  - x_name (Odoo's rec_name → drives display_name) is a display mirror of the
+//    final x_label_ar, rewritten on every sync so list/form views always show
+//    the Arabic label and never the raw utak_* technical name. Rewrites are
+//    skipped when the value already matches, so we don't churn on every run.
 
 import type { Env } from "./config";
 import { call } from "./odoo";
+import AR_LABELS from "./wa-template-labels.json" with { type: "json" };
+
+/**
+ * Arabic label to display for a WhatsApp template in Odoo.
+ * Returns the mapped Arabic name if we have one, otherwise the technical name
+ * (never empty — a template with no Arabic entry is still legible in lists).
+ */
+export function pickArabicLabel(technicalName: string): string {
+  const map = AR_LABELS as Record<string, string>;
+  const ar = map[technicalName];
+  return typeof ar === "string" && ar.trim() ? ar : technicalName;
+}
+
+/** True when the template has an entry in wa-template-labels.json (vs. fallback). */
+export function hasArabicLabel(technicalName: string): boolean {
+  const map = AR_LABELS as Record<string, string>;
+  return typeof map[technicalName] === "string" && map[technicalName].trim().length > 0;
+}
 
 interface MetaTemplate {
   id: string;
@@ -34,6 +64,8 @@ interface OdooTemplateRow {
   x_meta_template_id: string | false;
   x_language: string | false;
   x_missing_in_meta?: boolean;
+  x_label_ar?: string | false;
+  x_name?: string | false;
 }
 
 export interface TemplateSyncReport {
@@ -101,7 +133,7 @@ async function fetchAllMetaTemplates(env: Env): Promise<MetaTemplate[]> {
 async function loadOdooTemplates(env: Env): Promise<OdooTemplateRow[]> {
   return await call<OdooTemplateRow[]>(env, "x_whatsapp_template", "search_read", {
     domain: [],
-    fields: ["id", "x_meta_template_id", "x_language", "x_missing_in_meta"],
+    fields: ["id", "x_meta_template_id", "x_language", "x_missing_in_meta", "x_label_ar", "x_name"],
     limit: 2000,
   });
 }
@@ -153,22 +185,39 @@ export async function syncTemplates(env: Env): Promise<TemplateSyncReport> {
     try {
       if (existing) {
         // ONLY the new fields — never x_meta_template_id / x_language / x_purpose
+        const vals: Record<string, unknown> = {
+          x_meta_id: t.id,
+          x_meta_status: t.status,
+          x_category: t.category,
+          x_body: body,
+          x_param_count: paramCount,
+          x_buttons: buttons,
+          x_last_synced: nowOdoo(),
+          x_missing_in_meta: false,
+        };
+        // Two-tier label handling:
+        //   x_label_ar (source of truth, human-picked) → back-filled only when
+        //     empty; a value Baraa set from the form is never overwritten.
+        //   x_name (display mirror; Odoo's rec_name = x_name so display_name
+        //     is derived from it) → always rewritten to match the final
+        //     x_label_ar so list/form views always show the Arabic name and
+        //     never the raw utak_* technical name.
+        const currentLabel = typeof existing.x_label_ar === "string" ? existing.x_label_ar.trim() : "";
+        const desired = pickArabicLabel(t.name);
+        const finalLabel = currentLabel || desired;
+        if (!currentLabel) vals.x_label_ar = desired;
+        // Only touch x_name when it does not already match finalLabel — avoids
+        // pointless writes but ensures the display column is always Arabic.
+        const currentName = typeof existing.x_name === "string" ? existing.x_name.trim() : "";
+        if (currentName !== finalLabel) vals.x_name = finalLabel;
         await call<boolean>(env, "x_whatsapp_template", "write", {
           ids: [existing.id],
-          vals: {
-            x_meta_id: t.id,
-            x_meta_status: t.status,
-            x_category: t.category,
-            x_body: body,
-            x_param_count: paramCount,
-            x_buttons: buttons,
-            x_last_synced: nowOdoo(),
-            x_missing_in_meta: false,
-          },
+          vals,
         });
         report.updated++;
       } else {
         // New — x_purpose left unset so fetchMapping never picks it.
+        const desired = pickArabicLabel(t.name);
         await call<number[]>(env, "x_whatsapp_template", "create", {
           vals_list: [{
             x_meta_template_id: t.name,
@@ -181,6 +230,8 @@ export async function syncTemplates(env: Env): Promise<TemplateSyncReport> {
             x_buttons: buttons,
             x_last_synced: nowOdoo(),
             x_missing_in_meta: false,
+            x_label_ar: desired,
+            x_name: desired,
           }],
         });
         report.created++;

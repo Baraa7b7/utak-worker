@@ -1,19 +1,17 @@
-residual diff at offset 4749
+residual diff at offset 4789
 
 --- no-company (stripped) ---
-></div>
-
-    <div style="flex: 1; min-height: 40px;"></div>
-
+x: 1; min-height: 40px;"></div>
+    <div class="utak-block">
+    </div>
   </div>
 </div>
 </body>
 </html>
 
 --- with-company (stripped) ---
-></div>
-
-    <div style="flex: 1; min-height: 40px;"></div>
+x: 1; min-height: 40px;"></div>
+    <div class="utak-block"></div>
   </div>
 </div>
 </body>

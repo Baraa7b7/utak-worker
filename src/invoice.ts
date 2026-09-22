@@ -31,6 +31,9 @@ import {
   escapeHTML,
   formatMoney,
   renderPDFShell,
+  htmlToPDF,
+  buildGotenbergFooterHtml,
+  GOTENBERG_FOOTER_MARGIN,
   type LegalFooterInfo,
   type PageMetrics,
   type PartyInfo,
@@ -598,39 +601,16 @@ export async function generateInvoicePDF(
 ): Promise<Uint8Array> {
   const company = await readCompanyInfo(env);
   const html = renderInvoiceHTML(data, company);
-
-  const gotenbergUrl = env.GOTENBERG_URL;
-  const gotenbergUser = env.GOTENBERG_USER;
-  const gotenbergPass = env.GOTENBERG_PASSWORD;
-
-  if (!gotenbergUrl || !gotenbergUser || !gotenbergPass) {
-    throw new Error('Gotenberg env vars missing: GOTENBERG_URL/USER/PASSWORD');
-  }
-
-  const formData = new FormData();
-  formData.append('files', new Blob([html], { type: 'text/html' }), 'index.html');
-  formData.append('paperWidth', '8.27');
-  formData.append('paperHeight', '11.69');
-  formData.append('marginTop', '0');
-  formData.append('marginBottom', '0');
-  formData.append('marginLeft', '0');
-  formData.append('marginRight', '0');
-  formData.append('printBackground', 'true');
-  formData.append('waitDelay', '2s');
-
-  const auth = 'Basic ' + btoa(`${gotenbergUser}:${gotenbergPass}`);
-
-  const response = await fetch(
-    `${gotenbergUrl}/forms/chromium/convert/html`,
-    { method: 'POST', headers: { Authorization: auth }, body: formData },
-  );
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Gotenberg ${response.status}: ${errText}`);
-  }
-
-  return new Uint8Array(await response.arrayBuffer());
+  // 2026-09-22 (item 4): every printed page carries the "صفحة X من Y" strip
+  // in the reserved bottom margin. The lang picks the label text.
+  const lang: DocLang = resolveDocLang({
+    docLang: data.lang,
+    isTaxInvoice: data.vatAmount > 0,
+  });
+  return await htmlToPDF(html, env, {
+    footerHtml: buildGotenbergFooterHtml(lang),
+    marginBottom: GOTENBERG_FOOTER_MARGIN,
+  });
 }
 
 // --------------------------------------------------------------

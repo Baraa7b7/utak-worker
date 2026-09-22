@@ -446,6 +446,20 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
     langNonAr;
 
   if (!anyAdditive) {
+    // 2026-09-22 (item 4): pagination fix — the previous byte-parity template
+    // used `height: 297mm; overflow: hidden`, which silently CLIPPED any
+    // content beyond one A4 page. A 40-item invoice lost rows past the fold —
+    // a financial + ZATCA compliance risk. The fixed height is gone; a
+    // `min-height: 297mm` keeps the single-page look identical while letting
+    // long content flow across pages. The pagination rules below make
+    // Chromium's print engine (Gotenberg's Chromium backend) split cleanly:
+    //   - thead re-renders at the top of every page (display: table-header-group)
+    //   - tr rows never split mid-row
+    //   - .utak-block wrappers (totals + terms + QR) stay together
+    //   - orphans/widows keep isolated lines away from page bottoms
+    // Legal footer stays inline at end-of-content (last page). The per-page
+    // legal footer + page numbering rides on Gotenberg's own footerHtml when
+    // generateXPDF passes it; the raw HTML here is deliberately the same.
     const legalBarByteParity = opts.legalFooterBar
       ? "\n    " + renderLegalFooterBar(opts.legalFooterBar, "ar")
       : "";
@@ -465,12 +479,15 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
     html, body { background: ${BRAND_COLORS.bgPage}; }
     .utak-page { box-shadow: none !important; margin: 0 !important; break-after: page; }
     .utak-page:last-child { break-after: auto; }
+    thead { display: table-header-group; }
+    tr, .utak-block { break-inside: avoid; page-break-inside: avoid; }
+    p, li { orphans: 3; widows: 3; }
   }
 </style>
 </head>
 <body>
 <div dir="rtl" style="font-family: '${BRAND_FONT}', 'Tajawal', sans-serif; font-feature-settings: 'tnum' 1; background: ${BRAND_COLORS.bgPage};">
-  <div class="utak-page" style="position: relative; width: 210mm; height: 297mm; box-sizing: border-box; padding: 20mm; background: ${BRAND_COLORS.bgPage}; color: ${BRAND_COLORS.ink}; display: flex; flex-direction: column; overflow: hidden;">
+  <div class="utak-page" style="position: relative; width: 210mm; height: 297mm; box-sizing: border-box; padding: 20mm; background: ${BRAND_COLORS.bgPage}; color: ${BRAND_COLORS.ink}; display: flex; flex-direction: column;">
 
     <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 160px; font-weight: 200; letter-spacing: 0.06em; color: ${BRAND_COLORS.primary}; opacity: 0.04; pointer-events: none; user-select: none; white-space: nowrap;">${escapeHTML(BRAND_INFO.nameEn)}</div>
 
@@ -491,7 +508,7 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
 
     <div style="height: ${m.postTable};"></div>
 
-    ${opts.totalsHTML ?? ""}
+    <div class="utak-block">${opts.totalsHTML ?? ""}</div>
 
     <div style="flex: 1; min-height: ${m.tailMin};"></div>
 
@@ -553,12 +570,13 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
   const aboveBody = opts.aboveBodyHTML ?? "";
   const belowBody = opts.belowBodyHTML ?? "";
 
-  // Multi-page mode drops the fixed height + overflow:hidden so Chromium
-  // paginates naturally at @page boundaries. Single-page additive mode keeps
-  // the legacy fixed A4 to stay pixel-close on the common case.
-  const pageStyle = opts.multiPageBreaks
-    ? `position: relative; width: 210mm; min-height: 297mm; box-sizing: border-box; padding: 20mm; background: ${BRAND_COLORS.bgPage}; color: ${BRAND_COLORS.ink}; display: flex; flex-direction: column;`
-    : `position: relative; width: 210mm; height: 297mm; box-sizing: border-box; padding: 20mm; background: ${BRAND_COLORS.bgPage}; color: ${BRAND_COLORS.ink}; display: flex; flex-direction: column; overflow: hidden;`;
+  // 2026-09-22 (item 4): pagination is now the default for every doc,
+  // matching the byte-parity path above. `overflow: hidden` was silently
+  // clipping content on long invoices/quotations regardless of lang, so
+  // both branches now use `min-height: 297mm` and drop the fixed height.
+  // multiPageBreaks becomes purely an escape hatch — retained for callers
+  // that already pass it, but the CSS below no longer differs by default.
+  const pageStyle = `position: relative; width: 210mm; min-height: 297mm; box-sizing: border-box; padding: 20mm; background: ${BRAND_COLORS.bgPage}; color: ${BRAND_COLORS.ink}; display: flex; flex-direction: column;`;
 
   // Font stack per language mode. Arabic and Space Grotesk are loaded from
   // Google Fonts; the bilingual mode loads both. The `lang` attribute on
@@ -588,12 +606,10 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
   @media print {
     html, body { background: ${BRAND_COLORS.bgPage}; }
     .utak-page { box-shadow: none !important; margin: 0 !important; break-after: page; }
-    .utak-page:last-child { break-after: auto; }${opts.multiPageBreaks
-      ? `
+    .utak-page:last-child { break-after: auto; }
     thead { display: table-header-group; }
     tr, .utak-block { break-inside: avoid; page-break-inside: avoid; }
-    p, li { orphans: 3; widows: 3; }`
-      : ""}
+    p, li { orphans: 3; widows: 3; }
   }
 </style>
 </head>
@@ -618,7 +634,7 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
 
     <div style="height: ${m.postTable};"></div>
 
-    ${opts.totalsHTML ?? ""}
+    ${opts.totalsHTML ? `<div class="utak-block">${opts.totalsHTML}</div>` : ""}
 
     ${belowBody}
 
@@ -643,7 +659,34 @@ export interface GotenbergEnv {
   GOTENBERG_PASSWORD?: string;
 }
 
-export async function htmlToPDF(html: string, env: GotenbergEnv): Promise<Uint8Array> {
+export interface HtmlToPdfOptions {
+  /**
+   * Additional HTML rendered by Chromium as the top-of-page header on EVERY
+   * printed page (Gotenberg's `header.html` file). When present, the caller
+   * must also set `marginTop` large enough to reserve room (in inches).
+   * Chromium substitutes `.pageNumber` / `.totalPages` / `.date` / `.title`
+   * text content on each page. Scripts inside header/footer do not execute.
+   */
+  headerHtml?: string;
+  /**
+   * Additional HTML rendered by Chromium as the bottom-of-page footer on
+   * EVERY printed page (Gotenberg's `footer.html` file). This is how UTAK
+   * carries the legal-footer strip + "صفحة X من Y" pagination across every
+   * page of multi-page invoices/quotations. Requires a matching
+   * `marginBottom` reservation.
+   */
+  footerHtml?: string;
+  /** Inches. Reserved top margin — must fit `headerHtml`. */
+  marginTop?: string;
+  /** Inches. Reserved bottom margin — must fit `footerHtml`. */
+  marginBottom?: string;
+}
+
+export async function htmlToPDF(
+  html: string,
+  env: GotenbergEnv,
+  options?: HtmlToPdfOptions,
+): Promise<Uint8Array> {
   const gotenbergUrl = env.GOTENBERG_URL;
   const gotenbergUser = env.GOTENBERG_USER;
   const gotenbergPass = env.GOTENBERG_PASSWORD;
@@ -656,12 +699,18 @@ export async function htmlToPDF(html: string, env: GotenbergEnv): Promise<Uint8A
   formData.append("files", new Blob([html], { type: "text/html" }), "index.html");
   formData.append("paperWidth", "8.27");
   formData.append("paperHeight", "11.69");
-  formData.append("marginTop", "0");
-  formData.append("marginBottom", "0");
+  formData.append("marginTop", options?.marginTop ?? "0");
+  formData.append("marginBottom", options?.marginBottom ?? "0");
   formData.append("marginLeft", "0");
   formData.append("marginRight", "0");
   formData.append("printBackground", "true");
   formData.append("waitDelay", "2s");
+  if (options?.headerHtml) {
+    formData.append("files", new Blob([options.headerHtml], { type: "text/html" }), "header.html");
+  }
+  if (options?.footerHtml) {
+    formData.append("files", new Blob([options.footerHtml], { type: "text/html" }), "footer.html");
+  }
 
   const auth = "Basic " + btoa(`${gotenbergUser}:${gotenbergPass}`);
   const response = await fetch(`${gotenbergUrl}/forms/chromium/convert/html`, {
@@ -675,6 +724,53 @@ export async function htmlToPDF(html: string, env: GotenbergEnv): Promise<Uint8A
   }
   return new Uint8Array(await response.arrayBuffer());
 }
+
+/**
+ * Builds the Gotenberg `footer.html` — a small HTML doc rendered by Chromium
+ * in the reserved bottom margin of EVERY printed page. UTAK uses it for the
+ * "صفحة X من Y" pagination strip; the legal-footer strip stays inline at the
+ * end of the document content (last page only) to keep single-page fixtures
+ * pixel-close to their Part A baseline.
+ *
+ * The `.pageNumber` and `.totalPages` classes are the two reserved slots
+ * Chromium substitutes on each page — the only way to render page numbers
+ * in a headless-Chromium PDF pipeline. Scripts inside header/footer HTML
+ * are never executed, and Google Fonts URLs are not fetched here either,
+ * so the footer uses only system-safe font stacks.
+ *
+ * Height: ~10mm — a single line of 8pt text with padding. Callers must
+ * reserve `marginBottom: 0.4in` (~10mm) to leave room without cropping.
+ */
+export function buildGotenbergFooterHtml(lang: DocLang = "ar"): string {
+  const asEsc = (s: string) => String(s ?? "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  const dir = lang === "en" ? "ltr" : "rtl";
+  const pageLabel = lang === "en" ? "Page" : "صفحة";
+  const ofLabel = lang === "en" ? "of" : "من";
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; padding: 0; font-size: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .utak-gotenberg-footer { width: 100%; box-sizing: border-box; padding: 0 20mm 4mm 20mm; direction: ${dir}; font-family: 'IBM Plex Sans Arabic', 'Tajawal', Arial, sans-serif; }
+  .utak-gotenberg-footer .paginate { display: flex; justify-content: center; align-items: baseline; gap: 4px; font-size: 8px; color: #6B6863; letter-spacing: 0.08em; }
+  .utak-gotenberg-footer .paginate .num { direction: ltr; }
+</style>
+</head>
+<body>
+<div class="utak-gotenberg-footer">
+  <div class="paginate"><span>${asEsc(pageLabel)}</span><span class="num pageNumber"></span><span>${asEsc(ofLabel)}</span><span class="num totalPages"></span></div>
+</div>
+</body>
+</html>`;
+}
+
+/** Recommended bottom-margin size (inches) when `buildGotenbergFooterHtml`
+ *  is passed to htmlToPDF. ~10mm covers the single-line page-number strip
+ *  with a hair of breathing room. */
+export const GOTENBERG_FOOTER_MARGIN = "0.4";
 
 // HMAC-SHA256 signed token — same shape used for invoice R2 URLs.
 export async function signDocToken(secret: string, docId: string): Promise<string> {

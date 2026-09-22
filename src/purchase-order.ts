@@ -10,6 +10,8 @@ import {
   escapeHTML,
   formatMoney,
   htmlToPDF,
+  buildGotenbergFooterHtml,
+  GOTENBERG_FOOTER_MARGIN,
   renderPDFShell,
   uploadPDFToR2,
   type LegalFooterInfo,
@@ -155,7 +157,11 @@ export async function generatePurchaseOrderPDF(
   env: Env,
 ): Promise<Uint8Array> {
   const company = await readCompanyInfo(env);
-  return await htmlToPDF(renderPurchaseOrderHTML(data, company), env);
+  const lang: DocLang = resolveDocLang({ docLang: data.lang, isTaxInvoice: false });
+  return await htmlToPDF(renderPurchaseOrderHTML(data, company), env, {
+    footerHtml: buildGotenbergFooterHtml(lang),
+    marginBottom: GOTENBERG_FOOTER_MARGIN,
+  });
 }
 
 export async function uploadPurchaseOrderToR2(

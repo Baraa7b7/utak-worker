@@ -9,6 +9,8 @@ import {
   computePageMetrics,
   escapeHTML,
   htmlToPDF,
+  buildGotenbergFooterHtml,
+  GOTENBERG_FOOTER_MARGIN,
   renderPDFShell,
   signDocToken,
   uploadPDFToR2,
@@ -127,7 +129,11 @@ export async function generateDeliveryNotePDF(
   env: Env,
 ): Promise<Uint8Array> {
   const company = await readCompanyInfo(env);
-  return await htmlToPDF(renderDeliveryNoteHTML(data, company), env);
+  const lang: DocLang = resolveDocLang({ docLang: data.lang, isTaxInvoice: false });
+  return await htmlToPDF(renderDeliveryNoteHTML(data, company), env, {
+    footerHtml: buildGotenbergFooterHtml(lang),
+    marginBottom: GOTENBERG_FOOTER_MARGIN,
+  });
 }
 
 export async function uploadDeliveryNoteToR2(

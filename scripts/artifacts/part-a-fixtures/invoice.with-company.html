@@ -14,12 +14,15 @@
     html, body { background: #F7F5F0; }
     .utak-page { box-shadow: none !important; margin: 0 !important; break-after: page; }
     .utak-page:last-child { break-after: auto; }
+    thead { display: table-header-group; }
+    tr, .utak-block { break-inside: avoid; page-break-inside: avoid; }
+    p, li { orphans: 3; widows: 3; }
   }
 </style>
 </head>
 <body>
 <div dir="rtl" style="font-family: 'IBM Plex Sans Arabic', 'Tajawal', sans-serif; font-feature-settings: 'tnum' 1; background: #F7F5F0;">
-  <div class="utak-page" style="position: relative; width: 210mm; height: 297mm; box-sizing: border-box; padding: 20mm; background: #F7F5F0; color: #1A1815; display: flex; flex-direction: column; overflow: hidden;">
+  <div class="utak-page" style="position: relative; width: 210mm; height: 297mm; box-sizing: border-box; padding: 20mm; background: #F7F5F0; color: #1A1815; display: flex; flex-direction: column;">
 
     <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 160px; font-weight: 200; letter-spacing: 0.06em; color: #1E5A41; opacity: 0.04; pointer-events: none; user-select: none; white-space: nowrap;">UTAK</div>
 
@@ -151,7 +154,7 @@
 
     <div style="height: 40px;"></div>
 
-    <div style="position: relative; display: flex; justify-content: flex-end;">
+    <div class="utak-block"><div style="position: relative; display: flex; justify-content: flex-end;">
       <div style="width: 40%; display: flex; flex-direction: column; gap: 9px;">
         <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: #6B6863;"><span>المجموع الفرعي</span><span style="direction: ltr;">2,410.00 ريال</span></div>
         <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: #6B6863;"><span>الخصم</span><span style="direction: ltr;">0.00 ريال</span></div>
@@ -160,7 +163,7 @@
         <div style="height: 0; border-top: 0.5px solid #1A1815;"></div>
         <div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 8px;"><span style="font-size: 12px; font-weight: 500; color: #1A1815;">الإجمالي</span><span style="font-size: 20px; font-weight: 500; color: #1E5A41; direction: ltr;">2,410.00 ريال</span></div>
       </div>
-    </div>
+    </div></div>
 
     <div style="flex: 1; min-height: 40px;"></div>
 

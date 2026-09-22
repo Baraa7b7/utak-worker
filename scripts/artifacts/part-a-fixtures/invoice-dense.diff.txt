@@ -1,4 +1,4 @@
-first difference at offset 19325
+first difference at offset 19488
 
 --- before ---
 : 0.08em;">شكراً لثقتكم في UTAK — يو تاك</div>

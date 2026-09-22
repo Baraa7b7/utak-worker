@@ -241,6 +241,39 @@ console.log("\n[9] Country/address bilingual per lang");
   assert(legacyEn.includes("الرياض") || legacyEn.includes("Company"), "en with no addressEn: falls back safely");
 }
 
+// ---------- 10. Pagination — every doc must let long content flow past 297mm ----------
+// The prior byte-parity template used `height: 297mm; overflow: hidden`, which
+// silently CLIPPED any invoice past one A4 page. A 40-item invoice lost rows
+// past the fold — a financial + ZATCA risk. Fix (2026-09-22): the utak-page
+// keeps `height: 297mm` for the flex-based first-page layout but drops the
+// `overflow: hidden`, so Chromium's print engine paginates naturally with the
+// break-inside rules below.
+console.log("\n[10] Pagination CSS + break rules present");
+{
+  const bareCompany: CompanyInfo = {
+    nameAr: "شركة", nameEn: "Company", address: "الرياض",
+    email: "x@y.com", phone: "05", cr: "1", vat: "1",
+  };
+  const html = renderInvoiceHTML({ ...TEST_INVOICE_DATA, vatAmount: 0 }, bareCompany);
+  assert(!/overflow:\s*hidden/.test(html.split(".utak-page")[1]?.split("</div>")[0] ?? ""), "utak-page has no overflow:hidden");
+  assert(html.includes("thead { display: table-header-group; }"), "thead repeats on every page");
+  assert(html.includes("break-inside: avoid"), "break-inside: avoid on tr/.utak-block");
+  assert(html.includes("orphans: 3; widows: 3"), "orphans/widows guard");
+  assert(html.includes("class=\"utak-block\""), ".utak-block wraps the totals block");
+  // 40 rows all present in HTML
+  const forty = Array.from({ length: 40 }, (_, i) => ({
+    name: `صنف طويل ${i + 1}`,
+    pack: "كرتون",
+    qty: 1 + i, price: 10, total: 10,
+  }));
+  const bigHtml = renderInvoiceHTML(
+    { ...TEST_INVOICE_DATA, items: forty, subtotal: 400, discount: 0, vatAmount: 0, grandTotal: 400 },
+    bareCompany,
+  );
+  const rowMatches = bigHtml.match(/صنف طويل \d+/g) ?? [];
+  assert(rowMatches.length === 40, `40-row invoice contains 40 item names (got ${rowMatches.length})`);
+}
+
 // ---------- summary ----------
 console.log(`\n${failed === 0 ? "OK" : "FAIL"} — ${passed} passed, ${failed} failed`);
 if (failed > 0) {

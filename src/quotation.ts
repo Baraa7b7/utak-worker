@@ -16,6 +16,8 @@ import {
   escapeHTML,
   formatMoney,
   htmlToPDF,
+  buildGotenbergFooterHtml,
+  GOTENBERG_FOOTER_MARGIN,
   renderPDFShell,
   signDocToken,
   uploadPDFToR2,
@@ -197,7 +199,11 @@ export async function generateQuotationPDF(
   env: Env,
 ): Promise<Uint8Array> {
   const company = await readCompanyInfo(env);
-  return await htmlToPDF(renderQuotationHTML(data, company), env);
+  const lang: DocLang = resolveDocLang({ docLang: data.lang, isTaxInvoice: false });
+  return await htmlToPDF(renderQuotationHTML(data, company), env, {
+    footerHtml: buildGotenbergFooterHtml(lang),
+    marginBottom: GOTENBERG_FOOTER_MARGIN,
+  });
 }
 
 export async function uploadQuotationToR2(
@@ -471,7 +477,11 @@ export async function createAndDispatchQuotationForRecord(
 
   let pdfBytes: Uint8Array;
   try {
-    pdfBytes = await htmlToPDF(html, env);
+    const lang: DocLang = resolveDocLang({ docLang: data.lang, isTaxInvoice: false });
+    pdfBytes = await htmlToPDF(html, env, {
+      footerHtml: buildGotenbergFooterHtml(lang),
+      marginBottom: GOTENBERG_FOOTER_MARGIN,
+    });
   } catch (e) {
     console.error(
       "[q-issue] step 4 FAILED:",

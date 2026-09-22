@@ -150,8 +150,16 @@ function renderHeader(
   documentTitle: string,
   documentNumber: string,
   documentDate: Date,
+  headerBadge?: HeaderBadge,
 ): string {
   const dateStr = formatDateArabic(documentDate);
+  // The `headerBadge`-attached tail is a separate string so the byte-parity
+  // path (legacy fixtures, no badge) reproduces the exact original template
+  // without any extra whitespace.
+  const badgeTail = headerBadge
+    ? `
+          <div style="margin-top: 4px;"><div style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border: 0.5px solid ${headerBadge.color}; background: ${headerBadge.bg}; color: ${headerBadge.color}; font-size: 10px; font-weight: 500; letter-spacing: 0.16em; direction: rtl;">${escapeHTML(headerBadge.text)}</div></div>`
+    : "";
   return `<div style="position: relative; display: flex; align-items: flex-start; justify-content: space-between;">
       <div style="display: flex; flex-direction: column; gap: 8px;">
         <img src="${UTAK_LOGO_DATA_URL}" style="width: 60px; height: 60px; display: block;" alt="UTAK" />
@@ -167,10 +175,27 @@ function renderHeader(
             <span style="width: 4px; height: 4px; border-radius: 50%; background: ${BRAND_COLORS.accent}; display: inline-block;"></span>
             <span style="font-size: 13px; font-weight: 400;">${escapeHTML(documentNumber)}</span>
           </div>
-          <div style="font-size: 13px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; direction: rtl; text-align: right;">${escapeHTML(dateStr)}</div>
+          <div style="font-size: 13px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; direction: rtl; text-align: right;">${escapeHTML(dateStr)}</div>${badgeTail}
         </div>
       </div>
     </div>`;
+}
+
+// Additive: rendered at the very bottom of the page (below the "شكراً"
+// line) when `legalFooterBar` is passed. Empty fields drop entirely.
+// The 5 legacy documents never pass it, so this function is never called
+// for them.
+function renderLegalFooterBar(info: LegalFooterInfo): string {
+  const parts: string[] = [];
+  if (info.name && info.name.trim()) parts.push(escapeHTML(info.name.trim()));
+  if (info.cr && info.cr.trim()) parts.push(`س.ت ${escapeHTML(info.cr.trim())}`);
+  if (info.vat && info.vat.trim()) parts.push(`الرقم الضريبي ${escapeHTML(info.vat.trim())}`);
+  if (info.address && info.address.trim()) parts.push(escapeHTML(info.address.trim()));
+  if (info.phone && info.phone.trim()) parts.push(escapeHTML(info.phone.trim()));
+  if (info.email && info.email.trim()) parts.push(escapeHTML(info.email.trim()));
+  if (parts.length === 0) return "";
+  return `<div style="height: 8px;"></div>
+    <div style="text-align: center; font-size: 8.5px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.06em; line-height: 1.6;">${parts.join(" · ")}</div>`;
 }
 
 function renderFooter(footerNote: string, showZatcaQR: boolean): string {
@@ -196,6 +221,21 @@ function renderFooter(footerNote: string, showZatcaQR: boolean): string {
 // Core renderer — every UTAK PDF passes through here.
 // ============================================================================
 
+export interface HeaderBadge {
+  text: string;
+  color: string;   // border + text
+  bg: string;      // background wash
+}
+
+export interface LegalFooterInfo {
+  name?: string;
+  cr?: string;
+  vat?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+}
+
 export interface RenderPDFShellOptions {
   documentTitle: string;       // "فاتورة" | "عرض سعر" | "إيصال" | "إذن تسليم" | "أمر شراء"
   documentNumber: string;      // e.g. "INV-2026-0147"
@@ -207,6 +247,47 @@ export interface RenderPDFShellOptions {
   footerNote?: string;         // "الدفع خلال ٣٠ يوماً..." — defaults per doc type
   showZatcaQR?: boolean;       // true for tax invoice; false for other docs
   pageMetrics: PageMetrics;
+
+  // -----------------------------------------------------------------
+  // Additive, official-doc-only options. Every one is undefined for
+  // invoice/quotation/receipt/delivery-note/purchase-order, and the
+  // rendering paths below collapse to the pre-existing HTML byte-for-byte
+  // when they are all left off. Do NOT surface any of these to the five
+  // legacy documents without confirming pixel-parity again.
+  // -----------------------------------------------------------------
+
+  /** Replaces the "فاتورة إلى / BILL TO" label above the recipient block. */
+  recipientLabel?: string;
+  /** Replaces the "من / FROM" label above the sender block. */
+  senderLabel?: string;
+  /** When true, the bill-to slot is hidden and FROM spans the full row. */
+  hideBillTo?: boolean;
+  /** When true, the FROM slot is hidden and bill-to spans the full row. */
+  hideFrom?: boolean;
+  /** When true, the whole footer note + ZATCA row is skipped (official docs). */
+  hideFooterNote?: boolean;
+  /** When true, the "شكراً لثقتكم في UTAK" line is skipped. */
+  hideThanks?: boolean;
+  /** Custom "شكراً" replacement line — ignored when hideThanks=true. */
+  thanksOverride?: string;
+  /** Header badge (e.g. "معاينة — غير معتمد") rendered under the doc number. */
+  headerBadge?: HeaderBadge;
+  /** Legal footer strip rendered under the thanks line. Empty fields drop. */
+  legalFooterBar?: LegalFooterInfo;
+  /** Renders a full "body-only" shell — the parties-row is suppressed and the
+   *  callers own the layout. Used by official-doc blocks. */
+  suppressPartiesRow?: boolean;
+  /** Extra HTML rendered ABOVE the parties-row (or above the body when the
+   *  parties-row is suppressed). Used for a subject line, a to-line, etc. */
+  aboveBodyHTML?: string;
+  /** Extra HTML rendered directly below the body, before the tailMin filler,
+   *  above the footer. Used for signatures + stamps — right after content,
+   *  never anchored to the page bottom. */
+  belowBodyHTML?: string;
+  /** When true, adds multi-page @media print rules (thead repetition,
+   *  break-inside: avoid on tr/.utak-block, widows/orphans). Off by default
+   *  so the 5 legacy documents render byte-identical HTML. */
+  multiPageBreaks?: boolean;
 }
 
 const DEFAULT_FOOTER_NOTE =
@@ -223,7 +304,31 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
   const footerNote = opts.footerNote ?? DEFAULT_FOOTER_NOTE;
   const m = opts.pageMetrics;
 
-  return `<!DOCTYPE html>
+  // -----------------------------------------------------------------
+  // Byte-parity gate. When every additive option is absent, we hit the
+  // exact same template literal as before — no extra whitespace, no
+  // dropped interpolations, no reshuffled sections. See tests/pdf-template
+  // .test.mts::"legacy fixtures produce byte-identical HTML". Do NOT
+  // touch this branch without regenerating the pixel-diff PNGs for the
+  // five legacy fixtures.
+  // -----------------------------------------------------------------
+  const anyAdditive =
+    opts.recipientLabel !== undefined ||
+    opts.senderLabel !== undefined ||
+    opts.hideBillTo === true ||
+    opts.hideFrom === true ||
+    opts.hideFooterNote === true ||
+    opts.hideThanks === true ||
+    opts.thanksOverride !== undefined ||
+    opts.headerBadge !== undefined ||
+    opts.legalFooterBar !== undefined ||
+    opts.suppressPartiesRow === true ||
+    opts.aboveBodyHTML !== undefined ||
+    opts.belowBodyHTML !== undefined ||
+    opts.multiPageBreaks === true;
+
+  if (!anyAdditive) {
+    return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
@@ -270,6 +375,113 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
     <div style="flex: 1; min-height: ${m.tailMin};"></div>
 
     ${renderFooter(footerNote, showZatcaQR)}
+  </div>
+</div>
+</body>
+</html>`;
+  }
+
+  // -----------------------------------------------------------------
+  // Additive path — only reached when at least one new option was set.
+  // Any output shape difference from the legacy path lives here.
+  // -----------------------------------------------------------------
+  const recipientLabel = opts.recipientLabel ?? "فاتورة إلى / BILL TO";
+  const senderLabel = opts.senderLabel ?? "من / FROM";
+  const hideBillTo = opts.hideBillTo === true;
+  const hideFrom = opts.hideFrom === true;
+
+  let partiesRow = "";
+  if (!opts.suppressPartiesRow) {
+    if (hideBillTo && hideFrom) {
+      partiesRow = "";
+    } else if (hideBillTo) {
+      partiesRow = `<div style="position: relative; display: grid; grid-template-columns: 1fr; gap: 32px;">
+      ${renderParty(senderLabel, from, true)}
+    </div>`;
+    } else if (hideFrom) {
+      partiesRow = `<div style="position: relative; display: grid; grid-template-columns: 1fr; gap: 32px;">
+      ${renderParty(recipientLabel, opts.billTo, false)}
+    </div>`;
+    } else {
+      partiesRow = `<div style="position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 32px;">
+      ${renderParty(recipientLabel, opts.billTo, false)}
+      ${renderParty(senderLabel, from, true)}
+    </div>`;
+    }
+  }
+
+  const footerBlock = opts.hideFooterNote
+    ? ""
+    : renderFooter(footerNote, showZatcaQR);
+  const thanksLine = opts.hideThanks
+    ? ""
+    : opts.thanksOverride
+      ? `<div style="text-align: center; font-size: 10px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.08em;">${escapeHTML(opts.thanksOverride)}</div>`
+      : "";
+  const legalBar = opts.legalFooterBar ? renderLegalFooterBar(opts.legalFooterBar) : "";
+  const aboveBody = opts.aboveBodyHTML ?? "";
+  const belowBody = opts.belowBodyHTML ?? "";
+
+  // Multi-page mode drops the fixed height + overflow:hidden so Chromium
+  // paginates naturally at @page boundaries. Single-page additive mode keeps
+  // the legacy fixed A4 to stay pixel-close on the common case.
+  const pageStyle = opts.multiPageBreaks
+    ? `position: relative; width: 210mm; min-height: 297mm; box-sizing: border-box; padding: 20mm; background: ${BRAND_COLORS.bgPage}; color: ${BRAND_COLORS.ink}; display: flex; flex-direction: column;`
+    : `position: relative; width: 210mm; height: 297mm; box-sizing: border-box; padding: 20mm; background: ${BRAND_COLORS.bgPage}; color: ${BRAND_COLORS.ink}; display: flex; flex-direction: column; overflow: hidden;`;
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: ${BRAND_COLORS.bgPage}; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  @page { size: A4; margin: 0; }
+  @media print {
+    html, body { background: ${BRAND_COLORS.bgPage}; }
+    .utak-page { box-shadow: none !important; margin: 0 !important; break-after: page; }
+    .utak-page:last-child { break-after: auto; }${opts.multiPageBreaks
+      ? `
+    thead { display: table-header-group; }
+    tr, .utak-block { break-inside: avoid; page-break-inside: avoid; }
+    p, li { orphans: 3; widows: 3; }`
+      : ""}
+  }
+</style>
+</head>
+<body>
+<div dir="rtl" style="font-family: '${BRAND_FONT}', 'Tajawal', sans-serif; font-feature-settings: 'tnum' 1; background: ${BRAND_COLORS.bgPage};">
+  <div class="utak-page" style="${pageStyle}">
+
+    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 160px; font-weight: 200; letter-spacing: 0.06em; color: ${BRAND_COLORS.primary}; opacity: 0.04; pointer-events: none; user-select: none; white-space: nowrap;">${escapeHTML(BRAND_INFO.nameEn)}</div>
+
+    ${renderHeader(opts.documentTitle, opts.documentNumber, opts.documentDate, opts.headerBadge)}
+
+    <div style="height: ${m.gap};"></div>
+    <div style="height: 0; border-top: 0.5px solid ${BRAND_COLORS.primary};"></div>
+    <div style="height: ${m.gap};"></div>
+
+    ${aboveBody}
+    ${partiesRow}
+
+    <div style="height: ${m.preTable};"></div>
+
+    ${opts.bodyHTML}
+
+    <div style="height: ${m.postTable};"></div>
+
+    ${opts.totalsHTML ?? ""}
+
+    ${belowBody}
+
+    <div style="flex: 1; min-height: ${m.tailMin};"></div>
+
+    ${footerBlock}
+    ${thanksLine}
+    ${legalBar}
   </div>
 </div>
 </body>

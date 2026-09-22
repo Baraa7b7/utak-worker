@@ -9,6 +9,7 @@
 import type { Env } from "./config";
 import { ANTHROPIC_API_URL, ANTHROPIC_VERSION } from "./config";
 import { call } from "./odoo";
+import { readCompanyInfo, type CompanyInfo } from "./company";
 import {
   BRAND_COLORS,
   BRAND_FONT,
@@ -89,15 +90,7 @@ export interface OfficialDocRecord {
   template_name: string;
 }
 
-export interface CompanyInfo {
-  nameAr: string;
-  nameEn: string;
-  address: string;
-  email: string;
-  phone: string;
-  cr: string;    // Commercial Registration (company_registry)
-  vat: string;   // VAT number
-}
+export type { CompanyInfo };
 
 // ============================================================================
 // Block-type tone colors (shared with pdf-template's BRAND palette)
@@ -673,65 +666,10 @@ export async function readOfficialDoc(env: Env, id: number): Promise<OfficialDoc
   };
 }
 
-export async function readCompanyInfo(env: Env): Promise<CompanyInfo> {
-  // Every Odoo tenant has res.company id=1; UTAK is single-company. Fields
-  // vary by installation — 19.4 SaaS without l10n_sa_edi has no built-in
-  // `company_registry` or `mobile`. We probe ir.model.fields first, then
-  // read only fields the tenant actually has. Missing fields collapse to
-  // "", which the legal-footer renderer hides.
-  const BASE_FIELDS = ["id", "name", "vat", "street", "street2", "city", "country_id", "zip", "phone", "email", "partner_id"];
-  const OPTIONAL_FIELDS = ["mobile", "company_registry", "x_company_registry", "x_cr"];
-  const availableRows = await call<Array<{ name: string }>>(env, "ir.model.fields", "search_read", {
-    domain: [["model", "=", "res.company"], ["name", "in", OPTIONAL_FIELDS]],
-    fields: ["name"],
-  });
-  const optionalPresent = new Set(availableRows.map((r) => r.name));
-  const readFields = [...BASE_FIELDS, ...OPTIONAL_FIELDS.filter((f) => optionalPresent.has(f))];
-  const rows = await call<Array<Record<string, unknown>>>(env, "res.company", "read", {
-    ids: [1],
-    fields: readFields,
-  });
-  const c = rows[0] ?? {};
-  const readStr = (k: string): string => {
-    const v = c[k];
-    return typeof v === "string" ? v : v === false || v === null || v === undefined ? "" : String(v);
-  };
-  const countryPair = c.country_id;
-  const countryName = Array.isArray(countryPair) && typeof countryPair[1] === "string" ? countryPair[1] : "";
-  const addrParts = [readStr("street"), readStr("street2"), readStr("city"), countryName]
-    .filter((p) => p && p.trim().length > 0);
-  // CR: prefer built-in company_registry, then x_company_registry, then x_cr.
-  const cr = readStr("company_registry") || readStr("x_company_registry") || readStr("x_cr");
-  const mobile = readStr("mobile");
-  // Email fallback: some tenants leave res.company.email blank and keep the
-  // canonical address on the linked res.partner. Read it only when the
-  // company row itself has no email — one extra RPC, only in that case.
-  let email = readStr("email");
-  const partnerPair = c.partner_id;
-  const partnerId = Array.isArray(partnerPair) && typeof partnerPair[0] === "number" ? partnerPair[0] : 0;
-  if (!email && partnerId > 0) {
-    try {
-      const prows = await call<Array<Record<string, unknown>>>(env, "res.partner", "read", {
-        ids: [partnerId],
-        fields: ["email"],
-      });
-      const pv = prows[0]?.email;
-      if (typeof pv === "string") email = pv;
-    } catch {
-      // Silent — a permission error or a field-absent tenant just leaves
-      // email = "" and the footer line drops.
-    }
-  }
-  return {
-    nameAr: readStr("name") || "UTAK — يو تاك",
-    nameEn: "UTAK",
-    address: addrParts.join("، "),
-    email,
-    phone: mobile || readStr("phone"),
-    cr,
-    vat: readStr("vat"),
-  };
-}
+// readCompanyInfo lives in ./company.ts (single source of truth used by every
+// UTAK PDF renderer). Re-exported here so existing callers keep their import
+// site unchanged.
+export { readCompanyInfo };
 
 // ============================================================================
 // AI drafting — a strict-JSON call to Claude that rewrites the block list.

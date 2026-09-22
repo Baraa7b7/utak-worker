@@ -19,6 +19,14 @@ export interface CompanyInfo {
   phone: string;
   cr: string;    // Commercial Registration (CRN)
   vat: string;   // VAT number
+  // Bilingual identity + address, populated from res.company custom fields
+  // (x_legal_name_ar / x_legal_name_en / x_address_ar / x_address_en) when
+  // they exist. Empty strings when the field is missing or blank; the
+  // renderer falls back to the single-language values above.
+  legalNameAr?: string;
+  legalNameEn?: string;
+  addressAr?: string;
+  addressEn?: string;
 }
 
 export async function readCompanyInfo(env: Env): Promise<CompanyInfo> {
@@ -38,7 +46,10 @@ export async function readCompanyInfo(env: Env): Promise<CompanyInfo> {
   // as a CR. When the localization is not installed yet, both fields are
   // absent and CR simply drops from the footer.
   const BASE_FIELDS = ["id", "name", "vat", "street", "street2", "city", "country_id", "zip", "phone", "email", "partner_id"];
-  const OPTIONAL_COMPANY_FIELDS = ["mobile", "company_registry"];
+  const OPTIONAL_COMPANY_FIELDS = [
+    "mobile", "company_registry",
+    "x_legal_name_ar", "x_legal_name_en", "x_address_ar", "x_address_en",
+  ];
   const availableRows = await call<Array<{ name: string }>>(env, "ir.model.fields", "search_read", {
     domain: [["model", "=", "res.company"], ["name", "in", OPTIONAL_COMPANY_FIELDS]],
     fields: ["name"],
@@ -95,6 +106,11 @@ export async function readCompanyInfo(env: Env): Promise<CompanyInfo> {
       // cr/email at their current values and the footer line drops.
     }
   }
+  // Bilingual company fields (optional). Empty string means "not set".
+  const legalNameAr = readStr("x_legal_name_ar");
+  const legalNameEn = readStr("x_legal_name_en");
+  const addressAr = readStr("x_address_ar");
+  const addressEn = readStr("x_address_en");
   return {
     nameAr: readStr("name") || "UTAK — يو تاك",
     nameEn: "UTAK",
@@ -103,5 +119,9 @@ export async function readCompanyInfo(env: Env): Promise<CompanyInfo> {
     phone: mobile || readStr("phone"),
     cr,
     vat: readStr("vat"),
+    legalNameAr,
+    legalNameEn,
+    addressAr,
+    addressEn,
   };
 }

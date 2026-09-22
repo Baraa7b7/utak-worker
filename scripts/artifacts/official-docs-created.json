@@ -570,6 +570,454 @@
       "id": 21,
       "name": "template:قائمة الدخل التقديرية:block",
       "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:23:09.682Z",
+      "model": "ir.model.fields",
+      "id": 20232,
+      "name": "res.partner.x_doc_lang",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:23:10.676Z",
+      "model": "ir.model.fields.selection",
+      "id": 3924,
+      "name": "ar=عربي",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:23:12.590Z",
+      "model": "ir.model.fields.selection",
+      "id": 3925,
+      "name": "en=إنجليزي",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:23:15.809Z",
+      "model": "ir.model.fields",
+      "id": 20235,
+      "name": "x_quotation.x_doc_lang",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:23:17.546Z",
+      "model": "ir.model.fields.selection",
+      "id": 3926,
+      "name": "ar=عربي",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:23:19.631Z",
+      "model": "ir.model.fields.selection",
+      "id": 3927,
+      "name": "en=إنجليزي",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:23:21.466Z",
+      "model": "ir.model.fields.selection",
+      "id": 3928,
+      "name": "bi=ثنائي",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:23:23.687Z",
+      "model": "ir.model.fields",
+      "id": 20237,
+      "name": "sale.order.x_doc_lang",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:23:25.485Z",
+      "model": "ir.model.fields.selection",
+      "id": 3929,
+      "name": "ar=عربي",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:23:26.953Z",
+      "model": "ir.model.fields.selection",
+      "id": 3930,
+      "name": "en=إنجليزي",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:23:28.907Z",
+      "model": "ir.model.fields.selection",
+      "id": 3931,
+      "name": "bi=ثنائي",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:23:31.321Z",
+      "model": "ir.model.fields",
+      "id": 20239,
+      "name": "x_invoice.x_doc_lang",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:23:33.192Z",
+      "model": "ir.model.fields.selection",
+      "id": 3932,
+      "name": "ar=عربي",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:23:34.993Z",
+      "model": "ir.model.fields.selection",
+      "id": 3933,
+      "name": "en=إنجليزي",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:23:36.169Z",
+      "model": "ir.model.fields.selection",
+      "id": 3934,
+      "name": "bi=ثنائي",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:23:38.477Z",
+      "model": "ir.model.fields",
+      "id": 20241,
+      "name": "x_payment.x_doc_lang",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:23:39.623Z",
+      "model": "ir.model.fields.selection",
+      "id": 3935,
+      "name": "ar=عربي",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:23:41.485Z",
+      "model": "ir.model.fields.selection",
+      "id": 3936,
+      "name": "en=إنجليزي",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:23:43.152Z",
+      "model": "ir.model.fields.selection",
+      "id": 3937,
+      "name": "bi=ثنائي",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:23:46.329Z",
+      "model": "ir.model.fields",
+      "id": 20243,
+      "name": "x_delivery_stop.x_doc_lang",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:23:48.009Z",
+      "model": "ir.model.fields.selection",
+      "id": 3938,
+      "name": "ar=عربي",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:23:49.234Z",
+      "model": "ir.model.fields.selection",
+      "id": 3939,
+      "name": "en=إنجليزي",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:23:51.383Z",
+      "model": "ir.model.fields.selection",
+      "id": 3940,
+      "name": "bi=ثنائي",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:23:53.558Z",
+      "model": "ir.model.fields",
+      "id": 20245,
+      "name": "x_official_doc.x_lang",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:23:54.683Z",
+      "model": "ir.model.fields.selection",
+      "id": 3941,
+      "name": "ar=عربي",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:23:56.305Z",
+      "model": "ir.model.fields.selection",
+      "id": 3942,
+      "name": "en=إنجليزي",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:23:58.835Z",
+      "model": "ir.model.fields",
+      "id": 20247,
+      "name": "res.company.x_legal_name_ar",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:24:01.129Z",
+      "model": "ir.model.fields",
+      "id": 20249,
+      "name": "res.company.x_legal_name_en",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:24:02.565Z",
+      "model": "ir.model.fields",
+      "id": 20251,
+      "name": "res.company.x_address_ar",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:24:04.491Z",
+      "model": "ir.model.fields",
+      "id": 20253,
+      "name": "res.company.x_address_en",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:24:06.953Z",
+      "model": "ir.model.fields",
+      "id": 20255,
+      "name": "product.template.x_name_en",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:24:08.804Z",
+      "model": "ir.model.fields",
+      "id": 20258,
+      "name": "x_product_packaging.x_name_en",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:24:09.479Z",
+      "model": "ir.ui.view",
+      "id": 2808,
+      "name": "res.partner.form.x_doc_lang",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:24:09.628Z",
+      "model": "ir.ui.view",
+      "id": 2809,
+      "name": "res.company.form.x_bilingual",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:24:09.729Z",
+      "model": "ir.ui.view",
+      "id": 2810,
+      "name": "product.template.form.x_name_en",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:24:10.379Z",
+      "model": "ir.ui.view",
+      "id": 2811,
+      "name": "x_official_doc.form.x_lang",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:24:10.987Z",
+      "model": "ir.ui.view",
+      "id": 2812,
+      "name": "x_quotation.form.x_doc_lang",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:24:11.613Z",
+      "model": "ir.ui.view",
+      "id": 2813,
+      "name": "x_invoice.form.x_doc_lang",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:24:12.263Z",
+      "model": "ir.ui.view",
+      "id": 2814,
+      "name": "x_payment.form.x_doc_lang",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:24:12.957Z",
+      "model": "ir.ui.view",
+      "id": 2815,
+      "name": "sale.order.form.x_doc_lang",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:24:13.055Z",
+      "model": "ir.ui.view",
+      "id": 2816,
+      "name": "x_product_packaging.list.x_name_en",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:39:54.054Z",
+      "model": "x_official_doc",
+      "id": 40,
+      "name": "template-en:Bank Letter — General Request",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:39:54.782Z",
+      "model": "x_official_doc_block",
+      "id": 156,
+      "name": "template-en:Bank Letter — General Request:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:39:54.783Z",
+      "model": "x_official_doc_block",
+      "id": 157,
+      "name": "template-en:Bank Letter — General Request:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:39:54.783Z",
+      "model": "x_official_doc_block",
+      "id": 158,
+      "name": "template-en:Bank Letter — General Request:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:39:54.783Z",
+      "model": "x_official_doc_block",
+      "id": 159,
+      "name": "template-en:Bank Letter — General Request:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:39:54.784Z",
+      "model": "x_official_doc_block",
+      "id": 160,
+      "name": "template-en:Bank Letter — General Request:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:39:58.127Z",
+      "model": "x_official_doc",
+      "id": 41,
+      "name": "template-en:Certificate — To Whom It May Concern",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:39:58.160Z",
+      "model": "x_official_doc_block",
+      "id": 161,
+      "name": "template-en:Certificate — To Whom It May Concern:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:39:58.161Z",
+      "model": "x_official_doc_block",
+      "id": 162,
+      "name": "template-en:Certificate — To Whom It May Concern:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:39:58.161Z",
+      "model": "x_official_doc_block",
+      "id": 163,
+      "name": "template-en:Certificate — To Whom It May Concern:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:39:58.162Z",
+      "model": "x_official_doc_block",
+      "id": 164,
+      "name": "template-en:Certificate — To Whom It May Concern:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:39:58.219Z",
+      "model": "x_official_doc",
+      "id": 42,
+      "name": "template-en:Authorization",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:39:58.247Z",
+      "model": "x_official_doc_block",
+      "id": 165,
+      "name": "template-en:Authorization:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:39:58.248Z",
+      "model": "x_official_doc_block",
+      "id": 166,
+      "name": "template-en:Authorization:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:39:58.248Z",
+      "model": "x_official_doc_block",
+      "id": 167,
+      "name": "template-en:Authorization:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:39:58.248Z",
+      "model": "x_official_doc_block",
+      "id": 168,
+      "name": "template-en:Authorization:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:39:58.248Z",
+      "model": "x_official_doc_block",
+      "id": 169,
+      "name": "template-en:Authorization:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:39:58.301Z",
+      "model": "x_official_doc",
+      "id": 43,
+      "name": "template-en:Estimated Income Statement",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:39:58.329Z",
+      "model": "x_official_doc_block",
+      "id": 170,
+      "name": "template-en:Estimated Income Statement:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:39:58.330Z",
+      "model": "x_official_doc_block",
+      "id": 171,
+      "name": "template-en:Estimated Income Statement:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:39:58.330Z",
+      "model": "x_official_doc_block",
+      "id": 172,
+      "name": "template-en:Estimated Income Statement:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:39:58.330Z",
+      "model": "x_official_doc_block",
+      "id": 173,
+      "name": "template-en:Estimated Income Statement:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T07:39:58.330Z",
+      "model": "x_official_doc_block",
+      "id": 174,
+      "name": "template-en:Estimated Income Statement:block",
+      "action": "create"
     }
   ],
   "deleted_20260922": [

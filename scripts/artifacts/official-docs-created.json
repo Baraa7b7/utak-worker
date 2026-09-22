@@ -1018,6 +1018,16 @@
       "id": 174,
       "name": "template-en:Estimated Income Statement:block",
       "action": "create"
+    },
+    {
+      "ts": "2026-09-22T08:19:59.285Z",
+      "model": "ir.ui.view",
+      "id": 2809,
+      "name": "res.company.form.x_bilingual",
+      "action": "write",
+      "before": {
+        "arch_db": "<data><xpath expr=\"//field[@name='name']\" position=\"after\">\n      <field name=\"x_legal_name_ar\"/>\n      <field name=\"x_legal_name_en\"/>\n      <field name=\"x_address_ar\"/>\n      <field name=\"x_address_en\"/>\n    </xpath></data>"
+      }
     }
   ],
   "deleted_20260922": [

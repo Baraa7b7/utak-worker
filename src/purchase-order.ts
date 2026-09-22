@@ -18,6 +18,8 @@ import {
 } from "./pdf-template";
 import { readCompanyInfo, type CompanyInfo } from "./company";
 import { toLegalFooterAr } from "./legal-footer";
+import { UI, resolveDocLang, type DocLang } from "./i18n";
+import { formatDateEn, fromPartyFor, itemCellHTML, labelForBillTo, labelForFrom, labelForTerms, taglineFor, thanksLine } from "./doc-shell";
 
 export interface PurchaseOrderItem {
   name: string;
@@ -25,6 +27,8 @@ export interface PurchaseOrderItem {
   qty: number;
   price: number;
   total: number;
+  name_en?: string;
+  pack_en?: string;
 }
 
 export interface PurchaseOrderPDFData {
@@ -39,6 +43,10 @@ export interface PurchaseOrderPDFData {
   items: PurchaseOrderItem[];
   subtotal: number;
   grandTotal: number;
+  // Doc-level language. purchase.order has no Studio x_doc_lang field; the
+  // dispatcher fills this from the supplier's res.partner.x_doc_lang (with
+  // "ar" fallback).
+  lang?: DocLang;
 }
 
 const PO_FOOTER =
@@ -48,30 +56,43 @@ const PO_FOOTER =
 export function renderPurchaseOrderBodyHTML(
   items: PurchaseOrderItem[],
   m?: PageMetrics,
+  lang: DocLang = "ar",
 ): string {
   const metrics = m ?? computePageMetrics(items.length);
+  const isAr = lang === "ar";
+  const isEn = lang === "en";
+  const dirEn = isEn ? "right" : "left";
   const rowsHtml = items
     .map(
-      (item) => `
+      (item) => {
+        const nameCell = isAr ? escapeHTML(item.name) : itemCellHTML(item.name, item.name_en, lang);
+        const packCell = isAr ? escapeHTML(item.pack) : itemCellHTML(item.pack, item.pack_en, lang);
+        return `
     <tr style="border-bottom: 0.25px solid ${BRAND_COLORS.borderSoft};">
-      <td style="height: ${metrics.rowHeight}; text-align: right; font-size: 12px; font-weight: 400; padding: 0 12px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHTML(item.name)}</td>
-      <td style="height: ${metrics.rowHeight}; text-align: right; font-size: 12px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; padding: 0 12px 0 0;">${escapeHTML(item.pack)}</td>
-      <td style="height: ${metrics.rowHeight}; text-align: left; font-size: 12px; font-weight: 400; direction: ltr;">${item.qty}</td>
-      <td style="height: ${metrics.rowHeight}; text-align: left; font-size: 12px; font-weight: 400; direction: ltr; color: ${BRAND_COLORS.inkMuted};">${formatMoney(item.price)}</td>
-      <td style="height: ${metrics.rowHeight}; text-align: left; font-size: 12px; font-weight: 400; direction: ltr;">${formatMoney(item.total)}</td>
+      <td style="height: ${metrics.rowHeight}; text-align: ${isEn ? "left" : "right"}; font-size: 12px; font-weight: 400; padding: 0 12px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${nameCell}</td>
+      <td style="height: ${metrics.rowHeight}; text-align: ${isEn ? "left" : "right"}; font-size: 12px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; padding: 0 12px 0 0;">${packCell}</td>
+      <td style="height: ${metrics.rowHeight}; text-align: ${dirEn}; font-size: 12px; font-weight: 400; direction: ltr;">${item.qty}</td>
+      <td style="height: ${metrics.rowHeight}; text-align: ${dirEn}; font-size: 12px; font-weight: 400; direction: ltr; color: ${BRAND_COLORS.inkMuted};">${formatMoney(item.price, lang)}</td>
+      <td style="height: ${metrics.rowHeight}; text-align: ${dirEn}; font-size: 12px; font-weight: 400; direction: ltr;">${formatMoney(item.total, lang)}</td>
     </tr>
-  `,
+  `;
+      },
     )
     .join("");
+
+  const L = (key: "colItem" | "colPackaging" | "colOrderedQty" | "colAgreedPrice" | "colTotal") =>
+    isEn ? UI[key].en : UI[key].ar;
+  const th = (label: string, w: string, alignEn = false) =>
+    `<th style="width: ${w}; text-align: ${isEn ? (alignEn ? "right" : "left") : (alignEn ? "left" : "right")}; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${metrics.thPad};">${escapeHTML(label)}</th>`;
 
   return `<table style="position: relative; width: 100%; border-collapse: collapse; table-layout: fixed;">
       <thead>
         <tr style="border-top: 0.5px solid ${BRAND_COLORS.borderStrong}; border-bottom: 0.5px solid ${BRAND_COLORS.borderStrong};">
-          <th style="width: 40%; text-align: right; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${metrics.thPad};">الصنف</th>
-          <th style="width: 20%; text-align: right; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${metrics.thPad};">العبوة</th>
-          <th style="width: 10%; text-align: left; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${metrics.thPad};">الكمية المطلوبة</th>
-          <th style="width: 15%; text-align: left; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${metrics.thPad};">السعر المتفق</th>
-          <th style="width: 15%; text-align: left; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${metrics.thPad};">الإجمالي</th>
+          ${th(L("colItem"), "40%")}
+          ${th(L("colPackaging"), "20%")}
+          ${th(L("colOrderedQty"), "10%", true)}
+          ${th(L("colAgreedPrice"), "15%", true)}
+          ${th(L("colTotal"), "15%", true)}
         </tr>
       </thead>
       <tbody>${rowsHtml}</tbody>
@@ -82,19 +103,22 @@ export function renderPurchaseOrderBodyHTML(
 export function renderPurchaseOrderTotalsHTML(
   subtotal: number,
   grandTotal: number,
+  lang: DocLang = "ar",
 ): string {
+  const L = (key: "subtotal" | "grandTotal") => (lang === "en" ? UI[key].en : UI[key].ar);
   return `<div style="position: relative; display: flex; justify-content: flex-end;">
       <div style="width: 40%; display: flex; flex-direction: column; gap: 9px;">
-        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>المجموع الفرعي</span><span style="direction: ltr;">${formatMoney(subtotal)}</span></div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>${escapeHTML(L("subtotal"))}</span><span style="direction: ltr;">${formatMoney(subtotal, lang)}</span></div>
         <div style="height: 6px;"></div>
         <div style="height: 0; border-top: 0.5px solid ${BRAND_COLORS.borderStrong};"></div>
-        <div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 8px;"><span style="font-size: 12px; font-weight: 500; color: ${BRAND_COLORS.ink};">الإجمالي</span><span style="font-size: 20px; font-weight: 500; color: ${BRAND_COLORS.primary}; direction: ltr;">${formatMoney(grandTotal)}</span></div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 8px;"><span style="font-size: 12px; font-weight: 500; color: ${BRAND_COLORS.ink};">${escapeHTML(L("grandTotal"))}</span><span style="font-size: 20px; font-weight: 500; color: ${BRAND_COLORS.primary}; direction: ltr;">${formatMoney(grandTotal, lang)}</span></div>
       </div>
     </div>`;
 }
 
 export function renderPurchaseOrderHTML(data: PurchaseOrderPDFData, company?: CompanyInfo): string {
   const pageMetrics = computePageMetrics(data.items.length);
+  const lang: DocLang = resolveDocLang({ docLang: data.lang, isTaxInvoice: false });
   const supplierAsBillTo: PartyInfo = {
     name: data.supplier.name,
     contactName: data.supplier.contactPerson,
@@ -105,16 +129,24 @@ export function renderPurchaseOrderHTML(data: PurchaseOrderPDFData, company?: Co
     ? toLegalFooterAr(company)
     : undefined;
   return renderPDFShell({
-    documentTitle: "أمر شراء",
+    documentTitle: lang === "en" ? UI.purchaseOrder.en : UI.purchaseOrder.ar,
     documentNumber: data.poNumber,
     documentDate: data.poDate,
     billTo: supplierAsBillTo,
-    bodyHTML: renderPurchaseOrderBodyHTML(data.items, pageMetrics),
-    totalsHTML: renderPurchaseOrderTotalsHTML(data.subtotal, data.grandTotal),
-    footerNote: PO_FOOTER,
+    from: data.lang ? fromPartyFor(lang, company) : undefined,
+    bodyHTML: renderPurchaseOrderBodyHTML(data.items, pageMetrics, lang),
+    totalsHTML: renderPurchaseOrderTotalsHTML(data.subtotal, data.grandTotal, lang),
+    footerNote: lang === "en" ? UI.poNote.en : PO_FOOTER,
     showZatcaQR: false,
     legalFooterBar,
     pageMetrics,
+    lang: data.lang ? lang : undefined,
+    tagline: data.lang ? taglineFor(lang) : undefined,
+    billToLabel: data.lang ? labelForBillTo(lang) : undefined,
+    fromLabel: data.lang ? labelForFrom(lang) : undefined,
+    termsLabel: data.lang ? labelForTerms(lang) : undefined,
+    thanksLine: data.lang ? thanksLine(lang, company) : undefined,
+    documentDateStr: lang === "en" ? formatDateEn(data.poDate) : undefined,
   });
 }
 

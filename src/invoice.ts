@@ -38,6 +38,8 @@ import {
 import type { CompanyInfo } from "./company";
 import { readCompanyInfo } from "./company";
 import { toLegalFooterAr } from "./legal-footer";
+import { UI, resolveDocLang, type DocLang } from "./i18n";
+import { formatDateEn, fromPartyFor, itemCellHTML, labelForBillTo, labelForFrom, labelForTerms, taglineFor, thanksLine } from "./doc-shell";
 
 // --------------------------------------------------------------
 // 5.2 — createAndDispatchInvoiceForOrder (unchanged)
@@ -414,6 +416,10 @@ export interface InvoiceLineItem {
   qty: number;
   price: number;
   total: number;
+  // Bilingual overlays (Part B). When absent, bi/en modes fall back to
+  // the Arabic-only string.
+  name_en?: string;
+  pack_en?: string;
 }
 
 export interface InvoicePDFData {
@@ -431,35 +437,68 @@ export interface InvoicePDFData {
   vatAmount: number;
   grandTotal: number;
   paymentTerms?: string;
+  // Doc-level language, resolved by the dispatcher from x_invoice.x_doc_lang
+  // + customer.x_doc_lang. Left undefined preserves the byte-parity Arabic
+  // baseline every legacy fixture relies on.
+  //
+  // KSA VAT Executive Regulation, Article 53: a tax invoice must include
+  // its Arabic text. resolveDocLang enforces this by upgrading a resolved
+  // "en" to "bi" when isTaxInvoice=true (see src/i18n.ts).
+  lang?: DocLang;
 }
 
 // Middle slot for an invoice: the line-items table.
 function renderInvoiceBodyHTML(
   items: InvoiceLineItem[],
   m: PageMetrics,
+  lang: DocLang = "ar",
 ): string {
+  // Byte-parity path: lang="ar" reproduces the exact Part A table.
+  const isAr = lang === "ar";
+  const isEn = lang === "en";
+  const dirEn = isEn ? "right" : "left";
   const rowsHtml = items
     .map(
-      (item) => `
+      (item) => {
+        const nameCell = isAr
+          ? escapeHTML(item.name)
+          : itemCellHTML(item.name, item.name_en, lang);
+        const packCell = isAr
+          ? escapeHTML(item.pack)
+          : itemCellHTML(item.pack, item.pack_en, lang);
+        return `
     <tr style="border-bottom: 0.25px solid ${BRAND_COLORS.borderSoft};">
-      <td style="height: ${m.rowHeight}; text-align: right; font-size: 12px; font-weight: 400; padding: 0 12px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHTML(item.name)}</td>
-      <td style="height: ${m.rowHeight}; text-align: right; font-size: 12px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; padding: 0 12px 0 0;">${escapeHTML(item.pack)}</td>
-      <td style="height: ${m.rowHeight}; text-align: left; font-size: 12px; font-weight: 400; direction: ltr;">${item.qty}</td>
-      <td style="height: ${m.rowHeight}; text-align: left; font-size: 12px; font-weight: 400; direction: ltr; color: ${BRAND_COLORS.inkMuted};">${formatMoney(item.price)}</td>
-      <td style="height: ${m.rowHeight}; text-align: left; font-size: 12px; font-weight: 400; direction: ltr;">${formatMoney(item.total)}</td>
+      <td style="height: ${m.rowHeight}; text-align: ${isEn ? "left" : "right"}; font-size: 12px; font-weight: 400; padding: 0 12px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${nameCell}</td>
+      <td style="height: ${m.rowHeight}; text-align: ${isEn ? "left" : "right"}; font-size: 12px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; padding: 0 12px 0 0;">${packCell}</td>
+      <td style="height: ${m.rowHeight}; text-align: ${dirEn}; font-size: 12px; font-weight: 400; direction: ltr;">${item.qty}</td>
+      <td style="height: ${m.rowHeight}; text-align: ${dirEn}; font-size: 12px; font-weight: 400; direction: ltr; color: ${BRAND_COLORS.inkMuted};">${formatMoney(item.price, lang)}</td>
+      <td style="height: ${m.rowHeight}; text-align: ${dirEn}; font-size: 12px; font-weight: 400; direction: ltr;">${formatMoney(item.total, lang)}</td>
     </tr>
-  `,
+  `;
+      },
     )
     .join("");
+
+  const th = (label: string, w: string, alignEn: boolean = false) => {
+    const align = isEn ? (alignEn ? "right" : "left") : (alignEn ? "left" : "right");
+    return `<th style="width: ${w}; text-align: ${align}; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${m.thPad};">${escapeHTML(label)}</th>`;
+  };
+
+  const L = (key: "colItem" | "colPackaging" | "colQty" | "colPrice" | "colTotal") => {
+    if (isAr) return UI[key].ar;
+    if (isEn) return UI[key].en;
+    // bi shows the Arabic column header (primary language is Arabic).
+    return UI[key].ar;
+  };
 
   return `<table style="position: relative; width: 100%; border-collapse: collapse; table-layout: fixed;">
       <thead>
         <tr style="border-top: 0.5px solid ${BRAND_COLORS.borderStrong}; border-bottom: 0.5px solid ${BRAND_COLORS.borderStrong};">
-          <th style="width: 40%; text-align: right; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${m.thPad};">الصنف</th>
-          <th style="width: 20%; text-align: right; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${m.thPad};">العبوة</th>
-          <th style="width: 10%; text-align: left; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${m.thPad};">الكمية</th>
-          <th style="width: 15%; text-align: left; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${m.thPad};">السعر</th>
-          <th style="width: 15%; text-align: left; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${m.thPad};">الإجمالي</th>
+          ${th(L("colItem"), "40%")}
+          ${th(L("colPackaging"), "20%")}
+          ${th(L("colQty"), "10%", true)}
+          ${th(L("colPrice"), "15%", true)}
+          ${th(L("colTotal"), "15%", true)}
         </tr>
       </thead>
       <tbody>${rowsHtml}</tbody>
@@ -472,15 +511,22 @@ function renderInvoiceTotalsHTML(
   discount: number,
   vatAmount: number,
   grandTotal: number,
+  lang: DocLang = "ar",
 ): string {
+  // Byte-parity path: lang="ar" keeps the four hard-coded Arabic strings
+  // exactly as in Part A. en/bi swap in their translations from src/i18n.ts.
+  const L = (key: "subtotal" | "discount" | "vat15" | "grandTotal") => {
+    if (lang === "en") return UI[key].en;
+    return UI[key].ar;
+  };
   return `<div style="position: relative; display: flex; justify-content: flex-end;">
       <div style="width: 40%; display: flex; flex-direction: column; gap: 9px;">
-        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>المجموع الفرعي</span><span style="direction: ltr;">${formatMoney(subtotal)}</span></div>
-        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>الخصم</span><span style="direction: ltr;">${formatMoney(discount)}</span></div>
-        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>ضريبة القيمة المضافة (١٥٪)</span><span style="direction: ltr;">${formatMoney(vatAmount)}</span></div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>${escapeHTML(L("subtotal"))}</span><span style="direction: ltr;">${formatMoney(subtotal, lang)}</span></div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>${escapeHTML(L("discount"))}</span><span style="direction: ltr;">${formatMoney(discount, lang)}</span></div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>${escapeHTML(L("vat15"))}</span><span style="direction: ltr;">${formatMoney(vatAmount, lang)}</span></div>
         <div style="height: 6px;"></div>
         <div style="height: 0; border-top: 0.5px solid ${BRAND_COLORS.borderStrong};"></div>
-        <div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 8px;"><span style="font-size: 12px; font-weight: 500; color: ${BRAND_COLORS.ink};">الإجمالي</span><span style="font-size: 20px; font-weight: 500; color: ${BRAND_COLORS.primary}; direction: ltr;">${formatMoney(grandTotal)}</span></div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 8px;"><span style="font-size: 12px; font-weight: 500; color: ${BRAND_COLORS.ink};">${escapeHTML(L("grandTotal"))}</span><span style="font-size: 20px; font-weight: 500; color: ${BRAND_COLORS.primary}; direction: ltr;">${formatMoney(grandTotal, lang)}</span></div>
       </div>
     </div>`;
 }
@@ -489,8 +535,18 @@ function renderInvoiceTotalsHTML(
 // `company` is optional here (unit tests + snapshot fixtures don't pass it);
 // the production dispatch path always passes it so the legal-footer strip
 // renders on every real UTAK PDF.
+//
+// Language: `data.lang` selects "ar" | "en" | "bi". Tax invoice guard: an
+// invoice with vatAmount > 0 is a ZATCA-compliant tax invoice — resolveDocLang
+// upgrades a resolved "en" to "bi" so the Arabic content stays on the page.
 export function renderInvoiceHTML(data: InvoicePDFData, company?: CompanyInfo): string {
   const pageMetrics = computePageMetrics(data.items.length);
+  const isTaxInvoice = data.vatAmount > 0;
+  const lang: DocLang = resolveDocLang({
+    docLang: data.lang,
+    partnerLang: undefined,
+    isTaxInvoice,
+  });
   const billTo: PartyInfo = {
     name: data.customer.name,
     contactName: data.customer.contactPerson,
@@ -501,24 +557,38 @@ export function renderInvoiceHTML(data: InvoicePDFData, company?: CompanyInfo): 
     ? toLegalFooterAr(company)
     : undefined;
 
+  // Byte-parity: without an explicit `lang`, the shell stays on the legacy
+  // template. `lang === "ar"` also passes through cleanly since the shell
+  // treats undefined and "ar" identically.
   return renderPDFShell({
-    documentTitle: "فاتورة",
+    documentTitle: lang === "en" ? UI.invoice.en : UI.invoice.ar,
     documentNumber: data.invoiceNumber,
     documentDate: data.invoiceDate,
     billTo,
-    bodyHTML: renderInvoiceBodyHTML(data.items, pageMetrics),
+    // FROM slot: only override when lang was requested — preserves the
+    // byte-parity Part A output (BRAND_INFO default) for ar mode.
+    from: data.lang ? fromPartyFor(lang, company) : undefined,
+    bodyHTML: renderInvoiceBodyHTML(data.items, pageMetrics, lang),
     totalsHTML: renderInvoiceTotalsHTML(
       data.subtotal,
       data.discount,
       data.vatAmount,
       data.grandTotal,
+      lang,
     ),
-    footerNote: data.paymentTerms,
+    footerNote: data.paymentTerms ?? (lang === "en" ? UI.invoicePaymentTerms.en : UI.invoicePaymentTerms.ar),
     // ZATCA QR is only meaningful when there's VAT to attest to. Suppress it
     // while VAT is inactive (Baraa activates it later).
-    showZatcaQR: data.vatAmount > 0,
+    showZatcaQR: isTaxInvoice,
     legalFooterBar,
     pageMetrics,
+    lang: data.lang ? lang : undefined,
+    tagline: data.lang ? taglineFor(lang) : undefined,
+    billToLabel: data.lang ? labelForBillTo(lang) : undefined,
+    fromLabel: data.lang ? labelForFrom(lang) : undefined,
+    termsLabel: data.lang ? labelForTerms(lang) : undefined,
+    thanksLine: data.lang ? thanksLine(lang, company) : undefined,
+    documentDateStr: lang === "en" ? formatDateEn(data.invoiceDate) : undefined,
   });
 }
 

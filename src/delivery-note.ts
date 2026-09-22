@@ -18,11 +18,15 @@ import {
 } from "./pdf-template";
 import { readCompanyInfo, type CompanyInfo } from "./company";
 import { toLegalFooterAr } from "./legal-footer";
+import { UI, resolveDocLang, type DocLang } from "./i18n";
+import { formatDateEn, fromPartyFor, itemCellHTML, labelForBillTo, labelForFrom, labelForTerms, taglineFor, thanksLine } from "./doc-shell";
 
 export interface DeliveryNoteItem {
   name: string;
   pack: string;
   qty: number;
+  name_en?: string;
+  pack_en?: string;
 }
 
 export interface DeliveryNotePDFData {
@@ -35,6 +39,7 @@ export interface DeliveryNotePDFData {
     phone: string;
   };
   items: DeliveryNoteItem[];
+  lang?: DocLang;
 }
 
 // Placeholder — round B will replace with the actual signature/whatsapp blocks.
@@ -45,26 +50,38 @@ const DELIVERY_NOTE_FOOTER =
 export function renderDeliveryNoteBodyHTML(
   items: DeliveryNoteItem[],
   m?: PageMetrics,
+  lang: DocLang = "ar",
 ): string {
   const metrics = m ?? computePageMetrics(items.length);
+  const isAr = lang === "ar";
+  const isEn = lang === "en";
+  const dirEn = isEn ? "right" : "left";
   const rowsHtml = items
     .map(
-      (item) => `
+      (item) => {
+        const nameCell = isAr ? escapeHTML(item.name) : itemCellHTML(item.name, item.name_en, lang);
+        const packCell = isAr ? escapeHTML(item.pack) : itemCellHTML(item.pack, item.pack_en, lang);
+        return `
     <tr style="border-bottom: 0.25px solid ${BRAND_COLORS.borderSoft};">
-      <td style="height: ${metrics.rowHeight}; text-align: right; font-size: 12px; font-weight: 400; padding: 0 12px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHTML(item.name)}</td>
-      <td style="height: ${metrics.rowHeight}; text-align: right; font-size: 12px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; padding: 0 12px 0 0;">${escapeHTML(item.pack)}</td>
-      <td style="height: ${metrics.rowHeight}; text-align: left; font-size: 12px; font-weight: 400; direction: ltr;">${item.qty}</td>
+      <td style="height: ${metrics.rowHeight}; text-align: ${isEn ? "left" : "right"}; font-size: 12px; font-weight: 400; padding: 0 12px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${nameCell}</td>
+      <td style="height: ${metrics.rowHeight}; text-align: ${isEn ? "left" : "right"}; font-size: 12px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; padding: 0 12px 0 0;">${packCell}</td>
+      <td style="height: ${metrics.rowHeight}; text-align: ${dirEn}; font-size: 12px; font-weight: 400; direction: ltr;">${item.qty}</td>
     </tr>
-  `,
+  `;
+      },
     )
     .join("");
+
+  const L = (key: "colItem" | "colPackaging" | "colQty") => (isEn ? UI[key].en : UI[key].ar);
+  const th = (label: string, w: string, alignEn = false) =>
+    `<th style="width: ${w}; text-align: ${isEn ? (alignEn ? "right" : "left") : (alignEn ? "left" : "right")}; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${metrics.thPad};">${escapeHTML(label)}</th>`;
 
   return `<table style="position: relative; width: 100%; border-collapse: collapse; table-layout: fixed;">
       <thead>
         <tr style="border-top: 0.5px solid ${BRAND_COLORS.borderStrong}; border-bottom: 0.5px solid ${BRAND_COLORS.borderStrong};">
-          <th style="width: 55%; text-align: right; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${metrics.thPad};">الصنف</th>
-          <th style="width: 30%; text-align: right; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${metrics.thPad};">العبوة</th>
-          <th style="width: 15%; text-align: left; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${metrics.thPad};">الكمية</th>
+          ${th(L("colItem"), "55%")}
+          ${th(L("colPackaging"), "30%")}
+          ${th(L("colQty"), "15%", true)}
         </tr>
       </thead>
       <tbody>${rowsHtml}</tbody>
@@ -73,6 +90,7 @@ export function renderDeliveryNoteBodyHTML(
 
 export function renderDeliveryNoteHTML(data: DeliveryNotePDFData, company?: CompanyInfo): string {
   const pageMetrics = computePageMetrics(data.items.length);
+  const lang: DocLang = resolveDocLang({ docLang: data.lang, isTaxInvoice: false });
   const billTo: PartyInfo = {
     name: data.customer.name,
     contactName: data.customer.contactPerson,
@@ -83,16 +101,24 @@ export function renderDeliveryNoteHTML(data: DeliveryNotePDFData, company?: Comp
     ? toLegalFooterAr(company)
     : undefined;
   return renderPDFShell({
-    documentTitle: "إذن تسليم",
+    documentTitle: lang === "en" ? UI.deliveryNote.en : UI.deliveryNote.ar,
     documentNumber: data.deliveryNumber,
     documentDate: data.deliveryDate,
     billTo,
-    bodyHTML: renderDeliveryNoteBodyHTML(data.items, pageMetrics),
+    from: data.lang ? fromPartyFor(lang, company) : undefined,
+    bodyHTML: renderDeliveryNoteBodyHTML(data.items, pageMetrics, lang),
     // no totalsHTML for delivery notes
-    footerNote: DELIVERY_NOTE_FOOTER,
+    footerNote: lang === "en" ? UI.deliveryNoteHint.en : DELIVERY_NOTE_FOOTER,
     showZatcaQR: false,
     legalFooterBar,
     pageMetrics,
+    lang: data.lang ? lang : undefined,
+    tagline: data.lang ? taglineFor(lang) : undefined,
+    billToLabel: data.lang ? labelForBillTo(lang) : undefined,
+    fromLabel: data.lang ? labelForFrom(lang) : undefined,
+    termsLabel: data.lang ? labelForTerms(lang) : undefined,
+    thanksLine: data.lang ? thanksLine(lang, company) : undefined,
+    documentDateStr: lang === "en" ? formatDateEn(data.deliveryDate) : undefined,
   });
 }
 

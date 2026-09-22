@@ -21,6 +21,9 @@ import {
   uploadPDFToR2,
   type LegalFooterInfo,
 } from "./pdf-template";
+import { UI, type DocLang } from "./i18n";
+import { formatDateEn, fromPartyFor, taglineFor, thanksLine as thanksLineFor } from "./doc-shell";
+import { toLegalFooterAr } from "./legal-footer";
 
 // ============================================================================
 // Types (mirror the Odoo model)
@@ -88,6 +91,10 @@ export interface OfficialDocRecord {
   blocks: OfficialDocBlock[];
   is_template: boolean;
   template_name: string;
+  // Part B: language selector on the record (x_official_doc.x_lang).
+  // Defaults to "ar" when the field is missing/unset — preserves Part A
+  // rendering byte-for-byte on any doc that predates this change.
+  lang?: DocLang;
 }
 
 export type { CompanyInfo };
@@ -367,11 +374,13 @@ function renderSubjectStrip(
   subject: string,
   recipient: string,
   recipientLabel: string,
+  lang: DocLang = "ar",
 ): string {
   if (!subject && !recipient) return "";
+  const subjectLabel = lang === "en" ? UI.subjectLabel.en : UI.subjectLabel.ar;
   const subjectHtml = subject
     ? `<div style="display: grid; grid-template-columns: 90px 1fr; gap: 10px; align-items: baseline;">
-        <div style="font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em;">الموضوع</div>
+        <div style="font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em;">${escapeHTML(subjectLabel)}</div>
         <div style="font-size: 13px; font-weight: 500; color: ${BRAND_COLORS.ink};">${escapeHTML(subject)}</div>
       </div>`
     : "";
@@ -422,10 +431,12 @@ export interface OfficialDocRenderContext {
 
 export function renderOfficialDocHTML(ctx: OfficialDocRenderContext): string {
   const { record, company, isPreview } = ctx;
+  // Language: x_official_doc only supports ar/en (per task). "bi" is not a
+  // valid mode for official docs — the record.lang type carries "ar" | "en".
+  const lang: DocLang = (record.lang as DocLang | undefined) === "en" ? "en" : "ar";
+  const isEn = lang === "en";
   const weight = estimateContentWeight(record.blocks);
   const density = pickDensity(weight);
-  // computePageMetrics is tuned for line-item docs; we mirror its dense flag
-  // via table-row count only when the doc is table-heavy.
   const heaviestTable = Math.max(
     0,
     ...record.blocks.filter((b) => b.block_type === "table").map((b) => parseTable(b.text).rows.length),
@@ -433,31 +444,30 @@ export function renderOfficialDocHTML(ctx: OfficialDocRenderContext): string {
   const pageMetrics = computePageMetrics(Math.max(heaviestTable, density === "tight" ? 20 : density === "airy" ? 4 : 10));
 
   const docNumber = isPreview ? (ctx.numberOverride ?? "—") : record.name || "—";
+  const legalFooter: LegalFooterInfo = toLegalFooterAr(company);
 
-  const legalFooter: LegalFooterInfo = {
-    name: company.nameAr,
-    cr: company.cr,
-    vat: company.vat,
-    address: company.address,
-    phone: company.phone,
-    email: company.email,
-  };
-
-  const aboveBody = renderSubjectStrip(
-    record.subject,
-    record.recipient,
-    record.recipient_label || "إلى",
-  );
+  const recipientLabel = record.recipient_label
+    || (isEn ? UI.toLabel.en : UI.toLabel.ar);
+  const aboveBody = renderSubjectStrip(record.subject, record.recipient, recipientLabel, lang);
   const bodyHTML = renderBlocks(record.blocks);
 
+  // Title picker per lang. bi is not supported for official docs so the
+  // en branch is the only non-Arabic fallback.
+  const titleAr = DOC_TITLE_AR[record.doc_type] ?? DOC_TITLE_AR.other;
+  const titleEn = ({
+    letter: UI.officialLetter.en,
+    certificate: UI.officialCertificate.en,
+    authorization: UI.officialAuthorization.en,
+    statement: UI.officialStatement.en,
+    other: UI.officialOther.en,
+  } as const)[record.doc_type] ?? UI.officialOther.en;
+
   return renderPDFShell({
-    documentTitle: DOC_TITLE_AR[record.doc_type] ?? DOC_TITLE_AR.other,
+    documentTitle: isEn ? titleEn : titleAr,
     documentNumber: docNumber,
     documentDate: record.date,
-    // billTo/from are irrelevant for official docs — we hide both and let
-    // the subject strip carry the recipient line.
     billTo: { name: record.recipient || "", address: "", phone: "" },
-    from: { name: company.nameAr, address: company.address, email: company.email, phone: company.phone },
+    from: fromPartyFor(lang, company),
     hideBillTo: true,
     hideFrom: true,
     suppressPartiesRow: true,
@@ -468,9 +478,13 @@ export function renderOfficialDocHTML(ctx: OfficialDocRenderContext): string {
     legalFooterBar: legalFooter,
     multiPageBreaks: true,
     headerBadge: isPreview
-      ? { text: "معاينة — غير معتمد", color: BRAND_COLORS.accent, bg: "rgba(224, 123, 57, 0.08)" }
+      ? { text: isEn ? UI.previewBadge.en : "معاينة — غير معتمد", color: BRAND_COLORS.accent, bg: "rgba(224, 123, 57, 0.08)" }
       : undefined,
     pageMetrics,
+    lang: isEn ? "en" : undefined,
+    tagline: isEn ? taglineFor("en") : undefined,
+    documentDateStr: isEn ? formatDateEn(record.date) : undefined,
+    thanksLine: isEn ? thanksLineFor("en", company) : undefined,
   });
 }
 
@@ -602,23 +616,34 @@ export async function readOfficialDoc(env: Env, id: number): Promise<OfficialDoc
     x_is_template: boolean | false;
     x_template_name: string | false;
     x_block_ids: number[] | false;
+    x_lang?: string | false;
   };
+  // x_lang was added in Part B — probe once, only include it in the read
+  // fields if present so this reader stays backwards compatible with any
+  // tenant that hasn't installed the field yet.
+  const langFieldRows = await call<Array<{ name: string }>>(env, "ir.model.fields", "search_read", {
+    domain: [["model", "=", "x_official_doc"], ["name", "=", "x_lang"]],
+    fields: ["name"],
+  });
+  const hasLangField = langFieldRows.length > 0;
+  const readFields = [
+    "id",
+    "x_name",
+    "x_doc_type",
+    "x_recipient",
+    "x_recipient_label",
+    "x_subject",
+    "x_date",
+    "x_status",
+    "x_ai_prompt",
+    "x_is_template",
+    "x_template_name",
+    "x_block_ids",
+    ...(hasLangField ? ["x_lang"] : []),
+  ];
   const rows = await call<DocRow[]>(env, "x_official_doc", "read", {
     ids: [id],
-    fields: [
-      "id",
-      "x_name",
-      "x_doc_type",
-      "x_recipient",
-      "x_recipient_label",
-      "x_subject",
-      "x_date",
-      "x_status",
-      "x_ai_prompt",
-      "x_is_template",
-      "x_template_name",
-      "x_block_ids",
-    ],
+    fields: readFields,
   });
   const r = rows[0];
   if (!r) return null;
@@ -650,12 +675,14 @@ export async function readOfficialDoc(env: Env, id: number): Promise<OfficialDoc
   const rawDate = r.x_date || null;
   const date = rawDate ? new Date(String(rawDate) + "T00:00:00Z") : new Date();
 
+  const rawLang = r.x_lang;
+  const lang: DocLang = rawLang === "en" ? "en" : "ar";
   return {
     id: r.id,
     name: String(r.x_name || ""),
     doc_type: (r.x_doc_type || "letter") as OfficialDocType,
     recipient: String(r.x_recipient || ""),
-    recipient_label: String(r.x_recipient_label || "إلى"),
+    recipient_label: String(r.x_recipient_label || (lang === "en" ? "To" : "إلى")),
     subject: String(r.x_subject || ""),
     date,
     status: (r.x_status || "draft") as OfficialDocStatus,
@@ -663,6 +690,7 @@ export async function readOfficialDoc(env: Env, id: number): Promise<OfficialDoc
     blocks,
     is_template: r.x_is_template === true,
     template_name: String(r.x_template_name || ""),
+    lang,
   };
 }
 
@@ -675,7 +703,7 @@ export { readCompanyInfo };
 // AI drafting — a strict-JSON call to Claude that rewrites the block list.
 // ============================================================================
 
-const AI_SYSTEM_PROMPT = `أنت كاتب رسمي لشركة UTAK يو تاك في المملكة العربية السعودية.
+const AI_SYSTEM_PROMPT_AR = `أنت كاتب رسمي لشركة UTAK يو تاك في المملكة العربية السعودية.
 تحوّل طلب المستخدم إلى مستند رسمي مبني على بلوكات.
 
 القواعد الملزمة (بدون استثناء):
@@ -707,6 +735,38 @@ const AI_SYSTEM_PROMPT = `أنت كاتب رسمي لشركة UTAK يو تاك �
 
 الحد الأقصى: 25 بلوك.`;
 
+const AI_SYSTEM_PROMPT_EN = `You are an official writer for UTAK (يو تاك), a Saudi Arabian company.
+Turn the user's request into an official document composed of typed blocks.
+
+Binding rules (no exceptions):
+- Formal, concise Saudi business English — no filler.
+- Never invent numbers, dates, names, or amounts not present in the request or the attached company data.
+- Any missing information is written as a placeholder in square brackets: e.g. [Account Number], [Meeting Date], [Recipient Name]. The system blocks issuance until every placeholder is resolved.
+- A signature is added ONLY if the doc is a letter, an authorization, or the user explicitly asked for one.
+- A stamp is added ONLY if the user explicitly asked.
+- Company data is read from MERGED CONTEXT; never invented.
+
+The response MUST be JSON only (no prose, no markdown):
+{
+  "doc_type": "letter"|"certificate"|"authorization"|"statement"|"other",
+  "recipient": "<recipient name, or empty>",
+  "subject": "<one-line subject>",
+  "blocks": [
+    {"type": "<one of: heading|badge|paragraph|kv_card|table|highlight_row|notes|signature|stamp>", "text": "<x_text payload>", "tone": "neutral"|"warning"|"success"}
+  ]
+}
+
+x_text format per block type:
+- heading / badge / paragraph: plain text.
+- kv_card: one "Label: Value" per line.
+- table: one row per line, cells separated by |, first line is the header. Any line starting with = renders as a total row.
+- highlight_row: "Label | Value1 | Value2".
+- notes: one note per line (numbering is automatic — don't include numbers).
+- signature: two lines — name then title.
+- stamp: short text inside the stamp (e.g. "UTAK").
+
+Max 25 blocks.`;
+
 export interface AIDraftResult {
   doc_type: OfficialDocType;
   recipient: string;
@@ -714,9 +774,10 @@ export interface AIDraftResult {
   blocks: Array<{ type: BlockType; text: string; tone: BlockTone }>;
 }
 
-async function callClaudeForDraft(env: Env, userMsg: string): Promise<string> {
+async function callClaudeForDraft(env: Env, userMsg: string, lang: DocLang = "ar"): Promise<string> {
   const model = env.CLAUDE_MODEL_REPLY;
   if (!model) throw new Error("CLAUDE_MODEL_REPLY missing");
+  const systemPrompt = lang === "en" ? AI_SYSTEM_PROMPT_EN : AI_SYSTEM_PROMPT_AR;
   const res = await fetch(ANTHROPIC_API_URL, {
     method: "POST",
     headers: {
@@ -727,7 +788,7 @@ async function callClaudeForDraft(env: Env, userMsg: string): Promise<string> {
     body: JSON.stringify({
       model,
       max_tokens: 3000,
-      system: AI_SYSTEM_PROMPT,
+      system: systemPrompt,
       messages: [{ role: "user", content: userMsg }],
     }),
   });
@@ -790,23 +851,46 @@ export function validateAIDraft(raw: string): AIDraftResult | { error: string } 
 
 export async function aiDraftDocument(
   env: Env,
-  args: { prompt: string; company: CompanyInfo; currentDocType?: OfficialDocType },
+  args: { prompt: string; company: CompanyInfo; currentDocType?: OfficialDocType; lang?: DocLang },
 ): Promise<AIDraftResult> {
-  const userMsg = [
-    `طلب المستخدم:`,
-    args.prompt,
-    ``,
-    `MERGED CONTEXT (بيانات الشركة، ممنوع اختراع غيرها):`,
-    `- الاسم الرسمي: ${args.company.nameAr}`,
-    `- السجل التجاري: ${args.company.cr || "(غير مسجل بعد)"}`,
-    `- الرقم الضريبي: ${args.company.vat || "(غير مسجل بعد)"}`,
-    `- العنوان: ${args.company.address || "(غير محدد)"}`,
-    `- الهاتف: ${args.company.phone || "(غير محدد)"}`,
-    `- الإيميل: ${args.company.email || "(غير محدد)"}`,
-    ``,
-    args.currentDocType ? `النوع الحالي المقترح: ${args.currentDocType}` : "",
-  ].filter((l) => l.length > 0).join("\n");
-  const raw = await callClaudeForDraft(env, userMsg);
+  const lang: DocLang = args.lang === "en" ? "en" : "ar";
+  const nameForCtx = lang === "en"
+    ? (args.company.legalNameEn || args.company.nameEn)
+    : (args.company.legalNameAr || args.company.nameAr);
+  const addressForCtx = lang === "en"
+    ? (args.company.addressEn || args.company.address)
+    : (args.company.addressAr || args.company.address);
+  const userMsg = lang === "en"
+    ? [
+        `User request:`,
+        args.prompt,
+        ``,
+        `MERGED CONTEXT (company data — never invent other values):`,
+        `- Legal name: ${nameForCtx}`,
+        `- Commercial Registration: ${args.company.cr || "(not registered yet)"}`,
+        `- VAT No.: ${args.company.vat || "(not registered yet)"}`,
+        `- Address: ${addressForCtx || "(unspecified)"}`,
+        `- Phone: ${args.company.phone || "(unspecified)"}`,
+        `- Email: ${args.company.email || "(unspecified)"}`,
+        ``,
+        args.currentDocType ? `Current suggested doc_type: ${args.currentDocType}` : "",
+      ]
+    : [
+        `طلب المستخدم:`,
+        args.prompt,
+        ``,
+        `MERGED CONTEXT (بيانات الشركة، ممنوع اختراع غيرها):`,
+        `- الاسم الرسمي: ${nameForCtx}`,
+        `- السجل التجاري: ${args.company.cr || "(غير مسجل بعد)"}`,
+        `- الرقم الضريبي: ${args.company.vat || "(غير مسجل بعد)"}`,
+        `- العنوان: ${addressForCtx || "(غير محدد)"}`,
+        `- الهاتف: ${args.company.phone || "(غير محدد)"}`,
+        `- الإيميل: ${args.company.email || "(غير محدد)"}`,
+        ``,
+        args.currentDocType ? `النوع الحالي المقترح: ${args.currentDocType}` : "",
+      ];
+  const joined = userMsg.filter((l) => l.length > 0).join("\n");
+  const raw = await callClaudeForDraft(env, joined, lang);
   const validated = validateAIDraft(raw);
   if ("error" in validated) {
     throw new Error(`AI JSON invalid: ${validated.error} — raw start: ${raw.slice(0, 200)}`);
@@ -907,6 +991,7 @@ export async function runAIDraftPipeline(
       prompt: record.ai_prompt,
       company,
       currentDocType: record.doc_type,
+      lang: record.lang,
     });
   } catch (e) {
     const msg = `Claude فشل: ${(e as Error).message}`.slice(0, 240);

@@ -1,9 +1,17 @@
+import type { DocLang } from "./i18n";
+import { metaFor } from "./i18n";
+
 // v6 — Shared PDF template ("DNA") for all UTAK documents.
 // Mirrors /tmp/utak-invoice-design/UTAK Invoice.dc.html 1:1 in visual output,
 // but with no Claude-Design runtime (no <x-dc>, no <sc-for>, no {{ }}).
 //
 // Every UTAK PDF (invoice, quotation, receipt, delivery note, purchase order)
 // must render through renderPDFShell so the brand stays a single source of truth.
+//
+// v7 (Part B, 2026-09-22) — language modes (ar / en / bi). "ar" preserves the
+// exact byte-parity template from Part A; "en" and "bi" branch into the
+// additive path with locale-aware font/dir/digits and Space Grotesk for
+// English text. See src/i18n.ts for the resolver + copy dictionary.
 
 // ============================================================================
 // Brand constants — the visual DNA. Do not tweak these per-document.
@@ -55,14 +63,17 @@ export function escapeHTML(s: string | number | null | undefined): string {
     .replace(/'/g, "&#39;");
 }
 
-export function formatMoney(n: number): string {
+export function formatMoney(n: number, lang: DocLang = "ar"): string {
   const rounded = Math.round(n * 100) / 100;
-  return (
-    rounded.toLocaleString("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }) + " ريال"
-  );
+  const num = rounded.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  // ar and bi keep the SAR word in Arabic ("ريال") on the same line the
+  // Arabic side of the doc uses; en swaps to the ISO 4217 label "SAR"
+  // before the number, matching Saudi-English invoice practice.
+  if (lang === "en") return `SAR ${num}`;
+  return `${num} ريال`;
 }
 
 const ARABIC_DIGITS = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
@@ -151,8 +162,17 @@ function renderHeader(
   documentNumber: string,
   documentDate: Date,
   headerBadge?: HeaderBadge,
+  overrides?: { taglineOverride?: string; brandNameOverride?: string; documentDateStrOverride?: string; forceLtrHeader?: boolean },
 ): string {
-  const dateStr = formatDateArabic(documentDate);
+  const dateStr = overrides?.documentDateStrOverride ?? formatDateArabic(documentDate);
+  const tagline = overrides?.taglineOverride ?? BRAND_INFO.tagline;
+  const brandName = overrides?.brandNameOverride ?? BRAND_INFO.nameAr;
+  // When rendered as an English document, the title reads left-to-right and
+  // the date sits inside the ltr-primary flow. Byte-parity path leaves this
+  // undefined and keeps the legacy `direction: rtl` markup exactly as before.
+  const titleDir = overrides?.forceLtrHeader ? "ltr" : "rtl";
+  const dateDir = overrides?.forceLtrHeader ? "ltr" : "rtl";
+  const dateAlign = overrides?.forceLtrHeader ? "left" : "right";
   // The `headerBadge`-attached tail is a separate string so the byte-parity
   // path (legacy fixtures, no badge) reproduces the exact original template
   // without any extra whitespace.
@@ -164,65 +184,114 @@ function renderHeader(
       <div style="display: flex; flex-direction: column; gap: 8px;">
         <img src="${UTAK_LOGO_DATA_URL}" style="width: 60px; height: 60px; display: block;" alt="UTAK" />
         <div style="display: flex; flex-direction: column; gap: 2px;">
-          <div style="font-size: 24px; font-weight: 500; color: ${BRAND_COLORS.primary}; letter-spacing: 0.02em; white-space: nowrap;">${escapeHTML(BRAND_INFO.nameAr)}</div>
-          <div style="font-size: 10px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.14em;">${escapeHTML(BRAND_INFO.tagline)}</div>
+          <div style="font-size: 24px; font-weight: 500; color: ${BRAND_COLORS.primary}; letter-spacing: 0.02em; white-space: nowrap;">${escapeHTML(brandName)}</div>
+          <div style="font-size: 10px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.14em;">${escapeHTML(tagline)}</div>
         </div>
       </div>
       <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 10px; direction: ltr; text-align: left;">
-        <div style="font-size: 32px; font-weight: 300; line-height: 1; direction: rtl;">${escapeHTML(documentTitle)}</div>
+        <div style="font-size: 32px; font-weight: 300; line-height: 1; direction: ${titleDir};">${escapeHTML(documentTitle)}</div>
         <div style="display: flex; flex-direction: column; gap: 4px;">
           <div style="display: flex; align-items: center; gap: 7px;">
             <span style="width: 4px; height: 4px; border-radius: 50%; background: ${BRAND_COLORS.accent}; display: inline-block;"></span>
             <span style="font-size: 13px; font-weight: 400;">${escapeHTML(documentNumber)}</span>
           </div>
-          <div style="font-size: 13px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; direction: rtl; text-align: right;">${escapeHTML(dateStr)}</div>${badgeTail}
+          <div style="font-size: 13px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; direction: ${dateDir}; text-align: ${dateAlign};">${escapeHTML(dateStr)}</div>${badgeTail}
         </div>
       </div>
     </div>`;
 }
 
 // Additive: rendered at the very bottom of the page (below the "شكراً"
-// line) when `legalFooterBar` is passed. Two thin lines — identity /
-// contact — with empty fields dropped so no orphan " · " ever shows on
-// either end. Latin/number-heavy fields (phone, email) sit inside <bdi
-// dir="ltr"> so they render left-to-right inside the RTL page.
-// The 5 legacy documents never pass legalFooterBar, so this function is
-// never called for them.
-function renderLegalFooterBar(info: LegalFooterInfo): string {
+// line) when `legalFooterBar` is passed. Empty fields drop so no orphan
+// " · " ever shows on either end. Latin/number-heavy fields (phone, email)
+// sit inside <bdi dir="ltr"> so they render left-to-right inside the RTL
+// page. The 5 legacy documents never pass legalFooterBar without a company,
+// so this function is never called with a nullish info.
+//
+// Layout by language:
+//   ar (default) — 2 thin lines:
+//     line 1: name  ·  س.ت CR  ·  الرقم الضريبي VAT
+//     line 2: address  ·  phone  ·  email
+//   en — 2 thin lines, English mirror if provided:
+//     line 1: nameEn  ·  CR No. CR  ·  VAT No. VAT
+//     line 2: addressEn  ·  phone  ·  email
+//   bi — 3 thin lines:
+//     line 1: name (ar)  ·  س.ت CR  ·  الرقم الضريبي VAT
+//     line 2: nameEn      ·  CR No. CR  ·  VAT No. VAT
+//     line 3: address (ar) ·  phone  ·  email
+function renderLegalFooterBar(info: LegalFooterInfo, lang: DocLang = "ar"): string {
+  const lineStyle = `text-align: center; font-size: 8.5px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.06em; line-height: 1.6;`;
+  const asBdi = (s: string) => `<bdi dir="ltr">${escapeHTML(s.trim())}</bdi>`;
+  const parts: string[] = [`<div style="height: 8px;"></div>`];
+
+  if (lang === "en") {
+    const crLabel = info.crLabelEn ?? "CR No.";
+    const vatLabel = info.vatLabelEn ?? "VAT No.";
+    const line1: string[] = [];
+    if (info.nameEn && info.nameEn.trim()) line1.push(escapeHTML(info.nameEn.trim()));
+    else if (info.name && info.name.trim()) line1.push(escapeHTML(info.name.trim()));
+    if (info.cr && info.cr.trim()) line1.push(`${crLabel} ${asBdi(info.cr)}`);
+    if (info.vat && info.vat.trim()) line1.push(`${vatLabel} ${asBdi(info.vat)}`);
+    const line2: string[] = [];
+    if (info.addressEn && info.addressEn.trim()) line2.push(escapeHTML(info.addressEn.trim()));
+    else if (info.address && info.address.trim()) line2.push(escapeHTML(info.address.trim()));
+    if (info.phone && info.phone.trim()) line2.push(asBdi(info.phone));
+    if (info.email && info.email.trim()) line2.push(asBdi(info.email));
+    if (line1.length === 0 && line2.length === 0) return "";
+    if (line1.length > 0) parts.push(`<div style="${lineStyle}">${line1.join(" · ")}</div>`);
+    if (line2.length > 0) parts.push(`<div style="${lineStyle}">${line2.join(" · ")}</div>`);
+    return parts.join("\n    ");
+  }
+
+  // ar and bi both share the first Arabic identity line.
   const line1: string[] = [];
   if (info.name && info.name.trim()) line1.push(escapeHTML(info.name.trim()));
-  if (info.cr && info.cr.trim()) line1.push(`س.ت <bdi dir="ltr">${escapeHTML(info.cr.trim())}</bdi>`);
-  if (info.vat && info.vat.trim()) line1.push(`الرقم الضريبي <bdi dir="ltr">${escapeHTML(info.vat.trim())}</bdi>`);
+  if (info.cr && info.cr.trim()) line1.push(`س.ت ${asBdi(info.cr)}`);
+  if (info.vat && info.vat.trim()) line1.push(`الرقم الضريبي ${asBdi(info.vat)}`);
+
+  // bi inserts an English mirror line between line1 and line2.
+  let lineMid: string[] | null = null;
+  if (lang === "bi") {
+    const crLabel = info.crLabelEn ?? "CR No.";
+    const vatLabel = info.vatLabelEn ?? "VAT No.";
+    lineMid = [];
+    if (info.nameEn && info.nameEn.trim()) lineMid.push(escapeHTML(info.nameEn.trim()));
+    else if (info.name && info.name.trim()) lineMid.push(escapeHTML(info.name.trim()));
+    if (info.cr && info.cr.trim()) lineMid.push(`${crLabel} ${asBdi(info.cr)}`);
+    if (info.vat && info.vat.trim()) lineMid.push(`${vatLabel} ${asBdi(info.vat)}`);
+  }
 
   const line2: string[] = [];
   if (info.address && info.address.trim()) line2.push(escapeHTML(info.address.trim()));
-  if (info.phone && info.phone.trim()) line2.push(`<bdi dir="ltr">${escapeHTML(info.phone.trim())}</bdi>`);
-  if (info.email && info.email.trim()) line2.push(`<bdi dir="ltr">${escapeHTML(info.email.trim())}</bdi>`);
+  if (info.phone && info.phone.trim()) line2.push(asBdi(info.phone));
+  if (info.email && info.email.trim()) line2.push(asBdi(info.email));
 
-  if (line1.length === 0 && line2.length === 0) return "";
-  const lineStyle = `text-align: center; font-size: 8.5px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.06em; line-height: 1.6;`;
-  const parts: string[] = [`<div style="height: 8px;"></div>`];
+  if (line1.length === 0 && (lineMid ?? []).length === 0 && line2.length === 0) return "";
   if (line1.length > 0) parts.push(`<div style="${lineStyle}">${line1.join(" · ")}</div>`);
+  if (lineMid && lineMid.length > 0) parts.push(`<div style="${lineStyle}">${lineMid.join(" · ")}</div>`);
   if (line2.length > 0) parts.push(`<div style="${lineStyle}">${line2.join(" · ")}</div>`);
   return parts.join("\n    ");
 }
 
-function renderFooter(footerNote: string, showZatcaQR: boolean): string {
+function renderFooter(footerNote: string, showZatcaQR: boolean, termsLabel: string = "شروط الدفع", thanksTextOverride?: string): string {
   const qrCell = showZatcaQR
     ? generateZatcaQRPlaceholder()
     : `<div style="width: 80px;"></div>`; // reserve space so the grid layout stays symmetric
+  // Legacy Arabic default preserved for the byte-parity path (which never
+  // passes thanksTextOverride).
+  const thanks = thanksTextOverride ?? `شكراً لثقتكم في ${BRAND_INFO.nameAr}`;
   return `<div style="position: relative;">
       <div style="height: 0; border-top: 0.25px solid ${BRAND_COLORS.borderSoft};"></div>
       <div style="height: 20px;"></div>
       <div style="display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: flex-start;">
         <div style="display: flex; flex-direction: column; gap: 6px;">
-          <div style="font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.2em;">شروط الدفع</div>
+          <div style="font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.2em;">${escapeHTML(termsLabel)}</div>
           <div style="font-size: 10px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; line-height: 1.7; max-width: 62%;">${escapeHTML(footerNote)}</div>
         </div>
         ${qrCell}
       </div>
       <div style="height: 18px;"></div>
-      <div style="text-align: center; font-size: 10px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.08em;">شكراً لثقتكم في ${escapeHTML(BRAND_INFO.nameAr)}</div>
+      <div style="text-align: center; font-size: 10px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.08em;">${escapeHTML(thanks)}</div>
     </div>`;
 }
 
@@ -243,6 +312,16 @@ export interface LegalFooterInfo {
   address?: string;
   phone?: string;
   email?: string;
+  // Optional English mirrors — used when lang="en" (English-only mirror
+  // instead of the Arabic values) or lang="bi" (extra middle line under
+  // the Arabic identity line).
+  nameEn?: string;
+  addressEn?: string;
+  // Optional English labels — filled from i18n. Byte-parity path (lang=ar)
+  // never uses these. In "en" mode they replace "س.ت" / "الرقم الضريبي"; in
+  // "bi" mode they appear on the middle line.
+  crLabelEn?: string;
+  vatLabelEn?: string;
 }
 
 export interface RenderPDFShellOptions {
@@ -256,6 +335,29 @@ export interface RenderPDFShellOptions {
   footerNote?: string;         // "الدفع خلال ٣٠ يوماً..." — defaults per doc type
   showZatcaQR?: boolean;       // true for tax invoice; false for other docs
   pageMetrics: PageMetrics;
+  /**
+   * Language mode:
+   *   - undefined or "ar" → byte-parity Arabic template (Part A snapshot).
+   *   - "en"              → English shell (dir=ltr, Space Grotesk, western digits).
+   *   - "bi"              → Arabic-first, English mirrors under item names
+   *                          and a 3-line legal footer.
+   * All labels/strings are localized by the caller through renderParty/
+   * renderFooter/legalFooterBar arguments; the shell itself only decides
+   * dir/font/date/watermark.
+   */
+  lang?: DocLang;
+  /** Header tagline override; when undefined defaults to BRAND_INFO.tagline. */
+  tagline?: string;
+  /** Party-slot label overrides — for "من / FROM"-style bilingual labels. */
+  billToLabel?: string;
+  fromLabel?: string;
+  /** Localized "شكراً" line; overrides thanksOverride behavior. */
+  thanksLine?: string;
+  /** Localized "شروط الدفع" heading in the terms block. */
+  termsLabel?: string;
+  /** Overriding date string (used by en to show "22 Sep 2026" instead of the
+   *  Arabic-locale two-part string). */
+  documentDateStr?: string;
 
   // -----------------------------------------------------------------
   // Additive, official-doc-only options. Every one is undefined for
@@ -327,6 +429,7 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
   // diff before/after Part A confined to that one additive strip — nothing
   // else changes shape.
   // -----------------------------------------------------------------
+  const langNonAr = opts.lang !== undefined && opts.lang !== "ar";
   const anyAdditive =
     opts.recipientLabel !== undefined ||
     opts.senderLabel !== undefined ||
@@ -339,11 +442,12 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
     opts.suppressPartiesRow === true ||
     opts.aboveBodyHTML !== undefined ||
     opts.belowBodyHTML !== undefined ||
-    opts.multiPageBreaks === true;
+    opts.multiPageBreaks === true ||
+    langNonAr;
 
   if (!anyAdditive) {
     const legalBarByteParity = opts.legalFooterBar
-      ? "\n    " + renderLegalFooterBar(opts.legalFooterBar)
+      ? "\n    " + renderLegalFooterBar(opts.legalFooterBar, "ar")
       : "";
     return `<!DOCTYPE html>
 <html>
@@ -402,8 +506,10 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
   // Additive path — only reached when at least one new option was set.
   // Any output shape difference from the legacy path lives here.
   // -----------------------------------------------------------------
-  const recipientLabel = opts.recipientLabel ?? "فاتورة إلى / BILL TO";
-  const senderLabel = opts.senderLabel ?? "من / FROM";
+  const lang: DocLang = opts.lang ?? "ar";
+  const langMeta = metaFor(lang);
+  const recipientLabel = opts.recipientLabel ?? opts.billToLabel ?? "فاتورة إلى / BILL TO";
+  const senderLabel = opts.senderLabel ?? opts.fromLabel ?? "من / FROM";
   const hideBillTo = opts.hideBillTo === true;
   const hideFrom = opts.hideFrom === true;
 
@@ -427,15 +533,23 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
     }
   }
 
+  const termsLabel = opts.termsLabel ?? "شروط الدفع";
+  // renderFooter's built-in thanks: when hideThanks=true we blank it out to
+  // preserve the legacy behavior (no thanks line inside the footer block);
+  // when opts.thanksLine is set (localized replacement) we route it into
+  // renderFooter so it sits at the same position, not below the whole block.
+  const inlineThanks = opts.hideThanks ? "" : opts.thanksLine;
   const footerBlock = opts.hideFooterNote
     ? ""
-    : renderFooter(footerNote, showZatcaQR);
+    : renderFooter(footerNote, showZatcaQR, termsLabel, inlineThanks);
+  // The old thanksOverride hook was an ADDITIONAL line below the footer;
+  // preserved as-is when set for older callers (official-doc's issue path).
   const thanksLine = opts.hideThanks
     ? ""
-    : opts.thanksOverride
+    : opts.thanksOverride && !opts.thanksLine
       ? `<div style="text-align: center; font-size: 10px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.08em;">${escapeHTML(opts.thanksOverride)}</div>`
       : "";
-  const legalBar = opts.legalFooterBar ? renderLegalFooterBar(opts.legalFooterBar) : "";
+  const legalBar = opts.legalFooterBar ? renderLegalFooterBar(opts.legalFooterBar, lang) : "";
   const aboveBody = opts.aboveBodyHTML ?? "";
   const belowBody = opts.belowBodyHTML ?? "";
 
@@ -445,14 +559,28 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
   const pageStyle = opts.multiPageBreaks
     ? `position: relative; width: 210mm; min-height: 297mm; box-sizing: border-box; padding: 20mm; background: ${BRAND_COLORS.bgPage}; color: ${BRAND_COLORS.ink}; display: flex; flex-direction: column;`
     : `position: relative; width: 210mm; height: 297mm; box-sizing: border-box; padding: 20mm; background: ${BRAND_COLORS.bgPage}; color: ${BRAND_COLORS.ink}; display: flex; flex-direction: column; overflow: hidden;`;
+
+  // Font stack per language mode. Arabic and Space Grotesk are loaded from
+  // Google Fonts; the bilingual mode loads both. The `lang` attribute on
+  // <html> lets Chromium pick the right script for each glyph.
+  const fontFamilies: string[] = [];
+  if (langMeta.fonts.english) fontFamilies.push("'Space Grotesk'");
+  if (langMeta.fonts.arabic) fontFamilies.push(`'${BRAND_FONT}'`);
+  fontFamilies.push("'Tajawal'", "sans-serif");
+  const fontStack = fontFamilies.join(", ");
+  const fontImports = [
+    langMeta.fonts.arabic ? `family=IBM+Plex+Sans+Arabic:wght@200;300;400;500;600` : "",
+    langMeta.fonts.english ? `family=Space+Grotesk:wght@300;400;500;600` : "",
+  ].filter(Boolean).join("&");
+  const fontHref = `https://fonts.googleapis.com/css2?${fontImports}&display=swap`;
   return `<!DOCTYPE html>
-<html>
+<html lang="${langMeta.primary}" dir="${langMeta.dir}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+<link href="${fontHref}" rel="stylesheet">
 <style>
   html, body { margin: 0; padding: 0; background: ${BRAND_COLORS.bgPage}; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -470,12 +598,12 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
 </style>
 </head>
 <body>
-<div dir="rtl" style="font-family: '${BRAND_FONT}', 'Tajawal', sans-serif; font-feature-settings: 'tnum' 1; background: ${BRAND_COLORS.bgPage};">
+<div dir="${langMeta.dir}" style="font-family: ${fontStack}; font-feature-settings: 'tnum' 1; background: ${BRAND_COLORS.bgPage};">
   <div class="utak-page" style="${pageStyle}">
 
     <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 160px; font-weight: 200; letter-spacing: 0.06em; color: ${BRAND_COLORS.primary}; opacity: 0.04; pointer-events: none; user-select: none; white-space: nowrap;">${escapeHTML(BRAND_INFO.nameEn)}</div>
 
-    ${renderHeader(opts.documentTitle, opts.documentNumber, opts.documentDate, opts.headerBadge)}
+    ${renderHeader(opts.documentTitle, opts.documentNumber, opts.documentDate, opts.headerBadge, { taglineOverride: opts.tagline, documentDateStrOverride: opts.documentDateStr, forceLtrHeader: lang === "en" })}
 
     <div style="height: ${m.gap};"></div>
     <div style="height: 0; border-top: 0.5px solid ${BRAND_COLORS.primary};"></div>

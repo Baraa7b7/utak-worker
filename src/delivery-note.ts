@@ -12,9 +12,12 @@ import {
   renderPDFShell,
   signDocToken,
   uploadPDFToR2,
+  type LegalFooterInfo,
   type PageMetrics,
   type PartyInfo,
 } from "./pdf-template";
+import { readCompanyInfo, type CompanyInfo } from "./company";
+import { toLegalFooterAr } from "./legal-footer";
 
 export interface DeliveryNoteItem {
   name: string;
@@ -68,7 +71,7 @@ export function renderDeliveryNoteBodyHTML(
     </table>`;
 }
 
-export function renderDeliveryNoteHTML(data: DeliveryNotePDFData): string {
+export function renderDeliveryNoteHTML(data: DeliveryNotePDFData, company?: CompanyInfo): string {
   const pageMetrics = computePageMetrics(data.items.length);
   const billTo: PartyInfo = {
     name: data.customer.name,
@@ -76,6 +79,9 @@ export function renderDeliveryNoteHTML(data: DeliveryNotePDFData): string {
     address: data.customer.address,
     phone: data.customer.phone,
   };
+  const legalFooterBar: LegalFooterInfo | undefined = company
+    ? toLegalFooterAr(company)
+    : undefined;
   return renderPDFShell({
     documentTitle: "إذن تسليم",
     documentNumber: data.deliveryNumber,
@@ -85,6 +91,7 @@ export function renderDeliveryNoteHTML(data: DeliveryNotePDFData): string {
     // no totalsHTML for delivery notes
     footerNote: DELIVERY_NOTE_FOOTER,
     showZatcaQR: false,
+    legalFooterBar,
     pageMetrics,
   });
 }
@@ -93,7 +100,8 @@ export async function generateDeliveryNotePDF(
   data: DeliveryNotePDFData,
   env: Env,
 ): Promise<Uint8Array> {
-  return await htmlToPDF(renderDeliveryNoteHTML(data), env);
+  const company = await readCompanyInfo(env);
+  return await htmlToPDF(renderDeliveryNoteHTML(data, company), env);
 }
 
 export async function uploadDeliveryNoteToR2(

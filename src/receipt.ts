@@ -13,9 +13,12 @@ import {
   renderPDFShell,
   signDocToken,
   uploadPDFToR2,
+  type LegalFooterInfo,
   type PageMetrics,
   type PartyInfo,
 } from "./pdf-template";
+import { readCompanyInfo, type CompanyInfo } from "./company";
+import { toLegalFooterAr } from "./legal-footer";
 
 export interface ReceiptPayment {
   invoiceNumber: string;
@@ -82,7 +85,7 @@ export function renderReceiptTotalsHTML(totalReceived: number): string {
     </div>`;
 }
 
-export function renderReceiptHTML(data: ReceiptPDFData): string {
+export function renderReceiptHTML(data: ReceiptPDFData, company?: CompanyInfo): string {
   const pageMetrics = computePageMetrics(data.payments.length);
   const billTo: PartyInfo = {
     name: data.customer.name,
@@ -90,6 +93,9 @@ export function renderReceiptHTML(data: ReceiptPDFData): string {
     address: data.customer.address,
     phone: data.customer.phone,
   };
+  const legalFooterBar: LegalFooterInfo | undefined = company
+    ? toLegalFooterAr(company)
+    : undefined;
   return renderPDFShell({
     documentTitle: "إيصال دفع",
     documentNumber: data.receiptNumber,
@@ -99,6 +105,7 @@ export function renderReceiptHTML(data: ReceiptPDFData): string {
     totalsHTML: renderReceiptTotalsHTML(data.totalReceived),
     footerNote: RECEIPT_FOOTER,
     showZatcaQR: false,
+    legalFooterBar,
     pageMetrics,
   });
 }
@@ -107,7 +114,8 @@ export async function generateReceiptPDF(
   data: ReceiptPDFData,
   env: Env,
 ): Promise<Uint8Array> {
-  return await htmlToPDF(renderReceiptHTML(data), env);
+  const company = await readCompanyInfo(env);
+  return await htmlToPDF(renderReceiptHTML(data, company), env);
 }
 
 export async function uploadReceiptToR2(

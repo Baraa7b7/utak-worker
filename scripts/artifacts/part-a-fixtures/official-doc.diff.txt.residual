@@ -1,0 +1,20 @@
+residual diff at offset 4749
+
+--- no-company (stripped) ---
+></div>
+
+    <div style="flex: 1; min-height: 40px;"></div>
+
+  </div>
+</div>
+</body>
+</html>
+
+--- with-company (stripped) ---
+></div>
+
+    <div style="flex: 1; min-height: 40px;"></div>
+  </div>
+</div>
+</body>
+</html>

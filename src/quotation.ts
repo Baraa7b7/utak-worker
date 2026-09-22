@@ -19,9 +19,12 @@ import {
   renderPDFShell,
   signDocToken,
   uploadPDFToR2,
+  type LegalFooterInfo,
   type PageMetrics,
   type PartyInfo,
 } from "./pdf-template";
+import { readCompanyInfo, type CompanyInfo } from "./company";
+import { toLegalFooterAr } from "./legal-footer";
 
 export interface QuotationLineItem {
   name: string;
@@ -126,7 +129,7 @@ export function renderQuotationTotalsHTML(
     </div>`;
 }
 
-export function renderQuotationHTML(data: QuotationPDFData): string {
+export function renderQuotationHTML(data: QuotationPDFData, company?: CompanyInfo): string {
   const pageMetrics = computePageMetrics(data.items.length);
   const billTo: PartyInfo = {
     name: data.customer.name,
@@ -134,6 +137,9 @@ export function renderQuotationHTML(data: QuotationPDFData): string {
     address: data.customer.address,
     phone: data.customer.phone,
   };
+  const legalFooterBar: LegalFooterInfo | undefined = company
+    ? toLegalFooterAr(company)
+    : undefined;
   return renderPDFShell({
     documentTitle: "عرض سعر",
     documentNumber: data.quotationNumber,
@@ -148,6 +154,7 @@ export function renderQuotationHTML(data: QuotationPDFData): string {
     ),
     footerNote: QUOTATION_FOOTER,
     showZatcaQR: false,
+    legalFooterBar,
     pageMetrics,
   });
 }
@@ -156,7 +163,8 @@ export async function generateQuotationPDF(
   data: QuotationPDFData,
   env: Env,
 ): Promise<Uint8Array> {
-  return await htmlToPDF(renderQuotationHTML(data), env);
+  const company = await readCompanyInfo(env);
+  return await htmlToPDF(renderQuotationHTML(data, company), env);
 }
 
 export async function uploadQuotationToR2(

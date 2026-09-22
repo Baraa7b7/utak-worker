@@ -31,9 +31,13 @@ import {
   escapeHTML,
   formatMoney,
   renderPDFShell,
+  type LegalFooterInfo,
   type PageMetrics,
   type PartyInfo,
 } from "./pdf-template";
+import type { CompanyInfo } from "./company";
+import { readCompanyInfo } from "./company";
+import { toLegalFooterAr } from "./legal-footer";
 
 // --------------------------------------------------------------
 // 5.2 — createAndDispatchInvoiceForOrder (unchanged)
@@ -481,7 +485,11 @@ function renderInvoiceTotalsHTML(
     </div>`;
 }
 
-export function renderInvoiceHTML(data: InvoicePDFData): string {
+// The Arabic-only branch is the byte-parity baseline every fixture relies on.
+// `company` is optional here (unit tests + snapshot fixtures don't pass it);
+// the production dispatch path always passes it so the legal-footer strip
+// renders on every real UTAK PDF.
+export function renderInvoiceHTML(data: InvoicePDFData, company?: CompanyInfo): string {
   const pageMetrics = computePageMetrics(data.items.length);
   const billTo: PartyInfo = {
     name: data.customer.name,
@@ -489,6 +497,9 @@ export function renderInvoiceHTML(data: InvoicePDFData): string {
     address: data.customer.address,
     phone: data.customer.phone,
   };
+  const legalFooterBar: LegalFooterInfo | undefined = company
+    ? toLegalFooterAr(company)
+    : undefined;
 
   return renderPDFShell({
     documentTitle: "فاتورة",
@@ -506,6 +517,7 @@ export function renderInvoiceHTML(data: InvoicePDFData): string {
     // ZATCA QR is only meaningful when there's VAT to attest to. Suppress it
     // while VAT is inactive (Baraa activates it later).
     showZatcaQR: data.vatAmount > 0,
+    legalFooterBar,
     pageMetrics,
   });
 }
@@ -514,7 +526,8 @@ export async function generateInvoicePDF(
   data: InvoicePDFData,
   env: Env,
 ): Promise<Uint8Array> {
-  const html = renderInvoiceHTML(data);
+  const company = await readCompanyInfo(env);
+  const html = renderInvoiceHTML(data, company);
 
   const gotenbergUrl = env.GOTENBERG_URL;
   const gotenbergUser = env.GOTENBERG_USER;

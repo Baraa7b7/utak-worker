@@ -314,12 +314,18 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
   const m = opts.pageMetrics;
 
   // -----------------------------------------------------------------
-  // Byte-parity gate. When every additive option is absent, we hit the
-  // exact same template literal as before — no extra whitespace, no
+  // Byte-parity gate. When every "structural" additive option is absent
+  // we hit the same template literal as before — no extra whitespace, no
   // dropped interpolations, no reshuffled sections. See tests/pdf-template
   // .test.mts::"legacy fixtures produce byte-identical HTML". Do NOT
   // touch this branch without regenerating the pixel-diff PNGs for the
   // five legacy fixtures.
+  //
+  // legalFooterBar is intentionally NOT part of anyAdditive: it appends a
+  // thin strip AT THE END of the layout below the "شكراً" line and
+  // otherwise touches nothing. Rendering it here keeps every doc's HTML
+  // diff before/after Part A confined to that one additive strip — nothing
+  // else changes shape.
   // -----------------------------------------------------------------
   const anyAdditive =
     opts.recipientLabel !== undefined ||
@@ -330,13 +336,15 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
     opts.hideThanks === true ||
     opts.thanksOverride !== undefined ||
     opts.headerBadge !== undefined ||
-    opts.legalFooterBar !== undefined ||
     opts.suppressPartiesRow === true ||
     opts.aboveBodyHTML !== undefined ||
     opts.belowBodyHTML !== undefined ||
     opts.multiPageBreaks === true;
 
   if (!anyAdditive) {
+    const legalBarByteParity = opts.legalFooterBar
+      ? "\n    " + renderLegalFooterBar(opts.legalFooterBar)
+      : "";
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -383,7 +391,7 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
 
     <div style="flex: 1; min-height: ${m.tailMin};"></div>
 
-    ${renderFooter(footerNote, showZatcaQR)}
+    ${renderFooter(footerNote, showZatcaQR)}${legalBarByteParity}
   </div>
 </div>
 </body>

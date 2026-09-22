@@ -12,9 +12,12 @@ import {
   htmlToPDF,
   renderPDFShell,
   uploadPDFToR2,
+  type LegalFooterInfo,
   type PageMetrics,
   type PartyInfo,
 } from "./pdf-template";
+import { readCompanyInfo, type CompanyInfo } from "./company";
+import { toLegalFooterAr } from "./legal-footer";
 
 export interface PurchaseOrderItem {
   name: string;
@@ -90,7 +93,7 @@ export function renderPurchaseOrderTotalsHTML(
     </div>`;
 }
 
-export function renderPurchaseOrderHTML(data: PurchaseOrderPDFData): string {
+export function renderPurchaseOrderHTML(data: PurchaseOrderPDFData, company?: CompanyInfo): string {
   const pageMetrics = computePageMetrics(data.items.length);
   const supplierAsBillTo: PartyInfo = {
     name: data.supplier.name,
@@ -98,6 +101,9 @@ export function renderPurchaseOrderHTML(data: PurchaseOrderPDFData): string {
     address: data.supplier.address,
     phone: data.supplier.phone,
   };
+  const legalFooterBar: LegalFooterInfo | undefined = company
+    ? toLegalFooterAr(company)
+    : undefined;
   return renderPDFShell({
     documentTitle: "أمر شراء",
     documentNumber: data.poNumber,
@@ -107,6 +113,7 @@ export function renderPurchaseOrderHTML(data: PurchaseOrderPDFData): string {
     totalsHTML: renderPurchaseOrderTotalsHTML(data.subtotal, data.grandTotal),
     footerNote: PO_FOOTER,
     showZatcaQR: false,
+    legalFooterBar,
     pageMetrics,
   });
 }
@@ -115,7 +122,8 @@ export async function generatePurchaseOrderPDF(
   data: PurchaseOrderPDFData,
   env: Env,
 ): Promise<Uint8Array> {
-  return await htmlToPDF(renderPurchaseOrderHTML(data), env);
+  const company = await readCompanyInfo(env);
+  return await htmlToPDF(renderPurchaseOrderHTML(data, company), env);
 }
 
 export async function uploadPurchaseOrderToR2(

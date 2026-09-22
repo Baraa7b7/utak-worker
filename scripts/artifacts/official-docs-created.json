@@ -1,0 +1,575 @@
+{
+  "generated_at": "2026-09-22T05:26:18.749Z",
+  "operations": [
+    {
+      "ts": "2026-09-22T05:26:19.691Z",
+      "model": "ir.model",
+      "id": 6077,
+      "name": "x_official_doc",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:26:21.763Z",
+      "model": "ir.model.fields",
+      "id": 20182,
+      "name": "x_official_doc.x_doc_type",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:26:23.142Z",
+      "model": "ir.model.fields.selection",
+      "id": 3886,
+      "name": "x_doc_type=letter",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:26:24.307Z",
+      "model": "ir.model.fields.selection",
+      "id": 3887,
+      "name": "x_doc_type=certificate",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:26:26.246Z",
+      "model": "ir.model.fields.selection",
+      "id": 3888,
+      "name": "x_doc_type=authorization",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:26:28.153Z",
+      "model": "ir.model.fields.selection",
+      "id": 3889,
+      "name": "x_doc_type=statement",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:26:30.213Z",
+      "model": "ir.model.fields.selection",
+      "id": 3890,
+      "name": "x_doc_type=other",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:26:31.707Z",
+      "model": "ir.model.fields",
+      "id": 20184,
+      "name": "x_official_doc.x_recipient",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:26:33.508Z",
+      "model": "ir.model.fields",
+      "id": 20186,
+      "name": "x_official_doc.x_recipient_label",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:26:34.977Z",
+      "model": "ir.model.fields",
+      "id": 20188,
+      "name": "x_official_doc.x_subject",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:26:36.285Z",
+      "model": "ir.model.fields",
+      "id": 20190,
+      "name": "x_official_doc.x_date",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:26:37.802Z",
+      "model": "ir.model.fields",
+      "id": 20192,
+      "name": "x_official_doc.x_status",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:26:40.993Z",
+      "model": "ir.model.fields.selection",
+      "id": 3896,
+      "name": "x_status=draft",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:26:42.782Z",
+      "model": "ir.model.fields.selection",
+      "id": 3897,
+      "name": "x_status=issued",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:26:45.390Z",
+      "model": "ir.model.fields",
+      "id": 20194,
+      "name": "x_official_doc.x_ai_prompt",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:26:47.221Z",
+      "model": "ir.model.fields",
+      "id": 20196,
+      "name": "x_official_doc.x_preview_url",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:26:49.757Z",
+      "model": "ir.model.fields",
+      "id": 20198,
+      "name": "x_official_doc.x_pdf_url",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:26:51.024Z",
+      "model": "ir.model.fields",
+      "id": 20200,
+      "name": "x_official_doc.x_issued_at",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:26:52.855Z",
+      "model": "ir.model.fields",
+      "id": 20202,
+      "name": "x_official_doc.x_last_error",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:26:54.247Z",
+      "model": "ir.model.fields",
+      "id": 20204,
+      "name": "x_official_doc.x_is_template",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:26:55.698Z",
+      "model": "ir.model.fields",
+      "id": 20206,
+      "name": "x_official_doc.x_template_name",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:26:57.851Z",
+      "model": "ir.model",
+      "id": 6092,
+      "name": "x_official_doc_block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:27:00.048Z",
+      "model": "ir.model.fields",
+      "id": 20216,
+      "name": "x_official_doc_block.x_doc_id",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:27:01.324Z",
+      "model": "ir.model.fields",
+      "id": 20218,
+      "name": "x_official_doc_block.x_sequence",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:27:03.451Z",
+      "model": "ir.model.fields",
+      "id": 20220,
+      "name": "x_official_doc_block.x_block_type",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:27:05.287Z",
+      "model": "ir.model.fields.selection",
+      "id": 3900,
+      "name": "x_block_type=heading",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:27:06.769Z",
+      "model": "ir.model.fields.selection",
+      "id": 3901,
+      "name": "x_block_type=badge",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:27:08.448Z",
+      "model": "ir.model.fields.selection",
+      "id": 3902,
+      "name": "x_block_type=paragraph",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:27:09.148Z",
+      "model": "ir.model.fields.selection",
+      "id": 3903,
+      "name": "x_block_type=kv_card",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:27:11.151Z",
+      "model": "ir.model.fields.selection",
+      "id": 3904,
+      "name": "x_block_type=table",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:27:13.156Z",
+      "model": "ir.model.fields.selection",
+      "id": 3905,
+      "name": "x_block_type=highlight_row",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:27:14.476Z",
+      "model": "ir.model.fields.selection",
+      "id": 3906,
+      "name": "x_block_type=notes",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:27:15.969Z",
+      "model": "ir.model.fields.selection",
+      "id": 3907,
+      "name": "x_block_type=signature",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:27:16.754Z",
+      "model": "ir.model.fields.selection",
+      "id": 3908,
+      "name": "x_block_type=stamp",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:27:18.827Z",
+      "model": "ir.model.fields",
+      "id": 20222,
+      "name": "x_official_doc_block.x_text",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:27:20.348Z",
+      "model": "ir.model.fields",
+      "id": 20224,
+      "name": "x_official_doc_block.x_tone",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:27:22.222Z",
+      "model": "ir.model.fields.selection",
+      "id": 3918,
+      "name": "x_tone=neutral",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:27:23.693Z",
+      "model": "ir.model.fields.selection",
+      "id": 3919,
+      "name": "x_tone=warning",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:27:25.109Z",
+      "model": "ir.model.fields.selection",
+      "id": 3920,
+      "name": "x_tone=success",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:27:26.806Z",
+      "model": "ir.model.fields",
+      "id": 20226,
+      "name": "x_official_doc_block.x_align_numbers",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:27:28.455Z",
+      "model": "ir.model.fields",
+      "id": 20228,
+      "name": "x_official_doc.x_block_ids",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:27:31.182Z",
+      "model": "ir.access",
+      "id": 1391,
+      "name": "x_official_doc.user",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:27:32.585Z",
+      "model": "ir.access",
+      "id": 1392,
+      "name": "x_official_doc.system",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:27:32.808Z",
+      "model": "ir.access",
+      "id": 1393,
+      "name": "x_official_doc_block.user",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:27:34.116Z",
+      "model": "ir.access",
+      "id": 1394,
+      "name": "x_official_doc_block.system",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:28:20.160Z",
+      "model": "ir.model.fields",
+      "id": 20174,
+      "name": "x_official_doc.x_name.copied",
+      "action": "write",
+      "before": {
+        "copied": true
+      }
+    },
+    {
+      "ts": "2026-09-22T05:29:56.420Z",
+      "model": "ir.actions.server",
+      "id": 980,
+      "name": "official-doc.preview_webhook",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:29:56.497Z",
+      "model": "ir.actions.server",
+      "id": 981,
+      "name": "official-doc.issue_webhook",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:29:56.590Z",
+      "model": "ir.actions.server",
+      "id": 982,
+      "name": "official-doc.ai_draft_webhook",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:29:56.682Z",
+      "model": "ir.ui.view",
+      "id": 2803,
+      "name": "x_official_doc_block.list",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:29:56.882Z",
+      "model": "ir.ui.view",
+      "id": 2804,
+      "name": "x_official_doc.form",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:29:57.664Z",
+      "model": "ir.ui.view",
+      "id": 2805,
+      "name": "x_official_doc.list",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:29:57.722Z",
+      "model": "ir.ui.view",
+      "id": 2806,
+      "name": "x_official_doc.search",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:29:57.800Z",
+      "model": "ir.actions.act_window",
+      "id": 983,
+      "name": "المستندات الرسمية — المستندات",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:29:57.855Z",
+      "model": "ir.actions.act_window",
+      "id": 984,
+      "name": "المستندات الرسمية — النماذج",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:29:57.924Z",
+      "model": "ir.ui.menu",
+      "id": 566,
+      "name": "📄 المستندات الرسمية",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:29:58.024Z",
+      "model": "ir.ui.menu",
+      "id": 567,
+      "name": "المستندات",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:29:58.084Z",
+      "model": "ir.ui.menu",
+      "id": 568,
+      "name": "النماذج",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:31:35.492Z",
+      "model": "x_official_doc",
+      "id": 2,
+      "name": "template:خطاب بنك — طلب عام",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:31:36.184Z",
+      "model": "x_official_doc_block",
+      "id": 3,
+      "name": "template:خطاب بنك — طلب عام:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:31:36.186Z",
+      "model": "x_official_doc_block",
+      "id": 4,
+      "name": "template:خطاب بنك — طلب عام:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:31:36.187Z",
+      "model": "x_official_doc_block",
+      "id": 5,
+      "name": "template:خطاب بنك — طلب عام:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:31:36.188Z",
+      "model": "x_official_doc_block",
+      "id": 6,
+      "name": "template:خطاب بنك — طلب عام:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:31:36.189Z",
+      "model": "x_official_doc_block",
+      "id": 7,
+      "name": "template:خطاب بنك — طلب عام:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:31:36.683Z",
+      "model": "x_official_doc",
+      "id": 3,
+      "name": "template:إفادة / تعريف",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:31:37.561Z",
+      "model": "x_official_doc_block",
+      "id": 8,
+      "name": "template:إفادة / تعريف:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:31:37.563Z",
+      "model": "x_official_doc_block",
+      "id": 9,
+      "name": "template:إفادة / تعريف:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:31:37.564Z",
+      "model": "x_official_doc_block",
+      "id": 10,
+      "name": "template:إفادة / تعريف:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:31:37.565Z",
+      "model": "x_official_doc_block",
+      "id": 11,
+      "name": "template:إفادة / تعريف:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:31:37.622Z",
+      "model": "x_official_doc",
+      "id": 4,
+      "name": "template:تفويض",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:31:37.825Z",
+      "model": "x_official_doc_block",
+      "id": 12,
+      "name": "template:تفويض:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:31:37.826Z",
+      "model": "x_official_doc_block",
+      "id": 13,
+      "name": "template:تفويض:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:31:37.827Z",
+      "model": "x_official_doc_block",
+      "id": 14,
+      "name": "template:تفويض:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:31:37.827Z",
+      "model": "x_official_doc_block",
+      "id": 15,
+      "name": "template:تفويض:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:31:37.827Z",
+      "model": "x_official_doc_block",
+      "id": 16,
+      "name": "template:تفويض:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:31:37.883Z",
+      "model": "x_official_doc",
+      "id": 5,
+      "name": "template:قائمة الدخل التقديرية",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:31:37.964Z",
+      "model": "x_official_doc_block",
+      "id": 17,
+      "name": "template:قائمة الدخل التقديرية:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:31:37.965Z",
+      "model": "x_official_doc_block",
+      "id": 18,
+      "name": "template:قائمة الدخل التقديرية:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:31:37.966Z",
+      "model": "x_official_doc_block",
+      "id": 19,
+      "name": "template:قائمة الدخل التقديرية:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:31:37.967Z",
+      "model": "x_official_doc_block",
+      "id": 20,
+      "name": "template:قائمة الدخل التقديرية:block",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T05:31:37.967Z",
+      "model": "x_official_doc_block",
+      "id": 21,
+      "name": "template:قائمة الدخل التقديرية:block",
+      "action": "create"
+    }
+  ]
+}

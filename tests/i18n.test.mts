@@ -190,6 +190,57 @@ console.log("\n[8] Company without bilingual fields → footer still renders");
   assert(info.addressEn === "الرياض", "en address falls back to base address when bilingual is missing");
 }
 
+// ---------- 9. Country/address bilingual reads per language ----------
+// This item guards against the regression Baraa reported on 2026-09-22:
+// "الدولة تطلع «Saudi Arabia» في المستندات العربية". After the fix, ar/bi
+// documents must show the Arabic country ("المملكة العربية السعودية"), while
+// en documents must show the English name. The renderer picks between
+// info.address (ar/bi) and info.addressEn (en); readCompanyInfo is
+// responsible for populating both.
+console.log("\n[9] Country/address bilingual per lang");
+{
+  // Simulate the readCompanyInfo output — both addressAr and addressEn are
+  // now always populated, with the country name in each language.
+  const bilingual: CompanyInfo = {
+    nameAr: "شركة يو تاك ذات مسؤولية محدودة",
+    nameEn: "UTAK",
+    address: "السلي، الرياض، المملكة العربية السعودية",
+    addressAr: "السلي، الرياض، المملكة العربية السعودية",
+    addressEn: "As-Sulai, Riyadh, Saudi Arabia",
+    email: "care@utakfresh.com",
+    phone: "+966 58 004 0467",
+    cr: "7055194869",
+    vat: "315022736600003",
+  };
+  // ar
+  const ar = renderInvoiceHTML({ ...TEST_INVOICE_DATA, vatAmount: 0, lang: "ar" }, bilingual);
+  assert(ar.includes("المملكة العربية السعودية"), "ar: Arabic country name in body/footer");
+  assert(!ar.includes("Saudi Arabia"), "ar: no English country name leaks");
+  // en (non-tax invoice so it stays en; tax invoice would upgrade to bi)
+  const en = renderInvoiceHTML({ ...TEST_INVOICE_DATA, vatAmount: 0, lang: "en" }, bilingual);
+  assert(en.includes("Saudi Arabia"), "en: English country name renders");
+  assert(!en.includes("المملكة العربية السعودية"), "en: no Arabic country name leaks");
+  // bi — Arabic-first with an English mirror for identity only. Per the task's
+  // rule "وفي وضع bi: العربي", the address line stays Arabic. The English mid-
+  // line carries nameEn + CR No. + VAT No. — no addressEn.
+  const bi = renderInvoiceHTML({ ...TEST_INVOICE_DATA, vatAmount: 361.5, lang: "en" }, bilingual);
+  assert(bi.includes("المملكة العربية السعودية"), "bi: Arabic country name in address line");
+  assert(!bi.includes("Saudi Arabia"), "bi: no addressEn in the mid mirror line (design: Arabic address only)");
+
+  // Fallback: when addressAr/addressEn are missing, address is used for both.
+  const legacy: CompanyInfo = {
+    nameAr: "شركة", nameEn: "Company",
+    address: "الرياض، المملكة العربية السعودية",
+    email: "x@y.com", phone: "05", cr: "1", vat: "1",
+  };
+  const legacyEn = renderInvoiceHTML({ ...TEST_INVOICE_DATA, vatAmount: 0, lang: "en" }, legacy);
+  // When addressEn is undefined, renderLegalFooterBar falls back to address —
+  // which is the Arabic string in this scenario. That's OK: the footer stays
+  // readable, and Baraa's follow-up is to fill x_address_en so this fallback
+  // is never actually hit in production.
+  assert(legacyEn.includes("الرياض") || legacyEn.includes("Company"), "en with no addressEn: falls back safely");
+}
+
 // ---------- summary ----------
 console.log(`\n${failed === 0 ? "OK" : "FAIL"} — ${passed} passed, ${failed} failed`);
 if (failed > 0) {

@@ -570,6 +570,20 @@
       "id": 21,
       "name": "template:قائمة الدخل التقديرية:block",
       "action": "create"
+    },
+    {
+      "ts": "2026-09-22T06:14:22.698Z",
+      "model": "ir.model.fields",
+      "id": 20230,
+      "name": "res.company.x_company_registry",
+      "action": "create"
+    },
+    {
+      "ts": "2026-09-22T06:14:23.021Z",
+      "model": "ir.ui.view",
+      "id": 2807,
+      "name": "res.company.form.x_company_registry",
+      "action": "create"
     }
   ]
 }

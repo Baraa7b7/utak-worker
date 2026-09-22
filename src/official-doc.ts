@@ -447,6 +447,7 @@ export function renderOfficialDocHTML(ctx: OfficialDocRenderContext): string {
     vat: company.vat,
     address: company.address,
     phone: company.phone,
+    email: company.email,
   };
 
   const aboveBody = renderSubjectStrip(
@@ -678,7 +679,7 @@ export async function readCompanyInfo(env: Env): Promise<CompanyInfo> {
   // `company_registry` or `mobile`. We probe ir.model.fields first, then
   // read only fields the tenant actually has. Missing fields collapse to
   // "", which the legal-footer renderer hides.
-  const BASE_FIELDS = ["id", "name", "vat", "street", "street2", "city", "country_id", "zip", "phone", "email"];
+  const BASE_FIELDS = ["id", "name", "vat", "street", "street2", "city", "country_id", "zip", "phone", "email", "partner_id"];
   const OPTIONAL_FIELDS = ["mobile", "company_registry", "x_company_registry", "x_cr"];
   const availableRows = await call<Array<{ name: string }>>(env, "ir.model.fields", "search_read", {
     domain: [["model", "=", "res.company"], ["name", "in", OPTIONAL_FIELDS]],
@@ -702,11 +703,30 @@ export async function readCompanyInfo(env: Env): Promise<CompanyInfo> {
   // CR: prefer built-in company_registry, then x_company_registry, then x_cr.
   const cr = readStr("company_registry") || readStr("x_company_registry") || readStr("x_cr");
   const mobile = readStr("mobile");
+  // Email fallback: some tenants leave res.company.email blank and keep the
+  // canonical address on the linked res.partner. Read it only when the
+  // company row itself has no email — one extra RPC, only in that case.
+  let email = readStr("email");
+  const partnerPair = c.partner_id;
+  const partnerId = Array.isArray(partnerPair) && typeof partnerPair[0] === "number" ? partnerPair[0] : 0;
+  if (!email && partnerId > 0) {
+    try {
+      const prows = await call<Array<Record<string, unknown>>>(env, "res.partner", "read", {
+        ids: [partnerId],
+        fields: ["email"],
+      });
+      const pv = prows[0]?.email;
+      if (typeof pv === "string") email = pv;
+    } catch {
+      // Silent — a permission error or a field-absent tenant just leaves
+      // email = "" and the footer line drops.
+    }
+  }
   return {
     nameAr: readStr("name") || "UTAK — يو تاك",
     nameEn: "UTAK",
     address: addrParts.join("، "),
-    email: readStr("email"),
+    email,
     phone: mobile || readStr("phone"),
     cr,
     vat: readStr("vat"),

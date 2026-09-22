@@ -182,20 +182,29 @@ function renderHeader(
 }
 
 // Additive: rendered at the very bottom of the page (below the "شكراً"
-// line) when `legalFooterBar` is passed. Empty fields drop entirely.
-// The 5 legacy documents never pass it, so this function is never called
-// for them.
+// line) when `legalFooterBar` is passed. Two thin lines — identity /
+// contact — with empty fields dropped so no orphan " · " ever shows on
+// either end. Latin/number-heavy fields (phone, email) sit inside <bdi
+// dir="ltr"> so they render left-to-right inside the RTL page.
+// The 5 legacy documents never pass legalFooterBar, so this function is
+// never called for them.
 function renderLegalFooterBar(info: LegalFooterInfo): string {
-  const parts: string[] = [];
-  if (info.name && info.name.trim()) parts.push(escapeHTML(info.name.trim()));
-  if (info.cr && info.cr.trim()) parts.push(`س.ت ${escapeHTML(info.cr.trim())}`);
-  if (info.vat && info.vat.trim()) parts.push(`الرقم الضريبي ${escapeHTML(info.vat.trim())}`);
-  if (info.address && info.address.trim()) parts.push(escapeHTML(info.address.trim()));
-  if (info.phone && info.phone.trim()) parts.push(escapeHTML(info.phone.trim()));
-  if (info.email && info.email.trim()) parts.push(escapeHTML(info.email.trim()));
-  if (parts.length === 0) return "";
-  return `<div style="height: 8px;"></div>
-    <div style="text-align: center; font-size: 8.5px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.06em; line-height: 1.6;">${parts.join(" · ")}</div>`;
+  const line1: string[] = [];
+  if (info.name && info.name.trim()) line1.push(escapeHTML(info.name.trim()));
+  if (info.cr && info.cr.trim()) line1.push(`س.ت <bdi dir="ltr">${escapeHTML(info.cr.trim())}</bdi>`);
+  if (info.vat && info.vat.trim()) line1.push(`الرقم الضريبي <bdi dir="ltr">${escapeHTML(info.vat.trim())}</bdi>`);
+
+  const line2: string[] = [];
+  if (info.address && info.address.trim()) line2.push(escapeHTML(info.address.trim()));
+  if (info.phone && info.phone.trim()) line2.push(`<bdi dir="ltr">${escapeHTML(info.phone.trim())}</bdi>`);
+  if (info.email && info.email.trim()) line2.push(`<bdi dir="ltr">${escapeHTML(info.email.trim())}</bdi>`);
+
+  if (line1.length === 0 && line2.length === 0) return "";
+  const lineStyle = `text-align: center; font-size: 8.5px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.06em; line-height: 1.6;`;
+  const parts: string[] = [`<div style="height: 8px;"></div>`];
+  if (line1.length > 0) parts.push(`<div style="${lineStyle}">${line1.join(" · ")}</div>`);
+  if (line2.length > 0) parts.push(`<div style="${lineStyle}">${line2.join(" · ")}</div>`);
+  return parts.join("\n    ");
 }
 
 function renderFooter(footerNote: string, showZatcaQR: boolean): string {

@@ -248,8 +248,107 @@ console.log("\n[7] renderPDFShell additive path");
   assert(legacy !== additive, "additive path yields distinct HTML");
   assert(!additive.includes("BILL TO"), "additive: no BILL TO when hideBillTo");
   assert(!additive.includes("شكراً"), "additive: no thanks line when hideThanks");
-  assert(additive.includes("س.ت 1"), "additive: legal footer CR rendered");
-  assert(additive.includes("الرقم الضريبي 2"), "additive: legal footer VAT rendered");
+  assert(additive.includes(`س.ت <bdi dir="ltr">1</bdi>`), "additive: legal footer CR rendered in bdi");
+  assert(additive.includes(`الرقم الضريبي <bdi dir="ltr">2</bdi>`), "additive: legal footer VAT rendered in bdi");
+}
+
+// ---------- 8. legal-footer two-line rendering ----------
+console.log("\n[8] legal footer — two-line, empty-safe, bdi-wrapped numbers");
+{
+  const billTo: PartyInfo = { name: "X", address: "Y", phone: "Z" };
+  const shellArgs = {
+    documentTitle: "T", documentNumber: "N", documentDate: new Date(0),
+    billTo, bodyHTML: "<p>b</p>", pageMetrics: computePageMetrics(0),
+    hideFooterNote: true, hideThanks: true, hideBillTo: true, hideFrom: true,
+  } as const;
+
+  // Isolate the legal-footer strip using a stable style anchor
+  // (font-size: 8.5px is unique to the footer lines in the shell).
+  const extractLegal = (html: string): string[] =>
+    Array.from(html.matchAll(/<div style="text-align: center; font-size: 8\.5px[^"]*">([^]*?)<\/div>/g))
+      .map((m) => m[1]);
+
+  // (a) Full — every field present. Use a distinctive company name that
+  // does NOT match the watermark BRAND_INFO.nameEn ("UTAK") so we can
+  // isolate line 1 by matching it inside the legal strip only.
+  const full = renderPDFShell({
+    ...shellArgs,
+    legalFooterBar: {
+      name: "شركة اختبار الفوتر",
+      cr: "1010000000",
+      vat: "300000000000003",
+      address: "الرياض، المملكة العربية السعودية",
+      phone: "+966 58 004 0467",
+      email: "care@utakfresh.com",
+    },
+  });
+  const fullLines = extractLegal(full);
+  assert(fullLines.length === 2, `full footer: exactly 2 rendered lines (got ${fullLines.length})`);
+  assert(fullLines[0].includes("شركة اختبار الفوتر"), "full footer: line 1 has name");
+  assert(fullLines[0].includes(`س.ت <bdi dir="ltr">1010000000</bdi>`), "full footer: line 1 has CR in bdi");
+  assert(fullLines[0].includes(`الرقم الضريبي <bdi dir="ltr">300000000000003</bdi>`), "full footer: line 1 has VAT in bdi");
+  assert(fullLines[1].includes("الرياض، المملكة العربية السعودية"), "full footer: line 2 has address");
+  assert(fullLines[1].includes(`<bdi dir="ltr">+966 58 004 0467</bdi>`), "full footer: line 2 has phone in bdi");
+  assert(fullLines[1].includes(`<bdi dir="ltr">care@utakfresh.com</bdi>`), "full footer: line 2 has email in bdi");
+  // No orphan separator inside either line.
+  for (const [i, l] of fullLines.entries()) {
+    assert(!/^\s* · /.test(l), `full footer: line ${i + 1} does not start with separator`);
+    assert(!/ · \s*$/.test(l), `full footer: line ${i + 1} does not end with separator`);
+  }
+
+  // (b) No CR, no VAT — line 1 has only the name, no orphan " · ".
+  const noCrNoVat = renderPDFShell({
+    ...shellArgs,
+    legalFooterBar: {
+      name: "شركة اختبار الفوتر",
+      address: "الرياض",
+      phone: "0580040467",
+      email: "care@utakfresh.com",
+    },
+  });
+  const noCrLines = extractLegal(noCrNoVat);
+  assert(noCrLines.length === 2, `no CR/VAT: 2 lines (got ${noCrLines.length})`);
+  assert(!noCrLines[0].includes("س.ت"), "no CR/VAT: line 1 has no س.ت label");
+  assert(!noCrLines[0].includes("الرقم الضريبي"), "no CR/VAT: line 1 has no VAT label");
+  assert(noCrLines[0].trim() === "شركة اختبار الفوتر", "no CR/VAT: line 1 is exactly the name — no separators");
+
+  // (c) No email — line 2 has address + phone only, no orphan " · " at end.
+  const noEmail = renderPDFShell({
+    ...shellArgs,
+    legalFooterBar: {
+      name: "شركة اختبار الفوتر",
+      cr: "1010000000",
+      vat: "3000",
+      address: "الرياض",
+      phone: "0580040467",
+    },
+  });
+  const noEmailLines = extractLegal(noEmail);
+  assert(noEmailLines.length === 2, `no email: 2 lines (got ${noEmailLines.length})`);
+  assert(!noEmailLines[1].includes("@"), "no email: line 2 has no @ character");
+  assert(!/ · \s*$/.test(noEmailLines[1]), "no email: line 2 does not end with separator");
+  // Line 2 should end at the phone bdi.
+  assert(noEmailLines[1].trim().endsWith("</bdi>"), "no email: line 2 ends at phone bdi close");
+
+  // (d) Completely empty legalFooterBar → footer bar renders nothing.
+  const emptyFooter = renderPDFShell({ ...shellArgs, legalFooterBar: {} });
+  const emptyFooterWithout = renderPDFShell({ ...shellArgs });
+  const emptyLines = extractLegal(emptyFooter);
+  assert(emptyLines.length === 0, "empty footer: no legal-line divs rendered");
+  // Sanity: with-empty-object and without-flag versions produce equivalent output.
+  assert(emptyFooter.replace(/\s+/g, "") === emptyFooterWithout.replace(/\s+/g, ""),
+    "empty footer: equivalent to omitting the flag");
+
+  // (e) Only email → line 1 skipped entirely, line 2 has email only.
+  const onlyEmail = renderPDFShell({ ...shellArgs, legalFooterBar: { email: "x@y.com" } });
+  const onlyEmailLines = extractLegal(onlyEmail);
+  assert(onlyEmailLines.length === 1, `only-email: 1 line (got ${onlyEmailLines.length})`);
+  assert(onlyEmailLines[0].trim() === `<bdi dir="ltr">x@y.com</bdi>`, "only-email: line is bare bdi-wrapped email");
+
+  // (f) Legacy fixtures are unaffected: no legal-footer strip present.
+  const invoice = renderInvoiceHTML(TEST_INVOICE_DATA);
+  assert(extractLegal(invoice).length === 0, "legacy invoice: no legal-footer strip");
+  assert(!invoice.includes(`<bdi dir="ltr">`), "legacy invoice: no legal-footer bdi bleed");
 }
 
 // ---------- summary ----------

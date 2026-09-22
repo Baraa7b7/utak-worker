@@ -402,6 +402,114 @@ export default {
       );
     }
 
+    // 2026-09-22 — «المستندات الرسمية» pipeline endpoints.
+    // Same shape as /internal/quotation-issue: shared token in ?token=,
+    // 202 async, ctx.waitUntil runs the full pipeline. Any pipeline error
+    // is written back to x_official_doc.x_last_error so the operator sees
+    // it in the Odoo form.
+    if (
+      request.method === "POST" &&
+      (url.pathname === "/internal/official-doc/preview" ||
+        url.pathname === "/internal/official-doc/issue" ||
+        url.pathname === "/internal/official-doc/ai-draft")
+    ) {
+      if (!env.INTERNAL_WEBHOOK_SECRET) {
+        return json({ error: "service misconfigured — INTERNAL_WEBHOOK_SECRET missing" }, 500);
+      }
+      const providedToken = url.searchParams.get("token") ?? "";
+      if (!providedToken || !timingSafeEqual(providedToken, env.INTERNAL_WEBHOOK_SECRET)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      let body: { doc_id?: number; _id?: number; _model?: string } = {};
+      try {
+        body = (await request.json()) as typeof body;
+      } catch {
+        return json({ error: "bad json" }, 400);
+      }
+      if (body._model && body._model !== "x_official_doc") {
+        return json({ error: `unexpected model: ${body._model}` }, 400);
+      }
+      const docId = Number(body.doc_id ?? body._id);
+      if (!Number.isFinite(docId) || docId <= 0) {
+        return json({ error: "invalid doc_id / _id" }, 400);
+      }
+      const action =
+        url.pathname === "/internal/official-doc/preview" ? "preview" :
+          url.pathname === "/internal/official-doc/issue" ? "issue" : "ai-draft";
+      ctx.waitUntil(
+        (async () => {
+          try {
+            const {
+              runPreviewPipeline,
+              runIssuePipeline,
+              runAIDraftPipeline,
+            } = await import("./official-doc");
+            if (action === "preview") {
+              await runPreviewPipeline(env, { docId, workerOrigin: env.WORKER_ORIGIN });
+            } else if (action === "issue") {
+              await runIssuePipeline(env, { docId, workerOrigin: env.WORKER_ORIGIN });
+            } else {
+              await runAIDraftPipeline(env, { docId });
+            }
+          } catch (e) {
+            const msg = (e as Error).message ?? String(e);
+            console.error(`[official-doc:${action}] FAILED id=${docId}`, msg, (e as Error).stack);
+            // Best-effort write-back of the failure — never re-throws.
+            try {
+              const { call } = await import("./odoo");
+              await call<boolean>(env, "x_official_doc", "write", {
+                ids: [docId],
+                vals: { x_last_error: msg.slice(0, 500) },
+              });
+            } catch (writeErr) {
+              console.error(`[official-doc:${action}] writeback also failed`, (writeErr as Error).message);
+            }
+          }
+        })(),
+      );
+      return new Response(
+        JSON.stringify({ status: "accepted", doc_id: docId, action }),
+        { status: 202, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    // 2026-09-22 — PUBLIC: serves an official-doc PDF from R2 by signed URL.
+    // Final path shape:   /official-doc-pdf/UTAK-L-2026-001/{tok}.pdf
+    // Preview path shape: /official-doc-pdf/preview-{docId}-{ts}/{tok}.pdf
+    // The signed name is exactly what signDocToken hashed for that upload;
+    // final docs live under R2 key official-docs/<name>.pdf, previews under
+    // official-docs/previews/<docId>-<ts>.pdf.
+    if (request.method === "GET" && url.pathname.startsWith("/official-doc-pdf/")) {
+      const path = url.pathname.substring("/official-doc-pdf/".length);
+      const match = /^(.+?)\/([a-f0-9]{16})\.pdf$/.exec(path);
+      if (!match) return new Response("not found", { status: 404 });
+      let docName: string;
+      try {
+        docName = decodeURIComponent(match[1]);
+      } catch {
+        return new Response("not found", { status: 404 });
+      }
+      const providedTok = match[2];
+      if (!env.ADMIN_TOKEN) return new Response("service misconfigured", { status: 500 });
+      const { verifyOfficialDocToken } = await import("./official-doc");
+      const valid = await verifyOfficialDocToken(env.ADMIN_TOKEN, docName, providedTok);
+      if (!valid) return new Response("not found", { status: 404 });
+      const previewMatch = /^preview-(\d+)-(\d+)$/.exec(docName);
+      const key = previewMatch
+        ? `official-docs/previews/${previewMatch[1]}-${previewMatch[2]}.pdf`
+        : `official-docs/${docName}.pdf`;
+      const obj = await env.INVOICES_BUCKET.get(key);
+      if (!obj) return new Response("not found", { status: 404 });
+      return new Response(obj.body, {
+        status: 200,
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `inline; filename="${docName}.pdf"`,
+          "Cache-Control": "private, max-age=300",
+        },
+      });
+    }
+
     // 2026-09-12 — Diagnostic: run the full receipt pipeline SYNCHRONOUSLY with
     // per-step try/catch, so a failing step is visible in the JSON response
     // instead of hiding in a Worker log line. Mirrors createAndDispatchReceiptForRecord

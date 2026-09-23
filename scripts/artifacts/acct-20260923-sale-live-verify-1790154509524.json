@@ -1,0 +1,257 @@
+{
+  "started_at": "2026-09-23T09:07:36.020Z",
+  "riyadh_today": "2026-09-23",
+  "cycles": {
+    "ط": {
+      "order": 36,
+      "sale_order": 12,
+      "x_invoice": 22,
+      "invoice": {
+        "id": 45,
+        "name": "INV/2026/00013",
+        "state": "posted",
+        "amount_total": 60,
+        "payment_state": "not_paid",
+        "move_type": "out_invoice"
+      },
+      "so_lines": [
+        {
+          "id": 25,
+          "sequence": 25,
+          "product_uom_qty": 2,
+          "qty_delivered": 2,
+          "qty_invoiced": 2,
+          "price_unit": 20,
+          "price_total": 40
+        },
+        {
+          "id": 26,
+          "sequence": 26,
+          "product_uom_qty": 1,
+          "qty_delivered": 1,
+          "qty_invoiced": 1,
+          "price_unit": 20,
+          "price_total": 20
+        }
+      ],
+      "delta": {
+        "102011": 60,
+        "500001": -60
+      }
+    },
+    "ي": {
+      "order": 37,
+      "sale_order": 13,
+      "x_invoice": 23,
+      "invoice": {
+        "id": 46,
+        "name": "INV/2026/00014",
+        "state": "posted",
+        "amount_total": 40,
+        "payment_state": "not_paid",
+        "move_type": "out_invoice"
+      },
+      "so_lines": [
+        {
+          "id": 27,
+          "sequence": 27,
+          "product_uom_qty": 2,
+          "qty_delivered": 2,
+          "qty_invoiced": 2,
+          "price_unit": 20,
+          "price_total": 40
+        },
+        {
+          "id": 28,
+          "sequence": 28,
+          "product_uom_qty": 1,
+          "qty_delivered": 0,
+          "qty_invoiced": 0,
+          "price_unit": 20,
+          "price_total": 20
+        }
+      ],
+      "uninvoiced": 20,
+      "delta": {
+        "102011": 40,
+        "500001": -40
+      }
+    },
+    "ك": {
+      "order": 38,
+      "sale_order": 14,
+      "sale_orders_by_origin": 1,
+      "x_invoices": 1,
+      "invoices": [
+        {
+          "id": 47,
+          "name": "INV/2026/00015",
+          "state": "posted",
+          "amount_total": 30,
+          "payment_state": "not_paid",
+          "move_type": "out_invoice"
+        }
+      ],
+      "delta": {
+        "102011": 30,
+        "500001": -30
+      }
+    },
+    "ل": {
+      "x_invoice": 22,
+      "sends": [
+        {
+          "invoiceId": 22,
+          "at": "2026-09-23T09:08:15.531Z"
+        }
+      ],
+      "sent_at": "2026-09-23 09:08:15",
+      "payments": [
+        {
+          "id": 13,
+          "x_amount": 30,
+          "x_account_payment_id": [
+            9,
+            "PCSHD/2026/00001"
+          ]
+        },
+        {
+          "id": 14,
+          "x_amount": 30,
+          "x_account_payment_id": [
+            10,
+            "PCSHD/2026/00002"
+          ]
+        }
+      ],
+      "delta": {
+        "101007": 60,
+        "102011": -60
+      },
+      "outcomes": [
+        "تم تسجيل تحصيل جزئي نقد 💵 30 ر.س — الفاتورة UTAK-INV-20260923-012 (المتبقي 30 ر.س)",
+        "تم تسجيل التحصيل نقد 💵 — الفاتورة UTAK-INV-20260923-012 ✅",
+        "الفاتورة UTAK-INV-20260923-012 تم تحصيلها مسبقاً ✅"
+      ]
+    }
+  },
+  "created": {
+    "orders": [
+      36,
+      37,
+      38
+    ],
+    "lines": [
+      25,
+      26,
+      27,
+      28,
+      29
+    ],
+    "x_invoices": [
+      22,
+      23,
+      24
+    ],
+    "x_payments": [
+      13,
+      14
+    ],
+    "sale_orders": [
+      12,
+      13,
+      14
+    ],
+    "invoices": [
+      45,
+      46,
+      47
+    ],
+    "payments": [
+      9,
+      10
+    ],
+    "credit_notes": [
+      50,
+      51,
+      52
+    ]
+  },
+  "baseline": {
+    "102011": 0,
+    "104041": 0,
+    "201002": 0,
+    "400001": 0,
+    "500001": 0
+  },
+  "stock_before": {
+    "picking": 4,
+    "quant": 0
+  },
+  "stock_after_cycles": {
+    "picking": 4,
+    "quant": 0
+  },
+  "before_reversal": {
+    "101007": 60,
+    "102011": 70,
+    "500001": -130
+  },
+  "after_reversal_vs_baseline": {},
+  "global_after": {},
+  "sale_order_final": [
+    {
+      "id": 12,
+      "name": "S00012",
+      "state": "cancel",
+      "locked": false,
+      "how": "cancel"
+    },
+    {
+      "id": 13,
+      "name": "S00013",
+      "state": "cancel",
+      "locked": false,
+      "how": "cancel"
+    },
+    {
+      "id": 14,
+      "name": "S00014",
+      "state": "cancel",
+      "locked": false,
+      "how": "cancel"
+    }
+  ],
+  "deleted": {
+    "x_payment": [
+      13,
+      14
+    ],
+    "x_invoice": [
+      22,
+      23,
+      24
+    ],
+    "x_daily_order_line": [
+      25,
+      26,
+      27,
+      28,
+      29
+    ],
+    "x_daily_order": [
+      36,
+      37,
+      38
+    ]
+  },
+  "stock_after_cleanup": {
+    "picking": 4,
+    "quant": 0
+  },
+  "graph_hits": 0,
+  "accounting_errors": [
+    "[sale-accounting] فاتورة UTAK-INV-20260923-014 (الطلب #38، أمر البيع 14): يوجد على أمر البيع فاتورة قائمة غير مربوطة (INV/2026/00015/47) — راجعها يدوياً، ولم يُربط شيء"
+  ],
+  "failures": 0
+}

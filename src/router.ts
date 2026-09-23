@@ -556,11 +556,17 @@ async function handleButton(
 
   if (action === "confirm_order") {
     await updateOrderState(env, orderId, "confirmed");
+    // 2026-09-23 (ACCOUNTING_SYNC) — confirmed order → confirmed sale.order.
+    // Never throws; the customer reply does not depend on it.
+    const { ensureSaleOrderForDailyOrder } = await import("./sale-accounting");
+    await ensureSaleOrderForDailyOrder(env, orderId);
     return { text: "تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿" };
   }
 
   if (action === "cancel_order") {
     await updateOrderState(env, orderId, "cancelled");
+    const { cancelSaleOrderForDailyOrder } = await import("./sale-accounting");
+    await cancelSaleOrderForDailyOrder(env, orderId);
     return { text: "تم الإلغاء. نستناك المرة الجاية 🌿" };
   }
 

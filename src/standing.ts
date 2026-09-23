@@ -48,6 +48,9 @@ export async function handleStandingConfirm(env: Env, standingId: number): Promi
   const orderId = await createOrderFromStanding(env, stan);
   if (!orderId) return "ما قدرنا نجهّز الطلب. تواصل مع الإدارة.";
   await setOrderConfirmed(env, orderId);
+  // 2026-09-23 (ACCOUNTING_SYNC) — confirmed order → confirmed sale.order.
+  const { ensureSaleOrderForDailyOrder } = await import("./sale-accounting");
+  await ensureSaleOrderForDailyOrder(env, orderId);
   return `تم ✅ طلبك المعتاد رقم #${orderId} تحت التجهيز.`;
 }
 

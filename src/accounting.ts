@@ -622,7 +622,7 @@ export function evaluateInvoiceGuard(f: { moveState: string; lines: GuardLine[];
   return { ok: reasons.length === 0, reasons };
 }
 
-async function readMoveLinesWithTypes(env: Env, moveId: number): Promise<GuardLine[]> {
+export async function readMoveLinesWithTypes(env: Env, moveId: number): Promise<GuardLine[]> {
   type Line = {
     account_id: [number, string] | false;
     debit: number;
@@ -694,7 +694,7 @@ async function cancelPaymentQuietly(env: Env, paymentId: number): Promise<void> 
   catch (e) { console.warn(`[accounting] payment ${paymentId} action_cancel:`, (e as Error).message); }
 }
 
-async function cancelMoveQuietly(env: Env, moveId: number): Promise<void> {
+export async function cancelMoveQuietly(env: Env, moveId: number): Promise<void> {
   try { await call<boolean>(env, "account.move", "button_draft", { ids: [moveId] }); }
   catch (e) { console.warn(`[accounting] move ${moveId} button_draft:`, (e as Error).message); }
   try { await call<boolean>(env, "account.move", "button_cancel", { ids: [moveId] }); }

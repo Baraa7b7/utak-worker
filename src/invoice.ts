@@ -20,13 +20,17 @@ import {
 } from "./odoo";
 import {
   isAccountingSyncEnabled,
-  syncInvoiceToAccounting,
   syncPaymentToAccounting,
   todayRiyadhYmd,
   resolveSaleTaxForDate,
   computeInclusiveTotals,
   type SaleTax,
 } from "./accounting";
+import {
+  ensureSaleOrderForDailyOrder,
+  invoiceSaleOrderOnDelivery,
+  saleLineDescription,
+} from "./sale-accounting";
 import { sendText, sendButtons } from "./meta";
 import { sendOwnerAlert, sendTemplateByPurpose, T } from "./templates";
 import {
@@ -59,6 +63,26 @@ export async function createAndDispatchInvoiceForOrder(
   if (!order) {
     console.warn(`[invoice] order ${orderId} not found or empty`);
     return null;
+  }
+
+  // 2026-09-23 (ACCOUNTING_SYNC) — sale-order flow. A second «delivered» tap
+  // reuses the order's x_invoice instead of issuing (and sending) a second
+  // one, and an order whose every line is a shortage issues no invoice at
+  // all: the sale order stays open, un-invoiced, and the owner is alerted.
+  const accountingOn = isAccountingSyncEnabled(env);
+  if (accountingOn) {
+    const existing = await findInvoiceForOrder(env, orderId);
+    if (existing) {
+      console.log(`[invoice] order ${orderId} already has x_invoice ${existing.invoiceId} (${existing.number}) — no second invoice`);
+      return existing;
+    }
+    if (order.lines.length === 0) {
+      await ensureSaleOrderForDailyOrder(env, orderId);
+      const msg = `[invoice] الطلب ${orderId}: كل الأصناف ناقصة — لم تصدر فاتورة، وأمر البيع باقٍ بلا فوترة`;
+      console.warn(msg);
+      try { await sendOwnerAlert(env, msg); } catch { /* alert must not block */ }
+      return null;
+    }
   }
 
   let subtotal = 0;
@@ -128,24 +152,23 @@ export async function createAndDispatchInvoiceForOrder(
   });
 
   // Parallel accounting write. Gated on ACCOUNTING_SYNC and swallows every
-  // failure — the x_invoice row and the WhatsApp send below are the source
+  // failure — the x_invoice row and the WhatsApp sends below are the source
   // of truth, and must not break because the standard-ledger twin fails.
-  if (isAccountingSyncEnabled(env)) {
+  // 2026-09-23 — the invoice is created FROM the order's sale.order (billing
+  // the delivered quantities: shortages were filtered out above), no longer
+  // as a standalone account.move.
+  if (accountingOn) {
     try {
-      const orderLineByProduct = new Map(
-        order.lines.map((l) => [l.id, l.product_id]),
-      );
-      await syncInvoiceToAccounting(env, {
+      await invoiceSaleOrderOnDelivery(env, {
         invoiceId,
         existingMoveId: null,
         invoiceNumber,
-        customerPartnerId: order.customer_id,
-        invoiceDate: invoiceDateYmd,
-        lines: pricedLines.map((p) => ({
-          product_tmpl_id: orderLineByProduct.get(p.lineId) ?? 0,
-          description: `${p.product} ${p.packaging}`.trim(),
+        orderId,
+        delivered: pricedLines.map((p) => ({
+          lineId: p.lineId,
+          description: saleLineDescription(p.product, p.packaging),
           quantity: p.qty,
-          price_unit: p.unit,
+          priceUnit: p.unit,
         })),
         expectedTotal: total,
       });
@@ -164,10 +187,6 @@ export async function createAndDispatchInvoiceForOrder(
     console.warn(`[invoice] failed to write line prices back`, (e as Error).message);
   }
 
-  const linesFormatted = pricedLines
-    .map(p => `• ${p.product} × ${p.qty} = ${p.line_total} ر.س`)
-    .join("\n");
-
   // Generate PDF via Gotenberg → upload to R2 → send template with document header
   let pdfUrl: string | null = null;
   try {
@@ -182,35 +201,28 @@ export async function createAndDispatchInvoiceForOrder(
     console.warn(`[invoice] PDF pipeline failed`, (e as Error).message);
   }
 
-  const invoiceDate = new Date().toLocaleDateString("en-GB", {
-    day: "2-digit", month: "short", year: "numeric",
-  });
-
-  try {
-    let resp: Response | null = null;
-    if (pdfUrl) {
-      // New path: send utak_invoice_pdf_v1 with document header
-      resp = await sendTemplateByPurpose(
-        env,
-        order.customer_whatsapp,
-        T.CUSTOMER_INVOICE_PDF,
-        [order.customer_name || "", invoiceNumber, invoiceDate, String(total)],
-        [],
-        { type: "document", link: pdfUrl, filename: `${invoiceNumber}.pdf` },
-      );
+  // 2026-09-23 (ACCOUNTING_SYNC) — the invoice reaches the customer only
+  // once it is fully collected (sendInvoiceToCustomerIfPaid, collection
+  // path). Issue, posting and the archived PDF above stay at delivery.
+  if (accountingOn) {
+    console.log(`[invoice] ${invoiceNumber}: customer WhatsApp deferred until fully collected`);
+  } else {
+    try {
+      await dispatchInvoiceToCustomer(env, {
+        to: order.customer_whatsapp,
+        customerName: order.customer_name,
+        invoiceNumber,
+        invoiceDateYmd,
+        total,
+        subtotal,
+        tax,
+        pdfUrl,
+        lines: pricedLines,
+      });
+      await writeInvoice(env, invoiceId, { x_sent_to_customer_at: nowOdoo() });
+    } catch (e) {
+      console.warn(`[invoice] failed to send to customer`, (e as Error).message);
     }
-    if (!resp || !resp.ok) {
-      // Fallback: old text template
-      resp = await sendTemplateByPurpose(env, order.customer_whatsapp, T.CUSTOMER_INVOICE,
-        [order.customer_name || "", invoiceNumber, linesFormatted, String(total)]);
-    }
-    if (!resp || !resp.ok) {
-      const customerText = buildCustomerInvoiceText(invoiceNumber, pricedLines, subtotal, total, tax);
-      await sendText(env, order.customer_whatsapp, customerText);
-    }
-    await writeInvoice(env, invoiceId, { x_sent_to_customer_at: nowOdoo() });
-  } catch (e) {
-    console.warn(`[invoice] failed to send to customer`, (e as Error).message);
   }
 
   const collectors = await getCollectorTeamMembers(env);
@@ -254,7 +266,184 @@ export async function createAndDispatchInvoiceForOrder(
 }
 
 // --------------------------------------------------------------
-// 5.3 — Collection button handler (unchanged)
+// Customer invoice WhatsApp — shared by the issue path (ACCOUNTING_SYNC off)
+// and the paid path (ACCOUNTING_SYNC on, sendInvoiceToCustomerIfPaid).
+// --------------------------------------------------------------
+interface CustomerInvoiceSend {
+  to: string;
+  customerName: string;
+  invoiceNumber: string;
+  /** YYYY-MM-DD (Riyadh) — shown as e.g. "23 Sept 2026". */
+  invoiceDateYmd: string;
+  total: number;
+  subtotal: number;
+  tax: number;
+  pdfUrl: string | null;
+  lines: Array<{ product: string; packaging: string; qty: number; unit: number; line_total: number }>;
+}
+
+/** PDF template → text template → plain text. Throws when all three fail. */
+async function dispatchInvoiceToCustomer(env: Env, a: CustomerInvoiceSend): Promise<void> {
+  if (!a.to) throw new Error("customer has no WhatsApp number");
+  const invoiceDate = new Date(`${a.invoiceDateYmd}T12:00:00Z`).toLocaleDateString("en-GB", {
+    day: "2-digit", month: "short", year: "numeric",
+  });
+  let resp: Response | null = null;
+  if (a.pdfUrl) {
+    // utak_invoice_pdf_v1 with document header
+    resp = await sendTemplateByPurpose(
+      env,
+      a.to,
+      T.CUSTOMER_INVOICE_PDF,
+      [a.customerName || "", a.invoiceNumber, invoiceDate, String(a.total)],
+      [],
+      { type: "document", link: a.pdfUrl, filename: `${a.invoiceNumber}.pdf` },
+    );
+  }
+  if (!resp || !resp.ok) {
+    // Fallback: old text template
+    const linesFormatted = a.lines
+      .map(p => `• ${p.product} × ${p.qty} = ${p.line_total} ر.س`)
+      .join("\n");
+    resp = await sendTemplateByPurpose(env, a.to, T.CUSTOMER_INVOICE,
+      [a.customerName || "", a.invoiceNumber, linesFormatted, String(a.total)]);
+  }
+  if (!resp || !resp.ok) {
+    const customerText = buildCustomerInvoiceText(a.invoiceNumber, a.lines, a.subtotal, a.total, a.tax);
+    resp = await sendText(env, a.to, customerText);
+    if (!resp.ok) throw new Error(`invoice WhatsApp failed (HTTP ${resp.status})`);
+  }
+}
+
+/** The order's x_invoice, if one was already issued. */
+async function findInvoiceForOrder(
+  env: Env,
+  orderId: number,
+): Promise<{ invoiceId: number; number: string; total: number } | null> {
+  const rows = await call<Array<{ id: number; x_invoice_number: string; x_total: number }>>(env, "x_invoice", "search_read", {
+    domain: [["x_order_id", "=", orderId]],
+    fields: ["id", "x_invoice_number", "x_total"],
+    order: "id",
+    limit: 1,
+  });
+  const r = rows[0];
+  return r ? { invoiceId: r.id, number: r.x_invoice_number, total: r.x_total } : null;
+}
+
+/**
+ * Rebuild the customer send for an issued x_invoice: the PDF archived in R2
+ * at issue (re-generated only if it is missing), the order's customer and
+ * its priced lines (x_unit_price written back at issue).
+ */
+export async function sendInvoiceDocumentToCustomer(env: Env, invoiceId: number): Promise<void> {
+  const invoice = await getInvoiceById(env, invoiceId);
+  if (!invoice) throw new Error(`x_invoice ${invoiceId} not found`);
+  if (!invoice.orderId) throw new Error(`x_invoice ${invoiceId} has no order`);
+  const order = await getOrderForInvoicing(env, invoice.orderId);
+  if (!order) throw new Error(`order ${invoice.orderId} not found`);
+
+  let pdfUrl: string | null = null;
+  try {
+    const archived = await env.INVOICES_BUCKET?.head(`invoices/${invoice.number}.pdf`);
+    if (archived && env.ADMIN_TOKEN) {
+      const token = await signInvoiceToken(env.ADMIN_TOKEN, invoice.number);
+      pdfUrl = `${env.WORKER_ORIGIN}/invoice-pdf/${invoice.number}/${token}.pdf`;
+    } else {
+      const pdfData = await buildInvoicePDFDataFromOdoo(env, invoiceId);
+      if (pdfData) {
+        const uploaded = await uploadInvoiceToR2(env, await generateInvoicePDF(pdfData, env), invoice.number, env.WORKER_ORIGIN);
+        pdfUrl = uploaded.publicUrl;
+      }
+    }
+  } catch (e) {
+    console.warn(`[invoice-send] PDF lookup failed for ${invoice.number}`, (e as Error).message);
+  }
+
+  const lines = order.lines.map((l) => {
+    const unit = l.unit_price ?? 0;
+    return { product: l.product_name, packaging: l.packaging_name, qty: l.quantity, unit, line_total: round2(unit * l.quantity) };
+  });
+  await dispatchInvoiceToCustomer(env, {
+    to: order.customer_whatsapp,
+    customerName: order.customer_name,
+    invoiceNumber: invoice.number,
+    invoiceDateYmd: invoice.date ?? todayRiyadhYmd(),
+    total: invoice.total,
+    subtotal: invoice.subtotal,
+    tax: invoice.tax,
+    pdfUrl,
+    lines,
+  });
+}
+
+export type InvoiceSendOutcome = "off" | "already_sent" | "not_paid" | "sent" | "failed";
+
+export interface InvoiceSendDeps {
+  /** Injected by the live verify to count sends; defaults to the real WhatsApp send. */
+  send?: (env: Env, invoiceId: number) => Promise<void>;
+}
+
+/**
+ * 2026-09-23 (ACCOUNTING_SYNC) — WhatsApp the invoice to the customer once,
+ * only after it is fully collected: x_invoice.x_status = paid AND, when it
+ * is twinned in accounting, account.move.payment_state paid / in_payment
+ * (in_payment = fully paid by transfer, bank statement not matched yet).
+ * x_invoice_sent_at is claimed BEFORE the send so a second collection can
+ * never send twice; a failed send releases the claim and alerts the owner.
+ */
+export async function sendInvoiceToCustomerIfPaid(
+  env: Env,
+  invoiceId: number,
+  deps: InvoiceSendDeps = {},
+): Promise<InvoiceSendOutcome> {
+  if (!isAccountingSyncEnabled(env)) return "off";
+  type Row = {
+    id: number;
+    x_invoice_number: string;
+    x_status: string;
+    x_invoice_sent_at: string | false;
+    x_account_move_id: [number, string] | false;
+  };
+  const [inv] = await call<Row[]>(env, "x_invoice", "read", {
+    ids: [invoiceId],
+    fields: ["id", "x_invoice_number", "x_status", "x_invoice_sent_at", "x_account_move_id"],
+  });
+  if (!inv) return "not_paid";
+  if (inv.x_invoice_sent_at) {
+    console.log(`[invoice-send] ${inv.x_invoice_number} already sent at ${inv.x_invoice_sent_at} — skip`);
+    return "already_sent";
+  }
+  if (inv.x_status !== "paid") return "not_paid";
+  if (inv.x_account_move_id) {
+    const [m] = await call<Array<{ id: number; payment_state: string }>>(env, "account.move", "read", {
+      ids: [inv.x_account_move_id[0]],
+      fields: ["id", "payment_state"],
+    });
+    if (m?.payment_state !== "paid" && m?.payment_state !== "in_payment") {
+      const msg = `[invoice-send] ${inv.x_invoice_number}: محصّلة في x_invoice لكن القيد ${inv.x_account_move_id[0]} حالة سداده ${m?.payment_state ?? "?"} — لم تُرسل الفاتورة للعميل`;
+      console.warn(msg);
+      try { await sendOwnerAlert(env, msg); } catch { /* alert must not block */ }
+      return "not_paid";
+    }
+  }
+
+  await writeInvoice(env, invoiceId, { x_invoice_sent_at: nowOdoo() });
+  try {
+    await (deps.send ?? sendInvoiceDocumentToCustomer)(env, invoiceId);
+    await writeInvoice(env, invoiceId, { x_sent_to_customer_at: nowOdoo() });
+    console.log(`[invoice-send] ${inv.x_invoice_number} sent to customer after full collection`);
+    return "sent";
+  } catch (e) {
+    await writeInvoice(env, invoiceId, { x_invoice_sent_at: false }).catch(() => {});
+    const msg = `[invoice-send] ${inv.x_invoice_number}: تعذّر إرسال الفاتورة للعميل بعد التحصيل — ${(e as Error).message}`;
+    console.error(msg);
+    try { await sendOwnerAlert(env, msg); } catch { /* alert must not block */ }
+    return "failed";
+  }
+}
+
+// --------------------------------------------------------------
+// 5.3 — Collection button handler
 // --------------------------------------------------------------
 export interface CollectionResult {
   text: string;
@@ -270,25 +459,69 @@ export async function handleCollectionButton(
 
   const method: "cash" | "transfer" = m[1] === "collect_cash" ? "cash" : "transfer";
   const invoiceId = Number(m[2]);
+  const r = await recordCollection(env, { invoiceId, method, collectedBy: collectorPartnerId });
+  return { text: r.text };
+}
 
+export interface CollectionArgs {
+  invoiceId: number;
+  method: "cash" | "transfer";
+  /** Defaults to the open balance (the button always collects in full). */
+  amount?: number;
+  collectedBy?: number | null;
+}
+
+export interface CollectionOutcome extends CollectionResult {
+  paymentId: number | null;
+  fullyPaid: boolean;
+  send: InvoiceSendOutcome | null;
+}
+
+/**
+ * Record one collection on an x_invoice. The button collects the open
+ * balance; an explicit smaller `amount` is a partial collection: x_invoice
+ * stays issued, the order stays open, and the invoice is NOT sent. The
+ * collection that completes the balance marks it paid, closes the order and
+ * (ACCOUNTING_SYNC) triggers the one-time invoice send.
+ */
+export async function recordCollection(
+  env: Env,
+  a: CollectionArgs,
+  deps: InvoiceSendDeps = {},
+): Promise<CollectionOutcome> {
+  const { invoiceId, method } = a;
   const invoice = await getInvoiceById(env, invoiceId);
   if (!invoice) {
-    return { text: `الفاتورة رقم ${invoiceId} غير موجودة.` };
+    return { text: `الفاتورة رقم ${invoiceId} غير موجودة.`, paymentId: null, fullyPaid: false, send: null };
   }
   if (invoice.status === "paid") {
-    return { text: `الفاتورة ${invoice.number} تم تحصيلها مسبقاً ✅` };
+    return { text: `الفاتورة ${invoice.number} تم تحصيلها مسبقاً ✅`, paymentId: null, fullyPaid: true, send: null };
   }
+
+  const prior = await call<Array<{ id: number; x_amount: number }>>(env, "x_payment", "search_read", {
+    domain: [["x_invoice_id", "=", invoiceId]],
+    fields: ["id", "x_amount"],
+    limit: 200,
+  });
+  const collected = round2(prior.reduce((s, p) => s + (p.x_amount ?? 0), 0));
+  const remaining = round2(invoice.total - collected);
+  let amount = a.amount ?? remaining;
+  if (!(amount > 0) || !(remaining > 0)) {
+    return { text: `لا يوجد مبلغ متبقٍ للتحصيل على الفاتورة ${invoice.number}.`, paymentId: null, fullyPaid: remaining <= 0, send: null };
+  }
+  if (amount > remaining) amount = remaining;
+  amount = round2(amount);
+  const fullyPaid = amount + 0.005 >= remaining;
 
   const paymentId = await createPaymentRecord(env, {
     invoiceId,
-    amount: invoice.total,
+    amount,
     method,
-    collectedBy: collectorPartnerId ?? undefined,
+    collectedBy: a.collectedBy ?? undefined,
   });
-  await writeInvoice(env, invoiceId, {
-    x_payment_id: paymentId,
-    x_status: "paid",
-  });
+  await writeInvoice(env, invoiceId, fullyPaid
+    ? { x_payment_id: paymentId, x_status: "paid" }
+    : { x_payment_id: paymentId });
 
   // Parallel accounting write for the collection. Only meaningful when the
   // matching x_invoice was itself twinned into account.move (i.e. created
@@ -307,7 +540,7 @@ export async function handleCollectionButton(
         existingPaymentMoveId: null,
         invoiceMoveId,
         invoiceNumber: invoice.number,
-        amount: invoice.total,
+        amount,
         method,
       });
     } catch (e) {
@@ -315,7 +548,7 @@ export async function handleCollectionButton(
     }
   }
 
-  if (invoice.orderId) {
+  if (fullyPaid && invoice.orderId) {
     await updateOrderState(env, invoice.orderId, "closed");
   }
 
@@ -324,15 +557,28 @@ export async function handleCollectionButton(
     : null;
   if (customerWa) {
     try {
-      await sendText(env, customerWa, `تم استلام الدفعة ${invoice.total} ر.س، شكراً لك 🙏`);
+      await sendText(env, customerWa, `تم استلام الدفعة ${amount} ر.س، شكراً لك 🙏`);
     } catch (e) {
       console.warn(`[collection] failed to notify customer`, (e as Error).message);
     }
   }
 
-  return {
-    text: `تم تسجيل التحصيل ${method === "cash" ? "نقد 💵" : "تحويل 🏦"} — الفاتورة ${invoice.number} ✅`,
-  };
+  // 2026-09-23 — the invoice goes to the customer only now, once, and only
+  // when this collection completed the balance. Never throws.
+  let send: InvoiceSendOutcome | null = null;
+  if (fullyPaid) {
+    try {
+      send = await sendInvoiceToCustomerIfPaid(env, invoiceId, deps);
+    } catch (e) {
+      console.error(`[collection] invoice send threw`, (e as Error).message);
+    }
+  }
+
+  const how = method === "cash" ? "نقد 💵" : "تحويل 🏦";
+  const text = fullyPaid
+    ? `تم تسجيل التحصيل ${how} — الفاتورة ${invoice.number} ✅`
+    : `تم تسجيل تحصيل جزئي ${how} ${amount} ر.س — الفاتورة ${invoice.number} (المتبقي ${round2(remaining - amount)} ر.س)`;
+  return { text, paymentId, fullyPaid, send };
 }
 
 // --------------------------------------------------------------

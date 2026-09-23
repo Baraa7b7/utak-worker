@@ -1,0 +1,185 @@
+{
+  "started_at": "2026-09-23T15:29:36.274Z",
+  "riyadh_today": "2026-09-23",
+  "run": "376274",
+  "cycles": {
+    "م": {
+      "expected": {
+        "201004": -100,
+        "400003": 100
+      },
+      "actual": {
+        "201004": -100,
+        "400003": 100
+      },
+      "move": {
+        "id": 53,
+        "name": "EXP/2026/09/0001",
+        "date": "2026-09-23",
+        "journal_id": [
+          20,
+          "المصاريف"
+        ],
+        "ref": "SIM-TEST-m376274-UTAK-PAYROLL-2026-09",
+        "state": "posted",
+        "move_type": "entry"
+      },
+      "lines": [
+        {
+          "id": 138,
+          "account_id": [
+            138,
+            "400003 Basic Salary"
+          ],
+          "debit": 60,
+          "credit": 0,
+          "tax_line_id": false,
+          "display_type": "product",
+          "name": "راتب 2026-09 — SIM-TEST موظف أ 376274",
+          "partner_id": [
+            56,
+            "SIM-TEST موظف أ 376274"
+          ]
+        },
+        {
+          "id": 139,
+          "account_id": [
+            138,
+            "400003 Basic Salary"
+          ],
+          "debit": 40,
+          "credit": 0,
+          "tax_line_id": false,
+          "display_type": "product",
+          "name": "راتب 2026-09 — SIM-TEST موظف ب 376274",
+          "partner_id": [
+            57,
+            "SIM-TEST موظف ب 376274"
+          ]
+        },
+        {
+          "id": 140,
+          "account_id": [
+            108,
+            "201004 Accrued - Salaries"
+          ],
+          "debit": 0,
+          "credit": 100,
+          "tax_line_id": false,
+          "display_type": "product",
+          "name": "مستحقات رواتب 2026-09",
+          "partner_id": false
+        }
+      ]
+    },
+    "ن_default_tax": [],
+    "ن": {
+      "expected": {
+        "201002": -50,
+        "400077": 50
+      },
+      "actual": {
+        "201002": -50,
+        "400077": 50
+      },
+      "move": {
+        "id": 54,
+        "name": "EXP/2026/09/0002",
+        "state": "posted",
+        "amount_tax": 0,
+        "amount_total": 50,
+        "journal_id": [
+          20,
+          "المصاريف"
+        ]
+      },
+      "lines": [
+        {
+          "id": 141,
+          "account_id": [
+            211,
+            "400077 Fuel"
+          ],
+          "debit": 50,
+          "credit": 0,
+          "tax_line_id": false,
+          "display_type": "product",
+          "name": "وقود (اختبار)",
+          "partner_id": [
+            58,
+            "SIM-TEST مورد وقود غير مسجل 376274"
+          ]
+        },
+        {
+          "id": 142,
+          "account_id": [
+            106,
+            "201002 Payables"
+          ],
+          "debit": 0,
+          "credit": 50,
+          "tax_line_id": false,
+          "display_type": "payment_term",
+          "name": "SIM-TEST expense ن 376274",
+          "partner_id": [
+            58,
+            "SIM-TEST مورد وقود غير مسجل 376274"
+          ]
+        }
+      ]
+    },
+    "س": {
+      "runs": [
+        {
+          "status": "created",
+          "move_id": 55,
+          "name": "EXP/2026/09/0003",
+          "total": 100
+        },
+        {
+          "status": "exists",
+          "move_id": 55
+        }
+      ],
+      "entries_with_ref": 1,
+      "actual": {
+        "201004": -100,
+        "400003": 100
+      }
+    }
+  },
+  "created": {
+    "partners": [
+      56,
+      57,
+      58
+    ],
+    "moves": [
+      53,
+      54,
+      55
+    ],
+    "refunds": [
+      56,
+      57,
+      58
+    ]
+  },
+  "baseline": {
+    "102011": 0,
+    "104041": 0,
+    "201002": 0,
+    "400001": 0,
+    "500001": 0
+  },
+  "before_reversal": {
+    "201002": -50,
+    "201004": -200,
+    "400003": 200,
+    "400077": 50
+  },
+  "after_reversal": {},
+  "global_after": {},
+  "failures": 0,
+  "error": null
+}

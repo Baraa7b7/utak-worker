@@ -32,6 +32,7 @@ import {
 import { sendButtons, sendLocation, sendText } from "./meta";
 import { sendTemplateByPurpose, T, sendOwnerAlert } from "./templates";
 import { createAndDispatchDeliveryNoteForStop } from "./delivery-note";
+import { syncPurchaseListToAccounting } from "./purchase-accounting";
 
 // ============================================================
 // 21:00 Riyadh — auto-cancel unconfirmed orders
@@ -147,6 +148,11 @@ export async function warehouseConfirmedPurchase(
       `🚚 تم إرسال المسارات\n- عدد السواقين: ${routes.length}\n- عدد التوصيلات: ${ordersMoved}`,
     );
   }
+
+  // 2026-09-23 — closed list → purchase.order + posted vendor bill, behind
+  // ACCOUNTING_SYNC. Runs last and never throws: routes and WhatsApp above
+  // have already gone out, and a refusal only alerts the owner.
+  await syncPurchaseListToAccounting(env, listId);
   return { routesDispatched: routes.length, ordersMoved };
 }
 

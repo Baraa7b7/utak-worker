@@ -301,12 +301,19 @@ export const DEDUP_TTL_SECONDS = 24 * 60 * 60;
 // account_sale_tax_id), never hard-coded — see scripts/tax-20260923-enable-vat.mjs.
 export const VAT_EFFECTIVE_DATE_RIYADH = "2026-10-01";
 
-/** True when a Riyadh-local invoice date (YYYY-MM-DD) is on/after the VAT cutoff. */
-export function isVatApplicable(invoiceDateRiyadh: string): boolean {
+/**
+ * True when a Riyadh-local invoice date (YYYY-MM-DD) is on/after the VAT cutoff.
+ * `effectiveDate` exists only so the live-verify script can post a taxed
+ * cycle today (Odoo refuses future-dated moves); runtime callers never pass it.
+ */
+export function isVatApplicable(invoiceDateRiyadh: string, effectiveDate: string = VAT_EFFECTIVE_DATE_RIYADH): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(invoiceDateRiyadh)) {
     throw new Error(`isVatApplicable: invoice date must be YYYY-MM-DD, got "${invoiceDateRiyadh}"`);
   }
-  return invoiceDateRiyadh >= VAT_EFFECTIVE_DATE_RIYADH;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(effectiveDate)) {
+    throw new Error(`isVatApplicable: effective date must be YYYY-MM-DD, got "${effectiveDate}"`);
+  }
+  return invoiceDateRiyadh >= effectiveDate;
 }
 
 // v2: catalog cache in KV, refreshed hourly

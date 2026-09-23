@@ -996,6 +996,53 @@ export function aggregatePurchaseList(lines: ConfirmedLine[]): PurchaseListItem[
   return Array.from(map.values()).sort((a, b) => b.total_quantity - a.total_quantity);
 }
 
+// 2026-09-23 — purchase → accounting. Pre-fill each item's unit_price (what
+// is paid per packaging unit) from the day's x_daily_price.x_price_sar, and
+// the list supplier when every priced item comes from the same supplier.
+// Baraa can correct both in Odoo before the list is closed; a missing price
+// or supplier only blocks the accounting write (owner alerted), never the
+// list itself. `keep` = items already on the list — an edited unit_price
+// survives a same-day re-run of the 21:15 cron.
+export async function prefillPurchasePrices(
+  env: Env,
+  items: PurchaseListItem[],
+  ymd: string,
+  keep: PurchaseListItem[] = [],
+): Promise<{ items: PurchaseListItem[]; supplierId: number | null }> {
+  const key = (p: number, k: number) => `${p}::${k}`;
+  const kept = new Map(keep.map((it) => [key(it.product_id, it.packaging_id), it]));
+  const productIds = Array.from(new Set(items.map((it) => it.product_id)));
+  type Row = { x_product_tmpl_id: [number, string] | false; x_packaging_id: [number, string] | false; x_supplier_id: [number, string] | false; x_price_sar: number | false };
+  const rows = productIds.length
+    ? await call<Row[]>(env, "x_daily_price", "search_read", {
+        domain: [["x_product_tmpl_id", "in", productIds], ["x_date", "=", ymd], ["x_price_sar", ">", 0]],
+        fields: ["x_product_tmpl_id", "x_packaging_id", "x_supplier_id", "x_price_sar"],
+        order: "id desc",
+        limit: 500,
+      })
+    : [];
+  const latest = new Map<string, Row>();
+  for (const r of rows) {
+    if (!r.x_product_tmpl_id || !r.x_packaging_id) continue;
+    const k = key(r.x_product_tmpl_id[0], r.x_packaging_id[0]);
+    if (!latest.has(k)) latest.set(k, r);
+  }
+  const out = items.map((it) => {
+    const prev = kept.get(key(it.product_id, it.packaging_id));
+    if (prev && typeof prev.unit_price === "number" && prev.unit_price > 0) {
+      return { ...it, unit_price: prev.unit_price, price_supplier_id: prev.price_supplier_id ?? null };
+    }
+    const r = latest.get(key(it.product_id, it.packaging_id));
+    return {
+      ...it,
+      unit_price: r && typeof r.x_price_sar === "number" ? r.x_price_sar : null,
+      price_supplier_id: r && r.x_supplier_id ? r.x_supplier_id[0] : null,
+    };
+  });
+  const suppliers = new Set(out.map((it) => it.price_supplier_id).filter((n): n is number => typeof n === "number"));
+  return { items: out, supplierId: suppliers.size === 1 ? [...suppliers][0] : null };
+}
+
 // ---- Create the daily x_purchase_list record ----
 export async function createPurchaseListRecord(
   env: Env,
@@ -1003,30 +1050,39 @@ export async function createPurchaseListRecord(
 ): Promise<number> {
   const today = riyadhToday();
   // If one exists for today (idempotency), return it
-  const existing = await call<Array<{ id: number }>>(env, "x_purchase_list", "search_read", {
+  const existing = await call<Array<{ id: number; x_aggregated_items: string | false; x_supplier_id: [number, string] | false }>>(env, "x_purchase_list", "search_read", {
     domain: [["x_date", "=", today]],
-    fields: ["id"],
+    fields: ["id", "x_aggregated_items", "x_supplier_id"],
     limit: 1,
   });
+  let keep: PurchaseListItem[] = [];
+  if (existing[0] && typeof existing[0].x_aggregated_items === "string") {
+    try { keep = JSON.parse(existing[0].x_aggregated_items) as PurchaseListItem[]; } catch { keep = []; }
+  }
+  let priced: { items: PurchaseListItem[]; supplierId: number | null } = { items, supplierId: null };
+  try {
+    priced = await prefillPurchasePrices(env, items, today, keep);
+  } catch (e) {
+    console.warn("[purchase-list] price prefill failed — list saved without prices", (e as Error)?.message);
+  }
   if (existing[0]) {
-    await call(env, "x_purchase_list", "write", {
-      ids: [existing[0].id],
-      vals: {
-        x_aggregated_items: JSON.stringify(items),
-        x_total_items_count: items.length,
-      },
-    });
+    const vals: Record<string, unknown> = {
+      x_aggregated_items: JSON.stringify(priced.items),
+      x_total_items_count: priced.items.length,
+    };
+    if (!existing[0].x_supplier_id && priced.supplierId) vals.x_supplier_id = priced.supplierId;
+    await call(env, "x_purchase_list", "write", { ids: [existing[0].id], vals });
     return existing[0].id;
   }
 
-  const ids = await call<number[]>(env, "x_purchase_list", "create", {
-    vals_list: [{
-      x_date: today,
-      x_status: "draft",
-      x_aggregated_items: JSON.stringify(items),
-      x_total_items_count: items.length,
-    }],
-  });
+  const vals: Record<string, unknown> = {
+    x_date: today,
+    x_status: "draft",
+    x_aggregated_items: JSON.stringify(priced.items),
+    x_total_items_count: priced.items.length,
+  };
+  if (priced.supplierId) vals.x_supplier_id = priced.supplierId;
+  const ids = await call<number[]>(env, "x_purchase_list", "create", { vals_list: [vals] });
   return ids[0];
 }
 

@@ -160,6 +160,13 @@ export interface PurchaseListItem {
   packaging_name: string;
   total_quantity: number;
   order_ids: number[];          // orders contributing to this line
+  // 2026-09-23 — purchase → accounting. What was actually paid per packaging
+  // unit (tax-included when the supplier is VAT-registered). Pre-filled at
+  // 21:15 from that day's x_daily_price.x_price_sar, editable in Odoo before
+  // the list is closed. null = unknown → no purchase.order, owner alerted.
+  unit_price?: number | null;
+  /** Supplier whose x_daily_price filled unit_price (informational). */
+  price_supplier_id?: number | null;
 }
 
 // A confirmed order line as pulled for aggregation

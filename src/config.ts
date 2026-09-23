@@ -85,7 +85,8 @@ export interface Env {
    * 2026-09-21 — accounting parallel-write switch.
    * "true" only in [env.sim.vars] until Baraa turns it on for prod. When
    * enabled, x_invoice creates get an account.move twin (out_invoice,
-   * posted, no tax) and x_payment creates get an account.payment twin
+   * posted; VAT by invoice date — see VAT_EFFECTIVE_DATE_RIYADH) and
+   * x_payment creates get an account.payment twin
    * routed to journal CSHD (cash) or BNK1 (bank). Accounting failure
    * never blocks the x_* row or the WhatsApp send — the owner is
    * alerted and the flow continues. Absent / any-other-value = disabled.
@@ -291,6 +292,22 @@ export const SIM_GUARD_MODELS: readonly string[] = [
 export const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 export const ANTHROPIC_VERSION = "2023-06-01";
 export const DEDUP_TTL_SECONDS = 24 * 60 * 60;
+
+// 2026-09-23 — VAT activation cutoff, a Riyadh-local calendar date (UTC+3,
+// no DST), compared against the invoice date as YYYY-MM-DD. Source: Baraa's
+// locked decision of 2026-09-23 — UTAK charges 15% VAT on invoices dated
+// 2026-10-01 or later; anything dated before stays tax-free. The tax itself
+// (id, rate, price-included) is read from Odoo (res.company
+// account_sale_tax_id), never hard-coded — see scripts/tax-20260923-enable-vat.mjs.
+export const VAT_EFFECTIVE_DATE_RIYADH = "2026-10-01";
+
+/** True when a Riyadh-local invoice date (YYYY-MM-DD) is on/after the VAT cutoff. */
+export function isVatApplicable(invoiceDateRiyadh: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(invoiceDateRiyadh)) {
+    throw new Error(`isVatApplicable: invoice date must be YYYY-MM-DD, got "${invoiceDateRiyadh}"`);
+  }
+  return invoiceDateRiyadh >= VAT_EFFECTIVE_DATE_RIYADH;
+}
 
 // v2: catalog cache in KV, refreshed hourly
 // v2 (2026-09-15) — bump forces a re-query after the x_is_active_for_sale

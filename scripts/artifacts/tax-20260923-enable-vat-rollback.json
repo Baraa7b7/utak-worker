@@ -1,0 +1,321 @@
+{
+  "taken_at": "2026-09-23T08:13:49.522Z",
+  "company": {
+    "id": 1,
+    "vat": "315022736600003",
+    "account_sale_tax_id": false,
+    "account_purchase_tax_id": false,
+    "tax_calculation_rounding_method": "round_globally",
+    "account_price_include": "tax_excluded"
+  },
+  "sale": {
+    "id": 5,
+    "name": "15%",
+    "type_tax_use": "sale",
+    "amount": 15,
+    "amount_type": "percent",
+    "price_include": false,
+    "price_include_override": false,
+    "active": true,
+    "company_id": [
+      1,
+      "شركة يو تاك ذات مسؤولية محدودة"
+    ]
+  },
+  "purchase": {
+    "id": 21,
+    "name": "15%",
+    "type_tax_use": "purchase",
+    "amount": 15,
+    "amount_type": "percent",
+    "price_include": false,
+    "price_include_override": false,
+    "active": true,
+    "company_id": [
+      1,
+      "شركة يو تاك ذات مسؤولية محدودة"
+    ]
+  },
+  "products": [
+    {
+      "id": 1,
+      "name": "Booking Fees",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 2,
+      "name": "Standard delivery",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 71,
+      "name": "طماطم",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 72,
+      "name": "خيار",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 73,
+      "name": "بطاطس",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 74,
+      "name": "بصل",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 75,
+      "name": "جزر",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 76,
+      "name": "كوسا",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 77,
+      "name": "باذنجان",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 78,
+      "name": "فلفل رومي",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 79,
+      "name": "فلفل حار",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 80,
+      "name": "ثوم",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 81,
+      "name": "ليمون",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 82,
+      "name": "قرع",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 83,
+      "name": "ملفوف",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 84,
+      "name": "قرنبيط",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 85,
+      "name": "بامية",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 86,
+      "name": "فاصوليا",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 87,
+      "name": "فجل",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 88,
+      "name": "لفت",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 89,
+      "name": "خس",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 90,
+      "name": "جرجير",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 91,
+      "name": "بقدونس",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 92,
+      "name": "كزبرة",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 93,
+      "name": "نعناع",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 94,
+      "name": "شبت",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 95,
+      "name": "سبانخ",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 96,
+      "name": "تفاح",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 97,
+      "name": "موز أمريكي",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 98,
+      "name": "برتقال",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 99,
+      "name": "عنب",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 100,
+      "name": "رمان وسط",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 101,
+      "name": "مانجو",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 102,
+      "name": "أناناس",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 103,
+      "name": "فراولة",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 104,
+      "name": "بطيخ (بالحبة)",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 105,
+      "name": "افوكادو",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 107,
+      "name": "رمان صغير",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 108,
+      "name": "رمان كبير",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    },
+    {
+      "id": 109,
+      "name": "موز هندي",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "active": true
+    }
+  ]
+}

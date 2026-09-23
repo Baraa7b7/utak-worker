@@ -27,6 +27,9 @@ const T = (ar: string, en: string): UITextMap => ({ ar, en });
 export const UI = {
   // ---------------- doc titles ----------------
   invoice: T("فاتورة", "Invoice"),
+  // 2026-09-23 — title of an invoice that carries VAT (dated on/after the
+  // VAT cutoff). Tax-free invoices keep "فاتورة".
+  taxInvoice: T("فاتورة ضريبية", "Tax Invoice"),
   quotation: T("عرض سعر", "Quotation"),
   receipt: T("إيصال دفع", "Payment Receipt"),
   deliveryNote: T("إذن تسليم", "Delivery Note"),
@@ -63,6 +66,11 @@ export const UI = {
   discount: T("الخصم", "Discount"),
   vat15: T("ضريبة القيمة المضافة (١٥٪)", "VAT (15%)"),
   grandTotal: T("الإجمالي", "Total"),
+  // 2026-09-23 — tax-invoice totals (prices are VAT-inclusive).
+  subtotalExclVat: T("الإجمالي قبل الضريبة", "Total excl. VAT"),
+  grandTotalInclVat: T("الإجمالي شامل الضريبة", "Total incl. VAT"),
+  sellerVatNo: T("الرقم الضريبي للمنشأة", "Seller VAT No."),
+  buyerVatNo: T("الرقم الضريبي للعميل", "Customer VAT No."),
   totalReceived: T("إجمالي المستلم", "Total Received"),
 
   // ---------------- footer notes ----------------

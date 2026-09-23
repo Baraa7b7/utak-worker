@@ -22,9 +22,13 @@ import {
   isAccountingSyncEnabled,
   syncInvoiceToAccounting,
   syncPaymentToAccounting,
+  todayRiyadhYmd,
+  resolveSaleTaxForDate,
+  computeInclusiveTotals,
+  type SaleTax,
 } from "./accounting";
 import { sendText, sendButtons } from "./meta";
-import { sendTemplateByPurpose, T } from "./templates";
+import { sendOwnerAlert, sendTemplateByPurpose, T } from "./templates";
 import {
   BRAND_COLORS,
   computePageMetrics,
@@ -87,8 +91,26 @@ export async function createAndDispatchInvoiceForOrder(
     });
   }
 
-  const tax = 0;
-  const total = round2(subtotal + tax);
+  // 2026-09-23 — VAT by invoice date (Riyadh, src/config.ts
+  // VAT_EFFECTIVE_DATE_RIYADH). Prices are tax-INCLUDED: the line totals
+  // above are what the customer pays; from the cutoff they are split into
+  // net + 15% (per line, then summed). Before it: tax 0, exactly as before.
+  // If the cutoff has passed but the Odoo sale tax cannot be resolved we stop
+  // here — never issue a post-cutoff invoice silently without VAT.
+  const invoiceDateYmd = todayRiyadhYmd();
+  let saleTax: SaleTax | null;
+  try {
+    saleTax = await resolveSaleTaxForDate(env, invoiceDateYmd);
+  } catch (e) {
+    const msg = `[invoice] الطلب ${orderId}: لم تصدر الفاتورة — تعذّر تحديد ضريبة البيع (${(e as Error).message})`;
+    console.error(msg);
+    try { await sendOwnerAlert(env, msg); } catch { /* alert must not block */ }
+    throw e;
+  }
+  const split = computeInclusiveTotals(pricedLines.map((p) => p.line_total), saleTax?.rate ?? null);
+  const tax = split.tax;
+  const total = split.total;
+  subtotal = split.subtotal;
 
   const today = new Date();
   const ymd = today.toISOString().slice(0, 10).replace(/-/g, "");
@@ -99,6 +121,7 @@ export async function createAndDispatchInvoiceForOrder(
   const invoiceId = await createInvoiceRecord(env, {
     orderId,
     invoiceNumber,
+    invoiceDate: invoiceDateYmd,
     subtotal,
     tax,
     total,
@@ -117,6 +140,7 @@ export async function createAndDispatchInvoiceForOrder(
         existingMoveId: null,
         invoiceNumber,
         customerPartnerId: order.customer_id,
+        invoiceDate: invoiceDateYmd,
         lines: pricedLines.map((p) => ({
           product_tmpl_id: orderLineByProduct.get(p.lineId) ?? 0,
           description: `${p.product} ${p.packaging}`.trim(),
@@ -181,7 +205,7 @@ export async function createAndDispatchInvoiceForOrder(
         [order.customer_name || "", invoiceNumber, linesFormatted, String(total)]);
     }
     if (!resp || !resp.ok) {
-      const customerText = buildCustomerInvoiceText(invoiceNumber, pricedLines, subtotal, total);
+      const customerText = buildCustomerInvoiceText(invoiceNumber, pricedLines, subtotal, total, tax);
       await sendText(env, order.customer_whatsapp, customerText);
     }
     await writeInvoice(env, invoiceId, { x_sent_to_customer_at: nowOdoo() });
@@ -372,13 +396,18 @@ function buildCustomerInvoiceText(
   lines: Array<{ product: string; packaging: string; qty: number; unit: number; line_total: number }>,
   subtotal: number,
   total: number,
+  tax: number = 0,
 ): string {
   const linesText = lines
     .map((l) => `• ${l.product} ${l.packaging} × ${l.qty} = ${l.line_total} ر.س`)
     .join("\n");
+  // Tax-free (pre-cutoff) invoices keep the exact pre-VAT wording.
+  const totals = tax > 0
+    ? [`الإجمالي قبل الضريبة: ${subtotal} ر.س`, `ضريبة القيمة المضافة 15%: ${tax} ر.س`, `الإجمالي شامل الضريبة: ${total} ر.س`]
+    : [`المجموع: ${subtotal} ر.س`, `الإجمالي: ${total} ر.س`];
   return [
     `🧾 فاتورتك رقم ${number}`, ``, linesText, ``,
-    `المجموع: ${subtotal} ر.س`, `الإجمالي: ${total} ر.س`, ``,
+    ...totals, ``,
     `شكراً لتعاملكم مع UTAK 🌿`,
   ].join("\n");
 }
@@ -433,12 +462,18 @@ export interface InvoicePDFData {
     contactPerson?: string;
     address: string;
     phone: string;
+    /** res.partner.vat — printed on a tax invoice only when registered. */
+    vat?: string;
   };
   items: InvoiceLineItem[];
+  /** Before VAT when vatAmount > 0 (prices are VAT-inclusive). */
   subtotal: number;
   discount: number;
+  /** 0 = tax-free invoice (dated before the VAT cutoff): no VAT rows at all. */
   vatAmount: number;
   grandTotal: number;
+  /** Seller VAT number; falls back to the Odoo company VAT (CompanyInfo.vat). */
+  sellerVat?: string;
   paymentTerms?: string;
   // Doc-level language, resolved by the dispatcher from x_invoice.x_doc_lang
   // + customer.x_doc_lang. Left undefined preserves the byte-parity Arabic
@@ -509,27 +544,49 @@ function renderInvoiceBodyHTML(
 }
 
 // Bottom-right totals block for an invoice.
-function renderInvoiceTotalsHTML(
+//
+// 2026-09-23 — two shapes:
+//   • vatAmount === 0 (tax-free, dated before the VAT cutoff): subtotal,
+//     discount, total. NO VAT row — an old invoice never shows tax lines.
+//   • vatAmount > 0 (tax invoice): total before VAT, discount, VAT 15%, total
+//     including VAT, plus the seller VAT number and the customer VAT number
+//     (only when the customer has one) on the opposite side.
+export function renderInvoiceTotalsHTML(
   subtotal: number,
   discount: number,
   vatAmount: number,
   grandTotal: number,
   lang: DocLang = "ar",
+  vatNumbers: { seller?: string; buyer?: string } = {},
 ): string {
-  // Byte-parity path: lang="ar" keeps the four hard-coded Arabic strings
-  // exactly as in Part A. en/bi swap in their translations from src/i18n.ts.
-  const L = (key: "subtotal" | "discount" | "vat15" | "grandTotal") => {
+  // lang="ar" keeps the hard-coded Arabic strings from Part A. en/bi swap in
+  // their translations from src/i18n.ts (bi shows the Arabic label).
+  type Key = "subtotal" | "discount" | "vat15" | "grandTotal" | "subtotalExclVat" | "grandTotalInclVat" | "sellerVatNo" | "buyerVatNo";
+  const L = (key: Key) => {
     if (lang === "en") return UI[key].en;
     return UI[key].ar;
   };
-  return `<div style="position: relative; display: flex; justify-content: flex-end;">
+  const isTax = vatAmount > 0;
+  const row = (label: string, value: string) =>
+    `<div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>${escapeHTML(label)}</span><span style="direction: ltr;">${value}</span></div>`;
+  const vatRow = isTax ? `
+        ${row(L("vat15"), formatMoney(vatAmount, lang))}` : "";
+  const numbers: string[] = [];
+  if (isTax && vatNumbers.seller && vatNumbers.seller.trim()) numbers.push(row(L("sellerVatNo"), escapeHTML(vatNumbers.seller.trim())));
+  if (isTax && vatNumbers.buyer && vatNumbers.buyer.trim()) numbers.push(row(L("buyerVatNo"), escapeHTML(vatNumbers.buyer.trim())));
+  const numbersCol = numbers.length
+    ? `
       <div style="width: 40%; display: flex; flex-direction: column; gap: 9px;">
-        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>${escapeHTML(L("subtotal"))}</span><span style="direction: ltr;">${formatMoney(subtotal, lang)}</span></div>
-        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>${escapeHTML(L("discount"))}</span><span style="direction: ltr;">${formatMoney(discount, lang)}</span></div>
-        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>${escapeHTML(L("vat15"))}</span><span style="direction: ltr;">${formatMoney(vatAmount, lang)}</span></div>
+        ${numbers.join("\n        ")}
+      </div>`
+    : "";
+  return `<div style="position: relative; display: flex; justify-content: ${numbersCol ? "space-between" : "flex-end"};">${numbersCol}
+      <div style="width: 40%; display: flex; flex-direction: column; gap: 9px;">
+        ${row(L(isTax ? "subtotalExclVat" : "subtotal"), formatMoney(subtotal, lang))}
+        ${row(L("discount"), formatMoney(discount, lang))}${vatRow}
         <div style="height: 6px;"></div>
         <div style="height: 0; border-top: 0.5px solid ${BRAND_COLORS.borderStrong};"></div>
-        <div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 8px;"><span style="font-size: 12px; font-weight: 500; color: ${BRAND_COLORS.ink};">${escapeHTML(L("grandTotal"))}</span><span style="font-size: 20px; font-weight: 500; color: ${BRAND_COLORS.primary}; direction: ltr;">${formatMoney(grandTotal, lang)}</span></div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 8px;"><span style="font-size: 12px; font-weight: 500; color: ${BRAND_COLORS.ink};">${escapeHTML(L(isTax ? "grandTotalInclVat" : "grandTotal"))}</span><span style="font-size: 20px; font-weight: 500; color: ${BRAND_COLORS.primary}; direction: ltr;">${formatMoney(grandTotal, lang)}</span></div>
       </div>
     </div>`;
 }
@@ -563,8 +620,9 @@ export function renderInvoiceHTML(data: InvoicePDFData, company?: CompanyInfo): 
   // Byte-parity: without an explicit `lang`, the shell stays on the legacy
   // template. `lang === "ar"` also passes through cleanly since the shell
   // treats undefined and "ar" identically.
+  const title = isTaxInvoice ? UI.taxInvoice : UI.invoice;
   return renderPDFShell({
-    documentTitle: lang === "en" ? UI.invoice.en : UI.invoice.ar,
+    documentTitle: lang === "en" ? title.en : title.ar,
     documentNumber: data.invoiceNumber,
     documentDate: data.invoiceDate,
     billTo,
@@ -578,11 +636,13 @@ export function renderInvoiceHTML(data: InvoicePDFData, company?: CompanyInfo): 
       data.vatAmount,
       data.grandTotal,
       lang,
+      { seller: data.sellerVat ?? company?.vat, buyer: data.customer.vat },
     ),
     footerNote: data.paymentTerms ?? (lang === "en" ? UI.invoicePaymentTerms.en : UI.invoicePaymentTerms.ar),
-    // ZATCA QR is only meaningful when there's VAT to attest to. Suppress it
-    // while VAT is inactive (Baraa activates it later).
-    showZatcaQR: isTaxInvoice,
+    // 2026-09-23 — no QR on any invoice yet, tax invoices included: the ZATCA
+    // QR (and e-invoicing) is a separate, later order. Was `isTaxInvoice`,
+    // which was always false while VAT was 0.
+    showZatcaQR: false,
     legalFooterBar,
     pageMetrics,
     lang: data.lang ? lang : undefined,
@@ -725,18 +785,36 @@ export async function buildInvoicePDFDataFromOdoo(
     });
   }
 
+  // 2026-09-23 — VAT comes from the x_invoice row as issued (the split was
+  // decided on its Riyadh invoice date). A tax-free invoice (x_tax_amount 0,
+  // every invoice before the cutoff) renders exactly as before: no VAT rows.
+  const vatAmount = invoice.tax > 0 ? invoice.tax : 0;
+  let customerVat: string | undefined;
+  if (vatAmount > 0) {
+    try {
+      const [p] = await call<Array<{ id: number; vat: string | false }>>(env, "res.partner", "read", {
+        ids: [order.customer_id],
+        fields: ["id", "vat"],
+      });
+      if (p && typeof p.vat === "string" && p.vat.trim()) customerVat = p.vat.trim();
+    } catch (e) {
+      console.warn(`[invoice] customer VAT lookup failed`, (e as Error).message);
+    }
+  }
+
   return {
     invoiceNumber: invoice.number,
-    invoiceDate: new Date(),
+    invoiceDate: invoice.date ? new Date(`${invoice.date}T12:00:00Z`) : new Date(),
     customer: {
       name: order.customer_name || 'عميل',
       address: order.neighborhood || 'الرياض',
       phone: order.customer_whatsapp || '',
+      ...(customerVat ? { vat: customerVat } : {}),
     },
     items,
-    subtotal,
+    subtotal: vatAmount > 0 ? invoice.subtotal : subtotal,
     discount: 0,
-    vatAmount: 0,
+    vatAmount,
     grandTotal: invoice.total,
   };
 }
@@ -744,8 +822,10 @@ export async function buildInvoicePDFDataFromOdoo(
 // --------------------------------------------------------------
 // Build from a standard Odoo customer invoice (account.move, out_invoice).
 // Parallel reader alongside buildInvoicePDFDataFromOdoo (x_invoice).
-// VAT stays 0 until Baraa activates it — showZatcaQR should be false
-// while amount_tax === 0 (caller decides).
+// 2026-09-23 — VAT from the move itself (amount_untaxed / amount_tax). Line
+// totals are shown tax-included (price_total) like the x_invoice PDF, so the
+// line table always adds up to the grand total; for a tax-free move
+// price_total === price_subtotal and nothing changes.
 // --------------------------------------------------------------
 export async function buildInvoicePDFDataFromAccountMove(
   env: Env,
@@ -771,11 +851,11 @@ export async function buildInvoicePDFDataFromAccountMove(
   if (!head) return null;
   if (head.move_type !== "out_invoice" && head.move_type !== "out_refund") return null;
 
-  type Partner = { id: number; name: string | false; phone: string | false; street: string | false; city: string | false };
+  type Partner = { id: number; name: string | false; phone: string | false; street: string | false; city: string | false; vat: string | false };
   const partner = head.partner_id
     ? (await call<Partner[]>(env, "res.partner", "read", {
         ids: [head.partner_id[0]],
-        fields: ["id","name","phone","street","city"],
+        fields: ["id","name","phone","street","city","vat"],
       }))[0]
     : null;
 
@@ -786,6 +866,7 @@ export async function buildInvoicePDFDataFromAccountMove(
     quantity: number;
     price_unit: number;
     price_subtotal: number;
+    price_total: number;
     display_type: string | false;
     sale_line_ids: number[];
   };
@@ -793,10 +874,14 @@ export async function buildInvoicePDFDataFromAccountMove(
   const lines = head.invoice_line_ids.length > 0
     ? await call<Line[]>(env, "account.move.line", "read", {
         ids: head.invoice_line_ids,
-        fields: ["id","name","product_id","quantity","price_unit","price_subtotal","display_type","sale_line_ids"],
+        fields: ["id","name","product_id","quantity","price_unit","price_subtotal","price_total","display_type","sale_line_ids"],
       })
     : [];
-  const productLines = lines.filter((l) => l.product_id && !l.display_type);
+  // Odoo 17+ tags invoice product lines display_type = "product" (tax /
+  // payment_term / line_section / line_note are the others). The old
+  // `!l.display_type` test dropped every line — found 2026-09-23 on the first
+  // live tax-invoice PDF.
+  const productLines = lines.filter((l) => l.product_id && (!l.display_type || l.display_type === "product"));
   const prodIds = Array.from(new Set(productLines.map((l) => l.product_id ? l.product_id[0] : 0).filter((n) => n > 0)));
   const prods = prodIds.length > 0
     ? await call<ProdProd[]>(env, "product.product", "read", {
@@ -840,7 +925,7 @@ export async function buildInvoicePDFDataFromAccountMove(
 
   let subtotal = 0;
   const items: InvoiceLineItem[] = productLines.map((l, i) => {
-    const total = round2(l.price_subtotal);
+    const total = round2(typeof l.price_total === "number" ? l.price_total : l.price_subtotal);
     subtotal = round2(subtotal + total);
     const displayName = (typeof l.name === "string" && l.name)
       ? l.name.split("\n")[0]
@@ -864,9 +949,10 @@ export async function buildInvoicePDFDataFromAccountMove(
       name: partner?.name || (head.partner_id ? head.partner_id[1] : "عميل"),
       address: partner?.street || partner?.city || "الرياض",
       phone: partner?.phone || "",
+      ...(typeof partner?.vat === "string" && partner.vat.trim() ? { vat: partner.vat.trim() } : {}),
     },
     items,
-    subtotal,
+    subtotal: (head.amount_tax || 0) > 0 ? round2(head.amount_untaxed) : subtotal,
     discount: 0,
     vatAmount: head.amount_tax || 0,
     grandTotal: head.amount_total || subtotal,

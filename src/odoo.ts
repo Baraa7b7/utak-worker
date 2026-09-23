@@ -2029,12 +2029,14 @@ export async function createInvoiceRecord(
   vals: {
     orderId: number;
     invoiceNumber: string;
+    /** 2026-09-23 — Riyadh-local YYYY-MM-DD (the date VAT is decided on). */
+    invoiceDate?: string;
     subtotal: number;
     tax: number;
     total: number;
   },
 ): Promise<number> {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = vals.invoiceDate ?? new Date().toISOString().slice(0, 10);
   const ids = await call<number[]>(env, "x_invoice", "create", {
     vals_list: [{
       x_order_id: vals.orderId,
@@ -2064,6 +2066,11 @@ export async function getInvoiceById(
   id: number;
   number: string;
   total: number;
+  /** 2026-09-23 — net (before VAT) and VAT as stored at issue time. */
+  subtotal: number;
+  tax: number;
+  /** x_invoice_date, YYYY-MM-DD (Riyadh since 2026-09-23), or null. */
+  date: string | null;
   status: string;
   orderId: number | null;
 } | null> {
@@ -2071,12 +2078,15 @@ export async function getInvoiceById(
     id: number;
     x_invoice_number: string;
     x_total: number;
+    x_subtotal: number | false;
+    x_tax_amount: number | false;
+    x_invoice_date: string | false;
     x_status: string;
     x_order_id: [number, string] | false;
   };
   const rows = await call<Row[]>(env, "x_invoice", "read", {
     ids: [invoiceId],
-    fields: ["id", "x_invoice_number", "x_total", "x_status", "x_order_id"],
+    fields: ["id", "x_invoice_number", "x_total", "x_subtotal", "x_tax_amount", "x_invoice_date", "x_status", "x_order_id"],
   });
   const r = rows[0];
   if (!r) return null;
@@ -2084,6 +2094,9 @@ export async function getInvoiceById(
     id: r.id,
     number: r.x_invoice_number,
     total: r.x_total,
+    subtotal: typeof r.x_subtotal === "number" ? r.x_subtotal : r.x_total,
+    tax: typeof r.x_tax_amount === "number" ? r.x_tax_amount : 0,
+    date: typeof r.x_invoice_date === "string" && r.x_invoice_date ? r.x_invoice_date : null,
     status: r.x_status,
     orderId: r.x_order_id ? r.x_order_id[0] : null,
   };

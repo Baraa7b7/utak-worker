@@ -204,6 +204,7 @@ async function testInvoiceHappyPath(): Promise<void> {
     existingMoveId: null,
     invoiceNumber: "UTAK-INV-TEST-007",
     customerPartnerId: 33,
+    invoiceDate: "2026-09-21", // pre-VAT cutoff: tax_ids must stay empty
     lines: [
       { product_tmpl_id: 100, description: "طماطم", quantity: 3, price_unit: 25 },
       { product_tmpl_id: 101, description: "خيار", quantity: 8, price_unit: 12.5625 },
@@ -257,6 +258,7 @@ async function testInvoiceFailureContained(): Promise<void> {
       existingMoveId: null,
       invoiceNumber: "UTAK-INV-TEST-008",
       customerPartnerId: 1,
+      invoiceDate: "2026-09-21",
       lines: [{ product_tmpl_id: 1, description: "t", quantity: 1, price_unit: 1 }],
       expectedTotal: 1,
     });
@@ -521,7 +523,8 @@ async function testInvoiceGuardFailureCancels(): Promise<void> {
   };
   const r = await syncInvoiceToAccounting(env, {
     invoiceId: 8, existingMoveId: null, invoiceNumber: "UTAK-INV-TEST-BADACC",
-    customerPartnerId: 33, lines: [{ product_tmpl_id: 0, description: "x", quantity: 1, price_unit: 12 }],
+    customerPartnerId: 33, invoiceDate: "2026-09-21",
+    lines: [{ product_tmpl_id: 0, description: "x", quantity: 1, price_unit: 12 }],
     expectedTotal: 12,
   });
   assert("returns null", r === null);

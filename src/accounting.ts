@@ -13,11 +13,20 @@
 // existing x_account_move_id / x_account_payment_id. When either is set we
 // skip work and return the linked id.
 //
-// Tax: `tax_ids: [[6, 0, []]]` explicitly wipes any category / partner /
-// company fiscal-position default. Total on the account.move must equal
-// the total on x_invoice; VAT stays off until Baraa activates it.
+// Tax (2026-09-23): decided per invoice date, Riyadh local, against
+// VAT_EFFECTIVE_DATE_RIYADH (src/config.ts).
+//   • before the cutoff: `tax_ids: [[6, 0, []]]` — explicitly wipes any
+//     product / category / partner / company default, exactly as before.
+//   • from the cutoff: `tax_ids: [[6, 0, [saleTaxId]]]`, the company's
+//     account_sale_tax_id read live from Odoo (never hard-coded). That tax is
+//     price-included (price_include_override = tax_included), so price_unit
+//     stays the gross price the customer knows and Odoo splits it into net +
+//     VAT. The move total therefore still equals x_invoice.total.
+// Rounding is per line (company tax_calculation_rounding_method =
+// round_per_line), mirrored by splitTaxInclusive below.
 
 import type { Env } from "./config";
+import { isVatApplicable } from "./config";
 import { call } from "./odoo";
 import { sendOwnerAlert } from "./templates";
 
@@ -56,12 +65,14 @@ export interface AccountingInvoiceArgs {
 /**
  * Build the `invoice_line_ids` payload for an out_invoice. Every line
  * uses (0, 0, {...}) — Odoo's "create new" one-2-many command — and every
- * line pins `tax_ids: [[6, 0, []]]` so no tax sneaks in from category or
- * partner defaults. Exported for the unit test.
+ * line pins `tax_ids: [[6, 0, taxIds]]`: empty before the VAT cutoff (so no
+ * tax sneaks in from product / category / partner defaults), the resolved
+ * sale tax from it. Exported for the unit test.
  */
 export function buildInvoiceLineCommands(
   lines: AccountingInvoiceLine[],
   productProductByTmpl: Map<number, number>,
+  taxIds: number[] = [],
 ): Array<[number, number, Record<string, unknown>]> {
   return lines.map((l) => {
     const productId = productProductByTmpl.get(l.product_tmpl_id) ?? 0;
@@ -69,11 +80,89 @@ export function buildInvoiceLineCommands(
       name: l.description,
       quantity: l.quantity,
       price_unit: l.price_unit,
-      tax_ids: [[6, 0, []]],
+      tax_ids: [[6, 0, [...taxIds]]],
     };
     if (productId > 0) vals.product_id = productId;
     return [0, 0, vals];
   });
+}
+
+// ---- 2026-09-23: VAT (price-included) ----
+
+/** Round to halalas; EPSILON keeps 1.005-style binary drift from rounding down. */
+export function roundHalala(n: number): number {
+  return Math.round((n + Math.sign(n) * Number.EPSILON) * 100) / 100;
+}
+
+/**
+ * Split a tax-INCLUDED amount into net + tax at `ratePct` (15 → 15%).
+ * tax = round(gross × rate / (100 + rate)), net = gross − tax, so
+ * net + tax is always exactly the gross the customer pays. 115 → 100 + 15.
+ */
+export function splitTaxInclusive(gross: number, ratePct: number): { net: number; tax: number } {
+  const g = roundHalala(gross);
+  if (!ratePct) return { net: g, tax: 0 };
+  const tax = roundHalala((g * ratePct) / (100 + ratePct));
+  return { net: roundHalala(g - tax), tax };
+}
+
+export interface InclusiveTotals {
+  /** Total before tax (sum of per-line nets). */
+  subtotal: number;
+  /** Sum of per-line taxes. */
+  tax: number;
+  /** Tax-included total — equals the sum of line grosses. */
+  total: number;
+  lines: Array<{ gross: number; net: number; tax: number }>;
+}
+
+/**
+ * Per-line split, then summed (round_per_line — the rule configured on the
+ * company). `ratePct` null/0 = no VAT: subtotal = total, tax = 0.
+ */
+export function computeInclusiveTotals(lineGrosses: number[], ratePct: number | null): InclusiveTotals {
+  const lines = lineGrosses.map((g) => ({ gross: roundHalala(g), ...splitTaxInclusive(g, ratePct ?? 0) }));
+  const sum = (k: "gross" | "net" | "tax") => roundHalala(lines.reduce((a, l) => a + l[k], 0));
+  return { subtotal: sum("net"), tax: sum("tax"), total: sum("gross"), lines };
+}
+
+export interface SaleTax {
+  id: number;
+  /** Percent, e.g. 15. */
+  rate: number;
+}
+
+/**
+ * The company's default sale tax (res.company.account_sale_tax_id), read
+ * live. Refuses anything the price-included invoice logic cannot trust:
+ * missing, inactive, not a sale tax, not a percent tax, or NOT price-included
+ * (a tax-excluded 15% would silently raise every total by 15%).
+ */
+export async function resolveCompanySaleTax(env: Env): Promise<SaleTax> {
+  type Co = { id: number; account_sale_tax_id: [number, string] | false };
+  const [co] = await call<Co[]>(env, "res.company", "read", {
+    ids: [1],
+    fields: ["id", "account_sale_tax_id"],
+  });
+  if (!co?.account_sale_tax_id) throw new Error("res.company.account_sale_tax_id فارغ — ضريبة البيع غير مضبوطة");
+  const taxId = co.account_sale_tax_id[0];
+  type Tax = { id: number; amount: number; amount_type: string; type_tax_use: string; price_include: boolean; active: boolean };
+  const [t] = await call<Tax[]>(env, "account.tax", "read", {
+    ids: [taxId],
+    fields: ["id", "amount", "amount_type", "type_tax_use", "price_include", "active"],
+  });
+  if (!t) throw new Error(`account.tax ${taxId} غير موجودة`);
+  if (!t.active || t.type_tax_use !== "sale" || t.amount_type !== "percent" || !(t.amount > 0)) {
+    throw new Error(`ضريبة البيع ${taxId} غير صالحة (active=${t.active}, use=${t.type_tax_use}, type=${t.amount_type}, amount=${t.amount})`);
+  }
+  if (!t.price_include) throw new Error(`ضريبة البيع ${taxId} ليست شاملة في السعر (price_include=false)`);
+  return { id: t.id, rate: t.amount };
+}
+
+/** null before the VAT cutoff; the company sale tax from it. */
+export async function resolveSaleTaxForDate(env: Env, invoiceDateRiyadh: string): Promise<SaleTax | null> {
+  if (!isVatApplicable(invoiceDateRiyadh)) return null;
+  return resolveCompanySaleTax(env);
 }
 
 /**
@@ -139,7 +228,14 @@ export async function syncInvoiceToAccounting(
       console.warn("[accounting] payment-term lookup failed", (e as Error).message);
     }
 
-    const invoiceLineIds = buildInvoiceLineCommands(args.lines, productMap);
+    // 2026-09-23 — VAT by invoice date (Riyadh). Throws (→ alert, no move)
+    // if the cutoff has passed but the company sale tax is unusable.
+    const saleTax = await resolveSaleTaxForDate(env, invoiceDate);
+    const expected = computeInclusiveTotals(
+      args.lines.map((l) => l.price_unit * l.quantity),
+      saleTax?.rate ?? null,
+    );
+    const invoiceLineIds = buildInvoiceLineCommands(args.lines, productMap, saleTax ? [saleTax.id] : []);
     const moveVals: Record<string, unknown> = {
       move_type: "out_invoice",
       partner_id: args.customerPartnerId,
@@ -152,15 +248,23 @@ export async function syncInvoiceToAccounting(
     const [moveId] = await call<number[]>(env, "account.move", "create", {
       vals_list: [moveVals],
     });
-    await call<boolean>(env, "account.move", "action_post", { ids: [moveId] });
+    try {
+      await call<boolean>(env, "account.move", "action_post", { ids: [moveId] });
+    } catch (e) {
+      // 2026-09-23 — found live: Odoo refused to post (l10n_sa rejects an
+      // invoice_date after today, Riyadh) and the draft stayed behind,
+      // unlinked. Cancel it so no orphan draft is left in the shared books.
+      await cancelMoveQuietly(env, moveId);
+      throw e;
+    }
 
     // Verify total matches x_invoice within a rounding tolerance. If not,
     // alert the owner but keep the link — the number is on both sides for
     // reconciliation from Odoo.
-    type MoveHead = { id: number; amount_total: number; state: string };
+    type MoveHead = { id: number; amount_total: number; amount_tax: number; state: string };
     const [head] = await call<MoveHead[]>(env, "account.move", "read", {
       ids: [moveId],
-      fields: ["id", "amount_total", "state"],
+      fields: ["id", "amount_total", "amount_tax", "state"],
     });
     if (head && Math.abs((head.amount_total ?? 0) - args.expectedTotal) > 0.01) {
       const msg = `[accounting] move ${moveId} total ${head.amount_total} ≠ x_invoice ${args.invoiceNumber} total ${args.expectedTotal}`;
@@ -170,10 +274,22 @@ export async function syncInvoiceToAccounting(
     }
 
     // 2026-09-23 — account-type guard: receivable debited, income credited,
-    // nothing on an expense account. On failure the move is reset + cancelled
-    // and NOT linked, so a wrong entry never stays posted in the books.
+    // nothing on an expense account; from the VAT cutoff also a credited tax
+    // line whose amount matches the per-line split (and none before it). On
+    // failure the move is reset + cancelled and NOT linked, so a wrong entry
+    // never stays posted in the books.
     const invLines = await readMoveLinesWithTypes(env, moveId);
-    const invGuard = evaluateInvoiceGuard({ moveState: head?.state ?? "", lines: invLines });
+    const invGuard = evaluateInvoiceGuard({
+      moveState: head?.state ?? "",
+      lines: invLines,
+      tax: {
+        expectTax: saleTax !== null,
+        expectedTax: expected.tax,
+        amountTax: head?.amount_tax ?? 0,
+        expectedTotal: args.expectedTotal,
+        amountTotal: head?.amount_total ?? 0,
+      },
+    });
     if (!invGuard.ok) {
       await cancelMoveQuietly(env, moveId);
       const msg = `[accounting] فاتورة ${args.invoiceNumber}: قيد ${moveId} رُفض وأُلغي — ${invGuard.reasons.join("؛ ")}`;
@@ -395,6 +511,8 @@ export interface GuardLine {
   account_type: string;
   debit: number;
   credit: number;
+  /** Odoo tax line (display_type = "tax" / tax_line_id set). */
+  is_tax?: boolean;
 }
 
 export interface GuardResult {
@@ -456,9 +574,41 @@ export function evaluatePaymentGuard(
   return { ok: reasons.length === 0, reasons };
 }
 
-/** Invoice: receivable debited, income credited, no expense line, posted. */
-export function evaluateInvoiceGuard(f: { moveState: string; lines: GuardLine[] }): GuardResult {
+export interface InvoiceTaxExpectation {
+  /** True from the VAT cutoff on (invoice date, Riyadh). */
+  expectTax: boolean;
+  /** Per-line split sum (computeInclusiveTotals). */
+  expectedTax: number;
+  /** account.move.amount_tax as posted. */
+  amountTax: number;
+  expectedTotal: number;
+  amountTotal: number;
+}
+
+/**
+ * Invoice: receivable debited, income credited, no expense line, posted.
+ * With `tax`: from the cutoff a credited tax line must exist, amount_tax must
+ * equal the expected split and the total must equal x_invoice.total (a
+ * tax-excluded tax would inflate it); before the cutoff no tax line at all.
+ */
+export function evaluateInvoiceGuard(f: { moveState: string; lines: GuardLine[]; tax?: InvoiceTaxExpectation }): GuardResult {
   const reasons: string[] = [];
+  if (f.tax) {
+    const taxLines = f.lines.filter((l) => l.is_tax);
+    const taxCredit = roundHalala(taxLines.reduce((a, l) => a + l.credit - l.debit, 0));
+    if (f.tax.expectTax) {
+      if (taxLines.length === 0 || taxCredit <= 0) {
+        reasons.push("فاتورة بعد تاريخ سريان الضريبة بلا سطر ضريبة");
+      } else if (Math.abs(taxCredit - f.tax.expectedTax) > 0.005 || Math.abs(f.tax.amountTax - f.tax.expectedTax) > 0.005) {
+        reasons.push(`الضريبة ${f.tax.amountTax} (سطر ${taxCredit}) ≠ المتوقع ${f.tax.expectedTax}`);
+      }
+      if (Math.abs(f.tax.amountTotal - f.tax.expectedTotal) > 0.005) {
+        reasons.push(`إجمالي القيد ${f.tax.amountTotal} ≠ إجمالي الفاتورة ${f.tax.expectedTotal} (السعر يجب أن يكون شاملاً)`);
+      }
+    } else if (taxLines.length > 0 || Math.abs(f.tax.amountTax) > 0.005) {
+      reasons.push(`فاتورة قبل تاريخ سريان الضريبة وعليها ضريبة ${f.tax.amountTax}`);
+    }
+  }
   if (f.moveState !== "posted") reasons.push(`الفاتورة حالتها ${f.moveState || "?"} وليس posted`);
   const recvDebit = f.lines.filter((l) => l.account_type === "asset_receivable" && l.debit > 0);
   const incomeCredit = f.lines.filter((l) => INCOME_TYPES.has(l.account_type) && l.credit > 0);
@@ -473,10 +623,16 @@ export function evaluateInvoiceGuard(f: { moveState: string; lines: GuardLine[] 
 }
 
 async function readMoveLinesWithTypes(env: Env, moveId: number): Promise<GuardLine[]> {
-  type Line = { account_id: [number, string] | false; debit: number; credit: number };
+  type Line = {
+    account_id: [number, string] | false;
+    debit: number;
+    credit: number;
+    display_type: string | false;
+    tax_line_id: [number, string] | false;
+  };
   const lines = await call<Line[]>(env, "account.move.line", "search_read", {
     domain: [["move_id", "=", moveId]],
-    fields: ["account_id", "debit", "credit"],
+    fields: ["account_id", "debit", "credit", "display_type", "tax_line_id"],
     limit: 200,
   });
   const accIds = Array.from(new Set(lines.map((l) => (l.account_id ? l.account_id[0] : 0)).filter((n) => n > 0)));
@@ -494,6 +650,7 @@ async function readMoveLinesWithTypes(env: Env, moveId: number): Promise<GuardLi
       account_type: a?.account_type ?? "?",
       debit: l.debit ?? 0,
       credit: l.credit ?? 0,
+      is_tax: l.display_type === "tax" || !!l.tax_line_id,
     };
   });
 }

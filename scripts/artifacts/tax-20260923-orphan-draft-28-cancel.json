@@ -1,0 +1,21 @@
+{
+  "at": "2026-09-23T08:21:41.592Z",
+  "reason": "cycle D first run: action_post refused (l10n_sa future-date rule), draft left behind; cancelled",
+  "before": {
+    "id": 28,
+    "name": false,
+    "ref": "UTAK-VAT-D-1790151628519",
+    "state": "draft",
+    "partner_id": [
+      48,
+      "اختبار محاسبة"
+    ],
+    "invoice_date": "2026-10-05",
+    "amount_total": 115
+  },
+  "after": {
+    "id": 28,
+    "name": false,
+    "state": "cancel"
+  }
+}

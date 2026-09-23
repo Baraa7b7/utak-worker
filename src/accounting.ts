@@ -247,6 +247,11 @@ export async function syncInvoiceToAccounting(
 
     const [moveId] = await call<number[]>(env, "account.move", "create", {
       vals_list: [moveVals],
+    }, {
+      probe: [
+        ["move_type", "=", "out_invoice"], ["ref", "=", args.invoiceNumber],
+        ["partner_id", "=", args.customerPartnerId], ["state", "=", "draft"],
+      ],
     });
     try {
       await call<boolean>(env, "account.move", "action_post", { ids: [moveId] });

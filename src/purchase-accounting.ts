@@ -315,7 +315,7 @@ export async function syncPurchaseListToAccounting(
         partner_ref: `PL-${listId}`,
         order_line: buildPurchaseOrderLineCommands(priced, product.id, tax ? [tax.id] : []),
       }],
-    });
+    }, { probe: [["origin", "=", origin], ["state", "=", "draft"]] });
     poId = createdPo;
     await call<unknown>(env, "purchase.order", "button_confirm", { ids: [poId] });
     await call<unknown>(env, "purchase.order", "action_create_invoice", { ids: [poId] });

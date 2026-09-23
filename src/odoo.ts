@@ -55,7 +55,205 @@ async function authenticateSession(env: Env): Promise<void> {
   authMode = "session";
 }
 
+// ============================================================
+// Retry policy (2026-09-23 — found live: Odoo.com answered HTTP 429 in the
+// middle of an invoice flow and `call` gave up on the first try).
+//
+// Retryable failures: 429, any 5xx, and a network error from fetch.
+// Never retried: every other 4xx (400/403/404, and 422 = UserError /
+// ValidationError, which is how Odoo refuses a posting), and any response
+// whose body names an odoo.exceptions.* error, whatever its status.
+//
+// No duplicate creates — a retry may only re-send a request when that
+// cannot write a record twice:
+//   • 429 is answered by the odoo.com rate limiter in front of Odoo, so the
+//     request never ran → safe to re-send for every method.
+//   • read-only methods (READ_METHODS) → safe on any retryable failure.
+//   • `write` → idempotent (the same vals written twice give the same row).
+//   • `create` on a TransientModel wizard → a stray wizard row is not a
+//     record (Odoo vacuums them) → safe.
+//   • `create` with `opts.probe` (a domain that finds the record this create
+//     would make): after an ambiguous failure (5xx / network — the request
+//     may have run and committed) we wait, search the probe, and if the
+//     record exists we return its id instead of creating again. Only if the
+//     probe finds nothing is the create re-sent.
+//   • any other mutating call (create without probe, action_post,
+//     button_confirm, unlink, …) → an ambiguous failure is NOT retried; it
+//     throws as before and the caller's cleanup runs (drafts cancelled).
+//
+// Exhausted retries → one owner alert (T.OWNER_ALERT via sendOwnerAlert)
+// naming the operation and the record, then the error is thrown so the
+// caller's existing failure path runs (cancel draft, alert, don't link).
+// ============================================================
+
+export const ODOO_MAX_RETRIES = 3;
+const RETRY_BASE_MS = 1000;
+const RETRY_CAP_MS = 8000;
+const RETRY_AFTER_CAP_MS = 15000;
+
+const READ_METHODS: ReadonlySet<string> = new Set([
+  "search_read", "read", "search", "search_count", "fields_get", "name_search",
+  "read_group", "web_search_read", "web_read", "search_fetch", "default_get",
+  "has_access", "check_access_rights",
+]);
+const TRANSIENT_WIZARD_MODELS: ReadonlySet<string> = new Set([
+  "account.payment.register", "sale.advance.payment.inv",
+]);
+
+export interface CallOptions {
+  /** create only: domain that finds the record this create would make. */
+  probe?: unknown[];
+}
+
+type RetryHooks = {
+  sleep: (ms: number) => Promise<void>;
+  random: () => number;
+  alert: (env: Env, text: string) => Promise<void>;
+};
+const defaultHooks: RetryHooks = {
+  sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+  random: Math.random,
+  alert: async (env, text) => {
+    const { sendOwnerAlert } = await import("./templates");
+    await sendOwnerAlert(env, text);
+  },
+};
+let hooks: RetryHooks = defaultHooks;
+/** Tests only: replace sleep / jitter / the owner-alert sink. */
+export function setOdooRetryHooksForTests(h: Partial<RetryHooks> | null): void {
+  hooks = h ? { ...defaultHooks, ...h } : defaultHooks;
+  alertedAt.clear();
+}
+
+/** Parse Retry-After (delta-seconds or HTTP-date) into ms, capped. */
+export function parseRetryAfter(v: string | null, now: number = Date.now()): number | null {
+  if (!v) return null;
+  const s = v.trim();
+  if (/^\d+(\.\d+)?$/.test(s)) return Math.min(Math.round(Number(s) * 1000), RETRY_AFTER_CAP_MS);
+  const t = Date.parse(s);
+  if (Number.isNaN(t)) return null;
+  return Math.min(Math.max(0, t - now), RETRY_AFTER_CAP_MS);
+}
+
+/** Exponential backoff with jitter: attempt 0 → 0.5–1 s, 1 → 1–2 s, 2 → 2–4 s. */
+export function backoffMs(attempt: number, random: () => number = Math.random): number {
+  const ceil = Math.min(RETRY_CAP_MS, RETRY_BASE_MS * 2 ** attempt);
+  return Math.round(ceil / 2 + random() * (ceil / 2));
+}
+
+type Failure =
+  | { kind: "http"; status: number; retryAfter: string | null; err: Error }
+  | { kind: "network"; err: Error };
+
+/** Is re-sending this request after this failure safe and useful? */
+export function retryDecision(
+  model: string,
+  method: string,
+  f: { kind: "http"; status: number; odooException?: boolean } | { kind: "network" },
+  hasProbe: boolean,
+): "retry" | "probe-then-retry" | "no" {
+  if (f.kind === "http") {
+    if (f.odooException) return "no";
+    if (f.status !== 429 && f.status < 500) return "no";
+    if (f.status === 429) return "retry"; // rejected by the rate limiter before Odoo ran it
+  }
+  // ambiguous: 5xx or network — the request may have run
+  if (READ_METHODS.has(method) || method === "write") return "retry";
+  if (method === "create" && TRANSIENT_WIZARD_MODELS.has(model)) return "retry";
+  if (method === "create" && hasProbe) return "probe-then-retry";
+  return "no";
+}
+
+function describeTarget(body: Record<string, unknown>, opts: CallOptions): string {
+  const ids = (body as { ids?: unknown }).ids;
+  if (Array.isArray(ids) && ids.length) return `ids=${ids.slice(0, 10).join(",")}`;
+  if (opts.probe) return `probe=${JSON.stringify(opts.probe).slice(0, 200)}`;
+  const vl = (body as { vals_list?: Array<Record<string, unknown>> }).vals_list;
+  const v = Array.isArray(vl) ? vl[0] : (body as { values?: Record<string, unknown> }).values;
+  if (v && typeof v === "object") {
+    const keys = ["name", "ref", "origin", "partner_id", "x_name"].filter((k) => k in v);
+    if (keys.length) return keys.map((k) => `${k}=${JSON.stringify(v[k])}`).join(" ").slice(0, 200);
+  }
+  const d = (body as { domain?: unknown }).domain;
+  if (d) return `domain=${JSON.stringify(d).slice(0, 200)}`;
+  return "(no record)";
+}
+
+// One alert per model.method per 10 min per isolate, so a rate-limit storm
+// does not flood the owner. alertDepth stops the alert path (which itself
+// can reach Odoo) from alerting about its own failures.
+const ALERT_THROTTLE_MS = 10 * 60 * 1000;
+const alertedAt = new Map<string, number>();
+let alertDepth = 0;
+
+async function alertExhausted(env: Env, model: string, method: string, target: string, err: Error, attempts: number): Promise<void> {
+  if (alertDepth > 0) return;
+  const key = `${model}.${method}`;
+  const now = Date.now();
+  const last = alertedAt.get(key);
+  if (last !== undefined && now - last < ALERT_THROTTLE_MS) return;
+  alertedAt.set(key, now);
+  alertDepth++;
+  try {
+    await hooks.alert(env,
+      `⚠️ Odoo لم يستجب بعد ${attempts} محاولات — العملية ${key}، السجل ${target} — ${err.message.slice(0, 200)}`);
+  } catch (e) {
+    console.error("[odoo] retry-exhausted alert failed", (e as Error)?.message);
+  } finally {
+    alertDepth--;
+  }
+}
+
 export async function call<T = unknown>(
+  env: Env,
+  model: string,
+  method: string,
+  body: Record<string, unknown>,
+  opts: CallOptions = {},
+): Promise<T> {
+  let attempt = 0;
+  for (;;) {
+    let failure: Failure;
+    try {
+      return await callOnce<T>(env, model, method, body);
+    } catch (e) {
+      const err = e as Error & { status?: number; retryAfter?: string | null; odooException?: boolean; network?: boolean };
+      if (err.network) failure = { kind: "network", err };
+      else if (typeof err.status === "number") failure = { kind: "http", status: err.status, retryAfter: err.retryAfter ?? null, err };
+      else throw err;
+      const decision = retryDecision(
+        model, method,
+        failure.kind === "http" ? { kind: "http", status: failure.status, odooException: err.odooException } : { kind: "network" },
+        Array.isArray(opts.probe),
+      );
+      if (decision === "no") throw err;
+      const wait = (failure.kind === "http" ? parseRetryAfter(failure.retryAfter) : null) ?? backoffMs(attempt, hooks.random);
+      if (decision === "probe-then-retry") {
+        // The failed create may have run and committed. Give it time to
+        // land, then adopt the record if it is there — also after the last
+        // attempt, so an exhausted create never leaves an unknown draft.
+        await hooks.sleep(wait);
+        const found = await call<number[]>(env, model, "search", { domain: opts.probe, limit: 2 });
+        if (found.length === 1) {
+          console.warn(`[odoo] ${model}.create ambiguous failure — probe found ${found[0]}, not creating again`);
+          return [found[0]] as T;
+        }
+        if (found.length > 1) {
+          throw Object.assign(new Error(`odoo ${model}.create: probe matched ${found.length} records after an ambiguous failure — not retrying`), { status: failure.kind === "http" ? failure.status : 0 });
+        }
+      }
+      if (attempt >= ODOO_MAX_RETRIES) {
+        await alertExhausted(env, model, method, describeTarget(body, opts), err, attempt + 1);
+        throw err;
+      }
+      console.warn(`[odoo] ${model}.${method} ${failure.kind === "http" ? `HTTP ${failure.status}` : "network error"} — retry ${attempt + 1}/${ODOO_MAX_RETRIES}${decision === "probe-then-retry" ? " (probe empty)" : ` in ${wait}ms`}`);
+      if (decision !== "probe-then-retry") await hooks.sleep(wait);
+      attempt++;
+    }
+  }
+}
+
+async function callOnce<T>(
   env: Env,
   model: string,
   method: string,
@@ -92,7 +290,12 @@ export async function call<T = unknown>(
     }
   }
 
-  const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+  let res: Response;
+  try {
+    res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+  } catch (e) {
+    throw Object.assign(new Error(`odoo network error on ${model}.${method}: ${(e as Error)?.message ?? e}`), { network: true });
+  }
   const text = await res.text();
   let parsed: unknown;
   try {
@@ -104,13 +307,17 @@ export async function call<T = unknown>(
   if (!res.ok) {
     if (res.status === 401 && authMode === "apikey") {
       await authenticateSession(env);
-      return call<T>(env, model, method, body);
+      return callOnce<T>(env, model, method, body);
     }
     // deno-lint-ignore no-explicit-any
     const p = parsed as any;
-    const errName = p?.data?.name ?? `HTTP_${res.status}`;
-    const errMsg = p?.data?.message ?? (typeof text === "string" ? text.slice(0, 200) : "");
-    throw Object.assign(new Error(`odoo ${errName}: ${errMsg}`), { status: res.status });
+    const errName = p?.data?.name ?? p?.name ?? `HTTP_${res.status}`;
+    const errMsg = p?.data?.message ?? p?.message ?? (typeof text === "string" ? text.slice(0, 200) : "");
+    throw Object.assign(new Error(`odoo ${errName}: ${errMsg}`), {
+      status: res.status,
+      retryAfter: res.headers.get("retry-after"),
+      odooException: typeof errName === "string" && errName.startsWith("odoo.exceptions."),
+    });
   }
 
   return parsed as T;

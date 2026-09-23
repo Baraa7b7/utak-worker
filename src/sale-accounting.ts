@@ -339,7 +339,7 @@ export async function ensureSaleOrderForDailyOrder(
         client_order_ref: `UTAK-ORDER-${orderId}`,
         order_line: buildSaleOrderLineCommands(lines, productId, tax ? [tax.id] : []),
       }],
-    });
+    }, { probe: [["origin", "=", origin], ["state", "=", "draft"]] });
     soId = created;
     await call<unknown>(env, "sale.order", "action_confirm", { ids: [soId] });
     const so = await readSo(env, soId);

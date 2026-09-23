@@ -17,6 +17,7 @@ import {
   escapeHTML,
   htmlToPDF,
   renderPDFShell,
+  renderSealSignatureBlock,
   signDocToken,
   uploadPDFToR2,
   type LegalFooterInfo,
@@ -342,10 +343,16 @@ export function renderBlock(b: OfficialDocBlock): string {
   }
 }
 
-export function renderBlocks(blocks: OfficialDocBlock[]): string {
+export function renderBlocks(
+  blocks: OfficialDocBlock[],
+  opts: { omitStampPlaceholder?: boolean } = {},
+): string {
   const ordered = [...blocks].sort((a, b) => a.sequence - b.sequence);
   const parts: string[] = [];
   for (const b of ordered) {
+    // An issued doc prints the real company seal (bottom-left); the dashed
+    // ring would be a second, fake-looking stamp.
+    if (opts.omitStampPlaceholder && b.block_type === "stamp") continue;
     const html = renderBlock(b);
     if (!html) continue;
     parts.push(html);
@@ -449,7 +456,12 @@ export function renderOfficialDocHTML(ctx: OfficialDocRenderContext): string {
   const recipientLabel = record.recipient_label
     || (isEn ? UI.toLabel.en : UI.toLabel.ar);
   const aboveBody = renderSubjectStrip(record.subject, record.recipient, recipientLabel, lang);
-  const bodyHTML = renderBlocks(record.blocks);
+  // 2026-09-24 — the real seal + signature go on ISSUED docs only. A preview
+  // (draft) keeps the dashed placeholder ring and never carries the seal.
+  const sealBlock = isPreview
+    ? ""
+    : renderSealSignatureBlock({ stamp: company.stampImage, signature: company.signatureImage });
+  const bodyHTML = renderBlocks(record.blocks, { omitStampPlaceholder: sealBlock !== "" && !!company.stampImage });
 
   // Title picker per lang. bi is not supported for official docs so the
   // en branch is the only non-Arabic fallback.
@@ -473,6 +485,7 @@ export function renderOfficialDocHTML(ctx: OfficialDocRenderContext): string {
     suppressPartiesRow: true,
     bodyHTML,
     aboveBodyHTML: aboveBody,
+    belowBodyHTML: sealBlock || undefined,
     hideFooterNote: true,
     hideThanks: true,
     legalFooterBar: legalFooter,
@@ -703,7 +716,7 @@ export { readCompanyInfo };
 // AI drafting — a strict-JSON call to Claude that rewrites the block list.
 // ============================================================================
 
-const AI_SYSTEM_PROMPT_AR = `أنت كاتب رسمي لشركة UTAK يو تاك في المملكة العربية السعودية.
+const AI_SYSTEM_PROMPT_AR = `أنت كاتب رسمي لشركة يوتاك (UTAK) في المملكة العربية السعودية.
 تحوّل طلب المستخدم إلى مستند رسمي مبني على بلوكات.
 
 القواعد الملزمة (بدون استثناء):
@@ -731,11 +744,11 @@ const AI_SYSTEM_PROMPT_AR = `أنت كاتب رسمي لشركة UTAK يو تا�
 - highlight_row: «العنوان | القيمة1 | القيمة2».
 - notes: كل سطر ملاحظة (الترقيم تلقائي، لا تكتب الرقم).
 - signature: سطران — الاسم ثم الصفة.
-- stamp: نص قصير داخل الختم (مثل «UTAK — يو تاك»).
+- stamp: نص قصير داخل الختم (مثل «شركة يوتاك»).
 
 الحد الأقصى: 25 بلوك.`;
 
-const AI_SYSTEM_PROMPT_EN = `You are an official writer for UTAK (يو تاك), a Saudi Arabian company.
+const AI_SYSTEM_PROMPT_EN = `You are an official writer for UTAK (شركة يوتاك), a Saudi Arabian company.
 Turn the user's request into an official document composed of typed blocks.
 
 Binding rules (no exceptions):

@@ -1,0 +1,36 @@
+[
+  {
+    "file": "/Users/baraa7/utak-worker/scripts/artifacts/brand-20260924-invoice-tax-qr-seal.pdf",
+    "pages": 1,
+    "qrPage": "p-1.png",
+    "qrText": "ATbYtNix2YPYqSDZitmI2KrYp9mDINiw2KfYqiDZhdiz2KTZiNmE2YrYqSDZhdit2K/ZiNiv2KkCDzMxNTAyMjczNjYwMDAwMwMTMjAyNi0xMC0wMVQxMDoxNTowMAQHMTA3NC4wMAUGMTQwLjEw",
+    "decoded": {
+      "sellerName": "شركة يوتاك ذات مسؤولية محدودة",
+      "vatNumber": "315022736600003",
+      "timestamp": "2026-10-01T10:15:00",
+      "total": "1074.00",
+      "vatTotal": "140.10"
+    },
+    "sealPage": 1
+  },
+  {
+    "file": "/Users/baraa7/utak-worker/scripts/artifacts/brand-20260924-invoice-40-items.pdf",
+    "pages": 2,
+    "qrPage": "p-2.png",
+    "qrText": "ATbYtNix2YPYqSDZitmI2KrYp9mDINiw2KfYqiDZhdiz2KTZiNmE2YrYqSDZhdit2K/ZiNiv2KkCDzMxNTAyMjczNjYwMDAwMwMTMjAyNi0xMC0wMlQwOTo0MDoxMgQHNDgyMC4wMAUGNjI4LjY5",
+    "decoded": {
+      "sellerName": "شركة يوتاك ذات مسؤولية محدودة",
+      "vatNumber": "315022736600003",
+      "timestamp": "2026-10-02T09:40:12",
+      "total": "4820.00",
+      "vatTotal": "628.69"
+    },
+    "sealPage": 2
+  },
+  {
+    "file": "/Users/baraa7/utak-worker/scripts/artifacts/brand-20260924-invoice-pre-cutoff-no-vat.pdf",
+    "pages": 1,
+    "qrText": null,
+    "sealPage": 1
+  }
+]

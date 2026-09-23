@@ -42,6 +42,7 @@ import {
   htmlToPDF,
   buildGotenbergFooterHtml,
   GOTENBERG_FOOTER_MARGIN,
+  renderSealSignatureBlock,
   type LegalFooterInfo,
   type PageMetrics,
   type PartyInfo,
@@ -49,6 +50,7 @@ import {
 import type { CompanyInfo } from "./company";
 import { readCompanyInfo } from "./company";
 import { toLegalFooterAr } from "./legal-footer";
+import { parseOdooUtc, resolveZatcaQr, zatcaQrSvg, type ZatcaQr } from "./zatca-qr";
 import { UI, resolveDocLang, type DocLang } from "./i18n";
 import { formatDateEn, fromPartyFor, itemCellHTML, labelForBillTo, labelForFrom, labelForTerms, taglineFor, thanksLine } from "./doc-shell";
 
@@ -729,7 +731,21 @@ export interface InvoicePDFData {
   // its Arabic text. resolveDocLang enforces this by upgrading a resolved
   // "en" to "bi" when isTaxInvoice=true (see src/i18n.ts).
   lang?: DocLang;
+  /**
+   * ZATCA Phase 1 QR (2026-09-24). Set by the Odoo builders on tax invoices
+   * only (vatAmount > 0, i.e. dated from VAT_EFFECTIVE_DATE_RIYADH); a
+   * tax-free invoice never carries one.
+   */
+  zatcaQr?: ZatcaQr;
+  /**
+   * True for an issued invoice (every x_invoice row; a posted account.move).
+   * Only issued invoices print the company seal + signature.
+   */
+  issued?: boolean;
 }
+
+/** Printed QR edge — comfortably scannable by a phone at arm's length. */
+export const ZATCA_QR_SIZE_MM = 30;
 
 // Middle slot for an invoice: the line-items table.
 function renderInvoiceBodyHTML(
@@ -804,10 +820,11 @@ export function renderInvoiceTotalsHTML(
   grandTotal: number,
   lang: DocLang = "ar",
   vatNumbers: { seller?: string; buyer?: string } = {},
+  qr?: ZatcaQr,
 ): string {
   // lang="ar" keeps the hard-coded Arabic strings from Part A. en/bi swap in
   // their translations from src/i18n.ts (bi shows the Arabic label).
-  type Key = "subtotal" | "discount" | "vat15" | "grandTotal" | "subtotalExclVat" | "grandTotalInclVat" | "sellerVatNo" | "buyerVatNo";
+  type Key = "subtotal" | "discount" | "vat15" | "grandTotal" | "subtotalExclVat" | "grandTotalInclVat" | "sellerVatNo" | "buyerVatNo" | "sellerName" | "issuedAt" | "vatTotal";
   const L = (key: Key) => {
     if (lang === "en") return UI[key].en;
     return UI[key].ar;
@@ -818,11 +835,31 @@ export function renderInvoiceTotalsHTML(
   const vatRow = isTax ? `
         ${row(L("vat15"), formatMoney(vatAmount, lang))}` : "";
   const numbers: string[] = [];
-  if (isTax && vatNumbers.seller && vatNumbers.seller.trim()) numbers.push(row(L("sellerVatNo"), escapeHTML(vatNumbers.seller.trim())));
+  // 2026-09-24 — with a ZATCA QR the seller block prints the QR's decoded
+  // values VERBATIM (name, VAT no., timestamp, total, VAT), so what a phone
+  // scans and what the paper says are the same characters.
+  const showQr = isTax && qr !== undefined;
+  if (showQr) {
+    const f = qr.fields;
+    const cap = (label: string, value: string, key: string) =>
+      `<div style="display: flex; justify-content: space-between; gap: 8px; font-size: 9px; color: ${BRAND_COLORS.inkMuted};"><span>${escapeHTML(label)}</span><bdi dir="${key === "name" ? "auto" : "ltr"}" data-zatca="${key}" style="color: ${BRAND_COLORS.ink};">${escapeHTML(value)}</bdi></div>`;
+    numbers.push(`<div data-zatca="qr" data-zatca-source="${qr.source}" style="display: flex; gap: 10px; align-items: flex-start;">
+          ${zatcaQrSvg(qr.base64, ZATCA_QR_SIZE_MM)}
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; padding-top: 2px;">
+            ${cap(L("sellerName"), f.sellerName, "name")}
+            ${cap(L("sellerVatNo"), f.vatNumber, "vat")}
+            ${cap(L("issuedAt"), f.timestamp, "timestamp")}
+            ${cap(L("grandTotalInclVat"), f.total, "total")}
+            ${cap(L("vatTotal"), f.vatTotal, "tax")}
+          </div>
+        </div>`);
+  } else if (isTax && vatNumbers.seller && vatNumbers.seller.trim()) {
+    numbers.push(row(L("sellerVatNo"), escapeHTML(vatNumbers.seller.trim())));
+  }
   if (isTax && vatNumbers.buyer && vatNumbers.buyer.trim()) numbers.push(row(L("buyerVatNo"), escapeHTML(vatNumbers.buyer.trim())));
   const numbersCol = numbers.length
     ? `
-      <div style="width: 40%; display: flex; flex-direction: column; gap: 9px;">
+      <div style="width: ${showQr ? "52%" : "40%"}; display: flex; flex-direction: column; gap: 9px;">
         ${numbers.join("\n        ")}
       </div>`
     : "";
@@ -867,6 +904,9 @@ export function renderInvoiceHTML(data: InvoicePDFData, company?: CompanyInfo): 
   // template. `lang === "ar"` also passes through cleanly since the shell
   // treats undefined and "ar" identically.
   const title = isTaxInvoice ? UI.taxInvoice : UI.invoice;
+  const sealBlock = data.issued && company
+    ? renderSealSignatureBlock({ stamp: company.stampImage, signature: company.signatureImage }, { marginTopMm: 0, raiseMm: 6 })
+    : "";
   return renderPDFShell({
     documentTitle: lang === "en" ? title.en : title.ar,
     documentNumber: data.invoiceNumber,
@@ -883,13 +923,18 @@ export function renderInvoiceHTML(data: InvoicePDFData, company?: CompanyInfo): 
       data.grandTotal,
       lang,
       { seller: data.sellerVat ?? company?.vat, buyer: data.customer.vat },
+      isTaxInvoice ? data.zatcaQr : undefined,
     ),
     footerNote: data.paymentTerms ?? (lang === "en" ? UI.invoicePaymentTerms.en : UI.invoicePaymentTerms.ar),
-    // 2026-09-23 — no QR on any invoice yet, tax invoices included: the ZATCA
-    // QR (and e-invoicing) is a separate, later order. Was `isTaxInvoice`,
-    // which was always false while VAT was 0.
+    // The footer's dashed placeholder stays off: the real ZATCA QR (tax
+    // invoices only, 2026-09-24) sits in the totals block, bottom-right.
     showZatcaQR: false,
     legalFooterBar,
+    // Seal + signature, bottom-left in the terms row of the last page (raised
+    // 6 mm into the row's top gap so a one-page invoice stays one page):
+    // issued invoices only. Left undefined (not "") otherwise so the
+    // byte-parity template holds.
+    footerSealHTML: sealBlock || undefined,
     pageMetrics,
     lang: data.lang ? lang : undefined,
     tagline: data.lang ? taglineFor(lang) : undefined,
@@ -1048,7 +1093,26 @@ export async function buildInvoicePDFDataFromOdoo(
     }
   }
 
+  // 2026-09-24 — ZATCA Phase 1 QR on tax invoices only. Prefer l10n_sa's
+  // string from the twinned account.move; else encode the same five fields
+  // from the x_invoice row (issued at its create_date).
+  let zatcaQr: ZatcaQr | undefined;
+  if (vatAmount > 0) {
+    const [row] = await call<Array<{ create_date: string; x_account_move_id: [number, string] | false }>>(
+      env, "x_invoice", "read", { ids: [invoiceId], fields: ["create_date", "x_account_move_id"] },
+    );
+    zatcaQr = await resolveInvoiceZatcaQr(env, {
+      invoiceNumber: invoice.number,
+      moveId: row?.x_account_move_id ? row.x_account_move_id[0] : null,
+      issuedAtUtc: row?.create_date ? parseOdooUtc(row.create_date) : new Date(),
+      total: invoice.total,
+      tax: vatAmount,
+    });
+  }
+
   return {
+    issued: true,
+    ...(zatcaQr ? { zatcaQr } : {}),
     invoiceNumber: invoice.number,
     invoiceDate: invoice.date ? new Date(`${invoice.date}T12:00:00Z`) : new Date(),
     customer: {
@@ -1063,6 +1127,48 @@ export async function buildInvoicePDFDataFromOdoo(
     vatAmount,
     grandTotal: invoice.total,
   };
+}
+
+// --------------------------------------------------------------
+// ZATCA QR resolver shared by both builders. Reads l10n_sa_qr_code_str from
+// the posted move (when there is one) and the seller identity from
+// res.company; resolveZatcaQr decides which string to print. Never throws —
+// a QR failure is logged and the invoice renders without it rather than
+// not at all (the x_invoice row is already issued).
+// --------------------------------------------------------------
+async function resolveInvoiceZatcaQr(
+  env: Env,
+  a: { invoiceNumber: string; moveId: number | null; issuedAtUtc: Date; total: number; tax: number },
+): Promise<ZatcaQr | undefined> {
+  try {
+    let odooQr: string | false = false;
+    let issuedAtUtc = a.issuedAtUtc;
+    if (a.moveId) {
+      const [m] = await call<Array<{ state: string; l10n_sa_qr_code_str: string | false; l10n_sa_confirmation_datetime: string | false }>>(
+        env, "account.move", "read",
+        { ids: [a.moveId], fields: ["state", "l10n_sa_qr_code_str", "l10n_sa_confirmation_datetime"] },
+      );
+      if (m?.state === "posted") {
+        odooQr = m.l10n_sa_qr_code_str;
+        if (m.l10n_sa_confirmation_datetime) issuedAtUtc = parseOdooUtc(m.l10n_sa_confirmation_datetime);
+      }
+    }
+    const [company] = await call<Array<{ name: string; vat: string | false }>>(
+      env, "res.company", "read", { ids: [1], fields: ["name", "vat"] },
+    );
+    const qr = resolveZatcaQr({
+      odooQr,
+      expected: { vatNumber: typeof company?.vat === "string" ? company.vat : "", total: a.total, vatTotal: a.tax },
+      fallback: { sellerName: company?.name ?? "", issuedAtUtc },
+    });
+    if (qr.odooRejected && a.moveId) {
+      console.warn(`[invoice] ${a.invoiceNumber}: l10n_sa QR not used (${qr.odooRejected}) — encoded locally`);
+    }
+    return { base64: qr.base64, fields: qr.fields, source: qr.source };
+  } catch (e) {
+    console.error(`[invoice] ${a.invoiceNumber}: ZATCA QR failed — rendered without QR`, (e as Error).message);
+    return undefined;
+  }
 }
 
 // --------------------------------------------------------------
@@ -1088,10 +1194,12 @@ export async function buildInvoicePDFDataFromAccountMove(
     amount_tax: number;
     amount_total: number;
     move_type: string;
+    state: string;
+    create_date: string;
   };
   const heads = await call<MoveHead[]>(env, "account.move", "read", {
     ids: [moveId],
-    fields: ["id","name","invoice_date","date","partner_id","invoice_line_ids","amount_untaxed","amount_tax","amount_total","move_type"],
+    fields: ["id","name","invoice_date","date","partner_id","invoice_line_ids","amount_untaxed","amount_tax","amount_total","move_type","state","create_date"],
   });
   const head = heads[0];
   if (!head) return null;
@@ -1187,9 +1295,23 @@ export async function buildInvoicePDFDataFromAccountMove(
 
   const rawDate = head.invoice_date || head.date || null;
   const invoiceDate = rawDate ? new Date(String(rawDate)) : new Date();
+  // A draft move is not an issued invoice: no QR, no seal.
+  const issued = head.state === "posted";
+  const invoiceNumber = (typeof head.name === "string" && head.name) ? head.name : `INV-${moveId}`;
+  const zatcaQr = issued && head.move_type === "out_invoice" && (head.amount_tax || 0) > 0
+    ? await resolveInvoiceZatcaQr(env, {
+        invoiceNumber,
+        moveId,
+        issuedAtUtc: parseOdooUtc(head.create_date),
+        total: head.amount_total,
+        tax: head.amount_tax,
+      })
+    : undefined;
 
   return {
-    invoiceNumber: (typeof head.name === "string" && head.name) ? head.name : `INV-${moveId}`,
+    issued,
+    ...(zatcaQr ? { zatcaQr } : {}),
+    invoiceNumber,
     invoiceDate,
     customer: {
       name: partner?.name || (head.partner_id ? head.partner_id[1] : "عميل"),

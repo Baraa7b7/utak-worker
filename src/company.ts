@@ -30,6 +30,12 @@ export interface CompanyInfo {
   // country name read in the matching Odoo lang context (ar_001 vs en_US).
   addressAr?: string;
   addressEn?: string;
+  // Company seal + authorized signature (res.company x_stamp_image /
+  // x_signature_image, 2026-09-24) as data: URIs, ready for <img src>.
+  // Undefined when the field is missing or empty. Printed on ISSUED
+  // documents only — never on a draft or preview.
+  stampImage?: string;
+  signatureImage?: string;
 }
 
 // Odoo BCP-47 codes for the active languages on this tenant. The pair is
@@ -65,6 +71,7 @@ export async function readCompanyInfo(env: Env): Promise<CompanyInfo> {
   const OPTIONAL_COMPANY_FIELDS = [
     "mobile", "company_registry", "additional_identifiers",
     "x_legal_name_ar", "x_legal_name_en", "x_address_ar", "x_address_en",
+    "x_stamp_image", "x_signature_image",
   ];
   const availableRows = await call<Array<{ name: string }>>(env, "ir.model.fields", "search_read", {
     domain: [["model", "=", "res.company"], ["name", "in", OPTIONAL_COMPANY_FIELDS]],
@@ -77,12 +84,15 @@ export async function readCompanyInfo(env: Env): Promise<CompanyInfo> {
   // country_id translated to both languages in one round-trip pair. Every
   // other field is language-independent, but reading with a lang context is
   // still valid: Odoo returns the same string.
+  // The two images are language-independent and large: only the ar read
+  // fetches them.
+  const IMAGE_FIELDS = new Set(["x_stamp_image", "x_signature_image"]);
   const [rowsAr, rowsEn] = await Promise.all([
     call<Array<Record<string, unknown>>>(env, "res.company", "read", {
       ids: [1], fields: readFields, context: { lang: LANG_AR },
     }),
     call<Array<Record<string, unknown>>>(env, "res.company", "read", {
-      ids: [1], fields: readFields, context: { lang: LANG_EN },
+      ids: [1], fields: readFields.filter((f) => !IMAGE_FIELDS.has(f)), context: { lang: LANG_EN },
     }),
   ]);
   const cAr = rowsAr[0] ?? {};
@@ -197,7 +207,7 @@ export async function readCompanyInfo(env: Env): Promise<CompanyInfo> {
   const addressArField = readStr("x_address_ar");
   const addressEnField = readStr("x_address_en");
   return {
-    nameAr: readStr("name") || "UTAK — يو تاك",
+    nameAr: readStr("name") || "شركة يوتاك",
     nameEn: "UTAK",
     // Legacy single-language address string uses the Arabic country name so
     // ar-mode documents keep their layout without any renderer change.
@@ -213,5 +223,20 @@ export async function readCompanyInfo(env: Env): Promise<CompanyInfo> {
     // to pick whichever matches the doc's lang and to not fall back further.
     addressAr: addressArField || addrPartsAr.join("، "),
     addressEn: addressEnField || addrPartsEn.join(", "),
+    stampImage: imageDataUri(c.x_stamp_image),
+    signatureImage: imageDataUri(c.x_signature_image),
   };
+}
+
+// Odoo returns a binary field as bare base64. Sniff the type from the first
+// bytes (PNG / JPEG / SVG / WebP); anything else is not printed.
+export function imageDataUri(v: unknown): string | undefined {
+  if (typeof v !== "string" || !v.trim()) return undefined;
+  const b64 = v.trim();
+  const mime = b64.startsWith("iVBORw0KGgo") ? "image/png"
+    : b64.startsWith("/9j/") ? "image/jpeg"
+    : b64.startsWith("PHN2Zy") || b64.startsWith("PD94bWwg") ? "image/svg+xml"
+    : b64.startsWith("UklGR") ? "image/webp"
+    : "";
+  return mime ? `data:${mime};base64,${b64}` : undefined;
 }

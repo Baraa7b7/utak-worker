@@ -48,7 +48,7 @@ export function labelForTerms(lang: DocLang): string {
 // Thanks line: "شكراً لثقتكم في {name}" — localizes both the wording and the
 // company name (Arabic vs English).
 export function thanksLine(lang: DocLang, company: CompanyInfo | undefined): string {
-  const nameAr = company?.nameAr || "UTAK — يو تاك";
+  const nameAr = company?.nameAr || "شركة يوتاك";
   const nameEn = company?.nameEn || "UTAK";
   if (lang === "en") return `${UI.thanksPrefix.en} ${nameEn}`;
   if (lang === "bi") return `${UI.thanksPrefix.ar} ${nameAr}`;

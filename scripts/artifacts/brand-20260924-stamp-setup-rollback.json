@@ -1,0 +1,31 @@
+{
+  "script": "scripts/brand-20260924-stamp-setup.mjs",
+  "createdAt": "2026-09-23T22:24:26.341Z",
+  "before": {
+    "company_name": "شركة يو تاك ذات مسؤولية محدودة",
+    "x_legal_name_ar": false,
+    "partner_id": 1,
+    "partner_name": "شركة يو تاك ذات مسؤولية محدودة",
+    "additional_identifiers": {
+      "SA_CRN": "7055194869"
+    },
+    "fields_present": [],
+    "view_present": []
+  },
+  "created": {
+    "field_ids": [
+      20270,
+      20272
+    ],
+    "view_id": 2817
+  },
+  "wrote": {
+    "company_name": "شركة يوتاك ذات مسؤولية محدودة",
+    "x_legal_name_ar": "شركة يوتاك ذات مسؤولية محدودة",
+    "x_stamp_image": {
+      "src": "/Users/baraa7/Desktop/Utak/ختم الشركة/UTAK-Seal-Final-Stamped.png",
+      "px": 709,
+      "bytes": 218538
+    }
+  }
+}

@@ -71,6 +71,10 @@ export const UI = {
   grandTotalInclVat: T("الإجمالي شامل الضريبة", "Total incl. VAT"),
   sellerVatNo: T("الرقم الضريبي للمنشأة", "Seller VAT No."),
   buyerVatNo: T("الرقم الضريبي للعميل", "Customer VAT No."),
+  // ZATCA Phase 1 QR caption (2026-09-24) — printed beside the QR.
+  sellerName: T("اسم المنشأة", "Seller"),
+  issuedAt: T("تاريخ ووقت الإصدار", "Issue date & time"),
+  vatTotal: T("ضريبة القيمة المضافة", "VAT total"),
   totalReceived: T("إجمالي المستلم", "Total Received"),
 
   // ---------------- footer notes ----------------

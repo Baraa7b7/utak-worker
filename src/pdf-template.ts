@@ -40,7 +40,7 @@ export const UTAK_LOGO_DATA_URL =
 // Company info block that appears in the FROM slot by default.
 // TODO: promote to env-driven config once ZATCA registration + CR + VAT numbers land.
 export const BRAND_INFO = {
-  nameAr: "UTAK — يو تاك",
+  nameAr: "شركة يوتاك",
   nameEn: "UTAK",
   tagline: "توزيع منتجات زراعية طازجة",
   address: "الرياض، المملكة العربية السعودية",
@@ -99,6 +99,37 @@ export function formatDateArabic(date: Date): string {
 export function generateZatcaQRPlaceholder(): string {
   return `<div style="width: 80px; height: 80px; border: 0.5px dashed ${BRAND_COLORS.borderDashed}; display: flex; align-items: center; justify-content: center; text-align: center;">
       <span style="font-size: 7px; font-weight: 400; color: ${BRAND_COLORS.borderDashed}; letter-spacing: 0.1em; line-height: 1.6;">ZATCA<br>QR</span>
+    </div>`;
+}
+
+// Company seal over the authorized signature, bottom-left of the last page
+// (2026-09-24). Seal at its physical 40 mm, slightly rotated and overlapping
+// the signature like a hand-pressed stamp. Callers pass it ONLY for issued
+// documents (an issued invoice, an issued official doc) — drafts and
+// previews never carry it. Either image may be missing: no signature on file
+// → the seal alone; nothing on file → "" (no empty frame).
+export const SEAL_SIZE_MM = 40;
+
+export function renderSealSignatureBlock(
+  images: { stamp?: string; signature?: string },
+  opts: { marginTopMm?: number; raiseMm?: number } = {},
+): string {
+  // raiseMm: the seal rises that far above its box (absolute, so no layout
+  // effect) — a pressed stamp over the gap above it. A negative margin was
+  // tried first and Chromium's print fragmentation overlapped the next lines.
+  const raise = opts.raiseMm ?? 0;
+  const { stamp, signature } = images;
+  if (!stamp && !signature) return "";
+  const sig = signature
+    ? `<img data-utak="signature" src="${escapeHTML(signature)}" alt="التوقيع" style="position: absolute; left: 0; bottom: 4mm; width: 46mm; height: 22mm; object-fit: contain; object-position: left bottom;" />`
+    : "";
+  const seal = stamp
+    ? `<img data-utak="stamp" src="${escapeHTML(stamp)}" alt="ختم الشركة" style="position: absolute; left: ${signature ? "22mm" : "0"}; top: ${-raise}mm; width: ${SEAL_SIZE_MM}mm; height: ${SEAL_SIZE_MM}mm; transform: rotate(-8deg); opacity: 0.92; mix-blend-mode: multiply;" />`
+    : "";
+  // The seal is a circle: a small rotation keeps it inside its own 40 mm box.
+  const width = stamp ? (signature ? 22 : 0) + SEAL_SIZE_MM : 50;
+  return `<div class="utak-block" data-utak="seal-signature" style="display: flex; direction: ltr; justify-content: flex-start; margin-top: ${opts.marginTopMm ?? 8}mm;">
+      <div style="position: relative; width: ${width}mm; height: ${SEAL_SIZE_MM - raise}mm;">${sig}${seal}</div>
     </div>`;
 }
 
@@ -273,10 +304,15 @@ function renderLegalFooterBar(info: LegalFooterInfo, lang: DocLang = "ar"): stri
   return parts.join("\n    ");
 }
 
-function renderFooter(footerNote: string, showZatcaQR: boolean, termsLabel: string = "شروط الدفع", thanksTextOverride?: string): string {
-  const qrCell = showZatcaQR
+function renderFooter(footerNote: string, showZatcaQR: boolean, termsLabel: string = "شروط الدفع", thanksTextOverride?: string, leftSlotHTML?: string): string {
+  // The left cell of the terms row: the seal + signature on an issued doc
+  // (bottom-left of the last page, no extra row), else the QR placeholder or
+  // an 80px reserve that keeps the grid symmetric.
+  const qrCell = leftSlotHTML
+    ? leftSlotHTML
+    : showZatcaQR
     ? generateZatcaQRPlaceholder()
-    : `<div style="width: 80px;"></div>`; // reserve space so the grid layout stays symmetric
+    : `<div style="width: 80px;"></div>`;
   // Legacy Arabic default preserved for the byte-parity path (which never
   // passes thanksTextOverride).
   const thanks = thanksTextOverride ?? `شكراً لثقتكم في ${BRAND_INFO.nameAr}`;
@@ -395,6 +431,10 @@ export interface RenderPDFShellOptions {
    *  above the footer. Used for signatures + stamps — right after content,
    *  never anchored to the page bottom. */
   belowBodyHTML?: string;
+  /** Seal + signature block (renderSealSignatureBlock) for an ISSUED doc.
+   *  Sits in the left cell of the terms row — bottom-left of the last page —
+   *  or, when the footer is hidden, right after the body. */
+  footerSealHTML?: string;
   /** When true, adds multi-page @media print rules (thead repetition,
    *  break-inside: avoid on tr/.utak-block, widows/orphans). Off by default
    *  so the 5 legacy documents render byte-identical HTML. */
@@ -442,6 +482,7 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
     opts.suppressPartiesRow === true ||
     opts.aboveBodyHTML !== undefined ||
     opts.belowBodyHTML !== undefined ||
+    opts.footerSealHTML !== undefined ||
     opts.multiPageBreaks === true ||
     langNonAr;
 
@@ -487,7 +528,7 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
 </head>
 <body>
 <div dir="rtl" style="font-family: '${BRAND_FONT}', 'Tajawal', sans-serif; font-feature-settings: 'tnum' 1; background: ${BRAND_COLORS.bgPage};">
-  <div class="utak-page" style="position: relative; width: 210mm; height: 297mm; box-sizing: border-box; padding: 20mm; background: ${BRAND_COLORS.bgPage}; color: ${BRAND_COLORS.ink}; display: flex; flex-direction: column;">
+  <div class="utak-page" style="position: relative; width: 210mm; min-height: 297mm; box-sizing: border-box; padding: 20mm; background: ${BRAND_COLORS.bgPage}; color: ${BRAND_COLORS.ink}; display: flex; flex-direction: column;">
 
     <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 160px; font-weight: 200; letter-spacing: 0.06em; color: ${BRAND_COLORS.primary}; opacity: 0.04; pointer-events: none; user-select: none; white-space: nowrap;">${escapeHTML(BRAND_INFO.nameEn)}</div>
 
@@ -558,7 +599,7 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
   const inlineThanks = opts.hideThanks ? "" : opts.thanksLine;
   const footerBlock = opts.hideFooterNote
     ? ""
-    : renderFooter(footerNote, showZatcaQR, termsLabel, inlineThanks);
+    : renderFooter(footerNote, showZatcaQR, termsLabel, inlineThanks, opts.footerSealHTML);
   // The old thanksOverride hook was an ADDITIONAL line below the footer;
   // preserved as-is when set for older callers (official-doc's issue path).
   const thanksLine = opts.hideThanks
@@ -568,7 +609,7 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
       : "";
   const legalBar = opts.legalFooterBar ? renderLegalFooterBar(opts.legalFooterBar, lang) : "";
   const aboveBody = opts.aboveBodyHTML ?? "";
-  const belowBody = opts.belowBodyHTML ?? "";
+  const belowBody = (opts.belowBodyHTML ?? "") + (opts.hideFooterNote && opts.footerSealHTML ? opts.footerSealHTML : "");
 
   // 2026-09-22 (item 4): pagination is now the default for every doc,
   // matching the byte-parity path above. `overflow: hidden` was silently
@@ -682,6 +723,22 @@ export interface HtmlToPdfOptions {
   marginBottom?: string;
 }
 
+/**
+ * `.utak-page` is min-height 297mm = a full A4 sheet. When Gotenberg reserves
+ * a top/bottom margin (the "صفحة X من Y" footer), the printable area is
+ * shorter, and a full-height box pushes its last lines (legal footer) onto a
+ * blank second page. Shrink the minimum to the printable height; content
+ * longer than that still flows onto more pages. Zero margins → unchanged.
+ */
+export function fitPageToMargins(html: string, options?: HtmlToPdfOptions): string {
+  const reserved = Number(options?.marginTop ?? 0) + Number(options?.marginBottom ?? 0);
+  if (!(reserved > 0)) return html;
+  return html.replace(
+    "</head>",
+    `<style>.utak-page { min-height: calc(297mm - ${reserved}in) !important; }</style>\n</head>`,
+  );
+}
+
 export async function htmlToPDF(
   html: string,
   env: GotenbergEnv,
@@ -696,7 +753,7 @@ export async function htmlToPDF(
   }
 
   const formData = new FormData();
-  formData.append("files", new Blob([html], { type: "text/html" }), "index.html");
+  formData.append("files", new Blob([fitPageToMargins(html, options)], { type: "text/html" }), "index.html");
   formData.append("paperWidth", "8.27");
   formData.append("paperHeight", "11.69");
   formData.append("marginTop", options?.marginTop ?? "0");

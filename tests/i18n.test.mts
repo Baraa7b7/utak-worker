@@ -244,10 +244,11 @@ console.log("\n[9] Country/address bilingual per lang");
 // ---------- 10. Pagination — every doc must let long content flow past 297mm ----------
 // The prior byte-parity template used `height: 297mm; overflow: hidden`, which
 // silently CLIPPED any invoice past one A4 page. A 40-item invoice lost rows
-// past the fold — a financial + ZATCA risk. Fix (2026-09-22): the utak-page
-// keeps `height: 297mm` for the flex-based first-page layout but drops the
-// `overflow: hidden`, so Chromium's print engine paginates naturally with the
-// break-inside rules below.
+// past the fold — a financial + ZATCA risk. Fix (2026-09-22): `overflow:
+// hidden` dropped, so Chromium's print engine paginates naturally with the
+// break-inside rules below. 2026-09-24: the byte-parity branch's fixed
+// `height: 297mm` became `min-height: 297mm` too, so the page box (padding,
+// background, the seal block at its end) grows with the content.
 console.log("\n[10] Pagination CSS + break rules present");
 {
   const bareCompany: CompanyInfo = {

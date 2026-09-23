@@ -169,6 +169,19 @@ export async function syncInvoiceToAccounting(
       sendOwnerAlert(env, msg).catch(() => {});
     }
 
+    // 2026-09-23 — account-type guard: receivable debited, income credited,
+    // nothing on an expense account. On failure the move is reset + cancelled
+    // and NOT linked, so a wrong entry never stays posted in the books.
+    const invLines = await readMoveLinesWithTypes(env, moveId);
+    const invGuard = evaluateInvoiceGuard({ moveState: head?.state ?? "", lines: invLines });
+    if (!invGuard.ok) {
+      await cancelMoveQuietly(env, moveId);
+      const msg = `[accounting] فاتورة ${args.invoiceNumber}: قيد ${moveId} رُفض وأُلغي — ${invGuard.reasons.join("؛ ")}`;
+      console.error(msg);
+      try { await sendOwnerAlert(env, msg); } catch { /* alert must not block */ }
+      return null;
+    }
+
     await call<boolean>(env, "x_invoice", "write", {
       ids: [args.invoiceId],
       vals: { x_account_move_id: moveId },
@@ -244,6 +257,31 @@ export async function syncPaymentToAccounting(
     }
     const paymentDate = args.paymentDate ?? todayRiyadhYmd();
 
+    // The invoice's commercial partner — used to filter the fallback search
+    // so two same-amount collections on the same day can never cross-link.
+    type InvHead = {
+      id: number;
+      commercial_partner_id: [number, string] | false;
+      partner_id: [number, string] | false;
+      amount_residual: number;
+    };
+    const [inv] = await call<InvHead[]>(env, "account.move", "read", {
+      ids: [args.invoiceMoveId],
+      fields: ["id", "commercial_partner_id", "partner_id", "amount_residual"],
+    });
+    // A payment that covers the whole open balance must leave the invoice
+    // paid / in_payment; a smaller one legitimately leaves it partial.
+    const expectFull = args.amount + 0.005 >= (inv?.amount_residual ?? 0);
+    const partnerId = inv?.commercial_partner_id
+      ? inv.commercial_partner_id[0]
+      : inv?.partner_id ? inv.partner_id[0] : null;
+    if (!partnerId) throw new Error(`invoice move ${args.invoiceMoveId} has no partner`);
+
+    const wizardCtx = {
+      active_model: "account.move",
+      active_ids: [args.invoiceMoveId],
+      active_id: args.invoiceMoveId,
+    };
     // account.payment.register is a TransientModel: create with a context
     // that names the invoice, write the payment values, then call
     // action_create_payments — which posts the payment and reconciles.
@@ -252,56 +290,258 @@ export async function syncPaymentToAccounting(
         journal_id: journalId,
         amount: args.amount,
         payment_date: paymentDate,
-        currency_id: false, // wizard defaults to the move's currency
+        // currency_id deliberately omitted — the wizard takes it from the
+        // invoice. Passing false (as before 2026-09-23) went unnoticed while
+        // payments produced no entry; once payment_account_id was set Odoo
+        // builds the move and rejects it: "Missing required field Currency".
       }],
-      context: {
-        active_model: "account.move",
-        active_ids: [args.invoiceMoveId],
-        active_id: args.invoiceMoveId,
-      },
+      context: wizardCtx,
     });
 
     const actionResult = await call<unknown>(env, "account.payment.register", "action_create_payments", {
       ids: [wizardId],
-      context: {
-        active_model: "account.move",
-        active_ids: [args.invoiceMoveId],
-        active_id: args.invoiceMoveId,
-      },
+      context: wizardCtx,
     });
-    void actionResult; // ignored — the payment id is read from the move next
 
-    // Find the payment id — it's the newest posted payment whose move
-    // reconciles the invoice_move. Query by search_read on account.payment
-    // ordered by id desc filtered by journal + amount + date.
-    type PaymentRow = { id: number; state: string; date: string; amount: number };
-    const rows = await call<PaymentRow[]>(env, "account.payment", "search_read", {
-      domain: [
-        ["journal_id", "=", journalId],
-        ["amount", "=", args.amount],
-        ["date", "=", paymentDate],
-      ],
-      fields: ["id", "state", "date", "amount"],
-      order: "id desc",
-      limit: 1,
-    });
-    const paymentMoveId = rows[0]?.id ?? null;
-    if (!paymentMoveId) {
+    // 2026-09-23 — take the payment id from the action Odoo returns (Odoo 19
+    // JSON-2: an ir.actions.act_window with res_model=account.payment and
+    // res_id). Only if that is missing fall back to a search filtered by
+    // partner + amount + journal + date together.
+    let paymentRecId = extractPaymentIdFromAction(actionResult);
+    let located = "action";
+    if (!paymentRecId) {
+      type PaymentRow = { id: number };
+      const rows = await call<PaymentRow[]>(env, "account.payment", "search_read", {
+        domain: buildPaymentSearchDomain({ partnerId, amount: args.amount, journalId, date: paymentDate }),
+        fields: ["id"],
+        order: "id desc",
+        limit: 1,
+      });
+      paymentRecId = rows[0]?.id ?? null;
+      located = "search";
+    }
+    if (!paymentRecId) {
       throw new Error("account.payment created but could not be located afterwards");
+    }
+
+    // 2026-09-23 — account-type guard. On any failure: cancel the payment,
+    // alert the owner, leave the invoice unsettled, do not link. The caller
+    // (x_payment + WhatsApp) carries on either way.
+    const facts = await readPaymentFacts(env, paymentRecId, args.invoiceMoveId);
+    const guard = evaluatePaymentGuard({ ...facts, expectedPartnerId: partnerId, expectFull });
+    if (!guard.ok) {
+      await cancelPaymentQuietly(env, paymentRecId);
+      const msg = `[accounting] تحصيل الفاتورة ${args.invoiceNumber} (${args.method}): الدفعة ${paymentRecId} أُلغيت — ${guard.reasons.join("؛ ")}`;
+      console.error(msg);
+      try { await sendOwnerAlert(env, msg); } catch { /* alert must not block */ }
+      return null;
     }
 
     await call<boolean>(env, "x_payment", "write", {
       ids: [args.paymentId],
-      vals: { x_account_payment_id: paymentMoveId },
+      vals: { x_account_payment_id: paymentRecId },
     });
-    console.log(`[accounting] linked x_payment ${args.paymentId} → account.payment ${paymentMoveId} (${journalCode})`);
-    return paymentMoveId;
+    console.log(`[accounting] linked x_payment ${args.paymentId} → account.payment ${paymentRecId} (${journalCode}, located via ${located}, invoice ${facts.invoicePaymentState})`);
+    return paymentRecId;
   } catch (e) {
     const msg = `[accounting] payment for ${args.invoiceNumber} (${args.method}) sync failed: ${(e as Error).message}`;
     console.error(msg);
     try { await sendOwnerAlert(env, msg); } catch { /* swallow */ }
     return null;
   }
+}
+
+// ---- 2026-09-23: payment lookup + account-type guards ----
+
+/**
+ * Payment id from the action account.payment.register.action_create_payments
+ * returns. One payment → {res_model: "account.payment", res_id: N}; several →
+ * a domain [["id", "in", [...]]] (we register one invoice, so take the only
+ * id). Anything else → null and the caller falls back to a filtered search.
+ */
+export function extractPaymentIdFromAction(result: unknown): number | null {
+  if (!result || typeof result !== "object") return null;
+  const r = result as { res_model?: unknown; res_id?: unknown; domain?: unknown };
+  if (r.res_model !== "account.payment") return null;
+  if (typeof r.res_id === "number" && r.res_id > 0) return r.res_id;
+  if (Array.isArray(r.domain)) {
+    for (const leaf of r.domain) {
+      if (Array.isArray(leaf) && leaf[0] === "id" && leaf[1] === "in" && Array.isArray(leaf[2]) && leaf[2].length === 1) {
+        const id = leaf[2][0];
+        if (typeof id === "number" && id > 0) return id;
+      }
+    }
+  }
+  return null;
+}
+
+/** Fallback search domain — partner, amount, journal and date all together. */
+export function buildPaymentSearchDomain(a: {
+  partnerId: number;
+  amount: number;
+  journalId: number;
+  date: string;
+}): Array<[string, string, unknown]> {
+  return [
+    ["partner_id", "=", a.partnerId],
+    ["amount", "=", a.amount],
+    ["journal_id", "=", a.journalId],
+    ["date", "=", a.date],
+  ];
+}
+
+export interface GuardLine {
+  account_code: string;
+  account_type: string;
+  debit: number;
+  credit: number;
+}
+
+export interface GuardResult {
+  ok: boolean;
+  reasons: string[];
+}
+
+const PAYMENT_DEBIT_TYPES: ReadonlySet<string> = new Set(["asset_cash", "asset_current"]);
+const INCOME_TYPES: ReadonlySet<string> = new Set(["income", "income_other"]);
+const EXPENSE_TYPES: ReadonlySet<string> = new Set([
+  "expense", "expense_depreciation", "expense_direct_cost",
+]);
+
+export interface PaymentFacts {
+  paymentState: string;
+  paymentPartnerId: number | null;
+  moveId: number | null;
+  moveState: string;
+  lines: GuardLine[];
+  invoicePaymentState: string;
+}
+
+/**
+ * After action_create_payments. Odoo 19 account.payment has no "posted"
+ * state (draft / paid / reconciled / canceled / rejected) — the posted
+ * check is on the payment's journal entry (move_id.state).
+ */
+export function evaluatePaymentGuard(
+  f: PaymentFacts & { expectedPartnerId: number; expectFull: boolean },
+): GuardResult {
+  const reasons: string[] = [];
+  if (!f.moveId) reasons.push("الدفعة بلا قيد (move_id فارغ)");
+  if (f.moveId && f.moveState !== "posted") reasons.push(`قيد الدفعة حالته ${f.moveState || "?"} وليس posted`);
+  if (f.paymentState === "canceled" || f.paymentState === "rejected" || f.paymentState === "draft") {
+    reasons.push(`حالة الدفعة ${f.paymentState}`);
+  }
+  if (f.paymentPartnerId !== f.expectedPartnerId) {
+    reasons.push(`شريك الدفعة ${f.paymentPartnerId ?? "?"} ≠ شريك الفاتورة ${f.expectedPartnerId}`);
+  }
+  const debits = f.lines.filter((l) => l.debit > 0);
+  if (f.moveId && debits.length === 0) reasons.push("لا يوجد سطر مدين في قيد الدفعة");
+  for (const l of debits) {
+    if (!PAYMENT_DEBIT_TYPES.has(l.account_type)) {
+      reasons.push(`الحساب المدين ${l.account_code} من نوع ${l.account_type} (المسموح asset_cash أو asset_current)`);
+    }
+  }
+  for (const l of f.lines) {
+    if (INCOME_TYPES.has(l.account_type) || EXPENSE_TYPES.has(l.account_type)) {
+      reasons.push(`قيد الدفعة يمس حساب ${l.account_type} ${l.account_code}`);
+    }
+  }
+  const settled = f.invoicePaymentState === "paid" || f.invoicePaymentState === "in_payment";
+  if (f.expectFull && !settled) {
+    reasons.push(`حالة سداد الفاتورة ${f.invoicePaymentState || "?"} (المتوقع paid أو in_payment)`);
+  }
+  if (!f.expectFull && f.invoicePaymentState !== "partial" && !settled) {
+    reasons.push(`حالة سداد الفاتورة ${f.invoicePaymentState || "?"} بعد دفعة جزئية (المتوقع partial)`);
+  }
+  return { ok: reasons.length === 0, reasons };
+}
+
+/** Invoice: receivable debited, income credited, no expense line, posted. */
+export function evaluateInvoiceGuard(f: { moveState: string; lines: GuardLine[] }): GuardResult {
+  const reasons: string[] = [];
+  if (f.moveState !== "posted") reasons.push(`الفاتورة حالتها ${f.moveState || "?"} وليس posted`);
+  const recvDebit = f.lines.filter((l) => l.account_type === "asset_receivable" && l.debit > 0);
+  const incomeCredit = f.lines.filter((l) => INCOME_TYPES.has(l.account_type) && l.credit > 0);
+  if (recvDebit.length === 0) reasons.push("لا يوجد سطر ذمم مدينة (asset_receivable) مدين");
+  if (incomeCredit.length === 0) reasons.push("لا يوجد سطر إيراد (income) دائن");
+  for (const l of f.lines) {
+    if (EXPENSE_TYPES.has(l.account_type)) reasons.push(`الفاتورة تمس حساب مصروف ${l.account_code}`);
+    if (l.account_type === "asset_receivable" && l.credit > 0) reasons.push(`الذمم ${l.account_code} دائنة في فاتورة بيع`);
+    if (INCOME_TYPES.has(l.account_type) && l.debit > 0) reasons.push(`الإيراد ${l.account_code} مدين في فاتورة بيع`);
+  }
+  return { ok: reasons.length === 0, reasons };
+}
+
+async function readMoveLinesWithTypes(env: Env, moveId: number): Promise<GuardLine[]> {
+  type Line = { account_id: [number, string] | false; debit: number; credit: number };
+  const lines = await call<Line[]>(env, "account.move.line", "search_read", {
+    domain: [["move_id", "=", moveId]],
+    fields: ["account_id", "debit", "credit"],
+    limit: 200,
+  });
+  const accIds = Array.from(new Set(lines.map((l) => (l.account_id ? l.account_id[0] : 0)).filter((n) => n > 0)));
+  const accs = accIds.length
+    ? await call<Array<{ id: number; code: string; account_type: string }>>(env, "account.account", "read", {
+        ids: accIds,
+        fields: ["id", "code", "account_type"],
+      })
+    : [];
+  const byId = new Map(accs.map((a) => [a.id, a]));
+  return lines.map((l) => {
+    const a = l.account_id ? byId.get(l.account_id[0]) : undefined;
+    return {
+      account_code: a?.code ?? "?",
+      account_type: a?.account_type ?? "?",
+      debit: l.debit ?? 0,
+      credit: l.credit ?? 0,
+    };
+  });
+}
+
+async function readPaymentFacts(env: Env, paymentId: number, invoiceMoveId: number): Promise<PaymentFacts> {
+  type Pay = { id: number; state: string; move_id: [number, string] | false; partner_id: [number, string] | false };
+  const [p] = await call<Pay[]>(env, "account.payment", "read", {
+    ids: [paymentId],
+    fields: ["id", "state", "move_id", "partner_id"],
+  });
+  const moveId = p?.move_id ? p.move_id[0] : null;
+  let moveState = "";
+  let lines: GuardLine[] = [];
+  if (moveId) {
+    const [m] = await call<Array<{ id: number; state: string }>>(env, "account.move", "read", {
+      ids: [moveId],
+      fields: ["id", "state"],
+    });
+    moveState = m?.state ?? "";
+    lines = await readMoveLinesWithTypes(env, moveId);
+  }
+  const [inv] = await call<Array<{ id: number; payment_state: string }>>(env, "account.move", "read", {
+    ids: [invoiceMoveId],
+    fields: ["id", "payment_state"],
+  });
+  return {
+    paymentState: p?.state ?? "",
+    paymentPartnerId: p?.partner_id ? p.partner_id[0] : null,
+    moveId,
+    moveState,
+    lines,
+    invoicePaymentState: inv?.payment_state ?? "",
+  };
+}
+
+/** Reset + cancel a payment. Cancelling unreconciles and voids its entry. */
+async function cancelPaymentQuietly(env: Env, paymentId: number): Promise<void> {
+  try { await call<boolean>(env, "account.payment", "action_draft", { ids: [paymentId] }); }
+  catch (e) { console.warn(`[accounting] payment ${paymentId} action_draft:`, (e as Error).message); }
+  try { await call<boolean>(env, "account.payment", "action_cancel", { ids: [paymentId] }); }
+  catch (e) { console.warn(`[accounting] payment ${paymentId} action_cancel:`, (e as Error).message); }
+}
+
+async function cancelMoveQuietly(env: Env, moveId: number): Promise<void> {
+  try { await call<boolean>(env, "account.move", "button_draft", { ids: [moveId] }); }
+  catch (e) { console.warn(`[accounting] move ${moveId} button_draft:`, (e as Error).message); }
+  try { await call<boolean>(env, "account.move", "button_cancel", { ids: [moveId] }); }
+  catch (e) { console.warn(`[accounting] move ${moveId} button_cancel:`, (e as Error).message); }
 }
 
 // ---- Small readers used by the admin verify route ----

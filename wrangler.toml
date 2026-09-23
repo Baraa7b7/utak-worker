@@ -48,6 +48,12 @@ preview_id = "b423e1498d624696ac10ed101c621742"
 # ------------------------------------------------------------
 # ⚠️ prod crons موقوفة نهائياً في هذا الملف — قرار 2026-09-16
 #    (مؤكَّد بصرياً من لوحة Cloudflare يوم 2026-09-21: "No cron triggers configured").
+#    ⚠️ تصحيح 2026-09-23: ذلك التأكيد كان خاطئاً. نشر prod 5c138821
+#    (2026-09-20 22:18 UTC) سبق commit 872202f الذي فرّغ القائمة، فسجّل
+#    الثمانية على utak-worker. كل مهمة آلية جرت مرتين (prod + sim) من
+#    2026-09-20 23:00 UTC. فُرّغت جدولة prod عبر Cloudflare API في
+#    2026-09-23 (نسخة الاسترجاع: scripts/artifacts/cron-20260923-prod-schedules-rollback.json).
+#    للتحقق دائماً: GET /accounts/<id>/workers/scripts/utak-worker/schedules
 #
 # لماذا فارغة: التشغيل الحقيقي للـpilot يجري على utak-worker-sim مع
 # PILOT_MODE=true وSIM_ALLOWLIST محدودة. جدولة prod أُوقفت يدوياً من
@@ -155,6 +161,8 @@ SIM_ALLOWLIST         = "+966505154962,+966536251307,+966571777704"
 
 # 2026-09-21 — accounting parallel-write. Kept on sim only until Baraa
 # flips it for prod. tenant مشترك مع prod، فأي قيد مُرحَّل هو قيد حقيقي.
+# 2026-09-23 — أُعيد تفعيله بعد إصلاح قيد التحصيل (payment_account_id +
+# حارسا نوع الحساب) ونجاح scripts/acct-20260921-live-verify.mjs بدوراته الثلاث.
 ACCOUNTING_SYNC       = "true"
 
 # Secrets on the sim worker (set once, mirrored from prod plus one new):

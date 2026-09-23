@@ -5,6 +5,11 @@ import type { Env } from "./config";
 import { isRecipientAllowed, parseAllowlist, runtimeMode } from "./config";
 import type { NormalizedMessage } from "./types";
 import {
+  claimAutoSend,
+  noteManualSend,
+  skippedDuplicateResponse,
+} from "./auto-send-guard";
+import {
   extractRealWamid,
   generateFakeWamid,
   recordOutbound,
@@ -288,6 +293,29 @@ export async function fetchMeta(
     console.log(`[fetchMeta] permitted via partner.x_wa_allowed=true to=${to}`);
   }
 
+  // ---- automated-send idempotency (2026-09-23) ----
+  // Only when a cron / sim job marked env with AUTO_SEND_JOB. The key is
+  // written BEFORE the send, so a second run of the same job is refused
+  // even if the first one is still in flight. KV trouble fails open: the
+  // root fix for the duplicates is a single scheduler, this is the net.
+  if (env.AUTO_SEND_JOB) {
+    try {
+      const c = await claimAutoSend(env, to, body, env.AUTO_SEND_JOB);
+      if (!c.claimed) {
+        console.warn(`[auto-send] skipped duplicate key=${c.key} first_at=${c.firstAt}`);
+        return skippedDuplicateResponse(c.key, c.firstAt);
+      }
+    } catch (e) {
+      console.warn("[auto-send] idempotency KV failed — sending anyway", (e as Error)?.message);
+    }
+  } else if (opts.purpose === "wa_message_manual") {
+    // Manual sends from Odoo are never blocked; only warn on a repeat.
+    const m = await noteManualSend(env, to, body);
+    if (m.repeated) {
+      console.warn(`[manual-send] identical manual send to=${to} repeated within 60s (key=${m.key}) — not blocked`);
+    }
+  }
+
   // ---- sim: capture only, no real send ----
   if (rm.mode === "sim") {
     const wamid = generateFakeWamid();
@@ -307,7 +335,7 @@ export async function fetchMeta(
     // completion in the background. Without ctx we await, so a script
     // caller never turns the echo into a fire-and-forget promise the
     // Worker might reclaim mid-flight.
-    await dispatchEcho(env, to, body, opts.ctx, opts.purpose);
+    await dispatchEcho(env, to, body, opts.ctx, opts.purpose, wamid);
     return synthesizeMetaResponse(to, wamid);
   }
 
@@ -364,7 +392,7 @@ export async function fetchMeta(
       );
     }
     if (resp.ok) {
-      await dispatchEcho(env, to, body, opts.ctx, opts.purpose);
+      await dispatchEcho(env, to, body, opts.ctx, opts.purpose, wamid);
     } else {
       // 2026-09-20 (cover) — mirror immediate failures so Baraa sees a
       // matching "⚠️ ما انرسلت" line in the customer's Discuss channel.
@@ -376,7 +404,12 @@ export async function fetchMeta(
   // ---- prod: unchanged ----
   const prodResp = await metaRealSend(env, body);
   if (prodResp.ok) {
-    await dispatchEcho(env, to, body, opts.ctx, opts.purpose);
+    let prodWamid: string | undefined;
+    try {
+      // deno-lint-ignore no-explicit-any
+      prodWamid = ((await prodResp.clone().json()) as any)?.messages?.[0]?.id ?? undefined;
+    } catch { /* ignore */ }
+    await dispatchEcho(env, to, body, opts.ctx, opts.purpose, prodWamid);
   } else {
     let errText = "";
     try { errText = (await prodResp.clone().text()).slice(0, 200); } catch { /* ignore */ }
@@ -438,8 +471,9 @@ async function dispatchEcho(
   body: Record<string, unknown>,
   ctx: ExecutionContext | undefined,
   purpose?: string,
+  wamid?: string,
 ): Promise<void> {
-  const task = echoOutboundToInbox(env, to, body, purpose).catch((e) =>
+  const task = echoOutboundToInbox(env, to, body, purpose, wamid).catch((e) =>
     console.warn("[fetchMeta] echo failed:", (e as Error).message),
   );
   if (ctx) {
@@ -497,6 +531,7 @@ async function echoOutboundToInbox(
   to: string,
   body: Record<string, unknown>,
   purpose?: string,
+  wamid?: string,
 ): Promise<void> {
   // Owner is not a customer conversation — never echo owner-alert traffic
   // into a Discuss channel.
@@ -542,6 +577,10 @@ async function echoOutboundToInbox(
         body: echoText,
         source: "auto",
         status: "sent",
+        // 2026-09-23 — carry the wamid so the row is unique per send
+        // (logWaMessage dedups on it) and Meta status callbacks can find it.
+        // Synthetic PILOT.no_id markers are not real wamids.
+        metaMessageId: wamid && !wamid.includes(".no_id.") ? wamid : undefined,
       });
     } catch (e) {
       console.warn("[fetchMeta] echo logWaMessage failed:", (e as Error).message);

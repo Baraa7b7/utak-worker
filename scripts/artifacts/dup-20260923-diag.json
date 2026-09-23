@@ -1,0 +1,391 @@
+{
+  "summary": {
+    "since": "2026-09-09 07:46:05",
+    "total_out": 56,
+    "dup_groups": 14,
+    "with_wamid": 2,
+    "without_wamid": 54
+  },
+  "groups": [
+    {
+      "date_utc": "2026-09-20 23:00:13",
+      "partner": "30",
+      "phone": "*********704",
+      "template": "supplier_ask",
+      "count": 2,
+      "rows": [
+        {
+          "id": 58,
+          "at": "2026-09-20 23:00:13",
+          "wamid": null,
+          "source": "auto",
+          "status": "sent",
+          "body": "[supplier_ask] افوكادو، رمان وسط"
+        },
+        {
+          "id": 60,
+          "at": "2026-09-20 23:00:46",
+          "wamid": null,
+          "source": "auto",
+          "status": "sent",
+          "body": "[supplier_ask] افوكادو، رمان وسط"
+        }
+      ],
+      "verdict": "تسجيل مكرر محتمل (wamid فارغ في صف أو أكثر)"
+    },
+    {
+      "date_utc": "2026-09-20 23:00:13",
+      "partner": "30",
+      "phone": "*********704",
+      "template": "utak_supplier_daily_ask",
+      "count": 2,
+      "rows": [
+        {
+          "id": 57,
+          "at": "2026-09-20 23:00:13",
+          "wamid": null,
+          "source": "auto",
+          "status": "sent",
+          "body": "📋 قالب: utak_supplier_daily_ask (افوكادو، رمان وسط)"
+        },
+        {
+          "id": 59,
+          "at": "2026-09-20 23:00:46",
+          "wamid": null,
+          "source": "auto",
+          "status": "sent",
+          "body": "📋 قالب: utak_supplier_daily_ask (افوكادو، رمان وسط)"
+        }
+      ],
+      "verdict": "تسجيل مكرر محتمل (wamid فارغ في صف أو أكثر)"
+    },
+    {
+      "date_utc": "2026-09-21 05:00:12",
+      "partner": "46",
+      "phone": "*********888",
+      "template": "utak_v2_inactive",
+      "count": 2,
+      "rows": [
+        {
+          "id": 77,
+          "at": "2026-09-21 05:00:12",
+          "wamid": null,
+          "source": "auto",
+          "status": "sent",
+          "body": "📋 قالب: utak_v2_inactive (عمر)"
+        },
+        {
+          "id": 79,
+          "at": "2026-09-21 05:00:47",
+          "wamid": null,
+          "source": "auto",
+          "status": "sent",
+          "body": "📋 قالب: utak_v2_inactive (عمر)"
+        }
+      ],
+      "verdict": "تسجيل مكرر محتمل (wamid فارغ في صف أو أكثر)"
+    },
+    {
+      "date_utc": "2026-09-21 05:00:13",
+      "partner": "47",
+      "phone": "*********756",
+      "template": "utak_v2_inactive",
+      "count": 2,
+      "rows": [
+        {
+          "id": 78,
+          "at": "2026-09-21 05:00:13",
+          "wamid": null,
+          "source": "auto",
+          "status": "sent",
+          "body": "📋 قالب: utak_v2_inactive (يو)"
+        },
+        {
+          "id": 80,
+          "at": "2026-09-21 05:00:49",
+          "wamid": null,
+          "source": "auto",
+          "status": "sent",
+          "body": "📋 قالب: utak_v2_inactive (يو)"
+        }
+      ],
+      "verdict": "تسجيل مكرر محتمل (wamid فارغ في صف أو أكثر)"
+    },
+    {
+      "date_utc": "2026-09-21 15:00:23",
+      "partner": "9",
+      "phone": "*********832",
+      "template": "text:📋 قائمة التحصيل اليومية\n\n1. ا",
+      "count": 2,
+      "rows": [
+        {
+          "id": 97,
+          "at": "2026-09-21 15:00:23",
+          "wamid": null,
+          "source": "auto",
+          "status": "sent",
+          "body": "📋 قائمة التحصيل اليومية\n\n1. اختبار محاسبة — 3 ر.س — UTAK-AC"
+        },
+        {
+          "id": 99,
+          "at": "2026-09-21 15:01:12",
+          "wamid": null,
+          "source": "auto",
+          "status": "sent",
+          "body": "📋 قائمة التحصيل اليومية\n\n1. اختبار محاسبة — 3 ر.س — UTAK-AC"
+        }
+      ],
+      "verdict": "تسجيل مكرر محتمل (wamid فارغ في صف أو أكثر)"
+    },
+    {
+      "date_utc": "2026-09-21 15:00:27",
+      "partner": "10",
+      "phone": "*********002",
+      "template": "text:📋 قائمة التحصيل اليومية\n\n1. ا",
+      "count": 2,
+      "rows": [
+        {
+          "id": 98,
+          "at": "2026-09-21 15:00:27",
+          "wamid": null,
+          "source": "auto",
+          "status": "sent",
+          "body": "📋 قائمة التحصيل اليومية\n\n1. اختبار محاسبة — 3 ر.س — UTAK-AC"
+        },
+        {
+          "id": 100,
+          "at": "2026-09-21 15:01:14",
+          "wamid": null,
+          "source": "auto",
+          "status": "sent",
+          "body": "📋 قائمة التحصيل اليومية\n\n1. اختبار محاسبة — 3 ر.س — UTAK-AC"
+        }
+      ],
+      "verdict": "تسجيل مكرر محتمل (wamid فارغ في صف أو أكثر)"
+    },
+    {
+      "date_utc": "2026-09-21 23:00:15",
+      "partner": "30",
+      "phone": "*********704",
+      "template": "utak_supplier_daily_ask",
+      "count": 2,
+      "rows": [
+        {
+          "id": 103,
+          "at": "2026-09-21 23:00:15",
+          "wamid": null,
+          "source": "auto",
+          "status": "sent",
+          "body": "📋 قالب: utak_supplier_daily_ask (افوكادو، رمان وسط)"
+        },
+        {
+          "id": 105,
+          "at": "2026-09-21 23:00:48",
+          "wamid": null,
+          "source": "auto",
+          "status": "sent",
+          "body": "📋 قالب: utak_supplier_daily_ask (افوكادو، رمان وسط)"
+        }
+      ],
+      "verdict": "تسجيل مكرر محتمل (wamid فارغ في صف أو أكثر)"
+    },
+    {
+      "date_utc": "2026-09-21 23:00:16",
+      "partner": "30",
+      "phone": "*********704",
+      "template": "supplier_ask",
+      "count": 2,
+      "rows": [
+        {
+          "id": 104,
+          "at": "2026-09-21 23:00:16",
+          "wamid": null,
+          "source": "auto",
+          "status": "sent",
+          "body": "[supplier_ask] افوكادو، رمان وسط"
+        },
+        {
+          "id": 106,
+          "at": "2026-09-21 23:00:48",
+          "wamid": null,
+          "source": "auto",
+          "status": "sent",
+          "body": "[supplier_ask] افوكادو، رمان وسط"
+        }
+      ],
+      "verdict": "تسجيل مكرر محتمل (wamid فارغ في صف أو أكثر)"
+    },
+    {
+      "date_utc": "2026-09-22 05:00:13",
+      "partner": "50",
+      "phone": "*********370",
+      "template": "utak_v2_inactive",
+      "count": 2,
+      "rows": [
+        {
+          "id": 107,
+          "at": "2026-09-22 05:00:13",
+          "wamid": null,
+          "source": "auto",
+          "status": "sent",
+          "body": "📋 قالب: utak_v2_inactive (Not Book)"
+        },
+        {
+          "id": 109,
+          "at": "2026-09-22 05:00:53",
+          "wamid": null,
+          "source": "auto",
+          "status": "sent",
+          "body": "📋 قالب: utak_v2_inactive (Not Book)"
+        }
+      ],
+      "verdict": "تسجيل مكرر محتمل (wamid فارغ في صف أو أكثر)"
+    },
+    {
+      "date_utc": "2026-09-22 05:00:16",
+      "partner": "49",
+      "phone": "*********051",
+      "template": "utak_v2_inactive",
+      "count": 2,
+      "rows": [
+        {
+          "id": 108,
+          "at": "2026-09-22 05:00:16",
+          "wamid": null,
+          "source": "auto",
+          "status": "sent",
+          "body": "📋 قالب: utak_v2_inactive (ابو محمد الوصابي)"
+        },
+        {
+          "id": 110,
+          "at": "2026-09-22 05:00:55",
+          "wamid": null,
+          "source": "auto",
+          "status": "sent",
+          "body": "📋 قالب: utak_v2_inactive (ابو محمد الوصابي)"
+        }
+      ],
+      "verdict": "تسجيل مكرر محتمل (wamid فارغ في صف أو أكثر)"
+    },
+    {
+      "date_utc": "2026-09-22 15:00:53",
+      "partner": "9",
+      "phone": "*********832",
+      "template": "text:📋 قائمة التحصيل اليومية\n\n1. ا",
+      "count": 2,
+      "rows": [
+        {
+          "id": 111,
+          "at": "2026-09-22 15:00:53",
+          "wamid": null,
+          "source": "auto",
+          "status": "sent",
+          "body": "📋 قائمة التحصيل اليومية\n\n1. اختبار محاسبة — 3 ر.س — UTAK-AC"
+        },
+        {
+          "id": 112,
+          "at": "2026-09-22 15:00:54",
+          "wamid": null,
+          "source": "auto",
+          "status": "sent",
+          "body": "📋 قائمة التحصيل اليومية\n\n1. اختبار محاسبة — 3 ر.س — UTAK-AC"
+        }
+      ],
+      "verdict": "تسجيل مكرر محتمل (wamid فارغ في صف أو أكثر)"
+    },
+    {
+      "date_utc": "2026-09-22 15:00:57",
+      "partner": "10",
+      "phone": "*********002",
+      "template": "text:📋 قائمة التحصيل اليومية\n\n1. ا",
+      "count": 2,
+      "rows": [
+        {
+          "id": 113,
+          "at": "2026-09-22 15:00:57",
+          "wamid": null,
+          "source": "auto",
+          "status": "sent",
+          "body": "📋 قائمة التحصيل اليومية\n\n1. اختبار محاسبة — 3 ر.س — UTAK-AC"
+        },
+        {
+          "id": 114,
+          "at": "2026-09-22 15:00:58",
+          "wamid": null,
+          "source": "auto",
+          "status": "sent",
+          "body": "📋 قائمة التحصيل اليومية\n\n1. اختبار محاسبة — 3 ر.س — UTAK-AC"
+        }
+      ],
+      "verdict": "تسجيل مكرر محتمل (wamid فارغ في صف أو أكثر)"
+    },
+    {
+      "date_utc": "2026-09-22 23:00:53",
+      "partner": "30",
+      "phone": "*********704",
+      "template": "supplier_ask",
+      "count": 2,
+      "rows": [
+        {
+          "id": 116,
+          "at": "2026-09-22 23:00:53",
+          "wamid": null,
+          "source": "auto",
+          "status": "sent",
+          "body": "[supplier_ask] افوكادو، رمان وسط"
+        },
+        {
+          "id": 118,
+          "at": "2026-09-22 23:00:55",
+          "wamid": null,
+          "source": "auto",
+          "status": "sent",
+          "body": "[supplier_ask] افوكادو، رمان وسط"
+        }
+      ],
+      "verdict": "تسجيل مكرر محتمل (wamid فارغ في صف أو أكثر)"
+    },
+    {
+      "date_utc": "2026-09-22 23:00:53",
+      "partner": "30",
+      "phone": "*********704",
+      "template": "utak_supplier_daily_ask",
+      "count": 2,
+      "rows": [
+        {
+          "id": 115,
+          "at": "2026-09-22 23:00:53",
+          "wamid": null,
+          "source": "auto",
+          "status": "sent",
+          "body": "📋 قالب: utak_supplier_daily_ask (افوكادو، رمان وسط)"
+        },
+        {
+          "id": 117,
+          "at": "2026-09-22 23:00:55",
+          "wamid": null,
+          "source": "auto",
+          "status": "sent",
+          "body": "📋 قالب: utak_supplier_daily_ask (افوكادو، رمان وسط)"
+        }
+      ],
+      "verdict": "تسجيل مكرر محتمل (wamid فارغ في صف أو أكثر)"
+    }
+  ],
+  "fields": [
+    "id",
+    "create_date",
+    "x_partner_id",
+    "x_direction",
+    "x_kind",
+    "x_template_id",
+    "x_body",
+    "x_meta_message_id",
+    "x_status",
+    "x_source",
+    "x_manual",
+    "x_processed_at",
+    "x_res_model",
+    "x_res_id"
+  ]
+}

@@ -68,9 +68,14 @@ import {
 } from "./webhook-alert";
 
 export default {
-  async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+  async scheduled(event: ScheduledController, rawEnv: Env, ctx: ExecutionContext): Promise<void> {
     const cron = event.cron;
     console.log(`[scheduled] cron=${cron} at ${new Date().toISOString()}`);
+    // 2026-09-23 — every send made inside a cron job is automated: mark env
+    // so fetchMeta claims a per-(recipient, template, Riyadh day, job) KV
+    // key before sending. See src/auto-send-guard.ts.
+    const { CRON_JOB, withAutoSendJob } = await import("./auto-send-guard");
+    const env = withAutoSendJob(rawEnv, CRON_JOB[cron] ?? `cron:${cron}`);
     try {
       switch (cron) {
         case "0 23 * * *": await askAllSuppliersForPrices(env); break;
@@ -1601,7 +1606,11 @@ async function handleSimRoute(
   return null;
 }
 
-async function runSimJob(env: Env, job: string): Promise<unknown> {
+async function runSimJob(rawEnv: Env, job: string): Promise<unknown> {
+  // 2026-09-23 — same idempotency keys as the cron that runs this job, so
+  // a manual trigger after the cron (or vice versa) cannot double-send.
+  const { withAutoSendJob } = await import("./auto-send-guard");
+  const env = withAutoSendJob(rawEnv, job);
   switch (job) {
     case "ask_suppliers":
       await askAllSuppliersForPrices(env);
@@ -1757,6 +1766,11 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       );
       continue;
     }
+    // 2026-09-23 — claim the wamid NOW, not after the reply. Processing can
+    // take tens of seconds (Claude + Odoo); a Meta retry landing in that
+    // window used to pass seenBefore and produce a second auto-reply. The
+    // per-branch markSeen calls below stay (idempotent re-put).
+    await markSeen(env, msg.messageId);
 
     // 2026-09-20 (cover) — single funnel for every inbound. Ingests BEFORE
     // any team/supplier/customer bot routing so a failure in one of those

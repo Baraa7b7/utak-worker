@@ -1,0 +1,40 @@
+{
+  "started_at": "2026-09-23T08:00:34.681Z",
+  "today": "2026-09-23",
+  "cycles": {},
+  "created": {
+    "invoices": [
+      14
+    ],
+    "payments": [],
+    "x_orders": [
+      22
+    ],
+    "x_invoices": [
+      8
+    ],
+    "x_payments": [
+      9
+    ],
+    "credit_notes": [
+      16
+    ]
+  },
+  "baseline": {
+    "102011": 0,
+    "500001": 0
+  },
+  "before_reversal": {
+    "102011": 12,
+    "500001": -12
+  },
+  "after_reversal": {
+    "102011": 0,
+    "500001": 0
+  },
+  "accounting_errors": [
+    "[accounting] payment for UTAK-ACCT-A-1790150435183 (cash) sync failed: odoo HTTP_422: {\"name\": \"odoo.exceptions.ValidationError\", \"message\": \"The operation cannot be completed: Missing required field 'Currency' (currency_id) for model 'Journal Entry' (account.move)\", \"arguments\": [\"The"
+  ],
+  "failures": 1,
+  "finished_at": "2026-09-23T08:00:38.794Z"
+}

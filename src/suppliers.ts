@@ -32,7 +32,7 @@ import { sendTemplate, sendText } from "./meta";
 import { sendOwnerAlert } from "./templates";
 import { extractSupplierPrices } from "./claude";
 import { riyadhDateKey } from "./hours";
-import { logWaMessage } from "./wa-message-send";
+import { isSkippedDuplicate } from "./auto-send-guard";
 
 const nowOdoo = (): string => new Date().toISOString().replace("T", " ").slice(0, 19);
 
@@ -88,6 +88,7 @@ export async function askAllSuppliersForPrices(env: Env): Promise<void> {
   let failed = 0;
   let skippedEmpty = 0;
   let skippedNoIntersection = 0;
+  let skippedDuplicate = 0;
   for (const s of suppliers) {
     try {
       // Intersection: supplier's supplied ids ∩ active-for-sale ids
@@ -125,14 +126,26 @@ export async function askAllSuppliersForPrices(env: Env): Promise<void> {
         .trim()
         .slice(0, 900);
 
-      const logId = await createSupplierAskLog(env, s.id);
       const res = await sendTemplate(
         env,
         s.x_whatsapp_number,
         tmpl.x_meta_template_id,
         tmpl.x_language || "ar",
         [productList],
+        // 2026-09-23 — purpose threads through to the echo so the single
+        // x_wa_message row fetchMeta writes is labelled supplier_ask.
+        { purpose: TMPL_SUPPLIER_ASK },
       );
+      if (await isSkippedDuplicate(res)) {
+        // Same job already asked this supplier today — not a failure and
+        // not a new ask, so no log row.
+        skippedDuplicate++;
+        console.warn(`[cron 02:00] supplier ${s.id} skipped duplicate (already asked today)`);
+        continue;
+      }
+      // The ask log is written after the send (was before) so a refused
+      // duplicate never leaves a stray pending row behind.
+      const logId = await createSupplierAskLog(env, s.id);
       if (!res.ok) {
         const body = (await res.text()).slice(0, 200);
         console.error(`[cron 02:00] supplier ${s.id} template send failed`, res.status, body);
@@ -142,23 +155,16 @@ export async function askAllSuppliersForPrices(env: Env): Promise<void> {
       }
       sent++;
       console.log(`[cron 02:00] asked supplier ${s.id} (${s.name}) log=${logId}`);
-      // Item 2c (2026-09-18) — surface the 02:00 supplier fan-out in the
-      // UTAK «رسائل واتساب» tab. Best-effort passive log; a failure here
-      // never breaks the cron. Send logic + timing are unchanged.
-      await logWaMessage(env, {
-        partnerId: s.id,
-        direction: "out",
-        kind: "template",
-        body: `[supplier_ask] ${productList}`,
-        status: "sent",
-      });
+      // 2026-09-23 — the manual logWaMessage that used to follow here wrote
+      // a second x_wa_message row for the same send: fetchMeta's echo
+      // already logs it (with the wamid). Removed; one row per send.
     } catch (e) {
       failed++;
       console.error(`[cron 02:00] supplier ${s.id} error`, (e as Error)?.message);
     }
   }
   console.log(
-    `[cron 02:00] done. asked=${sent} failed=${failed} skipped_empty=${skippedEmpty} skipped_no_intersection=${skippedNoIntersection} total=${suppliers.length}`,
+    `[cron 02:00] done. asked=${sent} failed=${failed} skipped_empty=${skippedEmpty} skipped_no_intersection=${skippedNoIntersection} skipped_duplicate=${skippedDuplicate} total=${suppliers.length}`,
   );
 }
 

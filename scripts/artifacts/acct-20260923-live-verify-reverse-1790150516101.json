@@ -1,0 +1,32 @@
+{
+  "started_at": "2026-09-23T08:01:53.142Z",
+  "today": "2026-09-23",
+  "cycles": {},
+  "created": {
+    "invoices": [
+      17,
+      19,
+      21,
+      22
+    ],
+    "payments": [
+      6,
+      7,
+      8
+    ],
+    "x_orders": [],
+    "x_invoices": [],
+    "x_payments": [],
+    "credit_notes": [
+      24,
+      25,
+      26,
+      27
+    ]
+  },
+  "after_reversal": {
+    "102011": 0,
+    "500001": 0
+  },
+  "failures": 0
+}

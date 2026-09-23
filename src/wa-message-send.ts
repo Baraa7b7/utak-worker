@@ -492,6 +492,13 @@ export interface LogInboundArgs {
 
 export async function logWaMessage(env: Env, a: LogInboundArgs): Promise<void> {
   try {
+    // 2026-09-23 — logical unique index on x_meta_message_id: one row per
+    // wamid. Odoo has no DB constraint on this studio field, so the check
+    // lives here, in the single function every logger goes through.
+    if (a.metaMessageId && (await waMessageExistsForWamid(env, a.metaMessageId))) {
+      console.log(`[logWaMessage] wamid=${a.metaMessageId.slice(-10)} already logged — skip`);
+      return;
+    }
     const processedAt = typeof a.metaTimestampMs === "number" && Number.isFinite(a.metaTimestampMs)
       ? new Date(a.metaTimestampMs).toISOString().replace("T", " ").slice(0, 19)
       : nowOdoo();
@@ -531,6 +538,16 @@ export async function logWaMessage(env: Env, a: LogInboundArgs): Promise<void> {
   } catch (e) {
     console.warn("[logWaMessage] failed", (e as Error)?.message);
   }
+}
+
+/** True when an x_wa_message row already carries this wamid. */
+export async function waMessageExistsForWamid(env: Env, wamid: string): Promise<boolean> {
+  const rows = await call<Array<{ id: number }>>(env, "x_wa_message", "search_read", {
+    domain: [["x_meta_message_id", "=", wamid]],
+    fields: ["id"],
+    limit: 1,
+  });
+  return rows.length > 0;
 }
 
 // ============================================================

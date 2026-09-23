@@ -95,6 +95,17 @@ export interface Env {
    * prod only after Baraa's explicit go-ahead.
    */
   ACCOUNTING_SYNC?: string;
+
+  /**
+   * 2026-09-23 — NOT a wrangler var. Set in code only, on a shallow copy
+   * of env that scheduled() / runSimJob() hand to a job (see
+   * withAutoSendJob in src/auto-send-guard.ts). When present, fetchMeta
+   * claims a KV idempotency key per (recipient, template, Riyadh day,
+   * job) before sending, so a second run of the same job cannot send the
+   * same message twice. Request paths (webhook replies, Odoo manual send)
+   * never carry it.
+   */
+  AUTO_SEND_JOB?: string;
 }
 
 // ============================================================

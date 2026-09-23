@@ -17,6 +17,10 @@ import {
   syncInvoiceToAccounting,
   syncPaymentToAccounting,
   todayRiyadhYmd,
+  extractPaymentIdFromAction,
+  buildPaymentSearchDomain,
+  evaluatePaymentGuard,
+  evaluateInvoiceGuard,
 } from "../src/accounting.ts";
 
 // ---------- fetch mock ----------
@@ -73,6 +77,23 @@ function reset(): void {
   captured = [];
   responder = () => true;
 }
+
+// ---------- Odoo fixtures (account ids/types as on the live tenant) ----------
+const ACCOUNTS = [
+  { id: 69, code: "102011", account_type: "asset_receivable" },
+  { id: 70, code: "500001", account_type: "income" },
+  { id: 257, code: "101007", account_type: "asset_cash" },
+  { id: 254, code: "101003", account_type: "asset_current" },
+  { id: 90, code: "400001", account_type: "expense" },
+];
+const accName = (id: number) => {
+  const a = ACCOUNTS.find((x) => x.id === id)!;
+  return [id, `${a.code} x`];
+};
+const INVOICE_LINES_OK = [
+  { account_id: accName(69), debit: 175.5, credit: 0 },
+  { account_id: accName(70), debit: 0, credit: 175.5 },
+];
 
 // ==================== TESTS ====================
 
@@ -172,6 +193,8 @@ async function testInvoiceHappyPath(): Promise<void> {
     if (req.url.endsWith("/account.move/create")) return [42];
     if (req.url.endsWith("/account.move/action_post")) return true;
     if (req.url.endsWith("/account.move/read")) return [{ id: 42, amount_total: moveTotal, state: "posted" }];
+    if (req.url.endsWith("/account.move.line/search_read")) return INVOICE_LINES_OK;
+    if (req.url.endsWith("/account.account/read")) return ACCOUNTS;
     if (req.url.endsWith("/x_invoice/write")) return true;
     return true;
   };
@@ -299,6 +322,213 @@ async function testDateRiyadh(): Promise<void> {
   assert("12:00 UTC → same day", todayRiyadhYmd(noon) === "2026-09-21");
 }
 
+
+async function testExtractPaymentId(): Promise<void> {
+  console.log("\n[11] extractPaymentIdFromAction — Odoo 19 action shapes");
+  assert("act_window res_id", extractPaymentIdFromAction({ type: "ir.actions.act_window", res_model: "account.payment", res_id: 17 }) === 17);
+  assert("domain with one id", extractPaymentIdFromAction({ res_model: "account.payment", domain: [["id", "in", [18]]] }) === 18);
+  assert("domain with two ids → null (ambiguous)", extractPaymentIdFromAction({ res_model: "account.payment", domain: [["id", "in", [18, 19]]] }) === null);
+  assert("other model → null", extractPaymentIdFromAction({ res_model: "account.move", res_id: 5 }) === null);
+  assert("true (dont_redirect) → null", extractPaymentIdFromAction(true) === null);
+}
+
+async function testSearchDomainHasPartner(): Promise<void> {
+  console.log("\n[12] buildPaymentSearchDomain — partner + amount + journal + date");
+  const d = buildPaymentSearchDomain({ partnerId: 48, amount: 9, journalId: 19, date: "2026-09-23" });
+  const has = (f: string, v: unknown) => d.some((l) => l[0] === f && l[1] === "=" && l[2] === v);
+  assert("partner_id filter", has("partner_id", 48));
+  assert("amount filter", has("amount", 9));
+  assert("journal_id filter", has("journal_id", 19));
+  assert("date filter", has("date", "2026-09-23"));
+}
+
+/** Responder for a full payment run; `opts` bends one fact at a time. */
+function paymentResponder(opts: {
+  action?: unknown;
+  debitAccount?: number;
+  moveId?: number | false;
+  invoiceState?: string;
+  paymentPartner?: number;
+  residualBefore?: number;
+}) {
+  let invReads = 0;
+  return (req: CapturedRequest): any => {
+    const u = req.url;
+    if (u.endsWith("/account.journal/search_read")) return [{ id: 19, code: "CSHD" }];
+    if (u.endsWith("/account.payment.register/create")) return [555];
+    if (u.endsWith("/account.payment.register/action_create_payments")) {
+      return opts.action ?? { type: "ir.actions.act_window", res_model: "account.payment", res_id: 31 };
+    }
+    if (u.endsWith("/account.payment/search_read")) return [{ id: 31 }];
+    if (u.endsWith("/account.payment/read")) {
+      const mv = opts.moveId === undefined ? 900 : opts.moveId;
+      return [{ id: 31, state: "paid", move_id: mv ? [mv, "PCSHD/1"] : false, partner_id: [opts.paymentPartner ?? 48, "p"] }];
+    }
+    if (u.endsWith("/account.move/read")) {
+      const id = req.body.ids[0];
+      if (id === 900) return [{ id: 900, state: "posted" }];
+      invReads++;
+      return [{
+        id: 42,
+        commercial_partner_id: [48, "p"],
+        partner_id: [48, "p"],
+        amount_residual: opts.residualBefore ?? 12,
+        payment_state: opts.invoiceState ?? "partial",
+      }];
+    }
+    if (u.endsWith("/account.move.line/search_read")) {
+      return [
+        { account_id: accName(opts.debitAccount ?? 257), debit: 9, credit: 0 },
+        { account_id: accName(69), debit: 0, credit: 9 },
+      ];
+    }
+    if (u.endsWith("/account.account/read")) return ACCOUNTS;
+    if (u.endsWith("/x_whatsapp_template/search_read")) return [{ x_meta_template_id: "utak_owner_alert", x_language: "ar" }];
+    if (u.includes("graph.facebook.com")) return { messages: [{ id: "wamid.T" }] };
+    void invReads;
+    return true;
+  };
+}
+
+const PAY_ARGS = {
+  paymentId: 5,
+  existingPaymentMoveId: null,
+  invoiceMoveId: 42,
+  invoiceNumber: "UTAK-INV-TEST-GUARD",
+  amount: 9,
+  method: "cash" as const,
+  paymentDate: "2026-09-23",
+};
+
+async function testPaymentHappyPathUsesAction(): Promise<void> {
+  console.log("\n[13] syncPaymentToAccounting — id from action, guard passes, links");
+  reset();
+  responder = paymentResponder({});
+  const env = makeEnv({ ACCOUNTING_SYNC: "true" });
+  const r = await syncPaymentToAccounting(env, PAY_ARGS);
+  assert("returns payment id from action (31)", r === 31, String(r));
+  assert("no account.payment search when action carries res_id",
+    !captured.some((c) => c.url.endsWith("/account.payment/search_read")));
+  const w = captured.find((c) => c.url.endsWith("/x_payment/write"));
+  assert("x_payment linked to 31", w?.body?.vals?.x_account_payment_id === 31);
+  assert("no cancel issued", !captured.some((c) => c.url.endsWith("/account.payment/action_cancel")));
+  const wiz = captured.find((c) => c.url.endsWith("/account.payment.register/create"));
+  const vals = wiz?.body?.vals_list?.[0] ?? {};
+  assert("wizard vals carry no currency_id (Odoo 19 rejects false once a move is built)",
+    !("currency_id" in vals), JSON.stringify(vals));
+}
+
+async function testPaymentFallbackSearchFiltersPartner(): Promise<void> {
+  console.log("\n[14] syncPaymentToAccounting — fallback search filters by partner");
+  reset();
+  responder = paymentResponder({ action: true });
+  const env = makeEnv({ ACCOUNTING_SYNC: "true" });
+  const r = await syncPaymentToAccounting(env, PAY_ARGS);
+  const s = captured.find((c) => c.url.endsWith("/account.payment/search_read"));
+  const dom: any[] = s?.body?.domain ?? [];
+  assert("fallback search issued", !!s);
+  assert("search domain has partner_id = invoice partner 48",
+    dom.some((l) => l[0] === "partner_id" && l[2] === 48), JSON.stringify(dom));
+  assert("search domain has amount/journal/date",
+    ["amount", "journal_id", "date"].every((f) => dom.some((l) => l[0] === f)));
+  assert("linked via search result", r === 31);
+}
+
+async function testPaymentGuardFailureCancels(): Promise<void> {
+  console.log("\n[15] syncPaymentToAccounting — guard failure: cancel, alert, no link");
+  reset();
+  responder = paymentResponder({ debitAccount: 70 }); // income on the debit side
+  const env = makeEnv({ ACCOUNTING_SYNC: "true" });
+  let threw = false;
+  let r: number | null = -1;
+  try { r = await syncPaymentToAccounting(env, PAY_ARGS); } catch { threw = true; }
+  assert("never throws", !threw);
+  assert("returns null", r === null);
+  assert("payment cancelled", captured.some((c) => c.url.endsWith("/account.payment/action_cancel") && c.body?.ids?.[0] === 31));
+  assert("x_payment NOT linked", !captured.some((c) => c.url.endsWith("/x_payment/write")));
+  const alert = captured.find((c) => c.url.includes("graph.facebook.com"));
+  const alertText = JSON.stringify(alert?.body ?? "");
+  assert("owner alert sent via owner_alert template", !!captured.find((c) =>
+    c.url.endsWith("/x_whatsapp_template/search_read") && JSON.stringify(c.body).includes("owner_alert")));
+  assert("alert names the invoice number", alertText.includes("UTAK-INV-TEST-GUARD"), alertText.slice(0, 200));
+  assert("alert names the reason (income)", alertText.includes("income"), alertText.slice(0, 200));
+}
+
+async function testPaymentGuardNoMove(): Promise<void> {
+  console.log("\n[16] syncPaymentToAccounting — payment without move_id is rejected");
+  reset();
+  responder = paymentResponder({ moveId: false });
+  const env = makeEnv({ ACCOUNTING_SYNC: "true" });
+  const r = await syncPaymentToAccounting(env, PAY_ARGS);
+  assert("returns null", r === null);
+  assert("payment cancelled", captured.some((c) => c.url.endsWith("/account.payment/action_cancel")));
+}
+
+async function testGuardPure(): Promise<void> {
+  console.log("\n[17] evaluatePaymentGuard / evaluateInvoiceGuard — pure rules");
+  const base = {
+    paymentState: "paid", paymentPartnerId: 48, moveId: 900, moveState: "posted",
+    invoicePaymentState: "paid", expectedPartnerId: 48, expectFull: true,
+    lines: [
+      { account_code: "101003", account_type: "asset_current", debit: 10, credit: 0 },
+      { account_code: "102011", account_type: "asset_receivable", debit: 0, credit: 10 },
+    ],
+  };
+  assert("outstanding (asset_current) + paid → ok", evaluatePaymentGuard(base).ok);
+  assert("in_payment → ok", evaluatePaymentGuard({ ...base, invoicePaymentState: "in_payment" }).ok);
+  assert("cash (asset_cash) → ok", evaluatePaymentGuard({ ...base, lines: [
+    { account_code: "101007", account_type: "asset_cash", debit: 10, credit: 0 },
+    { account_code: "102011", account_type: "asset_receivable", debit: 0, credit: 10 }] }).ok);
+  assert("expense debit → rejected", !evaluatePaymentGuard({ ...base, lines: [
+    { account_code: "400001", account_type: "expense", debit: 10, credit: 0 },
+    { account_code: "102011", account_type: "asset_receivable", debit: 0, credit: 10 }] }).ok);
+  assert("move not posted → rejected", !evaluatePaymentGuard({ ...base, moveState: "draft" }).ok);
+  assert("full payment but invoice partial → rejected", !evaluatePaymentGuard({ ...base, invoicePaymentState: "partial" }).ok);
+  assert("partial payment and invoice partial → ok", evaluatePaymentGuard({ ...base, invoicePaymentState: "partial", expectFull: false }).ok);
+  assert("full payment but invoice not_paid → rejected", !evaluatePaymentGuard({ ...base, invoicePaymentState: "not_paid" }).ok);
+  assert("partner mismatch → rejected", !evaluatePaymentGuard({ ...base, paymentPartnerId: 49 }).ok);
+
+  const inv = { moveState: "posted", lines: [
+    { account_code: "102011", account_type: "asset_receivable", debit: 12, credit: 0 },
+    { account_code: "500001", account_type: "income", debit: 0, credit: 12 }] };
+  assert("invoice AR debit / income credit → ok", evaluateInvoiceGuard(inv).ok);
+  assert("invoice with expense line → rejected", !evaluateInvoiceGuard({ ...inv, lines: [
+    { account_code: "102011", account_type: "asset_receivable", debit: 12, credit: 0 },
+    { account_code: "400001", account_type: "expense", debit: 0, credit: 12 }] }).ok);
+  assert("invoice with reversed sides → rejected", !evaluateInvoiceGuard({ ...inv, lines: [
+    { account_code: "102011", account_type: "asset_receivable", debit: 0, credit: 12 },
+    { account_code: "500001", account_type: "income", debit: 12, credit: 0 }] }).ok);
+}
+
+async function testInvoiceGuardFailureCancels(): Promise<void> {
+  console.log("\n[18] syncInvoiceToAccounting — guard failure: cancel move, no link");
+  reset();
+  const env = makeEnv({ ACCOUNTING_SYNC: "true" });
+  responder = (req) => {
+    const u = req.url;
+    if (u.endsWith("/product.product/search_read")) return [];
+    if (u.endsWith("/res.partner/read")) return [{ id: 33, property_payment_term_id: false }];
+    if (u.endsWith("/account.move/create")) return [43];
+    if (u.endsWith("/account.move/read")) return [{ id: 43, amount_total: 12, state: "posted" }];
+    if (u.endsWith("/account.move.line/search_read")) return [
+      { account_id: accName(69), debit: 12, credit: 0 },
+      { account_id: accName(90), debit: 0, credit: 12 }, // expense instead of income
+    ];
+    if (u.endsWith("/account.account/read")) return ACCOUNTS;
+    if (u.endsWith("/x_whatsapp_template/search_read")) return [{ x_meta_template_id: "utak_owner_alert", x_language: "ar" }];
+    if (u.includes("graph.facebook.com")) return { messages: [{ id: "wamid.T" }] };
+    return true;
+  };
+  const r = await syncInvoiceToAccounting(env, {
+    invoiceId: 8, existingMoveId: null, invoiceNumber: "UTAK-INV-TEST-BADACC",
+    customerPartnerId: 33, lines: [{ product_tmpl_id: 0, description: "x", quantity: 1, price_unit: 12 }],
+    expectedTotal: 12,
+  });
+  assert("returns null", r === null);
+  assert("move cancelled", captured.some((c) => c.url.endsWith("/account.move/button_cancel") && c.body?.ids?.[0] === 43));
+  assert("x_invoice NOT linked", !captured.some((c) => c.url.endsWith("/x_invoice/write")));
+}
+
 // ==================== RUNNER ====================
 
 async function main(): Promise<void> {
@@ -313,6 +543,14 @@ async function main(): Promise<void> {
     await testPaymentIdempotency();
     await testPaymentGatedOff();
     await testDateRiyadh();
+    await testExtractPaymentId();
+    await testSearchDomainHasPartner();
+    await testPaymentHappyPathUsesAction();
+    await testPaymentFallbackSearchFiltersPartner();
+    await testPaymentGuardFailureCancels();
+    await testPaymentGuardNoMove();
+    await testGuardPure();
+    await testInvoiceGuardFailureCancels();
   } finally {
     globalThis.fetch = originalFetch;
   }

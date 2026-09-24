@@ -35,7 +35,7 @@ import {
   type UnconfirmedOrder,
 } from "./odoo";
 import { sendButtons, sendLocation, sendText } from "./meta";
-import { sendTemplateByPurpose, T, sendOwnerAlert, cutoffLabel } from "./templates";
+import { sendTemplateByPurpose, T, sendOwnerAlert, cutoffLabel, purchaseRemindParams } from "./templates";
 import { createAndDispatchDeliveryNoteForStop } from "./delivery-note";
 import { syncPurchaseListToAccounting } from "./purchase-accounting";
 import { riyadhDateKey } from "./hours";
@@ -317,10 +317,12 @@ export async function followUpUnconfirmedPurchaseLists(env: Env): Promise<{ remi
 }
 
 /**
- * 2026-09-25 — utak_purchase_list_remind_v1 (purchase_list_remind: [date, item
- * count] + «تم الشراء») once that purpose is mapped; until then the purchase
- * list template again, marked as a reminder. Only «no template mapped» falls
- * back — a mapped template that failed is not re-sent under another name.
+ * 2026-09-25 — the purchase_list_remind template («تم الشراء» button) once
+ * that purpose is mapped: utak_purchase_list_remind_v2 = [list id, date, item
+ * count], or v1 = [date, item count] (purchaseRemindParams). Until then the
+ * purchase list template again, marked as a reminder. Only «no template
+ * mapped» falls back — a mapped template that failed is not re-sent under
+ * another name.
  */
 async function sendPurchaseListReminder(
   env: Env,
@@ -329,8 +331,9 @@ async function sendPurchaseListReminder(
   list: { date: string; items: PurchaseListItem[] },
 ): Promise<boolean> {
   try {
+    const date = arabicDate(list.date || riyadhDateKey());
     const r = await sendTemplateByPurpose(env, wh.x_whatsapp_number, T.PURCHASE_LIST_REMIND,
-      [arabicDate(list.date || riyadhDateKey()), String(list.items.length)],
+      (name) => purchaseRemindParams(name, listId, date, list.items.length),
       [{ index: 0, payload: `purchase_done_${listId}` }]);
     if (r) return r.ok;
   } catch (e) {

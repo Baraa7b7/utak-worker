@@ -12,7 +12,7 @@
 // scripts/artifacts/wa-templates-20260925-migrate-rollback.json، و--rollback يعيدها بترتيب عكسي.
 // الكود يختار المتغيرات حسب اسم القالب، فالتراجع يعمل دون إعادة نشر. لا إرسال واتساب، ولا كتابة عند Meta.
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
-import { NEW_EIGHT, placeholders } from "./wa-templates-20260925-new-eight.mjs";
+import { NEW_EIGHT, placeholders, specFor } from "./wa-templates-20260925-new-eight.mjs";
 import { contractParams } from "./wa-templates-20260924-purpose-contract.mjs";
 
 const nVars = (body) => new Set(placeholders(body ?? "")).size;
@@ -25,9 +25,12 @@ function blocker(t, m) {
   if (!m) return "missing at Meta";
   if (m.status !== "APPROVED") return `status ${m.status}`;
   if (m.category !== "UTILITY") return `category ${m.category}`;
+  // 2026-09-25 — a retry may carry other variables than the first wording:
+  // the spec, the contract and Meta must all agree for this name.
   const want = contractParams(t.purpose, m.name);
   const have = nVars(bodyOf(m));
-  if (want == null || have !== want || have !== t.code.params.length) return `variables: Meta ${have}, code ${want ?? "?"}`;
+  const spec = specFor(m.name)?.code.params.length;
+  if (want == null || have !== want || have !== spec) return `variables: Meta ${have}, code ${want ?? "?"}, spec ${spec ?? "?"}`;
   const btn = buttonsOf(m).length;
   if (btn !== t.buttons.length) return `buttons: Meta ${btn}, spec ${t.buttons.length}`;
   if (Boolean(t.documentHeader) !== (headerOf(m) === "DOCUMENT")) return `header: Meta ${headerOf(m) ?? "none"}`;
@@ -41,7 +44,7 @@ export function planMigration(inv) {
     const why = [];
     for (const n of names) {
       const b = blocker(t, inv.get(n));
-      if (!b) return { key: t.key, purpose: t.purpose, action: "move", to: n, from: t.replaces, label: t.label + (n === t.name ? "" : " (صياغة ثانية)") };
+      if (!b) return { key: t.key, purpose: t.purpose, action: "move", to: n, from: t.replaces, label: specFor(n).label };
       if (inv.has(n) || n === t.name) why.push(`${n}: ${b}`);
     }
     return { key: t.key, purpose: t.purpose, action: "skip", why: why.join("; ") };

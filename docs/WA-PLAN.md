@@ -48,6 +48,14 @@
 
 أُنشئت الثمانية عند Meta (كلها UTILITY وPENDING، ولا رفض ولا إعادة تصنيف)، وسُجّلت في Odoo بغرض `other` (#72–#79)، وأُضيفت قيم `customer_quotation_pdf` و`customer_order_remind` و`purchase_list_remind`. الكود على sim (`6dd729c2`) يعمل مع القديم والجديد حسب ما يُرجعه الغرض، فالربط = تشغيل سكربت الترحيل فقط. التفاصيل في [STATUS.md](STATUS.md) § 21.
 
+**تحديث 2026-09-25 (الحالة عند Meta بعد المراجعة، STATUS § 25):**
+- **ستة APPROVED/UTILITY، وجاهزة للترحيل:** `utak_supplier_ask_v2` و`utak_shift_start_v2` و`utak_standing_remind_v2` و`utak_pay_remind_v3` و`utak_quotation_pdf_v1` و`utak_order_confirm_remind_v1`.
+- **اثنان اعتمدهما Meta UTILITY، ثم نقلهما إلى MARKETING** (`previous_category: UTILITY`): `utak_owner_alert_v2` و`utak_purchase_list_remind_v1`. أُعيدت صياغة كل منهما مرة واحدة:
+  - `utak_purchase_list_remind_v2`: «تحديث حالة مهمة»، ورقم القائمة المسندة إليك، ومتغيرات [رقم القائمة، التاريخ، العدد]. الحالة: انظر STATUS § 25.
+  - `utak_owner_alert_v3`: «إشعار آلي بشأن عمليات حسابك، سُجّل بتاريخ …»، ومتغيرات [الوقت، التنبيه]. **رُفض فوراً بسبب `INCORRECT_CATEGORY`**، فتوقف الغرض عنده. البديل المقترح في STATUS § 25.
+- **الكود:** يرسل حسب اسم القالب (`ownerAlertParams` و`purchaseRemindParams` في `src/templates.ts`)، فيعمل مع القديم والجديد.
+- **سكربت الترحيل:** لا ينقل إلى MARKETING ولا REJECTED ولا PENDING، ويقارن المتغيرات مع الصياغة الفعلية لكل اسم (`specFor`).
+
 **الفروق عن الجدول أدناه:** النصوص النهائية في `scripts/wa-templates-20260925-new-eight.mjs` (الفروق: «يا ليت» بدل «ياليت»؛ تنبيه المالك بنص القالب القديم نفسه مع « — » بدل السطر الجديد، فلا يطابقه حرفياً؛ «تحب نرسلها مثل ما هي، أو تعدّل عليها؟» في القائمة الثابتة؛ تذكير تأكيد الطلب بعامية خفيفة لأنه للعميل؛ وتذكير قائمة الشراء بـ«وعدد أصنافها {{2}}» بدل «{{2}} صنفاً» ليسلم مع أي عدد). قالب قائمة الشراء (#8) بزر واحد «تم الشراء»، و«مشكلة» تُبلَّغ بالرد على الرسالة (الرد يعيد القائمة كاملة بزريها داخل الجلسة). الغرضان الجديدان: `customer_order_remind` و`purchase_list_remind`.
 
 **بعد الاعتماد:**

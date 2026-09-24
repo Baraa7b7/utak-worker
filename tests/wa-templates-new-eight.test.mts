@@ -11,10 +11,10 @@ import {
   CUST, OWNER, WH, graph, order, quiet, reset, seed, setFail, setRiyadh, table,
 } from "./wa-harness.mts";
 
-const { NEW_EIGHT, placeholders, textProblems } = await import("../scripts/wa-templates-20260925-new-eight.mjs");
+const { NEW_EIGHT, placeholders, textProblems, retrySpec, specFor } = await import("../scripts/wa-templates-20260925-new-eight.mjs");
 const { planMigration } = await import("../scripts/wa-templates-20260925-migrate-when-approved.mjs");
 const { CONTRACT, contractParams } = await import("../scripts/wa-templates-20260924-purpose-contract.mjs");
-const { clearTemplateCache, sendOwnerAlert, T } = await import("../src/templates.ts");
+const { clearTemplateCache, sendOwnerAlert, T, ownerAlertParams, purchaseRemindParams } = await import("../src/templates.ts");
 const team = await import("../src/team.ts");
 const { askAllSuppliersForPrices } = await import("../src/suppliers.ts");
 const { sendStandingOrderReminders } = await import("../src/standing.ts");
@@ -75,7 +75,13 @@ console.log("\n[0] template texts");
 for (const t of NEW_EIGHT) {
   const probs = textProblems(t);
   assert(`${t.name}: text rules (no leading/trailing var, examples, «يو تاك», 1..n)`, probs.length === 0, probs.join("; "));
-  if (t.retry) assert(`${t.retry.name} (retry): text rules`, textProblems(t, t.retry.body).length === 0, textProblems(t, t.retry.body).join("; "));
+  if (t.retry) {
+    const r = retrySpec(t);
+    assert(`${r.name} (retry): text rules`, textProblems(r).length === 0, textProblems(r).join("; "));
+    assert(`${r.name} (retry): purpose contract = its own variables`, contractParams(t.purpose, r.name) === nVars(r.body),
+      `${contractParams(t.purpose, r.name)} vs ${nVars(r.body)}`);
+    if (t.retry.label) assert(`${r.name} (retry): Arabic label in wa-template-labels.json`, labels[r.name] === r.label, labels[r.name]);
+  }
   assert(`${t.name}: category UTILITY`, !("category" in t) || (t as any).category === "UTILITY");
   assert(`${t.name}: Arabic label in wa-template-labels.json = spec`, labels[t.name] === t.label, labels[t.name]);
   assert(`${t.name}: purpose contract knows ${t.name}`, contractParams(t.purpose, t.name) === nVars(t.body),
@@ -103,7 +109,21 @@ for (const [name, n] of [["utak_supplier_ask_v2", 2], ["utak_supplier_daily_ask"
 }
 
 // ---------------------------------------------------------------- 2. owner_alert
-console.log("\n[2] owner_alert — 1 variable both");
+console.log("\n[2] owner_alert — v3 [when, alert]; v2 and the legacy one [alert]");
+setRiyadh("2026-09-25 18:01");
+{
+  const env = reset();
+  mapPurpose("owner_alert", "utak_owner_alert_v3", 2);
+  await quiet(() => sendOwnerAlert(env, "فشل إرسال ملخص التحصيل\nالرمز 132018"));
+  const b = checkSend("owner_alert → utak_owner_alert_v3", "utak_owner_alert_v3", specFor("utak_owner_alert_v3"));
+  const p = bodyParams(b);
+  assert("v3: {{1}} = Riyadh time of the alert", p[0] === "25 سبتمبر 2026، 18:01", JSON.stringify(p));
+  assert("v3: {{2}} = the alert on one line", p[1]?.includes("ملخص التحصيل") && p[1]?.includes("132018") && !/[\r\n]/.test(p[1]), JSON.stringify(p));
+  const long = ownerAlertParams("utak_owner_alert_v3", "ت".repeat(5000), "25 سبتمبر 2026، 18:01");
+  const rendered = specFor("utak_owner_alert_v3").body.replace("{{1}}", long[0]).replace("{{2}}", long[1]);
+  assert("v3: the longest alert still fits Meta's 1024", rendered.length <= 1024, String(rendered.length));
+  assert("legacy / v2: the alert alone", ownerAlertParams("utak_owner_alert_v2", "x", "t").join("|") === "x" && ownerAlertParams("utak_owner_alert", "x", "t").join("|") === "x");
+}
 for (const name of ["utak_owner_alert_v2", "utak_owner_alert"]) {
   const env = reset();
   mapPurpose("owner_alert", name, 1);
@@ -201,6 +221,17 @@ setRiyadh("2026-09-25 20:00");
 // ---------------------------------------------------------------- 8. purchase_list_remind (ح7)
 console.log("\n[8] 06:00 purchase list follow-up — new template, else the list again");
 setRiyadh("2026-09-26 06:00");
+{
+  const env = reset();
+  mapPurpose("purchase_list_remind", "utak_purchase_list_remind_v2", 3);
+  // items live in x_aggregated_items (JSON), as getPurchaseListBrief reads them
+  const lid = seed("x_purchase_list", { x_status: "sent", x_date: "2026-09-25", x_notes: "",
+    x_aggregated_items: JSON.stringify([{ product: "طماطم", packaging: "كرتون", qty: 4 }, { product: "خيار", packaging: "جرم", qty: 2 }]) });
+  await quiet(() => team.followUpUnconfirmedPurchaseLists(env));
+  const b = checkSend("purchase_remind → utak_purchase_list_remind_v2", "utak_purchase_list_remind_v2", specFor("utak_purchase_list_remind_v2"), [new RegExp(`^purchase_done_${lid}$`)]);
+  assert("v2: [list id, Arabic date, item count]", bodyParams(b).join("|") === `${lid}|25 سبتمبر 2026|2`, JSON.stringify(bodyParams(b)));
+  assert("v1 shape kept for the old name", purchaseRemindParams("utak_purchase_list_remind_v1", 7, "d", 3).join("|") === "d|3");
+}
 for (const mapped of [true, false]) {
   const env = reset();
   if (mapped) mapPurpose("purchase_list_remind", "utak_purchase_list_remind_v1", 2); else unmap("purchase_list_remind");
@@ -257,6 +288,32 @@ console.log("\n[9] migrate-when-approved: only APPROVED + matching variables mov
   assert("button count ≠ spec → skip", planMigration(btn).find((p: any) => p.key === "supplier_ask").action === "skip");
   const noHdr = new Map(inv); noHdr.set("utak_quotation_pdf_v1", { ...inv.get("utak_quotation_pdf_v1"), components: [{ type: "BODY", text: spec("customer_quotation_pdf").body }] });
   assert("quotation without DOCUMENT header → skip", planMigration(noHdr).find((p: any) => p.key === "customer_quotation_pdf").action === "skip");
+
+  // 2026-09-25 — what Meta shows today: v2 / v1 moved to MARKETING after approval.
+  const today = new Map<string, any>([
+    ["utak_owner_alert_v2", meta("utak_owner_alert_v2", "APPROVED", "MARKETING")],
+    ["utak_purchase_list_remind_v1", meta("utak_purchase_list_remind_v1", "APPROVED", "MARKETING")],
+  ]);
+  const p0 = planMigration(today);
+  const pb = (k: string, pl = p0) => pl.find((p: any) => p.key === k);
+  assert("owner_alert: v2 MARKETING, v3 missing → skip (never the MARKETING one)", pb("owner_alert").action === "skip" && /MARKETING/.test(pb("owner_alert").why), pb("owner_alert").why);
+  assert("purchase_list_remind: v1 MARKETING, v2 missing → skip", pb("purchase_list_remind").action === "skip" && /MARKETING/.test(pb("purchase_list_remind").why));
+  const pending = new Map(today);
+  pending.set("utak_owner_alert_v3", meta("utak_owner_alert_v3", "PENDING"));
+  pending.set("utak_purchase_list_remind_v2", meta("utak_purchase_list_remind_v2", "APPROVED", "MARKETING"));
+  const p1 = planMigration(pending);
+  assert("v3 PENDING → skip", pb("owner_alert", p1).action === "skip" && /PENDING/.test(pb("owner_alert", p1).why), pb("owner_alert", p1).why);
+  assert("v2 also MARKETING → skip", pb("purchase_list_remind", p1).action === "skip");
+  const ok = new Map(today);
+  ok.set("utak_owner_alert_v3", meta("utak_owner_alert_v3", "APPROVED"));
+  ok.set("utak_purchase_list_remind_v2", meta("utak_purchase_list_remind_v2", "APPROVED"));
+  const p2 = planMigration(ok);
+  assert("v3 APPROVED UTILITY with 2 variables → move to v3", pb("owner_alert", p2).action === "move" && pb("owner_alert", p2).to === "utak_owner_alert_v3", JSON.stringify(pb("owner_alert", p2)));
+  assert("…labelled as the third wording", pb("owner_alert", p2).label === "تنبيه تشغيلي (للمالك) — الصياغة الثالثة");
+  assert("v2 APPROVED UTILITY with 3 variables → move to v2", pb("purchase_list_remind", p2).action === "move" && pb("purchase_list_remind", p2).to === "utak_purchase_list_remind_v2");
+  const wrong = new Map(ok);
+  wrong.set("utak_purchase_list_remind_v2", meta("utak_purchase_list_remind_v2", "APPROVED", "UTILITY", "تحديث من يو تاك: قائمة يوم {{1}} وعدد أصنافها {{2}} بانتظار التأكيد."));
+  assert("v2 approved with 2 variables (code sends 3) → skip", pb("purchase_list_remind", planMigration(wrong)).action === "skip" && /variables/.test(pb("purchase_list_remind", planMigration(wrong)).why));
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

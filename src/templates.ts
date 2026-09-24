@@ -174,6 +174,34 @@ export function supplierAskParams(templateName: string, supplierName: string, pr
   return templateName === SUPPLIER_ASK_LEGACY ? [productList] : [supplierName, productList];
 }
 
+/**
+ * owner_alert (2026-09-25): utak_owner_alert_v3 (UTILITY) = «إشعار آلي من نظام
+ * يو تاك بشأن عمليات حسابك، سُجّل بتاريخ {{1}}: {{2}}. …» = [when, alert]; the
+ * legacy utak_owner_alert and _v2 (both MARKETING at Meta now) take the alert
+ * alone. v3's fixed text is longer, so its alert is cut shorter (≤ 1024 total).
+ */
+export const OWNER_ALERT_V3 = "utak_owner_alert_v3";
+export const OWNER_ALERT_V3_TEXT_MAX = 800;
+export function ownerAlertParams(templateName: string, alert: string, when: string): string[] {
+  return templateName === OWNER_ALERT_V3 ? [when, sanitizeTemplateParam(alert, OWNER_ALERT_V3_TEXT_MAX)] : [alert];
+}
+/** «25 سبتمبر 2026، 18:01» — the Riyadh time an owner alert is raised. */
+export function ownerAlertTime(now: Date = new Date()): string {
+  const m = riyadhMinutes(now);
+  return `${arabicDate(riyadhDateKey(now))}، ${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+}
+
+/**
+ * purchase_list_remind (2026-09-25): utak_purchase_list_remind_v2 (UTILITY) =
+ * «… قائمة الشراء رقم {{1}} المسندة إليك ليوم {{2}}، وعدد أصنافها {{3}} …» =
+ * [list id, date, count]; utak_purchase_list_remind_v1 (MARKETING at Meta
+ * now) takes [date, count].
+ */
+export const PURCHASE_REMIND_V2 = "utak_purchase_list_remind_v2";
+export function purchaseRemindParams(templateName: string, listId: number, date: string, count: number): string[] {
+  return templateName === PURCHASE_REMIND_V2 ? [String(listId), date, String(count)] : [date, String(count)];
+}
+
 // ---- Purpose constants ----
 export const T = {
   SUPPLIER_ASK: "supplier_ask",
@@ -209,9 +237,10 @@ export const T = {
    */
   CUSTOMER_ORDER_REMIND: "customer_order_remind",
   /**
-   * utak_purchase_list_remind_v1 (UTILITY, 2 vars + «تم الشراء»): list date +
-   * item count. 2026-09-25 — completes ح7; until moved, the 06:00 follow-up
-   * re-sends PURCHASE_LIST marked as a reminder.
+   * utak_purchase_list_remind_v2 (UTILITY, 3 vars + «تم الشراء»): list id,
+   * list date, item count — v1 (2 vars) was moved to MARKETING by Meta.
+   * 2026-09-25 — completes ح7; until moved, the 06:00 follow-up re-sends
+   * PURCHASE_LIST marked as a reminder.
    */
   PURCHASE_LIST_REMIND: "purchase_list_remind",
 } as const;
@@ -236,7 +265,8 @@ export const T = {
 // Meta's validation.
 // ============================================================
 import { sendText } from "./meta";
-import { sanitizeTemplateParam } from "./wa-params";
+import { arabicDate, sanitizeTemplateParam } from "./wa-params";
+import { riyadhDateKey, riyadhMinutes } from "./hours";
 
 // 2026-09-24 — the owner alert keeps its own " | " separator (reads better in
 // an alert than " · "), then the shared sanitizer in fetchMeta applies to it
@@ -251,7 +281,8 @@ export async function sendOwnerAlert(env: Env, text: string): Promise<void> {
   const original = String(text ?? "");
   try {
     const param = sanitizeOwnerAlertParam(original);
-    const resp = await sendTemplateByPurpose(env, owner, T.OWNER_ALERT, [param]);
+    const when = ownerAlertTime();
+    const resp = await sendTemplateByPurpose(env, owner, T.OWNER_ALERT, (name) => ownerAlertParams(name, param, when));
     if (resp && resp.ok) return;
   } catch (e) {
     console.warn("[owner-alert] template send exception", (e as Error)?.message);

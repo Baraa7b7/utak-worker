@@ -45,10 +45,18 @@ export const NEW_EIGHT = [
     body: "تنبيه تشغيلي من نظام يو تاك: {{1}} — يرجى مراجعة التفاصيل واتخاذ الإجراء المناسب.",
     example: ["قائمة شراء اليوم لم تُؤكَّد حتى الآن"],
     buttons: [],
-    code: { params: ["نص التنبيه بسطر واحد"], where: "src/templates.ts:254 (sendOwnerAlert)", payloads: [] },
+    code: { params: ["نص التنبيه بسطر واحد"], where: "src/templates.ts:285 (sendOwnerAlert)", payloads: [] },
+    // 2026-09-25 — the first wording was APPROVED as UTILITY, then Meta moved it
+    // to MARKETING: the fixed text was generic and the whole message was the
+    // variable. The retry ties it to the recipient's account and a dated event,
+    // and says why the recipient gets it.
     retry: {
-      name: "utak_ops_alert_v1",
-      body: "تنبيه من نظام التشغيل في يو تاك بخصوص: {{1}} — يرجى المراجعة واتخاذ الإجراء اللازم.",
+      name: "utak_owner_alert_v3",
+      label: "تنبيه تشغيلي (للمالك) — الصياغة الثالثة",
+      body: "إشعار آلي من نظام يو تاك بشأن عمليات حسابك، سُجّل بتاريخ {{1}}: {{2}}. يصلك هذا الإشعار بصفتك مالك الحساب، وتفاصيله محفوظة في سجل النظام.",
+      example: ["25 سبتمبر 2026، 18:01", "فشل إرسال ملخص التحصيل إلى المحصّل (الرمز 132018)"],
+      params: ["وقت الحدث بتوقيت الرياض", "نص التنبيه بسطر واحد"],
+      where: "src/templates.ts:285 (sendOwnerAlert → ownerAlertParams)",
     },
   },
   {
@@ -61,7 +69,7 @@ export const NEW_EIGHT = [
     body: "مرحباً {{1}}، مهامك في يو تاك لهذا اليوم جاهزة. اضغط زر «بدء الدوام» أدناه لاستلام التفاصيل والمواقع.",
     example: ["عمر"],
     buttons: [{ type: "QUICK_REPLY", text: "بدء الدوام" }],
-    code: { params: ["اسم الموظف"], where: "src/team.ts:407", payloads: ["shift_start"] },
+    code: { params: ["اسم الموظف"], where: "src/team.ts:410", payloads: ["shift_start"] },
     retry: {
       name: "utak_shift_ready_v1",
       body: "مرحباً {{1}}، تم تجهيز مهام يو تاك الخاصة بك لهذا اليوم. يرجى الضغط على «بدء الدوام» لاستلام التفاصيل والمواقع.",
@@ -93,7 +101,7 @@ export const NEW_EIGHT = [
     body: "تذكير من يو تاك: عزيزنا {{1}}، يوجد على حسابكم مبلغ مستحق قدره {{2}} ريال. نأمل التكرم بسداده في أقرب وقت، ولأي استفسار يسعدنا ردكم على هذه الرسالة.",
     example: ["مطعم الوادي", "1250.00"],
     buttons: [],
-    code: { params: ["اسم العميل", "مجموع المستحق (toFixed(2))"], where: "src/outreach.ts:81", payloads: [] },
+    code: { params: ["اسم العميل", "مجموع المستحق (toFixed(2))"], where: "src/outreach.ts:191", payloads: [] },
     retry: {
       name: "utak_balance_due_v1",
       body: "إشعار من يو تاك: عزيزنا {{1}}، رصيد حسابكم المستحق حالياً {{2}} ريال عن فواتير سابقة. نأمل سداده في أقرب وقت، ولأي استفسار يسعدنا ردكم على هذه الرسالة.",
@@ -142,10 +150,17 @@ export const NEW_EIGHT = [
     body: "تذكير من يو تاك: قائمة شراء يوم {{1}} لم يُضغط فيها على «تم الشراء» حتى الآن، وعدد أصنافها {{2}}. يرجى الضغط على الزر أدناه بعد إتمام الشراء، أو الرد على هذه الرسالة إن وُجدت مشكلة.",
     example: ["25 سبتمبر 2026", "12"],
     buttons: [{ type: "QUICK_REPLY", text: "تم الشراء" }],
-    code: { params: ["تاريخ القائمة بالعربية", "عدد الأصناف"], where: "src/team.ts:332 (sendPurchaseListReminder)", payloads: ["purchase_done_<id>"] },
+    code: { params: ["تاريخ القائمة بالعربية", "عدد الأصناف"], where: "src/team.ts:335 (sendPurchaseListReminder)", payloads: ["purchase_done_<id>"] },
+    // 2026-09-25 — APPROVED as UTILITY, then moved to MARKETING: «تذكير … لم
+    // يُضغط على تم الشراء حتى الآن» reads like an unfinished-purchase nudge.
+    // The retry is a status update of a numbered task assigned to the recipient.
     retry: {
-      name: "utak_purchase_pending_v1",
-      body: "تنبيه من يو تاك: قائمة الشراء ليوم {{1}} ما زالت بانتظار التأكيد، وعدد أصنافها {{2}}. يرجى الضغط على «تم الشراء» بعد إتمام الشراء، أو الرد على هذه الرسالة عند وجود مشكلة.",
+      name: "utak_purchase_list_remind_v2",
+      label: "تذكير قائمة الشراء غير المؤكدة (للمستودع) — الصياغة الثانية",
+      body: "تحديث حالة مهمة في يو تاك: قائمة الشراء رقم {{1}} المسندة إليك ليوم {{2}}، وعدد أصنافها {{3}}، حالتها الآن «بانتظار التأكيد». عند إنجاز المهمة اضغط «تم الشراء» لتحديث حالتها، أو رد على هذه الرسالة إن وُجدت مشكلة في التنفيذ.",
+      example: ["14", "25 سبتمبر 2026", "12"],
+      params: ["رقم القائمة", "تاريخ القائمة بالعربية", "عدد الأصناف"],
+      where: "src/team.ts:335 (sendPurchaseListReminder → purchaseRemindParams)",
     },
   },
 ];
@@ -156,6 +171,29 @@ export const NEW_PURPOSES = [
   { value: "customer_order_remind", name: "Customer order confirm reminder (20:00)" },
   { value: "purchase_list_remind", name: "Purchase list reminder (06:00)" },
 ];
+
+/**
+ * The retry of `t` as a template of its own: name, body, label, and — when the
+ * retry carries other variables than the first wording — its own examples and
+ * the parameters the code sends for it.
+ */
+export function retrySpec(t) {
+  if (!t.retry) return null;
+  return {
+    ...t, name: t.retry.name, body: t.retry.body, label: t.retry.label ?? `${t.label} — الصياغة الثانية`,
+    example: t.retry.example ?? t.example,
+    code: { ...t.code, params: t.retry.params ?? t.code.params, where: t.retry.where ?? t.code.where },
+    retry: undefined,
+  };
+}
+/** The spec for a Meta template name: the first wording or its retry. */
+export function specFor(name) {
+  for (const t of NEW_EIGHT) {
+    if (t.name === name) return t;
+    if (t.retry?.name === name) return retrySpec(t);
+  }
+  return null;
+}
 
 // ---------------------------------------------------------------------------
 // فحوص النص (تستخدمها الاختبارات أيضاً)
@@ -198,7 +236,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 
   let bad = 0;
   for (const t of NEW_EIGHT) {
-    const p = [...textProblems(t), ...(t.retry ? textProblems(t, t.retry.body).map((x) => `retry: ${x}`) : [])];
+    const p = [...textProblems(t), ...(t.retry ? textProblems(retrySpec(t)).map((x) => `retry: ${x}`) : [])];
     console.log(`${p.length ? "❌" : "✅"} ${t.name} [${t.purpose}] ${t.code.params.length} var(s) @ ${t.code.where}${p.length ? " — " + p.join("; ") : ""}`);
     bad += p.length;
   }
@@ -226,7 +264,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     if (!up.ok || !uj.h) throw new Error(`upload HTTP ${up.status}: ${JSON.stringify(uj).slice(0, 300)}`);
     return uj.h;
   }
-  async function create(t, name, body) {
+  async function create(t) {
+    const { name, body } = t;
     const components = [];
     if (t.documentHeader) components.push({ type: "HEADER", format: "DOCUMENT", example: { header_handle: [await uploadPdfHandle(new URL("../quotation.pdf", import.meta.url).pathname)] } });
     components.push({ type: "BODY", text: body, example: { body_text: [t.example] } });
@@ -248,7 +287,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.log(`\nMeta: ${inv.size} template(s) before`);
     for (const t of NEW_EIGHT) {
       if (inv.has(t.name)) { console.log(`[skip] ${t.name} exists (${inv.get(t.name).status}/${inv.get(t.name).category})`); run.skipped.push(t.name); continue; }
-      const r = await create(t, t.name, t.body);
+      const r = await create(t);
       console.log(`[create] ${t.name} → ${r.ok ? `id=${r.id} status=${r.status} category=${r.category}` : r.error}`);
       (r.ok ? run.created : run.failed).push({ name: t.name, ...r });
     }
@@ -261,7 +300,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       if (!(needsRetry(m) || failed) || !t.retry) continue;
       if (inv.has(t.retry.name)) { console.log(`[skip] retry ${t.retry.name} exists`); continue; }
       const why = failed ? failed.error : `${m.status}/${m.category}${m.rejected_reason ? " " + m.rejected_reason : ""}`;
-      const r = await create(t, t.retry.name, t.retry.body);
+      const r = await create(retrySpec(t));
       console.log(`[retry] ${t.name} (${why}) → ${t.retry.name}: ${r.ok ? `id=${r.id} status=${r.status} category=${r.category}` : r.error}`);
       run.retried.push({ from: t.name, why, name: t.retry.name, ...r });
     }
@@ -284,6 +323,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     const save = () => writeFileSync(ODOO_RBF, JSON.stringify(rb, null, 2));
 
     if (ODOO_RB) {
+      for (const r of [...(rb.refreshed ?? [])].reverse()) {
+        await call("x_whatsapp_template", "write", { ids: [r.id], vals: r.before });
+        console.log(`restored #${r.id} ${r.name} → ${JSON.stringify(r.before)}`);
+      }
       for (const r of [...rb.rows].reverse()) {
         const [cur] = await call("x_whatsapp_template", "read", { ids: [r.id], fields: ["x_purpose", "x_meta_template_id"] });
         if (!cur) continue;
@@ -313,12 +356,21 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       for (const [name, isRetry] of [[t.name, false], [t.retry?.name, true]]) {
         const m = name && inv.get(name);
         if (!m) continue;
-        const ex = await call("x_whatsapp_template", "search_read", { domain: [["x_meta_template_id", "=", name], ["x_language", "=", "ar"]], fields: ["id", "x_purpose"] });
-        if (ex.length) { console.log(`= #${ex[0].id} ${name} exists (purpose ${ex[0].x_purpose})`); continue; }
+        const ex = await call("x_whatsapp_template", "search_read", { domain: [["x_meta_template_id", "=", name], ["x_language", "=", "ar"]], fields: ["id", "x_purpose", "x_meta_status", "x_category"] });
+        if (ex.length) {
+          // 2026-09-25 — Meta re-categorises after approval: keep the row's status/category in step.
+          const r = ex[0];
+          if (r.x_meta_status !== m.status || r.x_category !== m.category) {
+            (rb.refreshed ??= []).push({ id: r.id, name, before: { x_meta_status: r.x_meta_status, x_category: r.x_category } }); save();
+            await call("x_whatsapp_template", "write", { ids: [r.id], vals: { x_meta_status: m.status, x_category: m.category } });
+            console.log(`~ #${r.id} ${name}: ${r.x_meta_status}/${r.x_category} → ${m.status}/${m.category} (purpose ${r.x_purpose})`);
+          } else console.log(`= #${r.id} ${name} exists (${m.status}/${m.category}, purpose ${r.x_purpose})`);
+          continue;
+        }
         const comps = m.components ?? [];
         const body = comps.find((c) => c.type === "BODY")?.text ?? "";
         const buttons = (comps.find((c) => c.type === "BUTTONS")?.buttons ?? []).map((b, i) => `[${i}] ${b.type} — ${b.text}`).join("\n");
-        const label = isRetry ? `${t.label} (صياغة ثانية)` : t.label;
+        const label = isRetry ? retrySpec(t).label : t.label;
         const [id] = await call("x_whatsapp_template", "create", { vals_list: [{
           x_meta_template_id: name, x_language: "ar", x_meta_id: m.id, x_meta_status: m.status, x_category: m.category,
           x_body: body, x_param_count: new Set(placeholders(body)).size, x_buttons: buttons, x_last_synced: now,

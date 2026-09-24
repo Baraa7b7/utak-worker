@@ -46,6 +46,80 @@
     {
       "id": 79,
       "name": "utak_purchase_list_remind_v1"
+    },
+    {
+      "id": 80,
+      "name": "utak_owner_alert_v3"
+    },
+    {
+      "id": 81,
+      "name": "utak_purchase_list_remind_v2"
+    }
+  ],
+  "refreshed": [
+    {
+      "id": 72,
+      "name": "utak_supplier_ask_v2",
+      "before": {
+        "x_meta_status": "PENDING",
+        "x_category": "UTILITY"
+      }
+    },
+    {
+      "id": 73,
+      "name": "utak_owner_alert_v2",
+      "before": {
+        "x_meta_status": "PENDING",
+        "x_category": "UTILITY"
+      }
+    },
+    {
+      "id": 74,
+      "name": "utak_shift_start_v2",
+      "before": {
+        "x_meta_status": "PENDING",
+        "x_category": "UTILITY"
+      }
+    },
+    {
+      "id": 75,
+      "name": "utak_standing_remind_v2",
+      "before": {
+        "x_meta_status": "PENDING",
+        "x_category": "UTILITY"
+      }
+    },
+    {
+      "id": 76,
+      "name": "utak_pay_remind_v3",
+      "before": {
+        "x_meta_status": "PENDING",
+        "x_category": "UTILITY"
+      }
+    },
+    {
+      "id": 77,
+      "name": "utak_quotation_pdf_v1",
+      "before": {
+        "x_meta_status": "PENDING",
+        "x_category": "UTILITY"
+      }
+    },
+    {
+      "id": 78,
+      "name": "utak_order_confirm_remind_v1",
+      "before": {
+        "x_meta_status": "PENDING",
+        "x_category": "UTILITY"
+      }
+    },
+    {
+      "id": 79,
+      "name": "utak_purchase_list_remind_v1",
+      "before": {
+        "x_meta_status": "PENDING",
+        "x_category": "UTILITY"
+      }
     }
   ]
 }

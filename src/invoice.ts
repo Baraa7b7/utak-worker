@@ -606,56 +606,101 @@ export async function recordCollection(
 // --------------------------------------------------------------
 // 5.4 — Daily collection summary cron (unchanged)
 // --------------------------------------------------------------
-export async function sendDailyCollectionSummary(env: Env): Promise<void> {
-  const unpaid = await getUnpaidInvoicesWithCustomer(env);
-  const collectors = await getCollectorTeamMembers(env);
+export const NOTHING_TO_COLLECT_TEXT = "لا توجد فواتير معلّقة للتحصيل اليوم ✅";
 
-  if (collectors.length === 0) {
-    console.warn(`[collection-cron] no collectors — skip`);
-    return;
-  }
-
-  if (unpaid.length === 0) {
-    for (const c of collectors) {
-      try {
-        await sendText(env, c.whatsapp, "لا توجد فواتير معلّقة للتحصيل اليوم ✅");
-      } catch (e) {
-        console.warn(`[collection-cron] send to ${c.whatsapp} failed`, (e as Error).message);
-      }
-    }
-    return;
-  }
-
+/**
+ * The 18:00 summary for one unpaid list: the four utak_collection_summary
+ * variables ([date, list, total, count]) and the full multi-line text used
+ * inside the 24h window only. ح1: {{2}} is one line — the multi-line list
+ * failed 6/6 on sim with #132018.
+ */
+export function buildCollectionSummary(
+  unpaid: Array<{ number: string; total: number; customer_name: string; neighborhood: string }>,
+  ymd: string,
+): { params: string[]; text: string; grandTotal: number } {
   const grandTotal = round2(unpaid.reduce((sum, r) => sum + r.total, 0));
-
   const items = unpaid.map((r, i) => {
     const neigh = r.neighborhood ? ` (${r.neighborhood})` : "";
     return `${i + 1}. ${r.customer_name}${neigh} — ${r.total} ر.س — ${r.number}`;
   });
-  const lines = items.join("\n");
-  // ح1: the template's {{2}} must be one line — this summary failed 6/6 on sim
-  // with #132018. The full list stays in the session-text fallback below.
-  const oneLine = joinCapped(items).text;
-
-  const body = [
-    `📋 قائمة التحصيل اليومية`, ``, lines, ``,
+  const text = [
+    `📋 قائمة التحصيل اليومية`, ``, items.join("\n"), ``,
     `الإجمالي المطلوب: ${grandTotal} ر.س`,
     `عدد الفواتير: ${unpaid.length}`, ``,
     `لما تحصّل من أي عميل، افتح رسالة الفاتورة الأصلية واضغط زر التحصيل.`,
   ].join("\n");
+  return { params: [arabicDate(ymd), joinCapped(items).text, String(grandTotal), String(unpaid.length)], text, grandTotal };
+}
 
-  const today = arabicDate(new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10));
+export interface CollectionSummaryReport {
+  invoices: number;
+  total: number;
+  /** per collector (last 4 digits): what went out, or why nothing did. */
+  sends: Array<{ to: string; via: "template" | "text" | "none"; reason?: string }>;
+}
+
+/**
+ * 18:00 Riyadh — the collectors' list of unpaid invoices (simulation invoices
+ * excluded, see getUnpaidInvoicesWithCustomer).
+ *
+ * 2026-09-24 — free text goes out only inside Meta's 24h window. Outside it,
+ * Meta accepts the POST and fails it later with #131047: on 09-24 the
+ * template failed (#132018) and this fallback then failed (#131047), so the
+ * list never arrived. A failed template is recorded and alerted by fetchMeta
+ * (ح6); «no template mapped» is alerted here, since nothing else would say so.
+ */
+export async function sendDailyCollectionSummary(env: Env): Promise<CollectionSummaryReport> {
+  const unpaid = await getUnpaidInvoicesWithCustomer(env);
+  const collectors = await getCollectorTeamMembers(env);
+  const report: CollectionSummaryReport = { invoices: unpaid.length, total: 0, sends: [] };
+
+  if (collectors.length === 0) {
+    console.warn(`[collection-cron] no collectors — skip`);
+    return report;
+  }
+  const { isInside24hWindow } = await import("./wa-inbox");
+  const tail = (wa: string) => "…" + wa.replace(/\D/g, "").slice(-4);
+
+  if (unpaid.length === 0) {
+    // «Nothing today» is not worth a paid template: inside the window only.
+    for (const c of collectors) {
+      try {
+        if (!(await isInside24hWindow(env, c.id))) {
+          report.sends.push({ to: tail(c.whatsapp), via: "none", reason: "nothing unpaid, outside 24h window" });
+          continue;
+        }
+        const r = await sendText(env, c.whatsapp, NOTHING_TO_COLLECT_TEXT);
+        report.sends.push({ to: tail(c.whatsapp), via: r.ok ? "text" : "none", reason: r.ok ? undefined : `text HTTP ${r.status}` });
+      } catch (e) {
+        console.warn(`[collection-cron] send to ${tail(c.whatsapp)} failed`, (e as Error).message);
+      }
+    }
+    return report;
+  }
+
+  const s = buildCollectionSummary(unpaid, new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10));
+  report.total = s.grandTotal;
   for (const c of collectors) {
     try {
-      const resp = await sendTemplateByPurpose(env, c.whatsapp, T.COLLECTION_SUMMARY,
-        [today, oneLine, String(grandTotal), String(unpaid.length)]);
-      if (!resp || !resp.ok) {
-        await sendText(env, c.whatsapp, body);
+      const resp = await sendTemplateByPurpose(env, c.whatsapp, T.COLLECTION_SUMMARY, s.params);
+      if (resp?.ok) { report.sends.push({ to: tail(c.whatsapp), via: "template" }); continue; }
+      const why = resp ? `template HTTP ${resp.status}` : "no template mapped for collection_summary";
+      if (await isInside24hWindow(env, c.id)) {
+        const r = await sendText(env, c.whatsapp, s.text);
+        report.sends.push({ to: tail(c.whatsapp), via: r.ok ? "text" : "none", reason: why });
+        continue;
+      }
+      console.warn(`[collection-cron] ${why}; ${tail(c.whatsapp)} is outside the 24h window — no free-text fallback`);
+      report.sends.push({ to: tail(c.whatsapp), via: "none", reason: `${why}, outside 24h window` });
+      if (!resp) {
+        await sendOwnerAlert(env,
+          `⚠️ ملخص التحصيل لم يصل إلى ${c.name}: لا قالب مربوط بالغرض collection_summary، والمحصّل خارج نافذة 24 ساعة (${unpaid.length} فاتورة، ${s.grandTotal} ر.س).`);
       }
     } catch (e) {
-      console.warn(`[collection-cron] send to ${c.whatsapp} failed`, (e as Error).message);
+      console.warn(`[collection-cron] send to ${tail(c.whatsapp)} failed`, (e as Error).message);
     }
   }
+  return report;
 }
 
 // --------------------------------------------------------------

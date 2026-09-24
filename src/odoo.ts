@@ -2668,7 +2668,12 @@ export async function getUnpaidInvoicesWithCustomer(
     x_order_id: [number, string] | false;
   };
   const invs = await call<InvRow[]>(env, "x_invoice", "search_read", {
-    domain: [["x_status", "in", ["issued", "overdue"]]],
+    // 2026-09-24 — test / simulation invoices never reach the collector: the
+    // 18:00 summary carried 15 live-verify invoices (UTAK-ACCT-TEST, UTAK-ACCT,
+    // UTAK-VAT; 555 SAR), all x_is_simulation=true, their moves reversed or
+    // cancelled. On sim (PILOT_MODE) every worker-created invoice is stamped
+    // too, so there the summary only lists unstamped (real) invoices.
+    domain: [["x_status", "in", ["issued", "overdue"]], ["x_is_simulation", "!=", true]],
     fields: ["id", "x_invoice_number", "x_total", "x_order_id"],
     order: "x_invoice_date asc, id asc",
     limit: 200,

@@ -13,6 +13,7 @@
 
 import type { Env } from "./config";
 import { call } from "./odoo";
+import { BRAND_COLORS } from "./pdf-template";
 
 // KV keys — 1h TTL so we still recover from an accidental partner rename or
 // bot-partner rewrite without needing a full worker restart.
@@ -425,11 +426,20 @@ function escapeHtml(s: string): string {
  * HTML sanitizer sometimes strips inline styles; when it does, the "🤖 آلي"
  * prefix in the text still marks the row and the badge column on
  * x_wa_message keeps the same distinction machine-readable.
+ *
+ * 2026-09-24 (contrast) — the box sets its own text colour too. Without it the
+ * text inherited Discuss's theme colour: #111827 in light mode, but #E4E4E4 in
+ * dark mode — pale grey on the cream box, ~1.2:1. Ink on paper is ~16:1 in
+ * both themes, since neither colour comes from the theme any more. Odoo's
+ * style whitelist (mail.message.body) keeps background-color and color and
+ * drops border-left. Echoes posted before this keep their stored style: Odoo
+ * refuses mail.message write to the API user (403, only the author may edit).
  */
-const AUTO_STYLE =
-  "border-left: 3px solid #1E5A41; background-color: #F7F5F0; padding: 4px 8px; margin: 0;";
+export const AUTO_STYLE =
+  `border-left: 3px solid ${BRAND_COLORS.primary}; background-color: ${BRAND_COLORS.bgPage}; ` +
+  `color: ${BRAND_COLORS.ink}; padding: 4px 8px; margin: 0;`;
 
-function autoLabelHtml(bodyText: string, templateLabel?: string): string {
+export function autoLabelHtml(bodyText: string, templateLabel?: string): string {
   const prefix = templateLabel
     ? `🤖 آلي · ${escapeHtml(templateLabel)}`
     : "🤖 آلي";

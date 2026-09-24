@@ -486,9 +486,10 @@ async function dispatchFailureEcho(
           limit: 1,
         },
       );
-      if (!rows[0]) return;
-      const { echoFailure } = await import("./wa-inbox");
-      await echoFailure(env, rows[0].id, rows[0].name, reason);
+      const { echoFailure, inboxPartnerForNumber } = await import("./wa-inbox");
+      const partner = rows[0] ?? await inboxPartnerForNumber(env, to);
+      if (!partner) return;
+      await echoFailure(env, partner.id, partner.name, reason);
     } catch (e) {
       console.warn("[fetchMeta] dispatchFailureEcho:", (e as Error).message);
     }
@@ -596,7 +597,11 @@ async function echoOutboundToInbox(
         limit: 1,
       },
     );
-    if (!rows[0]) return;
+    // 2026-09-25 — no active exact match (archived, or phone saved as
+    // «+967 779 …»): the partner whose inbox channel carries the number.
+    const { echoOutbound, inboxPartnerForNumber } = await import("./wa-inbox");
+    const partner = rows[0] ?? await inboxPartnerForNumber(env, to);
+    if (!partner) return;
     // 2026-09-20 (cover) — some purposes already log x_wa_message and post
     // their own Discuss row (Baraa's Discuss reply is already visible as
     // his own message in the channel). Skip both echo and log to avoid
@@ -607,14 +612,13 @@ async function echoOutboundToInbox(
     ]);
     if (purpose && HANDLED_BY_CALLER.has(purpose)) return;
     const templateLabel = body.type === "template" ? purpose : undefined;
-    const { echoOutbound } = await import("./wa-inbox");
-    await echoOutbound(env, rows[0].id, rows[0].name, echoText, templateLabel);
+    await echoOutbound(env, partner.id, partner.name, echoText, templateLabel, to);
     // Stamp an x_wa_message row for the auto send so the audit tab shows the
     // same "آلي" badge next to the mirror line in Discuss.
     try {
       const { logWaMessage } = await import("./wa-message-send");
       await logWaMessage(env, {
-        partnerId: rows[0].id,
+        partnerId: partner.id,
         direction: "out",
         kind: body.type === "template" ? "template" : "text",
         body: echoText,

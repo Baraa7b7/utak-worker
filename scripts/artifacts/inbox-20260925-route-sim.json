@@ -1,0 +1,291 @@
+{
+  "at": "2026-09-24T17:18:30.863Z",
+  "allOk": true,
+  "rows": [
+    {
+      "number": "+966571777704",
+      "liveChannel": 14,
+      "inbound": {
+        "channel": 14,
+        "created": 0,
+        "createdTitle": null
+      },
+      "partnerCreated": false,
+      "outbound": {
+        "channel": 14,
+        "created": 0,
+        "createdTitle": null
+      },
+      "ok": true,
+      "warnings": []
+    },
+    {
+      "number": "+966530399474",
+      "liveChannel": 16,
+      "inbound": {
+        "channel": 16,
+        "created": 0,
+        "createdTitle": null
+      },
+      "partnerCreated": false,
+      "outbound": {
+        "channel": 16,
+        "created": 0,
+        "createdTitle": null
+      },
+      "ok": true,
+      "warnings": []
+    },
+    {
+      "number": "+967779825609",
+      "liveChannel": 18,
+      "inbound": {
+        "channel": 18,
+        "created": 0,
+        "createdTitle": null
+      },
+      "partnerCreated": true,
+      "outbound": {
+        "channel": 18,
+        "created": 0,
+        "createdTitle": null
+      },
+      "ok": true,
+      "warnings": []
+    },
+    {
+      "number": "+966545816832",
+      "liveChannel": 19,
+      "inbound": {
+        "channel": 19,
+        "created": 0,
+        "createdTitle": null
+      },
+      "partnerCreated": false,
+      "outbound": {
+        "channel": 19,
+        "created": 0,
+        "createdTitle": null
+      },
+      "ok": true,
+      "warnings": []
+    },
+    {
+      "number": "+967774375736",
+      "liveChannel": 22,
+      "inbound": {
+        "channel": 22,
+        "created": 0,
+        "createdTitle": null
+      },
+      "partnerCreated": true,
+      "outbound": {
+        "channel": 22,
+        "created": 0,
+        "createdTitle": null
+      },
+      "ok": true,
+      "warnings": []
+    },
+    {
+      "number": "+966510503466",
+      "liveChannel": 23,
+      "inbound": {
+        "channel": 23,
+        "created": 0,
+        "createdTitle": null
+      },
+      "partnerCreated": false,
+      "outbound": {
+        "channel": 23,
+        "created": 0,
+        "createdTitle": null
+      },
+      "ok": true,
+      "warnings": []
+    },
+    {
+      "number": "+966500000002",
+      "liveChannel": 25,
+      "inbound": {
+        "channel": 25,
+        "created": 0,
+        "createdTitle": null
+      },
+      "partnerCreated": true,
+      "outbound": {
+        "channel": 25,
+        "created": 0,
+        "createdTitle": null
+      },
+      "ok": true,
+      "warnings": []
+    },
+    {
+      "number": "+966505154962",
+      "liveChannel": 29,
+      "inbound": {
+        "channel": 29,
+        "created": 0,
+        "createdTitle": null
+      },
+      "partnerCreated": false,
+      "outbound": {
+        "skipped": "owner — no echo by design"
+      },
+      "ok": true,
+      "warnings": []
+    },
+    {
+      "number": "+967775180888",
+      "liveChannel": 30,
+      "inbound": {
+        "channel": 30,
+        "created": 0,
+        "createdTitle": null
+      },
+      "partnerCreated": false,
+      "outbound": {
+        "channel": 30,
+        "created": 0,
+        "createdTitle": null
+      },
+      "ok": true,
+      "warnings": [
+        "[odoo] res.partner.search_read HTTP 429 — retry 1/3 in 613ms",
+        "[odoo] res.partner.search_read HTTP 429 — retry 1/3 in 961ms",
+        "[odoo] res.partner.read HTTP 429 — retry 1/3 in 850ms"
+      ]
+    },
+    {
+      "number": "+966509617756",
+      "liveChannel": 31,
+      "inbound": {
+        "channel": 31,
+        "created": 0,
+        "createdTitle": null
+      },
+      "partnerCreated": false,
+      "outbound": {
+        "channel": 31,
+        "created": 0,
+        "createdTitle": null
+      },
+      "ok": true,
+      "warnings": [
+        "[odoo] res.partner.search_read HTTP 429 — retry 1/3 in 966ms",
+        "[odoo] x_wa_message.search_read HTTP 429 — retry 1/3 in 921ms"
+      ]
+    },
+    {
+      "number": "+966534523051",
+      "liveChannel": 32,
+      "inbound": {
+        "channel": 32,
+        "created": 0,
+        "createdTitle": null
+      },
+      "partnerCreated": false,
+      "outbound": {
+        "channel": 32,
+        "created": 0,
+        "createdTitle": null
+      },
+      "ok": true,
+      "warnings": [
+        "[odoo] res.partner.read HTTP 429 — retry 1/3 in 649ms",
+        "[odoo] res.partner.search_read HTTP 429 — retry 1/3 in 668ms"
+      ]
+    },
+    {
+      "number": "+967700036370",
+      "liveChannel": 33,
+      "inbound": {
+        "channel": 33,
+        "created": 0,
+        "createdTitle": null
+      },
+      "partnerCreated": false,
+      "outbound": {
+        "channel": 33,
+        "created": 0,
+        "createdTitle": null
+      },
+      "ok": true,
+      "warnings": [
+        "[odoo] res.partner.search_read HTTP 429 — retry 1/3 in 955ms",
+        "[odoo] res.partner.read HTTP 429 — retry 1/3 in 763ms"
+      ]
+    },
+    {
+      "number": "+966581840436",
+      "liveChannel": 34,
+      "inbound": {
+        "channel": 34,
+        "created": 0,
+        "createdTitle": null
+      },
+      "partnerCreated": false,
+      "outbound": {
+        "channel": 34,
+        "created": 0,
+        "createdTitle": null
+      },
+      "ok": true,
+      "warnings": [
+        "[odoo] res.partner.search_read HTTP 429 — retry 1/3 in 658ms",
+        "[odoo] res.partner.search_read HTTP 429 — retry 1/3 in 612ms",
+        "[odoo] res.partner.search_read HTTP 429 — retry 1/3 in 637ms",
+        "[odoo] res.partner.search_read HTTP 429 — retry 2/3 in 1061ms",
+        "[odoo] res.partner.search_read HTTP 429 — retry 2/3 in 1973ms",
+        "[odoo] res.partner.search_read HTTP 429 — retry 2/3 in 1983ms",
+        "[odoo] x_wa_message.search_read HTTP 429 — retry 1/3 in 506ms"
+      ]
+    },
+    {
+      "number": "+966570540176",
+      "liveChannel": 35,
+      "inbound": {
+        "channel": 35,
+        "created": 0,
+        "createdTitle": null
+      },
+      "partnerCreated": false,
+      "outbound": {
+        "channel": 35,
+        "created": 0,
+        "createdTitle": null
+      },
+      "ok": true,
+      "warnings": [
+        "[odoo] res.partner.search_read HTTP 429 — retry 1/3 in 702ms",
+        "[odoo] res.partner.search_read HTTP 429 — retry 1/3 in 734ms",
+        "[odoo] x_wa_message.search_read HTTP 429 — retry 1/3 in 571ms",
+        "[odoo] res.partner.search_read HTTP 429 — retry 1/3 in 587ms",
+        "[odoo] x_wa_message.search_read HTTP 429 — retry 1/3 in 599ms"
+      ]
+    },
+    {
+      "number": "+966599000999",
+      "liveChannel": null,
+      "inbound": {
+        "channel": 880003,
+        "created": 1,
+        "createdTitle": "واتساب · محاكاة · ⁦+966599000999⁩"
+      },
+      "partnerCreated": true,
+      "outbound": {
+        "channel": null,
+        "created": 0,
+        "createdTitle": null
+      },
+      "ok": true,
+      "warnings": [
+        "[odoo] res.partner.search_read HTTP 429 — retry 1/3 in 770ms",
+        "[odoo] res.partner.search_read HTTP 429 — retry 1/3 in 943ms",
+        "[odoo] x_wa_message.search_read HTTP 429 — retry 1/3 in 816ms",
+        "[odoo] res.partner.search_read HTTP 429 — retry 1/3 in 818ms"
+      ]
+    }
+  ]
+}

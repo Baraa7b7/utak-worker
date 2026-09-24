@@ -1392,6 +1392,46 @@ export default {
       return json({ status: "accepted", mail_message_id: mmId }, 202);
     }
 
+    // 2026-09-25 — Odoo → Worker: a partner with an inbox channel was renamed
+    // or got another number. base.automation «wa_inbox.partner_title» on
+    // res.partner (name / x_whatsapp_number / phone) posts {_id, _model}, and
+    // syncInboxChannelTitles — the one place these channels are named —
+    // rebuilds the titles of that partner's numbers.
+    if (request.method === "POST" && url.pathname === "/odoo/hook/wa-inbox-partner") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      let body: { id?: number; _id?: number; _model?: string } = {};
+      try {
+        body = (await request.json()) as typeof body;
+      } catch {
+        return json({ error: "bad json" }, 400);
+      }
+      if (body._model && body._model !== "res.partner") {
+        return json({ error: `unexpected model: ${body._model}` }, 400);
+      }
+      const partnerId = Number(body.id ?? body._id);
+      if (!Number.isFinite(partnerId) || partnerId <= 0) {
+        return json({ error: "invalid id / _id" }, 400);
+      }
+      ctx.waitUntil(
+        (async () => {
+          try {
+            const { syncInboxChannelTitles } = await import("./wa-inbox");
+            const changes = await syncInboxChannelTitles(env, { partnerId });
+            console.log("[wa-inbox title hook]", JSON.stringify({
+              partnerId, written: changes.filter((c) => c.written).map((c) => c.channelId),
+            }));
+          } catch (e) {
+            console.error("[wa-inbox title hook] failed", (e as Error)?.message);
+          }
+        })(),
+      );
+      return json({ status: "accepted", partner_id: partnerId }, 202);
+    }
+
     // Item 2 (2026-09-17) — Odoo → Worker: process x_wa_message.x_status='queued'.
     // Fired by the base.automation (wa_message.on_queued) via ir.actions.server
     // (wa_message.send_webhook). The full send pipeline (validate → media

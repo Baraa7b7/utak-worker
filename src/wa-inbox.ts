@@ -63,22 +63,111 @@ export async function getBotPartnerId(env: Env): Promise<number | null> {
 }
 
 // -------------------------------------------------------------
+// Channel title — 2026-09-25
+// -------------------------------------------------------------
+
+/** "+<digits>" for any stored or Meta phone form; "" when it holds no digit. */
+export function waNumber(raw: unknown): string {
+  const d = String(raw || "").replace(/\D/g, "");
+  return d ? `+${d}` : "";
+}
+
+const BIDI_CONTROLS = /[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
+/** A display name, or "" when it is empty or only a number (createCustomer names a nameless sender by its number). */
+function titleName(v: unknown): string {
+  const s = String(v || "").replace(BIDI_CONTROLS, "").replace(/\s+/g, " ").trim();
+  return /^[\d\s+\-().]*$/.test(s) ? "" : s;
+}
+
+/** Prefix of a channel that shares its number with the live one. */
+export const OLD_TITLE_PREFIX = "(قديم) ";
+
+/**
+ * The one title of a WhatsApp inbox channel (Baraa, 2026-09-25):
+ * «واتساب · <name> · +<number>», or «واتساب · +<number>» without a name.
+ * <name> is the partner's name in Odoo, else the WhatsApp profile name. The
+ * full number is wrapped in LRI…PDI so Odoo's RTL sidebar prints «+966…»
+ * and not «966…+». Null without a number: a channel is never titled without
+ * one.
+ */
+export function inboxChannelName(a: {
+  partnerName?: unknown;
+  profileName?: unknown;
+  number: unknown;
+  old?: boolean;
+}): string | null {
+  const num = waNumber(a.number);
+  if (!num) return null;
+  const name = titleName(a.partnerName) || titleName(a.profileName);
+  const title = ["واتساب", name, `\u2066${num}\u2069`].filter(Boolean).join(" · ");
+  return a.old ? OLD_TITLE_PREFIX + title : title;
+}
+
+// -------------------------------------------------------------
 // Channel resolution
 // -------------------------------------------------------------
+
+type PartnerPhones = {
+  id: number;
+  name: string;
+  active: boolean;
+  x_whatsapp_number: string | false;
+  phone: string | false;
+  phone_sanitized: string | false;
+  x_wa_channel_id: [number, string] | false;
+};
+const PARTNER_PHONE_FIELDS = ["id", "name", "active", "x_whatsapp_number", "phone", "phone_sanitized", "x_wa_channel_id"];
+const partnerNumber = (p: PartnerPhones) => waNumber(p.x_whatsapp_number || p.phone_sanitized || p.phone);
+
+/**
+ * The partner (active or archived) whose inbox channel already carries this
+ * number: an archived customer who writes again, or a contact saved as
+ * «+966 50 …» that the exact-match lookups miss, would otherwise open a
+ * second channel for the same number. Active partners first, then newest.
+ */
+async function findChannelForNumber(env: Env, num: string): Promise<{ partnerId: number; name: string; channelId: number } | null> {
+  const rows = await call<PartnerPhones[]>(env, "res.partner", "search_read", {
+    domain: [
+      ["x_wa_channel_id", "!=", false],
+      "|", "|", ["x_whatsapp_number", "=", num], ["phone_sanitized", "=", num], ["phone", "=", num],
+    ],
+    fields: PARTNER_PHONE_FIELDS,
+    context: { active_test: false },
+    limit: 20,
+  });
+  const hit = rows
+    .filter((p) => p.x_wa_channel_id && partnerNumber(p) === num)
+    .sort((a, b) => Number(b.active) - Number(a.active) || (b.x_wa_channel_id as [number, string])[0] - (a.x_wa_channel_id as [number, string])[0])[0];
+  return hit ? { partnerId: hit.id, name: hit.name, channelId: (hit.x_wa_channel_id as [number, string])[0] } : null;
+}
+
+/**
+ * 2026-09-25 — for the outbound echo when no active partner matches the
+ * number exactly (archived, or a phone saved as «+967 779 …»): the partner
+ * whose channel carries it, so the echo lands in that channel. Null when the
+ * number has no channel — an echo alone never opens one.
+ */
+export async function inboxPartnerForNumber(env: Env, to: string): Promise<{ id: number; name: string } | null> {
+  const num = waNumber(to);
+  const hit = num ? await findChannelForNumber(env, num) : null;
+  return hit ? { id: hit.partnerId, name: hit.name } : null;
+}
 
 /**
  * Ensure a discuss.channel exists for `partnerId`. Returns the channel id, or
  * null if the record cannot be created (surfaced to the caller which then
  * logs a warning and continues).
  *
- * Idempotent by partner.x_wa_channel_id, then by KV cache, and creates the
- * channel + writes the link atomically enough that a lost race just wastes a
- * throw-away channel row (unlinked on rerun via ensureChannelDeduplicate).
+ * Idempotent by partner.x_wa_channel_id, then by KV cache, then by number
+ * (2026-09-25: one channel per WhatsApp number — a partner without a link
+ * reuses the channel its number already has). A new channel is titled by
+ * inboxChannelName and is never created without a number.
  */
 export async function ensureInboxChannel(
   env: Env,
   partnerId: number,
   partnerName: string,
+  opts: { number?: string; profileName?: string } = {},
 ): Promise<number | null> {
   if (!partnerId) return null;
 
@@ -89,14 +178,14 @@ export async function ensureInboxChannel(
   } catch { /* ignore */ }
 
   // Existing link
+  let partner: PartnerPhones | undefined;
   try {
-    const rows = await call<Array<{ id: number; x_wa_channel_id: [number, string] | false }>>(
-      env,
-      "res.partner",
-      "read",
-      { ids: [partnerId], fields: ["id", "x_wa_channel_id"] },
-    );
-    const link = rows[0]?.x_wa_channel_id;
+    const rows = await call<PartnerPhones[]>(env, "res.partner", "read", {
+      ids: [partnerId],
+      fields: PARTNER_PHONE_FIELDS,
+    });
+    partner = rows[0];
+    const link = partner?.x_wa_channel_id;
     if (link && Array.isArray(link) && typeof link[0] === "number") {
       try { await env.MSG_DEDUP.put(kvChannel(partnerId), String(link[0]), { expirationTtl: KV_TTL }); } catch { /* ignore */ }
       return link[0];
@@ -106,9 +195,41 @@ export async function ensureInboxChannel(
     return null;
   }
 
+  const num = waNumber(opts.number) || (partner ? partnerNumber(partner) : "");
+  const title = inboxChannelName({ partnerName: partner?.name || partnerName, profileName: opts.profileName, number: num });
+  if (!title) {
+    console.warn(`[wa-inbox] partner ${partnerId} has no number — no channel created`);
+    return null;
+  }
+
+  // Same number, another partner's channel → reuse it. An archived owner
+  // hands the channel over (its title then follows this partner); an active
+  // one keeps it, so the name saved in Odoo stays the title.
+  try {
+    const reuse = (await findChannelForNumber(env, num))?.channelId;
+    if (reuse) {
+      await call(env, "res.partner", "write", { ids: [partnerId], vals: { x_wa_channel_id: reuse } });
+      const [ch] = await call<Array<{ x_wa_partner_id: [number, string] | false }>>(env, "discuss.channel", "read", {
+        ids: [reuse], fields: ["x_wa_partner_id"],
+      });
+      const ownerId = ch?.x_wa_partner_id ? ch.x_wa_partner_id[0] : 0;
+      const [owner] = ownerId
+        ? await call<Array<{ active: boolean }>>(env, "res.partner", "read", { ids: [ownerId], fields: ["active"], context: { active_test: false } })
+        : [];
+      if (!owner?.active) {
+        await call(env, "discuss.channel", "write", { ids: [reuse], vals: { x_wa_partner_id: partnerId } });
+        await syncInboxChannelTitles(env, { partnerId });
+      }
+      try { await env.MSG_DEDUP.put(kvChannel(partnerId), String(reuse), { expirationTtl: KV_TTL }); } catch { /* ignore */ }
+      console.log(`[wa-inbox] partner ${partnerId} reuses channel ${reuse} of ${phoneTail(num)}`);
+      return reuse;
+    }
+  } catch (e) {
+    console.warn("[wa-inbox] channel-by-number lookup failed", (e as Error).message);
+  }
+
   // Create
   const baraa = await getBaraaPartnerId(env);
-  const displayName = (partnerName ?? "").trim() || `#${partnerId}`;
   let channelId: number;
   try {
     // channel_partner_ids on discuss.channel is a computed m2m that Odoo 19
@@ -117,7 +238,7 @@ export async function ensureInboxChannel(
     // in a follow-up call.
     const created = await call<number[]>(env, "discuss.channel", "create", {
       vals_list: [{
-        name: `واتساب · ${displayName}`,
+        name: title,
         channel_type: "group",
         x_wa_partner_id: partnerId,
       }],
@@ -155,6 +276,107 @@ export async function ensureInboxChannel(
 
   try { await env.MSG_DEDUP.put(kvChannel(partnerId), String(channelId), { expirationTtl: KV_TTL }); } catch { /* ignore */ }
   return channelId;
+}
+
+export interface ChannelTitleChange {
+  channelId: number;
+  partnerId: number | null;
+  number: string;
+  before: string;
+  /** null = left as is: the channel's partner has no number. */
+  after: string | null;
+  old: boolean;
+  written: boolean;
+}
+
+/**
+ * Bring WhatsApp inbox channel titles in line with inboxChannelName — the one
+ * path for the 2026-09-25 rename, for a partner renamed in Odoo (base.automation
+ * «wa_inbox.partner_title» → /odoo/hook/wa-inbox-partner), and for re-runs.
+ * With `partnerId`, only the channels of that partner's numbers.
+ *
+ * A title is built from the channel's own partner (x_wa_partner_id). A number
+ * with several channels keeps one live — the channel of the partner incoming
+ * messages resolve to (team → supplier → customer, as ingestInbound), else
+ * the newest — and the others get «(قديم) ». Only discuss.channel.name is
+ * written; a channel whose partner has no number is left as is.
+ */
+export async function syncInboxChannelTitles(
+  env: Env,
+  opts: { partnerId?: number; dryRun?: boolean } = {},
+): Promise<ChannelTitleChange[]> {
+  type Ch = { id: number; name: string; x_wa_partner_id: [number, string] };
+  const channels = await call<Ch[]>(env, "discuss.channel", "search_read", {
+    domain: [["x_wa_partner_id", "!=", false]],
+    fields: ["id", "name", "x_wa_partner_id"],
+    context: { active_test: false },
+    order: "id asc",
+    limit: 2000,
+  });
+  const pids = [...new Set(channels.map((c) => c.x_wa_partner_id[0]))];
+  if (opts.partnerId && !pids.includes(opts.partnerId)) pids.push(opts.partnerId);
+  const partners = pids.length
+    ? await call<PartnerPhones[]>(env, "res.partner", "read", { ids: pids, fields: PARTNER_PHONE_FIELDS, context: { active_test: false } })
+    : [];
+  const byId = new Map(partners.map((p) => [p.id, p]));
+  const numberOf = (c: Ch) => { const p = byId.get(c.x_wa_partner_id[0]); return p ? partnerNumber(p) : ""; };
+
+  const groups = new Map<string, Ch[]>();
+  for (const c of channels) {
+    const n = numberOf(c);
+    if (n) groups.set(n, [...(groups.get(n) ?? []), c]);
+  }
+  let scope = channels;
+  if (opts.partnerId) {
+    const own = byId.get(opts.partnerId);
+    const nums = new Set([own ? partnerNumber(own) : "", ...channels.filter((c) => c.x_wa_partner_id[0] === opts.partnerId).map(numberOf)]);
+    scope = channels.filter((c) => c.x_wa_partner_id[0] === opts.partnerId || nums.has(numberOf(c)));
+  }
+
+  const live = new Map<string, number>();
+  for (const [num, list] of groups) {
+    if (list.length === 1) live.set(num, list[0].id);
+    else if (scope.some((c) => numberOf(c) === num)) live.set(num, await liveChannelFor(env, num, list, byId));
+  }
+
+  const out: ChannelTitleChange[] = [];
+  for (const c of scope) {
+    const num = numberOf(c);
+    const old = Boolean(num) && live.get(num) !== c.id;
+    const after = inboxChannelName({ partnerName: byId.get(c.x_wa_partner_id[0])?.name, number: num, old });
+    const change: ChannelTitleChange = { channelId: c.id, partnerId: c.x_wa_partner_id[0], number: num, before: c.name, after, old, written: false };
+    if (after && after !== c.name && !opts.dryRun) {
+      await call(env, "discuss.channel", "write", { ids: [c.id], vals: { name: after } });
+      change.written = true;
+    }
+    out.push(change);
+  }
+  return out;
+}
+
+/** The channel incoming messages from `num` reach, among a number's channels. */
+async function liveChannelFor(
+  env: Env,
+  num: string,
+  list: Array<{ id: number; x_wa_partner_id: [number, string] }>,
+  byId: Map<number, PartnerPhones>,
+): Promise<number> {
+  const { findTeamMemberByWhatsApp, findSupplierByWhatsApp, findCustomerByWhatsApp } = await import("./odoo");
+  const [team, sup, cus] = await Promise.all([
+    findTeamMemberByWhatsApp(env, num).catch(() => null),
+    findSupplierByWhatsApp(env, num).catch(() => null),
+    findCustomerByWhatsApp(env, num).catch(() => null),
+  ]);
+  const who = team ?? sup ?? cus;
+  if (who) {
+    const [p] = await call<PartnerPhones[]>(env, "res.partner", "read", { ids: [who.id], fields: PARTNER_PHONE_FIELDS });
+    const link = p?.x_wa_channel_id ? p.x_wa_channel_id[0] : 0;
+    if (list.some((c) => c.id === link)) return link;
+    const owned = list.filter((c) => c.x_wa_partner_id[0] === who.id);
+    if (owned.length) return owned[owned.length - 1].id;
+  }
+  const active = list.filter((c) => byId.get(c.x_wa_partner_id[0])?.active);
+  return (active.length ? active : list)[(active.length ? active : list).length - 1].id;
 }
 
 // -------------------------------------------------------------
@@ -320,6 +542,9 @@ function bytesToBase64(bytes: Uint8Array): string {
 export interface InboundForInbox {
   partnerId: number;
   partnerName: string;
+  /** Sender number and WhatsApp profile name — used only when the channel is created. */
+  number?: string;
+  profileName?: string;
   wamid: string;
   type: string;               // "text" | "image" | "audio" | "video" | "document" | "sticker" | "location" | "interactive" | "button" | ...
   text?: string;              // caption / button text
@@ -354,7 +579,9 @@ export interface IngestResult {
  * so a failure never blocks the customer bot.
  */
 export async function mirrorInbound(env: Env, m: InboundForInbox): Promise<void> {
-  const channelId = await ensureInboxChannel(env, m.partnerId, m.partnerName);
+  const channelId = await ensureInboxChannel(env, m.partnerId, m.partnerName, {
+    number: m.number, profileName: m.profileName,
+  });
   if (!channelId) return;
 
   // The customer partner is the author. For "unknown" partners (created on
@@ -461,9 +688,11 @@ export async function echoOutbound(
   partnerName: string,
   body: string,
   templateLabel?: string,
+  /** The number the message went to — titles the channel if this send creates it. */
+  number?: string,
 ): Promise<void> {
   if (!partnerId || !body) return;
-  const channelId = await ensureInboxChannel(env, partnerId, partnerName);
+  const channelId = await ensureInboxChannel(env, partnerId, partnerName, { number });
   if (!channelId) return;
   const bot = await getBotPartnerId(env);
   if (!bot) {
@@ -626,6 +855,8 @@ export async function ingestInbound(
     await mirrorInbound(env, {
       partnerId: matched.id,
       partnerName: matched.name,
+      number: m.from,
+      profileName: m.profileName,
       wamid: m.wamid,
       type: m.type,
       text: m.text,

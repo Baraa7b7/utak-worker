@@ -29,6 +29,7 @@ const M2O: Record<string, string> = {
   x_order_id: "x_daily_order", x_invoice_id: "x_invoice", x_standing_id: "x_standing_order",
   x_route_id: "x_delivery_route", x_sale_order_id: "sale.order", x_payment_id: "x_payment",
   x_template_id: "x_whatsapp_template", x_account_move_id: "account.move", x_driver_id: "res.partner",
+  x_wa_channel_id: "discuss.channel", x_wa_partner_id: "res.partner",
 };
 export const db = new Map<string, Map<number, Rec>>();
 let nextId = 10000;

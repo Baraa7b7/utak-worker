@@ -1,0 +1,302 @@
+{
+  "at": "2026-09-24T17:13:20.821Z",
+  "dryRun": false,
+  "allowed": true,
+  "readBackOk": true,
+  "duplicateNumbers": [
+    "+966509617756",
+    "+967700036370",
+    "+967775180888"
+  ],
+  "rows": [
+    {
+      "channel": 14,
+      "before": "واتساب · أحمد حسان",
+      "planned": "واتساب · أحمد حسان · ⁦+966571777704⁩",
+      "after": "واتساب · أحمد حسان · ⁦+966571777704⁩",
+      "number": "+966571777704",
+      "partner": {
+        "id": 30,
+        "name": "أحمد حسان",
+        "active": true,
+        "linksHere": true
+      },
+      "old": false,
+      "written": true,
+      "messages": 16,
+      "lastActivity": "2026-09-23 23:00:56"
+    },
+    {
+      "channel": 16,
+      "before": "واتساب · عثمان عبدالوهاب",
+      "planned": "واتساب · عثمان عبدالوهاب · ⁦+966530399474⁩",
+      "after": "واتساب · عثمان عبدالوهاب · ⁦+966530399474⁩",
+      "number": "+966530399474",
+      "partner": {
+        "id": 15,
+        "name": "عثمان عبدالوهاب",
+        "active": true,
+        "linksHere": true
+      },
+      "old": false,
+      "written": true,
+      "messages": 11,
+      "lastActivity": "2026-09-21 16:30:25"
+    },
+    {
+      "channel": 17,
+      "before": "واتساب · ابو مكين المعبري",
+      "planned": "(قديم) واتساب · ابو مكين المعبري · ⁦+966509617756⁩",
+      "after": "(قديم) واتساب · ابو مكين المعبري · ⁦+966509617756⁩",
+      "number": "+966509617756",
+      "partner": {
+        "id": 31,
+        "name": "ابو مكين المعبري",
+        "active": true,
+        "linksHere": true
+      },
+      "old": true,
+      "written": true,
+      "messages": 1,
+      "lastActivity": "2026-09-19 14:14:49"
+    },
+    {
+      "channel": 18,
+      "before": "واتساب · ماجد المجهلي",
+      "planned": "واتساب · ماجد المجهلي · ⁦+967779825609⁩",
+      "after": "واتساب · ماجد المجهلي · ⁦+967779825609⁩",
+      "number": "+967779825609",
+      "partner": {
+        "id": 41,
+        "name": "ماجد المجهلي",
+        "active": true,
+        "linksHere": true
+      },
+      "old": false,
+      "written": true,
+      "messages": 1,
+      "lastActivity": "2026-09-20 03:03:29"
+    },
+    {
+      "channel": 19,
+      "before": "واتساب · عمر المجهلي",
+      "planned": "واتساب · عمر المجهلي · ⁦+966545816832⁩",
+      "after": "واتساب · عمر المجهلي · ⁦+966545816832⁩",
+      "number": "+966545816832",
+      "partner": {
+        "id": 9,
+        "name": "عمر المجهلي",
+        "active": true,
+        "linksHere": true
+      },
+      "old": false,
+      "written": true,
+      "messages": 40,
+      "lastActivity": "2026-09-24 15:01:58"
+    },
+    {
+      "channel": 20,
+      "before": "واتساب · Not Book",
+      "planned": "(قديم) واتساب · Not Book · ⁦+967700036370⁩",
+      "after": "(قديم) واتساب · Not Book · ⁦+967700036370⁩",
+      "number": "+967700036370",
+      "partner": {
+        "id": 16,
+        "name": "Not Book",
+        "active": false,
+        "linksHere": true
+      },
+      "old": true,
+      "written": true,
+      "messages": 2,
+      "lastActivity": "2026-09-10 19:49:57"
+    },
+    {
+      "channel": 21,
+      "before": "واتساب · عمر",
+      "planned": "(قديم) واتساب · عمر · ⁦+967775180888⁩",
+      "after": "(قديم) واتساب · عمر · ⁦+967775180888⁩",
+      "number": "+967775180888",
+      "partner": {
+        "id": 17,
+        "name": "عمر",
+        "active": false,
+        "linksHere": true
+      },
+      "old": true,
+      "written": true,
+      "messages": 7,
+      "lastActivity": "2026-09-20 12:54:26"
+    },
+    {
+      "channel": 22,
+      "before": "واتساب · 🤍",
+      "planned": "واتساب · 🤍 · ⁦+967774375736⁩",
+      "after": "واتساب · 🤍 · ⁦+967774375736⁩",
+      "number": "+967774375736",
+      "partner": {
+        "id": 18,
+        "name": "🤍",
+        "active": false,
+        "linksHere": true
+      },
+      "old": false,
+      "written": true,
+      "messages": 3,
+      "lastActivity": "2026-09-11 19:08:13"
+    },
+    {
+      "channel": 23,
+      "before": "واتساب · سفر ونقل",
+      "planned": "واتساب · سفر ونقل · ⁦+966510503466⁩",
+      "after": "واتساب · سفر ونقل · ⁦+966510503466⁩",
+      "number": "+966510503466",
+      "partner": {
+        "id": 19,
+        "name": "سفر ونقل",
+        "active": true,
+        "linksHere": true
+      },
+      "old": false,
+      "written": true,
+      "messages": 2,
+      "lastActivity": "2026-09-12 17:49:12"
+    },
+    {
+      "channel": 25,
+      "before": "واتساب · محمد المحصّل - اختبار",
+      "planned": "واتساب · محمد المحصّل - اختبار · ⁦+966500000002⁩",
+      "after": "واتساب · محمد المحصّل - اختبار · ⁦+966500000002⁩",
+      "number": "+966500000002",
+      "partner": {
+        "id": 10,
+        "name": "محمد المحصّل - اختبار",
+        "active": false,
+        "linksHere": true
+      },
+      "old": false,
+      "written": true,
+      "messages": 19,
+      "lastActivity": "2026-09-23 15:01:03"
+    },
+    {
+      "channel": 29,
+      "before": "واتساب · Bara.a - U TAK",
+      "planned": "واتساب · Bara.a - U TAK · ⁦+966505154962⁩",
+      "after": "واتساب · Bara.a - U TAK · ⁦+966505154962⁩",
+      "number": "+966505154962",
+      "partner": {
+        "id": 45,
+        "name": "Bara.a - U TAK",
+        "active": true,
+        "linksHere": true
+      },
+      "old": false,
+      "written": true,
+      "messages": 12,
+      "lastActivity": "2026-09-23 03:01:05"
+    },
+    {
+      "channel": 30,
+      "before": "واتساب · عمر",
+      "planned": "واتساب · عمر · ⁦+967775180888⁩",
+      "after": "واتساب · عمر · ⁦+967775180888⁩",
+      "number": "+967775180888",
+      "partner": {
+        "id": 46,
+        "name": "عمر",
+        "active": true,
+        "linksHere": true
+      },
+      "old": false,
+      "written": true,
+      "messages": 16,
+      "lastActivity": "2026-09-21 05:00:50"
+    },
+    {
+      "channel": 31,
+      "before": "واتساب · يو",
+      "planned": "واتساب · يو · ⁦+966509617756⁩",
+      "after": "واتساب · يو · ⁦+966509617756⁩",
+      "number": "+966509617756",
+      "partner": {
+        "id": 47,
+        "name": "يو",
+        "active": true,
+        "linksHere": true
+      },
+      "old": false,
+      "written": true,
+      "messages": 10,
+      "lastActivity": "2026-09-21 13:58:40"
+    },
+    {
+      "channel": 32,
+      "before": "واتساب · ابو محمد الوصابي",
+      "planned": "واتساب · ابو محمد الوصابي · ⁦+966534523051⁩",
+      "after": "واتساب · ابو محمد الوصابي · ⁦+966534523051⁩",
+      "number": "+966534523051",
+      "partner": {
+        "id": 49,
+        "name": "ابو محمد الوصابي",
+        "active": true,
+        "linksHere": true
+      },
+      "old": false,
+      "written": true,
+      "messages": 16,
+      "lastActivity": "2026-09-24 13:48:55"
+    },
+    {
+      "channel": 33,
+      "before": "واتساب · Not Book",
+      "planned": "واتساب · Not Book · ⁦+967700036370⁩",
+      "after": "واتساب · Not Book · ⁦+967700036370⁩",
+      "number": "+967700036370",
+      "partner": {
+        "id": 50,
+        "name": "Not Book",
+        "active": true,
+        "linksHere": true
+      },
+      "old": false,
+      "written": true,
+      "messages": 9,
+      "lastActivity": "2026-09-22 05:01:02"
+    },
+    {
+      "channel": 34,
+      "before": "واتساب · الياف",
+      "planned": "واتساب · الياف · ⁦+966581840436⁩",
+      "after": "واتساب · الياف · ⁦+966581840436⁩",
+      "number": "+966581840436",
+      "partner": {
+        "id": 54,
+        "name": "الياف",
+        "active": true,
+        "linksHere": true
+      },
+      "old": false,
+      "written": true,
+      "messages": 8,
+      "lastActivity": "2026-09-24 05:01:19"
+    },
+    {
+      "channel": 35,
+      "before": "واتساب · 𐙚 𝓑𝓾𝓫𝓫𝓵𝓮𝓼 𐙚",
+      "planned": "واتساب · 𐙚 𝓑𝓾𝓫𝓫𝓵𝓮𝓼 𐙚 · ⁦+966570540176⁩",
+      "after": "واتساب · 𐙚 𝓑𝓾𝓫𝓫𝓵𝓮𝓼 𐙚 · ⁦+966570540176⁩",
+      "number": "+966570540176",
+      "partner": {
+        "id": 59,
+        "name": "𐙚 𝓑𝓾𝓫𝓫𝓵𝓮𝓼 𐙚",
+        "active": true,
+        "linksHere": true
+      },
+      "old": false,
+      "written": true,
+      "messages": 3,
+      "lastActivity": "2026-09-24 13:49:59"
+    }
+  ]
+}

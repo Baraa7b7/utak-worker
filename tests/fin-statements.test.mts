@@ -13,6 +13,12 @@
 //      signature and signatory line beside the totals; draft → none of it
 //   8. Statements HTML: five statements + approval line; xlsx is a zip with
 //      one sheet per statement
+//   9. Logo (2026-09-24): the document logo has no background (the old
+//      avatar had a cream square), every document prints it, and the
+//      transparent PNG is transparent with brand-only opaque pixels
+//  10. Identity: the statements are styled only from pdf-template's tokens
+//      (no hex literal in the renderer), on the cream paper, with the
+//      invoice's header, logo, watermark, table rules and legal footer
 //
 // Same no-framework style as tests/acct-close.test.mts. No network.
 
@@ -28,7 +34,9 @@ import { renderQuotationHTML, TEST_QUOTATION_DATA } from "../src/quotation.ts";
 import { renderDeliveryNoteHTML, TEST_DELIVERY_NOTE_DATA } from "../src/delivery-note.ts";
 import { renderReceiptHTML, TEST_RECEIPT_DATA } from "../src/receipt.ts";
 import { renderPurchaseOrderHTML, TEST_PURCHASE_ORDER_DATA } from "../src/purchase-order.ts";
-import { SIGNATORY } from "../src/pdf-template.ts";
+import { SIGNATORY, BRAND_COLORS, BRAND_RULES, BRAND_TYPE, BRAND_WATERMARK_STYLE, UTAK_LOGO_SVG, UTAK_LOGO_DATA_URL, UTAK_LOGO_IMG_STYLE, renderBrandHeader } from "../src/pdf-template.ts";
+import { renderInvoiceHTML, TEST_INVOICE_DATA } from "../src/invoice.ts";
+import { svgHasBackground, analyzeLogoPng } from "../scripts/lib/logo-core.mjs";
 import type { CompanyInfo } from "../src/company.ts";
 
 let passed = 0;
@@ -194,6 +202,47 @@ assert("ISO dates isolated LTR in Arabic text", ltr("2026-09-13").startsWith("�
 const xb = xlsxBuffer([{ name: "BS", rtl: true, widths: [10, 10], rows: [["a", 1], [{ v: "b", s: "bold" }, { v: 2.5, s: "boldMoney" }]] }, { name: "TB", rows: [["x"]] }]);
 const xs = xb.toString("latin1");
 assert("xlsx is a zip with workbook, styles and two sheets", xb.readUInt32LE(0) === 0x04034b50 && xs.includes("xl/workbook.xml") && xs.includes("xl/styles.xml") && xs.includes("xl/worksheets/sheet2.xml"));
+
+console.log("\n[9] logo on a transparent background");
+const OLD_AVATAR = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#F7F5F0"/><g transform="translate(19,19) scale(0.62)"><path d="M25 16 v40 a25 25 0 0 0 50 0 V38.5" fill="none" stroke="#1E5A41" stroke-width="15" stroke-linecap="round"/><rect x="66.25" y="6" width="17.5" height="17.5" fill="#E07B39"/></g></svg>';
+assert("detector: the old avatar HAS a background square", svgHasBackground(OLD_AVATAR));
+assert("document logo has no background element", !svgHasBackground(UTAK_LOGO_SVG));
+assert("document logo keeps the two brand colours", UTAK_LOGO_SVG.includes(`stroke="${BRAND_COLORS.primary}"`) && UTAK_LOGO_SVG.includes(`fill="${BRAND_COLORS.accent}"`) && (UTAK_LOGO_SVG.match(/fill="#/g) ?? []).length === 1);
+assert("data URL decodes to the SVG", Buffer.from(UTAK_LOGO_DATA_URL.split(",")[1], "base64").toString("utf8") === UTAK_LOGO_SVG);
+const oldUrl = "data:image/svg+xml;base64," + Buffer.from(OLD_AVATAR).toString("base64");
+const logoDocs: Array<[string, string]> = [
+  ["invoice", renderInvoiceHTML(TEST_INVOICE_DATA)], ["quotation", renderQuotationHTML(TEST_QUOTATION_DATA)],
+  ["delivery note", renderDeliveryNoteHTML(TEST_DELIVERY_NOTE_DATA)], ["receipt", renderReceiptHTML(TEST_RECEIPT_DATA)],
+  ["purchase order", renderPurchaseOrderHTML(TEST_PURCHASE_ORDER_DATA)],
+];
+for (const [name, h] of logoDocs) assert(`${name}: transparent logo, never the old avatar`, h.includes(UTAK_LOGO_DATA_URL) && !h.includes(oldUrl));
+const logoPng = join(homedir(), "Desktop/Utak/logos kit/png/utak-icon-color-transparent.png");
+if (existsSync(logoPng)) {
+  const a = analyzeLogoPng(PNG.sync.read(readFileSync(logoPng)), [BRAND_COLORS.primary, BRAND_COLORS.accent]);
+  assert("transparent PNG: corners alpha 0, >40% clear", a.transparent && a.transparentShare > 0.4);
+  assert("transparent PNG: every opaque pixel is #1E5A41 or #E07B39", a.opaque > 0 && a.opaqueOffBrand === 0);
+} else console.log("  · transparent logo PNG not on this machine — skipped");
+
+console.log("\n[10] statements share the invoice identity");
+const renderSrc = readFileSync(new URL("../scripts/lib/fin-statements-render.mjs", import.meta.url), "utf8");
+assert("renderer holds no hex colour of its own", !/#[0-9A-Fa-f]{3,8}\b/.test(renderSrc));
+assert("renderer imports the tokens from pdf-template", /BRAND_COLORS[\s\S]*BRAND_RULES[\s\S]*BRAND_TYPE[\s\S]*from "..\/..\/src\/pdf-template.ts"/.test(renderSrc));
+const inv = renderInvoiceHTML(TEST_INVOICE_DATA);
+const idMeta = { ...meta, company: { ...meta.company, nameEn: "UTAK Company", legalFormAr: "شركة ذات مسؤولية محدودة (شخص واحد)", legalFormEn: "Limited Liability Company (One Person)", phone: "0580040467", email: "care@utakfresh.com" } };
+const sh = renderStatementsHTML(st, idMeta, null);
+assert("cream paper: page + @page background = bgPage, as the invoice", sh.includes(`html, body { margin: 0; padding: 0; background: ${BRAND_COLORS.bgPage}; }`) && /@page \{[^}]*background: #F7F5F0/.test(sh) && inv.includes(`background: ${BRAND_COLORS.bgPage}`));
+assert("no white background anywhere in the statements", !/background:\s*(#fff\b|#ffffff|white)/i.test(sh));
+assert("same logo tag as the invoice", sh.includes(`<img src="${UTAK_LOGO_DATA_URL}" style="${UTAK_LOGO_IMG_STYLE}" alt="UTAK" />`) && inv.includes(`<img src="${UTAK_LOGO_DATA_URL}" style="${UTAK_LOGO_IMG_STYLE}" alt="UTAK" />`));
+const brandBlock = renderBrandHeader("x", "y", new Date(0)).match(/<div style="font-size: 24px[^>]*>/)?.[0] ?? "";
+assert("same header block (brand name style)", brandBlock.length > 0 && sh.includes(brandBlock) && inv.includes(brandBlock));
+assert("same watermark", sh.includes(BRAND_WATERMARK_STYLE) && inv.includes(BRAND_WATERMARK_STYLE));
+assert("same table rules (column heads, rows)", sh.includes(`border-top: ${BRAND_RULES.th}; border-bottom: ${BRAND_RULES.th}`) && inv.includes(`border-top: ${BRAND_RULES.th}; border-bottom: ${BRAND_RULES.th}`) && sh.includes(BRAND_RULES.row) && inv.includes(BRAND_RULES.row));
+assert("same column-head type (size, weight, tracking)", sh.includes(`font-size: ${BRAND_TYPE.th.size}; font-weight: ${BRAND_TYPE.th.weight}; letter-spacing: ${BRAND_TYPE.th.tracking}`) && inv.includes(`font-size: ${BRAND_TYPE.th.size}; font-weight: ${BRAND_TYPE.th.weight}; color: ${BRAND_COLORS.inkMuted}; letter-spacing: ${BRAND_TYPE.th.tracking}`));
+const legalStyle = `font-size: ${BRAND_TYPE.legal.size}; font-weight: ${BRAND_TYPE.legal.weight}; color: ${BRAND_COLORS.inkMuted}; letter-spacing: ${BRAND_TYPE.legal.tracking}; line-height: ${BRAND_TYPE.legal.lineHeight};`;
+assert("same legal footer on the cover and after the approval", (sh.match(/data-utak="legal-footer"/g) ?? []).length === 2 && sh.includes(legalStyle) && renderInvoiceHTML(TEST_INVOICE_DATA, company).includes(legalStyle));
+assert("legal footer: English mirror line is LTR", sh.includes(`<div dir="ltr" style="text-align: center; ${legalStyle}">UTAK Company`));
+assert("cover: legal form ar + en, English legal name", sh.includes("شركة ذات مسؤولية محدودة (شخص واحد)") && sh.includes("Limited Liability Company (One Person)") && sh.includes("UTAK Company"));
+assert("still: ISO dates isolated, page numbers bilingual", sh.includes(ltr("2026-09-13")) && renderSrc.includes("Page <span class=\"pageNumber\"></span> of"));
 
 globalThis.fetch = originalFetch;
 console.log(`\nfin-statements: ${passed} passed, ${failed} failed`);

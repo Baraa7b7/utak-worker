@@ -22,8 +22,10 @@
 //      Flow Statement / Trial Balance for the same dates. Every difference is
 //      printed and saved; nothing is hidden.
 //   4. --dry-run stops here (no Gotenberg, no files).
-//   5. PDF through src/pdf-template.ts::htmlToPDF (Gotenberg): cover (name,
-//      CR, VAT, national address, period, issue date, seal, contents), the
+//   5. PDF through src/pdf-template.ts::htmlToPDF (Gotenberg), on the invoice's
+//      identity (cream paper, transparent logo, the same header, tables and
+//      legal footer — all from pdf-template's tokens): cover (legal name and
+//      form, CR, VAT, national address, period, issue date, seal, contents), the
 //      five statements, the approval line; running header + page numbers on
 //      every page. Rendered twice: the second pass prints the real page
 //      numbers in the contents.
@@ -39,7 +41,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { call } from "./lib/odoo-cli.mjs";
 import { computeStatements, compareWithOdoo, fetchLedger, fetchOdooReports, StatementsError, L } from "./lib/fin-statements-core.mjs";
-import { renderStatementsHTML, statementsHeaderHtml, statementsFooterHtml, SECTION_IDS, SECTION_TITLES, ltr } from "./lib/fin-statements-render.mjs";
+import { renderStatementsHTML, statementsHeaderHtml, statementsFooterHtml, SECTION_IDS, SECTION_TITLES, STATEMENTS_MARGINS, ltr } from "./lib/fin-statements-render.mjs";
 import { writeXlsx } from "./lib/xlsx-lite.mjs";
 import { htmlToPDF } from "../src/pdf-template.ts";
 import { readCompanyInfo } from "../src/company.ts";
@@ -124,13 +126,14 @@ const meta = {
   company: {
     nameAr: company.legalNameAr || company.nameAr,
     nameEn: company.legalNameEn || company.nameEn,
-    cr: company.cr, vat: company.vat,
+    legalFormAr: company.legalFormAr || "", legalFormEn: company.legalFormEn || "",
+    cr: company.cr, vat: company.vat, phone: company.phone, email: company.email,
     addressAr: company.addressAr, addressEn: company.addressEn,
     shortAddress: extra?.x_sa_short_address || "",
     stampImage: company.stampImage,
   },
 };
-const pdfOpts = { headerHtml: statementsHeaderHtml(meta), footerHtml: statementsFooterHtml(), marginTop: "0.6", marginBottom: "0.45" };
+const pdfOpts = { headerHtml: statementsHeaderHtml(meta), footerHtml: statementsFooterHtml(), marginTop: STATEMENTS_MARGINS.top, marginBottom: STATEMENTS_MARGINS.bottom };
 const tmp = mkdtempSync(join(tmpdir(), "utak-fs-"));
 const pageText = (file, p) => execFileSync("pdftotext", ["-f", String(p), "-l", String(p), "-layout", file, "-"], { encoding: "utf8" });
 const pageCount = (file) => Number(/Pages:\s+(\d+)/.exec(execFileSync("pdfinfo", [file], { encoding: "utf8" }))[1]);
@@ -154,6 +157,7 @@ const n = pageCount(pdfPath);
 
 // Verify the printed document.
 const perPage = Array.from({ length: n }, (_, i) => pageText(pdfPath, i + 1));
+const plainText = execFileSync("pdftotext", [pdfPath, "-"], { encoding: "utf8" }).replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, "");
 const imgs = execFileSync("pdfimages", ["-list", pdfPath], { encoding: "utf8" }).split("\n").slice(2).filter(Boolean).map((l) => Number(l.trim().split(/\s+/)[0]));
 const verify = {
   pages: n,
@@ -162,7 +166,9 @@ const verify = {
   headerOnEveryPage: perPage.every((t) => t.includes("Financial Statements") && t.includes(`${from} → ${to}`)),
   pageNumberOnEveryPage: perPage.every((t, i) => t.includes(`Page ${i + 1} of ${n}`)),
   stampOnCover: imgs.includes(1),
-  approvalLine: perPage.some((t) => t.includes("Chartered Accountant")) && perPage.some((t) => t.includes("not been audited")),
+  // plain (not -layout) text: the bilingual columns interleave lines there
+  approvalLine: /Chartered Accountant/.test(plainText) && /not\s+been\s+audited/.test(plainText),
+  legalFooterOnCover: perPage[0].includes("CR No. 7055194869") || perPage[0].replace(/\s+/g, " ").includes("CR No."),
   figuresPrinted: [bs.totalAssets, bs.totalEquity, cf.closingCash].every((v) => perPage.join("\n").includes(v.toLocaleString("en-US", { minimumFractionDigits: 2 }))),
 };
 console.log(`pdf: ${pdfPath}`);

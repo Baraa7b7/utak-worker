@@ -24,3 +24,6 @@ scripts/artifacts/brand-*.pdf
 scripts/artifacts/financial-statements-*.pdf
 scripts/artifacts/financial-statements-*.xlsx
 scripts/artifacts/*signature*.png
+
+# Logo previews (2026-09-24)
+scripts/artifacts/brand-*.png

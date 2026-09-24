@@ -31,11 +31,51 @@ export const BRAND_COLORS = {
 
 export const BRAND_FONT = "IBM Plex Sans Arabic";
 
-// Real UTAK avatar logo (light background variant), inlined as a data URI so
-// Gotenberg never has to fetch it. Swap the base64 payload when the mark
-// changes — source: Desktop/Utak/logos kit/svg/utak-avatar-light.svg
-export const UTAK_LOGO_DATA_URL =
-  "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI0Y3RjVGMCIvPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDE5LDE5KSBzY2FsZSgwLjYyKSI+PHBhdGggZD0iTTI1IDE2IHY0MCBhMjUgMjUgMCAwIDAgNTAgMCBWMzguNSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMUU1QTQxIiBzdHJva2Utd2lkdGg9IjE1IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cmVjdCB4PSI2Ni4yNSIgeT0iNiIgd2lkdGg9IjE3LjUiIGhlaWdodD0iMTcuNSIgZmlsbD0iI0UwN0IzOSIvPjwvZz48L3N2Zz4=";
+// Typography + rules of the approved invoice, as tokens (2026-09-24). The
+// invoice/quotation/receipt/… shell interpolates these exact values (its HTML
+// is byte-identical to the literals it had), and the financial statements
+// (scripts/lib/fin-statements-render.mjs) style themselves from the same
+// objects, so the two families never drift apart.
+export const BRAND_TYPE = {
+  docTitle: { size: "32px", weight: 300 },                        // «فاتورة»
+  sectionTitle: { size: "24px", weight: 300 },                    // a statement's title inside a multi-section doc
+  brandName: { size: "24px", weight: 500, tracking: "0.02em" },   // «شركة يوتاك», primary green
+  tagline: { size: "10px", weight: 400, tracking: "0.14em" },
+  meta: { size: "13px", weight: 400 },                            // doc number, date, party lines
+  label: { size: "10px", weight: 500, tracking: "0.2em" },        // «فاتورة إلى / BILL TO», «شروط الدفع»
+  th: { size: "10px", weight: 500, tracking: "0.16em" },          // table column heads
+  cell: { size: "12px", weight: 400 },                            // table rows, totals rows
+  grandTotal: { size: "20px", weight: 500 },                      // primary green
+  legal: { size: "8.5px", weight: 400, tracking: "0.06em", lineHeight: 1.6 },
+  pagePadding: "20mm",
+} as const;
+
+export const BRAND_RULES = {
+  header: `0.5px solid ${BRAND_COLORS.primary}`,      // under the header
+  th: `0.5px solid ${BRAND_COLORS.borderStrong}`,     // above + below the column heads, totals divider
+  row: `0.25px solid ${BRAND_COLORS.borderSoft}`,     // between rows, footer divider
+} as const;
+
+// The faint «UTAK» across the middle of every page (4 % green).
+export const BRAND_WATERMARK_STYLE =
+  `top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 160px; font-weight: 200; letter-spacing: 0.06em; color: ${BRAND_COLORS.primary}; opacity: 0.04; pointer-events: none; user-select: none; white-space: nowrap;`;
+
+export const BRAND_FONT_HREF =
+  "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@200;300;400;500;600&display=swap";
+
+// The UTAK mark on a TRANSPARENT background (2026-09-24). Source:
+// Desktop/Utak/logos kit/svg/utak-icon-color.svg — the icon with its built-in
+// safe area (viewBox 0 0 100 100, «لا تغيّر مسافة الأمان»). Until 09-24 the
+// documents used utak-avatar-light.svg, whose first element is a #F7F5F0
+// square: invisible on the cream invoice, a visible box on anything else.
+// Same two colours, same geometry; vector, so sharp at any print size.
+// Printed at 37.2 px with an 11.4 px margin: the glyph sits exactly where the
+// avatar (scale 0.62 inside a 60 px square) put it.
+export const UTAK_LOGO_SVG =
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M25 16 v40 a25 25 0 0 0 50 0 V38.5" fill="none" stroke="${BRAND_COLORS.primary}" stroke-width="15" stroke-linecap="round"/><rect x="66.25" y="6" width="17.5" height="17.5" fill="${BRAND_COLORS.accent}"/></svg>`;
+export const UTAK_LOGO_DATA_URL = "data:image/svg+xml;base64," + btoa(UTAK_LOGO_SVG);
+export const UTAK_LOGO_IMG_STYLE = "width: 37.2px; height: 37.2px; margin: 11.4px; display: block;";
+
 
 // Company info block that appears in the FROM slot by default.
 // TODO: promote to env-driven config once ZATCA registration + CR + VAT numbers land.
@@ -205,7 +245,7 @@ export function computePageMetrics(itemCount: number): PageMetrics {
 function renderParty(label: string, party: PartyInfo, alignEnd: boolean): string {
   const align = alignEnd ? "text-align: left;" : "";
   return `<div style="display: flex; flex-direction: column; gap: 10px; ${align}">
-      <div style="font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.2em;">${escapeHTML(label)}</div>
+      <div style="font-size: ${BRAND_TYPE.label.size}; font-weight: ${BRAND_TYPE.label.weight}; color: ${BRAND_COLORS.inkMuted}; letter-spacing: ${BRAND_TYPE.label.tracking};">${escapeHTML(label)}</div>
       <div style="display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 400;">
         <div>${escapeHTML(party.name)}</div>
         ${party.contactName ? `<div style="color: ${BRAND_COLORS.inkMuted};">${escapeHTML(party.contactName)}</div>` : ""}
@@ -214,6 +254,17 @@ function renderParty(label: string, party: PartyInfo, alignEnd: boolean): string
         ${party.phone ? `<div style="color: ${BRAND_COLORS.inkMuted}; direction: ltr;${alignEnd ? "" : " text-align: right;"}">${escapeHTML(party.phone)}</div>` : ""}
       </div>
     </div>`;
+}
+
+/** The invoice header (logo, «شركة يوتاك», tagline · title, number, date),
+ *  shared by every UTAK document and the financial statements' cover. */
+export function renderBrandHeader(
+  documentTitle: string,
+  documentNumber: string,
+  documentDate: Date,
+  overrides?: { taglineOverride?: string; brandNameOverride?: string; documentDateStrOverride?: string },
+): string {
+  return renderHeader(documentTitle, documentNumber, documentDate, undefined, overrides);
 }
 
 function renderHeader(
@@ -241,20 +292,20 @@ function renderHeader(
     : "";
   return `<div style="position: relative; display: flex; align-items: flex-start; justify-content: space-between;">
       <div style="display: flex; flex-direction: column; gap: 8px;">
-        <img src="${UTAK_LOGO_DATA_URL}" style="width: 60px; height: 60px; display: block;" alt="UTAK" />
+        <img src="${UTAK_LOGO_DATA_URL}" style="${UTAK_LOGO_IMG_STYLE}" alt="UTAK" />
         <div style="display: flex; flex-direction: column; gap: 2px;">
-          <div style="font-size: 24px; font-weight: 500; color: ${BRAND_COLORS.primary}; letter-spacing: 0.02em; white-space: nowrap;">${escapeHTML(brandName)}</div>
-          <div style="font-size: 10px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.14em;">${escapeHTML(tagline)}</div>
+          <div style="font-size: ${BRAND_TYPE.brandName.size}; font-weight: ${BRAND_TYPE.brandName.weight}; color: ${BRAND_COLORS.primary}; letter-spacing: ${BRAND_TYPE.brandName.tracking}; white-space: nowrap;">${escapeHTML(brandName)}</div>
+          <div style="font-size: ${BRAND_TYPE.tagline.size}; font-weight: ${BRAND_TYPE.tagline.weight}; color: ${BRAND_COLORS.inkMuted}; letter-spacing: ${BRAND_TYPE.tagline.tracking};">${escapeHTML(tagline)}</div>
         </div>
       </div>
       <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 10px; direction: ltr; text-align: left;">
-        <div style="font-size: 32px; font-weight: 300; line-height: 1; direction: ${titleDir};">${escapeHTML(documentTitle)}</div>
+        <div style="font-size: ${BRAND_TYPE.docTitle.size}; font-weight: ${BRAND_TYPE.docTitle.weight}; line-height: 1; direction: ${titleDir};">${escapeHTML(documentTitle)}</div>
         <div style="display: flex; flex-direction: column; gap: 4px;">
           <div style="display: flex; align-items: center; gap: 7px;">
             <span style="width: 4px; height: 4px; border-radius: 50%; background: ${BRAND_COLORS.accent}; display: inline-block;"></span>
-            <span style="font-size: 13px; font-weight: 400;">${escapeHTML(documentNumber)}</span>
+            <span style="font-size: ${BRAND_TYPE.meta.size}; font-weight: ${BRAND_TYPE.meta.weight};">${escapeHTML(documentNumber)}</span>
           </div>
-          <div style="font-size: 13px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; direction: ${dateDir}; text-align: ${dateAlign};">${escapeHTML(dateStr)}</div>${badgeTail}
+          <div style="font-size: ${BRAND_TYPE.meta.size}; font-weight: ${BRAND_TYPE.meta.weight}; color: ${BRAND_COLORS.inkMuted}; direction: ${dateDir}; text-align: ${dateAlign};">${escapeHTML(dateStr)}</div>${badgeTail}
         </div>
       </div>
     </div>`;
@@ -278,8 +329,8 @@ function renderHeader(
 //     line 1: name (ar)  ·  س.ت CR  ·  الرقم الضريبي VAT
 //     line 2: nameEn      ·  CR No. CR  ·  VAT No. VAT
 //     line 3: address (ar) ·  phone  ·  email
-function renderLegalFooterBar(info: LegalFooterInfo, lang: DocLang = "ar"): string {
-  const lineStyle = `text-align: center; font-size: 8.5px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.06em; line-height: 1.6;`;
+export function renderLegalFooterBar(info: LegalFooterInfo, lang: DocLang = "ar"): string {
+  const lineStyle = `text-align: center; font-size: ${BRAND_TYPE.legal.size}; font-weight: ${BRAND_TYPE.legal.weight}; color: ${BRAND_COLORS.inkMuted}; letter-spacing: ${BRAND_TYPE.legal.tracking}; line-height: ${BRAND_TYPE.legal.lineHeight};`;
   const asBdi = (s: string) => `<bdi dir="ltr">${escapeHTML(s.trim())}</bdi>`;
   const parts: string[] = [`<div style="height: 8px;"></div>`];
 
@@ -327,7 +378,9 @@ function renderLegalFooterBar(info: LegalFooterInfo, lang: DocLang = "ar"): stri
 
   if (line1.length === 0 && (lineMid ?? []).length === 0 && line2.length === 0) return "";
   if (line1.length > 0) parts.push(`<div style="${lineStyle}">${line1.join(" · ")}</div>`);
-  if (lineMid && lineMid.length > 0) parts.push(`<div style="${lineStyle}">${lineMid.join(" · ")}</div>`);
+  // The English mirror is an LTR line: inside the RTL page without dir it
+  // printed «315022736600003 .UTAK Company · … VAT No» (2026-09-24).
+  if (lineMid && lineMid.length > 0) parts.push(`<div dir="ltr" style="${lineStyle}">${lineMid.join(" · ")}</div>`);
   if (line2.length > 0) parts.push(`<div style="${lineStyle}">${line2.join(" · ")}</div>`);
   return parts.join("\n    ");
 }
@@ -345,11 +398,11 @@ function renderFooter(footerNote: string, showZatcaQR: boolean, termsLabel: stri
   // passes thanksTextOverride).
   const thanks = thanksTextOverride ?? `شكراً لثقتكم في ${BRAND_INFO.nameAr}`;
   return `<div style="position: relative;">
-      <div style="height: 0; border-top: 0.25px solid ${BRAND_COLORS.borderSoft};"></div>
+      <div style="height: 0; border-top: ${BRAND_RULES.row};"></div>
       <div style="height: 20px;"></div>
       <div style="display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: flex-start;">
         <div style="display: flex; flex-direction: column; gap: 6px;">
-          <div style="font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.2em;">${escapeHTML(termsLabel)}</div>
+          <div style="font-size: ${BRAND_TYPE.label.size}; font-weight: ${BRAND_TYPE.label.weight}; color: ${BRAND_COLORS.inkMuted}; letter-spacing: ${BRAND_TYPE.label.tracking};">${escapeHTML(termsLabel)}</div>
           <div style="font-size: 10px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; line-height: 1.7; max-width: 62%;">${escapeHTML(footerNote)}</div>
         </div>
         ${qrCell}
@@ -544,7 +597,7 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+<link href="${BRAND_FONT_HREF}" rel="stylesheet">
 <style>
   html, body { margin: 0; padding: 0; background: ${BRAND_COLORS.bgPage}; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -561,14 +614,14 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
 </head>
 <body>
 <div dir="rtl" style="font-family: '${BRAND_FONT}', 'Tajawal', sans-serif; font-feature-settings: 'tnum' 1; background: ${BRAND_COLORS.bgPage};">
-  <div class="utak-page" style="position: relative; width: 210mm; min-height: 297mm; box-sizing: border-box; padding: 20mm; background: ${BRAND_COLORS.bgPage}; color: ${BRAND_COLORS.ink}; display: flex; flex-direction: column;">
+  <div class="utak-page" style="position: relative; width: 210mm; min-height: 297mm; box-sizing: border-box; padding: ${BRAND_TYPE.pagePadding}; background: ${BRAND_COLORS.bgPage}; color: ${BRAND_COLORS.ink}; display: flex; flex-direction: column;">
 
-    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 160px; font-weight: 200; letter-spacing: 0.06em; color: ${BRAND_COLORS.primary}; opacity: 0.04; pointer-events: none; user-select: none; white-space: nowrap;">${escapeHTML(BRAND_INFO.nameEn)}</div>
+    <div style="position: absolute; ${BRAND_WATERMARK_STYLE}">${escapeHTML(BRAND_INFO.nameEn)}</div>
 
     ${renderHeader(opts.documentTitle, opts.documentNumber, opts.documentDate)}
 
     <div style="height: ${m.gap};"></div>
-    <div style="height: 0; border-top: 0.5px solid ${BRAND_COLORS.primary};"></div>
+    <div style="height: 0; border-top: ${BRAND_RULES.header};"></div>
     <div style="height: ${m.gap};"></div>
 
     <div style="position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 32px;">
@@ -663,7 +716,7 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
   // both branches now use `min-height: 297mm` and drop the fixed height.
   // multiPageBreaks becomes purely an escape hatch — retained for callers
   // that already pass it, but the CSS below no longer differs by default.
-  const pageStyle = `position: relative; width: 210mm; min-height: 297mm; box-sizing: border-box; padding: 20mm; background: ${BRAND_COLORS.bgPage}; color: ${BRAND_COLORS.ink}; display: flex; flex-direction: column;`;
+  const pageStyle = `position: relative; width: 210mm; min-height: 297mm; box-sizing: border-box; padding: ${BRAND_TYPE.pagePadding}; background: ${BRAND_COLORS.bgPage}; color: ${BRAND_COLORS.ink}; display: flex; flex-direction: column;`;
 
   // Font stack per language mode. Arabic and Space Grotesk are loaded from
   // Google Fonts; the bilingual mode loads both. The `lang` attribute on
@@ -704,12 +757,12 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
 <div dir="${langMeta.dir}" style="font-family: ${fontStack}; font-feature-settings: 'tnum' 1; background: ${BRAND_COLORS.bgPage};">
   <div class="utak-page" style="${pageStyle}">
 
-    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 160px; font-weight: 200; letter-spacing: 0.06em; color: ${BRAND_COLORS.primary}; opacity: 0.04; pointer-events: none; user-select: none; white-space: nowrap;">${escapeHTML(BRAND_INFO.nameEn)}</div>
+    <div style="position: absolute; ${BRAND_WATERMARK_STYLE}">${escapeHTML(BRAND_INFO.nameEn)}</div>
 
     ${renderHeader(opts.documentTitle, opts.documentNumber, opts.documentDate, opts.headerBadge, { taglineOverride: opts.tagline, documentDateStrOverride: opts.documentDateStr, forceLtrHeader: lang === "en" })}
 
     <div style="height: ${m.gap};"></div>
-    <div style="height: 0; border-top: 0.5px solid ${BRAND_COLORS.primary};"></div>
+    <div style="height: 0; border-top: ${BRAND_RULES.header};"></div>
     <div style="height: ${m.gap};"></div>
 
     ${aboveBody}

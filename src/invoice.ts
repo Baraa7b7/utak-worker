@@ -35,6 +35,8 @@ import { sendText, sendButtons } from "./meta";
 import { sendOwnerAlert, sendTemplateByPurpose, T } from "./templates";
 import {
   BRAND_COLORS,
+  BRAND_RULES,
+  BRAND_TYPE,
   computePageMetrics,
   escapeHTML,
   formatMoney,
@@ -767,12 +769,12 @@ function renderInvoiceBodyHTML(
           ? escapeHTML(item.pack)
           : itemCellHTML(item.pack, item.pack_en, lang);
         return `
-    <tr style="border-bottom: 0.25px solid ${BRAND_COLORS.borderSoft};">
-      <td style="height: ${m.rowHeight}; text-align: ${isEn ? "left" : "right"}; font-size: 12px; font-weight: 400; padding: 0 12px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${nameCell}</td>
-      <td style="height: ${m.rowHeight}; text-align: ${isEn ? "left" : "right"}; font-size: 12px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; padding: 0 12px 0 0;">${packCell}</td>
-      <td style="height: ${m.rowHeight}; text-align: ${dirEn}; font-size: 12px; font-weight: 400; direction: ltr;">${item.qty}</td>
-      <td style="height: ${m.rowHeight}; text-align: ${dirEn}; font-size: 12px; font-weight: 400; direction: ltr; color: ${BRAND_COLORS.inkMuted};">${formatMoney(item.price, lang)}</td>
-      <td style="height: ${m.rowHeight}; text-align: ${dirEn}; font-size: 12px; font-weight: 400; direction: ltr;">${formatMoney(item.total, lang)}</td>
+    <tr style="border-bottom: ${BRAND_RULES.row};">
+      <td style="height: ${m.rowHeight}; text-align: ${isEn ? "left" : "right"}; font-size: ${BRAND_TYPE.cell.size}; font-weight: ${BRAND_TYPE.cell.weight}; padding: 0 12px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${nameCell}</td>
+      <td style="height: ${m.rowHeight}; text-align: ${isEn ? "left" : "right"}; font-size: ${BRAND_TYPE.cell.size}; font-weight: ${BRAND_TYPE.cell.weight}; color: ${BRAND_COLORS.inkMuted}; padding: 0 12px 0 0;">${packCell}</td>
+      <td style="height: ${m.rowHeight}; text-align: ${dirEn}; font-size: ${BRAND_TYPE.cell.size}; font-weight: ${BRAND_TYPE.cell.weight}; direction: ltr;">${item.qty}</td>
+      <td style="height: ${m.rowHeight}; text-align: ${dirEn}; font-size: ${BRAND_TYPE.cell.size}; font-weight: ${BRAND_TYPE.cell.weight}; direction: ltr; color: ${BRAND_COLORS.inkMuted};">${formatMoney(item.price, lang)}</td>
+      <td style="height: ${m.rowHeight}; text-align: ${dirEn}; font-size: ${BRAND_TYPE.cell.size}; font-weight: ${BRAND_TYPE.cell.weight}; direction: ltr;">${formatMoney(item.total, lang)}</td>
     </tr>
   `;
       },
@@ -781,7 +783,7 @@ function renderInvoiceBodyHTML(
 
   const th = (label: string, w: string, alignEn: boolean = false) => {
     const align = isEn ? (alignEn ? "right" : "left") : (alignEn ? "left" : "right");
-    return `<th style="width: ${w}; text-align: ${align}; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${m.thPad};">${escapeHTML(label)}</th>`;
+    return `<th style="width: ${w}; text-align: ${align}; font-size: ${BRAND_TYPE.th.size}; font-weight: ${BRAND_TYPE.th.weight}; color: ${BRAND_COLORS.inkMuted}; letter-spacing: ${BRAND_TYPE.th.tracking}; padding: ${m.thPad};">${escapeHTML(label)}</th>`;
   };
 
   const L = (key: "colItem" | "colPackaging" | "colQty" | "colPrice" | "colTotal") => {
@@ -793,7 +795,7 @@ function renderInvoiceBodyHTML(
 
   return `<table style="position: relative; width: 100%; border-collapse: collapse; table-layout: fixed;">
       <thead>
-        <tr style="border-top: 0.5px solid ${BRAND_COLORS.borderStrong}; border-bottom: 0.5px solid ${BRAND_COLORS.borderStrong};">
+        <tr style="border-top: ${BRAND_RULES.th}; border-bottom: ${BRAND_RULES.th};">
           ${th(L("colItem"), "40%")}
           ${th(L("colPackaging"), "20%")}
           ${th(L("colQty"), "10%", true)}
@@ -869,7 +871,7 @@ export function renderInvoiceTotalsHTML(
         ${row(L("discount"), formatMoney(discount, lang))}${vatRow}
         <div style="height: 6px;"></div>
         <div style="height: 0; border-top: 0.5px solid ${BRAND_COLORS.borderStrong};"></div>
-        <div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 8px;"><span style="font-size: 12px; font-weight: 500; color: ${BRAND_COLORS.ink};">${escapeHTML(L(isTax ? "grandTotalInclVat" : "grandTotal"))}</span><span style="font-size: 20px; font-weight: 500; color: ${BRAND_COLORS.primary}; direction: ltr;">${formatMoney(grandTotal, lang)}</span></div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 8px;"><span style="font-size: 12px; font-weight: 500; color: ${BRAND_COLORS.ink};">${escapeHTML(L(isTax ? "grandTotalInclVat" : "grandTotal"))}</span><span style="font-size: ${BRAND_TYPE.grandTotal.size}; font-weight: ${BRAND_TYPE.grandTotal.weight}; color: ${BRAND_COLORS.primary}; direction: ltr;">${formatMoney(grandTotal, lang)}</span></div>
       </div>
     </div>`;
 }

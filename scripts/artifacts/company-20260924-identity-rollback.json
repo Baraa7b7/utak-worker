@@ -1,0 +1,96 @@
+{
+  "script": "scripts/company-20260924-identity.mjs",
+  "createdAt": "2026-09-24T01:55:20.279Z",
+  "before": {
+    "company": {
+      "id": 1,
+      "x_legal_name_en": false,
+      "x_address_en": "8141 Prince Mohammed bin Abdulrahman bin Abdulaziz St, Al Sulay Dist., Riyadh 14273-4309"
+    },
+    "fields_present": [],
+    "view_ids": [],
+    "othman": {
+      "id": 15,
+      "name": "عثمان عبدالوهاب",
+      "active": true,
+      "x_role_ids": [
+        4
+      ],
+      "customer_rank": 1,
+      "x_whatsapp_number": "+966530399474",
+      "phone": "+966530399474"
+    },
+    "team_paths": {
+      "byRole": {
+        "driver": [
+          9
+        ],
+        "warehouse": [
+          9
+        ],
+        "collector": [
+          9
+        ],
+        "admin": [
+          15
+        ]
+      },
+      "teamMatchForNumber": [
+        15
+      ]
+    }
+  },
+  "created": {
+    "field_ids": [
+      20289,
+      20291
+    ],
+    "view_id": 2819
+  },
+  "wrote": {
+    "company": {
+      "x_legal_name_en": "UTAK Company",
+      "x_address_en": "8141 Prince Muhammad ibn Abdulrahman ibn Abdulaziz St., Al Sulay Dist., Riyadh 14273, Additional No. 4309",
+      "x_legal_form_ar": "شركة ذات مسؤولية محدودة (شخص واحد)",
+      "x_legal_form_en": "Limited Liability Company (One Person)"
+    },
+    "othman": {
+      "x_role_ids": [
+        4
+      ]
+    }
+  },
+  "after": {
+    "company": {
+      "id": 1,
+      "x_legal_name_en": "UTAK Company",
+      "x_address_en": "8141 Prince Muhammad ibn Abdulrahman ibn Abdulaziz St., Al Sulay Dist., Riyadh 14273, Additional No. 4309",
+      "x_legal_form_ar": "شركة ذات مسؤولية محدودة (شخص واحد)",
+      "x_legal_form_en": "Limited Liability Company (One Person)"
+    },
+    "othman": {
+      "id": 15,
+      "name": "عثمان عبدالوهاب",
+      "active": true,
+      "x_role_ids": [],
+      "customer_rank": 1,
+      "x_whatsapp_number": "+966530399474",
+      "phone": "+966530399474"
+    },
+    "team_paths": {
+      "byRole": {
+        "driver": [
+          9
+        ],
+        "warehouse": [
+          9
+        ],
+        "collector": [
+          9
+        ],
+        "admin": []
+      },
+      "teamMatchForNumber": []
+    }
+  }
+}

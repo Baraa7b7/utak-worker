@@ -1121,6 +1121,7 @@
     "pageNumberOnEveryPage": true,
     "stampOnCover": true,
     "approvalLine": true,
+    "legalFooterOnCover": true,
     "figuresPrinted": true
   }
 }

@@ -1,0 +1,55 @@
+{
+  "script": "scripts/cleanup-20260924-mark-simulation.mjs",
+  "createdAt": "2026-09-24T01:55:48.469Z",
+  "before": [
+    {
+      "model": "x_purchase_list",
+      "id": 3,
+      "x_status": "done",
+      "x_date": "2026-09-11",
+      "x_supplier_id": false,
+      "x_account_move_id": false,
+      "x_is_simulation": false
+    },
+    {
+      "model": "x_payment",
+      "id": 3,
+      "x_amount": 100,
+      "x_method": "cash",
+      "x_collected_at": "2026-09-11 22:00:00",
+      "x_invoice_id": [
+        2,
+        false
+      ],
+      "x_account_payment_id": false,
+      "x_is_simulation": false
+    },
+    {
+      "model": "x_payment",
+      "id": 4,
+      "x_amount": 100,
+      "x_method": "cash",
+      "x_collected_at": "2026-09-11 22:45:00",
+      "x_invoice_id": [
+        2,
+        false
+      ],
+      "x_account_payment_id": false,
+      "x_is_simulation": false
+    }
+  ],
+  "wrote": [
+    {
+      "model": "x_purchase_list",
+      "id": 3
+    },
+    {
+      "model": "x_payment",
+      "id": 3
+    },
+    {
+      "model": "x_payment",
+      "id": 4
+    }
+  ]
+}

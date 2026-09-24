@@ -25,6 +25,10 @@ export interface CompanyInfo {
   // renderer falls back to the single-language values above.
   legalNameAr?: string;
   legalNameEn?: string;
+  // Entity type (res.company x_legal_form_ar / x_legal_form_en, 2026-09-24):
+  // «شركة ذات مسؤولية محدودة (شخص واحد)» / «Limited Liability Company (One Person)».
+  legalFormAr?: string;
+  legalFormEn?: string;
   // Bilingual address strings, always populated: when x_address_ar/_en are
   // set they win; otherwise they're built from street/street2/city plus the
   // country name read in the matching Odoo lang context (ar_001 vs en_US).
@@ -70,7 +74,7 @@ export async function readCompanyInfo(env: Env): Promise<CompanyInfo> {
   const BASE_FIELDS = ["id", "name", "vat", "street", "street2", "city", "country_id", "zip", "phone", "email", "partner_id"];
   const OPTIONAL_COMPANY_FIELDS = [
     "mobile", "company_registry", "additional_identifiers",
-    "x_legal_name_ar", "x_legal_name_en", "x_address_ar", "x_address_en",
+    "x_legal_name_ar", "x_legal_name_en", "x_legal_form_ar", "x_legal_form_en", "x_address_ar", "x_address_en",
     "x_stamp_image", "x_signature_image",
   ];
   const availableRows = await call<Array<{ name: string }>>(env, "ir.model.fields", "search_read", {
@@ -219,6 +223,8 @@ export async function readCompanyInfo(env: Env): Promise<CompanyInfo> {
     vat: readStr("vat"),
     legalNameAr,
     legalNameEn,
+    legalFormAr: readStr("x_legal_form_ar"),
+    legalFormEn: readStr("x_legal_form_en"),
     // Bilingual: prefer the custom field, else the composed string with the
     // matching-language country name. Always populated — the renderer is free
     // to pick whichever matches the doc's lang and to not fall back further.

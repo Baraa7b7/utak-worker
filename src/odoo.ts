@@ -865,6 +865,20 @@ export async function getSupplierPendingLog(
   return rows[0] ?? null;
 }
 
+/** 2026-09-25 — the supplier's latest ask log, replied or not (for «توقف اليوم»). */
+export async function getLatestSupplierLog(
+  env: Env,
+  supplierId: number,
+): Promise<(SupplierLogRow & { x_name: string | false }) | null> {
+  const rows = await call<Array<SupplierLogRow & { x_name: string | false }>>(env, "x_supplier_price_request_log", "search_read", {
+    domain: [["x_supplier_id", "=", supplierId]],
+    fields: ["id", "x_name", "x_supplier_id", "x_sent_at", "x_replied_at", "x_status"],
+    order: "x_sent_at desc",
+    limit: 1,
+  });
+  return rows[0] ?? null;
+}
+
 export async function updateSupplierLog(
   env: Env,
   logId: number,
@@ -909,9 +923,14 @@ export async function createDailyPrice(
     actual_weight_kg: number | null;
     source_message_id: string;
     raw_reply: string;
+    /** 2026-09-25 — "pending" marks an outlier price for review; it is still used. */
+    extraction_status?: "extracted" | "pending";
   },
 ): Promise<number> {
-  const today = new Date().toISOString().slice(0, 10);
+  // 2026-09-25 — the Riyadh day, as the 21:15 purchase list reads it
+  // (prefillPurchasePrices). Suppliers answer the 02:00 ask between 02:00 and
+  // 06:00 Riyadh = the previous UTC day, so a UTC date hid their prices.
+  const today = riyadhToday();
   const record: Record<string, unknown> = {
     x_supplier_id: vals.supplier_id,
     x_product_tmpl_id: vals.product_id,
@@ -921,13 +940,39 @@ export async function createDailyPrice(
     x_sale_price: vals.sale_price,
     x_source_message_id: vals.source_message_id,
     x_raw_reply: vals.raw_reply.slice(0, 2000),
-    x_extraction_status: "extracted",
+    x_extraction_status: vals.extraction_status ?? "extracted",
   };
   if (typeof vals.actual_weight_kg === "number") {
     record.x_actual_weight_kg = vals.actual_weight_kg;
   }
   const ids = await call<number[]>(env, "x_daily_price", "create", { vals_list: [record] });
   return ids[0];
+}
+
+/**
+ * 2026-09-25 — the supplier's latest earlier price for the same product +
+ * packaging (the outlier check reads it before the new price is written).
+ */
+export async function getLastSupplierPrice(
+  env: Env,
+  supplierId: number,
+  productId: number,
+  packagingId: number,
+): Promise<{ price: number; date: string } | null> {
+  type Row = { x_price_sar: number | false; x_date: string | false };
+  const rows = await call<Row[]>(env, "x_daily_price", "search_read", {
+    domain: [
+      ["x_supplier_id", "=", supplierId],
+      ["x_product_tmpl_id", "=", productId],
+      ["x_packaging_id", "=", packagingId],
+      ["x_price_sar", ">", 0],
+    ],
+    fields: ["x_price_sar", "x_date"],
+    order: "x_date desc, id desc",
+    limit: 1,
+  });
+  const r = rows[0];
+  return r && typeof r.x_price_sar === "number" ? { price: r.x_price_sar, date: typeof r.x_date === "string" ? r.x_date : "" } : null;
 }
 
 // ---- Partner fields ----
@@ -2444,7 +2489,7 @@ export async function getLatestSalePrice(
   productId: number,
   packagingId: number,
 ): Promise<SalePriceLookup> {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = riyadhToday(); // 2026-09-25 — the day x_daily_price.x_date is written in
   type Row = { x_sale_price: number | false; x_price_sar: number | false; x_date: string | false };
   const pickPrice = (r: Row): number => {
     if (typeof r.x_sale_price === "number" && r.x_sale_price > 0) return r.x_sale_price;

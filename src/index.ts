@@ -41,9 +41,14 @@ import { classifyIntent } from "./claude";
 import { dispatch, type RouterReply } from "./router";
 import type { SenderType, OdooPartner } from "./types";
 import {
+  alertSuppliersWithoutPrices,
   askAllSuppliersForPrices,
+  handleSupplierButton,
+  handleSupplierMedia,
   handleSupplierReply,
+  nudgeLateSuppliers,
   openOrderingWindow,
+  supplierButtonAction,
   updateSupplierReliabilityScores,
 } from "./suppliers";
 import {
@@ -84,6 +89,12 @@ export default {
         case "0 23 * * *": await askAllSuppliersForPrices(env); break;
         case "0 2 * * *":
           await updateSupplierReliabilityScores(env);
+          // 2026-09-25 (م5) — one reminder to a supplier still silent 3h after the ask.
+          try {
+            await nudgeLateSuppliers(env);
+          } catch (e) {
+            console.error("[cron 05:00] supplier nudge failed", (e as Error)?.message);
+          }
           // Phase 1 (2026-09-17): daily template sync appended to the 05:00
           // Riyadh handler after its existing work, in try/catch so a sync
           // failure never breaks reliability-score scheduling.
@@ -106,7 +117,20 @@ export default {
           break;
         case "0 17 * * *": await sendCutoffReminders(env); break;
         case "0 18 * * *": await closeUnconfirmedOrders(env); break;
-        case "15 18 * * *": await aggregateAndDispatchToWarehouse(env); break;
+        case "15 18 * * *":
+          try {
+            await aggregateAndDispatchToWarehouse(env);
+          } finally {
+            // 2026-09-25 (م5) — the purchase list is built: one owner alert per
+            // supplier who still has not sent today's prices (even if the
+            // list itself failed — its error still reaches the catch below).
+            try {
+              await alertSuppliersWithoutPrices(env);
+            } catch (e) {
+              console.error("[cron 21:15] supplier alert failed", (e as Error)?.message);
+            }
+          }
+          break;
         case "0 15 * * *": {
           const { sendDailyCollectionSummary } = await import("./invoice");
           await sendDailyCollectionSummary(env);
@@ -1696,6 +1720,10 @@ async function runSimJob(rawEnv: Env, job: string): Promise<unknown> {
     case "aggregate_purchase":
       await aggregateAndDispatchToWarehouse(env);
       return "aggregateAndDispatchToWarehouse done";
+    case "supplier_nudge":
+      return await nudgeLateSuppliers(env);
+    case "supplier_noprice_alert":
+      return await alertSuppliersWithoutPrices(env);
     case "collection_summary": {
       const { sendDailyCollectionSummary } = await import("./invoice");
       await sendDailyCollectionSummary(env);
@@ -1712,7 +1740,7 @@ async function runSimJob(rawEnv: Env, job: string): Promise<unknown> {
     }
     default:
       throw new Error(
-        `unknown job '${job}'. valid: ask_suppliers | reliability_scores | open_ordering | purchase_followup | cutoff_reminder | close_unconfirmed | aggregate_purchase | collection_summary | standing_reminders | daily_outreach`,
+        `unknown job '${job}'. valid: ask_suppliers | reliability_scores | supplier_nudge | open_ordering | purchase_followup | cutoff_reminder | close_unconfirmed | aggregate_purchase | supplier_noprice_alert | collection_summary | standing_reminders | daily_outreach`,
       );
   }
 }
@@ -1986,6 +2014,15 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         } catch (e) {
           console.warn("[media] customer handling failed", (e as Error)?.message);
         }
+      } else if (!teamMatch && supplierMatch) {
+        // 2026-09-25 (م6) — a supplier's voice note / image / document (a price
+        // list): «وصلتنا» + owner alert, never a guessed price.
+        try {
+          const reply = await handleSupplierMedia(env, supplierMatch, msg);
+          await sendText(env, msg.from, reply, { ctx });
+        } catch (e) {
+          console.warn("[media] supplier handling failed", (e as Error)?.message);
+        }
       }
       await markSeen(env, msg.messageId);
       continue;
@@ -2085,6 +2122,14 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
     // into the supplier ask/reply pipeline).
     const supplier = supplierMatch;
     if (supplier) {
+      // 2026-09-25 (م7) — the confirmation's buttons never reach the price extractor.
+      const action = supplierButtonAction(msg);
+      if (action) {
+        const replyText = await handleSupplierButton(env, supplier, action);
+        if (replyText) await sendText(env, msg.from, replyText, { ctx });
+        await markSeen(env, msg.messageId);
+        continue;
+      }
       const enriched = await enrichSupplier(env, supplier);
       const replyText = await handleSupplierReply(env, enriched, msg.text, msg.messageId);
       if (replyText) await sendText(env, msg.from, replyText, { ctx });

@@ -5,6 +5,8 @@ export const CONTRACT = {
   supplier_ask:               { params: 2, where: "src/suppliers.ts:143 (supplierAskParams)", used: true,
                                 byTemplate: { utak_supplier_daily_ask: 1 } },
   supplier_confirm:           { params: 2, where: "src/suppliers.ts:300", used: true },
+  // 2026-09-25 (م5) — utak_supplier_price_nudge (#48): [supplier name, «6:00 صباحاً»].
+  supplier_price_nudge:       { params: 2, where: "src/suppliers.ts:538 (nudgeLateSuppliers)", used: true },
   purchase_list:              { params: 4, where: "src/team.ts:91", used: true },
   loading_done:               { params: null, where: "—", used: false },
   driver_dispatch:            { params: 4, where: "src/team.ts:198", used: true },

@@ -237,6 +237,11 @@ export const T = {
    */
   CUSTOMER_ORDER_REMIND: "customer_order_remind",
   /**
+   * utak_supplier_price_nudge (UTILITY, 2 vars): supplier name + the time the
+   * prices are needed. 2026-09-25 (م5) — the one reminder at 05:00.
+   */
+  SUPPLIER_PRICE_NUDGE: "supplier_price_nudge",
+  /**
    * utak_purchase_list_remind_v2 (UTILITY, 3 vars + «تم الشراء»): list id,
    * list date, item count — v1 (2 vars) was moved to MARKETING by Meta.
    * 2026-09-25 — completes ح7; until moved, the 06:00 follow-up re-sends
@@ -275,10 +280,47 @@ function sanitizeOwnerAlertParam(text: string): string {
   return sanitizeTemplateParam(String(text ?? "").replace(/[\r\n\t]+/g, " | "));
 }
 
+/**
+ * 2026-09-25 — is the owner inside Meta's 24h window? His partner is looked up
+ * by OWNER_WHATSAPP (id cached 1h in KV). Any failure answers «no».
+ */
+async function ownerInsideWindow(env: Env): Promise<boolean> {
+  try {
+    const key = "owner_alert:partner_id";
+    let id = Number(await env.MSG_DEDUP.get(key)) || 0;
+    if (!id) {
+      const e164 = "+" + String(env.OWNER_WHATSAPP ?? "").replace(/\D/g, "");
+      const { call } = await import("./odoo");
+      const rows = await call<Array<{ id: number }>>(env, "res.partner", "search_read", {
+        domain: ["|", ["x_whatsapp_number", "=", e164], ["phone", "=", e164]], fields: ["id"], limit: 1,
+      });
+      id = rows[0]?.id ?? 0;
+      if (id) await env.MSG_DEDUP.put(key, String(id), { expirationTtl: 3600 });
+    }
+    if (!id) return false;
+    const { isInside24hWindow } = await import("./wa-inbox");
+    return await isInside24hWindow(env, id);
+  } catch {
+    return false;
+  }
+}
+
 export async function sendOwnerAlert(env: Env, text: string): Promise<void> {
   const owner = env.OWNER_WHATSAPP;
   if (!owner) return;
   const original = String(text ?? "");
+  // 2026-09-25 — utak_owner_alert is MARKETING at Meta (v2 too; v3 refused as
+  // INCORRECT_CATEGORY), and on 09-24 21:15 Meta dropped one with #131049
+  // (marketing frequency cap). Inside the owner's 24h window a session text is
+  // not capped, so it goes first there; outside it, the template as before.
+  if (await ownerInsideWindow(env)) {
+    try {
+      const r = await sendText(env, owner, original, { purpose: "owner_alert" });
+      if (r.ok) return;
+    } catch (e) {
+      console.warn("[owner-alert] in-window text failed", (e as Error)?.message);
+    }
+  }
   try {
     const param = sanitizeOwnerAlertParam(original);
     const when = ownerAlertTime();

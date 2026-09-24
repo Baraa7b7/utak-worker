@@ -338,6 +338,15 @@ export const ORDERING_OPEN_TTL_SECONDS = 20 * 60 * 60;
 export const TMPL_SUPPLIER_ASK = "supplier_ask";
 export const TMPL_SUPPLIER_CONFIRM = "supplier_confirm";
 
+// 2026-09-25 (م5) — one reminder to a supplier still silent at the 05:00 job
+// (3h after the 02:00 ask), then one owner alert per still-silent supplier
+// when the 21:15 purchase list is built.
+export const TMPL_SUPPLIER_PRICE_NUDGE = "supplier_price_nudge";
+// 2026-09-25 — a supplier's new price is an outlier when it differs from his
+// last price for the same product + packaging by this factor or more (either
+// way): saved, marked x_extraction_status=pending, owner alerted. Never refused.
+export const PRICE_OUTLIER_RATIO = 1.5;
+
 // v4: team template purposes (registered in x_whatsapp_template once Meta-approved;
 // until then, team.ts falls back to plain sendText — team members are internal users
 // so the 24h window rule doesn't bite the way it does for customers)

@@ -136,6 +136,34 @@
         "x_purpose": "customer_order_remind"
       },
       "why": "customer_order_remind: set new"
+    },
+    {
+      "ts": "2026-09-24T19:34:30.335Z",
+      "id": 81,
+      "name": "utak_purchase_list_remind_v2",
+      "before": {
+        "x_meta_status": "PENDING",
+        "x_category": "UTILITY",
+        "x_param_count": 3
+      },
+      "after": {
+        "x_meta_status": "APPROVED",
+        "x_category": "UTILITY",
+        "x_param_count": 3
+      },
+      "why": "purchase_list_remind: refresh from Meta"
+    },
+    {
+      "ts": "2026-09-24T19:34:30.840Z",
+      "id": 81,
+      "name": "utak_purchase_list_remind_v2",
+      "before": {
+        "x_purpose": "other"
+      },
+      "after": {
+        "x_purpose": "purchase_list_remind"
+      },
+      "why": "purchase_list_remind: set new"
     }
   ],
   "labels": "{\n  \"utak_followup_customer\": \"جوكر: متابعة عميل\",\n  \"utak_followup_supplier\": \"جوكر: متابعة مورد\",\n  \"utak_followup_order\": \"متابعة طلب عميل\",\n  \"utak_followup_po\": \"متابعة طلب شراء (للمورد)\",\n  \"utak_order_confirmed\": \"تأكيد الطلب\",\n  \"utak_order_update\": \"تحديث على الطلب\",\n  \"utak_order_service_notice\": \"تنبيه خدمة على طلب\",\n  \"utak_item_shortage\": \"صنف ناقص واقتراح بديل\",\n  \"utak_delivery_delay\": \"تأخر التوصيل\",\n  \"utak_out_for_delivery\": \"الطلب في الطريق\",\n  \"utak_delivered\": \"تم التسليم\",\n  \"utak_order_cutoff\": \"تذكير آخر موعد للطلب\",\n  \"utak_invoice_ready\": \"الفاتورة جاهزة (PDF)\",\n  \"utak_payment_reminder\": \"تذكير دفع\",\n  \"utak_payment_received\": \"تأكيد استلام دفعة\",\n  \"utak_complaint_received\": \"استلام ملاحظة العميل\",\n  \"utak_complaint_resolved\": \"معالجة ملاحظة العميل\",\n  \"utak_welcome\": \"ترحيب عميل جديد\",\n  \"utak_service_notice\": \"تنبيه خدمة عام (تسويق)\",\n  \"utak_reactivate\": \"إعادة تنشيط بعرض اليوم (تسويق)\",\n  \"utak_supplier_price_nudge\": \"تذكير بالأسعار المتأخرة (للمورد)\",\n  \"utak_po_confirmed\": \"طلب شراء جديد (للمورد)\",\n  \"utak_po_changed\": \"تعديل طلب شراء (للمورد)\",\n  \"utak_quality_issue\": \"ملاحظة جودة على توريد (للمورد)\",\n  \"utak_po_quality_issue\": \"ملاحظة جودة على طلب شراء (للمورد)\",\n  \"hello_world\": \"اختبار Meta (لا يُستخدم)\",\n  \"utak_collection_request\": \"طلب تحصيل فاتورة (للمحصّل)\",\n  \"utak_collection_summary\": \"قائمة تحصيل اليوم (للمحصّل)\",\n  \"utak_delivery_done\": \"(قديم) تم التسليم — استخدم: تم التسليم\",\n  \"utak_delivery_incoming\": \"(قديم) الطلب في الطريق — استخدم: الطلب في الطريق\",\n  \"utak_driver_collection\": \"توصيل مع تحصيل (للسائق)\",\n  \"utak_driver_dispatch\": \"بداية جولة التوصيل (للسائق)\",\n  \"utak_driver_stop\": \"محطة توصيل (للسائق)\",\n  \"utak_feedback\": \"طلب تقييم بعد التسليم\",\n  \"utak_invoice_customer_v2\": \"إرسال الفاتورة (نص احتياطي)\",\n  \"utak_invoice_pdf_v1\": \"إرسال الفاتورة (PDF)\",\n  \"utak_owner_alert\": \"تنبيه تشغيلي (للمالك)\",\n  \"utak_purchase_list_v2\": \"قائمة شراء اليوم (للمستودع)\",\n  \"utak_shift_start\": \"بداية الدوام (للفريق)\",\n  \"utak_supplier_confirm_v1\": \"تأكيد استلام الأسعار (للمورد)\",\n  \"utak_supplier_daily_ask\": \"طلب أسعار اليوم (للمورد)\",\n  \"utak_v2_collection\": \"(قديم) ملخص تحصيل — استخدم: قائمة تحصيل اليوم (للمحصّل)\",\n  \"utak_v2_commission\": \"كشف العمولة (للفريق)\",\n  \"utak_v2_daily_remind\": \"تذكير الطلب الثابت لبكرة\",\n  \"utak_v2_driver_route\": \"(قديم) مسار السائق — استخدم: بداية جولة التوصيل (للسائق)\",\n  \"utak_v2_inactive\": \"تذكير عميل منقطع (تسويق)\",\n  \"utak_v2_loading\": \"انتهاء التحميل (للمستودع)\",\n  \"utak_v2_order_confirm\": \"(قديم) تأكيد الطلب — استخدم: تأكيد الطلب\",\n  \"utak_v2_pay_remind\": \"تذكير دفع بالمبلغ المستحق\",\n  \"utak_v2_purchase\": \"(قديم) قائمة شراء — استخدم: قائمة شراء اليوم (للمستودع)\",\n  \"utak_v2_summary\": \"ملخص اليوم (للمالك)\",\n  \"utak_v2_welcome\": \"(قديم) ترحيب عميل جديد — استخدم: ترحيب عميل جديد\",\n  \"utak_supplier_ask_v2\": \"طلب أسعار اليوم (للمورد)\",\n  \"utak_owner_alert_v2\": \"تنبيه تشغيلي (للمالك)\",\n  \"utak_shift_start_v2\": \"بداية الدوام (للفريق)\",\n  \"utak_standing_remind_v2\": \"تذكير الطلب الثابت لبكرة\",\n  \"utak_pay_remind_v3\": \"تذكير دفع بالمبلغ المستحق\",\n  \"utak_quotation_pdf_v1\": \"إرسال عرض السعر (PDF)\",\n  \"utak_order_confirm_remind_v1\": \"تذكير تأكيد الطلب قبل الإقفال\",\n  \"utak_purchase_list_remind_v1\": \"تذكير قائمة الشراء غير المؤكدة (للمستودع)\",\n  \"utak_owner_alert_v3\": \"تنبيه تشغيلي (للمالك) — الصياغة الثالثة\",\n  \"utak_purchase_list_remind_v2\": \"تذكير قائمة الشراء غير المؤكدة (للمستودع) — الصياغة الثانية\"\n}\n"

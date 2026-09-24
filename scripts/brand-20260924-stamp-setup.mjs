@@ -5,6 +5,7 @@
 //   node scripts/brand-20260924-stamp-setup.mjs [--dry-run]
 //        [--stamp=<png>] [--signature=<png>]
 //   node scripts/brand-20260924-stamp-setup.mjs --rollback
+//   node scripts/brand-20260924-stamp-setup.mjs --rollback-signature
 //
 // What it does:
 //   1. res.company.name → «شركة يوتاك ذات مسؤولية محدودة» (joined, as on the
@@ -14,8 +15,12 @@
 //      plus a small form group to see / replace them from Odoo.
 //   3. Uploads the green seal (default: Desktop/Utak/ختم الشركة/
 //      UTAK-Seal-Final-Stamped.png, #1E5A41), downscaled to 709 px = 40 mm at
-//      450 dpi. The signature is uploaded only when --signature is given —
-//      there is no approved signature file yet.
+//      450 dpi. The signature is uploaded only when --signature is given,
+//      byte-for-byte (already prepared by brand-20260924-signature-prep.mjs:
+//      black on transparent, ≥ 1500 px — no resize, which would flatten the
+//      alpha or soften the strokes). Its previous value is saved first to
+//      scripts/artifacts/brand-20260924-signature-before.json;
+//      --rollback-signature puts that value back.
 //   4. CRN 7055194869 in res.partner(1).additional_identifiers.SA_CRN (the
 //      key readCompanyInfo reads) — written only if missing/different.
 //   5. Prints VAT + address for the report. Never touches them.
@@ -32,6 +37,7 @@ import { join } from "node:path";
 const args = process.argv.slice(2);
 const DRY = args.includes("--dry-run");
 const ROLLBACK = args.includes("--rollback");
+const ROLLBACK_SIG = args.includes("--rollback-signature");
 const opt = (k) => args.find((a) => a.startsWith(`--${k}=`))?.slice(k.length + 3);
 
 const NAME_AR = "شركة يوتاك ذات مسؤولية محدودة";
@@ -40,6 +46,7 @@ const STAMP_PX = 709;
 const STAMP_SRC = opt("stamp") ?? join(homedir(), "Desktop/Utak/ختم الشركة/UTAK-Seal-Final-Stamped.png");
 const SIGNATURE_SRC = opt("signature");
 const RB_PATH = new URL("./artifacts/brand-20260924-stamp-setup-rollback.json", import.meta.url).pathname;
+const SIG_BEFORE_PATH = new URL("./artifacts/brand-20260924-signature-before.json", import.meta.url).pathname;
 const VIEW_NAME = "res.company.form.x_stamp_signature";
 const FIELDS = [
   { name: "x_stamp_image", field_description: "ختم الشركة / Company Stamp" },
@@ -71,6 +78,11 @@ function ident(p) {
 
 function pngBase64(src, px) {
   if (!existsSync(src)) throw new Error(`image not found: ${src}`);
+  if (!px) {
+    const raw = readFileSync(src);
+    if (raw.subarray(1, 4).toString() !== "PNG") throw new Error(`not a PNG: ${src}`);
+    return raw.toString("base64");
+  }
   const out = join(mkdtempSync(join(tmpdir(), "utak-brand-")), "img.png");
   execFileSync("sips", ["-s", "format", "png", "-Z", String(px), src, "--out", out], { stdio: "ignore" });
   return readFileSync(out).toString("base64");
@@ -168,14 +180,19 @@ async function setup() {
 
   // 3. images
   const images = [{ field: "x_stamp_image", src: STAMP_SRC, px: STAMP_PX }];
-  if (SIGNATURE_SRC) images.push({ field: "x_signature_image", src: SIGNATURE_SRC, px: 900 });
+  if (SIGNATURE_SRC) images.push({ field: "x_signature_image", src: SIGNATURE_SRC, px: null });
   else log("x_signature_image: no --signature file given — left empty");
   if (!DRY) {
     for (const im of images) {
       const b64 = pngBase64(im.src, im.px);
       const [cur] = await call("res.company", "read", { ids: [1], fields: [im.field] });
       if (cur[im.field] === b64) { log(`${im.field}: already uploaded (${b64.length} b64 chars)`); continue; }
-      log(`${im.field}: upload ${im.src} → ${im.px}px, ${Math.round((b64.length * 3) / 4 / 1024)} KB`);
+      if (im.field === "x_signature_image" && !existsSync(SIG_BEFORE_PATH)) {
+        // Only the first upload's "before" is kept: that is the state to go back to.
+        writeFileSync(SIG_BEFORE_PATH, JSON.stringify({ savedAt: new Date().toISOString(), field: im.field, before: cur[im.field] || false }, null, 2) + "\n");
+        log(`${im.field}: previous value saved → ${SIG_BEFORE_PATH} (${cur[im.field] ? "had an image" : "empty"})`);
+      }
+      log(`${im.field}: upload ${im.src} → ${im.px ? im.px + "px" : "as-is"}, ${Math.round((b64.length * 3) / 4 / 1024)} KB`);
       await call("res.company", "write", { ids: [1], vals: { [im.field]: b64 } });
       rb.wrote[im.field] = { src: im.src, px: im.px, bytes: Math.round((b64.length * 3) / 4) };
     }
@@ -210,4 +227,12 @@ async function setup() {
   log(DRY ? "dry-run: nothing written" : `rollback: ${RB_PATH}`);
 }
 
-await (ROLLBACK ? rollback() : setup());
+async function rollbackSignature() {
+  if (!existsSync(SIG_BEFORE_PATH)) throw new Error(`no signature snapshot at ${SIG_BEFORE_PATH}`);
+  const snap = JSON.parse(readFileSync(SIG_BEFORE_PATH, "utf8"));
+  log(`x_signature_image ← ${snap.before ? "previous image" : "empty"} (snapshot ${snap.savedAt})`);
+  if (!DRY) await call("res.company", "write", { ids: [1], vals: { x_signature_image: snap.before || false } });
+  log(DRY ? "dry-run: nothing written" : "signature rollback done");
+}
+
+await (ROLLBACK_SIG ? rollbackSignature() : ROLLBACK ? rollback() : setup());

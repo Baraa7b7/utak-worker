@@ -13,6 +13,14 @@ src.v1.backup.*/
 *.old
 .v8-backup/
 .env.sim-verify
+.env.zatca-oneoff
 
 # Root-level generated PDFs (delivery-note, purchase-order, quotation, receipt)
 /*.pdf
+
+# Seal / signature never go into git (2026-09-24): every PDF that prints them,
+# the statements workbook, and the signature preview image.
+scripts/artifacts/brand-*.pdf
+scripts/artifacts/financial-statements-*.pdf
+scripts/artifacts/financial-statements-*.xlsx
+scripts/artifacts/*signature*.png

@@ -661,6 +661,8 @@ export default {
           }
           data = await buildQuotationPDFDataFromOdoo(env, id);
           if (!data) return json({ error: `quotation ${id} not found` }, 404);
+          // A dry run is a preview: no seal, no signature.
+          data = { ...data, issued: false };
         } else {
           data = TEST_QUOTATION_DATA;
         }
@@ -1147,7 +1149,8 @@ export default {
               );
               return;
             }
-            const pdfBytes = await generateQuotationPDF(data, env);
+            // Sending it to the customer issues it: seal + signature.
+            const pdfBytes = await generateQuotationPDF({ ...data, issued: true }, env);
             const uploaded = await uploadQuotationToR2(
               env,
               pdfBytes,

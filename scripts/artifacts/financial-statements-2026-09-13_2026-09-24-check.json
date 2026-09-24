@@ -1,0 +1,1126 @@
+{
+  "period": {
+    "from": "2026-09-13",
+    "to": "2026-09-24"
+  },
+  "issueDate": "2026-09-24",
+  "statements": {
+    "period": {
+      "from": "2026-09-13",
+      "to": "2026-09-24"
+    },
+    "trialBalance": {
+      "rows": [
+        {
+          "id": 247,
+          "code": "101001",
+          "nameAr": "البنك",
+          "nameEn": "Bank",
+          "type": "asset_cash",
+          "opening": 0,
+          "debit": 25000,
+          "credit": 0,
+          "closing": 25000,
+          "closingDr": 25000,
+          "closingCr": 0
+        },
+        {
+          "id": 69,
+          "code": "102011",
+          "nameAr": "الحسابات المستحقة",
+          "nameEn": "Accounts Receivable",
+          "type": "asset_receivable",
+          "opening": 0,
+          "debit": 340,
+          "credit": 340,
+          "closing": 0,
+          "closingDr": 0,
+          "closingCr": 0
+        },
+        {
+          "id": 100,
+          "code": "104041",
+          "nameAr": "مدخلات ضريبة القيمة المضافة",
+          "nameEn": "VAT Input",
+          "type": "asset_current",
+          "opening": 0,
+          "debit": 15,
+          "credit": 15,
+          "closing": 0,
+          "closingDr": 0,
+          "closingCr": 0
+        },
+        {
+          "id": 106,
+          "code": "201002",
+          "nameAr": "مستحقات الدفع",
+          "nameEn": "Payables",
+          "type": "liability_payable",
+          "opening": 0,
+          "debit": 275,
+          "credit": 275,
+          "closing": 0,
+          "closingDr": 0,
+          "closingCr": 0
+        },
+        {
+          "id": 108,
+          "code": "201004",
+          "nameAr": "المستحقات - الرواتب",
+          "nameEn": "Accrued - Salaries",
+          "type": "liability_current",
+          "opening": 0,
+          "debit": 200,
+          "credit": 200,
+          "closing": 0,
+          "closingDr": 0,
+          "closingCr": 0
+        },
+        {
+          "id": 256,
+          "code": "300010",
+          "nameAr": "رأس المال المدفوع",
+          "nameEn": "Paid-in Capital",
+          "type": "equity",
+          "opening": 0,
+          "debit": 0,
+          "credit": 25000,
+          "closing": -25000,
+          "closingDr": 0,
+          "closingCr": 25000
+        },
+        {
+          "id": 136,
+          "code": "400001",
+          "nameAr": "تكلفة البضائع المباعة في التداول",
+          "nameEn": "Cost of Goods Sold in Trading",
+          "type": "expense_direct_cost",
+          "opening": 0,
+          "debit": 210,
+          "credit": 210,
+          "closing": 0,
+          "closingDr": 0,
+          "closingCr": 0
+        },
+        {
+          "id": 138,
+          "code": "400003",
+          "nameAr": "الراتب الأساسي",
+          "nameEn": "Basic Salary",
+          "type": "expense",
+          "opening": 0,
+          "debit": 200,
+          "credit": 200,
+          "closing": 0,
+          "closingDr": 0,
+          "closingCr": 0
+        },
+        {
+          "id": 211,
+          "code": "400077",
+          "nameAr": "وقود",
+          "nameEn": "Fuel",
+          "type": "expense",
+          "opening": 0,
+          "debit": 50,
+          "credit": 50,
+          "closing": 0,
+          "closingDr": 0,
+          "closingCr": 0
+        },
+        {
+          "id": 234,
+          "code": "500001",
+          "nameAr": "حساب المبيعات",
+          "nameEn": "Sales Account",
+          "type": "income",
+          "opening": 0,
+          "debit": 340,
+          "credit": 340,
+          "closing": 0,
+          "closingDr": 0,
+          "closingCr": 0
+        }
+      ],
+      "totals": {
+        "opening": 0,
+        "debit": 26630,
+        "credit": 26630,
+        "closingDr": 25000,
+        "closingCr": 25000
+      }
+    },
+    "incomeStatement": {
+      "revenue": [
+        {
+          "id": 234,
+          "code": "500001",
+          "nameAr": "حساب المبيعات",
+          "nameEn": "Sales Account",
+          "amount": 0
+        }
+      ],
+      "totalRevenue": 0,
+      "cogs": [
+        {
+          "id": 136,
+          "code": "400001",
+          "nameAr": "تكلفة البضائع المباعة في التداول",
+          "nameEn": "Cost of Goods Sold in Trading",
+          "amount": 0
+        }
+      ],
+      "totalCogs": 0,
+      "grossProfit": 0,
+      "otherIncome": [],
+      "totalOtherIncome": 0,
+      "expenses": [
+        {
+          "id": 138,
+          "code": "400003",
+          "nameAr": "الراتب الأساسي",
+          "nameEn": "Basic Salary",
+          "amount": 0
+        },
+        {
+          "id": 211,
+          "code": "400077",
+          "nameAr": "وقود",
+          "nameEn": "Fuel",
+          "amount": 0
+        }
+      ],
+      "totalExpenses": 0,
+      "netResult": 0
+    },
+    "balanceSheet": {
+      "asOf": "2026-09-24",
+      "currentAssets": [
+        {
+          "id": 247,
+          "code": "101001",
+          "nameAr": "البنك",
+          "nameEn": "Bank",
+          "amount": 25000
+        },
+        {
+          "id": 69,
+          "code": "102011",
+          "nameAr": "الحسابات المستحقة",
+          "nameEn": "Accounts Receivable",
+          "amount": 0
+        },
+        {
+          "id": 100,
+          "code": "104041",
+          "nameAr": "مدخلات ضريبة القيمة المضافة",
+          "nameEn": "VAT Input",
+          "amount": 0
+        }
+      ],
+      "totalCurrentAssets": 25000,
+      "nonCurrentAssets": [],
+      "totalNonCurrentAssets": 0,
+      "totalAssets": 25000,
+      "currentLiabilities": [
+        {
+          "id": 106,
+          "code": "201002",
+          "nameAr": "مستحقات الدفع",
+          "nameEn": "Payables",
+          "amount": 0
+        },
+        {
+          "id": 108,
+          "code": "201004",
+          "nameAr": "المستحقات - الرواتب",
+          "nameEn": "Accrued - Salaries",
+          "amount": 0
+        },
+        {
+          "id": 258,
+          "code": "201021",
+          "nameAr": "جاري المالك",
+          "nameEn": "Owner Current Account",
+          "amount": 0
+        }
+      ],
+      "totalCurrentLiabilities": 0,
+      "nonCurrentLiabilities": [],
+      "totalNonCurrentLiabilities": 0,
+      "totalLiabilities": 0,
+      "equity": [
+        {
+          "id": 256,
+          "code": "300010",
+          "nameAr": "رأس المال المدفوع",
+          "nameEn": "Paid-in Capital",
+          "amount": 25000
+        }
+      ],
+      "retainedAccounts": [],
+      "retainedPrior": 0,
+      "periodResult": 0,
+      "totalEquity": 25000,
+      "totalLiabilitiesAndEquity": 25000,
+      "cash": 25000,
+      "ownerCurrentAccount": 0
+    },
+    "cashFlow": {
+      "netResult": 0,
+      "depreciation": 0,
+      "workingCapital": [
+        {
+          "key": "wc_asset_receivable",
+          "amount": 0
+        },
+        {
+          "key": "wc_asset_current",
+          "amount": 0
+        },
+        {
+          "key": "wc_asset_prepayments",
+          "amount": 0
+        },
+        {
+          "key": "wc_liability_payable",
+          "amount": 0
+        },
+        {
+          "key": "wc_liability_current",
+          "amount": 0
+        },
+        {
+          "key": "wc_liability_credit_card",
+          "amount": 0
+        }
+      ],
+      "netOperating": 0,
+      "investing": [
+        {
+          "key": "inv_fixed",
+          "amount": 0
+        }
+      ],
+      "netInvesting": 0,
+      "financing": [
+        {
+          "key": "fin_equity",
+          "amount": 25000
+        },
+        {
+          "key": "fin_retained",
+          "amount": 0
+        },
+        {
+          "key": "fin_owner",
+          "amount": 0
+        },
+        {
+          "key": "fin_non_current",
+          "amount": 0
+        }
+      ],
+      "netFinancing": 25000,
+      "netChange": 25000,
+      "openingCash": 0,
+      "closingCash": 25000
+    },
+    "equityChanges": {
+      "rows": [
+        {
+          "key": "eqOpening",
+          "paidIn": 0,
+          "retained": 0,
+          "total": 0
+        },
+        {
+          "key": "eqCapital",
+          "paidIn": 25000,
+          "retained": 0,
+          "total": 25000
+        },
+        {
+          "key": "eqOther",
+          "paidIn": 0,
+          "retained": 0,
+          "total": 0
+        },
+        {
+          "key": "periodResult",
+          "paidIn": 0,
+          "retained": 0,
+          "total": 0
+        }
+      ],
+      "closing": {
+        "key": "eqClosing",
+        "paidIn": 25000,
+        "retained": 0,
+        "total": 25000
+      }
+    }
+  },
+  "odooCheck": {
+    "rows": [
+      {
+        "statement": "bs",
+        "item": "Total assets (TA)",
+        "ours": 25000,
+        "odoo": 25000,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "bs",
+        "item": "Current assets (CA)",
+        "ours": 25000,
+        "odoo": 25000,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "bs",
+        "item": "Bank and cash (BA)",
+        "ours": 25000,
+        "odoo": 25000,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "bs",
+        "item": "Receivables (REC)",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "bs",
+        "item": "Other current assets (CAS)",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "bs",
+        "item": "Prepayments (PRE)",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "bs",
+        "item": "Fixed assets (FA)",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "bs",
+        "item": "Non-current assets (PNCA)",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "bs",
+        "item": "Total liabilities (L)",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "bs",
+        "item": "Current liabilities (CL)",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "bs",
+        "item": "Non-current liabilities (NL)",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "bs",
+        "item": "Owner current account 201021",
+        "ours": 0,
+        "odoo": null,
+        "diff": null,
+        "match": null,
+        "note": "separate line here; inside CL1 in Odoo"
+      },
+      {
+        "statement": "bs",
+        "item": "Total equity (EQ)",
+        "ours": 25000,
+        "odoo": 25000,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "bs",
+        "item": "Earnings: prior + period (EAR)",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "bs",
+        "item": "Liabilities + equity (LE)",
+        "ours": 25000,
+        "odoo": 25000,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "bs",
+        "item": "101001 Bank",
+        "ours": 25000,
+        "odoo": 25000,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "bs",
+        "item": "102011 Accounts Receivable",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "bs",
+        "item": "104041 VAT Input",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "bs",
+        "item": "201002 Payables",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "bs",
+        "item": "201004 Accrued - Salaries",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "bs",
+        "item": "300010 Paid-in Capital",
+        "ours": 25000,
+        "odoo": 25000,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "is",
+        "item": "Revenue (REV)",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "is",
+        "item": "Cost of revenue (COS)",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "is",
+        "item": "Gross profit (GRP)",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "is",
+        "item": "Other income (OIN)",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "is",
+        "item": "Expenses (EXP + OEXP)",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "is",
+        "item": "Net profit (NEP)",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "is",
+        "item": "500001 Sales Account",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "is",
+        "item": "400001 Cost of Goods Sold in Trading",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "is",
+        "item": "400003 Basic Salary",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "is",
+        "item": "400077 Fuel",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "cf",
+        "item": "Opening cash",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "cf",
+        "item": "Net change in cash",
+        "ours": 25000,
+        "odoo": 25000,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "cf",
+        "item": "Closing cash",
+        "ours": 25000,
+        "odoo": 25000,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "cf",
+        "item": "Operating (ours indirect)",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": "Odoo uses the direct method and its own activity tags; section totals are shown for reference"
+      },
+      {
+        "statement": "cf",
+        "item": "Investing",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": "Odoo uses the direct method and its own activity tags; section totals are shown for reference"
+      },
+      {
+        "statement": "cf",
+        "item": "Financing",
+        "ours": 25000,
+        "odoo": 0,
+        "diff": 25000,
+        "match": false,
+        "note": "Odoo uses the direct method and its own activity tags; section totals are shown for reference"
+      },
+      {
+        "statement": "cf",
+        "item": "Odoo: unclassified activities",
+        "ours": 0,
+        "odoo": 25000,
+        "diff": -25000,
+        "match": false,
+        "note": "Odoo uses the direct method and its own activity tags; section totals are shown for reference"
+      },
+      {
+        "statement": "tb",
+        "item": "101001 opening",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "101001 debit",
+        "ours": 25000,
+        "odoo": 25000,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "101001 credit",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "101001 closing",
+        "ours": 25000,
+        "odoo": 25000,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "102011 opening",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "102011 debit",
+        "ours": 340,
+        "odoo": 340,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "102011 credit",
+        "ours": 340,
+        "odoo": 340,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "102011 closing",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "104041 opening",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "104041 debit",
+        "ours": 15,
+        "odoo": 15,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "104041 credit",
+        "ours": 15,
+        "odoo": 15,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "104041 closing",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "201002 opening",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "201002 debit",
+        "ours": 275,
+        "odoo": 275,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "201002 credit",
+        "ours": 275,
+        "odoo": 275,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "201002 closing",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "201004 opening",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "201004 debit",
+        "ours": 200,
+        "odoo": 200,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "201004 credit",
+        "ours": 200,
+        "odoo": 200,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "201004 closing",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "300010 opening",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "300010 debit",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "300010 credit",
+        "ours": 25000,
+        "odoo": 25000,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "300010 closing",
+        "ours": -25000,
+        "odoo": -25000,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "400001 opening",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "400001 debit",
+        "ours": 210,
+        "odoo": 210,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "400001 credit",
+        "ours": 210,
+        "odoo": 210,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "400001 closing",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "400003 opening",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "400003 debit",
+        "ours": 200,
+        "odoo": 200,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "400003 credit",
+        "ours": 200,
+        "odoo": 200,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "400003 closing",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "400077 opening",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "400077 debit",
+        "ours": 50,
+        "odoo": 50,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "400077 credit",
+        "ours": 50,
+        "odoo": 50,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "400077 closing",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "500001 opening",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "500001 debit",
+        "ours": 340,
+        "odoo": 340,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "500001 credit",
+        "ours": 340,
+        "odoo": 340,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "500001 closing",
+        "ours": 0,
+        "odoo": 0,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "Total debit",
+        "ours": 26630,
+        "odoo": 26630,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      },
+      {
+        "statement": "tb",
+        "item": "Total credit",
+        "ours": 26630,
+        "odoo": 26630,
+        "diff": 0,
+        "match": true,
+        "note": ""
+      }
+    ],
+    "mismatches": [],
+    "informational": [
+      {
+        "statement": "cf",
+        "item": "Financing",
+        "ours": 25000,
+        "odoo": 0,
+        "diff": 25000,
+        "match": false,
+        "note": "Odoo uses the direct method and its own activity tags; section totals are shown for reference"
+      },
+      {
+        "statement": "cf",
+        "item": "Odoo: unclassified activities",
+        "ours": 0,
+        "odoo": 25000,
+        "diff": -25000,
+        "match": false,
+        "note": "Odoo uses the direct method and its own activity tags; section totals are shown for reference"
+      }
+    ]
+  },
+  "verify": {
+    "pages": 6,
+    "samePagesAsPass1": true,
+    "sectionPages": {
+      "bs": 2,
+      "is": 3,
+      "cf": 4,
+      "eq": 5,
+      "tb": 6,
+      "approval": 6
+    },
+    "headerOnEveryPage": true,
+    "pageNumberOnEveryPage": true,
+    "stampOnCover": true,
+    "approvalLine": true,
+    "figuresPrinted": true
+  }
+}

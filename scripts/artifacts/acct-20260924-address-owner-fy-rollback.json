@@ -1,0 +1,64 @@
+{
+  "script": "scripts/acct-20260924-address-owner-fy.mjs",
+  "createdAt": "2026-09-24T00:16:45.333Z",
+  "before": {
+    "company": {
+      "street": "السلي",
+      "street2": false,
+      "city": "الرياض",
+      "zip": "14273",
+      "state_id": 1545,
+      "country_id": 192,
+      "x_address_ar": false,
+      "x_address_en": false
+    },
+    "partner_id": 1,
+    "partner": {
+      "street": "السلي",
+      "street2": false,
+      "city": "الرياض",
+      "zip": "14273",
+      "state_id": 1545,
+      "country_id": 192
+    },
+    "fields_present": [],
+    "owner_account": {
+      "byCode": [],
+      "byName": []
+    },
+    "fiscal_years": [],
+    "views": []
+  },
+  "created": {
+    "field_ids": [
+      20274,
+      20277,
+      20279,
+      20282,
+      20284,
+      20287
+    ],
+    "view_id": 2818,
+    "owner_account_id": 258,
+    "fiscal_year_id": 1
+  },
+  "wrote": {
+    "address": {
+      "street": "شارع الأمير محمد بن عبدالرحمن بن عبدالعزيز",
+      "street2": "حي السلي",
+      "city": "الرياض",
+      "zip": "14273",
+      "country_id": 192,
+      "state_id": 1545,
+      "x_sa_building_no": "8141",
+      "x_sa_additional_no": "4309",
+      "x_sa_short_address": "RQYA8141"
+    },
+    "capital_name_en": {
+      "id": 256,
+      "before_en": "رأس المال المدفوع",
+      "before_ar": "رأس المال المدفوع",
+      "after_en": "Paid-in Capital"
+    }
+  }
+}

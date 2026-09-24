@@ -35,6 +35,7 @@ interface SaleOrderRow {
   date_order: string | false;
   create_date: string | false;
   order_line: number[];
+  state?: string;
 }
 
 interface SalePartnerRow {
@@ -71,7 +72,7 @@ export async function buildQuotationPDFDataFromSaleOrder(
 ): Promise<QuotationPDFData | null> {
   const orders = await call<SaleOrderRow[]>(env, "sale.order", "read", {
     ids: [saleOrderId],
-    fields: ["id", "name", "partner_id", "date_order", "create_date", "order_line"],
+    fields: ["id", "name", "partner_id", "date_order", "create_date", "order_line", "state"],
   });
   const order = orders[0];
   if (!order) return null;
@@ -217,5 +218,8 @@ export async function buildQuotationPDFDataFromSaleOrder(
     customer_id: order.partner_id[0],
     order_id: order.id,
     missing_products,
+    // Sent / confirmed = issued (seal + signature); a draft stays unsealed.
+    // The WhatsApp send route marks its copy issued: sending issues it.
+    issued: order.state === "sent" || order.state === "sale" || order.state === "done",
   };
 }

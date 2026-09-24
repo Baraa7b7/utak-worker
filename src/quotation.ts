@@ -19,6 +19,7 @@ import {
   buildGotenbergFooterHtml,
   GOTENBERG_FOOTER_MARGIN,
   renderPDFShell,
+  issuedSealHTML,
   signDocToken,
   uploadPDFToR2,
   type LegalFooterInfo,
@@ -77,6 +78,9 @@ export interface QuotationPDFData {
   missing_products?: string[];
   // Doc-level language. Not a tax invoice — so no Article 53 upgrade.
   lang?: DocLang;
+  /** Issued document (numbered, sent / recorded). Only issued documents print
+   *  the company seal + signature — never a preview or a draft. */
+  issued?: boolean;
 }
 
 // 2026-09-19 — same-day validity. Old text was "٧ أيام". Since UTAK's cost is
@@ -190,6 +194,8 @@ export function renderQuotationHTML(data: QuotationPDFData, company?: CompanyInf
     fromLabel: data.lang ? labelForFrom(lang) : undefined,
     termsLabel: data.lang ? labelForTerms(lang) : undefined,
     thanksLine: data.lang ? thanksLine(lang, company) : undefined,
+    footerSealHTML: issuedSealHTML(data.issued, company),
+    sealBesideTotals: true,
     documentDateStr: lang === "en" ? formatDateEn(data.quotationDate) : undefined,
   });
 }
@@ -365,6 +371,9 @@ export async function buildQuotationPDFDataFromOdoo(
     customer_id: order.customer_id,
     order_id: order.id,
     missing_products,
+    // An x_quotation with its number is the issued quotation (the one sent to
+    // the customer) → seal + signature. Previews override with issued:false.
+    issued: true,
   };
 }
 
@@ -465,7 +474,8 @@ export async function createAndDispatchQuotationForRecord(
 
   let html: string;
   try {
-    html = renderQuotationHTML(data);
+    // Company read here too (legal footer + seal), as generateQuotationPDF does.
+    html = renderQuotationHTML(data, await readCompanyInfo(env));
   } catch (e) {
     console.error(
       "[q-issue] step 3 FAILED:",

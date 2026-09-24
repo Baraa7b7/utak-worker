@@ -209,9 +209,10 @@ export async function readCompanyInfo(env: Env): Promise<CompanyInfo> {
   return {
     nameAr: readStr("name") || "شركة يوتاك",
     nameEn: "UTAK",
-    // Legacy single-language address string uses the Arabic country name so
-    // ar-mode documents keep their layout without any renderer change.
-    address: addrPartsAr.join("، "),
+    // Legacy single-language address string. The national address in
+    // x_address_ar wins when set (2026-09-24: building no., street, district,
+    // city zip-additional); else street/street2/city + Arabic country name.
+    address: addressArField || addrPartsAr.join("، "),
     email,
     phone: mobile || readStr("phone"),
     cr,

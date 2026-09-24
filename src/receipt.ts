@@ -13,6 +13,7 @@ import {
   buildGotenbergFooterHtml,
   GOTENBERG_FOOTER_MARGIN,
   renderPDFShell,
+  issuedSealHTML,
   signDocToken,
   uploadPDFToR2,
   type LegalFooterInfo,
@@ -44,6 +45,9 @@ export interface ReceiptPDFData {
   totalReceived: number;
   // Doc-level language. Receipts do not carry VAT, so no Article 53 upgrade.
   lang?: DocLang;
+  /** Issued document (numbered, sent / recorded). Only issued documents print
+   *  the company seal + signature — never a preview or a draft. */
+  issued?: boolean;
 }
 
 const RECEIPT_FOOTER =
@@ -130,6 +134,8 @@ export function renderReceiptHTML(data: ReceiptPDFData, company?: CompanyInfo): 
     fromLabel: data.lang ? labelForFrom(lang) : undefined,
     termsLabel: data.lang ? labelForTerms(lang) : undefined,
     thanksLine: data.lang ? thanksLine(lang, company) : undefined,
+    footerSealHTML: issuedSealHTML(data.issued, company),
+    sealBesideTotals: true,
     documentDateStr: lang === "en" ? formatDateEn(data.receiptDate) : undefined,
   });
 }
@@ -250,6 +256,8 @@ export async function buildReceiptPDFDataFromOdoo(
     },
     payments: [{ invoiceNumber: invNum, invoiceDate, amount, method }],
     totalReceived: amount,
+    // A recorded x_payment: the receipt is issued.
+    issued: true,
   };
 }
 

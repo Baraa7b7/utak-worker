@@ -105,14 +105,21 @@ export function generateZatcaQRPlaceholder(): string {
 // Company seal over the authorized signature, bottom-left of the last page
 // (2026-09-24). Seal at its physical 40 mm, slightly rotated and overlapping
 // the signature like a hand-pressed stamp. Callers pass it ONLY for issued
-// documents (an issued invoice, an issued official doc) — drafts and
-// previews never carry it. Either image may be missing: no signature on file
-// → the seal alone; nothing on file → "" (no empty frame).
+// documents (an issued invoice, quotation, receipt, delivery note, purchase
+// order, official doc) — drafts and previews never carry it. Either image
+// may be missing: no signature on file → the seal alone; nothing on file →
+// "" (no empty frame). Under a signature: the signatory's name and title,
+// Arabic over English, below the seal so no ink covers the text.
 export const SEAL_SIZE_MM = 40;
+export const SIGNATORY = {
+  ar: "البراء عبدالوهاب الوصابي — المدير العام",
+  en: "Albaraa Abdulwahab Alwesabi — General Manager",
+} as const;
+const SIGNATORY_LINE_MM = 7;
 
 export function renderSealSignatureBlock(
   images: { stamp?: string; signature?: string },
-  opts: { marginTopMm?: number; raiseMm?: number } = {},
+  opts: { marginTopMm?: number; raiseMm?: number; signatory?: { ar: string; en: string } | null } = {},
 ): string {
   // raiseMm: the seal rises that far above its box (absolute, so no layout
   // effect) — a pressed stamp over the gap above it. A negative margin was
@@ -120,17 +127,38 @@ export function renderSealSignatureBlock(
   const raise = opts.raiseMm ?? 0;
   const { stamp, signature } = images;
   if (!stamp && !signature) return "";
+  const who = signature ? (opts.signatory === undefined ? SIGNATORY : opts.signatory) : null;
+  const cap = who ? SIGNATORY_LINE_MM : 0;
   const sig = signature
-    ? `<img data-utak="signature" src="${escapeHTML(signature)}" alt="التوقيع" style="position: absolute; left: 0; bottom: 4mm; width: 46mm; height: 22mm; object-fit: contain; object-position: left bottom;" />`
+    ? `<img data-utak="signature" src="${escapeHTML(signature)}" alt="التوقيع" style="position: absolute; left: 0; bottom: ${4 + cap}mm; width: 46mm; height: 22mm; object-fit: contain; object-position: left bottom;" />`
     : "";
   const seal = stamp
     ? `<img data-utak="stamp" src="${escapeHTML(stamp)}" alt="ختم الشركة" style="position: absolute; left: ${signature ? "22mm" : "0"}; top: ${-raise}mm; width: ${SEAL_SIZE_MM}mm; height: ${SEAL_SIZE_MM}mm; transform: rotate(-8deg); opacity: 0.92; mix-blend-mode: multiply;" />`
     : "";
+  const caption = who
+    ? `<div data-utak="signatory" style="position: absolute; left: 0; bottom: 0; height: ${cap}mm; display: flex; flex-direction: column; justify-content: flex-end; gap: 0.6mm; font-size: 7.5px; line-height: 1.25; color: ${BRAND_COLORS.inkMuted}; white-space: nowrap;">
+        <div dir="rtl" style="text-align: left; font-weight: 500;">${escapeHTML(who.ar)}</div>
+        <div dir="ltr" style="text-align: left; letter-spacing: 0.02em;">${escapeHTML(who.en)}</div>
+      </div>`
+    : "";
   // The seal is a circle: a small rotation keeps it inside its own 40 mm box.
   const width = stamp ? (signature ? 22 : 0) + SEAL_SIZE_MM : 50;
   return `<div class="utak-block" data-utak="seal-signature" style="display: flex; direction: ltr; justify-content: flex-start; margin-top: ${opts.marginTopMm ?? 8}mm;">
-      <div style="position: relative; width: ${width}mm; height: ${SEAL_SIZE_MM - raise}mm;">${sig}${seal}</div>
+      <div style="position: relative; width: ${width}mm; height: ${SEAL_SIZE_MM - raise + cap}mm;">${sig}${seal}${caption}</div>
     </div>`;
+}
+
+/** The seal block for an ISSUED quotation / receipt / delivery note /
+ *  purchase order (2026-09-24). Callers pass it with sealBesideTotals: it
+ *  sits beside the totals, where the page is empty, so a one-page document
+ *  stays one page. undefined for a preview or draft — which also keeps the
+ *  byte-parity template. */
+export function issuedSealHTML(
+  issued: boolean | undefined,
+  company?: { stampImage?: string; signatureImage?: string },
+): string | undefined {
+  if (!issued || !company) return undefined;
+  return renderSealSignatureBlock({ stamp: company.stampImage, signature: company.signatureImage }, { marginTopMm: 0, raiseMm: 6 }) || undefined;
 }
 
 // ============================================================================
@@ -435,6 +463,11 @@ export interface RenderPDFShellOptions {
    *  Sits in the left cell of the terms row — bottom-left of the last page —
    *  or, when the footer is hidden, right after the body. */
   footerSealHTML?: string;
+  /** Put footerSealHTML beside the totals (same row, start side — the right
+   *  of an RTL page, where the totals leave the width empty) instead of in
+   *  the terms row. The row grows only by what the block is taller than the
+   *  totals, so a 7-row quotation stays one page (2026-09-24). */
+  sealBesideTotals?: boolean;
   /** When true, adds multi-page @media print rules (thead repetition,
    *  break-inside: avoid on tr/.utak-block, widows/orphans). Off by default
    *  so the 5 legacy documents render byte-identical HTML. */
@@ -597,9 +630,19 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
   // when opts.thanksLine is set (localized replacement) we route it into
   // renderFooter so it sits at the same position, not below the whole block.
   const inlineThanks = opts.hideThanks ? "" : opts.thanksLine;
+  const sealBeside = !!(opts.sealBesideTotals && opts.footerSealHTML && !opts.hideFooterNote);
   const footerBlock = opts.hideFooterNote
     ? ""
-    : renderFooter(footerNote, showZatcaQR, termsLabel, inlineThanks, opts.footerSealHTML);
+    : renderFooter(footerNote, showZatcaQR, termsLabel, inlineThanks, sealBeside ? undefined : opts.footerSealHTML);
+  // One grid cell holding both: the totals keep their full width (content
+  // sits on the end side), the seal block sits on the start side, bottoms
+  // aligned. Height = the taller of the two.
+  const totalsRow = sealBeside
+    ? `<div class="utak-block" style="display: grid;">
+      <div style="grid-area: 1 / 1; justify-self: start; align-self: end;">${opts.footerSealHTML}</div>
+      <div style="grid-area: 1 / 1;">${opts.totalsHTML ?? ""}</div>
+    </div>`
+    : opts.totalsHTML ? `<div class="utak-block">${opts.totalsHTML}</div>` : "";
   // The old thanksOverride hook was an ADDITIONAL line below the footer;
   // preserved as-is when set for older callers (official-doc's issue path).
   const thanksLine = opts.hideThanks
@@ -610,6 +653,9 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
   const legalBar = opts.legalFooterBar ? renderLegalFooterBar(opts.legalFooterBar, lang) : "";
   const aboveBody = opts.aboveBodyHTML ?? "";
   const belowBody = (opts.belowBodyHTML ?? "") + (opts.hideFooterNote && opts.footerSealHTML ? opts.footerSealHTML : "");
+  // With a seal block the minimum gap above the footer (tailMin) goes: the
+  // 40 mm block already separates body and footer, and keeping both pushed a
+  // 7-row quotation's legal footer onto a second page (2026-09-24).
 
   // 2026-09-22 (item 4): pagination is now the default for every doc,
   // matching the byte-parity path above. `overflow: hidden` was silently
@@ -675,11 +721,11 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
 
     <div style="height: ${m.postTable};"></div>
 
-    ${opts.totalsHTML ? `<div class="utak-block">${opts.totalsHTML}</div>` : ""}
+    ${totalsRow}
 
     ${belowBody}
 
-    <div style="flex: 1; min-height: ${m.tailMin};"></div>
+    <div style="flex: 1; min-height: ${opts.footerSealHTML ? "0px" : m.tailMin};"></div>
 
     ${footerBlock}
     ${thanksLine}

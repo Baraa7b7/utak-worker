@@ -12,6 +12,7 @@ import {
   buildGotenbergFooterHtml,
   GOTENBERG_FOOTER_MARGIN,
   renderPDFShell,
+  issuedSealHTML,
   signDocToken,
   uploadPDFToR2,
   type LegalFooterInfo,
@@ -42,6 +43,9 @@ export interface DeliveryNotePDFData {
   };
   items: DeliveryNoteItem[];
   lang?: DocLang;
+  /** Issued document (numbered, sent / recorded). Only issued documents print
+   *  the company seal + signature — never a preview or a draft. */
+  issued?: boolean;
 }
 
 // Placeholder — round B will replace with the actual signature/whatsapp blocks.
@@ -120,6 +124,8 @@ export function renderDeliveryNoteHTML(data: DeliveryNotePDFData, company?: Comp
     fromLabel: data.lang ? labelForFrom(lang) : undefined,
     termsLabel: data.lang ? labelForTerms(lang) : undefined,
     thanksLine: data.lang ? thanksLine(lang, company) : undefined,
+    footerSealHTML: issuedSealHTML(data.issued, company),
+    sealBesideTotals: true,
     documentDateStr: lang === "en" ? formatDateEn(data.deliveryDate) : undefined,
   });
 }
@@ -240,6 +246,8 @@ export async function buildDeliveryNotePDFDataFromOdoo(
       phone: custPhone,
     },
     items,
+    // Built only when the stop is dispatched: an issued delivery note.
+    issued: true,
   };
 }
 

@@ -13,6 +13,7 @@ import {
   buildGotenbergFooterHtml,
   GOTENBERG_FOOTER_MARGIN,
   renderPDFShell,
+  issuedSealHTML,
   uploadPDFToR2,
   type LegalFooterInfo,
   type PageMetrics,
@@ -49,6 +50,9 @@ export interface PurchaseOrderPDFData {
   // dispatcher fills this from the supplier's res.partner.x_doc_lang (with
   // "ar" fallback).
   lang?: DocLang;
+  /** Issued document (numbered, sent / recorded). Only issued documents print
+   *  the company seal + signature — never a preview or a draft. */
+  issued?: boolean;
 }
 
 const PO_FOOTER =
@@ -148,6 +152,8 @@ export function renderPurchaseOrderHTML(data: PurchaseOrderPDFData, company?: Co
     fromLabel: data.lang ? labelForFrom(lang) : undefined,
     termsLabel: data.lang ? labelForTerms(lang) : undefined,
     thanksLine: data.lang ? thanksLine(lang, company) : undefined,
+    footerSealHTML: issuedSealHTML(data.issued, company),
+    sealBesideTotals: true,
     documentDateStr: lang === "en" ? formatDateEn(data.poDate) : undefined,
   });
 }
@@ -262,6 +268,8 @@ export async function buildPurchaseOrderPDFDataFromOdoo(
     items,
     subtotal,
     grandTotal: subtotal,
+    // Sent to the supplier or done = issued; a draft list stays unsealed.
+    issued: list.x_status === "sent" || list.x_status === "done",
   };
 }
 
@@ -285,10 +293,11 @@ export async function buildPurchaseOrderPDFDataFromPurchaseOrder(
     order_line: number[];
     amount_untaxed: number;
     amount_total: number;
+    state?: string;
   };
   const heads = await call<POHead[]>(env, "purchase.order", "read", {
     ids: [purchaseOrderId],
-    fields: ["id","name","date_order","partner_id","order_line","amount_untaxed","amount_total"],
+    fields: ["id","name","date_order","partner_id","order_line","amount_untaxed","amount_total","state"],
   });
   const head = heads[0];
   if (!head) return null;
@@ -367,6 +376,8 @@ export async function buildPurchaseOrderPDFDataFromPurchaseOrder(
     items,
     subtotal,
     grandTotal: head.amount_total || subtotal,
+    // Confirmed purchase order = issued; an RFQ (draft / sent) stays unsealed.
+    issued: head.state === "purchase" || head.state === "done",
   };
 }
 

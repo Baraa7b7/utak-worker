@@ -49,7 +49,7 @@ export async function askAllSuppliersForPrices(env: Env): Promise<void> {
     return;
   }
 
-  const tmpl = await getTemplateByPurpose(env, TMPL_SUPPLIER_ASK);
+  const tmpl = await getTemplateByPurpose(env, TMPL_SUPPLIER_ASK, 1);
   if (!tmpl) {
     console.warn("[cron 02:00] template supplier_ask not registered in x_whatsapp_template");
     return;
@@ -294,7 +294,7 @@ export async function handleSupplierReply(
   await writePartner(env, supplier.id, { x_last_price_submission: nowOdoo() });
 
   // Approved-template confirmation, if available
-  const conf = await getTemplateByPurpose(env, TMPL_SUPPLIER_CONFIRM);
+  const conf = await getTemplateByPurpose(env, TMPL_SUPPLIER_CONFIRM, 2);
   if (conf && isTemplateApproved(conf.x_meta_template_id) && supplier.x_whatsapp_number) {
     try {
       const res = await sendTemplate(
@@ -302,7 +302,11 @@ export async function handleSupplierReply(
         supplier.x_whatsapp_number,
         conf.x_meta_template_id,
         conf.x_language || "ar",
-        [String(created)],
+        // 2026-09-24 — utak_supplier_confirm_v1 is «شكراً {{1}} … لـ {{2}} صنف»:
+        // two variables. Sending only the count made Meta reject every send
+        // (param-count mismatch) and the plain-text fallback went out instead.
+        [supplier.name || "", String(created)],
+        { purpose: TMPL_SUPPLIER_CONFIRM },
       );
       if (res.ok) return ""; // template already delivered — no extra text
       console.warn("[supplier reply] confirm template failed", res.status);

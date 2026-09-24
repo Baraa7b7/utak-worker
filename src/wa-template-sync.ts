@@ -26,6 +26,8 @@
 import type { Env } from "./config";
 import { call } from "./odoo";
 import AR_LABELS from "./wa-template-labels.json" with { type: "json" };
+import { findDuplicatePurposes } from "./template-pick";
+import { sendOwnerAlert } from "./templates";
 
 /**
  * Arabic label to display for a WhatsApp template in Odoo.
@@ -66,6 +68,7 @@ interface OdooTemplateRow {
   x_missing_in_meta?: boolean;
   x_label_ar?: string | false;
   x_name?: string | false;
+  x_purpose?: string | false;
 }
 
 export interface TemplateSyncReport {
@@ -76,6 +79,8 @@ export interface TemplateSyncReport {
   missing_in_meta: number;
   missing_in_meta_names: string[];
   created_names: string[];
+  /** 2026-09-24 — x_purpose values held by more than one row ("other" excluded). */
+  duplicate_purposes: Record<string, string[]>;
   errors: string[];
 }
 
@@ -133,7 +138,7 @@ async function fetchAllMetaTemplates(env: Env): Promise<MetaTemplate[]> {
 async function loadOdooTemplates(env: Env): Promise<OdooTemplateRow[]> {
   return await call<OdooTemplateRow[]>(env, "x_whatsapp_template", "search_read", {
     domain: [],
-    fields: ["id", "x_meta_template_id", "x_language", "x_missing_in_meta", "x_label_ar", "x_name"],
+    fields: ["id", "x_meta_template_id", "x_language", "x_missing_in_meta", "x_label_ar", "x_name", "x_purpose"],
     limit: 2000,
   });
 }
@@ -151,6 +156,7 @@ export async function syncTemplates(env: Env): Promise<TemplateSyncReport> {
     missing_in_meta: 0,
     missing_in_meta_names: [],
     created_names: [],
+    duplicate_purposes: {},
     errors: [],
   };
 
@@ -167,6 +173,9 @@ export async function syncTemplates(env: Env): Promise<TemplateSyncReport> {
   }
 
   const odooRows = await loadOdooTemplates(env);
+  // The sync never writes x_purpose, so this is a read-only check; the owner
+  // alert goes out from runTemplateSync.
+  report.duplicate_purposes = findDuplicatePurposes(odooRows);
   const odooByKey = new Map<string, OdooTemplateRow>();
   for (const r of odooRows) {
     if (typeof r.x_meta_template_id === "string" && r.x_meta_template_id) {
@@ -275,6 +284,8 @@ async function writeControlAfterSync(env: Env, report: TemplateSyncReport): Prom
       `updated=${report.updated}`,
       `created=${report.created}`,
       `missing_in_meta=${report.missing_in_meta}`,
+      Object.keys(report.duplicate_purposes).length
+        ? `duplicate_purposes=${Object.keys(report.duplicate_purposes).join(",")}` : "",
       report.errors.length ? `errors=${report.errors.length}` : "",
     ].filter(Boolean).join(" · ");
     const vals: Record<string, unknown> = {
@@ -298,5 +309,15 @@ async function writeControlAfterSync(env: Env, report: TemplateSyncReport): Prom
 export async function runTemplateSync(env: Env): Promise<TemplateSyncReport> {
   const report = await syncTemplates(env);
   await writeControlAfterSync(env, report);
+  const dups = Object.entries(report.duplicate_purposes);
+  if (dups.length) {
+    const text = dups.map(([p, list]) => `${p}: ${list.join("، ")}`).join(" | ");
+    console.error(`[wa-sync] duplicate x_purpose — ${text}`);
+    try {
+      await sendOwnerAlert(env, `مزامنة قوالب واتساب: غرض مربوط بأكثر من قالب — ${text}. اترك قالباً واحداً لكل غرض.`);
+    } catch (e) {
+      console.warn("[wa-sync] duplicate alert failed", (e as Error)?.message);
+    }
+  }
   return report;
 }

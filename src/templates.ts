@@ -4,15 +4,21 @@
 // ============================================================
 import type { Env } from "./config";
 import { fetchMeta } from "./meta";
+import { ORDERING_HOURS_CLOSE } from "./config";
+import { pickTemplate, TEMPLATE_CANDIDATE_FIELDS, type TemplateCandidate } from "./template-pick";
 
-// Meta template name resolution is cached in-memory per Worker isolate.
-// The mapping rarely changes; if it does, redeploy or wait ~24h for
-// isolate recycling.
-const cache = new Map<string, { name: string; language: string }>();
+// Candidate rows per purpose are cached in-memory per Worker isolate for
+// MAPPING_TTL_MS, so moving an x_purpose in Odoo takes effect within minutes
+// (was: until isolate recycling, up to ~24h).
+const MAPPING_TTL_MS = 10 * 60 * 1000;
+const cache = new Map<string, { rows: TemplateCandidate[]; at: number }>();
 
-async function fetchMapping(env: Env, purpose: string): Promise<{ name: string; language: string } | null> {
+/** Test hook — drop cached mappings. */
+export function clearTemplateCache(): void { cache.clear(); }
+
+async function fetchCandidates(env: Env, purpose: string): Promise<TemplateCandidate[] | null> {
   const cached = cache.get(purpose);
-  if (cached) return cached;
+  if (cached && Date.now() - cached.at < MAPPING_TTL_MS) return cached.rows;
   const res = await fetch(`${env.ODOO_URL}/json/2/x_whatsapp_template/search_read`, {
     method: "POST",
     headers: {
@@ -21,16 +27,48 @@ async function fetchMapping(env: Env, purpose: string): Promise<{ name: string; 
     },
     body: JSON.stringify({
       domain: [["x_purpose", "=", purpose]],
-      fields: ["x_meta_template_id", "x_language"],
-      limit: 1,
+      fields: TEMPLATE_CANDIDATE_FIELDS,
+      order: "id desc",
+      limit: 10,
     }),
   });
   if (!res.ok) return null;
-  const rows = (await res.json()) as Array<{ x_meta_template_id: string; x_language: string }>;
-  if (rows.length === 0) return null;
-  const entry = { name: rows[0].x_meta_template_id, language: rows[0].x_language || "ar" };
-  cache.set(purpose, entry);
-  return entry;
+  const rows = (await res.json()) as TemplateCandidate[];
+  // "No mapping" is not cached: a purpose wired in Odoo is picked up on the next send.
+  if (rows.length > 0) cache.set(purpose, { rows, at: Date.now() });
+  return rows;
+}
+
+/**
+ * Two or more rows share an x_purpose: log every time, alert the owner once
+ * per purpose per Riyadh day. Never throws. The owner_alert purpose itself is
+ * only logged — alerting through it would recurse into the same duplicate.
+ */
+export async function reportDuplicatePurpose(
+  env: Env,
+  purpose: string,
+  rows: Array<{ id: number; x_meta_template_id: string }>,
+  chosen: { id: number; x_meta_template_id: string },
+): Promise<void> {
+  const list = rows.map((r) => `${r.x_meta_template_id}#${r.id}`).join(", ");
+  console.error(
+    `[templates] duplicate x_purpose='${purpose}': ${list} — using ${chosen.x_meta_template_id}#${chosen.id}`,
+  );
+  if (purpose === T.OWNER_ALERT) return;
+  try {
+    const day = new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10);
+    const key = `dup_purpose:${purpose}:${day}`;
+    if (env.MSG_DEDUP) {
+      if (await env.MSG_DEDUP.get(key)) return;
+      await env.MSG_DEDUP.put(key, "1", { expirationTtl: 26 * 3600 });
+    }
+    await sendOwnerAlert(
+      env,
+      `قوالب واتساب: الغرض ${purpose} مربوط بأكثر من قالب (${list}). أُرسل ${chosen.x_meta_template_id}. اترك قالباً واحداً لهذا الغرض في Odoo.`,
+    );
+  } catch (e) {
+    console.warn("[templates] duplicate-purpose alert failed", (e as Error)?.message);
+  }
 }
 
 export interface QuickReplyPayload {
@@ -42,7 +80,9 @@ export interface QuickReplyPayload {
 
 /**
  * Send an approved Meta template by internal purpose.
- * @param bodyParams — ordered strings that map to {{1}}, {{2}}, ...
+ * @param bodyParams — ordered strings that map to {{1}}, {{2}}, ... — or a function of the
+ *                     resolved Meta template name, for a purpose that is moving between
+ *                     templates with different variables (the params follow the template).
  * @param buttonPayloads — for templates with QUICK_REPLY buttons: assign a payload per button index.
  *                        Omit to accept Meta's default (which sends the button text back).
  */
@@ -55,15 +95,21 @@ export async function sendTemplateByPurpose(
   env: Env,
   to: string,
   purpose: string,
-  bodyParams: string[] = [],
+  bodyParams: string[] | ((templateName: string) => string[]) = [],
   buttonPayloads: QuickReplyPayload[] = [],
   headerMedia?: HeaderMedia,
 ): Promise<Response | null> {
-  const mapping = await fetchMapping(env, purpose);
-  if (!mapping) {
+  const rows = await fetchCandidates(env, purpose);
+  const paramsFor = (name: string): string[] =>
+    typeof bodyParams === "function" ? bodyParams(name) : bodyParams;
+  const chosen = rows ? pickTemplate(rows, (name) => paramsFor(name).length) : null;
+  if (!rows || !chosen) {
     console.warn(`[templates] no mapping for purpose='${purpose}'`);
     return null;
   }
+  if (rows.length > 1) await reportDuplicatePurpose(env, purpose, rows, chosen);
+  const mapping = { name: chosen.x_meta_template_id, language: chosen.x_language || "ar" };
+  const params = paramsFor(mapping.name);
   const components: any[] = [];
   if (headerMedia) {
     const param: any = { type: headerMedia.type };
@@ -76,10 +122,10 @@ export async function sendTemplateByPurpose(
     }
     components.push({ type: "header", parameters: [param] });
   }
-  if (bodyParams.length > 0) {
+  if (params.length > 0) {
     components.push({
       type: "body",
-      parameters: bodyParams.map((t) => ({ type: "text", text: String(t) })),
+      parameters: params.map((t) => ({ type: "text", text: String(t) })),
     });
   }
   for (const b of buttonPayloads) {
@@ -100,6 +146,22 @@ export async function sendTemplateByPurpose(
       components,
     },
   }, { purpose });
+}
+
+// ---- Params per template for a purpose that changed template ----
+
+/** "9:00 مساءً" for 21 — the daily cutoff as the customer reads it. */
+export function cutoffLabel(hour24: number = ORDERING_HOURS_CLOSE): string {
+  const h = ((hour24 + 11) % 12) + 1;
+  return `${h}:00 ${hour24 >= 12 ? "مساءً" : "صباحاً"}`;
+}
+
+/**
+ * customer_welcome: utak_welcome (UTILITY) = «أهلاً {{1}} … آخر موعد للطلب
+ * يومياً الساعة {{2}}»; the legacy utak_v2_welcome (MARKETING) took only {{1}}.
+ */
+export function welcomeParams(templateName: string, name: string): string[] {
+  return templateName === "utak_v2_welcome" ? [name] : [name, cutoffLabel()];
 }
 
 // ---- Purpose constants ----

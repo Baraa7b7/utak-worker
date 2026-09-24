@@ -1,0 +1,28 @@
+// عقد الأغراض: عدد المتغيرات التي يرسلها الكود لكل غرض (T.* و TMPL_*)، ومرجع الاستدعاء.
+// null = لا يوجد مستدعٍ في الكود. يُستخدم في سكربت الترحيل والتحقق.
+export const CONTRACT = {
+  supplier_ask:               { params: 1, where: "src/suppliers.ts:129", used: true },
+  supplier_confirm:           { params: 2, where: "src/suppliers.ts:300", used: true },
+  purchase_list:              { params: 4, where: "src/team.ts:91", used: true },
+  loading_done:               { params: null, where: "—", used: false },
+  driver_dispatch:            { params: 4, where: "src/team.ts:198", used: true },
+  driver_stop:                { params: 5, where: "src/team.ts:262", used: true },
+  driver_collection:          { params: null, where: "—", used: false },
+  collection_request:         { params: 4, where: "src/invoice.ts:247", used: true },
+  collection_summary:         { params: 4, where: "src/invoice.ts:630", used: true },
+  commission:                 { params: null, where: "—", used: false },
+  owner_summary:              { params: null, where: "—", used: false },
+  owner_alert:                { params: 1, where: "src/templates.ts:229 (sendOwnerAlert)", used: true },
+  team_shift_start:           { params: 1, where: "src/team.ts:186", used: true },
+  customer_welcome:           { params: 2, where: "src/index.ts:1988 (welcomeParams)", used: true },
+  customer_daily_remind:      { params: 1, where: "src/standing.ts:26", used: true },
+  customer_order_confirm:     { params: null, where: "—", used: false },
+  customer_delivery_incoming: { params: null, where: "—", used: false },
+  customer_delivery_done:     { params: 1, where: "src/team.ts:317", used: true },
+  customer_invoice:           { params: 4, where: "src/invoice.ts:312", used: true },
+  customer_invoice_pdf:       { params: 4, where: "src/invoice.ts:298", used: true },
+  customer_quotation_pdf:     { params: 4, where: "src/quotation.ts:575", used: true },
+  customer_pay_remind:        { params: 2, where: "src/outreach.ts:81", used: true },
+  customer_inactive:          { params: 1, where: "src/outreach.ts:113", used: true },
+  customer_feedback:          { params: 1, where: "src/outreach.ts:48", used: true },
+};

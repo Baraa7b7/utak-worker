@@ -11,6 +11,7 @@ import type {
   ExtractedOrderItem,
   OrderState,
 } from "./types";
+import { pickTemplate, TEMPLATE_CANDIDATE_FIELDS, type TemplateCandidate } from "./template-pick";
 
 type AuthMode = "apikey" | "session";
 
@@ -798,13 +799,23 @@ export async function getActivePricingConfig(env: Env): Promise<PricingConfig | 
 export async function getTemplateByPurpose(
   env: Env,
   purpose: string,
+  /** params the caller will send — ranks a template with that many variables first */
+  paramCount?: number,
 ): Promise<WhatsAppTemplateRow | null> {
-  const rows = await call<WhatsAppTemplateRow[]>(env, "x_whatsapp_template", "search_read", {
+  // 2026-09-24 — all candidates, ranked by pickTemplate; a shared purpose is
+  // reported (log + owner alert) instead of letting row order decide.
+  const rows = await call<Array<WhatsAppTemplateRow & TemplateCandidate>>(env, "x_whatsapp_template", "search_read", {
     domain: [["x_purpose", "=", purpose]],
-    fields: ["id", "x_meta_template_id", "x_language", "x_purpose"],
-    limit: 1,
+    fields: [...TEMPLATE_CANDIDATE_FIELDS, "x_purpose"],
+    order: "id desc",
+    limit: 10,
   });
-  return rows[0] ?? null;
+  const chosen = pickTemplate(rows, () => paramCount ?? null);
+  if (chosen && rows.length > 1) {
+    const { reportDuplicatePurpose } = await import("./templates");
+    await reportDuplicatePurpose(env, purpose, rows, chosen);
+  }
+  return chosen;
 }
 
 // ---- Suppliers to ask ----

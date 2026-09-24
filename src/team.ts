@@ -310,9 +310,12 @@ export async function notifyCustomerDelivered(
   orderId: number,
 ): Promise<void> {
   if (!customerPhone) return;
-  // v7: use approved delivery_done template (2 buttons: كل شي تمام | عندي ملاحظة)
+  // 2026-09-24 — customer_delivery_done moved from utak_delivery_done
+  // (MARKETING, {{1}} = name, 2 quick replies) to utak_delivered (UTILITY,
+  // {{1}} = order number, no buttons). Params follow whichever template the
+  // purpose resolves to, so the Odoo switch and a rollback are both safe.
   const resp = await sendTemplateByPurpose(env, customerPhone, T.CUSTOMER_DELIVERY_DONE,
-    [customerName || ""]);
+    (name) => (name === "utak_delivery_done" ? [customerName || ""] : [String(orderId)]));
   if (!resp || !resp.ok) {
     // Fallback to plain text (works only inside 24h window)
     const msg = `مرحبا ${customerName || ""} 🌿\nتم توصيل طلبك رقم #${orderId}. الفاتورة النهائية بتوصلك قريباً.\nشكراً لثقتك في UTAK.`;

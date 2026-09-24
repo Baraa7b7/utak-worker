@@ -1984,9 +1984,9 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
     const existing = customerMatchForRoute;
     if (!existing && msg.type === "text") {
       try {
-        const { sendTemplateByPurpose, T } = await import("./templates");
+        const { sendTemplateByPurpose, T, welcomeParams } = await import("./templates");
         await sendTemplateByPurpose(env, msg.from, T.CUSTOMER_WELCOME,
-          [msg.profileName || "صديقنا"]);
+          (name) => welcomeParams(name, msg.profileName || "صديقنا"));
       } catch (e) { console.warn("[welcome] send failed", (e as Error).message); }
     }
     const partner = await findOrCreateCustomer(env, msg.from, msg.profileName);

@@ -58,7 +58,8 @@ async function notifyOrderCustomer(
   o: { id: number; customerId: number },
   session: { text: string; buttons?: Array<{ id: string; title: string }> },
   templateUpdate: string,
-): Promise<"session" | "template" | "none" | "failed"> {
+  opts: { remind?: boolean } = {},
+): Promise<"session" | "template" | "template_buttons" | "none" | "failed"> {
   const cust = await getOrderCustomer(env, o.id);
   if (!cust?.phone) return "none";
   const { isInside24hWindow } = await import("./wa-inbox");
@@ -69,10 +70,28 @@ async function notifyOrderCustomer(
       : await sendText(env, cust.phone, session.text);
     return r.ok ? "session" : "failed";
   }
+  // 2026-09-25 — the 20:00 reminder goes as utak_order_confirm_remind_v1
+  // (customer_order_remind) with the confirm / cancel buttons once that purpose
+  // is mapped. Only «no template mapped» falls through to utak_order_update: a
+  // mapped template that failed (or was refused as a repeat) is not re-sent
+  // under another name.
+  if (opts.remind) {
+    const rr = await sendTemplateByPurpose(env, cust.phone, T.CUSTOMER_ORDER_REMIND,
+      [`#${o.id}`, cutoffLabel()], orderRemindButtons(o.id));
+    if (rr) return rr.ok ? "template_buttons" : "failed";
+  }
   const r = await sendTemplateByPurpose(env, cust.phone, T.CUSTOMER_ORDER_UPDATE, [`#${o.id}`, templateUpdate]);
   if (r && r.ok) return "template";
   if (!r) console.warn(`[order-notice] no template mapped for ${T.CUSTOMER_ORDER_UPDATE} — order ${o.id} not notified`);
   return "failed";
+}
+
+/** Payloads for utak_order_confirm_remind_v1: button 0 «تأكيد الطلب», button 1 «إلغاء». */
+export function orderRemindButtons(orderId: number): Array<{ index: number; payload: string }> {
+  return [
+    { index: 0, payload: `confirm_order_${orderId}` },
+    { index: 1, payload: `cancel_order_${orderId}` },
+  ];
 }
 
 // ============================================================
@@ -94,12 +113,13 @@ export async function sendCutoffReminders(env: Env): Promise<{ reminded: number;
           ],
         },
         `لم يُؤكَّد بعد، ويُلغى تلقائياً الساعة ${cutoffLabel()}. رد على هذه الرسالة لتأكيده`,
+        { remind: true },
       );
       if (how === "template") {
         // A reply to the template (any text) re-sends the confirm button inside the window.
         await env.MSG_DEDUP.put(`cutoff_prompt:${o.customerId}`, String(o.id), { expirationTtl: CUTOFF_PROMPT_TTL });
       }
-      if (how === "session" || how === "template") reminded++;
+      if (how === "session" || how === "template" || how === "template_buttons") reminded++;
       else failed++;
     } catch (e) {
       failed++;
@@ -286,7 +306,7 @@ export async function followUpUnconfirmedPurchaseLists(env: Env): Promise<{ remi
     const list = await getPurchaseListBrief(env, id);
     if (!list) continue;
     for (const wh of warehouse) {
-      if (await sendPurchaseListTemplate(env, wh, id, list.items, { reminder: true, date: list.date })) reminded++;
+      if (await sendPurchaseListReminder(env, wh, id, list)) reminded++;
     }
     await sendOwnerAlert(
       env,
@@ -294,6 +314,30 @@ export async function followUpUnconfirmedPurchaseLists(env: Env): Promise<{ remi
     );
   }
   return { reminded };
+}
+
+/**
+ * 2026-09-25 — utak_purchase_list_remind_v1 (purchase_list_remind: [date, item
+ * count] + «تم الشراء») once that purpose is mapped; until then the purchase
+ * list template again, marked as a reminder. Only «no template mapped» falls
+ * back — a mapped template that failed is not re-sent under another name.
+ */
+async function sendPurchaseListReminder(
+  env: Env,
+  wh: TeamMember,
+  listId: number,
+  list: { date: string; items: PurchaseListItem[] },
+): Promise<boolean> {
+  try {
+    const r = await sendTemplateByPurpose(env, wh.x_whatsapp_number, T.PURCHASE_LIST_REMIND,
+      [arabicDate(list.date || riyadhDateKey()), String(list.items.length)],
+      [{ index: 0, payload: `purchase_done_${listId}` }]);
+    if (r) return r.ok;
+  } catch (e) {
+    console.error(`[purchase-list] reminder to ${wh.name} failed`, (e as Error)?.message);
+    return false;
+  }
+  return sendPurchaseListTemplate(env, wh, listId, list.items, { reminder: true, date: list.date });
 }
 
 function formatQty(q: number): string {
@@ -333,7 +377,7 @@ export async function warehouseConfirmedPurchase(
   return { routesDispatched: routes.length, ordersMoved };
 }
 
-async function sendDriverRoute(
+export async function sendDriverRoute(
   env: Env,
   driver: TeamMember,
   stops: RouteStop[],

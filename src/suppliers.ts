@@ -30,7 +30,7 @@ import {
   writePartner,
 } from "./odoo";
 import { sendTemplate, sendText } from "./meta";
-import { sendOwnerAlert } from "./templates";
+import { sendOwnerAlert, supplierAskParams, SUPPLIER_ASK_LEGACY } from "./templates";
 import { extractSupplierPrices } from "./claude";
 import { riyadhDateKey } from "./hours";
 import { isSkippedDuplicate } from "./auto-send-guard";
@@ -50,7 +50,9 @@ export async function askAllSuppliersForPrices(env: Env): Promise<void> {
     return;
   }
 
-  const tmpl = await getTemplateByPurpose(env, TMPL_SUPPLIER_ASK, 1);
+  // 2026-09-25 — the params follow the template the purpose resolves to:
+  // legacy utak_supplier_daily_ask = [list], utak_supplier_ask_v2 = [name, list].
+  const tmpl = await getTemplateByPurpose(env, TMPL_SUPPLIER_ASK, (name) => supplierAskParams(name, "", "").length);
   if (!tmpl) {
     console.warn("[cron 02:00] template supplier_ask not registered in x_whatsapp_template");
     return;
@@ -122,9 +124,13 @@ export async function askAllSuppliersForPrices(env: Env): Promise<void> {
       // stored as a product name in Odoo.
       // ت6 (2026-09-24): the cut falls between two names, never inside one,
       // and says how many were left out («وغيرها (N)»).
+      // 2026-09-25 — the v2 template's text is longer and also carries the
+      // supplier name, so its list gets a smaller cap (body + params ≤ 1024).
+      const supplierName = String(s.name || "").replace(/\s+/g, " ").trim();
+      const legacy = tmpl.x_meta_template_id === SUPPLIER_ASK_LEGACY;
       const productList = joinCapped(
         productNames.map((n) => String(n).replace(/[\r\n\t]+/g, " ").replace(/ {2,}/g, " ").trim()),
-        900,
+        legacy ? 900 : Math.max(400, 780 - supplierName.length),
         "، ",
         (n) => `وغيرها (${n})`,
       ).text;
@@ -134,7 +140,7 @@ export async function askAllSuppliersForPrices(env: Env): Promise<void> {
         s.x_whatsapp_number,
         tmpl.x_meta_template_id,
         tmpl.x_language || "ar",
-        [productList],
+        supplierAskParams(tmpl.x_meta_template_id, supplierName, productList),
         // 2026-09-23 — purpose threads through to the echo so the single
         // x_wa_message row fetchMeta writes is labelled supplier_ask.
         { purpose: TMPL_SUPPLIER_ASK },

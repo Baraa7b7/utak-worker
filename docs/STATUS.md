@@ -1188,3 +1188,36 @@
 
 **التحقق:** `tsc` نظيف، و`npm test` أخضر، ومنه `tests/wa-critical.test.mts` (87 فحصاً على Odoo وهمي في الذاكرة). ومحاكاة الرحلتين في `scripts/artifacts/wa-20260924-journeys.md`، وإعادة محاكاة إرسالات ملخص التحصيل السبعة الفاشلة في `scripts/artifacts/wa-20260924-replay-collection.json` (7/7 مقبولة الشكل)، وفحص سجل الفشل في `scripts/artifacts/wa-20260924-failure-scan.json`.
 
+
+## 21) القوالب الثمانية الجديدة عند Meta (2026-09-24/25)
+
+المرجع: [WA-PLAN.md](WA-PLAN.md) المرحلة 4 و«قوالب طلبتها المرحلتان 1 و2». **Meta:** POST لإنشاء ثمانية قوالب فقط، ولا حذف ولا تعديل لقالب قائم. **لا إرسال واتساب** لأي رقم. **لا غرض نُقل** إلى قالب جديد، فالقديمة ما زالت هي المرسَلة.
+
+**عند Meta (كلها UTILITY، والحالة PENDING وقت الإنشاء، ولم يُرفض أي قالب ولم يُصنَّف MARKETING، فلم تُستخدم أي صياغة ثانية):**
+
+| القالب | id عند Meta | الغرض (بعد الاعتماد) | يحل محل | Odoo |
+|---|---|---|---|---|
+| `utak_supplier_ask_v2` | 4532146783740851 | supplier_ask | `utak_supplier_daily_ask` (MARKETING) | #72 |
+| `utak_owner_alert_v2` | 1122506210738949 | owner_alert | `utak_owner_alert` (MARKETING) | #73 |
+| `utak_shift_start_v2` | 1748771209727120 | team_shift_start | `utak_shift_start` (MARKETING) | #74 |
+| `utak_standing_remind_v2` | 1996283197754125 | customer_daily_remind | `utak_v2_daily_remind` (MARKETING) | #75 |
+| `utak_pay_remind_v3` | 1781382093182549 | customer_pay_remind | `utak_v2_pay_remind` | #76 |
+| `utak_quotation_pdf_v1` (رأس PDF) | 1072693768988955 | customer_quotation_pdf | — (كان نص + رابط) | #77 |
+| `utak_order_confirm_remind_v1` | 2136724353593206 | customer_order_remind | — (كان `utak_order_update` بلا زر) | #78 |
+| `utak_purchase_list_remind_v1` | 28819520131014626 | purchase_list_remind | — (كان `utak_purchase_list_v2` مع كلمة «تذكير») | #79 |
+
+النصوص والأمثلة والأزرار في `scripts/wa-templates-20260925-new-eight.mjs` (`NEW_EIGHT`)، وتقرير الإنشاء في `scripts/artifacts/wa-templates-20260925-new-eight-meta.json`.
+
+**Odoo (مع rollback):** قيم x_purpose الجديدة `customer_quotation_pdf` (#3988) و`customer_order_remind` (#3989) و`purchase_list_remind` (#3990)، وثمانية سجلات `x_whatsapp_template` (#72–#79) بالاسم العربي و`x_purpose = other`. اللقطة `scripts/artifacts/wa-templates-20260925-new-eight-odoo-rollback.json`، والتراجع `node --experimental-strip-types scripts/wa-templates-20260925-new-eight.mjs --odoo-rollback`. `src/wa-template-labels.json` فيه الأسماء الثمانية.
+
+**الكود (يعمل مع القديم والجديد حسب ما يُرجعه الغرض):**
+- `supplier_ask`: `supplierAskParams` في `src/templates.ts`: `utak_supplier_daily_ask` ← `[القائمة]`، وغيره ← `[اسم المورد، القائمة]` ([suppliers.ts:143](../src/suppliers.ts)). `getTemplateByPurpose` يقبل عدد المتغيرات دالةً لاسم القالب، وحد قص القائمة للجديد `780 − طول الاسم`.
+- `owner_alert` و`team_shift_start` و`customer_daily_remind` و`customer_pay_remind`: المتغيرات والأزرار نفسها في القديم والجديد، فلا تغيير.
+- `customer_quotation_pdf`: [quotation.ts:590](../src/quotation.ts) يرسل `quotationTemplateParams` = `[العميل، الرقم، التاريخ، الإجمالي]` مع المستند، ويعمل فور الترحيل. حتى ذلك الحين نص + رابط.
+- **ح3:** تذكير 20:00 خارج النافذة يجرّب `customer_order_remind` بزرّي `confirm_order_<id>` و`cancel_order_<id>` ([team.ts:79](../src/team.ts))، ولا يرجع إلى `utak_order_update` (ومفتاح `cutoff_prompt`) إلا إن لم يكن الغرض مربوطاً.
+- **ح7:** متابعة 06:00 تجرّب `purchase_list_remind` بـ `[التاريخ، عدد الأصناف]` وزر `purchase_done_<id>` ([team.ts:332](../src/team.ts))، ولا ترجع إلى قائمة الشراء المعلَّمة «تذكير» إلا إن لم يكن الغرض مربوطاً.
+- الرجوع إلى المسار القديم **فقط عند غياب الربط**: قالب مربوط فشل أو رفضه حارس التكرار لا يُعاد بقالب آخر، حتى لا تصل الرسالة مرتين.
+
+**الترحيل المؤجل (يدوي بعد اعتماد Meta):** `scripts/wa-templates-20260925-migrate-when-approved.mjs`. لكل قالب وحده: ينقل الغرض فقط إن كان APPROVED وUTILITY، وعدد متغيراته يطابق العقد (`contractParams`)، وأزراره ورأسه يطابقان المواصفة. القديم يصير `other` مع «(قديم) … — استخدم: …». idempotent، ومعه `--rollback`. التشغيل الجاف اليوم: 8 متخطاة (PENDING).
+
+**التحقق:** `tests/wa-templates-new-eight.test.mts` (137 فحصاً) ضمن `npm test` (أخضر)، و`tsc` نظيف، و`scripts/wa-templates-20260924-verify.mjs` = ALL OK (الأغراض الثلاثة الجديدة ⚠️ «غير مربوطة بعد»). **النشر:** sim = `6dd729c2-3132-4fbc-a02b-61521c8b8446`، و`/health` = ok. جدولة prod `[]` قبل النشر وبعده (Cloudflare API). prod بلا نشر.

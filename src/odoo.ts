@@ -799,8 +799,12 @@ export async function getActivePricingConfig(env: Env): Promise<PricingConfig | 
 export async function getTemplateByPurpose(
   env: Env,
   purpose: string,
-  /** params the caller will send — ranks a template with that many variables first */
-  paramCount?: number,
+  /**
+   * params the caller will send — ranks a template with that many variables
+   * first. A function of the template name when the purpose is moving between
+   * templates with different variables (supplier_ask, 2026-09-25).
+   */
+  paramCount?: number | ((templateName: string) => number),
 ): Promise<WhatsAppTemplateRow | null> {
   // 2026-09-24 — all candidates, ranked by pickTemplate; a shared purpose is
   // reported (log + owner alert) instead of letting row order decide.
@@ -810,7 +814,8 @@ export async function getTemplateByPurpose(
     order: "id desc",
     limit: 10,
   });
-  const chosen = pickTemplate(rows, () => paramCount ?? null);
+  const chosen = pickTemplate(rows, (name) =>
+    typeof paramCount === "function" ? paramCount(name) : paramCount ?? null);
   if (chosen && rows.length > 1) {
     const { reportDuplicatePurpose } = await import("./templates");
     await reportDuplicatePurpose(env, purpose, rows, chosen);

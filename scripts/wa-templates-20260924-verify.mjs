@@ -5,7 +5,7 @@ import { call } from "./lib/odoo-cli.mjs";
 import { T } from "../src/templates.ts";
 import { TMPL_SUPPLIER_ASK, TMPL_SUPPLIER_CONFIRM } from "../src/config.ts";
 import { pickTemplate, findDuplicatePurposes } from "../src/template-pick.ts";
-import { CONTRACT } from "./wa-templates-20260924-purpose-contract.mjs";
+import { CONTRACT, contractParams } from "./wa-templates-20260924-purpose-contract.mjs";
 
 let bad = 0;
 const constants = [...Object.values(T), TMPL_SUPPLIER_ASK, TMPL_SUPPLIER_CONFIRM];
@@ -17,15 +17,23 @@ const rows = await call("x_whatsapp_template", "search_read", {
 const dups = findDuplicatePurposes(rows);
 console.log(Object.keys(dups).length ? `❌ duplicate purposes: ${JSON.stringify(dups)}` : "✅ no duplicate x_purpose");
 if (Object.keys(dups).length) bad++;
-const knownGaps = { customer_quotation_pdf: "no Meta template and not in the x_purpose selection — text+link fallback (quotation.ts:593)" };
+// 2026-09-25 — until Meta approves the new templates and
+// wa-templates-20260925-migrate-when-approved.mjs maps them, these purposes
+// have no row and the code falls back (text+link / utak_order_update / purchase list).
+const knownGaps = {
+  customer_quotation_pdf: "not mapped yet (utak_quotation_pdf_v1 pending) — text+link fallback",
+  customer_order_remind: "not mapped yet (utak_order_confirm_remind_v1 pending) — falls back to customer_order_update",
+  purchase_list_remind: "not mapped yet (utak_purchase_list_remind_v1 pending) — falls back to purchase_list",
+};
 for (const p of constants) {
   const c = CONTRACT[p];
   const cand = rows.filter((r) => r.x_purpose === p);
-  const t = pickTemplate(cand, () => c?.params ?? null);
-  const ok = cand.length === 1 && t.x_meta_status === "APPROVED" && (c?.params == null || t.x_param_count === c.params);
+  const t = pickTemplate(cand, (name) => contractParams(p, name));
+  const want = t ? contractParams(p, t.x_meta_template_id) : null;
+  const ok = cand.length === 1 && t.x_meta_status === "APPROVED" && (want == null || t.x_param_count === want);
   if (!ok && knownGaps[p]) { console.log(`⚠️  ${p}: ${knownGaps[p]}`); continue; }
   if (!ok) bad++;
-  console.log(`${ok ? "✅" : "❌"} ${p.padEnd(27)} → ${t ? `${t.x_meta_template_id} (p=${t.x_param_count}, ${t.x_category})` : "∅"}  code=${c?.params ?? "—"} @ ${c?.where}`);
+  console.log(`${ok ? "✅" : "❌"} ${p.padEnd(27)} → ${t ? `${t.x_meta_template_id} (p=${t.x_param_count}, ${t.x_category})` : "∅"}  code=${want ?? "—"} @ ${c?.where}`);
 }
 console.log(bad ? `\n${bad} problem(s)` : "\nALL OK");
 process.exit(bad ? 1 : 0);

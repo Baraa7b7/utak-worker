@@ -164,6 +164,16 @@ export function welcomeParams(templateName: string, name: string): string[] {
   return templateName === "utak_v2_welcome" ? [name] : [name, cutoffLabel()];
 }
 
+/**
+ * supplier_ask (2026-09-25): utak_supplier_ask_v2 (UTILITY) = «صباح الخير {{1}}،
+ * معك يو تاك … لهالأصناف: {{2}} …»; the legacy utak_supplier_daily_ask
+ * (MARKETING) takes only the list as {{1}}. Any other name gets the new shape.
+ */
+export const SUPPLIER_ASK_LEGACY = "utak_supplier_daily_ask";
+export function supplierAskParams(templateName: string, supplierName: string, productList: string): string[] {
+  return templateName === SUPPLIER_ASK_LEGACY ? [productList] : [supplierName, productList];
+}
+
 // ---- Purpose constants ----
 export const T = {
   SUPPLIER_ASK: "supplier_ask",
@@ -191,6 +201,19 @@ export const T = {
   CUSTOMER_FEEDBACK: "customer_feedback",
   /** utak_order_update (UTILITY, 2 vars): order number + what changed. 2026-09-24 (ح3). */
   CUSTOMER_ORDER_UPDATE: "customer_order_update",
+  /**
+   * utak_order_confirm_remind_v1 (UTILITY, 2 vars + «تأكيد الطلب» / «إلغاء»):
+   * order number + cutoff time. 2026-09-25 — completes ح3; until Meta approves
+   * it and the purpose is moved, the 20:00 reminder falls back to
+   * CUSTOMER_ORDER_UPDATE.
+   */
+  CUSTOMER_ORDER_REMIND: "customer_order_remind",
+  /**
+   * utak_purchase_list_remind_v1 (UTILITY, 2 vars + «تم الشراء»): list date +
+   * item count. 2026-09-25 — completes ح7; until moved, the 06:00 follow-up
+   * re-sends PURCHASE_LIST marked as a reminder.
+   */
+  PURCHASE_LIST_REMIND: "purchase_list_remind",
 } as const;
 
 // ============================================================

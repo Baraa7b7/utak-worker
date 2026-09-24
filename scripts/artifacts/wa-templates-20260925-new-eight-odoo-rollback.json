@@ -1,0 +1,51 @@
+{
+  "created": "2026-09-24T16:26:20.149Z",
+  "selections": [
+    {
+      "value": "customer_quotation_pdf",
+      "id": 3988
+    },
+    {
+      "value": "customer_order_remind",
+      "id": 3989
+    },
+    {
+      "value": "purchase_list_remind",
+      "id": 3990
+    }
+  ],
+  "rows": [
+    {
+      "id": 72,
+      "name": "utak_supplier_ask_v2"
+    },
+    {
+      "id": 73,
+      "name": "utak_owner_alert_v2"
+    },
+    {
+      "id": 74,
+      "name": "utak_shift_start_v2"
+    },
+    {
+      "id": 75,
+      "name": "utak_standing_remind_v2"
+    },
+    {
+      "id": 76,
+      "name": "utak_pay_remind_v3"
+    },
+    {
+      "id": 77,
+      "name": "utak_quotation_pdf_v1"
+    },
+    {
+      "id": 78,
+      "name": "utak_order_confirm_remind_v1"
+    },
+    {
+      "id": 79,
+      "name": "utak_purchase_list_remind_v1"
+    }
+  ]
+}

@@ -407,6 +407,18 @@ export interface QuotationDispatchResult {
 
 // sim-harness (2026-09-13): local owner-alert helper, mirrors suppliers.ts
 // so quotation.ts stays free of a suppliers ↔ quotation import cycle.
+/**
+ * customer_quotation_pdf variables, in order — utak_quotation_pdf_v1 (2026-09-25):
+ * «مرحباً {{1}}، مرفق عرض السعر رقم {{2}} من يو تاك بتاريخ {{3}}، بإجمالي {{4}} ريال …»
+ * = [customer name, quotation number, Arabic date, grand total].
+ */
+export function quotationTemplateParams(
+  data: { customer: { name?: string }; quotationNumber: string; grandTotal: number },
+  quotationDate: string,
+): string[] {
+  return [data.customer.name || "", data.quotationNumber, quotationDate, String(data.grandTotal)];
+}
+
 async function alertOwner(env: Env, text: string): Promise<void> {
   try {
     await sendOwnerAlert(env, text);
@@ -576,12 +588,7 @@ export async function createAndDispatchQuotationForRecord(
           env,
           customerPhone,
           T.CUSTOMER_QUOTATION_PDF,
-          [
-            data.customer.name || "",
-            data.quotationNumber,
-            quotationDate,
-            String(data.grandTotal),
-          ],
+          quotationTemplateParams(data, quotationDate),
           [],
           { type: "document", link: uploaded.publicUrl, filename: `${data.quotationNumber}.pdf` },
         );
@@ -590,7 +597,8 @@ export async function createAndDispatchQuotationForRecord(
       }
 
       if (!resp || !resp.ok) {
-        // Fallback: plain text with PDF link (works even before Meta approves utak_v2_quotation_pdf)
+        // Fallback: plain text with PDF link (works until utak_quotation_pdf_v1 is approved and
+        // mapped to customer_quotation_pdf; also reaches the customer only inside the 24h window)
         const body = [
           `📄 عرض السعر رقم ${data.quotationNumber}`,
           ``,

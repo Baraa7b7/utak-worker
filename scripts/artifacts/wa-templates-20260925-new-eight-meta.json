@@ -1,0 +1,200 @@
+{
+  "runs": [
+    {
+      "at": "2026-09-24T16:24:58.411Z",
+      "created": [
+        {
+          "name": "utak_supplier_ask_v2",
+          "ok": true,
+          "id": "4532146783740851",
+          "status": "PENDING",
+          "category": "UTILITY"
+        },
+        {
+          "name": "utak_owner_alert_v2",
+          "ok": true,
+          "id": "1122506210738949",
+          "status": "PENDING",
+          "category": "UTILITY"
+        },
+        {
+          "name": "utak_shift_start_v2",
+          "ok": true,
+          "id": "1748771209727120",
+          "status": "PENDING",
+          "category": "UTILITY"
+        },
+        {
+          "name": "utak_standing_remind_v2",
+          "ok": true,
+          "id": "1996283197754125",
+          "status": "PENDING",
+          "category": "UTILITY"
+        },
+        {
+          "name": "utak_pay_remind_v3",
+          "ok": true,
+          "id": "1781382093182549",
+          "status": "PENDING",
+          "category": "UTILITY"
+        },
+        {
+          "name": "utak_quotation_pdf_v1",
+          "ok": true,
+          "id": "1072693768988955",
+          "status": "PENDING",
+          "category": "UTILITY"
+        },
+        {
+          "name": "utak_order_confirm_remind_v1",
+          "ok": true,
+          "id": "2136724353593206",
+          "status": "PENDING",
+          "category": "UTILITY"
+        },
+        {
+          "name": "utak_purchase_list_remind_v1",
+          "ok": true,
+          "id": "28819520131014626",
+          "status": "PENDING",
+          "category": "UTILITY"
+        }
+      ],
+      "skipped": [],
+      "failed": [],
+      "retried": [],
+      "after": [
+        {
+          "name": "utak_supplier_ask_v2",
+          "id": "4532146783740851",
+          "status": "PENDING",
+          "category": "UTILITY",
+          "rejected_reason": "NONE"
+        },
+        {
+          "name": "utak_owner_alert_v2",
+          "id": "1122506210738949",
+          "status": "PENDING",
+          "category": "UTILITY",
+          "rejected_reason": "NONE"
+        },
+        {
+          "name": "utak_shift_start_v2",
+          "id": "1748771209727120",
+          "status": "PENDING",
+          "category": "UTILITY",
+          "rejected_reason": "NONE"
+        },
+        {
+          "name": "utak_standing_remind_v2",
+          "id": "1996283197754125",
+          "status": "PENDING",
+          "category": "UTILITY",
+          "rejected_reason": "NONE"
+        },
+        {
+          "name": "utak_pay_remind_v3",
+          "id": "1781382093182549",
+          "status": "PENDING",
+          "category": "UTILITY",
+          "rejected_reason": "NONE"
+        },
+        {
+          "name": "utak_quotation_pdf_v1",
+          "id": "1072693768988955",
+          "status": "PENDING",
+          "category": "UTILITY",
+          "rejected_reason": "NONE"
+        },
+        {
+          "name": "utak_order_confirm_remind_v1",
+          "id": "2136724353593206",
+          "status": "PENDING",
+          "category": "UTILITY",
+          "rejected_reason": "NONE"
+        },
+        {
+          "name": "utak_purchase_list_remind_v1",
+          "id": "28819520131014626",
+          "status": "PENDING",
+          "category": "UTILITY",
+          "rejected_reason": "NONE"
+        }
+      ]
+    },
+    {
+      "at": "2026-09-24T16:26:36.853Z",
+      "created": [],
+      "skipped": [
+        "utak_supplier_ask_v2",
+        "utak_owner_alert_v2",
+        "utak_shift_start_v2",
+        "utak_standing_remind_v2",
+        "utak_pay_remind_v3",
+        "utak_quotation_pdf_v1",
+        "utak_order_confirm_remind_v1",
+        "utak_purchase_list_remind_v1"
+      ],
+      "failed": [],
+      "retried": [],
+      "after": [
+        {
+          "name": "utak_supplier_ask_v2",
+          "id": "4532146783740851",
+          "status": "PENDING",
+          "category": "UTILITY",
+          "rejected_reason": "NONE"
+        },
+        {
+          "name": "utak_owner_alert_v2",
+          "id": "1122506210738949",
+          "status": "PENDING",
+          "category": "UTILITY",
+          "rejected_reason": "NONE"
+        },
+        {
+          "name": "utak_shift_start_v2",
+          "id": "1748771209727120",
+          "status": "PENDING",
+          "category": "UTILITY",
+          "rejected_reason": "NONE"
+        },
+        {
+          "name": "utak_standing_remind_v2",
+          "id": "1996283197754125",
+          "status": "PENDING",
+          "category": "UTILITY",
+          "rejected_reason": "NONE"
+        },
+        {
+          "name": "utak_pay_remind_v3",
+          "id": "1781382093182549",
+          "status": "PENDING",
+          "category": "UTILITY",
+          "rejected_reason": "NONE"
+        },
+        {
+          "name": "utak_quotation_pdf_v1",
+          "id": "1072693768988955",
+          "status": "PENDING",
+          "category": "UTILITY",
+          "rejected_reason": "NONE"
+        },
+        {
+          "name": "utak_order_confirm_remind_v1",
+          "id": "2136724353593206",
+          "status": "PENDING",
+          "category": "UTILITY",
+          "rejected_reason": "NONE"
+        },
+        {
+          "name": "utak_purchase_list_remind_v1",
+          "id": "28819520131014626",
+          "status": "PENDING",
+          "category": "UTILITY",
+          "rejected_reason": "NONE"
+        }
+      ]
+    }
+  ]
+}

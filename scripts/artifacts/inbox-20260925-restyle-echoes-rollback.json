@@ -1,0 +1,392 @@
+{
+  "script": "scripts/inbox-20260925-restyle-echoes.mts",
+  "createdAt": "2026-09-24T23:16:48.080Z",
+  "autoStyle": "border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0",
+  "pairs": [
+    {
+      "id": 1987,
+      "channel": 19,
+      "date": "2026-09-20 15:01:09",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>لا توجد فواتير معلّقة للتحصيل اليوم ✅</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>لا توجد فواتير معلّقة للتحصيل اليوم ✅</p>"
+    },
+    {
+      "id": 1988,
+      "channel": 25,
+      "date": "2026-09-20 15:01:15",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>لا توجد فواتير معلّقة للتحصيل اليوم ✅</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>لا توجد فواتير معلّقة للتحصيل اليوم ✅</p>"
+    },
+    {
+      "id": 1996,
+      "channel": 14,
+      "date": "2026-09-20 22:09:35",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>استلمنا رسالتك — نراجعها ونرد عليك خلال دقائق 🌿</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>استلمنا رسالتك — نراجعها ونرد عليك خلال دقائق 🌿</p>"
+    },
+    {
+      "id": 2004,
+      "channel": 30,
+      "date": "2026-09-20 22:11:32",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي · customer_welcome</strong><br>📋 قالب: utak_v2_welcome (عمر)</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي · customer_welcome</strong><br>📋 قالب: utak_v2_welcome (عمر)</p>"
+    },
+    {
+      "id": 2013,
+      "channel": 19,
+      "date": "2026-09-20 22:57:48",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>مرحبا عمر المجهلي 👋 استخدم الأزرار عشان نأكد الحالة.</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>مرحبا عمر المجهلي 👋 استخدم الأزرار عشان نأكد الحالة.</p>"
+    },
+    {
+      "id": 2014,
+      "channel": 14,
+      "date": "2026-09-20 23:00:13",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قالب: utak_supplier_daily_ask (افوكادو، رمان وسط)</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قالب: utak_supplier_daily_ask (افوكادو، رمان وسط)</p>"
+    },
+    {
+      "id": 2015,
+      "channel": 14,
+      "date": "2026-09-20 23:00:46",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قالب: utak_supplier_daily_ask (افوكادو، رمان وسط)</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قالب: utak_supplier_daily_ask (افوكادو، رمان وسط)</p>"
+    },
+    {
+      "id": 2017,
+      "channel": 19,
+      "date": "2026-09-20 23:21:52",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>مرحبا عمر المجهلي 👋 استخدم الأزرار عشان نأكد الحالة.</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>مرحبا عمر المجهلي 👋 استخدم الأزرار عشان نأكد الحالة.</p>"
+    },
+    {
+      "id": 2020,
+      "channel": 16,
+      "date": "2026-09-21 00:18:23",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>مرحبا عثمان عبدالوهاب 👋 استخدم الأزرار عشان نأكد الحالة.</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>مرحبا عثمان عبدالوهاب 👋 استخدم الأزرار عشان نأكد الحالة.</p>"
+    },
+    {
+      "id": 2027,
+      "channel": 14,
+      "date": "2026-09-21 02:11:07",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>استلمنا رسالتك — نراجعها ونرد عليك خلال دقائق 🌿</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>استلمنا رسالتك — نراجعها ونرد عليك خلال دقائق 🌿</p>"
+    },
+    {
+      "id": 2032,
+      "channel": 19,
+      "date": "2026-09-21 03:50:00",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>مرحبا عمر المجهلي 👋 استخدم الأزرار عشان نأكد الحالة.</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>مرحبا عمر المجهلي 👋 استخدم الأزرار عشان نأكد الحالة.</p>"
+    },
+    {
+      "id": 2036,
+      "channel": 31,
+      "date": "2026-09-21 05:00:10",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي · customer_inactive</strong><br>📋 قالب: utak_v2_inactive (ابو مكين المعبري)</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي · customer_inactive</strong><br>📋 قالب: utak_v2_inactive (ابو مكين المعبري)</p>"
+    },
+    {
+      "id": 2037,
+      "channel": 30,
+      "date": "2026-09-21 05:00:11",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي · customer_inactive</strong><br>📋 قالب: utak_v2_inactive (عمر)</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي · customer_inactive</strong><br>📋 قالب: utak_v2_inactive (عمر)</p>"
+    },
+    {
+      "id": 2038,
+      "channel": 31,
+      "date": "2026-09-21 05:00:13",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي · customer_inactive</strong><br>📋 قالب: utak_v2_inactive (يو)</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي · customer_inactive</strong><br>📋 قالب: utak_v2_inactive (يو)</p>"
+    },
+    {
+      "id": 2041,
+      "channel": 30,
+      "date": "2026-09-21 05:00:47",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي · customer_inactive</strong><br>📋 قالب: utak_v2_inactive (عمر)</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي · customer_inactive</strong><br>📋 قالب: utak_v2_inactive (عمر)</p>"
+    },
+    {
+      "id": 2042,
+      "channel": 31,
+      "date": "2026-09-21 05:00:49",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي · customer_inactive</strong><br>📋 قالب: utak_v2_inactive (يو)</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي · customer_inactive</strong><br>📋 قالب: utak_v2_inactive (يو)</p>"
+    },
+    {
+      "id": 2099,
+      "channel": 19,
+      "date": "2026-09-21 06:30:44",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>مرحبا عمر المجهلي 👋 استخدم الأزرار عشان نأكد الحالة.</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>مرحبا عمر المجهلي 👋 استخدم الأزرار عشان نأكد الحالة.</p>"
+    },
+    {
+      "id": 2102,
+      "channel": 32,
+      "date": "2026-09-21 07:43:15",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي · customer_welcome</strong><br>📋 قالب: utak_v2_welcome (ابو محمد الوصابي)</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي · customer_welcome</strong><br>📋 قالب: utak_v2_welcome (ابو محمد الوصابي)</p>"
+    },
+    {
+      "id": 2105,
+      "channel": 33,
+      "date": "2026-09-21 08:23:12",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي · customer_welcome</strong><br>📋 قالب: utak_v2_welcome (Not Book)</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي · customer_welcome</strong><br>📋 قالب: utak_v2_welcome (Not Book)</p>"
+    },
+    {
+      "id": 2107,
+      "channel": 19,
+      "date": "2026-09-21 08:39:35",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>مرحبا عمر المجهلي 👋 استخدم الأزرار عشان نأكد الحالة.</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>مرحبا عمر المجهلي 👋 استخدم الأزرار عشان نأكد الحالة.</p>"
+    },
+    {
+      "id": 2109,
+      "channel": 19,
+      "date": "2026-09-21 09:19:59",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>مرحبا عمر المجهلي 👋 استخدم الأزرار عشان نأكد الحالة.</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>مرحبا عمر المجهلي 👋 استخدم الأزرار عشان نأكد الحالة.</p>"
+    },
+    {
+      "id": 2111,
+      "channel": 33,
+      "date": "2026-09-21 11:32:46",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>تمام 👍 أرسل لي الأصناف اللي تبيها والكميات، وأنا أجهّز الطلب.</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>تمام 👍 أرسل لي الأصناف اللي تبيها والكميات، وأنا أجهّز الطلب.</p>"
+    },
+    {
+      "id": 2116,
+      "channel": 31,
+      "date": "2026-09-21 13:58:37",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>تمام 👍 أرسل لي الأصناف اللي تبيها والكميات، وأنا أجهّز الطلب.</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>تمام 👍 أرسل لي الأصناف اللي تبيها والكميات، وأنا أجهّز الطلب.</p>"
+    },
+    {
+      "id": 2119,
+      "channel": 19,
+      "date": "2026-09-21 15:00:23",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قائمة التحصيل اليومية<br><br>1. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968293059<br>2. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968341921<br>3. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968449449<br>4. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968612987<br><br>الإجمالي المطلوب: 12 ر.س<br>عدد الفواتير: 4<br><br>لما تحصّل من أي عميل، افتح رسالة الفاتورة الأصلية واضغط زر التحصيل.</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قائمة التحصيل اليومية<br><br>1. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968293059<br>2. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968341921<br>3. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968449449<br>4. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968612987<br><br>الإجمالي المطلوب: 12 ر.س<br>عدد الفواتير: 4<br><br>لما تحصّل من أي عميل، افتح رسالة الفاتورة الأصلية واضغط زر التحصيل.</p>"
+    },
+    {
+      "id": 2121,
+      "channel": 25,
+      "date": "2026-09-21 15:00:27",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قائمة التحصيل اليومية<br><br>1. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968293059<br>2. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968341921<br>3. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968449449<br>4. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968612987<br><br>الإجمالي المطلوب: 12 ر.س<br>عدد الفواتير: 4<br><br>لما تحصّل من أي عميل، افتح رسالة الفاتورة الأصلية واضغط زر التحصيل.</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قائمة التحصيل اليومية<br><br>1. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968293059<br>2. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968341921<br>3. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968449449<br>4. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968612987<br><br>الإجمالي المطلوب: 12 ر.س<br>عدد الفواتير: 4<br><br>لما تحصّل من أي عميل، افتح رسالة الفاتورة الأصلية واضغط زر التحصيل.</p>"
+    },
+    {
+      "id": 2124,
+      "channel": 19,
+      "date": "2026-09-21 15:01:12",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قائمة التحصيل اليومية<br><br>1. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968293059<br>2. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968341921<br>3. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968449449<br>4. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968612987<br><br>الإجمالي المطلوب: 12 ر.س<br>عدد الفواتير: 4<br><br>لما تحصّل من أي عميل، افتح رسالة الفاتورة الأصلية واضغط زر التحصيل.</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قائمة التحصيل اليومية<br><br>1. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968293059<br>2. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968341921<br>3. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968449449<br>4. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968612987<br><br>الإجمالي المطلوب: 12 ر.س<br>عدد الفواتير: 4<br><br>لما تحصّل من أي عميل، افتح رسالة الفاتورة الأصلية واضغط زر التحصيل.</p>"
+    },
+    {
+      "id": 2126,
+      "channel": 25,
+      "date": "2026-09-21 15:01:14",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قائمة التحصيل اليومية<br><br>1. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968293059<br>2. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968341921<br>3. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968449449<br>4. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968612987<br><br>الإجمالي المطلوب: 12 ر.س<br>عدد الفواتير: 4<br><br>لما تحصّل من أي عميل، افتح رسالة الفاتورة الأصلية واضغط زر التحصيل.</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قائمة التحصيل اليومية<br><br>1. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968293059<br>2. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968341921<br>3. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968449449<br>4. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968612987<br><br>الإجمالي المطلوب: 12 ر.س<br>عدد الفواتير: 4<br><br>لما تحصّل من أي عميل، افتح رسالة الفاتورة الأصلية واضغط زر التحصيل.</p>"
+    },
+    {
+      "id": 2131,
+      "channel": 14,
+      "date": "2026-09-21 23:00:14",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قالب: utak_supplier_daily_ask (افوكادو، رمان وسط)</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قالب: utak_supplier_daily_ask (افوكادو، رمان وسط)</p>"
+    },
+    {
+      "id": 2132,
+      "channel": 14,
+      "date": "2026-09-21 23:00:48",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قالب: utak_supplier_daily_ask (افوكادو، رمان وسط)</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قالب: utak_supplier_daily_ask (افوكادو، رمان وسط)</p>"
+    },
+    {
+      "id": 2135,
+      "channel": 33,
+      "date": "2026-09-22 05:00:13",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي · customer_inactive</strong><br>📋 قالب: utak_v2_inactive (Not Book)</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي · customer_inactive</strong><br>📋 قالب: utak_v2_inactive (Not Book)</p>"
+    },
+    {
+      "id": 2136,
+      "channel": 32,
+      "date": "2026-09-22 05:00:16",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي · customer_inactive</strong><br>📋 قالب: utak_v2_inactive (ابو محمد الوصابي)</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي · customer_inactive</strong><br>📋 قالب: utak_v2_inactive (ابو محمد الوصابي)</p>"
+    },
+    {
+      "id": 2139,
+      "channel": 33,
+      "date": "2026-09-22 05:00:53",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي · customer_inactive</strong><br>📋 قالب: utak_v2_inactive (Not Book)</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي · customer_inactive</strong><br>📋 قالب: utak_v2_inactive (Not Book)</p>"
+    },
+    {
+      "id": 2140,
+      "channel": 32,
+      "date": "2026-09-22 05:00:54",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي · customer_inactive</strong><br>📋 قالب: utak_v2_inactive (ابو محمد الوصابي)</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي · customer_inactive</strong><br>📋 قالب: utak_v2_inactive (ابو محمد الوصابي)</p>"
+    },
+    {
+      "id": 2159,
+      "channel": 19,
+      "date": "2026-09-22 15:00:53",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قائمة التحصيل اليومية<br><br>1. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968293059<br>2. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968341921<br>3. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968449449<br>4. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968612987<br><br>الإجمالي المطلوب: 12 ر.س<br>عدد الفواتير: 4<br><br>لما تحصّل من أي عميل، افتح رسالة الفاتورة الأصلية واضغط زر التحصيل.</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قائمة التحصيل اليومية<br><br>1. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968293059<br>2. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968341921<br>3. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968449449<br>4. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968612987<br><br>الإجمالي المطلوب: 12 ر.س<br>عدد الفواتير: 4<br><br>لما تحصّل من أي عميل، افتح رسالة الفاتورة الأصلية واضغط زر التحصيل.</p>"
+    },
+    {
+      "id": 2160,
+      "channel": 19,
+      "date": "2026-09-22 15:00:53",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قائمة التحصيل اليومية<br><br>1. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968293059<br>2. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968341921<br>3. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968449449<br>4. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968612987<br><br>الإجمالي المطلوب: 12 ر.س<br>عدد الفواتير: 4<br><br>لما تحصّل من أي عميل، افتح رسالة الفاتورة الأصلية واضغط زر التحصيل.</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قائمة التحصيل اليومية<br><br>1. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968293059<br>2. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968341921<br>3. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968449449<br>4. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968612987<br><br>الإجمالي المطلوب: 12 ر.س<br>عدد الفواتير: 4<br><br>لما تحصّل من أي عميل، افتح رسالة الفاتورة الأصلية واضغط زر التحصيل.</p>"
+    },
+    {
+      "id": 2163,
+      "channel": 25,
+      "date": "2026-09-22 15:00:57",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قائمة التحصيل اليومية<br><br>1. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968293059<br>2. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968341921<br>3. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968449449<br>4. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968612987<br><br>الإجمالي المطلوب: 12 ر.س<br>عدد الفواتير: 4<br><br>لما تحصّل من أي عميل، افتح رسالة الفاتورة الأصلية واضغط زر التحصيل.</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قائمة التحصيل اليومية<br><br>1. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968293059<br>2. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968341921<br>3. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968449449<br>4. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968612987<br><br>الإجمالي المطلوب: 12 ر.س<br>عدد الفواتير: 4<br><br>لما تحصّل من أي عميل، افتح رسالة الفاتورة الأصلية واضغط زر التحصيل.</p>"
+    },
+    {
+      "id": 2165,
+      "channel": 25,
+      "date": "2026-09-22 15:00:58",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قائمة التحصيل اليومية<br><br>1. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968293059<br>2. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968341921<br>3. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968449449<br>4. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968612987<br><br>الإجمالي المطلوب: 12 ر.س<br>عدد الفواتير: 4<br><br>لما تحصّل من أي عميل، افتح رسالة الفاتورة الأصلية واضغط زر التحصيل.</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قائمة التحصيل اليومية<br><br>1. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968293059<br>2. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968341921<br>3. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968449449<br>4. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968612987<br><br>الإجمالي المطلوب: 12 ر.س<br>عدد الفواتير: 4<br><br>لما تحصّل من أي عميل، افتح رسالة الفاتورة الأصلية واضغط زر التحصيل.</p>"
+    },
+    {
+      "id": 2168,
+      "channel": 14,
+      "date": "2026-09-22 23:00:52",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قالب: utak_supplier_daily_ask (افوكادو، رمان وسط)</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قالب: utak_supplier_daily_ask (افوكادو، رمان وسط)</p>"
+    },
+    {
+      "id": 2169,
+      "channel": 14,
+      "date": "2026-09-22 23:00:54",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قالب: utak_supplier_daily_ask (افوكادو، رمان وسط)</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قالب: utak_supplier_daily_ask (افوكادو، رمان وسط)</p>"
+    },
+    {
+      "id": 2406,
+      "channel": 32,
+      "date": "2026-09-23 10:28:55",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>شكرًا لتواصلكم معنا،<br><br>تم استلام الرابط الخاص بكم. سيتواصل معكم أحد ممثلي خدمة العملاء قريبًا لتحديد موعد الاجتماع وتأكيد التفاصيل.<br><br>نقدّر تواصلكم مع UTAK 🌟</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>شكرًا لتواصلكم معنا،<br><br>تم استلام الرابط الخاص بكم. سيتواصل معكم أحد ممثلي خدمة العملاء قريبًا لتحديد موعد الاجتماع وتأكيد التفاصيل.<br><br>نقدّر تواصلكم مع UTAK 🌟</p>"
+    },
+    {
+      "id": 2409,
+      "channel": 34,
+      "date": "2026-09-23 12:34:04",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي · customer_welcome</strong><br>📋 قالب: utak_v2_welcome (الياف)</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي · customer_welcome</strong><br>📋 قالب: utak_v2_welcome (الياف)</p>"
+    },
+    {
+      "id": 2410,
+      "channel": 34,
+      "date": "2026-09-23 12:34:08",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>أهلاً الياف، حياك الله في UTAK. كيف نقدر نساعدك؟</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>أهلاً الياف، حياك الله في UTAK. كيف نقدر نساعدك؟</p>"
+    },
+    {
+      "id": 2412,
+      "channel": 34,
+      "date": "2026-09-23 12:34:46",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>UTAK نوصّل خضار وفواكه طازجة كل يوم مباشرة لباب محلك 🌿<br><br>• طلب من الموبايل عبر واتساب<br>• توصيل يومي في وقته<br>• أسعار جملة تنافسية<br>• لا حد أدنى للطلب في الأسبوع الأول<br><br>جاهز تبدأ؟ أرسل \"أبغى أطلب\".</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>UTAK نوصّل خضار وفواكه طازجة كل يوم مباشرة لباب محلك 🌿<br><br>• طلب من الموبايل عبر واتساب<br>• توصيل يومي في وقته<br>• أسعار جملة تنافسية<br>• لا حد أدنى للطلب في الأسبوع الأول<br><br>جاهز تبدأ؟ أرسل \"أبغى أطلب\".</p>"
+    },
+    {
+      "id": 2414,
+      "channel": 34,
+      "date": "2026-09-23 12:35:18",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>أهلاً بك، شكراً لتواصلك معنا! يسعدنا معرفة تفاصيل العرض الجديد، وسيقوم أحد فريقنا المختص بالتواصل معك قريباً لمناقشة التفاصيل والمتابعة معك. 🙏</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>أهلاً بك، شكراً لتواصلك معنا! يسعدنا معرفة تفاصيل العرض الجديد، وسيقوم أحد فريقنا المختص بالتواصل معك قريباً لمناقشة التفاصيل والمتابعة معك. 🙏</p>"
+    },
+    {
+      "id": 2416,
+      "channel": 19,
+      "date": "2026-09-23 15:00:51",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قائمة التحصيل اليومية<br><br>1. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968293059<br>2. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968341921<br>3. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968449449<br>4. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968612987<br>5. اختبار محاسبة — 12 ر.س — UTAK-ACCT-A-1790150435183<br>6. اختبار محاسبة — 12 ر.س — UTAK-ACCT-A-1790150473897<br>7. اختبار محاسبة — 10 ر.س — UTAK-ACCT-B-1790150475867<br>8. اختبار محاسبة — 7 ر.س — UTAK-ACCT-C48-1790150477606<br>9. اختبار محاسبة ب — 7 ر.س — UTAK-ACCT-CB-1790150478040<br>10. اختبار محاسبة — 50 ر.س — UTAK-VAT-E′-1790151799179<br>11. اختبار محاسبة — 50 ر.س — UTAK-VAT-E-1790151743613<br>12. اختبار محاسبة — 50 ر.س — UTAK-VAT-E-1790151798270<br>13. اختبار محاسبة — 115 ر.س — UTAK-VAT-D-1790151628519<br>14. اختبار محاسبة — 115 ر.س — UTAK-VAT-D-1790151738965<br>15. اختبار محاسبة — 115 ر.س — UTAK-VAT-D-1790151794196<br><br>الإجمالي المطلوب: 555 ر.س<br>عدد الفواتير: 15<br><br>لما تحصّل من أي عميل، افتح رسالة الفاتورة الأصلية واضغط زر التحصيل.</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قائمة التحصيل اليومية<br><br>1. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968293059<br>2. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968341921<br>3. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968449449<br>4. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968612987<br>5. اختبار محاسبة — 12 ر.س — UTAK-ACCT-A-1790150435183<br>6. اختبار محاسبة — 12 ر.س — UTAK-ACCT-A-1790150473897<br>7. اختبار محاسبة — 10 ر.س — UTAK-ACCT-B-1790150475867<br>8. اختبار محاسبة — 7 ر.س — UTAK-ACCT-C48-1790150477606<br>9. اختبار محاسبة ب — 7 ر.س — UTAK-ACCT-CB-1790150478040<br>10. اختبار محاسبة — 50 ر.س — UTAK-VAT-E′-1790151799179<br>11. اختبار محاسبة — 50 ر.س — UTAK-VAT-E-1790151743613<br>12. اختبار محاسبة — 50 ر.س — UTAK-VAT-E-1790151798270<br>13. اختبار محاسبة — 115 ر.س — UTAK-VAT-D-1790151628519<br>14. اختبار محاسبة — 115 ر.س — UTAK-VAT-D-1790151738965<br>15. اختبار محاسبة — 115 ر.س — UTAK-VAT-D-1790151794196<br><br>الإجمالي المطلوب: 555 ر.س<br>عدد الفواتير: 15<br><br>لما تحصّل من أي عميل، افتح رسالة الفاتورة الأصلية واضغط زر التحصيل.</p>"
+    },
+    {
+      "id": 2419,
+      "channel": 25,
+      "date": "2026-09-23 15:00:57",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قائمة التحصيل اليومية<br><br>1. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968293059<br>2. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968341921<br>3. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968449449<br>4. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968612987<br>5. اختبار محاسبة — 12 ر.س — UTAK-ACCT-A-1790150435183<br>6. اختبار محاسبة — 12 ر.س — UTAK-ACCT-A-1790150473897<br>7. اختبار محاسبة — 10 ر.س — UTAK-ACCT-B-1790150475867<br>8. اختبار محاسبة — 7 ر.س — UTAK-ACCT-C48-1790150477606<br>9. اختبار محاسبة ب — 7 ر.س — UTAK-ACCT-CB-1790150478040<br>10. اختبار محاسبة — 50 ر.س — UTAK-VAT-E′-1790151799179<br>11. اختبار محاسبة — 50 ر.س — UTAK-VAT-E-1790151743613<br>12. اختبار محاسبة — 50 ر.س — UTAK-VAT-E-1790151798270<br>13. اختبار محاسبة — 115 ر.س — UTAK-VAT-D-1790151628519<br>14. اختبار محاسبة — 115 ر.س — UTAK-VAT-D-1790151738965<br>15. اختبار محاسبة — 115 ر.س — UTAK-VAT-D-1790151794196<br><br>الإجمالي المطلوب: 555 ر.س<br>عدد الفواتير: 15<br><br>لما تحصّل من أي عميل، افتح رسالة الفاتورة الأصلية واضغط زر التحصيل.</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قائمة التحصيل اليومية<br><br>1. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968293059<br>2. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968341921<br>3. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968449449<br>4. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968612987<br>5. اختبار محاسبة — 12 ر.س — UTAK-ACCT-A-1790150435183<br>6. اختبار محاسبة — 12 ر.س — UTAK-ACCT-A-1790150473897<br>7. اختبار محاسبة — 10 ر.س — UTAK-ACCT-B-1790150475867<br>8. اختبار محاسبة — 7 ر.س — UTAK-ACCT-C48-1790150477606<br>9. اختبار محاسبة ب — 7 ر.س — UTAK-ACCT-CB-1790150478040<br>10. اختبار محاسبة — 50 ر.س — UTAK-VAT-E′-1790151799179<br>11. اختبار محاسبة — 50 ر.س — UTAK-VAT-E-1790151743613<br>12. اختبار محاسبة — 50 ر.س — UTAK-VAT-E-1790151798270<br>13. اختبار محاسبة — 115 ر.س — UTAK-VAT-D-1790151628519<br>14. اختبار محاسبة — 115 ر.س — UTAK-VAT-D-1790151738965<br>15. اختبار محاسبة — 115 ر.س — UTAK-VAT-D-1790151794196<br><br>الإجمالي المطلوب: 555 ر.س<br>عدد الفواتير: 15<br><br>لما تحصّل من أي عميل، افتح رسالة الفاتورة الأصلية واضغط زر التحصيل.</p>"
+    },
+    {
+      "id": 2422,
+      "channel": 32,
+      "date": "2026-09-23 15:24:25",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>مرحباً بك أبو محمد 🌸، نشكر تواصلك، لكن هذه الرسالة تبدو رابطاً غير رسمي وقد لا يكون آمناً، ننصحك بعدم فتحه. إن كان لديك أي استفسار متعلق بخدماتنا، يسعدنا مساعدتك.</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>مرحباً بك أبو محمد 🌸، نشكر تواصلك، لكن هذه الرسالة تبدو رابطاً غير رسمي وقد لا يكون آمناً، ننصحك بعدم فتحه. إن كان لديك أي استفسار متعلق بخدماتنا، يسعدنا مساعدتك.</p>"
+    },
+    {
+      "id": 2448,
+      "channel": 14,
+      "date": "2026-09-23 23:00:56",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي · supplier_ask</strong><br>📋 قالب: utak_supplier_daily_ask (افوكادو، رمان وسط)</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي · supplier_ask</strong><br>📋 قالب: utak_supplier_daily_ask (افوكادو، رمان وسط)</p>"
+    },
+    {
+      "id": 2461,
+      "channel": 34,
+      "date": "2026-09-24 05:01:19",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي · customer_inactive</strong><br>📋 قالب: utak_v2_inactive (الياف)</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي · customer_inactive</strong><br>📋 قالب: utak_v2_inactive (الياف)</p>"
+    },
+    {
+      "id": 2464,
+      "channel": 32,
+      "date": "2026-09-24 13:47:45",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>السلام عليكم أستاذ أبو محمد،<br><br>شكراً لكم على اقتراح الموعدين. سيتم التواصل معكم من قِبل الفريق المختص لتأكيد الموعد المناسب والتفاصيل الأخرى قريباً.<br><br>نقدّر تواصلكم معنا 🌷</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>السلام عليكم أستاذ أبو محمد،<br><br>شكراً لكم على اقتراح الموعدين. سيتم التواصل معكم من قِبل الفريق المختص لتأكيد الموعد المناسب والتفاصيل الأخرى قريباً.<br><br>نقدّر تواصلكم معنا 🌷</p>"
+    },
+    {
+      "id": 2466,
+      "channel": 32,
+      "date": "2026-09-24 13:48:48",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>شكرًا لتواصلكم أبو محمد الوصابي، تم استلام إشعار إجازة الخريف والتنويه بالتواريخ المذكورة.<br>هل هناك طلب أو استفسار محدد يمكننا مساعدتكم به بخصوص هذا الموعد؟<br>نسعد بخدمتكم دائمًا. 🌿</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>شكرًا لتواصلكم أبو محمد الوصابي، تم استلام إشعار إجازة الخريف والتنويه بالتواريخ المذكورة.<br>هل هناك طلب أو استفسار محدد يمكننا مساعدتكم به بخصوص هذا الموعد؟<br>نسعد بخدمتكم دائمًا. 🌿</p>"
+    },
+    {
+      "id": 2470,
+      "channel": 35,
+      "date": "2026-09-24 13:49:53",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي · customer_welcome</strong><br>📋 قالب: utak_welcome (𐙚 𝓑𝓾𝓫𝓫𝓵𝓮𝓼 𐙚، 9:00 مساءً)</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي · customer_welcome</strong><br>📋 قالب: utak_welcome (𐙚 𝓑𝓾𝓫𝓫𝓵𝓮𝓼 𐙚، 9:00 مساءً)</p>"
+    },
+    {
+      "id": 2471,
+      "channel": 35,
+      "date": "2026-09-24 13:49:59",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>مرحباً 👋 شكراً لتواصلك معنا عبر واتساب UTAK.<br>كيف يمكننا مساعدتك اليوم؟ يسعدنا الرد على استفساراتك 😊</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>مرحباً 👋 شكراً لتواصلك معنا عبر واتساب UTAK.<br>كيف يمكننا مساعدتك اليوم؟ يسعدنا الرد على استفساراتك 😊</p>"
+    },
+    {
+      "id": 2473,
+      "channel": 19,
+      "date": "2026-09-24 15:01:54",
+      "before": "<p style=\"background-color:#F7F5F0; padding:4px 8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قائمة التحصيل اليومية<br><br>1. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968293059<br>2. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968341921<br>3. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968449449<br>4. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968612987<br>5. اختبار محاسبة — 12 ر.س — UTAK-ACCT-A-1790150435183<br>6. اختبار محاسبة — 12 ر.س — UTAK-ACCT-A-1790150473897<br>7. اختبار محاسبة — 10 ر.س — UTAK-ACCT-B-1790150475867<br>8. اختبار محاسبة — 7 ر.س — UTAK-ACCT-C48-1790150477606<br>9. اختبار محاسبة ب — 7 ر.س — UTAK-ACCT-CB-1790150478040<br>10. اختبار محاسبة — 50 ر.س — UTAK-VAT-E′-1790151799179<br>11. اختبار محاسبة — 50 ر.س — UTAK-VAT-E-1790151743613<br>12. اختبار محاسبة — 50 ر.س — UTAK-VAT-E-1790151798270<br>13. اختبار محاسبة — 115 ر.س — UTAK-VAT-D-1790151628519<br>14. اختبار محاسبة — 115 ر.س — UTAK-VAT-D-1790151738965<br>15. اختبار محاسبة — 115 ر.س — UTAK-VAT-D-1790151794196<br><br>الإجمالي المطلوب: 555 ر.س<br>عدد الفواتير: 15<br><br>لما تحصّل من أي عميل، افتح رسالة الفاتورة الأصلية واضغط زر التحصيل.</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>📋 قائمة التحصيل اليومية<br><br>1. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968293059<br>2. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968341921<br>3. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968449449<br>4. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968612987<br>5. اختبار محاسبة — 12 ر.س — UTAK-ACCT-A-1790150435183<br>6. اختبار محاسبة — 12 ر.س — UTAK-ACCT-A-1790150473897<br>7. اختبار محاسبة — 10 ر.س — UTAK-ACCT-B-1790150475867<br>8. اختبار محاسبة — 7 ر.س — UTAK-ACCT-C48-1790150477606<br>9. اختبار محاسبة ب — 7 ر.س — UTAK-ACCT-CB-1790150478040<br>10. اختبار محاسبة — 50 ر.س — UTAK-VAT-E′-1790151799179<br>11. اختبار محاسبة — 50 ر.س — UTAK-VAT-E-1790151743613<br>12. اختبار محاسبة — 50 ر.س — UTAK-VAT-E-1790151798270<br>13. اختبار محاسبة — 115 ر.س — UTAK-VAT-D-1790151628519<br>14. اختبار محاسبة — 115 ر.س — UTAK-VAT-D-1790151738965<br>15. اختبار محاسبة — 115 ر.س — UTAK-VAT-D-1790151794196<br><br>الإجمالي المطلوب: 555 ر.س<br>عدد الفواتير: 15<br><br>لما تحصّل من أي عميل، افتح رسالة الفاتورة الأصلية واضغط زر التحصيل.</p>"
+    },
+    {
+      "id": 2488,
+      "channel": 14,
+      "date": "2026-09-24 23:00:41",
+      "before": "<p style=\"background-color:#F7F5F0; color:#1A1815; padding:4px 8px; margin:0\"><strong>🤖 آلي · supplier_ask</strong><br>📋 قالب: utak_supplier_ask_v2 (أحمد حسان، افوكادو، رمان وسط)</p>",
+      "after": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي · supplier_ask</strong><br>📋 قالب: utak_supplier_ask_v2 (أحمد حسان، افوكادو، رمان وسط)</p>"
+    }
+  ]
+}

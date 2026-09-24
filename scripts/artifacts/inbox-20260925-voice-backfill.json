@@ -1,0 +1,104 @@
+{
+  "at": "2026-09-24T23:17:09.346Z",
+  "mode": "apply",
+  "attachments": 3,
+  "empty": 3,
+  "ready": 3,
+  "plans": [
+    {
+      "id": 248,
+      "name": "3284731155049953.ogg",
+      "mimetype": "audio/ogg; codecs=opus",
+      "file_size": 0,
+      "checksum": false,
+      "res_id": 31,
+      "voice_ids": [
+        1
+      ],
+      "create_date": "2026-09-20 22:13:58",
+      "mediaId": "3284731155049953",
+      "message": 2008,
+      "logRow": 52,
+      "metaSize": 14625,
+      "metaSha256": "a513ca4138e00a26301ffbf6a1538ebc5f156dd987a2344877cd3a53b633ba71",
+      "codec": "opus 48000Hz 1ch",
+      "duration": 6.0665,
+      "bytes": 14625
+    },
+    {
+      "id": 252,
+      "name": "1119548767299098.ogg",
+      "mimetype": "audio/ogg; codecs=opus",
+      "file_size": 0,
+      "checksum": false,
+      "res_id": 32,
+      "voice_ids": [
+        2
+      ],
+      "create_date": "2026-09-24 13:47:37",
+      "mediaId": "1119548767299098",
+      "message": 2463,
+      "logRow": 135,
+      "metaSize": 158133,
+      "metaSha256": "a54a6c4cb008567f1ad853e5cdb57e586733b768c025114756c755405dcda531",
+      "codec": "opus 48000Hz 1ch",
+      "duration": 73.3265,
+      "bytes": 158133
+    },
+    {
+      "id": 253,
+      "name": "1432266335518091.ogg",
+      "mimetype": "audio/ogg; codecs=opus",
+      "file_size": 0,
+      "checksum": false,
+      "res_id": 32,
+      "voice_ids": [
+        3
+      ],
+      "create_date": "2026-09-24 13:48:55",
+      "mediaId": "1432266335518091",
+      "message": 2467,
+      "logRow": 139,
+      "metaSize": 18837,
+      "metaSha256": "5c22813e0085655f7ee09ccdf40e2eb5665718ed95d9d4f0cfcce2c653e63fed",
+      "codec": "opus 48000Hz 1ch",
+      "duration": 8.6265,
+      "bytes": 18837
+    }
+  ],
+  "verified": [
+    {
+      "id": 248,
+      "ok": true,
+      "file_size": 14625,
+      "checksum": "a73a82a8d135ff8983cd7c4cc9f2e59cd33f8927",
+      "sha256": "a513ca4138e00a26301ffbf6a1538ebc5f156dd987a2344877cd3a53b633ba71",
+      "mimetype": "audio/ogg; codecs=opus",
+      "voice_ids": [
+        1
+      ]
+    },
+    {
+      "id": 252,
+      "ok": true,
+      "file_size": 158133,
+      "checksum": "9c77909eddcfdbbd09c47a55a412e21ac40540c7",
+      "sha256": "a54a6c4cb008567f1ad853e5cdb57e586733b768c025114756c755405dcda531",
+      "mimetype": "audio/ogg; codecs=opus",
+      "voice_ids": [
+        2
+      ]
+    },
+    {
+      "id": 253,
+      "ok": true,
+      "file_size": 18837,
+      "checksum": "89e87e394cfecd3a25ccdc5ea7630ec279fed4d6",
+      "sha256": "5c22813e0085655f7ee09ccdf40e2eb5665718ed95d9d4f0cfcce2c653e63fed",
+      "mimetype": "audio/ogg; codecs=opus",
+      "voice_ids": [
+        3
+      ]
+    }
+  ]
+}

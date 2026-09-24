@@ -161,7 +161,7 @@ console.log("\n[3] no free-text fallback outside the 24h window (#131047); failu
 }
 
 // ================================================================ 5
-console.log("\n[5] the bot echo is dark text on the cream box, in both themes");
+console.log("\n[5] the bot echo inherits the theme colours (no fixed colour), in both themes");
 {
   const lum = (hex: string) => {
     const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
@@ -169,19 +169,13 @@ console.log("\n[5] the bot echo is dark text on the cream box, in both themes");
     return 0.2126 * r + 0.7152 * g + 0.0722 * b;
   };
   const ratio = (a: string, b: string) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
-  const ink = ratio(BRAND_COLORS.ink, BRAND_COLORS.bgPage);
-  assert(`ink on paper ${ink.toFixed(1)}:1 ≥ 4.5 (AA) — and ≥ 7 (AAA)`, ink >= 7, String(ink));
-  // What it was: Odoo 19 dark-mode --body-color on the cream box.
+  // What it was: Odoo 19 dark-mode --body-color on the cream box (09-20 → 09-24).
   assert("before (dark theme #E4E4E4 on cream) was below AA", ratio("#E4E4E4", BRAND_COLORS.bgPage) < 4.5);
-  assert("AUTO_STYLE sets both background and text colour", AUTO_STYLE.includes(`background-color: ${BRAND_COLORS.bgPage}`) && AUTO_STYLE.includes(`color: ${BRAND_COLORS.ink}`));
+  // 2026-09-25: neither a background nor a text colour — both come from the theme.
+  assert("AUTO_STYLE pins no colour and no background", !/color|background|#/i.test(AUTO_STYLE), AUTO_STYLE);
   const html = autoLabelHtml("📋 قائمة التحصيل اليومية\n1. x", "ملخص التحصيل");
-  assert("every echo carries the colour on its box", html.startsWith(`<p style="${AUTO_STYLE}">`) && html.includes("<br/>"));
-  // Odoo keeps only whitelisted style properties on mail.message.body (09-24:
-  // stored echoes lost border-left, kept background-color / padding / margin).
-  const ODOO_KEEPS = new Set(["background-color", "color", "padding", "margin"]);
-  const decls = AUTO_STYLE.split(";").map((d) => d.split(":")[0].trim()).filter(Boolean);
-  assert("what Odoo stores still pairs the text colour with the cream", ["background-color", "color"].every((p) => decls.includes(p) && ODOO_KEEPS.has(p)), decls.join(","));
-  assert("the prefix and body inherit the box colour (no own colour)", !/<(strong|span|br)[^>]*style=/.test(html));
+  assert("every echo opens with the AUTO_STYLE box", html.startsWith(`<p style="${AUTO_STYLE}">`) && html.includes("<br/>"));
+  assert("the prefix and body carry no style of their own", !/<(strong|span|br)[^>]*style=/.test(html));
 }
 
 console.log(`\ncollection-sim: ${passed} passed, ${failed} failed`);

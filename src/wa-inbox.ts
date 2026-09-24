@@ -13,7 +13,6 @@
 
 import type { Env } from "./config";
 import { call } from "./odoo";
-import { BRAND_COLORS } from "./pdf-template";
 
 // KV keys — 1h TTL so we still recover from an accidental partner rename or
 // bot-partner rewrite without needing a full worker restart.
@@ -391,6 +390,8 @@ async function liveChannelFor(
  *   2. broadcasts the bus.bus notification `discuss.channel/new_message`,
  *      which is what makes the message appear in the Discuss UI live without
  *      a page refresh. mail.message.create alone did neither.
+ * Every body loses any colour-pinning style first (stripFixedColors): what
+ * the worker writes into Odoo inherits the Discuss theme, light or dark.
  * Returns true on success. Failure is non-fatal for the caller.
  */
 export async function postToChannel(
@@ -403,7 +404,7 @@ export async function postToChannel(
   try {
     const args: Record<string, unknown> = {
       ids: [channelId],
-      body,
+      body: stripFixedColors(body),
       body_is_html: true,
       message_type: "comment",
       author_id: authorPartnerId,
@@ -444,6 +445,14 @@ interface UploadedAttachment {
  * Download a Meta media object by id, upload it as ir.attachment attached to
  * the given discuss.channel, and return the new attachment id.
  * Best-effort — a failure returns null and the caller falls back to text.
+ *
+ * 2026-09-25 — the bytes go in `raw` (base64 over RPC). Odoo saas~19.4 has no
+ * `datas` any more: ir.attachment._check_contents pops it with a warning, so
+ * every media we sent that way was stored as an empty file (the three voice
+ * notes 248/252/253, file_size 0), and the voice player crashed on it
+ * (decodeAudioData fails → buffer undefined → «reading 'duration'»). An empty
+ * or short download is refused, and the stored size is read back: an
+ * attachment Odoo did not keep whole is removed, never left broken.
  */
 export async function attachMetaMedia(
   env: Env,
@@ -474,19 +483,32 @@ export async function attachMetaMedia(
       return null;
     }
     const bytes = new Uint8Array(await binRes.arrayBuffer());
-    const b64 = bytesToBase64(bytes);
+    if (bytes.length === 0 || (typeof meta.file_size === "number" && meta.file_size > 0 && bytes.length !== meta.file_size)) {
+      console.warn(`[wa-inbox] media bytes incomplete: got ${bytes.length}, Meta says ${meta.file_size ?? "?"}`);
+      return null;
+    }
     const filename = filenameHint || defaultFilename(mime, mediaId);
     // 3) upload as ir.attachment on the discuss.channel
     const created = await call<number[]>(env, "ir.attachment", "create", {
       vals_list: [{
         name: filename,
-        datas: b64,
+        raw: bytesToBase64(bytes),
         mimetype: mime,
         res_model: "discuss.channel",
         res_id: channelId,
       }],
     });
-    return { attachmentId: created[0], filename, mimetype: mime };
+    const attachmentId = created[0];
+    // 4) Odoo must have kept every byte.
+    const [stored] = await call<Array<{ file_size: number }>>(env, "ir.attachment", "read", {
+      ids: [attachmentId], fields: ["file_size"],
+    });
+    if (stored?.file_size !== bytes.length) {
+      console.warn(`[wa-inbox] attachment ${attachmentId} stored ${stored?.file_size ?? "?"} of ${bytes.length} bytes — removed`);
+      await call(env, "ir.attachment", "unlink", { ids: [attachmentId] }).catch(() => undefined);
+      return null;
+    }
+    return { attachmentId, filename, mimetype: mime };
   } catch (e) {
     console.warn("[wa-inbox] attachMetaMedia failed", (e as Error).message);
     return null;
@@ -654,17 +676,80 @@ function escapeHtml(s: string): string {
  * prefix in the text still marks the row and the badge column on
  * x_wa_message keeps the same distinction machine-readable.
  *
- * 2026-09-24 (contrast) — the box sets its own text colour too. Without it the
- * text inherited Discuss's theme colour: #111827 in light mode, but #E4E4E4 in
- * dark mode — pale grey on the cream box, ~1.2:1. Ink on paper is ~16:1 in
- * both themes, since neither colour comes from the theme any more. Odoo's
- * style whitelist (mail.message.body) keeps background-color and color and
- * drops border-left. Echoes posted before this keep their stored style: Odoo
- * refuses mail.message write to the API user (403, only the author may edit).
+ * 2026-09-25 (dark mode) — no fixed colour at all. The cream box made the
+ * theme's own text colour unreadable in dark mode (#E4E4E4 on #F7F5F0,
+ * 1.2:1), and pinning a dark ink on it (09-24) would only move the problem to
+ * whatever Odoo theme comes next. Now the box has no background and no
+ * colour: the text and the bar inherit the Discuss theme, so they read as
+ * well as any other message, in light and in dark. The mark that does not
+ * lean on colour is the «🤖 آلي» label plus a bar on the start side (right,
+ * the UI is RTL) drawn in currentColor.
+ *
+ * Written exactly as Odoo stores it («prop:value; prop:value», whitelisted
+ * properties only — odoo/tools/mail.py _style_whitelist keeps
+ * border-right-style/-width and drops the border-left shorthand), so the body
+ * we post is the body Odoo keeps. Every body also passes stripFixedColors in
+ * postToChannel.
  */
-export const AUTO_STYLE =
-  `border-left: 3px solid ${BRAND_COLORS.primary}; background-color: ${BRAND_COLORS.bgPage}; ` +
-  `color: ${BRAND_COLORS.ink}; padding: 4px 8px; margin: 0;`;
+export const AUTO_STYLE = "border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0";
+
+/**
+ * Style declarations that pin a colour: color, background*, border colours,
+ * or a border/outline shorthand that names one. What the worker writes into
+ * Odoo must inherit the theme instead.
+ */
+const FIXED_COLOR_DECL = /^(color|background(-[a-z-]+)?|border(-[a-z]+)*-color|outline-color|fill|stroke|text-decoration-color|caret-color)$/i;
+const COLOR_VALUE = /#[0-9a-f]{3,8}\b|\b(rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(|\b(white|black|red|green|blue|gray|grey|cream|yellow|orange|silver|navy)\b/i;
+
+function fixedColorDecl(decl: string): boolean {
+  const i = decl.indexOf(":");
+  if (i < 0) return false;
+  const prop = decl.slice(0, i).trim();
+  const value = decl.slice(i + 1).trim();
+  if (FIXED_COLOR_DECL.test(prop)) return true;
+  // border: 3px solid #1E5A41 / outline: … red — a shorthand carrying a colour.
+  return /^(border(-[a-z]+)?|outline)$/i.test(prop) && COLOR_VALUE.test(value);
+}
+
+// Real tags only: message text is escaped (&lt;), so «<p style=…>» typed by a
+// customer never matches and is never rewritten.
+const TAG = /<[a-z][a-z0-9]*\b[^>]*>/gi;
+const STYLE_ATTR = /\sstyle\s*=\s*(?:"([^"]*)"|'([^']*)')/gi;
+const COLOR_ATTR = /\s(?:color|bgcolor)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi;
+
+/** True when a tag in `html` pins a colour: a style declaration, or a colour attribute. */
+export function hasFixedColor(html: string): boolean {
+  for (const [tag] of (html ?? "").matchAll(TAG)) {
+    if (new RegExp(COLOR_ATTR.source, "i").test(tag)) return true;
+    for (const m of tag.matchAll(STYLE_ATTR)) {
+      if ((m[1] ?? m[2] ?? "").split(";").some(fixedColorDecl)) return true;
+    }
+  }
+  return false;
+}
+
+/** Remove every colour-pinning declaration (and color/bgcolor attributes) from the tags of `html`; text untouched. */
+export function stripFixedColors(html: string): string {
+  return (html ?? "").replace(TAG, (tag) => tag
+    .replace(COLOR_ATTR, "")
+    .replace(STYLE_ATTR, (_m, dq: string | undefined, sq: string | undefined) => {
+      const kept = (dq ?? sq ?? "").split(";").map((d) => d.trim()).filter((d) => d && !fixedColorDecl(d));
+      return kept.length ? ` style="${kept.join("; ")}"` : "";
+    }));
+}
+
+/**
+ * Bot echoes already stored in Odoo carry the old box style (cream
+ * background, 09-20 → 09-24). Return the same body with that box restyled to
+ * AUTO_STYLE, or null when `body` is not such an echo or is already current.
+ * Only the style attribute of the leading «🤖 آلي» paragraph changes; every
+ * other character of the body is kept.
+ */
+export function restyleAutoEcho(body: string): string | null {
+  const m = /^<p style="([^"]*)">(<strong>🤖 آلي)/.exec(body ?? "");
+  if (!m || m[1] === AUTO_STYLE) return null;
+  return `<p style="${AUTO_STYLE}">` + body.slice(`<p style="${m[1]}">`.length);
+}
 
 export function autoLabelHtml(bodyText: string, templateLabel?: string): string {
   const prefix = templateLabel

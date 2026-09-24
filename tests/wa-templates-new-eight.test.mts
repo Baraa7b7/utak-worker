@@ -139,8 +139,14 @@ console.log("\n[5] customer_pay_remind — [name, total], one message per custom
 for (const name of ["utak_pay_remind_v3", "utak_v2_pay_remind"]) {
   const env = reset();
   mapPurpose("customer_pay_remind", name, 2);
-  seed("x_invoice", { x_customer_id: CUST, x_status: "pending", x_invoice_date: "2026-09-01", x_total: 500, x_paid_amount: 0 });
-  seed("x_invoice", { x_customer_id: CUST, x_status: "partial", x_invoice_date: "2026-09-05", x_total: 800, x_paid_amount: 50 });
+  // 2026-09-24 (م2) — the real x_invoice schema: the customer comes through
+  // x_order_id, what was paid from x_payment, and the statuses are issued /
+  // overdue (the old seed used fields x_invoice does not have).
+  const o1 = seed("x_daily_order", { x_customer_id: CUST, x_state: "delivered", x_order_date: "2026-09-01" });
+  const o2 = seed("x_daily_order", { x_customer_id: CUST, x_state: "delivered", x_order_date: "2026-09-05" });
+  seed("x_invoice", { x_order_id: o1, x_status: "issued", x_invoice_date: "2026-09-01", x_total: 500 });
+  const i2 = seed("x_invoice", { x_order_id: o2, x_status: "overdue", x_invoice_date: "2026-09-05", x_total: 800 });
+  seed("x_payment", { x_invoice_id: i2, x_amount: 50 });
   await quiet(() => sendPaymentReminders(env));
   const b = checkSend(`customer_pay_remind → ${name}`, name, spec("customer_pay_remind"));
   assert(`customer_pay_remind → ${name}: one message with the sum 1250.00`, sentTpl(name).length === 1 && bodyParams(b)[1] === "1250.00" && bodyParams(b)[0] === "مطعم الوادي",

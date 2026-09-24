@@ -87,7 +87,10 @@ function match(m: string, r: Rec, dom: unknown[]): boolean {
       case "!=": return v !== val && !(val === false && (v === undefined || v === false));
       case ">": return Number(v ?? 0) > Number(val);
       case "in": return (val as unknown[]).includes(v);
+      case "not in": return !(val as unknown[]).includes(v);
       case ">=": return String(v) >= String(val);
+      case "<=": return String(v ?? "") <= String(val);
+      case "<": return String(v ?? "") < String(val);
       case "ilike": return String(v ?? "").toLowerCase().includes(String(val).toLowerCase());
       default: return true;
     }

@@ -1668,8 +1668,7 @@ async function runSimJob(rawEnv: Env, job: string): Promise<unknown> {
     }
     case "daily_outreach": {
       const { runDailyOutreach } = await import("./outreach");
-      await runDailyOutreach(env);
-      return "runDailyOutreach done";
+      return runDailyOutreach(env);
     }
     default:
       throw new Error(
@@ -2075,7 +2074,11 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
     // 2026-09-20 (cover) — ingestInbound already ran findCustomerByWhatsApp,
     // so reuse its match rather than re-hit Odoo.
     const existing = customerMatchForRoute;
-    if (!existing && msg.type === "text") {
+    // 2026-09-24 (م3) — «إيقاف» / «تشغيل» as the whole message is the
+    // marketing opt-out: no welcome, no classifier.
+    const { parseOptoutCommand } = await import("./optout");
+    const optoutCmd = msg.type === "text" ? parseOptoutCommand(msg.text) : null;
+    if (!existing && msg.type === "text" && !optoutCmd) {
       try {
         const { sendTemplateByPurpose, T, welcomeParams } = await import("./templates");
         await sendTemplateByPurpose(env, msg.from, T.CUSTOMER_WELCOME,
@@ -2084,6 +2087,27 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
     }
     const partner = await findOrCreateCustomer(env, msg.from, msg.profileName);
     const senderType: SenderType = "customer";
+
+    if (optoutCmd) {
+      const { handleOptoutCommand } = await import("./optout");
+      const reply = await handleOptoutCommand(env, partner, msg.text);
+      if (reply) await sendText(env, msg.from, reply, { ctx });
+      await markSeen(env, msg.messageId);
+      continue;
+    }
+
+    // 2026-09-24 (م2) — «حولت» / «دفعت» within 48h of a payment reminder
+    // reaches the owner and the collectors instead of the classifier.
+    if (msg.type === "text") {
+      const { isPaymentClaim, readPayRemindSent, notifyPaymentClaim, PAY_CLAIM_REPLY } = await import("./pay-claim");
+      const reminded = isPaymentClaim(msg.text) ? await readPayRemindSent(env, partner.id) : null;
+      if (reminded) {
+        await sendText(env, msg.from, PAY_CLAIM_REPLY, { ctx });
+        await notifyPaymentClaim(env, partner, reminded, `«${msg.text}»`);
+        await markSeen(env, msg.messageId);
+        continue;
+      }
+    }
 
     // 2026-09-24 (ح3) — the customer answered the 20:00 utak_order_update
     // template (sent outside the 24h window). Their reply opened the window,
@@ -2294,6 +2318,18 @@ export async function handleCustomerMedia(
   const label = MEDIA_LABEL[msg.type];
   if (!label) return false;
   const kind = msg.type === "audio" && msg.media?.voice ? "رسالة صوتية" : label;
+  // 2026-09-24 (م2) — an image / document within 48h of a payment reminder
+  // is most likely the transfer receipt: it goes to the owner and collectors.
+  if (customer && (msg.type === "image" || msg.type === "document")) {
+    const { readPayRemindSent, notifyPaymentClaim, PAY_RECEIPT_REPLY } = await import("./pay-claim");
+    const reminded = await readPayRemindSent(env, customer.id);
+    if (reminded) {
+      await sendText(env, msg.from, PAY_RECEIPT_REPLY, { ctx });
+      const caption = msg.media?.caption ? ` — التعليق: ${msg.media.caption.slice(0, 120)}` : "";
+      await notifyPaymentClaim(env, customer, reminded, `${kind} (غالباً إيصال التحويل، في محادثته في Discuss)${caption}`);
+      return true;
+    }
+  }
   await sendText(
     env,
     msg.from,

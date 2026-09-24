@@ -1,0 +1,73 @@
+{
+  "pdf": "/Users/baraa7/utak-worker/scripts/artifacts/brand-20260924-qr-cream-invoice.pdf",
+  "expected": "ATbYtNix2YPYqSDZitmI2KrYp9mDINiw2KfYqiDZhdiz2KTZiNmE2YrYqSDZhdit2K/ZiNiv2KkCDzMxNTAyMjczNjYwMDAwMwMTMjAyNi0xMC0wMVQxMDoxNTowMAQHMTA3NC4wMAUGMTQwLjEw",
+  "fields": {
+    "sellerName": "شركة يوتاك ذات مسؤولية محدودة",
+    "vatNumber": "315022736600003",
+    "timestamp": "2026-10-01T10:15:00",
+    "total": "1074.00",
+    "vatTotal": "140.10"
+  },
+  "reads": [
+    {
+      "case": "1. colour, 300 dpi",
+      "text": "ATbYtNix2YPYqSDZitmI2KrYp9mDINiw2KfYqiDZhdiz2KTZiNmE2YrYqSDZhdit2K/ZiNiv2KkCDzMxNTAyMjczNjYwMDAwMwMTMjAyNi0xMC0wMVQxMDoxNTowMAQHMTA3NC4wMAUGMTQwLjEw",
+      "equalsExpected": true,
+      "fields": {
+        "sellerName": "شركة يوتاك ذات مسؤولية محدودة",
+        "vatNumber": "315022736600003",
+        "timestamp": "2026-10-01T10:15:00",
+        "total": "1074.00",
+        "vatTotal": "140.10"
+      }
+    },
+    {
+      "case": "2. greyscale, 300 dpi (printer)",
+      "text": "ATbYtNix2YPYqSDZitmI2KrYp9mDINiw2KfYqiDZhdiz2KTZiNmE2YrYqSDZhdit2K/ZiNiv2KkCDzMxNTAyMjczNjYwMDAwMwMTMjAyNi0xMC0wMVQxMDoxNTowMAQHMTA3NC4wMAUGMTQwLjEw",
+      "equalsExpected": true,
+      "fields": {
+        "sellerName": "شركة يوتاك ذات مسؤولية محدودة",
+        "vatNumber": "315022736600003",
+        "timestamp": "2026-10-01T10:15:00",
+        "total": "1074.00",
+        "vatTotal": "140.10"
+      }
+    },
+    {
+      "case": "3. greyscale, 150 dpi (low-res print / scan)",
+      "text": "ATbYtNix2YPYqSDZitmI2KrYp9mDINiw2KfYqiDZhdiz2KTZiNmE2YrYqSDZhdit2K/ZiNiv2KkCDzMxNTAyMjczNjYwMDAwMwMTMjAyNi0xMC0wMVQxMDoxNTowMAQHMTA3NC4wMAUGMTQwLjEw",
+      "equalsExpected": true,
+      "fields": {
+        "sellerName": "شركة يوتاك ذات مسؤولية محدودة",
+        "vatNumber": "315022736600003",
+        "timestamp": "2026-10-01T10:15:00",
+        "total": "1074.00",
+        "vatTotal": "140.10"
+      }
+    },
+    {
+      "case": "4. greyscale 150 dpi + blur 0.8 + JPEG q55 (phone camera)",
+      "text": "ATbYtNix2YPYqSDZitmI2KrYp9mDINiw2KfYqiDZhdiz2KTZiNmE2YrYqSDZhdit2K/ZiNiv2KkCDzMxNTAyMjczNjYwMDAwMwMTMjAyNi0xMC0wMVQxMDoxNTowMAQHMTA3NC4wMAUGMTQwLjEw",
+      "equalsExpected": true,
+      "fields": {
+        "sellerName": "شركة يوتاك ذات مسؤولية محدودة",
+        "vatNumber": "315022736600003",
+        "timestamp": "2026-10-01T10:15:00",
+        "total": "1074.00",
+        "vatTotal": "140.10"
+      }
+    },
+    {
+      "lightModules": {
+        "quietZone": "#F7F5F0",
+        "insideCode": "#F7F5F0"
+      }
+    },
+    {
+      "case": "before (white box), colour 300 dpi",
+      "text": "ATbYtNix2YPYqSDZitmI2KrYp9mDINiw2KfYqiDZhdiz2KTZiNmE2YrYqSDZhdit2K/ZiNiv2KkCDzMxNTAyMjczNjYwMDAwMwMTMjAyNi0xMC0wMVQxMDoxNTowMAQHMTA3NC4wMAUGMTQwLjEw",
+      "equalsExpected": true
+    }
+  ],
+  "ok": true
+}

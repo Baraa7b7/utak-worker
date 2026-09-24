@@ -1,0 +1,602 @@
+{
+  "tag": "before",
+  "images": {
+    "stamp": {
+      "format": "png",
+      "width": 709,
+      "height": 709,
+      "hasAlpha": true,
+      "corners": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "transparentPct": 82.8,
+      "opaqueWhitePct": 0
+    },
+    "signature": {
+      "format": "png",
+      "width": 1600,
+      "height": 472,
+      "hasAlpha": true,
+      "corners": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "transparentPct": 89.5,
+      "opaqueWhitePct": 0
+    }
+  },
+  "docs": [
+    {
+      "doc": "invoice",
+      "file": "/Users/baraa7/utak-worker/scripts/artifacts/brand-20260924-paper-invoice-before.pdf",
+      "pages": [
+        {
+          "page": 1,
+          "paper": "247,245,240",
+          "whiteRegions": [
+            {
+              "xMm": 160.3,
+              "yMm": 167.9,
+              "wMm": 30,
+              "hMm": 30.2,
+              "px": 4681
+            },
+            {
+              "xMm": 171.4,
+              "yMm": 183.9,
+              "wMm": 7.1,
+              "hMm": 5.1,
+              "px": 130
+            },
+            {
+              "xMm": 175.5,
+              "yMm": 178.1,
+              "wMm": 7.4,
+              "hMm": 3.6,
+              "px": 100
+            },
+            {
+              "xMm": 179.8,
+              "yMm": 183.9,
+              "wMm": 3.6,
+              "hMm": 5.6,
+              "px": 97
+            },
+            {
+              "xMm": 164.1,
+              "yMm": 184.4,
+              "wMm": 3.8,
+              "hMm": 5.6,
+              "px": 67
+            },
+            {
+              "xMm": 172,
+              "yMm": 178.1,
+              "wMm": 4.1,
+              "hMm": 5.6,
+              "px": 65
+            },
+            {
+              "xMm": 167.6,
+              "yMm": 185.9,
+              "wMm": 4.6,
+              "hMm": 3,
+              "px": 57
+            },
+            {
+              "xMm": 170.9,
+              "yMm": 189.2,
+              "wMm": 3.8,
+              "hMm": 2.3,
+              "px": 57
+            },
+            {
+              "xMm": 165.6,
+              "yMm": 178.1,
+              "wMm": 3,
+              "hMm": 4.1,
+              "px": 56
+            },
+            {
+              "xMm": 180.3,
+              "yMm": 188.7,
+              "wMm": 4.6,
+              "hMm": 2.8,
+              "px": 56
+            },
+            {
+              "xMm": 174,
+              "yMm": 176,
+              "wMm": 3.6,
+              "hMm": 2.3,
+              "px": 42
+            },
+            {
+              "xMm": 170.4,
+              "yMm": 173.5,
+              "wMm": 2.8,
+              "hMm": 3.8,
+              "px": 41
+            },
+            {
+              "xMm": 183.6,
+              "yMm": 178.6,
+              "wMm": 2.8,
+              "hMm": 3,
+              "px": 41
+            },
+            {
+              "xMm": 177.8,
+              "yMm": 174.5,
+              "wMm": 1.8,
+              "hMm": 2.8,
+              "px": 39
+            },
+            {
+              "xMm": 175,
+              "yMm": 188.2,
+              "wMm": 2,
+              "hMm": 2.8,
+              "px": 36
+            },
+            {
+              "xMm": 163.1,
+              "yMm": 170.7,
+              "wMm": 2.3,
+              "hMm": 2.5,
+              "px": 34
+            },
+            {
+              "xMm": 185.2,
+              "yMm": 170.7,
+              "wMm": 2.3,
+              "hMm": 2.5,
+              "px": 34
+            },
+            {
+              "xMm": 163.1,
+              "yMm": 192.8,
+              "wMm": 2.3,
+              "hMm": 2.5,
+              "px": 34
+            },
+            {
+              "xMm": 183.6,
+              "yMm": 184.4,
+              "wMm": 2.8,
+              "hMm": 1.8,
+              "px": 30
+            },
+            {
+              "xMm": 179.8,
+              "yMm": 174.5,
+              "wMm": 1.8,
+              "hMm": 3.3,
+              "px": 28
+            },
+            {
+              "xMm": 178.8,
+              "yMm": 180.8,
+              "wMm": 2.3,
+              "hMm": 2.8,
+              "px": 27
+            },
+            {
+              "xMm": 0,
+              "yMm": 290.3,
+              "wMm": 0.3,
+              "hMm": 6.9,
+              "px": 27
+            },
+            {
+              "xMm": 172,
+              "yMm": 171.2,
+              "wMm": 2.3,
+              "hMm": 1,
+              "px": 22
+            },
+            {
+              "xMm": 174.5,
+              "yMm": 173,
+              "wMm": 1.5,
+              "hMm": 1.3,
+              "px": 22
+            },
+            {
+              "xMm": 182.4,
+              "yMm": 174.5,
+              "wMm": 1.5,
+              "hMm": 2.8,
+              "px": 22
+            },
+            {
+              "xMm": 174.5,
+              "yMm": 191.8,
+              "wMm": 1.5,
+              "hMm": 1.3,
+              "px": 22
+            },
+            {
+              "xMm": 176.3,
+              "yMm": 172.5,
+              "wMm": 1.8,
+              "hMm": 2.8,
+              "px": 21
+            },
+            {
+              "xMm": 174.5,
+              "yMm": 182.4,
+              "wMm": 1.5,
+              "hMm": 1.3,
+              "px": 21
+            },
+            {
+              "xMm": 182.4,
+              "yMm": 187.2,
+              "wMm": 2,
+              "hMm": 1.8,
+              "px": 19
+            },
+            {
+              "xMm": 184.7,
+              "yMm": 176.5,
+              "wMm": 1.3,
+              "hMm": 1.3,
+              "px": 17
+            },
+            {
+              "xMm": 169.4,
+              "yMm": 182.9,
+              "wMm": 1.8,
+              "hMm": 2.3,
+              "px": 17
+            },
+            {
+              "xMm": 179.8,
+              "yMm": 191.8,
+              "wMm": 2.3,
+              "hMm": 1.3,
+              "px": 17
+            },
+            {
+              "xMm": 175,
+              "yMm": 171.2,
+              "wMm": 1.5,
+              "hMm": 1,
+              "px": 16
+            },
+            {
+              "xMm": 165.1,
+              "yMm": 182.4,
+              "wMm": 1.3,
+              "hMm": 1.3,
+              "px": 16
+            },
+            {
+              "xMm": 184.2,
+              "yMm": 182.4,
+              "wMm": 1.3,
+              "hMm": 1.3,
+              "px": 16
+            },
+            {
+              "xMm": 184.2,
+              "yMm": 191.8,
+              "wMm": 1.3,
+              "hMm": 1.3,
+              "px": 16
+            },
+            {
+              "xMm": 170.4,
+              "yMm": 180.8,
+              "wMm": 1.8,
+              "hMm": 1.8,
+              "px": 15
+            },
+            {
+              "xMm": 176.3,
+              "yMm": 183.4,
+              "wMm": 1.3,
+              "hMm": 2.3,
+              "px": 13
+            },
+            {
+              "xMm": 176.8,
+              "yMm": 189.7,
+              "wMm": 1.8,
+              "hMm": 1.3,
+              "px": 13
+            },
+            {
+              "xMm": 182.4,
+              "yMm": 176.5,
+              "wMm": 1,
+              "hMm": 1.3,
+              "px": 12
+            },
+            {
+              "xMm": 182.4,
+              "yMm": 191.3,
+              "wMm": 1,
+              "hMm": 1.3,
+              "px": 12
+            },
+            {
+              "xMm": 178.3,
+              "yMm": 191.8,
+              "wMm": 1.3,
+              "hMm": 1.8,
+              "px": 11
+            },
+            {
+              "xMm": 168.1,
+              "yMm": 182.4,
+              "wMm": 0.5,
+              "hMm": 1.3,
+              "px": 10
+            },
+            {
+              "xMm": 185.7,
+              "yMm": 189.2,
+              "wMm": 0.8,
+              "hMm": 0.8,
+              "px": 9
+            },
+            {
+              "xMm": 164.1,
+              "yMm": 186.4,
+              "wMm": 0.8,
+              "hMm": 1.5,
+              "px": 8
+            },
+            {
+              "xMm": 186.2,
+              "yMm": 192.8,
+              "wMm": 0.8,
+              "hMm": 1.5,
+              "px": 8
+            },
+            {
+              "xMm": 184.2,
+              "yMm": 193.8,
+              "wMm": 0.8,
+              "hMm": 1,
+              "px": 8
+            },
+            {
+              "xMm": 164.6,
+              "yMm": 180.8,
+              "wMm": 1.3,
+              "hMm": 0.8,
+              "px": 7
+            },
+            {
+              "xMm": 168.9,
+              "yMm": 180.8,
+              "wMm": 1.3,
+              "hMm": 0.8,
+              "px": 7
+            },
+            {
+              "xMm": 181.4,
+              "yMm": 181.9,
+              "wMm": 0.8,
+              "hMm": 1.3,
+              "px": 7
+            },
+            {
+              "xMm": 173,
+              "yMm": 191.8,
+              "wMm": 0.8,
+              "hMm": 1.3,
+              "px": 7
+            },
+            {
+              "xMm": 164.6,
+              "yMm": 179.1,
+              "wMm": 0.8,
+              "hMm": 1,
+              "px": 6
+            },
+            {
+              "xMm": 182.4,
+              "yMm": 183.4,
+              "wMm": 1,
+              "hMm": 0.8,
+              "px": 6
+            },
+            {
+              "xMm": 184.7,
+              "yMm": 186.4,
+              "wMm": 0.3,
+              "hMm": 1.5,
+              "px": 6
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "doc": "quotation",
+      "file": "/Users/baraa7/utak-worker/scripts/artifacts/brand-20260924-paper-quotation-before.pdf",
+      "pages": [
+        {
+          "page": 1,
+          "paper": "247,245,240",
+          "whiteRegions": [
+            {
+              "xMm": 0,
+              "yMm": 286.8,
+              "wMm": 0.3,
+              "hMm": 10.4,
+              "px": 41
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "doc": "delivery-note",
+      "file": "/Users/baraa7/utak-worker/scripts/artifacts/brand-20260924-paper-delivery-note-before.pdf",
+      "pages": [
+        {
+          "page": 1,
+          "paper": "247,245,240",
+          "whiteRegions": [
+            {
+              "xMm": 0,
+              "yMm": 286.8,
+              "wMm": 0.3,
+              "hMm": 10.4,
+              "px": 41
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "doc": "receipt",
+      "file": "/Users/baraa7/utak-worker/scripts/artifacts/brand-20260924-paper-receipt-before.pdf",
+      "pages": [
+        {
+          "page": 1,
+          "paper": "247,245,240",
+          "whiteRegions": [
+            {
+              "xMm": 0,
+              "yMm": 286.8,
+              "wMm": 0.3,
+              "hMm": 10.4,
+              "px": 41
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "doc": "purchase-order",
+      "file": "/Users/baraa7/utak-worker/scripts/artifacts/brand-20260924-paper-purchase-order-before.pdf",
+      "pages": [
+        {
+          "page": 1,
+          "paper": "247,245,240",
+          "whiteRegions": [
+            {
+              "xMm": 0,
+              "yMm": 286.8,
+              "wMm": 0.3,
+              "hMm": 10.4,
+              "px": 41
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "doc": "official-doc",
+      "file": "/Users/baraa7/utak-worker/scripts/artifacts/brand-20260924-paper-official-doc-before.pdf",
+      "pages": [
+        {
+          "page": 1,
+          "paper": "247,245,240",
+          "whiteRegions": []
+        },
+        {
+          "page": 2,
+          "paper": "247,245,240",
+          "whiteRegions": [
+            {
+              "xMm": 0,
+              "yMm": 86.9,
+              "wMm": 0.3,
+              "hMm": 210.3,
+              "px": 828
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "doc": "statements",
+      "file": "/Users/baraa7/utak-worker/scripts/artifacts/financial-statements-2026-09-13_2026-09-24.pdf",
+      "pages": [
+        {
+          "page": 1,
+          "paper": "247,245,240",
+          "whiteRegions": []
+        },
+        {
+          "page": 2,
+          "paper": "247,245,240",
+          "whiteRegions": []
+        },
+        {
+          "page": 3,
+          "paper": "247,245,240",
+          "whiteRegions": []
+        },
+        {
+          "page": 4,
+          "paper": "247,245,240",
+          "whiteRegions": []
+        },
+        {
+          "page": 5,
+          "paper": "247,245,240",
+          "whiteRegions": []
+        },
+        {
+          "page": 6,
+          "paper": "247,245,240",
+          "whiteRegions": []
+        }
+      ]
+    }
+  ],
+  "totalWhiteRegions": 59
+}

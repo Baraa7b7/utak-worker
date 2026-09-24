@@ -27,6 +27,11 @@ export const BRAND_COLORS = {
   borderSoft: "#E8E4DE",  // row separators, footer divider
   borderStrong: "#1A1815", // table header rules, totals divider
   borderDashed: "#C9C4BC", // ZATCA QR placeholder box
+  // ZATCA QR modules (2026-09-24): pure black, never a brand colour — tinting
+  // the dark modules lowers the contrast a phone camera needs. The QR's
+  // light background (and its quiet zone) is bgPage, so it sits on the paper
+  // instead of printing as a white box.
+  qrInk: "#000000",
 } as const;
 
 export const BRAND_FONT = "IBM Plex Sans Arabic";
@@ -601,7 +606,7 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
 <style>
   html, body { margin: 0; padding: 0; background: ${BRAND_COLORS.bgPage}; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  @page { size: A4; margin: 0; }
+  @page { size: A4; margin: 0; background: ${BRAND_COLORS.bgPage}; }
   @media print {
     html, body { background: ${BRAND_COLORS.bgPage}; }
     .utak-page { box-shadow: none !important; margin: 0 !important; break-after: page; }
@@ -742,7 +747,7 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
 <style>
   html, body { margin: 0; padding: 0; background: ${BRAND_COLORS.bgPage}; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  @page { size: A4; margin: 0; }
+  @page { size: A4; margin: 0; background: ${BRAND_COLORS.bgPage}; }
   @media print {
     html, body { background: ${BRAND_COLORS.bgPage}; }
     .utak-page { box-shadow: none !important; margin: 0 !important; break-after: page; }

@@ -10,6 +10,9 @@
 //      and a doc with no image on file do not
 //   8. 40-line invoice: every row present, seal block after the last row,
 //      page box is min-height (grows) not a fixed 297mm
+//   9. QR on cream (2026-09-24): background = the brand paper, never white;
+//      no hand-written colour in the QR path; modules + TLV identical to the
+//      white-box version; the page box (@page) is painted with the paper too
 //
 // Same no-framework style as tests/vat.test.mts.
 
@@ -32,7 +35,9 @@ import {
 import { renderOfficialDocHTML, type OfficialDocRecord } from "../src/official-doc.ts";
 import { imageDataUri, type CompanyInfo } from "../src/company.ts";
 import { isVatApplicable } from "../src/config.ts";
-import { fitPageToMargins } from "../src/pdf-template.ts";
+import { BRAND_COLORS, fitPageToMargins } from "../src/pdf-template.ts";
+import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 
 // ---------- fetch mock ----------
 interface CapturedRequest { url: string; body: any }
@@ -270,6 +275,35 @@ console.log("\n[8] 40-line invoice flows, seal last");
   assert("no margins: HTML untouched", fitPageToMargins(html) === html && fitPageToMargins(html, { marginBottom: "0" }) === html);
   const legacy = renderInvoiceHTML(TEST_INVOICE_DATA);
   assert("byte-parity template also min-height", /class="utak-page" style="[^"]*min-height: 297mm/.test(legacy) && !/[^-]height: 297mm/.test(legacy));
+}
+
+// ---------- 9. QR on cream paper ----------
+console.log("\n[9] QR background = paper, content unchanged");
+{
+  // Golden values captured from the white-box code at a9aaaaa, before the
+  // background changed: the base64 TLV and the SHA-256 of the dark-module path.
+  const WHITE_BOX_TLV = "ATbYtNix2YPYqSDZitmI2KrYp9mDINiw2KfYqiDZhdiz2KTZiNmE2YrYqSDZhdit2K/ZiNiv2KkCDzMxNTAyMjczNjYwMDAwMwMTMjAyNi0xMC0wMVQxMDoxNTowMAQHMTA3NC4wMAUGMTQwLjEw";
+  const WHITE_BOX_PATH_SHA256 = "25874dc804cd788e3bd2b04037fbfc67e1641c828bf0c5515bc9a34855c6895b";
+  const b64 = encodeZatcaTlv({ sellerName: SELLER, vatNumber: VAT_NO, timestamp: "2026-10-01T10:15:00", total: "1074.00", vatTotal: "140.10" });
+  assert("TLV text identical to the white-box version", b64 === WHITE_BOX_TLV);
+  const svg = zatcaQrSvg(b64, 30);
+  const bg = svg.match(/<rect [^>]*fill="([^"]+)"/)?.[1];
+  const ink = svg.match(/<path [^>]*fill="([^"]+)"/)?.[1];
+  const path = svg.match(/<path d="([^"]+)"/)?.[1] ?? "";
+  assert("QR background = BRAND_COLORS.bgPage", bg === BRAND_COLORS.bgPage, bg);
+  assert("QR background is not white", !!bg && !/^#?(fff|ffffff)$/i.test(bg) && bg.toLowerCase() !== "white", bg);
+  assert("QR modules = BRAND_COLORS.qrInk = pure black", ink === BRAND_COLORS.qrInk && BRAND_COLORS.qrInk === "#000000", ink);
+  assert("dark-module path identical to the white-box version (SHA-256)", createHash("sha256").update(path).digest("hex") === WHITE_BOX_PATH_SHA256);
+  assert("size, quiet zone unchanged: 30mm, viewBox 57 = 49 modules + 2×4", svg.includes('width="30mm" height="30mm"') && svg.includes('viewBox="0 0 57 57"') && path.startsWith("M4 4h1"));
+  const src = readFileSync(new URL("../src/zatca-qr.ts", import.meta.url), "utf8");
+  const fn = src.slice(src.indexOf("export function zatcaQrSvg"), src.indexOf("function bytesToBase64"));
+  assert("zatcaQrSvg found in src/zatca-qr.ts", fn.length > 100);
+  assert("no hand-written colour in the QR path", !/#[0-9a-f]{3,8}\b|\b(white|black)\b|rgba?\(/i.test(fn), fn.match(/#[0-9a-f]{3,8}\b|\b(white|black)\b|rgba?\(/i)?.[0]);
+  const html = renderInvoiceHTML(taxData, company);
+  assert("invoice embeds the cream QR", html.includes(`<rect width="57" height="57" fill="${BRAND_COLORS.bgPage}"/>`) || /<rect width="\d+" height="\d+" fill="#F7F5F0"\/>/.test(html));
+  assert("no white fill anywhere in the invoice HTML", !/fill="#fff(fff)?"|background(-color)?:\s*(#fff(fff)?|white)\b/i.test(html));
+  assert("@page painted with the paper (Gotenberg margin strips)", html.includes(`@page { size: A4; margin: 0; background: ${BRAND_COLORS.bgPage}; }`));
+  assert("byte-parity shell: @page painted too", renderInvoiceHTML(TEST_INVOICE_DATA).includes(`@page { size: A4; margin: 0; background: ${BRAND_COLORS.bgPage}; }`));
 }
 
 // ---------- summary ----------

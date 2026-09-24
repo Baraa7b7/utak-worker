@@ -19,6 +19,7 @@
 // to the code, so the scanned values and the printed ones can never drift.
 
 import qrcode from "qrcode-generator";
+import { BRAND_COLORS } from "./pdf-template";
 
 export interface ZatcaQrFields {
   sellerName: string;
@@ -150,9 +151,16 @@ export function resolveZatcaQr(a: ResolveZatcaQrArgs): ResolvedZatcaQr {
 /**
  * The QR as inline SVG, `sizeMm` wide, with a 4-module quiet zone. Error
  * correction M; the payload is the base64 text (ASCII), so byte mode is
- * exact. Dark modules are pure ink for scanner contrast.
+ * exact. Dark modules are pure black (BRAND_COLORS.qrInk) for scanner
+ * contrast; the light modules and the quiet zone are the document paper
+ * (BRAND_COLORS.bgPage), so the code sits on the cream sheet rather than in a
+ * white box. Colours come only from the brand tokens.
  */
-export function zatcaQrSvg(base64: string, sizeMm: number): string {
+export function zatcaQrSvg(
+  base64: string,
+  sizeMm: number,
+  colors: { paper: string; ink: string } = { paper: BRAND_COLORS.bgPage, ink: BRAND_COLORS.qrInk },
+): string {
   const qr = qrcode(0, "M");
   qr.addData(base64, "Byte");
   qr.make();
@@ -165,7 +173,7 @@ export function zatcaQrSvg(base64: string, sizeMm: number): string {
       if (qr.isDark(r, c)) d += `M${c + quiet} ${r + quiet}h1v1h-1z`;
     }
   }
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${dim} ${dim}" width="${sizeMm}mm" height="${sizeMm}mm" shape-rendering="crispEdges" style="display: block;"><rect width="${dim}" height="${dim}" fill="#FFFFFF"/><path d="${d}" fill="#000000"/></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${dim} ${dim}" width="${sizeMm}mm" height="${sizeMm}mm" shape-rendering="crispEdges" style="display: block;"><rect width="${dim}" height="${dim}" fill="${colors.paper}"/><path d="${d}" fill="${colors.ink}"/></svg>`;
 }
 
 function bytesToBase64(bytes: Uint8Array): string {

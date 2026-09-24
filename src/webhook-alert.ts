@@ -27,7 +27,7 @@
 //     caller sent — nothing more.
 
 import type { Env } from "./config";
-import { runtimeMode } from "./config";
+import { isRecipientAllowed, isTestMode, runtimeMode } from "./config";
 import { riyadhDateKey } from "./hours";
 
 const SIG_FAIL_KEY_PREFIX = "wa_sig_fail:";
@@ -202,6 +202,13 @@ async function deliverOwnerAlert(env: Env, text: string): Promise<void> {
 }
 
 async function sendOwnerDirect(env: Env, owner: string, text: string): Promise<void> {
+  // 2026-09-25 (STATUS § 27) — the one POST to Graph outside fetchMeta. In
+  // sim / pilot it still honours SIM_ALLOWLIST, so no send on a test worker
+  // skips the list.
+  if (isTestMode(env) && !isRecipientAllowed(env, owner)) {
+    console.warn("[wa-sig-fail] direct alert skipped — owner not in SIM_ALLOWLIST");
+    return;
+  }
   try {
     const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/${env.META_PHONE_NUMBER_ID}/messages`;
     const to = owner.replace(/^\+/, "");

@@ -158,14 +158,20 @@ OWNER_WHATSAPP        = "+966505154962"
 # x_is_simulation=true on new rows and /sim/purge can clean them up.
 SIMULATION_MODE       = "false"                         # the switch fetchMeta() reads
 PILOT_MODE            = "true"                          # real Meta sends restricted to SIM_ALLOWLIST
-# المالك (تنبيهات فقط) + عميل pilot + المورد أحمد حسان — قرار 2026-09-16
-SIM_ALLOWLIST         = "+966505154962,+966536251307,+966571777704"
+# 2026-09-25 (STATUS § 27، sim محاكاة خالصة) — أرقام براء والفريق فقط، أرقام
+# كاملة بلا بادئة: براء، أحمد حسان، عثمان عبدالوهاب، عمر المجهلي.
+# كانت "+966505154962,+966536251307,+966571777704" (قرار 2026-09-16)، وأُزيل
+# +966536251307 («عميل pilot»، لا شريك له في Odoo). الخانة x_wa_allowed على
+# الشريك بابٌ ثانٍ في fetchMeta، وصارت على أرقام الفريق وحدها
+# (scripts/sim-pure-20260925-wa-allowed.mjs).
+SIM_ALLOWLIST         = "+966505154962,+966571777704,+966530399474,+966545816832"
 
-# 2026-09-21 — accounting parallel-write. Kept on sim only until Baraa
-# flips it for prod. tenant مشترك مع prod، فأي قيد مُرحَّل هو قيد حقيقي.
-# 2026-09-23 — أُعيد تفعيله بعد إصلاح قيد التحصيل (payment_account_id +
-# حارسا نوع الحساب) ونجاح scripts/acct-20260921-live-verify.mjs بدوراته الثلاث.
-ACCOUNTING_SYNC       = "true"
+# 2026-09-21 — accounting parallel-write. tenant مشترك مع prod، فأي قيد مُرحَّل
+# هو قيد حقيقي يدخل الإقرار الضريبي.
+# 2026-09-25 (STATUS § 27، القرار «أ» في § 23) — مطفأ على sim: لا أمر بيع ولا
+# أمر شراء ولا قيد ولا دفعة من sim. x_invoice وx_payment يصدران كما هما.
+# التراجع: "true" ثم wrangler deploy --env sim.
+ACCOUNTING_SYNC       = "false"
 
 # Secrets on the sim worker (set once, mirrored from prod plus one new):
 #   wrangler secret put META_APP_SECRET       --env sim

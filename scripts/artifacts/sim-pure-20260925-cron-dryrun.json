@@ -1,0 +1,130 @@
+{
+  "at": "2026-09-24T20:09:56.235Z",
+  "env": {
+    "SIM_ALLOWLIST_masked": [
+      "+966…4962",
+      "+966…7704",
+      "+966…9474",
+      "+966…6832"
+    ],
+    "ACCOUNTING_SYNC": "false",
+    "PILOT_MODE": "true",
+    "SIMULATION_MODE": "false"
+  },
+  "deployed_crons_in_toml": [
+    "0 23 * * *",
+    "0 2 * * *",
+    "0 3 * * *",
+    "0 17 * * *",
+    "0 18 * * *",
+    "15 18 * * *",
+    "0 15 * * *",
+    "0 14 * * *",
+    "0 5 * * *"
+  ],
+  "crons": [
+    {
+      "cron": "0 23 * * *",
+      "riyadh": "02:00",
+      "label": "طلب أسعار الموردين"
+    },
+    {
+      "cron": "0 2 * * *",
+      "riyadh": "05:00",
+      "label": "درجات الموردين + تذكير المورد الصامت + مزامنة القوالب"
+    },
+    {
+      "cron": "0 3 * * *",
+      "riyadh": "06:00",
+      "label": "فتح الطلبات + تنبيه موردين لم يردوا + متابعة قائمة شراء بلا «تم الشراء»"
+    },
+    {
+      "cron": "0 5 * * *",
+      "riyadh": "08:00",
+      "label": "تقييم + تذكير دفع + إعادة تنشيط"
+    },
+    {
+      "cron": "0 14 * * *",
+      "riyadh": "17:00",
+      "label": "تذكير الطلب المعتاد"
+    },
+    {
+      "cron": "0 15 * * *",
+      "riyadh": "18:00",
+      "label": "ملخص التحصيل للمحصّل"
+    },
+    {
+      "cron": "0 17 * * *",
+      "riyadh": "20:00",
+      "label": "تذكير الطلبات غير المؤكدة"
+    },
+    {
+      "cron": "0 18 * * *",
+      "riyadh": "21:00",
+      "label": "إقفال الطلبات غير المؤكدة + إشعار العميل"
+    },
+    {
+      "cron": "15 18 * * *",
+      "riyadh": "21:15",
+      "label": "قائمة الشراء للمستودع + تنبيه لكل مورد بلا سعر"
+    }
+  ],
+  "rows": [
+    {
+      "job": "02:00 طلب أسعار الموردين",
+      "to": "+966…7704",
+      "partner": "أحمد حسان (#30)",
+      "what": "قالب utak_supplier_ask_v2",
+      "outcome": "يُرسل",
+      "in_list": true
+    },
+    {
+      "job": "06:00 فتح الطلبات + تنبيه موردين لم يردوا + متابعة قائمة شراء بلا «تم الشراء»",
+      "to": "+966…4962",
+      "partner": "Bara.a - U TAK (#45)",
+      "what": "قالب utak_owner_alert",
+      "outcome": "يُرسل",
+      "in_list": true
+    },
+    {
+      "job": "21:15 قائمة الشراء للمستودع + تنبيه لكل مورد بلا سعر",
+      "to": "+966…4962",
+      "partner": "Bara.a - U TAK (#45)",
+      "what": "قالب utak_owner_alert",
+      "outcome": "يُرسل",
+      "in_list": true
+    },
+    {
+      "job": "05:00 بديل: تذكير المورد الصامت على سجل اليوم",
+      "to": "+966…7704",
+      "partner": "أحمد حسان (#30)",
+      "what": "قالب utak_supplier_price_nudge",
+      "outcome": "يُرسل",
+      "in_list": true
+    },
+    {
+      "job": "21:15 بديل: تنبيه المورد بلا سعر على سجل اليوم",
+      "to": "+966…4962",
+      "partner": "Bara.a - U TAK (#45)",
+      "what": "قالب utak_owner_alert",
+      "outcome": "يُرسل",
+      "in_list": true
+    }
+  ],
+  "every_sent_recipient_in_list": true,
+  "odoo_writes_intercepted": {
+    "discuss.channel.message_post": 2,
+    "x_wa_message.create": 2,
+    "x_supplier_price_request_log.create": 1,
+    "res.partner.write": 2,
+    "x_wa_control.write": 1
+  },
+  "accounting_writes": [],
+  "refused_calls": [
+    {
+      "job": "05:00 درجات الموردين + تذكير المورد الصامت + مزامنة القوالب",
+      "url": "https://graph.facebook.com/v22.0/2144001136512196/message_templates?limit=100&fields=id,name,language,status,category,components"
+    }
+  ],
+  "errors_by_job": []
+}

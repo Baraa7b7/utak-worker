@@ -1,0 +1,371 @@
+{
+  "at": "2026-09-24T20:05:32.005Z",
+  "field": "res.partner.x_wa_allowed",
+  "before_true_count": 39,
+  "kept": [
+    {
+      "id": 3,
+      "name": "albaraa abdulwahab",
+      "active": true,
+      "numbers_masked": [],
+      "class": "براء (مستخدم Odoo، بلا رقم)",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 9,
+      "name": "عمر المجهلي",
+      "active": true,
+      "numbers_masked": [
+        "+966…6832"
+      ],
+      "class": "فريق: عمر المجهلي",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 11,
+      "name": "عمر المجهلي (شراء)",
+      "active": false,
+      "numbers_masked": [
+        "+966…6832"
+      ],
+      "class": "فريق: عمر المجهلي",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 15,
+      "name": "عثمان عبدالوهاب",
+      "active": true,
+      "numbers_masked": [
+        "+966…9474"
+      ],
+      "class": "فريق: عثمان عبدالوهاب",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 30,
+      "name": "أحمد حسان",
+      "active": true,
+      "numbers_masked": [
+        "+966…7704"
+      ],
+      "class": "فريق: أحمد حسان",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 33,
+      "name": "TEMP-item3-customer",
+      "active": false,
+      "numbers_masked": [
+        "+966…7704"
+      ],
+      "class": "فريق: أحمد حسان",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 34,
+      "name": "TEMP-item3-customer",
+      "active": false,
+      "numbers_masked": [
+        "+966…7704"
+      ],
+      "class": "فريق: أحمد حسان",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 45,
+      "name": "Bara.a - U TAK",
+      "active": true,
+      "numbers_masked": [
+        "+966…4962"
+      ],
+      "class": "فريق: براء",
+      "x_wa_allowed_before": true
+    }
+  ],
+  "turned_off": [
+    {
+      "id": 1,
+      "name": "شركة يوتاك ذات مسؤولية محدودة",
+      "active": true,
+      "numbers_masked": [
+        "+058…0467"
+      ],
+      "class": "غير الفريق",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 2,
+      "name": "OdooBot",
+      "active": false,
+      "numbers_masked": [],
+      "class": "بلا رقم",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 4,
+      "name": "Public user",
+      "active": false,
+      "numbers_masked": [],
+      "class": "بلا رقم",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 5,
+      "name": "Portal User Template",
+      "active": false,
+      "numbers_masked": [],
+      "class": "بلا رقم",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 6,
+      "name": "Odoo AI",
+      "active": false,
+      "numbers_masked": [],
+      "class": "بلا رقم",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 7,
+      "name": "براء - اختبار",
+      "active": true,
+      "numbers_masked": [
+        "+966…0099"
+      ],
+      "class": "غير الفريق",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 10,
+      "name": "محمد المحصّل - اختبار",
+      "active": false,
+      "numbers_masked": [
+        "+966…0002"
+      ],
+      "class": "غير الفريق",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 16,
+      "name": "Not Book",
+      "active": false,
+      "numbers_masked": [
+        "+967…6370"
+      ],
+      "class": "غير الفريق",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 17,
+      "name": "عمر",
+      "active": false,
+      "numbers_masked": [
+        "+967…0888"
+      ],
+      "class": "غير الفريق",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 18,
+      "name": "🤍",
+      "active": false,
+      "numbers_masked": [
+        "+967…5736"
+      ],
+      "class": "غير الفريق",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 19,
+      "name": "سفر ونقل",
+      "active": true,
+      "numbers_masked": [
+        "+966…3466"
+      ],
+      "class": "غير الفريق",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 20,
+      "name": "PILOT-عميل-حي-العليا-316376",
+      "active": true,
+      "numbers_masked": [
+        "+966…6376"
+      ],
+      "class": "غير الفريق",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 22,
+      "name": "[SIM] Verify Pricing Supplier",
+      "active": true,
+      "numbers_masked": [],
+      "class": "بلا رقم",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 24,
+      "name": "[SIM] Verify Pricing Supplier #zerfzj",
+      "active": true,
+      "numbers_masked": [],
+      "class": "بلا رقم",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 26,
+      "name": "[SIM] Verify Pricing Supplier #2doyit",
+      "active": true,
+      "numbers_masked": [],
+      "class": "بلا رقم",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 29,
+      "name": "[SIM] Verify Pricing Supplier #2fj8if",
+      "active": true,
+      "numbers_masked": [],
+      "class": "بلا رقم",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 31,
+      "name": "ابو مكين المعبري",
+      "active": true,
+      "numbers_masked": [
+        "+966…7756"
+      ],
+      "class": "غير الفريق",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 35,
+      "name": "TEMP-item4-A",
+      "active": false,
+      "numbers_masked": [
+        "+966…9901"
+      ],
+      "class": "غير الفريق",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 36,
+      "name": "TEMP-item4-B",
+      "active": false,
+      "numbers_masked": [
+        "+966…9902"
+      ],
+      "class": "غير الفريق",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 41,
+      "name": "ماجد المجهلي",
+      "active": true,
+      "numbers_masked": [
+        "+967…5609"
+      ],
+      "class": "غير الفريق",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 42,
+      "name": "UTAK بوت",
+      "active": true,
+      "numbers_masked": [],
+      "class": "بلا رقم",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 46,
+      "name": "عمر",
+      "active": true,
+      "numbers_masked": [
+        "+967…0888"
+      ],
+      "class": "غير الفريق",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 47,
+      "name": "يو",
+      "active": true,
+      "numbers_masked": [
+        "+966…7756"
+      ],
+      "class": "غير الفريق",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 48,
+      "name": "اختبار محاسبة",
+      "active": false,
+      "numbers_masked": [],
+      "class": "بلا رقم",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 49,
+      "name": "ابو محمد الوصابي",
+      "active": true,
+      "numbers_masked": [
+        "+966…3051"
+      ],
+      "class": "غير الفريق",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 50,
+      "name": "Not Book",
+      "active": true,
+      "numbers_masked": [
+        "+967…6370"
+      ],
+      "class": "غير الفريق",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 51,
+      "name": "اختبار محاسبة ب",
+      "active": false,
+      "numbers_masked": [],
+      "class": "بلا رقم",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 52,
+      "name": "[SIM] مورد اختبار شراء — بلا رقم ضريبي",
+      "active": false,
+      "numbers_masked": [],
+      "class": "بلا رقم",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 53,
+      "name": "[SIM] مورد اختبار شراء — مسجل ضريبياً",
+      "active": false,
+      "numbers_masked": [],
+      "class": "بلا رقم",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 54,
+      "name": "الياف",
+      "active": true,
+      "numbers_masked": [
+        "+966…0436"
+      ],
+      "class": "غير الفريق",
+      "x_wa_allowed_before": true
+    },
+    {
+      "id": 59,
+      "name": "𐙚 𝓑𝓾𝓫𝓫𝓵𝓮𝓼 𐙚",
+      "active": true,
+      "numbers_masked": [
+        "+966…0176"
+      ],
+      "class": "غير الفريق",
+      "x_wa_allowed_before": true
+    }
+  ]
+}

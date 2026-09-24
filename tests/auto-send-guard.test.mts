@@ -187,7 +187,11 @@ console.log("\n[6] key written before the send (held even when Meta fails)");
   const r1 = await fetchMeta(env, tpl("utak_collection_summary"), { purpose: "collection_summary" });
   metaStatus = 200;
   const r2 = await fetchMeta(env, tpl("utak_collection_summary"), { purpose: "collection_summary" });
-  assert("first attempt reached Meta and failed", !r1.ok && metaCalls.length === 1);
+  // 2026-09-24 (ح6): a failure also alerts the owner (+966500000001) once —
+  // only the calls to the original recipient count here.
+  const toRecipient = metaCalls.filter((b: any) => b?.to === "966500000002");
+  assert("first attempt reached Meta and failed", !r1.ok && toRecipient.length === 1, String(toRecipient.length));
+  assert("the failure alerted the owner", metaCalls.some((b: any) => b?.to === "966500000001"));
   assert("retry of the same template same job refused", await isSkippedDuplicate(r2));
   // The caller's text fallback is a different kind → its own key.
   const r3 = await fetchMeta(env, { messaging_product: "whatsapp", to: "966500000002", type: "text", text: { body: "fallback" } }, {});

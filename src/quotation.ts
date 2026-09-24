@@ -2,6 +2,7 @@
 // Uses the shared renderPDFShell for pixel-parity with the invoice.
 
 import type { Env } from "./config";
+import { arabicDate } from "./wa-params";
 import {
   call,
   getLatestSalePrice,
@@ -539,11 +540,10 @@ export async function createAndDispatchQuotationForRecord(
   }
 
   const customerPhone = data.customer.phone;
-  const quotationDate = data.quotationDate.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  // ت5 (2026-09-24): «24 سبتمبر 2026» (Riyadh day, Arabic month, Latin digits).
+  const quotationDate = arabicDate(
+    new Date(data.quotationDate.getTime() + 3 * 3600 * 1000).toISOString().slice(0, 10),
+  );
 
   let messageId: string | null = null;
   if (!customerPhone) {

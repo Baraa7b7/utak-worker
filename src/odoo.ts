@@ -1122,21 +1122,219 @@ function riyadhToday(): string {
   return riyadh.toISOString().slice(0, 10);
 }
 
-// ---- 21:00 cutoff: cancel every waiting_confirmation from today ----
-export async function cancelStaleWaitingOrders(env: Env): Promise<number[]> {
-  const today = riyadhToday();
-  const orders = await call<Array<{ id: number }>>(env, "x_daily_order", "search_read", {
+// ---- Unconfirmed orders of a Riyadh day ----
+// 2026-09-24 (ح3): "unconfirmed" = waiting_confirmation, or a draft that
+// already has lines (a draft with no lines is an empty shell, not an order).
+export interface UnconfirmedOrder {
+  id: number;
+  state: OrderState;
+  customerId: number;
+  customerName: string;
+  lineCount: number;
+}
+
+export async function getUnconfirmedOrders(env: Env, date: string = riyadhToday()): Promise<UnconfirmedOrder[]> {
+  type Row = { id: number; x_state: OrderState; x_customer_id: [number, string] | false; x_line_ids: number[] };
+  const rows = await call<Row[]>(env, "x_daily_order", "search_read", {
     domain: [
-      ["x_order_date", "=", today],
-      ["x_state", "=", "waiting_confirmation"],
+      ["x_order_date", "=", date],
+      ["x_state", "in", ["waiting_confirmation", "draft"]],
     ],
+    fields: ["id", "x_state", "x_customer_id", "x_line_ids"],
+    limit: 500,
+    order: "id",
+  });
+  return rows
+    .filter((r) => r.x_state === "waiting_confirmation" || (r.x_line_ids ?? []).length > 0)
+    .map((r) => ({
+      id: r.id,
+      state: r.x_state,
+      customerId: r.x_customer_id ? r.x_customer_id[0] : 0,
+      customerName: r.x_customer_id ? stripRef(r.x_customer_id[1]) : "",
+      lineCount: (r.x_line_ids ?? []).length,
+    }));
+}
+
+// ---- 21:00 cutoff: cancel every unconfirmed order from today ----
+// 2026-09-24 (ح3): drafts with lines are cancelled too (they used to linger
+// forever — never cancelled, never purchased, never flagged). The write is
+// conditional on the state still being unconfirmed, so an order confirmed in
+// the same second is not swept.
+export async function cancelStaleWaitingOrders(env: Env): Promise<number[]> {
+  const pending = await getUnconfirmedOrders(env);
+  if (pending.length === 0) return [];
+  const still = await call<Array<{ id: number }>>(env, "x_daily_order", "search_read", {
+    domain: [["id", "in", pending.map((o) => o.id)], ["x_state", "in", ["waiting_confirmation", "draft"]]],
     fields: ["id"],
     limit: 500,
   });
-  if (orders.length === 0) return [];
-  const ids = orders.map((o) => o.id);
+  if (still.length === 0) return [];
+  const ids = still.map((o) => o.id);
   await call(env, "x_daily_order", "write", { ids, vals: { x_state: "cancelled" } });
   return ids;
+}
+
+// ---- Order snapshot for button guards (2026-09-24, ح4) ----
+export interface OrderBrief {
+  id: number;
+  state: OrderState;
+  date: string;
+  customerId: number;
+  hasLocation: boolean;
+  lineIds: number[];
+  createdVia: string;
+}
+
+export async function getOrderBrief(env: Env, orderId: number): Promise<OrderBrief | null> {
+  type Row = {
+    id: number; x_state: OrderState; x_order_date: string | false;
+    x_customer_id: [number, string] | false; x_line_ids: number[];
+    x_delivery_neighborhood: string | false; x_created_via: string | false;
+  };
+  const rows = await call<Row[]>(env, "x_daily_order", "read", {
+    ids: [orderId],
+    fields: ["id", "x_state", "x_order_date", "x_customer_id", "x_line_ids", "x_delivery_neighborhood", "x_created_via"],
+  });
+  const r = rows[0];
+  if (!r) return null;
+  return {
+    id: r.id,
+    state: r.x_state,
+    date: typeof r.x_order_date === "string" ? r.x_order_date : "",
+    customerId: r.x_customer_id ? r.x_customer_id[0] : 0,
+    hasLocation: typeof r.x_delivery_neighborhood === "string" && r.x_delivery_neighborhood.trim() !== "",
+    lineIds: r.x_line_ids ?? [],
+    createdVia: typeof r.x_created_via === "string" ? r.x_created_via : "",
+  };
+}
+
+/** Lines of an order as re-usable items (for a late re-registration). */
+export async function getOrderLineItems(env: Env, orderId: number): Promise<LateItem[]> {
+  type L = {
+    x_product_tmpl_id: [number, string] | false; x_packaging_id: [number, string] | false;
+    x_quantity: number; x_notes: string | false;
+  };
+  const lines = await call<L[]>(env, "x_daily_order_line", "search_read", {
+    domain: [["x_order_id", "=", orderId]],
+    fields: ["x_product_tmpl_id", "x_packaging_id", "x_quantity", "x_notes"],
+    limit: 500,
+  });
+  return lines
+    .filter((l) => l.x_product_tmpl_id && l.x_packaging_id && l.x_quantity > 0)
+    .map((l) => ({
+      product_id: (l.x_product_tmpl_id as [number, string])[0],
+      packaging_id: (l.x_packaging_id as [number, string])[0],
+      quantity: l.x_quantity,
+      notes: typeof l.x_notes === "string" ? l.x_notes : "",
+      label: `${stripRef((l.x_product_tmpl_id as [number, string])[1])} ${stripRef((l.x_packaging_id as [number, string])[1])} × ${l.x_quantity}`,
+    }));
+}
+
+/** An item carried across a closed-hours prompt (ح2) — enough to recreate a line. */
+export interface LateItem {
+  product_id: number;
+  packaging_id: number;
+  quantity: number;
+  notes?: string;
+  /** "طماطم كرتون × 3" — for the customer-facing summary. */
+  label: string;
+}
+
+/**
+ * Create an order for a given Riyadh date with its lines (ح2 / ح9). The state
+ * is written in the create so the order is never visible half-built.
+ */
+export async function createOrderWithLines(
+  env: Env,
+  a: {
+    customerId: number;
+    date: string;
+    items: LateItem[];
+    via: "whatsapp" | "standing_order";
+    state: OrderState;
+    sourceMessageId?: string;
+    neighborhood?: string;
+  },
+): Promise<number> {
+  const vals: Record<string, unknown> = {
+    x_customer_id: a.customerId,
+    x_order_date: a.date,
+    x_state: a.state,
+    x_created_via: a.via,
+  };
+  if (a.sourceMessageId) vals.x_source_message_id = a.sourceMessageId;
+  if (a.neighborhood) vals.x_delivery_neighborhood = a.neighborhood;
+  if (a.state === "confirmed") vals.x_confirmed_at = nowOdoo();
+  const ids = await call<number[]>(env, "x_daily_order", "create", { vals_list: [vals] });
+  const orderId = ids[0];
+  const lines = a.items
+    .filter((it) => it.product_id > 0 && it.packaging_id > 0 && it.quantity > 0)
+    .map((it) => ({
+      x_order_id: orderId,
+      x_product_tmpl_id: it.product_id,
+      x_packaging_id: it.packaging_id,
+      x_quantity: it.quantity,
+      x_status: "pending",
+      x_notes: it.notes || "",
+    }));
+  if (lines.length > 0) await call<number[]>(env, "x_daily_order_line", "create", { vals_list: lines });
+  return orderId;
+}
+
+/** A live (not cancelled) order of this customer on this date and channel, if any. */
+export async function findLiveOrderOn(
+  env: Env,
+  customerId: number,
+  date: string,
+  via?: "whatsapp" | "standing_order",
+): Promise<number | null> {
+  const domain: unknown[] = [
+    ["x_customer_id", "=", customerId],
+    ["x_order_date", "=", date],
+    ["x_state", "!=", "cancelled"],
+  ];
+  if (via) domain.push(["x_created_via", "=", via]);
+  const rows = await call<Array<{ id: number }>>(env, "x_daily_order", "search_read", {
+    domain, fields: ["id"], limit: 1, order: "id desc",
+  });
+  return rows[0]?.id ?? null;
+}
+
+// ---- Purchase list: status + issue note (ح7) ----
+export async function getPurchaseListBrief(
+  env: Env,
+  id: number,
+): Promise<{ id: number; status: string; date: string; notes: string; items: PurchaseListItem[] } | null> {
+  type Row = { id: number; x_status: string | false; x_date: string | false; x_notes: string | false; x_aggregated_items: string | false };
+  const rows = await call<Row[]>(env, "x_purchase_list", "read", {
+    ids: [id], fields: ["id", "x_status", "x_date", "x_notes", "x_aggregated_items"],
+  });
+  const r = rows[0];
+  if (!r) return null;
+  let items: PurchaseListItem[] = [];
+  try { items = typeof r.x_aggregated_items === "string" ? JSON.parse(r.x_aggregated_items) : []; } catch { items = []; }
+  return {
+    id: r.id,
+    status: typeof r.x_status === "string" ? r.x_status : "",
+    date: typeof r.x_date === "string" ? r.x_date : "",
+    notes: typeof r.x_notes === "string" ? r.x_notes : "",
+    items: Array.isArray(items) ? items : [],
+  };
+}
+
+export async function appendPurchaseListNote(env: Env, id: number, line: string): Promise<void> {
+  const cur = await getPurchaseListBrief(env, id);
+  const next = [cur?.notes || "", `[${nowOdoo()} UTC] ${line}`].filter(Boolean).join("\n");
+  await call(env, "x_purchase_list", "write", { ids: [id], vals: { x_notes: next.slice(-8000) } });
+}
+
+/** Lists sent to the warehouse and still not confirmed, on or after `sinceDate`. */
+export async function getUnconfirmedPurchaseLists(env: Env, sinceDate: string): Promise<number[]> {
+  const rows = await call<Array<{ id: number }>>(env, "x_purchase_list", "search_read", {
+    domain: [["x_status", "=", "sent"], ["x_date", ">=", sinceDate]],
+    fields: ["id"], order: "id", limit: 20,
+  });
+  return rows.map((r) => r.id);
 }
 
 // ---- Pull today's confirmed lines for aggregation ----

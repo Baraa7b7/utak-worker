@@ -49,6 +49,9 @@ import {
 import {
   aggregateAndDispatchToWarehouse,
   closeUnconfirmedOrders,
+  followUpUnconfirmedPurchaseLists,
+  resendOpenPurchaseLists,
+  sendCutoffReminders,
 } from "./team";
 import {
   buildInjectedWebhookPayload,
@@ -92,7 +95,16 @@ export default {
             console.error("[wa-sync 05:00] failed", (e as Error)?.message);
           }
           break;
-        case "0 3 * * *": await openOrderingWindow(env); break;
+        case "0 3 * * *":
+          await openOrderingWindow(env);
+          // 2026-09-24 (ح7) — a purchase list still without «تم الشراء».
+          try {
+            await followUpUnconfirmedPurchaseLists(withAutoSendJob(rawEnv, "purchase_followup"));
+          } catch (e) {
+            console.error("[cron 06:00] purchase follow-up failed", (e as Error)?.message);
+          }
+          break;
+        case "0 17 * * *": await sendCutoffReminders(env); break;
         case "0 18 * * *": await closeUnconfirmedOrders(env); break;
         case "15 18 * * *": await aggregateAndDispatchToWarehouse(env); break;
         case "0 15 * * *": {
@@ -133,6 +145,12 @@ export default {
         () => [] as { date: string; count: number }[],
       );
       const sigFailuresTotal = sigFailures.reduce((a, b) => a + b.count, 0);
+      // 2026-09-24 (ح6) — WhatsApp send failures (sync, async and refused
+      // template variables), same 7-day shape as sigFailures.
+      const { readRecentSendFailures } = await import("./send-failure");
+      const sendFailures = await readRecentSendFailures(env, 7).catch(
+        () => [] as { date: string; count: number }[],
+      );
       return json(
         {
           status: odoo.ok ? "ok" : "degraded",
@@ -141,6 +159,10 @@ export default {
           sigFailures: {
             totalLast7Days: sigFailuresTotal,
             byDay: sigFailures,
+          },
+          sendFailures: {
+            totalLast7Days: sendFailures.reduce((a, b) => a + b.count, 0),
+            byDay: sendFailures,
           },
           timestamp: new Date().toISOString(),
         },
@@ -1624,9 +1646,13 @@ async function runSimJob(rawEnv: Env, job: string): Promise<unknown> {
     case "open_ordering":
       await openOrderingWindow(env);
       return "openOrderingWindow done";
+    case "cutoff_reminder":
+      return await sendCutoffReminders(env);
     case "close_unconfirmed":
       await closeUnconfirmedOrders(env);
       return "closeUnconfirmedOrders done";
+    case "purchase_followup":
+      return await followUpUnconfirmedPurchaseLists(env);
     case "aggregate_purchase":
       await aggregateAndDispatchToWarehouse(env);
       return "aggregateAndDispatchToWarehouse done";
@@ -1647,7 +1673,7 @@ async function runSimJob(rawEnv: Env, job: string): Promise<unknown> {
     }
     default:
       throw new Error(
-        `unknown job '${job}'. valid: ask_suppliers | reliability_scores | open_ordering | close_unconfirmed | aggregate_purchase | collection_summary | standing_reminders | daily_outreach`,
+        `unknown job '${job}'. valid: ask_suppliers | reliability_scores | open_ordering | purchase_followup | cutoff_reminder | close_unconfirmed | aggregate_purchase | collection_summary | standing_reminders | daily_outreach`,
       );
   }
 }
@@ -1659,7 +1685,7 @@ async function runSimJob(rawEnv: Env, job: string): Promise<unknown> {
 async function flushPendingLocations(env: Env, to: string, key: string): Promise<void> {
   const raw = await env.MSG_DEDUP.get(key);
   if (!raw) return;
-  let locs: Array<{ latitude: number; longitude: number; name?: string; address?: string }> = [];
+  let locs: Array<{ latitude?: number; longitude?: number; name?: string; address?: string; text?: string }> = [];
   try {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) locs = parsed;
@@ -1669,6 +1695,15 @@ async function flushPendingLocations(env: Env, to: string, key: string): Promise
     return;
   }
   for (const l of locs) {
+    // 2026-09-24 (م11) — delivery-note texts are queued here too, in stop order.
+    if (typeof l?.text === "string" && l.text) {
+      try {
+        await sendText(env, to, l.text);
+      } catch (e) {
+        console.warn("[pending_loc] sendText failed", (e as Error)?.message);
+      }
+      continue;
+    }
     if (typeof l?.latitude !== "number" || typeof l?.longitude !== "number") continue;
     try {
       await sendLocation(env, to, l.latitude, l.longitude, l.name, l.address);
@@ -1717,7 +1752,26 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           console.log(
             `[inbox] wamid=${wamid.slice(-10)} from=${phoneTail(String(to))} kind=status status=${s2}`,
           );
-          await updateWaStatusByWamid(env, wamid, s2, errMsg);
+          const row = await updateWaStatusByWamid(env, wamid, s2, errMsg);
+          if (s2 === "failed") {
+            // 2026-09-24 (ح6) — a late failure (e.g. 131047: free-form text
+            // outside the 24h window) is a failure, not a success: counter +
+            // owner alert on the first failure of this template today.
+            try {
+              const { recordSendFailure, templateFromEcho } = await import("./send-failure");
+              await recordSendFailure(env, {
+                to: String(to),
+                what: templateFromEcho(row?.body) ?? (row?.body?.startsWith("📍") ? "location" : "text"),
+                code: s?.errors?.[0]?.code ?? null,
+                message: s?.errors?.[0]?.message ?? s?.errors?.[0]?.title ?? "failed status",
+                phase: "async",
+                hasRow: !!row,
+                wamid,
+              });
+            } catch (e) {
+              console.warn("[status-failed record]", (e as Error)?.message);
+            }
+          }
           if (s2 === "failed" && to) {
             try {
               const { findCustomerByWhatsApp, findSupplierByWhatsApp, findTeamMemberByWhatsApp } =
@@ -1883,6 +1937,17 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
     // Media messages are mirrored above and terminate here (with markSeen so
     // Meta retries stay dedup'd).
     if (!botTypes || (!hasBotContent && hasMedia)) {
+      // 2026-09-24 (ح5) — a customer's voice note / image / video / document
+      // used to stop here with no reply and no alert. Now: an honest reply
+      // (the message reached the team, no speech-to-text) and an immediate
+      // owner alert. Team, supplier and owner media keep the old behaviour.
+      if (!teamMatch && !supplierMatch && ingestRoute !== "owner" && !isOwnerNumber(env, msg.from)) {
+        try {
+          await handleCustomerMedia(env, msg, customerMatchForRoute, ctx);
+        } catch (e) {
+          console.warn("[media] customer handling failed", (e as Error)?.message);
+        }
+      }
       await markSeen(env, msg.messageId);
       continue;
     }
@@ -1901,8 +1966,12 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       //   • anything else from the driver → locations first, then the
       //     regular team handler continues.
       const pendingLocKey = `pending_loc:${msg.from}`;
-      const isShiftStart =
-        msg.type === "interactive" && msg.buttonId === "shift_start";
+      // 2026-09-24 — template quick replies arrive as type "button", session
+      // buttons as type "interactive". Both are button taps (the team branch
+      // used to ignore the template ones: «تم الشراء» and «بدء الدوام» from
+      // a template did nothing).
+      const isButton = (msg.type === "interactive" || msg.type === "button") && !!msg.buttonId;
+      const isShiftStart = isButton && msg.buttonId === "shift_start";
       if (isShiftStart) {
         try {
           await sendText(
@@ -1920,7 +1989,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       }
       await flushPendingLocations(env, msg.from, pendingLocKey);
 
-      if (msg.type === "interactive" && msg.buttonId) {
+      if (isButton) {
         const reply: RouterReply = await dispatch(env, {
           msg, intent: "other", senderType: "customer",
           partner: { id: teamMember.id, name: teamMember.name, x_whatsapp_number: teamMember.x_whatsapp_number },
@@ -1929,7 +1998,23 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       } else if (msg.type === "text") {
         const pendingKey = `pending_issue:${teamMember.id}`;
         const pendingOrderId = await env.MSG_DEDUP.get(pendingKey);
-        if (pendingOrderId) {
+        // 2026-09-24 (ح7) — the text after «مشكلة» on the purchase list.
+        const purchaseIssueKey = `pending_purchase_issue:${teamMember.id}`;
+        const pendingListId = await env.MSG_DEDUP.get(purchaseIssueKey);
+        if (pendingListId) {
+          const listId = Number(pendingListId);
+          await env.MSG_DEDUP.delete(purchaseIssueKey);
+          try {
+            const { appendPurchaseListNote } = await import("./odoo");
+            await appendPurchaseListNote(env, listId, `${teamMember.name}: ${msg.text}`);
+          } catch (e) {
+            console.warn("[purchase_issue] note write failed", (e as Error)?.message);
+          }
+          const { sendOwnerAlert } = await import("./templates");
+          await sendOwnerAlert(env,
+            `⚠️ مشكلة في قائمة الشراء #${listId}\nمن: ${teamMember.name}\nالمشكلة: ${msg.text}`);
+          await sendText(env, msg.from, "وصلت المشكلة لبراء وسُجّلت على قائمة الشراء ✅ بيتواصل معك.", { ctx });
+        } else if (pendingOrderId) {
           const orderId = Number(pendingOrderId);
           await markStopIssue(env, orderId, msg.text);
           await env.MSG_DEDUP.delete(pendingKey);
@@ -1940,7 +2025,15 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           }
           await sendText(env, msg.from, "تم تسجيل المشكلة، براء بيراجعها 🙏", { ctx });
         } else {
-          await sendText(env, msg.from, `مرحبا ${teamMember.name} 👋 استخدم الأزرار عشان نأكد الحالة.`, { ctx });
+          // ح1 — the purchase-list template carries a one-line (possibly cut)
+          // list; any message from the warehouse gets the full open list(s).
+          let sent = 0;
+          if (teamMember.x_role === "warehouse" || teamMember.x_role_codes?.includes("warehouse") || (await isWarehouse(env, teamMember.id))) {
+            sent = await resendOpenPurchaseLists(env, msg.from).catch(() => 0);
+          }
+          if (sent === 0) {
+            await sendText(env, msg.from, `مرحبا ${teamMember.name} 👋 استخدم الأزرار عشان نأكد الحالة.`, { ctx });
+          }
         }
       }
       await markSeen(env, msg.messageId);
@@ -1992,10 +2085,58 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
     const partner = await findOrCreateCustomer(env, msg.from, msg.profileName);
     const senderType: SenderType = "customer";
 
-    const pendingKey = `pending_neighborhood:${partner.id}`;
-    const pendingOrderId = await env.MSG_DEDUP.get(pendingKey);
+    // 2026-09-24 (ح3) — the customer answered the 20:00 utak_order_update
+    // template (sent outside the 24h window). Their reply opened the window,
+    // so the confirm button can go out now.
+    if (msg.type === "text") {
+      const promptKey = `cutoff_prompt:${partner.id}`;
+      const promptOrder = await env.MSG_DEDUP.get(promptKey).catch(() => null);
+      if (promptOrder) {
+        await env.MSG_DEDUP.delete(promptKey);
+        const { getOrderBrief } = await import("./odoo");
+        const o = await getOrderBrief(env, Number(promptOrder));
+        if (o && (o.state === "draft" || o.state === "waiting_confirmation")) {
+          await sendButtons(env, msg.from, `طلبك رقم #${o.id} بانتظار تأكيدك، ويُلغى تلقائياً الساعة 9:00 مساءً لو ما تأكد 👇`, [
+            { id: `confirm_order_${o.id}`, title: "تأكيد الطلب ✅" },
+            { id: `cancel_order_${o.id}`, title: "إلغاء ❌" },
+          ], { ctx });
+          await markSeen(env, msg.messageId);
+          continue;
+        }
+      }
+    }
 
-    if (pendingOrderId) {
+    const pendingKey = `pending_neighborhood:${partner.id}`;
+    const pendingRaw = await env.MSG_DEDUP.get(pendingKey);
+    // «loc:<orderId>» = an already-confirmed order only needs its location
+    // (ح2 late order, ح3 confirm of a draft); no quotation follows.
+    const locOnly = typeof pendingRaw === "string" && pendingRaw.startsWith("loc:");
+    const pendingOrderId = locOnly ? pendingRaw!.slice(4) : pendingRaw;
+
+    if (pendingOrderId && locOnly && (msg.type === "location" || msg.type === "text")) {
+      const orderId = Number(pendingOrderId);
+      if (msg.type === "location" && msg.location) {
+        const { latitude, longitude, name, address } = msg.location;
+        const neigh = (name ?? address ?? "").trim().slice(0, 60);
+        await savePartnerLocation(env, partner.id, latitude, longitude, neigh);
+        await setOrderLocation(env, orderId, latitude, longitude, neigh);
+        await env.MSG_DEDUP.delete(pendingKey);
+        await sendText(env, msg.from, `حفظنا موقع التوصيل لطلبك رقم #${orderId} ✅`, { ctx });
+        await markSeen(env, msg.messageId);
+        continue;
+      }
+      const neigh = msg.text.trim();
+      if (neigh.length >= 2 && neigh.length <= 60) {
+        await savePartnerNeighborhood(env, partner.id, neigh);
+        await setOrderNeighborhood(env, orderId, neigh);
+        await env.MSG_DEDUP.delete(pendingKey);
+        await sendText(env, msg.from, `حفظنا الحي: ${neigh} ✅ لطلبك رقم #${orderId}.`, { ctx });
+        await markSeen(env, msg.messageId);
+        continue;
+      }
+    }
+
+    if (pendingOrderId && !locOnly) {
       const orderId = Number(pendingOrderId);
 
       if (msg.type === "location" && msg.location) {
@@ -2117,4 +2258,54 @@ function arrayBufferToBase64(bytes: Uint8Array): string {
     );
   }
   return btoa(bin);
+}
+
+function isOwnerNumber(env: Env, from: string): boolean {
+  const o = String(env.OWNER_WHATSAPP ?? "").replace(/[^0-9]/g, "");
+  return o.length > 0 && String(from ?? "").replace(/[^0-9]/g, "") === o;
+}
+
+async function isWarehouse(env: Env, partnerId: number): Promise<boolean> {
+  try {
+    const { getTeamMembersByRole } = await import("./odoo");
+    const wh = await getTeamMembersByRole(env, "warehouse");
+    return wh.some((w) => w.id === partnerId);
+  } catch {
+    return false;
+  }
+}
+
+// 2026-09-24 (ح5) — customer media: reply + immediate owner alert (قرار براء:
+// no speech-to-text in this phase, no batching, no delay). Stickers are not a
+// message to follow up and are left alone.
+const MEDIA_LABEL: Readonly<Record<string, string>> = {
+  audio: "رسالة صوتية",
+  image: "صورة",
+  video: "فيديو",
+  document: "مستند",
+};
+
+export async function handleCustomerMedia(
+  env: Env,
+  msg: import("./types").NormalizedMessage,
+  customer: OdooPartner | null,
+  ctx?: ExecutionContext,
+): Promise<boolean> {
+  const label = MEDIA_LABEL[msg.type];
+  if (!label) return false;
+  const kind = msg.type === "audio" && msg.media?.voice ? "رسالة صوتية" : label;
+  await sendText(
+    env,
+    msg.from,
+    `وصلتنا ${kind} ✅ الفريق بيتابعها ويرد عليك قريب. ولو هي طلب، تقدر تكتب الأصناف والكميات نصاً عشان تتسجل مباشرة 🌿`,
+    { ctx },
+  );
+  const { sendOwnerAlert } = await import("./templates");
+  const who = customer?.name || msg.profileName || "عميل جديد";
+  const caption = msg.media?.caption ? ` — التعليق: ${msg.media.caption.slice(0, 200)}` : "";
+  await sendOwnerAlert(
+    env,
+    `${msg.type === "audio" ? "🎤" : "📎"} ${kind} من عميل: ${who} (${msg.from})${caption}. رددنا عليه بأنها وصلت وسيتابعها الفريق؛ افتح محادثته في Discuss.`,
+  );
+  return true;
 }

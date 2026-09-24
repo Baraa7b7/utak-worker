@@ -69,14 +69,15 @@ preview_id = "b423e1498d624696ac10ed101c621742"
 #      (wrangler deploy --env sim). هذا يوقف جدولة sim قبل تفعيل جدولة prod.
 #   2) تحقّق من Cloudflare dashboard و`wrangler tail utak-worker-sim` أن
 #      utak-worker-sim لم يعد يشغّل الكرونات.
-#   3) انسخ المواعيد الثمانية من الكتلة المحفوظة أدناه إلى crons = [ ... ]
+#   3) انسخ المواعيد التسعة من الكتلة المحفوظة أدناه إلى crons = [ ... ]
 #      هنا حرفياً (بنفس التعليقات).
 #   4) `wrangler deploy` (بدون --env) لإعادة تفعيل جدولة prod.
 #
-# المواعيد المحفوظة للاستعادة (بنسخ ولصق حرفياً — لا تعدّل بدون سبب):
+# المواعيد المحفوظة للاستعادة (بنسخ ولصق حرفياً — لا تعدّل بدون سبب؛ صارت تسعة في 2026-09-24):
 #   "0 23 * * *",   # 02:00 Riyadh — v3: ask all active suppliers for daily prices
 #   "0 2 * * *",    # 05:00 Riyadh — v3: recompute supplier reliability scores
 #   "0 3 * * *",    # 06:00 Riyadh — v3: open ordering flag + missing-supplier alert
+#   "0 17 * * *",   # 20:00 Riyadh — 2026-09-24 (ح3): unconfirmed-order reminder
 #   "0 18 * * *",   # 21:00 Riyadh — v4: close unconfirmed orders
 #   "15 18 * * *",  # 21:15 Riyadh — v4: aggregate + dispatch purchase list to warehouse
 #   "0 15 * * *",   # 18:00 Riyadh — v5: daily collection summary
@@ -130,7 +131,8 @@ crons = [
   "0 23 * * *",   # 02:00 Riyadh — v3: ask all active suppliers for daily prices
   "0 2 * * *",    # 05:00 Riyadh — v3: recompute supplier reliability scores
   "0 3 * * *",    # 06:00 Riyadh — v3: open ordering flag + missing-supplier alert
-  "0 18 * * *",   # 21:00 Riyadh — v4: close unconfirmed orders
+  "0 17 * * *",   # 20:00 Riyadh — 2026-09-24 (ح3): remind unconfirmed orders before the 21:00 cutoff
+  "0 18 * * *",   # 21:00 Riyadh — v4: close unconfirmed orders (+ notify each customer)
   "15 18 * * *",  # 21:15 Riyadh — v4: aggregate + dispatch purchase list to warehouse
   "0 15 * * *",   # 18:00 Riyadh — v5: daily collection summary
   "0 14 * * *",   # 17:00 Riyadh — v6.1: standing-order reminders

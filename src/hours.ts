@@ -54,3 +54,30 @@ export function isQuotationTrigger(text: string): boolean {
   const t = text.trim().toLowerCase();
   return QUOTATION_TRIGGERS.some((kw) => t.includes(kw.toLowerCase()));
 }
+
+// ---- 2026-09-24 (ح2 / ح9) — closed-hours orders ----
+
+/** Minutes since Riyadh midnight. */
+export function riyadhMinutes(now: Date = new Date()): number {
+  return riyadhHour(now) * 60 + now.getUTCMinutes();
+}
+
+/** The purchase list goes to the warehouse at 21:15 Riyadh. */
+export const PURCHASE_LIST_MINUTE = ORDERING_HOURS_CLOSE * 60 + 15;
+
+/**
+ * The ordering day an order placed now belongs to: after the 21:00 cutoff it
+ * is tomorrow's; before 06:00 (or while today's window has not opened yet) it
+ * is today's.
+ */
+export function nextOrderingDate(now: Date = new Date()): string {
+  if (riyadhHour(now) >= ORDERING_HOURS_CLOSE) {
+    return riyadhDateKey(new Date(now.getTime() + 24 * 60 * 60 * 1000));
+  }
+  return riyadhDateKey(now);
+}
+
+/** True once today's purchase list has gone out (21:15) and until 06:00. */
+export function isAfterPurchaseCutoff(now: Date = new Date()): boolean {
+  return riyadhMinutes(now) >= PURCHASE_LIST_MINUTE || riyadhHour(now) < ORDERING_HOURS_OPEN;
+}

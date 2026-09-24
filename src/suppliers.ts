@@ -5,6 +5,7 @@
 // - openOrderingWindow:       06:00 cron, sets the KV flag + pings Baraa if late.
 
 import type { Env } from "./config";
+import { joinCapped } from "./wa-params";
 import {
   DEFAULT_OPS_MARGIN_PCT,
   DEFAULT_PROFIT_MARGIN_PCT,
@@ -119,12 +120,14 @@ export async function askAllSuppliersForPrices(env: Env): Promise<void> {
       // and truncate the joined list to 900 chars so the parameter always
       // passes Meta's validation, whatever the operator happens to have
       // stored as a product name in Odoo.
-      const productList = productNames
-        .join("، ")
-        .replace(/[\r\n\t]+/g, " ")
-        .replace(/ {2,}/g, " ")
-        .trim()
-        .slice(0, 900);
+      // ت6 (2026-09-24): the cut falls between two names, never inside one,
+      // and says how many were left out («وغيرها (N)»).
+      const productList = joinCapped(
+        productNames.map((n) => String(n).replace(/[\r\n\t]+/g, " ").replace(/ {2,}/g, " ").trim()),
+        900,
+        "، ",
+        (n) => `وغيرها (${n})`,
+      ).text;
 
       const res = await sendTemplate(
         env,

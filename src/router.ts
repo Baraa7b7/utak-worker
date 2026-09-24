@@ -25,7 +25,19 @@ import {
   containsUrgencyKeywords,
   isOrderingHoursOpen,
   isQuotationTrigger,
+  isWithinOrderingWindow,
+  riyadhDateKey,
 } from "./hours";
+import {
+  appendPurchaseListNote,
+  getOrderBrief,
+  getOrderLineItems,
+  getPurchaseListBrief,
+  type LateItem,
+} from "./odoo";
+import { ALREADY_DONE_TEXT, withButtonLock } from "./button-lock";
+import { handleLateNo, handleLateYes, offerLateOrder } from "./late-order";
+import { cancelSaleOrderForDailyOrder, ensureSaleOrderForDailyOrder } from "./sale-accounting";
 import {
   notifyCustomerDelivered,
   warehouseConfirmedPurchase,
@@ -144,11 +156,11 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
   // Also accept "خلاص/جهزه" tacked on the end of an order message
   const quotationInline = isQuotationTrigger(msg.text);
 
-  // Ordering hours check (v3: also honours the 06:00 KV flag)
+  // Ordering hours check (v3: also honours the 06:00 KV flag).
+  // 2026-09-24 (ح2): no more «يوصلك بكرة» with nothing recorded — the items
+  // are parsed and the customer chooses «سجّله لبكرة» / «لا شكراً».
   if (!(await isOrderingHoursOpen(env))) {
-    return {
-      text: "استقبال الطلبات مقفول حالياً. طلبك يوصلك بكرة الصبح إن شاء الله 🌿\n(ساعات الاستقبال 6 صباحاً – 9 مساءً)",
-    };
+    return await handleClosedHoursOrder(env, input);
   }
 
   const catalog = await fetchCatalog(env);
@@ -316,6 +328,35 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
 }
 
 // --------------------------------------------------------------
+// ح2 — an order written while ordering is closed
+// --------------------------------------------------------------
+async function handleClosedHoursOrder(env: Env, input: RouterInput): Promise<RouterReply> {
+  const { msg, partner } = input;
+  if (!partner) return { text: "حصل خطأ في تسجيلك، نعتذر — نتواصل معك قريباً 🌿" };
+  const catalog = await fetchCatalog(env);
+  const items = await extractOrderItems(env, msg.text, catalog, partner.name);
+  const late: LateItem[] = items
+    .filter((it) => it.product_id > 0 && it.packaging_id > 0 && it.quantity > 0)
+    .map((it) => {
+      const prod = catalog.find((p) => p.id === it.product_id);
+      const pk = prod?.packagings.find((x) => x.id === it.packaging_id);
+      return {
+        product_id: it.product_id,
+        packaging_id: it.packaging_id,
+        quantity: it.quantity,
+        notes: it.notes || "",
+        label: `${prod?.name ?? it.product_name_raw} ${pk?.name ?? ""} × ${it.quantity}`.replace(/ {2,}/g, " "),
+      };
+    });
+  if (late.length === 0) {
+    return {
+      text: "استقبال الطلبات مقفل الآن (من 6:00 صباحاً إلى 9:00 مساءً)، وما تسجّل شي. اكتب الأصناف والكميات (مثلاً: طماطم كرتون 3) ونعرض عليك تسجيلها على طلبات بكرة 🌿",
+    };
+  }
+  return await offerLateOrder(env, partner.id, late);
+}
+
+// --------------------------------------------------------------
 // Quotation request
 // --------------------------------------------------------------
 async function handleQuotationRequest(env: Env, input: RouterInput): Promise<RouterReply> {
@@ -429,6 +470,19 @@ async function handleButton(
     return { text: "أشكرك على صدقك 🙏 اكتب لي وش نقدر نحسّنه وسنشتغل عليه فوراً." };
   }
 
+  // ---- 2026-09-24 (ح2): closed-hours prompt «سجّله لبكرة» / «لا شكراً» ----
+  const mLate = /^late_(yes|no)_(\d+)$/.exec(buttonId);
+  if (mLate) {
+    const pid = Number(mLate[2]);
+    await logMessageAnalysis(env, {
+      customerId: partner?.id ?? pid, text: buttonId,
+      intent: `late_${mLate[1]}`, actionTaken: `button:late_${mLate[1]}:${pid}`,
+    });
+    return mLate[1] === "yes"
+      ? await handleLateYes(env, partner, pid)
+      : await handleLateNo(env, partner, pid);
+  }
+
   // ---- v6.1: standing-order reminder buttons ----
   const mStandingConfirm = /^standing_confirm_(\d+)$/.exec(buttonId);
   if (mStandingConfirm) {
@@ -437,7 +491,20 @@ async function handleButton(
       customerId: partner?.id ?? null, text: buttonId,
       intent: "standing_confirm", actionTaken: `button:standing_confirm:${sid}`,
     });
-    return { text: await handleStandingConfirm(env, sid) };
+    // ح8/ح9: one confirmation per standing order per Riyadh day.
+    let out: RouterReply = {};
+    const text = await withButtonLock(env, `standing_confirm:${sid}:${riyadhDateKey()}`, async () => {
+      out = await handleStandingConfirm(env, sid);
+      return out.text ?? "";
+    }, 26 * 60 * 60);
+    if (text !== ALREADY_DONE_TEXT) return out;
+    const { findLiveOrderOn } = await import("./odoo");
+    const existing = partner?.id ? await findLiveOrderOn(env, partner.id, riyadhDateKey(), "standing_order") : null;
+    return {
+      text: existing
+        ? `طلب الغد مسجّل أصلاً برقم #${existing} ✅ وما سجّلنا طلباً ثانياً.`
+        : ALREADY_DONE_TEXT,
+    };
   }
   const mStandingEdit = /^standing_edit_(\d+)$/.exec(buttonId);
   if (mStandingEdit) {
@@ -459,10 +526,16 @@ async function handleButton(
   }
 
   // ---- v5: collector confirmed cash/transfer ----
-  if (buttonId.startsWith("collect_cash_") || buttonId.startsWith("collect_transfer_")) {
+  // ح8: cash and transfer share one lock per invoice — the button always
+  // collects the full balance, so a second tap of either is a duplicate.
+  const mCollect = /^collect_(cash|transfer)_(\d+)$/.exec(buttonId);
+  if (mCollect) {
     const { handleCollectionButton } = await import("./invoice");
-    const result = await handleCollectionButton(env, buttonId, partner?.id ?? null);
-    if (result) return { text: result.text };
+    const text = await withButtonLock(env, `collect:${mCollect[2]}`, async () => {
+      const result = await handleCollectionButton(env, buttonId, partner?.id ?? null);
+      return result?.text ?? "";
+    });
+    if (text) return { text };
   }
 
   // ---- v4: warehouse confirmed the purchase list ----
@@ -475,9 +548,39 @@ async function handleButton(
       intent: "purchase_done",
       actionTaken: `button:purchase_done:${listId}`,
     });
-    const { routesDispatched, ordersMoved } = await warehouseConfirmedPurchase(env, listId);
+    const text = await withButtonLock(env, `purchase_done:${listId}`, async () => {
+      // ت14: a list already closed is not re-dispatched (no «0 سواق», no owner alert).
+      const list = await getPurchaseListBrief(env, listId);
+      if (list?.status === "done") return "القائمة مؤكدة من قبل ✅ والمسارات أُرسلت.";
+      const { routesDispatched, ordersMoved } = await warehouseConfirmedPurchase(env, listId);
+      if (partner?.id) await env.MSG_DEDUP.delete(`pending_purchase_issue:${partner.id}`).catch(() => {});
+      return `تمام 👍 تم إرسال المسارات لـ ${routesDispatched} سواق (${ordersMoved} توصيلة).`;
+    });
+    return { text };
+  }
+
+  // ---- 2026-09-24 (ح7): warehouse reported a problem with the purchase list ----
+  const mPurchaseIssue = /^purchase_issue_(\d+)$/.exec(buttonId);
+  if (mPurchaseIssue) {
+    const listId = Number(mPurchaseIssue[1]);
+    await logMessageAnalysis(env, {
+      customerId: partner?.id ?? null,
+      text: buttonId,
+      intent: "purchase_issue",
+      actionTaken: `button:purchase_issue:${listId}`,
+    });
+    if (partner?.id) {
+      await env.MSG_DEDUP.put(`pending_purchase_issue:${partner.id}`, String(listId), { expirationTtl: 3 * 60 * 60 });
+      await env.MSG_DEDUP.delete(`pending_issue:${partner.id}`).catch(() => {});
+    }
+    try {
+      await appendPurchaseListNote(env, listId, `${partner?.name ?? "المستودع"}: ضغط «مشكلة» — بانتظار التفاصيل`);
+    } catch (e) {
+      console.warn("[purchase_issue] note failed", (e as Error)?.message);
+    }
+    await sendOwnerAlert(env, `⚠️ قائمة الشراء #${listId}: ${partner?.name ?? "المستودع"} ضغط «مشكلة». بانتظار تفاصيله نصاً، وتصلك فور كتابتها.`);
     return {
-      text: `تمام 👍 تم إرسال المسارات لـ ${routesDispatched} سواق (${ordersMoved} توصيلة).`,
+      text: "تمام، اكتب المشكلة بالتفصيل في رسالة واحدة (مثلاً: الطماطم ناقصة 5 كراتين، أو الخيار غير متوفر) وتوصل لبراء فوراً.",
     };
   }
 
@@ -491,29 +594,35 @@ async function handleButton(
       intent: "delivered",
       actionTaken: `button:delivered:${orderId}`,
     });
-    const { routeId, allDone } = await markStopDelivered(env, orderId);
-    // v5: create invoice + dispatch to customer & collector
-    try {
-      const { createAndDispatchInvoiceForOrder } = await import("./invoice");
-      await createAndDispatchInvoiceForOrder(env, orderId);
-    } catch (e) {
-      console.warn(`[delivered] invoice dispatch failed for order ${orderId}`, (e as Error).message);
-    }
-    // Fetch order + customer to notify
-    try {
-      const { getOrderCustomer } = await import("./odoo");
-      const cust = await getOrderCustomer(env, orderId);
-      if (cust) {
-        await notifyCustomerDelivered(env, cust.phone, cust.name, orderId);
+    const text = await withButtonLock(env, `delivered:${orderId}`, async () => {
+      // ح8: an order already delivered is not delivered, invoiced or announced again.
+      const brief = await getOrderBrief(env, orderId);
+      if (brief && (brief.state === "delivered" || brief.state === "closed")) {
+        return `${ALREADY_DONE_TEXT} الطلب #${orderId} مسجّل مسلّماً.`;
       }
-    } catch (e) {
-      console.error("[delivered] notify customer failed", (e as Error)?.message);
-    }
-    return {
-      text: allDone
+      const { allDone } = await markStopDelivered(env, orderId);
+      // v5: create invoice + dispatch to customer & collector
+      try {
+        const { createAndDispatchInvoiceForOrder } = await import("./invoice");
+        await createAndDispatchInvoiceForOrder(env, orderId);
+      } catch (e) {
+        console.warn(`[delivered] invoice dispatch failed for order ${orderId}`, (e as Error).message);
+      }
+      // Fetch order + customer to notify
+      try {
+        const { getOrderCustomer } = await import("./odoo");
+        const cust = await getOrderCustomer(env, orderId);
+        if (cust) {
+          await notifyCustomerDelivered(env, cust.phone, cust.name, orderId);
+        }
+      } catch (e) {
+        console.error("[delivered] notify customer failed", (e as Error)?.message);
+      }
+      return allDone
         ? `تم التسليم ✅ — خلصت مسارك اليوم. شكراً 🙏`
-        : `تم التسليم ✅ — التوصيلة الجاية بانتظارك.`,
-    };
+        : `تم التسليم ✅ — التوصيلة الجاية بانتظارك.`;
+    });
+    return { text };
   }
 
   // ---- v4: driver reported issue ----
@@ -535,13 +644,23 @@ async function handleButton(
         String(orderId),
         { expirationTtl: 60 * 30 },
       );
+      await env.MSG_DEDUP.delete(`pending_purchase_issue:${partner.id}`).catch(() => {});
     }
     return { text: `تمام، اكتب لي وش المشكلة بالضبط (رسالة واحدة) وأنا أسجّلها لبراء.` };
   }
 
   const m = /^(confirm_order|edit_order|cancel_order)_(\d+)$/.exec(buttonId);
   if (!m) {
-    return { text: "زر غير معروف." };
+    // ت1: a button from an old message (or a template whose payload we no
+    // longer handle). Logged, and answered politely instead of «زر غير معروف».
+    await logMessageAnalysis(env, {
+      customerId: partner?.id ?? null,
+      text: buttonId,
+      intent: "unknown_button",
+      actionTaken: `button:unknown:${buttonId.slice(0, 60)}`,
+    });
+    console.warn(`[router] unknown button id=${buttonId.slice(0, 80)}`);
+    return { text: "هذا الزر من رسالة قديمة وما عاد يشتغل 🙏 اكتب لنا طلبك أو استفسارك مباشرة." };
   }
   const action = m[1];
   const orderId = Number(m[2]);
@@ -554,22 +673,104 @@ async function handleButton(
     actionTaken: `button:${action}:${orderId}`,
   });
 
-  if (action === "confirm_order") {
+  // ح8: a double tap within 90s is answered, not re-run. Later taps go
+  // through the state guards below (ح4), which read the live order state.
+  let reply: RouterReply = {};
+  const lockText = await withButtonLock(env, `order:${orderId}:${action}`, async () => {
+    reply = action === "confirm_order"
+      ? await confirmOrderButton(env, orderId, partner)
+      : action === "cancel_order"
+        ? await cancelOrderButton(env, orderId, partner)
+        : await editOrderButton(env, orderId, partner);
+    return reply.text ?? reply.bodyBeforeButtons ?? "";
+  }, 90);
+  return lockText === ALREADY_DONE_TEXT ? { text: ALREADY_DONE_TEXT } : reply;
+}
+
+// --------------------------------------------------------------
+// ح4 — quotation buttons check the live order state before acting.
+//   تأكيد: only an unconfirmed order of today, while ordering is open. It
+//          never revives a cancelled order; after the cutoff it offers the
+//          «سجّله لبكرة» prompt with the same items (ح2).
+//   إلغاء: only before the order enters purchasing (draft / waiting /
+//          confirmed). Afterwards the customer is told it is in progress and
+//          the owner is alerted at once to decide.
+//   تعديل: same window as إلغاء, and only while ordering is open.
+// --------------------------------------------------------------
+const IN_EXECUTION: ReadonlySet<string> = new Set(["in_purchase", "in_delivery", "delivered", "closed"]);
+
+async function confirmOrderButton(env: Env, orderId: number, partner: OdooPartner | null): Promise<RouterReply> {
+  const o = await getOrderBrief(env, orderId);
+  if (!o) return { text: "ما لقينا هذا الطلب. اكتب لنا طلبك من جديد 🌿" };
+  if (o.state === "confirmed") return { text: `طلبك رقم #${orderId} مؤكد مسبقاً ✅` };
+  if (o.state === "in_purchase" || o.state === "in_delivery") return { text: `طلبك رقم #${orderId} مؤكد وفي التنفيذ ✅` };
+  if (o.state === "delivered" || o.state === "closed") return { text: `طلبك رقم #${orderId} تم تسليمه ✅` };
+
+  const unconfirmed = o.state === "draft" || o.state === "waiting_confirmation";
+  const open = isWithinOrderingWindow();
+  if (unconfirmed && open && o.date === riyadhDateKey()) {
     await updateOrderState(env, orderId, "confirmed");
     // 2026-09-23 (ACCOUNTING_SYNC) — confirmed order → confirmed sale.order.
     // Never throws; the customer reply does not depend on it.
-    const { ensureSaleOrderForDailyOrder } = await import("./sale-accounting");
     await ensureSaleOrderForDailyOrder(env, orderId);
-    return { text: "تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿" };
+    let tail = "";
+    if (!o.hasLocation && partner?.id) {
+      const loc = await getPartnerLocation(env, partner.id);
+      const neigh = loc?.neighborhood || (await getPartnerNeighborhood(env, partner.id));
+      if (loc) await setOrderLocation(env, orderId, loc.latitude, loc.longitude, loc.neighborhood);
+      else if (neigh) await setOrderNeighborhood(env, orderId, neigh);
+      else {
+        await env.MSG_DEDUP.put(`pending_neighborhood:${partner.id}`, `loc:${orderId}`, { expirationTtl: 12 * 60 * 60 });
+        tail = "\n📍 أرسل موقع التوصيل (📎 → موقع → موقعي الحالي) أو اكتب اسم الحي.";
+      }
+    }
+    return { text: `تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿${tail}` };
   }
 
-  if (action === "cancel_order") {
+  // Not confirmable now: cancelled at the cutoff, stale, or past 21:00.
+  if (unconfirmed) await cancelIfStillUnconfirmed(env, orderId);
+  const items = await getOrderLineItems(env, orderId);
+  if (!open && partner?.id && items.length > 0) {
+    const why = o.state === "cancelled" ? "أُلغي عند إقفال الساعة 9:00 مساءً لأنه ما تأكد" : "ما تأكد قبل إقفال الساعة 9:00 مساءً";
+    return await offerLateOrder(env, partner.id, items, { lead: `طلبك رقم #${orderId} ${why}، فما يدخل طلبات اليوم.` });
+  }
+  return { text: `طلبك رقم #${orderId} ملغى وما نقدر نرجّعه. أرسل الأصناف من جديد ونبدأ لك طلب جديد 🌿` };
+}
+
+async function cancelIfStillUnconfirmed(env: Env, orderId: number): Promise<void> {
+  const o = await getOrderBrief(env, orderId);
+  if (o && (o.state === "draft" || o.state === "waiting_confirmation")) {
     await updateOrderState(env, orderId, "cancelled");
-    const { cancelSaleOrderForDailyOrder } = await import("./sale-accounting");
-    await cancelSaleOrderForDailyOrder(env, orderId);
-    return { text: "تم الإلغاء. نستناك المرة الجاية 🌿" };
   }
+}
 
+async function cancelOrderButton(env: Env, orderId: number, partner: OdooPartner | null): Promise<RouterReply> {
+  const o = await getOrderBrief(env, orderId);
+  if (!o) return { text: "ما لقينا هذا الطلب." };
+  if (o.state === "cancelled") return { text: `طلبك رقم #${orderId} ملغى مسبقاً ✅` };
+  if (IN_EXECUTION.has(o.state)) {
+    await sendOwnerAlert(
+      env,
+      `🚫 طلب إلغاء على طلب في التنفيذ: ${partner?.name ?? "عميل"}${partner?.x_whatsapp_number ? " (" + partner.x_whatsapp_number + ")" : ""} يطلب إلغاء الطلب #${orderId} وحالته ${o.state}. لم يُلغَ؛ القرار لك.`,
+    );
+    return { text: `طلبك رقم #${orderId} في التنفيذ الحين، فما نقدر نلغيه من هنا. بلّغنا براء وبيتواصل معك قريب 🙏` };
+  }
+  await updateOrderState(env, orderId, "cancelled");
+  await cancelSaleOrderForDailyOrder(env, orderId);
+  return { text: "تم الإلغاء. نستناك المرة الجاية 🌿" };
+}
+
+async function editOrderButton(env: Env, orderId: number, partner: OdooPartner | null): Promise<RouterReply> {
+  const o = await getOrderBrief(env, orderId);
+  if (!o) return { text: "ما لقينا هذا الطلب." };
+  if (o.state === "cancelled") return { text: `طلبك رقم #${orderId} ملغى. أرسل الأصناف من جديد ونبدأ لك طلب جديد 🌿` };
+  if (IN_EXECUTION.has(o.state) || !isWithinOrderingWindow() || o.date !== riyadhDateKey()) {
+    await sendOwnerAlert(
+      env,
+      `✏️ طلب تعديل بعد الإقفال أو أثناء التنفيذ: ${partner?.name ?? "عميل"}${partner?.x_whatsapp_number ? " (" + partner.x_whatsapp_number + ")" : ""} يريد تعديل الطلب #${orderId} وحالته ${o.state}. لم يُعدَّل؛ القرار لك.`,
+    );
+    return { text: `طلبك رقم #${orderId} ما يقبل تعديل الحين (الطلبات تنقفل الساعة 9:00 مساءً). بلّغنا براء وبيتواصل معك 🙏` };
+  }
   // edit_order → return to draft so new messages append lines again
   await updateOrderState(env, orderId, "draft");
   return {

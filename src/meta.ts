@@ -15,6 +15,8 @@ import {
   recordOutbound,
   synthesizeMetaResponse,
 } from "./sim";
+import { sanitizeTemplateBody } from "./wa-params";
+import { recordSendFailure, sendWhat } from "./send-failure";
 
 // ---- GET /webhook — Meta verification handshake ----
 export function handleVerify(url: URL, env: Env): Response {
@@ -261,6 +263,29 @@ export async function fetchMeta(
 
   const to = String((body as { to?: unknown }).to ?? "");
 
+  // ---- template variables (2026-09-24, WA-SCENARIOS ح1) ----
+  // Every template send passes here, so this is the one place that makes
+  // variables Meta-valid: newlines/tabs become " · ", runs of spaces collapse,
+  // empty becomes "-", and long lists are cut on a separator. A caller that
+  // passed a newline is a code bug — logged loudly, never sent as-is. If
+  // anything is still invalid after cleaning, the send is refused here and
+  // recorded as a code error (not a network failure).
+  if ((body as { type?: string }).type === "template") {
+    const { fixes, invalid } = sanitizeTemplateBody(body);
+    if (fixes.length > 0) {
+      console.error(
+        `[tpl-param] code-bug template=${sendWhat(body)} purpose=${opts.purpose ?? "-"} fixed=${JSON.stringify(fixes)}`,
+      );
+    }
+    if (invalid.length > 0) {
+      await recordSendFailure(env, {
+        to, what: sendWhat(body), code: "TemplateParamInvalid",
+        message: `invalid template variable(s) ${JSON.stringify(invalid)}`, phase: "code",
+      });
+      return metaErrorResponse("template variable invalid after sanitize", "TemplateParamInvalid", 400);
+    }
+  }
+
   // ---- owner-guard (allowlist by purpose) ----
   // Runs BEFORE the SIM_ALLOWLIST check so the log line names the real
   // reason. The owner number is a management inbox: it must never be the
@@ -397,6 +422,12 @@ export async function fetchMeta(
       // 2026-09-20 (cover) — mirror immediate failures so Baraa sees a
       // matching "⚠️ ما انرسلت" line in the customer's Discuss channel.
       await dispatchFailureEcho(env, to, metaError?.message ?? `Meta ${resp.status}`, opts.ctx);
+      // 2026-09-24 (ح6) — failed x_wa_message row + counter + owner alert.
+      await recordSendFailure(env, {
+        to, what: sendWhat(body), code: metaError?.code ?? resp.status,
+        message: metaError?.message ?? `HTTP ${resp.status}`, phase: "sync",
+        body: metaBodyToEchoText(body),
+      });
     }
     return resp;
   }
@@ -414,6 +445,18 @@ export async function fetchMeta(
     let errText = "";
     try { errText = (await prodResp.clone().text()).slice(0, 200); } catch { /* ignore */ }
     await dispatchFailureEcho(env, to, errText || `Meta ${prodResp.status}`, opts.ctx);
+    let code: number | null = null;
+    let message = errText;
+    try {
+      // deno-lint-ignore no-explicit-any
+      const e = (JSON.parse(errText) as any)?.error;
+      if (typeof e?.code === "number") code = e.code;
+      if (e?.message) message = String(e.message);
+    } catch { /* not JSON */ }
+    await recordSendFailure(env, {
+      to, what: sendWhat(body), code: code ?? prodResp.status,
+      message: message || `HTTP ${prodResp.status}`, phase: "sync", body: metaBodyToEchoText(body),
+    });
   }
   return prodResp;
 }
@@ -489,7 +532,7 @@ async function dispatchEcho(
 // and never affects the send's return path.
 // -------------------------------------------------------------
 
-function metaBodyToEchoText(body: Record<string, unknown>): string {
+export function metaBodyToEchoText(body: Record<string, unknown>): string {
   const b = body as { type?: string;
     text?: { body?: string };
     template?: { name?: string; components?: Array<{ parameters?: Array<{ text?: string }> }> };

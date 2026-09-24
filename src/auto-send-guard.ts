@@ -40,6 +40,8 @@ export const CRON_JOB: Readonly<Record<string, string>> = {
   "0 15 * * *": "collection_summary",
   "0 14 * * *": "standing_reminders",
   "0 5 * * *": "daily_outreach",
+  // 2026-09-24 (ح3) — 20:00 Riyadh reminder for unconfirmed orders. sim only.
+  "0 17 * * *": "cutoff_reminder",
 };
 
 /** Shallow copy of env that marks every send inside the job as automated. */
@@ -58,8 +60,15 @@ export function sendKind(body: Record<string, unknown>): string {
   return `type:${b.type ?? "?"}`;
 }
 
-export function autoSendKey(to: string, body: Record<string, unknown>, job: string, now: Date = new Date()): string {
-  return `autosend:v1:${riyadhDateKey(now)}:${digitsOf(to)}:${sendKind(body)}:${job}`;
+export function autoSendKey(
+  to: string,
+  body: Record<string, unknown>,
+  job: string,
+  now: Date = new Date(),
+  discriminator?: string,
+): string {
+  const base = `autosend:v1:${riyadhDateKey(now)}:${digitsOf(to)}:${sendKind(body)}:${job}`;
+  return discriminator ? `${base}:${discriminator}` : base;
 }
 
 export type ClaimResult = { claimed: true; key: string } | { claimed: false; key: string; firstAt: string };
@@ -75,7 +84,13 @@ export async function claimAutoSend(
   job: string,
   now: Date = new Date(),
 ): Promise<ClaimResult> {
-  const key = autoSendKey(to, body, job, now);
+  // 2026-09-24 — owner alerts are instant and unbatched: two DIFFERENT alerts
+  // in the same job on the same day must both go out, so the owner's key
+  // carries a content hash. A re-run of the job produces the same content
+  // and is still refused.
+  const owner = digitsOf(String(env.OWNER_WHATSAPP ?? ""));
+  const disc = owner && digitsOf(to) === owner ? fnv1a(JSON.stringify(body)) : undefined;
+  const key = autoSendKey(to, body, job, now, disc);
   const prev = await env.MSG_DEDUP.get(key);
   if (prev !== null) return { claimed: false, key, firstAt: prev };
   await env.MSG_DEDUP.put(key, now.toISOString(), { expirationTtl: AUTO_SEND_TTL_SECONDS });

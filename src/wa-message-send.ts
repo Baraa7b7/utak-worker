@@ -488,6 +488,8 @@ export interface LogInboundArgs {
    * fall back to now().
    */
   metaTimestampMs?: number;
+  /** 2026-09-24 — Meta error ("Meta 132018: …") for a failed send (x_meta_error). */
+  metaError?: string;
 }
 
 export async function logWaMessage(env: Env, a: LogInboundArgs): Promise<void> {
@@ -514,6 +516,7 @@ export async function logWaMessage(env: Env, a: LogInboundArgs): Promise<void> {
     if (a.resModel) vals.x_res_model = a.resModel;
     if (a.resId) vals.x_res_id = a.resId;
     if (typeof a.manual === "boolean") vals.x_manual = a.manual;
+    if (a.metaError) vals.x_meta_error = a.metaError.slice(0, 2000);
     const source =
       a.source ??
       (a.direction === "in" ? "inbound" : a.manual === true ? "manual" : "auto");
@@ -559,26 +562,28 @@ export async function updateWaStatusByWamid(
   wamid: string,
   status: "sent" | "delivered" | "read" | "failed",
   errorMessage?: string,
-): Promise<void> {
+): Promise<{ id: number; body: string } | null> {
   try {
-    const rows = await call<Array<{ id: number; x_status: string | false }>>(
+    const rows = await call<Array<{ id: number; x_status: string | false; x_body: string | false }>>(
       env,
       "x_wa_message",
       "search_read",
       {
         domain: [["x_meta_message_id", "=", wamid]],
-        fields: ["id", "x_status"],
+        fields: ["id", "x_status", "x_body"],
         limit: 1,
       },
     );
-    if (rows.length === 0) return;
+    if (rows.length === 0) return null;
     const vals: Record<string, unknown> = { x_status: status };
     if (errorMessage) vals.x_meta_error = errorMessage.slice(0, 2000);
     await call<boolean>(env, "x_wa_message", "write", {
       ids: [rows[0].id],
       vals,
     });
+    return { id: rows[0].id, body: typeof rows[0].x_body === "string" ? rows[0].x_body : "" };
   } catch (e) {
     console.warn("[updateWaStatusByWamid] failed", (e as Error)?.message);
+    return null;
   }
 }

@@ -1,0 +1,16 @@
+{
+  "created": "2026-09-24T16:00:44.290Z",
+  "templateId": 64,
+  "before": {
+    "id": 64,
+    "x_meta_template_id": "utak_order_update",
+    "x_purpose": "other",
+    "x_param_count": 2,
+    "x_meta_status": "APPROVED",
+    "x_category": "UTILITY"
+  },
+  "createdSelectionId": 3987,
+  "after": {
+    "x_purpose": "customer_order_update"
+  }
+}

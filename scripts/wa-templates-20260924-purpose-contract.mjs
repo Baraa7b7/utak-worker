@@ -25,4 +25,6 @@ export const CONTRACT = {
   customer_pay_remind:        { params: 2, where: "src/outreach.ts:81", used: true },
   customer_inactive:          { params: 1, where: "src/outreach.ts:113", used: true },
   customer_feedback:          { params: 1, where: "src/outreach.ts:48", used: true },
+  // 2026-09-24 (ح3) — utak_order_update (#64): 20:00 reminder + 21:00 cancel notice outside the 24h window.
+  customer_order_update:      { params: 2, where: "src/team.ts notifyOrderCustomer", used: true },
 };

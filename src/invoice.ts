@@ -2,6 +2,7 @@
 // 2026-09-05: ADDED Gotenberg PDF + R2 archive + signed URLs.
 
 import type { Env } from "./config";
+import { arabicDate, joinCapped } from "./wa-params";
 import {
   getOrderForInvoicing,
   getLatestSalePrice,
@@ -289,9 +290,8 @@ interface CustomerInvoiceSend {
 /** PDF template → text template → plain text. Throws when all three fail. */
 async function dispatchInvoiceToCustomer(env: Env, a: CustomerInvoiceSend): Promise<void> {
   if (!a.to) throw new Error("customer has no WhatsApp number");
-  const invoiceDate = new Date(`${a.invoiceDateYmd}T12:00:00Z`).toLocaleDateString("en-GB", {
-    day: "2-digit", month: "short", year: "numeric",
-  });
+  // ت5 (2026-09-24): «24 سبتمبر 2026» — Arabic month, Latin digits, no bidi marks.
+  const invoiceDate = arabicDate(a.invoiceDateYmd);
   let resp: Response | null = null;
   if (a.pdfUrl) {
     // utak_invoice_pdf_v1 with document header
@@ -306,9 +306,8 @@ async function dispatchInvoiceToCustomer(env: Env, a: CustomerInvoiceSend): Prom
   }
   if (!resp || !resp.ok) {
     // Fallback: old text template
-    const linesFormatted = a.lines
-      .map(p => `• ${p.product} × ${p.qty} = ${p.line_total} ر.س`)
-      .join("\n");
+    // ح1: one line — the multi-line {{3}} was refused by Meta (#132018).
+    const linesFormatted = joinCapped(a.lines.map(p => `${p.product} × ${p.qty} = ${p.line_total} ر.س`)).text;
     resp = await sendTemplateByPurpose(env, a.to, T.CUSTOMER_INVOICE,
       [a.customerName || "", a.invoiceNumber, linesFormatted, String(a.total)]);
   }
@@ -527,6 +526,25 @@ export async function recordCollection(
     ? { x_payment_id: paymentId, x_status: "paid" }
     : { x_payment_id: paymentId });
 
+  // ح8 second net: the button lock is KV (not atomic across colos). Re-count
+  // after the create; more collected than invoiced = a double tap got through.
+  try {
+    const after = await call<Array<{ id: number; x_amount: number }>>(env, "x_payment", "search_read", {
+      domain: [["x_invoice_id", "=", invoiceId]],
+      fields: ["id", "x_amount"],
+      limit: 200,
+    });
+    const sum = round2(after.reduce((t, p) => t + (p.x_amount ?? 0), 0));
+    if (sum > invoice.total + 0.01) {
+      await sendOwnerAlert(
+        env,
+        `🚨 تحصيل مكرر على الفاتورة ${invoice.number}: المسجّل ${sum} ر.س والفاتورة ${invoice.total} ر.س (${after.length} دفعة: ${after.map((p) => "#" + p.id).join("، ")}). راجع الدفعات واحذف المكرر.`,
+      );
+    }
+  } catch (e) {
+    console.warn(`[collection] overpayment check failed`, (e as Error).message);
+  }
+
   // Parallel accounting write for the collection. Only meaningful when the
   // matching x_invoice was itself twinned into account.move (i.e. created
   // after ACCOUNTING_SYNC was flipped on). Legacy x_invoice rows with no
@@ -610,12 +628,14 @@ export async function sendDailyCollectionSummary(env: Env): Promise<void> {
 
   const grandTotal = round2(unpaid.reduce((sum, r) => sum + r.total, 0));
 
-  const lines = unpaid
-    .map((r, i) => {
-      const neigh = r.neighborhood ? ` (${r.neighborhood})` : "";
-      return `${i + 1}. ${r.customer_name}${neigh} — ${r.total} ر.س — ${r.number}`;
-    })
-    .join("\n");
+  const items = unpaid.map((r, i) => {
+    const neigh = r.neighborhood ? ` (${r.neighborhood})` : "";
+    return `${i + 1}. ${r.customer_name}${neigh} — ${r.total} ر.س — ${r.number}`;
+  });
+  const lines = items.join("\n");
+  // ح1: the template's {{2}} must be one line — this summary failed 6/6 on sim
+  // with #132018. The full list stays in the session-text fallback below.
+  const oneLine = joinCapped(items).text;
 
   const body = [
     `📋 قائمة التحصيل اليومية`, ``, lines, ``,
@@ -624,11 +644,11 @@ export async function sendDailyCollectionSummary(env: Env): Promise<void> {
     `لما تحصّل من أي عميل، افتح رسالة الفاتورة الأصلية واضغط زر التحصيل.`,
   ].join("\n");
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = arabicDate(new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10));
   for (const c of collectors) {
     try {
       const resp = await sendTemplateByPurpose(env, c.whatsapp, T.COLLECTION_SUMMARY,
-        [today, lines, String(grandTotal), String(unpaid.length)]);
+        [today, oneLine, String(grandTotal), String(unpaid.length)]);
       if (!resp || !resp.ok) {
         await sendText(env, c.whatsapp, body);
       }

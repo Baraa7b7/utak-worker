@@ -189,6 +189,8 @@ export const T = {
   CUSTOMER_PAY_REMIND: "customer_pay_remind",
   CUSTOMER_INACTIVE: "customer_inactive",
   CUSTOMER_FEEDBACK: "customer_feedback",
+  /** utak_order_update (UTILITY, 2 vars): order number + what changed. 2026-09-24 (ح3). */
+  CUSTOMER_ORDER_UPDATE: "customer_order_update",
 } as const;
 
 // ============================================================
@@ -211,13 +213,13 @@ export const T = {
 // Meta's validation.
 // ============================================================
 import { sendText } from "./meta";
+import { sanitizeTemplateParam } from "./wa-params";
 
+// 2026-09-24 — the owner alert keeps its own " | " separator (reads better in
+// an alert than " · "), then the shared sanitizer in fetchMeta applies to it
+// like to every other template variable.
 function sanitizeOwnerAlertParam(text: string): string {
-  return String(text ?? "")
-    .replace(/[\r\n\t]+/g, " | ")
-    .replace(/ {2,}/g, " ")
-    .trim()
-    .slice(0, 900);
+  return sanitizeTemplateParam(String(text ?? "").replace(/[\r\n\t]+/g, " | "));
 }
 
 export async function sendOwnerAlert(env: Env, text: string): Promise<void> {

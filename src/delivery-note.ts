@@ -268,12 +268,19 @@ export interface DeliveryNoteDispatchResult {
   pdfUrl: string;
   pdfSize: number;
   messageId: string | null;
+  /** Set when opts.defer: the driver text, to be sent after «بدء الدوام». */
+  deferredText?: string;
 }
 
 export async function createAndDispatchDeliveryNoteForStop(
   env: Env,
   stopId: number,
   driverPhone: string,
+  // 2026-09-24 (م11) — a free-form text before the driver has tapped «بدء
+  // الدوام» lands outside the 24h window and is dropped by Meta. With defer,
+  // the PDF is built and archived now and the text is returned for the
+  // caller to queue with the stop locations.
+  opts: { defer?: boolean } = {},
 ): Promise<DeliveryNoteDispatchResult | null> {
   const data = await buildDeliveryNotePDFDataFromOdoo(env, stopId);
   if (!data) {
@@ -304,8 +311,17 @@ export async function createAndDispatchDeliveryNoteForStop(
   }
 
   let messageId: string | null = null;
+  let deferredText: string | undefined;
   if (!driverPhone) {
     console.warn(`[delivery-note] stop ${stopId} — no driver phone, skipping send`);
+  } else if (opts.defer) {
+    deferredText = [
+      `📦 إذن تسليم للطلب ${orderId || data.deliveryNumber}`,
+      `العميل: ${data.customer.name}`,
+      `الحي: ${data.customer.address}`,
+      ``,
+      `الوثيقة: ${uploaded.publicUrl}`,
+    ].join("\n");
   } else {
     const body = [
       `📦 إذن تسليم للطلب ${orderId || data.deliveryNumber}`,
@@ -340,7 +356,7 @@ export async function createAndDispatchDeliveryNoteForStop(
       vals: {
         x_delivery_note_number: data.deliveryNumber,
         x_delivery_note_url: uploaded.publicUrl,
-        x_dn_sent_at: nowOdoo(),
+        ...(opts.defer ? {} : { x_dn_sent_at: nowOdoo() }),
       },
     });
   } catch (e) {
@@ -356,6 +372,7 @@ export async function createAndDispatchDeliveryNoteForStop(
     pdfUrl: uploaded.publicUrl,
     pdfSize: uploaded.size,
     messageId,
+    deferredText,
   };
 }
 

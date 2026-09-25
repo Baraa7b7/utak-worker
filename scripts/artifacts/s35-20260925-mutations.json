@@ -1,0 +1,415 @@
+[
+  {
+    "mutation": "rounding: half down instead of half up",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "sale = purchase × (1 + margin/100), half up to two decimals (13.5 × 1.125 = 15.1875 → 15.19) — [11.5,30,15.18,0.79,5",
+      "the worker's rule = the Odoo compute (mirror) on 2000 random cases"
+    ]
+  },
+  {
+    "mutation": "rule: the margin ignored (sale = purchase)",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": null,
+    "first": [
+      "sale = purchase × (1 + margin/100), half up to two decimals (13.5 × 1.125 = 15.1875 → 15.19) — [10,25,13.5,0.6,44,10",
+      "the worker's rule = the Odoo compute (mirror) on 2000 random cases",
+      "published: 1 item, recipients = the two plain customers — {\"action\":\"mismatch\",\"day\":\"2026-09-26\",\"dayId\":10003}"
+    ]
+  },
+  {
+    "mutation": "default: the cheapest, outliers included",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "default: the cheapest non-outlier (even if an outlier is cheaper)",
+      "an outlier cheaper than a normal price: the normal one is the default, nothing blocks"
+    ]
+  },
+  {
+    "mutation": "plan: a supplier's first price instead of the latest",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 3,
+    "first": [
+      "one line per product+packaging, each supplier's latest price; a failed extraction ignored — [{\"key\":\"1:11\",\"productI",
+      "the offers text, cheapest first, outlier marked — خالد 27 (شاذ) · أحمد حسان 30",
+      "…and the offers text follows the new price — {\"day\":\"2026-09-26\",\"action\":\"refreshed\",\"dayId\":10005,\"state\":\"draft\","
+    ]
+  },
+  {
+    "mutation": "plan: a failed extraction counts",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "one line per product+packaging, each supplier's latest price; a failed extraction ignored — [{\"key\":\"2:21\",\"productI",
+      "the offers text, cheapest first, outlier marked — خالد 15"
+    ]
+  },
+  {
+    "mutation": "prices: another day's prices read",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "no prices today (yesterday's exist) → nothing built"
+    ]
+  },
+  {
+    "mutation": "deadline: ORDERING_HOURS_OPEN ignored (07:00)",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 8,
+    "first": [
+      "deadline = ORDERING_HOURS_OPEN (06:00)",
+      "PRICES_DEADLINE=07:00 overrides; invalid → 06:00",
+      "06:00 with a draft → «missed»"
+    ]
+  },
+  {
+    "mutation": "refresh: Baraa's edits overwritten (every line follows the default)",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "an edited purchase price is kept when a cheaper price arrives — {\"x_day_id\":10005,\"x_name\":\"طماطم — كرتون\",\"x_sequen"
+    ]
+  },
+  {
+    "mutation": "refresh: a margin added later not taken",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "a product given a margin later → its excluded line takes it"
+    ]
+  },
+  {
+    "mutation": "refresh: an approved day is rebuilt",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "an approved day is never touched"
+    ]
+  },
+  {
+    "mutation": "refresh: no fingerprint (every tick rewrites)",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "run again with nothing new → unchanged"
+    ]
+  },
+  {
+    "mutation": "publish: a draft is published",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": null,
+    "first": [
+      "a draft is not published",
+      "published: 1 item, recipients = the two plain customers — {\"action\":\"in_progress\",\"day\":\"2026-09-26\",\"dayId\":10003,\"",
+      "inside the window: the list as text — []"
+    ]
+  },
+  {
+    "mutation": "publish: twice (no «already»)",
+    "files": [
+      "src/prices.ts",
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "publishing again → «already», nothing sent"
+    ]
+  },
+  {
+    "mutation": "publish: an excluded line published",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 3,
+    "first": [
+      "published: 1 item, recipients = the two plain customers — {\"action\":\"published\",\"day\":\"2026-09-26\",\"dayId\":10003,\"it",
+      "…and not the excluded cucumber",
+      "Baraa: the counts, the excluded names, and the same list — [\"📢 نُشرت أسعار السبت 26 سبتمبر 2026. الأصناف: 2، والعمل"
+    ]
+  },
+  {
+    "mutation": "publish: the purchase price shown instead of the sale price",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 3,
+    "first": [
+      "inside the window: the list as text — [\"🌿 أسعار يو تاك اليوم — السبت 26 سبتمبر 2026\\n\\n• طماطم (كرتون): 25 ر.س\\n\\nا",
+      "…no purchase price, no supplier, no margin in it — 🌿 أسعار يو تاك اليوم — السبت 26 سبتمبر 2026",
+      "Baraa: the counts, the excluded names, and the same list — [\"📢 نُشرت أسعار السبت 26 سبتمبر 2026. الأصناف: 1، والعمل"
+    ]
+  },
+  {
+    "mutation": "publish: an unhandled outlier published",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "an approved day with an unhandled outlier (approved outside the button) → blocked, no customer send"
+    ]
+  },
+  {
+    "mutation": "publish: a sale price off the rule published",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "a stored sale price that is not the rule → not published"
+    ]
+  },
+  {
+    "mutation": "publish: no copy / counts for Baraa",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "Baraa: the counts, the excluded names, and the same list — [\"⚠️ أصناف بلا هامش لم تُنشر اليوم: خيار. ضع «هامش الربح "
+    ]
+  },
+  {
+    "mutation": "publish: no alert naming the products without margin",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "…and an alert naming the products without margin"
+    ]
+  },
+  {
+    "mutation": "publish: never cut into parts",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "a long list is cut into parts ≤ 3500 characters, numbered, every item once, the footer at the end — 7707"
+    ]
+  },
+  {
+    "mutation": "publish: not critical (no opener when held)",
+    "files": [
+      "src/wa-purposes.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "outside the window: held for the day, + utak_update_customer [account, «أسعار اليوم»] — []"
+    ]
+  },
+  {
+    "mutation": "recipients: the opted-out included",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 4,
+    "first": [
+      "published: 1 item, recipients = the two plain customers — {\"action\":\"published\",\"day\":\"2026-09-26\",\"dayId\":10003,\"it",
+      "opted out / review-held / «شخصي» / team: nothing at all",
+      "Baraa: the counts, the excluded names, and the same list — [\"📢 نُشرت أسعار السبت 26 سبتمبر 2026. الأصناف: 1، والعمل"
+    ]
+  },
+  {
+    "mutation": "recipients: review-held and «شخصي» included",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 4,
+    "first": [
+      "published: 1 item, recipients = the two plain customers — {\"action\":\"published\",\"day\":\"2026-09-26\",\"dayId\":10003,\"it",
+      "opted out / review-held / «شخصي» / team: nothing at all",
+      "Baraa: the counts, the excluded names, and the same list — [\"📢 نُشرت أسعار السبت 26 سبتمبر 2026. الأصناف: 1، والعمل"
+    ]
+  },
+  {
+    "mutation": "recipients: the team included",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 4,
+    "first": [
+      "published: 1 item, recipients = the two plain customers — {\"action\":\"published\",\"day\":\"2026-09-26\",\"dayId\":10003,\"it",
+      "opted out / review-held / «شخصي» / team: nothing at all",
+      "Baraa: the counts, the excluded names, and the same list — [\"📢 نُشرت أسعار السبت 26 سبتمبر 2026. الأصناف: 1، والعمل"
+    ]
+  },
+  {
+    "mutation": "deadline: the day not marked «missed»",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "06:00 with a draft → «missed»"
+    ]
+  },
+  {
+    "mutation": "deadline: the alert every tick (no claim)",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "the next tick → once only"
+    ]
+  },
+  {
+    "mutation": "deadline: a late worker still raises it at 09:00",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "09:00 (a worker down at 06:00) → no late «missed» alert"
+    ]
+  },
+  {
+    "mutation": "tick: publishes an approval at once (no wait for the webhook)",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "the tick waits for the webhook (< 3 min)",
+      "…then publishes it (> 3 min)"
+    ]
+  },
+  {
+    "mutation": "hook: no token check",
+    "files": [
+      "src/index.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "hook: no token → 401"
+    ]
+  },
+  {
+    "mutation": "quotes: the published price not used",
+    "files": [
+      "src/odoo.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "published → the published price (30), source today — {\"price\":34.5,\"source\":\"today\",\"price_date\":\"2026-09-26\",\"age_d"
+    ]
+  }
+]

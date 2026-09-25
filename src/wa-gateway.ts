@@ -160,7 +160,8 @@ function refused(message: string, type: string, status: number): Response {
 //                     that opens his 24h window (STATUS § 29).
 //   • conv_open_owner — utak_update_owner, his «فتح المحادثة» (§ 34)
 //   • owner_team_note — the collector's / driver's note (§ 34)
-const OWNER_ALLOWED_PURPOSES: ReadonlySet<string> = new Set(["owner_alert", "owner_summary", "owner_window", "conv_open_owner", "owner_team_note"]);
+//   • owner_prices  — his copy of today's published prices (§ 35)
+const OWNER_ALLOWED_PURPOSES: ReadonlySet<string> = new Set(["owner_alert", "owner_summary", "owner_window", "conv_open_owner", "owner_team_note", "owner_prices"]);
 
 function ownerDigits(env: Env): string {
   return waDigits(String(env.OWNER_WHATSAPP ?? ""));

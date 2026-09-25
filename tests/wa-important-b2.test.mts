@@ -35,8 +35,10 @@ const F2 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260925-supp
 const F3 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260925-review.json", import.meta.url), "utf8"));
 // STATUS § 33 — x_wa_message.x_status: held / expired / skipped (the send gateway).
 const F4 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260925-gateway.json", import.meta.url), "utf8"));
-const REAL: Record<string, string[]> = { ...F1, ...F2, ...F3, ...F4 };
-const SELECTIONS: Record<string, string[]> = { ...F1._selections, ...F2._selections, ...F3._selections, ...F4._selections };
+// STATUS § 35 — a supplier's prices refresh «أسعار اليوم» (x_price_day*, product.template.x_margin_pct).
+const F5 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260925-prices.json", import.meta.url), "utf8"));
+const REAL: Record<string, string[]> = { ...F1, ...F2, ...F3, ...F4, ...F5 };
+const SELECTIONS: Record<string, string[]> = { ...F1._selections, ...F2._selections, ...F3._selections, ...F4._selections, ...F5._selections };
 // added on the tenant by scripts/wa-20260925-supplier-nudge-purpose.mjs (selection #4025)
 SELECTIONS["x_whatsapp_template.x_purpose"] = [...SELECTIONS["x_whatsapp_template.x_purpose"], "supplier_price_nudge"];
 const rejected: string[] = [];

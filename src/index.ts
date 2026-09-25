@@ -165,6 +165,17 @@ export default {
           } catch (e) {
             console.error("[gateway sweep] failed", (e as Error)?.message);
           }
+          // 2026-09-25 (STATUS § 35) — today's prices: the record follows the
+          // prices received, the approval deadline, and a lost approval webhook.
+          try {
+            const { runPricesTick } = await import("./prices");
+            const p = await runPricesTick(env, Date.now(), ctx);
+            const quiet = (p.refresh && "action" in p.refresh && ["no_prices", "unchanged", "locked"].includes(p.refresh.action))
+              && (p.deadline && "action" in p.deadline && ["before", "after_window", "claimed_before"].includes(p.deadline.action)) && !p.publish;
+            if (!quiet) console.log("[prices tick]", JSON.stringify(p));
+          } catch (e) {
+            console.error("[prices tick] failed", (e as Error)?.message);
+          }
           break;
         }
         default: console.warn(`[scheduled] unhandled cron: ${cron}`);
@@ -1469,6 +1480,36 @@ export default {
       await invalidateRoster(env);
       console.log("[team-roster hook]", JSON.stringify({ model: body._model ?? "-", id: body._id ?? body.id ?? "-" }));
       return json({ status: "roster_dropped" }, 202);
+    }
+
+    // 2026-09-25 (STATUS § 35) — Odoo → Worker, from «💰 أسعار اليوم»:
+    //   op=approved — the approval button (after its code action locked the
+    //                 record as approved): publish it now;
+    //   op=refresh  — «🔄 تحديث»: rebuild the day from the suppliers' prices.
+    // 202 at once (Odoo's webhook waits one second); the work runs in waitUntil.
+    if (request.method === "POST" && url.pathname === "/odoo/hook/prices") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      let body: { _model?: string; _id?: number; id?: number; x_date?: string } = {};
+      try {
+        body = (await request.json()) as typeof body;
+      } catch {
+        body = {};
+      }
+      const id = Number(body._id ?? body.id ?? 0);
+      const op = url.searchParams.get("op") ?? "";
+      if (body._model && body._model !== "x_price_day") return json({ error: `unexpected model: ${body._model}` }, 400);
+      if (!id || !["approved", "refresh"].includes(op)) return json({ error: "missing id or op" }, 400);
+      const { publishPriceDay, refreshPriceDay } = await import("./prices");
+      const task = (op === "approved"
+        ? publishPriceDay(env, id, { ctx }).then((r) => console.log("[prices hook] publish", JSON.stringify(r)))
+        : refreshPriceDay(env, { day: typeof body.x_date === "string" ? body.x_date : undefined, force: true }).then((r) => console.log("[prices hook] refresh", JSON.stringify(r)))
+      ).catch((e) => console.error(`[prices hook] ${op} failed`, (e as Error)?.message));
+      ctx.waitUntil(task);
+      return json({ status: "accepted", op, id }, 202);
     }
 
     // Item 2 (2026-09-17) — Odoo → Worker: process x_wa_message.x_status='queued'.

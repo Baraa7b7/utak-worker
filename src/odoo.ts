@@ -2463,6 +2463,26 @@ export async function getLatestSalePrice(
   packagingId: number,
 ): Promise<SalePriceLookup> {
   const today = riyadhToday(); // 2026-09-25 — the day x_daily_price.x_date is written in
+  // 2026-09-25 (STATUS § 35) — today's published price (what the customers
+  // received in «أسعار اليوم») comes first: the quotation and the invoice
+  // follow the list. Nothing published today → as before.
+  try {
+    const pub = await call<Array<{ x_sale_price: number | false }>>(env, "x_price_day_line", "search_read", {
+      domain: [
+        ["x_day_id.x_date", "=", today],
+        ["x_day_id.x_state", "=", "published"],
+        ["x_product_tmpl_id", "=", productId],
+        ["x_packaging_id", "=", packagingId],
+        ["x_excluded", "=", false],
+      ],
+      fields: ["x_sale_price"],
+      limit: 1,
+    });
+    const p = Number(pub[0]?.x_sale_price ?? 0);
+    if (p > 0) return { price: p, source: "today", price_date: today, age_days: 0 };
+  } catch (e) {
+    console.warn("[price] published lookup failed — supplier price", (e as Error)?.message);
+  }
   type Row = { x_sale_price: number | false; x_price_sar: number | false; x_date: string | false };
   const pickPrice = (r: Row): number => {
     if (typeof r.x_sale_price === "number" && r.x_sale_price > 0) return r.x_sale_price;

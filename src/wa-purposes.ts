@@ -66,6 +66,10 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   customer_payment_received: crit(op("إيصال الدفع", true), "إيصال الدفع"),
   customer_payment_ack: op("تأكيد استلام الدفعة"),
   customer_pay_remind: op("تذكير الدفع", true),
+  // § 35 — today's approved prices to every customer: critical, held for the
+  // day outside the window. Not «important»: the publication report counts
+  // the held ones (no alert per customer).
+  customer_prices: crit(op("أسعار اليوم"), "أسعار اليوم"),
   customer_feedback: { label: "طلب التقييم", kind: "marketing", important: false, ttl: "day" },
   customer_inactive: { label: "تذكير الغياب", kind: "marketing", important: false, ttl: "day" },
   // ---- suppliers
@@ -96,6 +100,8 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // § 34 — the collector's / driver's note (delivery or collection) to Baraa,
   // with the customer and the order.
   owner_team_note: crit(op("ملاحظة من الفريق", false, { hours: 36 }), "ملاحظة من الفريق"),
+  // § 35 — Baraa's copy of the published list, with the counts.
+  owner_prices: crit(op("نسخة أسعار اليوم", false, { hours: 36 }), "أسعار اليوم"),
   owner_summary: op("ملخص المالك", false, { hours: 36 }),
   owner_window: op("نافذة المالك 06:00"),
   // ---- § 34: «فتح المحادثة» — one UTILITY template per recipient category,

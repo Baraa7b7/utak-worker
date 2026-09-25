@@ -1,0 +1,125 @@
+{
+  "mode": "approve",
+  "today": "2026-09-25",
+  "at": "2026-09-25T16:01:57.766Z",
+  "before": {
+    "id": 1,
+    "x_name": "أسعار اليوم 2026-09-25",
+    "x_state": "draft",
+    "x_approved_by": false,
+    "x_approved_at": false,
+    "x_published_at": false,
+    "x_publish_report": false
+  },
+  "run": false,
+  "after": {
+    "id": 1,
+    "x_name": "أسعار اليوم 2026-09-25",
+    "x_state": "published",
+    "x_approved_by": [
+      2,
+      "albaraa abdulwahab"
+    ],
+    "x_approved_at": "2026-09-25 16:01:58",
+    "x_published_at": "2026-09-25 16:01:58",
+    "x_publish_report": "نُشر 2026-09-25 16:01:58 UTC: 3 صنف في 1 رسالة، لـ 4 عميل.\nنصاً 0، ومحفوظة 0، ومحجوبة (القائمة/الحارس) 4، ولم تُرسل 0، ورفضها Meta 0.\nمستبعد بلا هامش: رمان وسط."
+  },
+  "lines": [
+    {
+      "id": 1,
+      "x_product_tmpl_id": [
+        73,
+        "[UTAK-VEG-003] بطاطس"
+      ],
+      "x_packaging_id": [
+        6,
+        "كرتون · 10 كيلو"
+      ],
+      "x_supplier_id": [
+        7,
+        "براء - اختبار"
+      ],
+      "x_offers": "براء - اختبار 18",
+      "x_source_price": 18,
+      "x_cost_price": 18,
+      "x_is_outlier": false,
+      "x_outlier_ok": false,
+      "x_margin_pct": 12.5,
+      "x_sale_price": 20.25,
+      "x_excluded": false,
+      "x_blocked": false
+    },
+    {
+      "id": 2,
+      "x_product_tmpl_id": [
+        72,
+        "[UTAK-VEG-002] خيار"
+      ],
+      "x_packaging_id": [
+        3,
+        "جرم · 8 كيلو"
+      ],
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_offers": "أحمد حسان 45 (شاذ)",
+      "x_source_price": 45,
+      "x_cost_price": 45,
+      "x_is_outlier": true,
+      "x_outlier_ok": true,
+      "x_margin_pct": 15,
+      "x_sale_price": 51.75,
+      "x_excluded": false,
+      "x_blocked": false
+    },
+    {
+      "id": 3,
+      "x_product_tmpl_id": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "x_packaging_id": [
+        37,
+        "كرتون"
+      ],
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_offers": "أحمد حسان 13",
+      "x_source_price": 13,
+      "x_cost_price": 13,
+      "x_is_outlier": false,
+      "x_outlier_ok": false,
+      "x_margin_pct": 0,
+      "x_sale_price": 0,
+      "x_excluded": true,
+      "x_blocked": false
+    },
+    {
+      "id": 4,
+      "x_product_tmpl_id": [
+        71,
+        "[UTAK-VEG-001] طماطم"
+      ],
+      "x_packaging_id": [
+        1,
+        "فلين · 5 كيلو"
+      ],
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_offers": "براء - اختبار 24 · أحمد حسان 26",
+      "x_source_price": 26,
+      "x_cost_price": 26,
+      "x_is_outlier": false,
+      "x_outlier_ok": false,
+      "x_margin_pct": 20,
+      "x_sale_price": 31.2,
+      "x_excluded": false,
+      "x_blocked": false
+    }
+  ]
+}

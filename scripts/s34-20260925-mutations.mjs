@@ -73,7 +73,7 @@ const M = [
   ["owner: the 06:00 backup does not count as the day's opener", [["src/attendance.ts",
     "    await markOpenerSentToday(env, owner, d.template, nowMs);\n", ""]], O],
   ["owner guard: owner_team_note blocked", [[GW,
-    "\"conv_open_owner\", \"owner_team_note\"]", "\"conv_open_owner\"]"]], O],
+    "\"owner_team_note\", \"owner_prices\"]", "\"owner_prices\"]"]], O],
   // ---- params
   ["params: a customer's {{1}} is the date, not the account number", [[OP,
     "  const ref = category === \"customer\" && partnerId ? String(partnerId) : arabicDate(riyadhDateKey(new Date(now)));",

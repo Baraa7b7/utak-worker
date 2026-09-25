@@ -30,7 +30,14 @@ const M2O: Record<string, string> = {
   x_route_id: "x_delivery_route", x_sale_order_id: "sale.order", x_payment_id: "x_payment",
   x_template_id: "x_whatsapp_template", x_account_move_id: "account.move", x_driver_id: "res.partner",
   x_wa_channel_id: "discuss.channel", x_wa_partner_id: "res.partner",
+  // 2026-09-25 (STATUS § 35) — «أسعار اليوم»
+  x_day_id: "x_price_day", x_daily_price_id: "x_daily_price", x_default_price_id: "x_daily_price", x_approved_by: "res.users",
 };
+/**
+ * 2026-09-25 (STATUS § 35) — a test may mirror a stored compute of the tenant
+ * (e.g. x_price_day_line.x_sale_price): run after every create / write on the model.
+ */
+export const computes: Record<string, (r: Record<string, unknown>) => void> = {};
 export const db = new Map<string, Map<number, Rec>>();
 let nextId = 10000;
 export const odooLog: Array<{ model: string; method: string; body: any }> = [];
@@ -66,6 +73,16 @@ function fieldValue(m: string, r: Rec, f: string): unknown {
   }
   if (m === "resource.calendar.attendance" && f === "calendar_type") {
     return table("resource.calendar").get(r.calendar_id as number)?.calendar_type ?? "fixed";
+  }
+  // 2026-09-25 (STATUS § 35) — a dotted path through a known many2one (x_day_id.x_date).
+  if (f.includes(".")) {
+    const [head, ...rest] = f.split(".");
+    const rel = M2O[head];
+    const v = r[head];
+    if (rel && typeof v === "number") {
+      const t = table(rel).get(v);
+      return t ? fieldValue(rel, t, rest.join(".")) : undefined;
+    }
   }
   if (f === "active" && r.active === undefined) return true;
   if (f === "x_active" && r.x_active === undefined) return true;
@@ -133,10 +150,14 @@ function odoo(model: string, method: string, body: any): unknown {
     case "read": return (body?.ids ?? []).map((id: number) => t.get(id)).filter(Boolean).map((r: Rec) => readRec(model, r, body?.fields));
     case "create": {
       const list = body?.vals_list ?? (body?.values ? [body.values] : []);
-      return list.map((v: Record<string, unknown>) => seed(model, { ...v }));
+      return list.map((v: Record<string, unknown>) => {
+        const id = seed(model, { ...v });
+        computes[model]?.(t.get(id)!);
+        return id;
+      });
     }
     case "write": {
-      for (const id of body?.ids ?? []) { const r = t.get(id); if (r) Object.assign(r, body.vals); }
+      for (const id of body?.ids ?? []) { const r = t.get(id); if (r) { Object.assign(r, body.vals); computes[model]?.(r); } }
       return true;
     }
     case "unlink": for (const id of body?.ids ?? []) t.delete(id); return true;

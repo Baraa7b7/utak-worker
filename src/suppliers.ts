@@ -386,6 +386,17 @@ export async function handleSupplierReply(
 
   await writePartner(env, supplier.id, { x_last_price_submission: nowOdoo() });
 
+  // 2026-09-25 (STATUS § 35) — «💰 أسعار اليوم» follows the prices at once
+  // (the */5 tick would within five minutes). Never blocks the reply.
+  if (created > 0) {
+    try {
+      const { refreshPriceDay } = await import("./prices");
+      await refreshPriceDay(env);
+    } catch (e) {
+      console.warn("[supplier reply] prices refresh failed", (e as Error)?.message);
+    }
+  }
+
   // Approved-template confirmation, if available. 2026-09-24 —
   // utak_supplier_confirm_v1 is «شكراً {{1}} … لـ {{2}} صنف»: two variables.
   // 2026-09-25 (م7) — its three buttons now carry payloads (supplierButtonAction).

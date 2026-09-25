@@ -145,7 +145,7 @@ console.log("\n[0] critical purposes, openers, owner guard");
   const expected = [
     "customer_invoice", "customer_invoice_pdf", "customer_order_confirm", "customer_order_remind", "customer_order_update",
     "customer_payment_received", "customer_receipt", "owner_alert", "owner_team_note",
-    ...(PURPOSES.customer_prices ? ["customer_prices"] : []),
+    ...(PURPOSES.customer_prices ? ["customer_prices", "owner_prices"] : []),
   ].sort();
   assert("critical = Baraa's list (prices, receipt, his alerts, team notes, order confirm/change, invoices)", critical.join() === expected.join(), critical.join());
   assert("every critical purpose has a 2–3 word update", critical.every((k) => { const w = String(PURPOSES[k].update ?? "").trim().split(/\s+/); return w.length >= 2 && w.length <= 3; }),

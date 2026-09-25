@@ -1,0 +1,62 @@
+{
+  "script": "scripts/s35-20260925-odoo.mjs",
+  "createdAt": "2026-09-25T15:52:31.150Z",
+  "created": {
+    "marginField": 20350,
+    "dayModel": 6128,
+    "lineModel": 6130,
+    "fields": [
+      20369,
+      20371,
+      20373,
+      20375,
+      20377,
+      20379,
+      20381,
+      20383,
+      20385,
+      20387,
+      20389,
+      20391,
+      20393,
+      20395,
+      20397,
+      20399,
+      20401,
+      20403,
+      20405,
+      20407,
+      20409,
+      20411,
+      20413
+    ],
+    "actions": {
+      "approveCode": 1000,
+      "approveHook": 1001,
+      "approve": 1002,
+      "unapprove": 1003,
+      "refreshHook": 1004,
+      "dayUniqueCode": 1005,
+      "lineSupplierCode": 1006,
+      "lineLockCode": 1007,
+      "openToday": 1008
+    },
+    "views": {
+      "productExt": 2833,
+      "dayForm": 2834,
+      "dayList": 2835,
+      "daySearch": 2836
+    },
+    "automations": {
+      "dayUnique": 21,
+      "lineSupplier": 22,
+      "lineLock": 23
+    },
+    "history": 1009,
+    "menuToday": 572,
+    "menuHistory": 573
+  },
+  "lineLockTriggerBefore": [
+    20381
+  ]
+}

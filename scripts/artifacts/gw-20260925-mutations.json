@@ -176,11 +176,11 @@
     "test": "tests/wa-gateway.test.mts",
     "caught": true,
     "exit": 1,
-    "failed": 4,
+    "failed": 5,
     "first": [
       "…an x_wa_message row «held»",
-      "the sent ones: their held rows became «sent» with the wamid (no second row)",
-      "…no alert about alerts (owner is never «important»)"
+      "…a «⏳ محفوظة» line in his Discuss channel",
+      "the sent ones: their held rows became «sent» with the wamid (no second row)"
     ]
   },
   {
@@ -191,7 +191,7 @@
     "test": "tests/wa-gateway.test.mts",
     "caught": true,
     "exit": 1,
-    "failed": 9,
+    "failed": 4,
     "first": [
       "MARKETING: not for operational / reply",
       "unknown / AUTHENTICATION category: never",
@@ -206,7 +206,7 @@
     "test": "tests/wa-gateway.test.mts",
     "caught": true,
     "exit": 1,
-    "failed": 8,
+    "failed": 3,
     "first": [
       "MARKETING: not for operational / reply",
       "operational + MARKETING template: the template is not sent",
@@ -219,14 +219,10 @@
       "src/wa-purposes.ts"
     ],
     "test": "tests/team-shifts.test.mts",
-    "caught": true,
-    "exit": 1,
-    "failed": 3,
-    "first": [
-      "without the tap: nothing to him at dawn — no utak_owner_alert, no free text Meta would drop — [\"تنبيه(قالب): ⏰ عمر ا",
-      "…the two dawn alerts are held for him, in order — []",
-      "his 06:00 tap: the two held alerts first (oldest first), then «✅ تم» — [\"✅ تم. تنبيهات يو تاك توصلك هنا نصاً حتى 06:"
-    ]
+    "caught": false,
+    "exit": 0,
+    "failed": 0,
+    "first": []
   },
   {
     "mutation": "opt-out (§ 23) ignored for a MARKETING template",

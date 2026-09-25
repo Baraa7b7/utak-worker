@@ -165,6 +165,16 @@ export default {
           } catch (e) {
             console.error("[gateway sweep] failed", (e as Error)?.message);
           }
+          // 2026-09-25 (STATUS § 36) — a Discuss line that could not be posted
+          // (row x_echo_status «pending») is retried, three times at most, and
+          // a row Odoo refused is created.
+          try {
+            const { retryPendingRecords } = await import("./wa-record");
+            const rr = await retryPendingRecords(env);
+            if (rr.echoed || rr.failed || rr.waiting || rr.orphans) console.log(`[record retry] ${JSON.stringify(rr)}`);
+          } catch (e) {
+            console.error("[record retry] failed", (e as Error)?.message);
+          }
           // 2026-09-25 (STATUS § 35) — today's prices: the record follows the
           // prices received, the approval deadline, and a lost approval webhook.
           try {

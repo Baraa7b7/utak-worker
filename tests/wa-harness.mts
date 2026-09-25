@@ -39,6 +39,12 @@ const M2O: Record<string, string> = {
  */
 export const computes: Record<string, (r: Record<string, unknown>) => void> = {};
 export const db = new Map<string, Map<number, Rec>>();
+/**
+ * 2026-09-25 (STATUS § 36) — ir.actions.server.run by action id: a test mirrors
+ * the server action it relies on (the Discuss status line). Unregistered → true.
+ */
+export const serverActions: Record<number, (body: any) => unknown> = {};
+const odooNow = () => new RealDate(fixedNow ?? RealDate.now()).toISOString().replace("T", " ").slice(0, 19);
 let nextId = 10000;
 export const odooLog: Array<{ model: string; method: string; body: any }> = [];
 
@@ -151,14 +157,32 @@ function odoo(model: string, method: string, body: any): unknown {
     case "create": {
       const list = body?.vals_list ?? (body?.values ? [body.values] : []);
       return list.map((v: Record<string, unknown>) => {
-        const id = seed(model, { ...v });
+        // x_wa_message rows carry write_date like Odoo (the § 36 retry reads it)
+        const id = seed(model, model === "x_wa_message" ? { write_date: odooNow(), ...v } : { ...v });
         computes[model]?.(t.get(id)!);
         return id;
       });
     }
     case "write": {
-      for (const id of body?.ids ?? []) { const r = t.get(id); if (r) { Object.assign(r, body.vals); computes[model]?.(r); } }
+      for (const id of body?.ids ?? []) {
+        const r = t.get(id);
+        if (r) { Object.assign(r, model === "x_wa_message" ? { write_date: odooNow(), ...body.vals } : body.vals); computes[model]?.(r); }
+      }
       return true;
+    }
+    // 2026-09-25 (STATUS § 36) — a channel post is a mail.message, and its id comes back.
+    case "message_post": {
+      if (model !== "discuss.channel") return true;
+      const id = seed("mail.message", {
+        model: "discuss.channel", res_id: (body?.ids ?? [])[0], body: body?.body ?? "", author_id: body?.author_id ?? false,
+        message_type: body?.message_type ?? "comment", parent_id: body?.parent_id ?? false, date: body?.date ?? odooNow(),
+      });
+      return [id];
+    }
+    case "run": {
+      if (model !== "ir.actions.server") return true;
+      const fn = serverActions[(body?.ids ?? [])[0]];
+      return fn ? fn(body) : true;
     }
     case "unlink": for (const id of body?.ids ?? []) t.delete(id); return true;
     case "fields_get": return {};
@@ -232,6 +256,7 @@ const TPL: Array<[string, string, number, string?]> = [
 ];
 export function reset(): any {
   db.clear(); nextId = 10000; odooLog.length = 0; graph.length = 0;
+  for (const k of Object.keys(serverActions)) delete serverActions[Number(k)];
   for (const k of Object.keys(failTemplates)) delete failTemplates[k];
   claudeItems.length = 0;
   seed("res.partner", { id: CUST, name: "مطعم الوادي", x_whatsapp_number: "+" + CUST_PHONE, customer_rank: 1 });

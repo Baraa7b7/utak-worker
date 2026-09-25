@@ -47,7 +47,9 @@ const FX = ["./fixtures-odoo-fields-20260924.json", "./fixtures-odoo-fields-2026
   // STATUS § 31 — hr.employee, resource.calendar.*, x_team_attendance.x_employee_id (last: wins)
   "./fixtures-odoo-fields-20260925-team.json",
   // STATUS § 33 — x_wa_message.x_status: held / expired / skipped (the send gateway)
-  "./fixtures-odoo-fields-20260925-gateway.json"].map(load);
+  "./fixtures-odoo-fields-20260925-gateway.json",
+  // STATUS § 36 — the echo state and the template text fields
+  "./fixtures-odoo-fields-20260925-s36.json"].map(load);
 const REAL: Record<string, string[]> = Object.assign({}, ...FX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FX.map((f) => f._selections));
 const rejected: string[] = [];

@@ -1,0 +1,242 @@
+{
+  "at": "2026-09-25T19:06:04.072Z",
+  "caught": 29,
+  "total": 29,
+  "results": [
+    {
+      "name": "row+line: an accepted send not recorded (pilot / prod branch)",
+      "caught": true,
+      "fails": [
+        "✗ both accepted branches of dispatchToMeta (sim capture, real send) record the send",
+        "✗ direct text: row «sent» on the customer, with the wamid",
+        "✗ direct text: its line in «واتساب · مطعم الوادي», § 28 box, row «posted»",
+        "✗ flush: the same row turns «sent» with its wamid"
+      ]
+    },
+    {
+      "name": "Baraa left out again (no partner / channel for the owner)",
+      "caught": true,
+      "fails": [
+        "✗ Baraa's copy: row on his partner, line in «واتساب · Bara.a - U TAK» — []",
+        "✗ the alert (no margin): row and line in his channel",
+        "✗ alert: row and line for Baraa",
+        "✗ team note to Baraa: row and line"
+      ]
+    },
+    {
+      "name": "the row not on the number's partner",
+      "caught": true,
+      "fails": [
+        "✗ direct text: row «sent» on the customer, with the wamid",
+        "✗ direct text: its line in «واتساب · مطعم الوادي», § 28 box, row «posted»",
+        "✗ template: row = the text as received, kind template — [\"تم تحديث طلبك رقم UTAK-7: أضيف صنف. شكراً لك\"]",
+        "✗ template: its line shows the same text, «قالب» box"
+      ]
+    },
+    {
+      "name": "the held line not posted",
+      "caught": true,
+      "fails": [
+        "✗ the held line is posted for every number (no owner guard around it)"
+      ]
+    },
+    {
+      "name": "the held line for customers only (the old owner exclusion)",
+      "caught": true,
+      "fails": [
+        "✗ Baraa's held alert: in his channel with «⏳ محفوظة»",
+        "✗ …at his tap: the same line «✅ أُرسلت 10:30»"
+      ]
+    },
+    {
+      "name": "Baraa's Discuss reply recorded again by the gateway",
+      "caught": true,
+      "fails": [
+        "✗ Baraa's Discuss reply: no second line (his message is the line), no gateway row (his route writes it)"
+      ]
+    },
+    {
+      "name": "a manual send shown as «🤖 آلي»",
+      "caught": true,
+      "fails": [
+        "✗ manual send from Odoo: its own row «sent» and a «📤 يدوي» line"
+      ]
+    },
+    {
+      "name": "a failing line breaks the send",
+      "caught": true,
+      "fails": []
+    },
+    {
+      "name": "retry: no 2-minute guard (races the first try)",
+      "caught": true,
+      "fails": [
+        "✗ within 2 minutes: not retried (the first try may still be running) — {\"echoed\":1,\"failed\":0,\"waiting\":0,\"orphans\":0}",
+        "✗ retry 1 fails → still «pending», counted",
+        "✗ retry 2 succeeds → «posted», the line in the channel"
+      ]
+    },
+    {
+      "name": "retry: never marks the row «failed»",
+      "caught": true,
+      "fails": [
+        "✗ three failed retries → row «failed», no fourth — [{\"echoed\":0,\"failed\":0,\"waiting\":1,\"orphans\":0},{\"echoed\":0,\"failed\":0,\"waiting\":1,\"orphans\":0},{\"echoed\":0,\"failed\":0,\"waiting\":1,\"orphans\":0},{\"echoed\":0,\"failed\":0,\"waiting\":1,\"orphans\":0}]"
+      ]
+    },
+    {
+      "name": "retry: «failed» after one retry",
+      "caught": true,
+      "fails": [
+        "✗ retry 1 fails → still «pending», counted",
+        "✗ retry 2 succeeds → «posted», the line in the channel",
+        "✗ a posted row is not retried again",
+        "✗ three failed retries → row «failed», no fourth — [{\"echoed\":0,\"failed\":1,\"waiting\":0,\"orphans\":0},{\"echoed\":0,\"failed\":0,\"waiting\":0,\"orphans\":0},{\"echoed\":0,\"failed\":0,\"waiting\":0,\"orphans\":0},{\"echoed\":0,\"failed\":0,\"waiting\":0,\"orphans\":0}]"
+      ]
+    },
+    {
+      "name": "a refused row is not kept",
+      "caught": true,
+      "fails": [
+        "✗ the */5 tick creates the row and its line (time = the send) — {\"rr3\":{\"echoed\":0,\"failed\":0,\"waiting\":0,\"orphans\":0}}"
+      ]
+    },
+    {
+      "name": "a kept row is never created",
+      "caught": true,
+      "fails": [
+        "✗ the */5 tick creates the row and its line (time = the send) — {\"rr3\":{\"echoed\":0,\"failed\":0,\"waiting\":0,\"orphans\":0}}"
+      ]
+    },
+    {
+      "name": "the */5 tick does not run the retry",
+      "caught": true,
+      "fails": [
+        "✗ the */5 tick runs retryPendingRecords"
+      ]
+    },
+    {
+      "name": "variables not filled",
+      "caught": true,
+      "fails": [
+        "✗ template: row = the text as received, kind template — [\"تم تحديث طلبك رقم {{1}}: {{2}}. شكراً لك\"]",
+        "✗ template: its line shows the same text, «قالب» box",
+        "✗ receipt (closed window → utak_payment_received): row and line with the template's text",
+        "✗ variables filled in order — تحصيل اليوم {{1}}: {{2}} ريال من {{3}} ({{4}})"
+      ]
+    },
+    {
+      "name": "buttons not shown as «🔘 label»",
+      "caught": true,
+      "fails": [
+        "✗ buttons as «🔘 label» lines — تحصيل اليوم 26 سبتمبر: 60 ريال من مطعم الوادي (UTAK-INV-7)",
+        "✗ …the collector's line: the text and «🔘 نقد» «🔘 تحويل»",
+        "✗ Baraa's 06:00 template: its text and «🔘 بدء الدوام» in his channel",
+        "✗ …its row and line show the text and «🔘 عرض التحديث»"
+      ]
+    },
+    {
+      "name": "the document header dropped",
+      "caught": true,
+      "fails": [
+        "✗ document header → «📎 filename» first; footer kept last — هلا مطعم الوادي 🌿"
+      ]
+    },
+    {
+      "name": "unsynced: the template's name instead",
+      "caught": true,
+      "fails": [
+        "✗ unsynced: «⚠️ نص القالب غير متزامن» + the filled variables, no name — 📋 قالب: utak_collection_request",
+        "✗ an empty synced text counts as unsynced",
+        "✗ unsynced template send: row and line say «غير متزامن» with the variable, not the name",
+        "✗ no «utak_» in any Discuss message — utak_delivered"
+      ]
+    },
+    {
+      "name": "unsynced: the variables not shown",
+      "caught": true,
+      "fails": [
+        "✗ unsynced: «⚠️ نص القالب غير متزامن» + the filled variables, no name — ⚠️ نص القالب غير متزامن",
+        "✗ unsynced template send: row and line say «غير متزامن» with the variable, not the name"
+      ]
+    },
+    {
+      "name": "x_template_id not written",
+      "caught": true,
+      "fails": [
+        "✗ technical fields: x_template_id = the row, x_params = the variables — {\"write_date\":\"2026-09-26 07:00:00\",\"x_status\":\"sent\",\"x_meta_message_id\":\"wamid.T2\",\"x_processed_at\":\"2026-09-26 07:00:00\",\"x_echo_status\":\"posted\",\"x_params\":\"[\\\"26 سبتمبر\\\",\\\"60\\\",\\\"مطعم الوادي\\\",\\\"UTAK-INV-7\\\"]\",\"x_partner_id\":602,\"x_direction\":\"out\",\"x_kind\":\"template\",\"x_body\":\"تحصيل اليوم 26 سبتمبر: 60 ريال من مطعم الوادي (UTAK-INV-7)\\n🔘 نقد\\n🔘 تحويل\",\"x_source\":\"auto\",\"x_debug_payload\":\"{\\\"purpose\\\":\\\"collection_request\\\",\\\"template\\\":\\\"utak_collection_request\\\"}\",\"id\":10006,\"x_echo_message_id\":10009}"
+      ]
+    },
+    {
+      "name": "held: the status line missing",
+      "caught": true,
+      "fails": [
+        "✗ held: one line with the full text and «⏳ محفوظة» last — <p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br/>طلبك جاهز</p>",
+        "✗ flush: the SAME message now ends «✅ أُرسلت 11:40», no new message — <p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br/>طلبك جاهز</p>",
+        "✗ edit refused → a reply «✅ أُرسلت 11:45» on the same message; the held line unchanged — {\"model\":\"discuss.channel\",\"res_id\":70,\"body\":\"<p>✅ أُرسلت 11:45</p>\",\"author_id\":42,\"message_type\":\"comment\",\"parent_id\":10005,\"date\":\"2026-09-26 08:45:00\",\"id\":10006}",
+        "✗ expired: the same line → «⌛ انتهت صلاحيتها ولم تُرسل…» — <p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br/>ينتهي اليوم</p>"
+      ]
+    },
+    {
+      "name": "held: the status line without the text",
+      "caught": true,
+      "fails": [
+        "✗ flush: its line is the held one (one line for the message)",
+        "✗ held: one line with the full text and «⏳ محفوظة» last — <p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br/></p><p>⏳ محفوظة: خارج نافذة 24 ساعة ولا قالب معتمد لها. تُرسل تلقائياً عند أول رسالة منه، وتنتهي صلاحيتها 27 سبتمبر 2026، 00:00.</p>",
+        "✗ …the text above it untouched"
+      ]
+    },
+    {
+      "name": "held → sent: the line never edited (always a reply)",
+      "caught": true,
+      "fails": [
+        "✗ flush: the SAME message now ends «✅ أُرسلت 11:40», no new message — <p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br/>طلبك جاهز</p><p>⏳ محفوظة: خارج نافذة 24 ساعة ولا قالب معتمد لها. تُرسل تلقائياً عند أول رسالة منه، وتنتهي صلاحيتها 27 سبتمبر 2026، 00:00.</p>",
+        "✗ expired: the same line → «⌛ انتهت صلاحيتها ولم تُرسل…» — <p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br/>ينتهي اليوم</p><p>⏳ محفوظة: خارج نافذة 24 ساعة ولا قالب معتمد لها. تُرسل تلقائياً عند أول رسالة منه، وتنتهي صلاحيتها 27 سبتمبر 2026، 00:00.</p>",
+        "✗ skipped: the same line → «⏭️ لم تُرسل: …» with the reason — <p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br/>ممنوع لاحقاً</p><p>⏳ محفوظة: خارج نافذة 24 ساعة ولا قالب معتمد لها. تُرسل تلقائياً عند أول رسالة منه، وتنتهي صلاحيتها 27 سبتمبر 2026، 00:00.</p>",
+        "✗ …at his tap: the same line «✅ أُرسلت 10:30»"
+      ]
+    },
+    {
+      "name": "held → sent: no reply when Odoo refuses the edit",
+      "caught": true,
+      "fails": [
+        "✗ edit refused → a reply «✅ أُرسلت 11:45» on the same message; the held line unchanged"
+      ]
+    },
+    {
+      "name": "expired: the line does not follow",
+      "caught": true,
+      "fails": [
+        "✗ expired: the same line → «⌛ انتهت صلاحيتها ولم تُرسل…» — <p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br/>ينتهي اليوم</p><p>⏳ محفوظة: خارج نافذة 24 ساعة ولا قالب معتمد لها. تُرسل تلقائياً عند أول رسالة منه، وتنتهي صلاحيتها 27 سبتمبر 2026، 00:00.</p>"
+      ]
+    },
+    {
+      "name": "skipped: the line does not follow",
+      "caught": true,
+      "fails": [
+        "✗ skipped: the same line → «⏭️ لم تُرسل: …» with the reason — <p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br/>ممنوع لاحقاً</p><p>⏳ محفوظة: خارج نافذة 24 ساعة ولا قالب معتمد لها. تُرسل تلقائياً عند أول رسالة منه، وتنتهي صلاحيتها 27 سبتمبر 2026، 00:00.</p>"
+      ]
+    },
+    {
+      "name": "server action: any author's message edited",
+      "caught": true,
+      "fails": [
+        "✗ server action: only a bot line of a WhatsApp channel, only the last paragraph"
+      ]
+    },
+    {
+      "name": "a backfilled line without «مستكمل»",
+      "caught": true,
+      "fails": [
+        "✗ a backfilled line says «مستكمل» (and «قالب»)"
+      ]
+    },
+    {
+      "name": "utak_update_supplier never chosen for a supplier",
+      "caught": true,
+      "fails": [
+        "✗ critical message to a supplier outside the window: held + utak_update_supplier [date, update] — []",
+        "✗ …its row and line show the text and «🔘 عرض التحديث»"
+      ]
+    }
+  ]
+}

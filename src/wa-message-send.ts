@@ -518,7 +518,7 @@ export async function logWaMessage(env: Env, a: LogInboundArgs): Promise<void> {
  */
 export async function createWaMessageRow(
   env: Env,
-  a: LogInboundArgs & { debugPayload?: string },
+  a: LogInboundArgs & { debugPayload?: string; extra?: Record<string, unknown> },
 ): Promise<number | null> {
   try {
     // 2026-09-23 — logical unique index on x_meta_message_id: one row per
@@ -545,6 +545,8 @@ export async function createWaMessageRow(
     if (typeof a.manual === "boolean") vals.x_manual = a.manual;
     if (a.metaError) vals.x_meta_error = a.metaError.slice(0, 2000);
     if (a.debugPayload) vals.x_debug_payload = a.debugPayload.slice(0, 4000);
+    // 2026-09-25 (STATUS § 36) — the gateway's own fields (x_echo_status …).
+    if (a.extra) Object.assign(vals, a.extra);
     const source =
       a.source ??
       (a.direction === "in" ? "inbound" : a.manual === true ? "manual" : "auto");
@@ -591,15 +593,15 @@ export async function updateWaStatusByWamid(
   wamid: string,
   status: "sent" | "delivered" | "read" | "failed",
   errorMessage?: string,
-): Promise<{ id: number; body: string } | null> {
+): Promise<{ id: number; body: string; debugPayload?: string } | null> {
   try {
-    const rows = await call<Array<{ id: number; x_status: string | false; x_body: string | false }>>(
+    const rows = await call<Array<{ id: number; x_status: string | false; x_body: string | false; x_debug_payload: string | false }>>(
       env,
       "x_wa_message",
       "search_read",
       {
         domain: [["x_meta_message_id", "=", wamid]],
-        fields: ["id", "x_status", "x_body"],
+        fields: ["id", "x_status", "x_body", "x_debug_payload"],
         limit: 1,
       },
     );
@@ -610,7 +612,11 @@ export async function updateWaStatusByWamid(
       ids: [rows[0].id],
       vals,
     });
-    return { id: rows[0].id, body: typeof rows[0].x_body === "string" ? rows[0].x_body : "" };
+    return {
+      id: rows[0].id,
+      body: typeof rows[0].x_body === "string" ? rows[0].x_body : "",
+      debugPayload: typeof rows[0].x_debug_payload === "string" ? rows[0].x_debug_payload : undefined,
+    };
   } catch (e) {
     console.warn("[updateWaStatusByWamid] failed", (e as Error)?.message);
     return null;

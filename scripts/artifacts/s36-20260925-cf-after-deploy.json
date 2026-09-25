@@ -1,0 +1,36 @@
+{
+  "label": "after-deploy",
+  "at": "2026-09-25T19:11:26.039Z",
+  "prodDeployed": {
+    "created_on": "2026-09-20T22:18:27.278024Z",
+    "versions": [
+      "5c138821-82e7-424f-b3a3-207700fe4e71 100%"
+    ]
+  },
+  "simDeployed": {
+    "created_on": "2026-09-25T19:11:12.236041Z",
+    "versions": [
+      "14115ca3-b39e-4c6f-a088-22b6d5dcf866 100%"
+    ]
+  },
+  "prodSchedules": [],
+  "simSchedules": [
+    "*/5 * * * *",
+    "0 14 * * *",
+    "0 15 * * *",
+    "0 17 * * *",
+    "0 18 * * *",
+    "0 2 * * *",
+    "0 23 * * *",
+    "0 3 * * *",
+    "0 5 * * *",
+    "15 18 * * *"
+  ],
+  "simVars": {
+    "ACCOUNTING_SYNC": "false",
+    "OWNER_WINDOW_OPEN_AT": "06:00",
+    "PILOT_MODE": "true",
+    "SIM_ALLOWLIST": "+966505154962,+966571777704,+966530399474,+966545816832",
+    "SIMULATION_MODE": "false"
+  }
+}

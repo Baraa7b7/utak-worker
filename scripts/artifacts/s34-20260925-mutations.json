@@ -345,7 +345,7 @@
     "exit": 1,
     "failed": 1,
     "first": [
-      "the ack to the customer: not sent, not held — «skipped» with the reason — [[\"received\",null],[\"held\",null]]"
+      "the ack to the customer: not sent, not held — «skipped» with the reason — [[\"received\",null],[\"held\",null],[\"sent\",n"
     ]
   },
   {

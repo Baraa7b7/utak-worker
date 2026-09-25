@@ -1,0 +1,324 @@
+{
+  "day": "2026-09-25",
+  "label": "after-backfill",
+  "at": "2026-09-25T19:10:45.788Z",
+  "window": [
+    "2026-09-24T21:00:00.000Z",
+    "2026-09-25T21:00:00.000Z"
+  ],
+  "counts": {
+    "d1": 11,
+    "rows": 12,
+    "botEchoes": 13
+  },
+  "byNumber": {
+    "…7704": {
+      "sent": 2,
+      "noRow": 0,
+      "noEcho": 0,
+      "noChannel": 0
+    },
+    "…4962": {
+      "sent": 9,
+      "noRow": 0,
+      "noEcho": 0,
+      "noChannel": 0
+    }
+  },
+  "sends": [
+    {
+      "d1": 96,
+      "at": "2026-09-24T23:00:37.750Z",
+      "to": "…7704",
+      "num": "966571777704",
+      "type": "template",
+      "template": "utak_supplier_ask_v2",
+      "wamid": "wamid.HBgMOTY2NTcxNzc3NzA0FQIAERgSN0FBQTZEMTc3QUYwNDdEOEJGAA==",
+      "delivered": true,
+      "text": "📋 قالب: utak_supplier_ask_v2 (أحمد حسان، افوكادو، رمان وسط)",
+      "row": {
+        "id": 147,
+        "status": "read",
+        "source": "auto",
+        "backfilled": false
+      },
+      "echo": {
+        "id": 2488,
+        "channel": 14
+      },
+      "channels": [
+        14
+      ]
+    },
+    {
+      "d1": 97,
+      "at": "2026-09-25T02:00:08.172Z",
+      "to": "…7704",
+      "num": "966571777704",
+      "type": "template",
+      "template": "utak_supplier_price_nudge",
+      "wamid": "wamid.HBgMOTY2NTcxNzc3NzA0FQIAERgSRUE1OUZGQzk1NEMwODlBQTgxAA==",
+      "delivered": true,
+      "text": "📋 قالب: utak_supplier_price_nudge (أحمد حسان، 6:00 صباحاً)",
+      "row": {
+        "id": 148,
+        "status": "read",
+        "source": "auto",
+        "backfilled": false
+      },
+      "echo": {
+        "id": 2557,
+        "channel": 14
+      },
+      "channels": [
+        14
+      ]
+    },
+    {
+      "d1": 98,
+      "at": "2026-09-25T02:00:26.699Z",
+      "to": "…4962",
+      "num": "966505154962",
+      "type": "template",
+      "template": "utak_owner_alert",
+      "wamid": "wamid.HBgMOTY2NTA1MTU0OTYyFQIAERgSMEM4QkU4NTRCOUQzQzAyNTdFAA==",
+      "delivered": true,
+      "text": "📋 قالب: utak_owner_alert (⚠️ Odoo لم يستجب بعد 4 محاولات — العملية x_wa_control.write، السجل ids=1 — odoo builtins.ValueError: NameError(\"name 'true' is not de",
+      "row": {
+        "id": 149,
+        "status": "failed",
+        "source": "auto",
+        "backfilled": true
+      },
+      "echo": {
+        "id": 2585,
+        "channel": 29
+      },
+      "channels": [
+        29
+      ]
+    },
+    {
+      "d1": 99,
+      "at": "2026-09-25T03:00:04.723Z",
+      "to": "…4962",
+      "num": "966505154962",
+      "type": "template",
+      "template": "utak_shift_start_v2",
+      "wamid": "wamid.HBgMOTY2NTA1MTU0OTYyFQIAERgSMDI1NjZFNTQ3RUUzQ0ZGREI5AA==",
+      "delivered": true,
+      "text": "📋 قالب: utak_shift_start_v2 (براء)",
+      "row": {
+        "id": 156,
+        "status": "sent",
+        "source": "auto",
+        "backfilled": true
+      },
+      "echo": {
+        "id": 2586,
+        "channel": 29
+      },
+      "channels": [
+        29
+      ]
+    },
+    {
+      "d1": 100,
+      "at": "2026-09-25T03:00:06.937Z",
+      "to": "…4962",
+      "num": "966505154962",
+      "type": "template",
+      "template": "utak_owner_alert",
+      "wamid": "wamid.HBgMOTY2NTA1MTU0OTYyFQIAERgSODU3RUM2OUU2ODE4MTQ4NTI5AA==",
+      "delivered": true,
+      "text": "📋 قالب: utak_owner_alert (☀️ صباح الخير براء، الموردين اللي ما ردوا (1/1):، • أحمد حسان، الاستقبال مفتوح على أي حال، مع أسعار من رد فقط.)",
+      "row": {
+        "id": 150,
+        "status": "failed",
+        "source": "auto",
+        "backfilled": true
+      },
+      "echo": {
+        "id": 2587,
+        "channel": 29
+      },
+      "channels": [
+        29
+      ]
+    },
+    {
+      "d1": 101,
+      "at": "2026-09-25T03:53:28.518Z",
+      "to": "…4962",
+      "num": "966505154962",
+      "type": "text",
+      "template": null,
+      "wamid": "wamid.HBgMOTY2NTA1MTU0OTYyFQIAERgSOTRBN0NFOTEwODM0NEEwNjMxAA==",
+      "delivered": true,
+      "text": "✅ تم. تنبيهات يو تاك توصلك هنا نصاً حتى 06:53 بكرة.",
+      "row": {
+        "id": 157,
+        "status": "sent",
+        "source": "auto",
+        "backfilled": true
+      },
+      "echo": {
+        "id": 2588,
+        "channel": 29
+      },
+      "channels": [
+        29
+      ]
+    },
+    {
+      "d1": 102,
+      "at": "2026-09-25T15:35:46.315Z",
+      "to": "…4962",
+      "num": "966505154962",
+      "type": "text",
+      "template": null,
+      "wamid": "wamid.HBgMOTY2NTA1MTU0OTYyFQIAERgSREYyRTc3NjQwQ0RFNDZDMDUyAA==",
+      "delivered": true,
+      "text": "🧪 تجربة § 34 (فتح المحادثة): رسالة مهمة أُرسلت ونافذتك مقفلة، فحُفظت ولم تُرسل. وصلتك الآن لأنك راسلت رقم يو تاك أو ضغطت «عرض التحديث».",
+      "row": {
+        "id": 153,
+        "status": "read",
+        "source": "auto",
+        "backfilled": true
+      },
+      "echo": {
+        "id": 2589,
+        "channel": 29
+      },
+      "channels": [
+        29
+      ]
+    },
+    {
+      "d1": 103,
+      "at": "2026-09-25T16:02:01.632Z",
+      "to": "…4962",
+      "num": "966505154962",
+      "type": "text",
+      "template": null,
+      "wamid": "wamid.HBgMOTY2NTA1MTU0OTYyFQIAERgSMzA0MzM4QTYxRDlDQkQ1NTEzAA==",
+      "delivered": true,
+      "text": "📢 نُشرت أسعار الجمعة 25 سبتمبر 2026: 3 صنفاً لـ 4 عميل.\nنصاً 0 · محفوظة حتى رسالتهم 0 · محجوبة 4.\nلم يُنشر (بلا هامش): رمان وسط.\nوهذه نسخة ما وصلهم:\n\n🌿 أسعار ",
+      "row": {
+        "id": 158,
+        "status": "sent",
+        "source": "auto",
+        "backfilled": true
+      },
+      "echo": {
+        "id": 2590,
+        "channel": 29
+      },
+      "channels": [
+        29
+      ]
+    },
+    {
+      "d1": 104,
+      "at": "2026-09-25T16:02:02.699Z",
+      "to": "…4962",
+      "num": "966505154962",
+      "type": "text",
+      "template": null,
+      "wamid": "wamid.HBgMOTY2NTA1MTU0OTYyFQIAERgSQUZCREU5OUI0MzYxRkU5RTg1AA==",
+      "delivered": true,
+      "text": "⚠️ أصناف بلا هامش لم تُنشر اليوم: رمان وسط. ضع «هامش الربح %» في بطاقة المنتج (أو في سطر اليوم).",
+      "row": {
+        "id": 159,
+        "status": "sent",
+        "source": "auto",
+        "backfilled": true
+      },
+      "echo": {
+        "id": 2591,
+        "channel": 29
+      },
+      "channels": [
+        29
+      ]
+    },
+    {
+      "d1": 105,
+      "at": "2026-09-25T18:15:10.673Z",
+      "to": "…4962",
+      "num": "966505154962",
+      "type": "text",
+      "template": null,
+      "wamid": "wamid.HBgMOTY2NTA1MTU0OTYyFQIAERgSRDQ2RDAxMzZEMzdCQkQyODg4AA==",
+      "delivered": true,
+      "text": "📊 21:15\nلا يوجد طلبات مؤكدة اليوم — ما تم إنشاء قائمة شراء.",
+      "row": {
+        "id": 160,
+        "status": "sent",
+        "source": "auto",
+        "backfilled": true
+      },
+      "echo": {
+        "id": 2592,
+        "channel": 29
+      },
+      "channels": [
+        29
+      ]
+    },
+    {
+      "d1": 106,
+      "at": "2026-09-25T18:15:15.295Z",
+      "to": "…4962",
+      "num": "966505154962",
+      "type": "text",
+      "template": null,
+      "wamid": "wamid.HBgMOTY2NTA1MTU0OTYyFQIAERgSQjdEMDhBQkI3NTBFMjJDRTlEAA==",
+      "delivered": true,
+      "text": "⚠️ المورد \"أحمد حسان\" لم يرسل أسعار اليوم حتى بناء قائمة الشراء (21:15). طُلبت منه الساعة 02:00، وذُكّر مرة واحدة الساعة 05:00. أصنافه في القائمة بلا سعر منه ال",
+      "row": {
+        "id": 161,
+        "status": "sent",
+        "source": "auto",
+        "backfilled": true
+      },
+      "echo": {
+        "id": 2593,
+        "channel": 29
+      },
+      "channels": [
+        29
+      ]
+    }
+  ],
+  "rowsOnly": [
+    {
+      "id": 154,
+      "status": "skipped",
+      "kind": "template",
+      "source": "auto",
+      "partner": false,
+      "to": "(none)",
+      "created": "2026-09-25 15:03:57",
+      "wamid": null,
+      "body": "📋 conv_open_owner",
+      "err": "البوابة: القالب utak_update_owner حالته PENDING عند Meta"
+    }
+  ],
+  "echoesOnly": [
+    {
+      "id": 2558,
+      "channel": 29,
+      "to": "…4962",
+      "date": "2026-09-25 02:00:36",
+      "text": "⚠️ ما انرسلت: Meta 131049: This message was not delivered to maintain healthy ecosystem engagement."
+    },
+    {
+      "id": 2559,
+      "channel": 29,
+      "to": "…4962",
+      "date": "2026-09-25 03:00:21",
+      "text": "⚠️ ما انرسلت: Meta 131049: This message was not delivered to maintain healthy ecosystem engagement."
+    }
+  ]
+}

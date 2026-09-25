@@ -1,0 +1,288 @@
+{
+  "day": "2026-09-25",
+  "at": "2026-09-25T19:09:42.671Z",
+  "plans": [
+    {
+      "d1": 96,
+      "at": "2026-09-24T23:00:37.750Z",
+      "to": "…7704",
+      "kind": "template",
+      "delivered": true,
+      "metaError": null,
+      "text": "صباح الخير أحمد حسان، معك يو تاك. نحتاج أسعارك اليوم لهالأصناف: افوكادو، رمان وسط. يا ليت ترد بسعر كل صنف وتعبئته (مثال: طماطم كرتون 25 ريال)، والله يعطيك العافية.",
+      "synced": true,
+      "templateId": 72,
+      "templateName": "utak_supplier_ask_v2",
+      "params": [
+        "أحمد حسان",
+        "افوكادو، رمان وسط"
+      ],
+      "partner": {
+        "id": 30,
+        "name": "أحمد حسان"
+      },
+      "row": {
+        "action": "ok",
+        "id": 147
+      },
+      "echo": {
+        "action": "ok"
+      },
+      "rowStatus": "read",
+      "rowError": ""
+    },
+    {
+      "d1": 97,
+      "at": "2026-09-25T02:00:08.172Z",
+      "to": "…7704",
+      "kind": "template",
+      "delivered": true,
+      "metaError": null,
+      "text": "أهلاً أحمد حسان، لم تصلنا أسعارك اليوم بعد. نحتاجها قبل الساعة 6:00 صباحاً لو سمحت",
+      "synced": true,
+      "templateId": 48,
+      "templateName": "utak_supplier_price_nudge",
+      "params": [
+        "أحمد حسان",
+        "6:00 صباحاً"
+      ],
+      "partner": {
+        "id": 30,
+        "name": "أحمد حسان"
+      },
+      "row": {
+        "action": "ok",
+        "id": 148
+      },
+      "echo": {
+        "action": "ok"
+      },
+      "rowStatus": "read",
+      "rowError": ""
+    },
+    {
+      "d1": 98,
+      "at": "2026-09-25T02:00:26.699Z",
+      "to": "…4962",
+      "kind": "template",
+      "delivered": true,
+      "metaError": null,
+      "text": "تنبيه تشغيلي من نظام يو تاك:\n⚠️ Odoo لم يستجب بعد 4 محاولات — العملية x_wa_control.write، السجل ids=1 — odoo builtins.ValueError: NameError(\"name 'true' is not defined\") while evaluating | '[[\"x_sync_requested\", \"=\", true]]'\nيرجى مراجعة التفاصيل واتخاذ الإجراء المناسب.",
+      "synced": true,
+      "templateId": 24,
+      "templateName": "utak_owner_alert",
+      "params": [
+        "⚠️ Odoo لم يستجب بعد 4 محاولات — العملية x_wa_control.write، السجل ids=1 — odoo builtins.ValueError: NameError(\"name 'true' is not defined\") while evaluating | '[[\"x_sync_requested\", \"=\", true]]'"
+      ],
+      "partner": {
+        "id": 45,
+        "name": "Bara.a - U TAK"
+      },
+      "row": {
+        "action": "complete",
+        "id": 149,
+        "set": {
+          "x_partner_id": 45,
+          "x_body": "تنبيه تشغيلي من نظام يو تاك:\n⚠️ Odoo لم يستجب بعد 4 محاولات — العملية x_wa_control.write، السجل ids=1 — odoo builtins.ValueError: NameError(\"name 'true' is not defined\") while evaluating | '[[\"x_sync_requested\", \"=\", true]]'\nيرجى مراجعة التفاصيل واتخاذ الإجراء المناسب.",
+          "x_template_id": 24,
+          "x_params": "[\"⚠️ Odoo لم يستجب بعد 4 محاولات — العملية x_wa_control.write، السجل ids=1 — odoo builtins.ValueError: NameError(\\\"name 'true' is not defined\\\") while evaluating | '[[\\\"x_sync_requested\\\", \\\"=\\\", true]]'\"]",
+          "x_debug_payload": "{\"backfilled_from\":\"D1 sim_outbound #98\",\"template\":\"utak_owner_alert\"}",
+          "x_backfilled": true
+        }
+      },
+      "echo": {
+        "action": "post"
+      },
+      "rowStatus": "failed",
+      "rowError": "Meta 131049: This message was not delivered to maintain healthy ecosystem engagement."
+    },
+    {
+      "d1": 99,
+      "at": "2026-09-25T03:00:04.723Z",
+      "to": "…4962",
+      "kind": "template",
+      "delivered": true,
+      "metaError": null,
+      "text": "مرحباً براء، مهامك في يو تاك لهذا اليوم جاهزة. اضغط زر «بدء الدوام» أدناه لاستلام التفاصيل والمواقع.\n🔘 بدء الدوام",
+      "synced": true,
+      "templateId": 74,
+      "templateName": "utak_shift_start_v2",
+      "params": [
+        "براء"
+      ],
+      "partner": {
+        "id": 45,
+        "name": "Bara.a - U TAK"
+      },
+      "row": {
+        "action": "create"
+      },
+      "echo": {
+        "action": "post"
+      }
+    },
+    {
+      "d1": 100,
+      "at": "2026-09-25T03:00:06.937Z",
+      "to": "…4962",
+      "kind": "template",
+      "delivered": true,
+      "metaError": null,
+      "text": "تنبيه تشغيلي من نظام يو تاك:\n☀️ صباح الخير براء | الموردين اللي ما ردوا (1/1): | • أحمد حسان | الاستقبال مفتوح على أي حال، مع أسعار من رد فقط.\nيرجى مراجعة التفاصيل واتخاذ الإجراء المناسب.",
+      "synced": true,
+      "templateId": 24,
+      "templateName": "utak_owner_alert",
+      "params": [
+        "☀️ صباح الخير براء | الموردين اللي ما ردوا (1/1): | • أحمد حسان | الاستقبال مفتوح على أي حال، مع أسعار من رد فقط."
+      ],
+      "partner": {
+        "id": 45,
+        "name": "Bara.a - U TAK"
+      },
+      "row": {
+        "action": "complete",
+        "id": 150,
+        "set": {
+          "x_partner_id": 45,
+          "x_body": "تنبيه تشغيلي من نظام يو تاك:\n☀️ صباح الخير براء | الموردين اللي ما ردوا (1/1): | • أحمد حسان | الاستقبال مفتوح على أي حال، مع أسعار من رد فقط.\nيرجى مراجعة التفاصيل واتخاذ الإجراء المناسب.",
+          "x_template_id": 24,
+          "x_params": "[\"☀️ صباح الخير براء | الموردين اللي ما ردوا (1/1): | • أحمد حسان | الاستقبال مفتوح على أي حال، مع أسعار من رد فقط.\"]",
+          "x_debug_payload": "{\"backfilled_from\":\"D1 sim_outbound #100\",\"template\":\"utak_owner_alert\"}",
+          "x_backfilled": true
+        }
+      },
+      "echo": {
+        "action": "post"
+      },
+      "rowStatus": "failed",
+      "rowError": "Meta 131049: This message was not delivered to maintain healthy ecosystem engagement."
+    },
+    {
+      "d1": 101,
+      "at": "2026-09-25T03:53:28.518Z",
+      "to": "…4962",
+      "kind": "text",
+      "delivered": true,
+      "metaError": null,
+      "text": "✅ تم. تنبيهات يو تاك توصلك هنا نصاً حتى 06:53 بكرة.",
+      "synced": true,
+      "partner": {
+        "id": 45,
+        "name": "Bara.a - U TAK"
+      },
+      "row": {
+        "action": "create"
+      },
+      "echo": {
+        "action": "post"
+      }
+    },
+    {
+      "d1": 102,
+      "at": "2026-09-25T15:35:46.315Z",
+      "to": "…4962",
+      "kind": "text",
+      "delivered": true,
+      "metaError": null,
+      "text": "🧪 تجربة § 34 (فتح المحادثة): رسالة مهمة أُرسلت ونافذتك مقفلة، فحُفظت ولم تُرسل. وصلتك الآن لأنك راسلت رقم يو تاك أو ضغطت «عرض التحديث».",
+      "synced": true,
+      "partner": {
+        "id": 45,
+        "name": "Bara.a - U TAK"
+      },
+      "row": {
+        "action": "complete",
+        "id": 153,
+        "set": {
+          "x_partner_id": 45,
+          "x_backfilled": true
+        }
+      },
+      "echo": {
+        "action": "post"
+      },
+      "rowStatus": "read",
+      "rowError": ""
+    },
+    {
+      "d1": 103,
+      "at": "2026-09-25T16:02:01.632Z",
+      "to": "…4962",
+      "kind": "text",
+      "delivered": true,
+      "metaError": null,
+      "text": "📢 نُشرت أسعار الجمعة 25 سبتمبر 2026: 3 صنفاً لـ 4 عميل.\nنصاً 0 · محفوظة حتى رسالتهم 0 · محجوبة 4.\nلم يُنشر (بلا هامش): رمان وسط.\nوهذه نسخة ما وصلهم:\n\n🌿 أسعار يو تاك اليوم — الجمعة 25 سبتمبر 2026\n\n• بطاطس (كرتون · 10 كيلو): 20.25 ر.س\n• خيار (جرم · 8 كيلو): 51.75 ر.س\n• طماطم (فلين · 5 كيلو): 31.20 ر.س\n\nالأسعار لطلبات اليوم. اطلب من هنا قبل الساعة 9:00 مساءً 🌿",
+      "synced": true,
+      "partner": {
+        "id": 45,
+        "name": "Bara.a - U TAK"
+      },
+      "row": {
+        "action": "create"
+      },
+      "echo": {
+        "action": "post"
+      }
+    },
+    {
+      "d1": 104,
+      "at": "2026-09-25T16:02:02.699Z",
+      "to": "…4962",
+      "kind": "text",
+      "delivered": true,
+      "metaError": null,
+      "text": "⚠️ أصناف بلا هامش لم تُنشر اليوم: رمان وسط. ضع «هامش الربح %» في بطاقة المنتج (أو في سطر اليوم).",
+      "synced": true,
+      "partner": {
+        "id": 45,
+        "name": "Bara.a - U TAK"
+      },
+      "row": {
+        "action": "create"
+      },
+      "echo": {
+        "action": "post"
+      }
+    },
+    {
+      "d1": 105,
+      "at": "2026-09-25T18:15:10.673Z",
+      "to": "…4962",
+      "kind": "text",
+      "delivered": true,
+      "metaError": null,
+      "text": "📊 21:15\nلا يوجد طلبات مؤكدة اليوم — ما تم إنشاء قائمة شراء.",
+      "synced": true,
+      "partner": {
+        "id": 45,
+        "name": "Bara.a - U TAK"
+      },
+      "row": {
+        "action": "create"
+      },
+      "echo": {
+        "action": "post"
+      }
+    },
+    {
+      "d1": 106,
+      "at": "2026-09-25T18:15:15.295Z",
+      "to": "…4962",
+      "kind": "text",
+      "delivered": true,
+      "metaError": null,
+      "text": "⚠️ المورد \"أحمد حسان\" لم يرسل أسعار اليوم حتى بناء قائمة الشراء (21:15). طُلبت منه الساعة 02:00، وذُكّر مرة واحدة الساعة 05:00. أصنافه في القائمة بلا سعر منه اليوم.",
+      "synced": true,
+      "partner": {
+        "id": 45,
+        "name": "Bara.a - U TAK"
+      },
+      "row": {
+        "action": "create"
+      },
+      "echo": {
+        "action": "post"
+      }
+    }
+  ]
+}

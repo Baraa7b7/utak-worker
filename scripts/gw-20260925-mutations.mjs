@@ -21,7 +21,8 @@ const M = [
     "    if (win.open) return dispatchToMeta(env, req, to, opt.body);",
     "    if (true) return dispatchToMeta(env, req, to, opt.body);"]], G],
   ["window: closed and no template → skipped instead of held", [[GW,
-    "  if (held) return hold(env, req, to, held, why);\n", ""]], G],
+    // § 34 added noHold to this line (2026-09-25); § 36 brought the pattern up to date
+    "  if (held && !req.noHold) return hold(env, req, to, held, why);\n", ""]], G],
   ["window: no 10-minute margin", [["src/wa-window.ts",
     "export const WINDOW_MARGIN_MS = 10 * 60 * 1000;", "export const WINDOW_MARGIN_MS = 0;"]], G],
   // evaluateWindow alone keeps it closed (in + 24h has passed); the check also
@@ -37,7 +38,8 @@ const M = [
     ["src/wa-window.ts", '    fields: ["x_processed_at"],', '    fields: ["x_processed_at", "create_date"],']], I],
   // ---- the queue
   ["queue: not flushed on the number's inbound", [["src/index.ts",
-    "        await flushHeld(env, msg.from, inboundWindow, ctx);", "        void flushHeld;"]], G],
+    // § 34 keeps the flush's result (2026-09-25); § 36 brought the pattern up to date
+    "        flushed = await flushHeld(env, msg.from, inboundWindow, ctx);", "        void flushHeld;"]], G],
   ["queue: flushed newest first", [["src/wa-queue.ts",
     "  return items.sort((a, b) => a.createdAt - b.createdAt);", "  return items.sort((a, b) => b.createdAt - a.createdAt);"]], G],
   ["queue: an expired item is sent anyway", [[GW,

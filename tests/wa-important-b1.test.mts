@@ -35,8 +35,10 @@ const FIXTURE = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260924
 const F_REVIEW = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260925-review.json", import.meta.url), "utf8"));
 // STATUS § 33 — x_wa_message.x_status: held / expired / skipped (the send gateway).
 const F_GW = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260925-gateway.json", import.meta.url), "utf8"));
-const REAL: Record<string, string[]> = { ...FIXTURE, ...F_REVIEW, ...F_GW };
-const SELECTIONS: Record<string, string[]> = { ...FIXTURE._selections, ...F_REVIEW._selections, ...F_GW._selections };
+// STATUS § 36 — x_wa_message.x_echo_status / x_echo_message_id / x_backfilled, the template text fields.
+const F_S36 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260925-s36.json", import.meta.url), "utf8"));
+const REAL: Record<string, string[]> = { ...FIXTURE, ...F_REVIEW, ...F_GW, ...F_S36 };
+const SELECTIONS: Record<string, string[]> = { ...FIXTURE._selections, ...F_REVIEW._selections, ...F_GW._selections, ...F_S36._selections };
 let optoutFieldExists = true;
 const rejected: string[] = [];
 function known(model: string, name: string): boolean {

@@ -1,0 +1,134 @@
+{
+  "mode": "state",
+  "owner": "…4962",
+  "state": {
+    "at": "2026-09-25T19:19:11.413Z",
+    "window": {
+      "open": true,
+      "lastInboundMs": 1790363928000,
+      "closesAtMs": 1790449728000,
+      "closedByMeta": false,
+      "source": "kv"
+    },
+    "queue": [],
+    "rows": [
+      {
+        "id": 162,
+        "x_direction": "out",
+        "x_kind": "text",
+        "x_status": "read",
+        "x_body": "🧪 تجربة § 36 (1 من 3): نص داخل النافذة. يجب أن يظهر في محادثة «واتساب · Bara.a - U TAK» بنصه، ومعه صف في سجل رسائل واتساب.",
+        "x_meta_error": false,
+        "x_meta_message_id": "wamid.HBgMOTY2NTA1MTU0OTYyFQIAERgSQjc2NTUyMkFCQTRBNkQ0MzdGAA==",
+        "x_template_id": false,
+        "x_params": false,
+        "x_debug_payload": "{\"purpose\":\"owner_alert\"}",
+        "x_echo_status": "posted",
+        "x_echo_message_id": 2594,
+        "x_processed_at": "2026-09-25 19:12:58",
+        "create_date": "2026-09-25 19:12:59"
+      },
+      {
+        "id": 163,
+        "x_direction": "out",
+        "x_kind": "template",
+        "x_status": "read",
+        "x_body": "مرحباً 🧪 تجربة § 36 (2 من 3)، مهامك في يو تاك لهذا اليوم جاهزة. اضغط زر «بدء الدوام» أدناه لاستلام التفاصيل والمواقع.\n🔘 بدء الدوام",
+        "x_meta_error": false,
+        "x_meta_message_id": "wamid.HBgMOTY2NTA1MTU0OTYyFQIAERgSNTZGRjUwMEJDQURDM0EwNzkzAA==",
+        "x_template_id": [
+          74,
+          "بداية الدوام (للفريق)"
+        ],
+        "x_params": "[\"🧪 تجربة § 36 (2 من 3)\"]",
+        "x_debug_payload": "{\"purpose\":\"team_shift_start\",\"template\":\"utak_shift_start_v2\"}",
+        "x_echo_status": "posted",
+        "x_echo_message_id": 2595,
+        "x_processed_at": "2026-09-25 19:13:02",
+        "create_date": "2026-09-25 19:13:03"
+      },
+      {
+        "id": 164,
+        "x_direction": "out",
+        "x_kind": "text",
+        "x_status": "read",
+        "x_body": "🧪 تجربة § 36 (3 من 3): رسالة مهمة ونافذتك مقفلة، فحُفظت. تظهر في المحادثة بنصها وتحتها «⏳ محفوظة»، وحين تراسل رقم يو تاك تصلك هنا ويتحوّل السطر نفسه إلى «✅ أُرسلت».",
+        "x_meta_error": false,
+        "x_meta_message_id": "wamid.HBgMOTY2NTA1MTU0OTYyFQIAERgSOTI1QkIzRDU1NDExQjA2RjZGAA==",
+        "x_template_id": false,
+        "x_params": false,
+        "x_debug_payload": "{\"gateway\":\"held\",\"purpose\":\"owner_alert\",\"reason\":\"Meta أغلق النافذة (131047)\",\"expiresAt\":\"2026-09-27T07:13:05.713Z\"}",
+        "x_echo_status": "posted",
+        "x_echo_message_id": 2596,
+        "x_processed_at": "2026-09-25 19:18:57",
+        "create_date": "2026-09-25 19:13:06"
+      },
+      {
+        "id": 165,
+        "x_direction": "out",
+        "x_kind": "template",
+        "x_status": "skipped",
+        "x_body": "📋 conv_open_owner",
+        "x_meta_error": "البوابة: القالب utak_update_owner حالته PENDING عند Meta",
+        "x_meta_message_id": false,
+        "x_template_id": false,
+        "x_params": false,
+        "x_debug_payload": false,
+        "x_echo_status": false,
+        "x_echo_message_id": 0,
+        "x_processed_at": "2026-09-25 19:13:08",
+        "create_date": "2026-09-25 19:13:09"
+      },
+      {
+        "id": 166,
+        "x_direction": "in",
+        "x_kind": "text",
+        "x_status": "received",
+        "x_body": "تم",
+        "x_meta_error": false,
+        "x_meta_message_id": "wamid.HBgMOTY2NTA1MTU0OTYyFQIAEhgUM0I5Rjg4NUMzNjg5QTI5Mjc3RTIA",
+        "x_template_id": false,
+        "x_params": false,
+        "x_debug_payload": false,
+        "x_echo_status": false,
+        "x_echo_message_id": 0,
+        "x_processed_at": "2026-09-25 19:18:48",
+        "create_date": "2026-09-25 19:18:52"
+      }
+    ],
+    "lines": [
+      {
+        "id": 2594,
+        "author": "UTAK بوت",
+        "date": "2026-09-25 19:12:59",
+        "parent": null,
+        "text": "🤖 آلي\n🧪 تجربة § 36 (1 من 3): نص داخل النافذة. يجب أن يظهر في محادثة «واتساب · Bara.a - U TAK» بنصه، ومعه صف في سجل رسائل واتساب.",
+        "html": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>🧪 تجربة § 36 (1 من 3): نص داخل النافذة. يجب أن يظهر في محادثة «واتساب · Bara.a - U TAK» بنصه، ومعه صف في سجل رسائل واتساب.</p>"
+      },
+      {
+        "id": 2595,
+        "author": "UTAK بوت",
+        "date": "2026-09-25 19:13:03",
+        "parent": null,
+        "text": "🤖 آلي · قالب\nمرحباً 🧪 تجربة § 36 (2 من 3)، مهامك في يو تاك لهذا اليوم جاهزة. اضغط زر «بدء الدوام» أدناه لاستلام التفاصيل والمواقع.\n🔘 بدء الدوام",
+        "html": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي · قالب</strong><br>مرحباً 🧪 تجربة § 36 (2 من 3)، مهامك في يو تاك لهذا اليوم جاهزة. اضغط زر «بدء الدوام» أدناه لاستلام التفاصيل والمواقع.<br>🔘 بدء الدوام</p>"
+      },
+      {
+        "id": 2596,
+        "author": "UTAK بوت",
+        "date": "2026-09-25 19:13:10",
+        "parent": null,
+        "text": "🤖 آلي\n🧪 تجربة § 36 (3 من 3): رسالة مهمة ونافذتك مقفلة، فحُفظت. تظهر في المحادثة بنصها وتحتها «⏳ محفوظة»، وحين تراسل رقم يو تاك تصلك هنا ويتحوّل السطر نفسه إلى «✅ أُرسلت».\n✅ أُرسلت 22:18",
+        "html": "<p style=\"border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0\"><strong>🤖 آلي</strong><br>🧪 تجربة § 36 (3 من 3): رسالة مهمة ونافذتك مقفلة، فحُفظت. تظهر في المحادثة بنصها وتحتها «⏳ محفوظة»، وحين تراسل رقم يو تاك تصلك هنا ويتحوّل السطر نفسه إلى «✅ أُرسلت».</p><p>✅ أُرسلت 22:18</p>"
+      },
+      {
+        "id": 2597,
+        "author": "Bara.a - U TAK",
+        "date": "2026-09-25 19:18:52",
+        "parent": null,
+        "text": "تم",
+        "html": "<p>تم</p>"
+      }
+    ]
+  }
+}

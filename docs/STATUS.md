@@ -36,6 +36,7 @@
 - **تحديث 2026-09-25 (جداول الفريق والتحضير):** جدولان في Odoo: «UTAK — عمر» السبت–الخميس 02:00–12:00، و«UTAK — عثمان» 06:00–16:00، والجمعة بلا سطر، وكلاهما «مشمول بالتحضير». وأُرشف موظفو Sample الثلاثة، وأُصلح شرط الأتمتة 6 (`true` ← `True`) فعادت مزامنة 05:00 تكتب نتيجتها. ورسالة براء الصباحية ثابتة 06:00 من `OWNER_WINDOW_OPEN_AT`. التفاصيل في § 32. نُشر على sim.
 - **تحديث 2026-09-25 (فتح المحادثة والرسائل المهمة):** أربعة قوالب «فتح المحادثة» أُنشئت UTILITY، ونقل Meta ثلاثة منها إلى MARKETING فلا تُستعمل (المورد وحده PENDING/UTILITY). علامة «مهمة» على أغراض براء، وإيصال الدفع يخرج خارج النافذة بـ `utak_payment_received` المعتمد، وملاحظات المحصّل والسائق تصل براء باسم العميل والطلب، ولا قالب لتنبيهات براء. وتجربة حية: رسالة مهمة محفوظة وصلت براء فور رسالته. التفاصيل في § 34. نُشر على sim.
 - **تحديث 2026-09-25 (أسعار اليوم):** UTAK ← «💰 أسعار اليوم» سجل يومي يُبنى من أسعار الموردين، بمورد افتراضي هو الأرخص غير الشاذ، والشاذ يمنع الاعتماد حتى يُعالج، و«هامش الربح %» على بطاقة المنتج. سعر البيع = الشراء × (1 + الهامش ÷ 100)، وبلا هامش مستبعد. الاعتماد بضغطة يقفل وينشر للعملاء عبر البوابة (سعر البيع والتعبئة فقط) مع نسخة لبراء، وبلا اعتماد حتى 06:00 «فات الموعد». وعرض السعر والفاتورة يتبعان المنشور. تجربة حية كاملة، و`list_price` بلا تغيير. التفاصيل في § 35. نُشر على sim.
+- **تحديث 2026-09-25 (كل رسالة في السجل والمحادثة):** كل إرسال يكتب صفه في `x_wa_message` قبل أن يعود، وسطره في محادثة الرقم، ورسائل براء منها (كانت البوابة تستثنيه). فشل السطر يُعاد كل 5 دقائق ثلاث مرات، ثم «فشل الصدى». القالب يظهر بنصه ومتغيراته و«🔘» لأزراره لا باسمه، والمحفوظة سطر يتحوّل من «⏳ محفوظة» إلى «✅ أُرسلت» بإجراء خادم. واستُكملت رسائل براء التسع لليوم من D1، و`utak_update_supplier` ما زال PENDING. التفاصيل في § 36. نُشر على sim.
 - **ملاحظة تقنية:** `read_group` يرجع 404 على `/json/2` في هذا الإصدار من Odoo، لذلك يجمّع السكربت الأرقام محلياً من `search_read`.
 
 ## ملخص: جاهز / ناقص / معطّل
@@ -3492,3 +3493,343 @@
   - كلما رد مورد يُحدَّث «💰 أسعار اليوم».
   - 06:00 إن لم يُعتمد: «فات الموعد» وتنبيه `[prices tick]` في `wrangler tail`.
 - **دفع الموردين** (حسب براء).
+
+## 36) كل رسالة صادرة في السجل والمحادثة، ونص القالب الكامل بدل اسمه، وحالة القوالب عند Meta (2026-09-25)
+
+**القرارات (براء، مقفلة):**
+- لا رسالة تخرج بلا صف في `x_wa_message` وسطر في محادثة الرقم «واتساب · الاسم · +الرقم»، ومنها رسائل براء …4962.
+- فشل سطر المحادثة لا يمنع الصف ولا الإرسال. يُعاد في دورة */5 التالية بحد 3 محاولات، ثم يُعلَّم الصف بالفشل.
+- القالب يظهر بنصه كما وصل للمستلم: متغيراته معبأة، والأزرار أسطر «🔘 التسمية». اسمه في حقل تقني فقط، ولا يظهر في المحادثة. بلا نص متزامن: المتغيرات مع «⚠️ نص القالب غير متزامن».
+- المحفوظة تظهر بنصها الكامل وتحتها «⏳ محفوظة». عند التفريغ يتحوّل السطر نفسه إلى «✅ أُرسلت»، وإن رفض Odoo التعديل فرد قصير على الرسالة نفسها. ومثلها expired وskipped.
+- رسائل المحادثة القديمة لا تُعدَّل، إلا ما استُكمل من رسائل اليوم.
+- قاعدة القوالب كما هي: APPROVED وUTILITY فقط.
+
+**القيود:** sim فقط، لا prod ولا main. `ACCOUNTING_SYNC=false` والقائمة كما هي. كل كتابة في Odoo: تشغيل جاف، ثم لقطة، ثم تطبيق، ثم تحقق، وبلا حذف. Meta: GET فقط، ولا قالب جديد ولا إعادة تقديم. الإرسال الحي لبراء …4962 وحده.
+
+**النشر:**
+- sim = `14115ca3-b39e-4c6f-a088-22b6d5dcf866` (19:11 UTC). قبله `21afd2eb-3f9c-4431-9b1a-b5b5ae197eea` (§ 35)، وهو هدف التراجع.
+- `/health`: ok، وOdoo `connected (apikey)`. `sendFailures` = 2 يوم 09-25 و2 يوم 09-24، وكلها قبل هذه الجلسة (#149 و#150).
+- جدولة prod الفعلية `[]` قبل النشر وبعده، وprod `5c138821` بلا نشر. sim عشرة مواعيد كما كانت.
+- المتغيرات قبل النشر وبعده متطابقة (`scripts/artifacts/s36-20260925-cf-{precheck,before-deploy,after-deploy}.json`): `ACCOUNTING_SYNC=false`، و`SIM_ALLOWLIST` الأرقام الأربعة، و`PILOT_MODE=true`، و`SIMULATION_MODE=false`، و`OWNER_WINDOW_OPEN_AT=06:00`.
+
+### أ) التحقق قبل البدء
+
+- `pwd` = `/Users/baraa7/utak-worker`، والفرع `sim-harness`، وآخر commit `1d866bb`، والشجرة نظيفة إلا الملفات الثلاثة المعروفة.
+- sim المنشور `21afd2eb` ✅، وprod `5c138821` وجدولته `[]` ✅ (`s36-20260925-cf-precheck.json`، 18:38 UTC).
+- رمز wrangler كان منتهياً، فجُدِّد بـ `npx wrangler whoami`.
+
+### ب) (أ) القوالب عند Meta، ومزامنتها الآن
+
+**القراءة:** [s36-20260925-meta-templates.mjs](../scripts/s36-20260925-meta-templates.mjs)، GET فقط، ومعه صف Odoo لكل قالب (`scripts/artifacts/s36-20260925-meta-templates-before-sync.json`، 18:40 UTC).
+
+**قوالب «فتح المحادثة» الأربعة:**
+
+| القالب | الحالة | الفئة | يُستخدم؟ |
+|---|---|---|---|
+| `utak_update_customer` | PENDING | MARKETING (كان UTILITY) | لا |
+| `utak_update_team` | APPROVED | MARKETING (كان UTILITY) | لا |
+| `utak_update_supplier` | PENDING | UTILITY | لا، حتى يعتمده Meta |
+| `utak_update_owner` | PENDING | MARKETING (كان UTILITY) | لا |
+
+- **لم يتغير شيء منذ § 34:** `utak_update_supplier` ما زال PENDING، فلا يُستعمل بعد. ولم يُعِد Meta تصنيف أي قالب من MARKETING إلى UTILITY.
+- **المجموع 66:** 44 APPROVED/UTILITY (تُستخدم)، و18 APPROVED/MARKETING، و2 PENDING/MARKETING، و1 PENDING/UTILITY، و1 REJECTED/UTILITY (`utak_owner_alert_v3`).
+- **اختبار اختيار `utak_update_supplier`:** كُتب رغم أنه لم يُعتمد. متى صار APPROVED/UTILITY تختاره البوابة لرسالة مهمة إلى رقم فئته «مورد» خارج النافذة، وما دام PENDING لا يُرسل ([wa-record.test.mts](../tests/wa-record.test.mts) [6]).
+
+**المزامنة الآن (منطق 05:00 نفسه):**
+- السكربت: [s36-20260925-template-sync.mts](../scripts/s36-20260925-template-sync.mts)، ويستدعي `runTemplateSync` نفسها (ما يستدعيه الكرون وزر Odoo). جاف افتراضياً، مع `--apply` و`--verify` و`--rollback [--apply]`. POST إلى Graph محجوب في العملية.
+- **الجولة «a»** (18:47 UTC، قبل أي تغيير في الكود):
+  - الحالة والفئة متطابقتان للقوالب الـ 66.
+  - الفرق الوحيد نص المتن والأزرار (`x_body` و`x_buttons`) في صفوف قوالب الفتح #82 إلى #85، لأن سكربت § 34 أنشأها بدونهما.
+  - كُتبت 66/66، ولا غرض مكرر، فلا تنبيه. اللقطة: `s36-20260925-template-sync-a-rollback.json`.
+- **الجولة «c»** (18:57 UTC، بعد حقلي النص في ج): ملأت `x_body_text` و`x_buttons_text` للقوالب الـ 66، وverify = OK. اللقطة: `s36-20260925-template-sync-c-rollback.json`.
+
+<details><summary>القوالب الـ 66 عند Meta (18:40 UTC)</summary>
+
+| القالب | الحالة | الفئة | يُستخدم (APPROVED + UTILITY) | الغرض في Odoo |
+|---|---|---|---|---|
+| `hello_world` | APPROVED | UTILITY | نعم | — |
+| `utak_collection_request` | APPROVED | UTILITY | نعم | collection_request |
+| `utak_collection_summary` | APPROVED | UTILITY | نعم | collection_summary |
+| `utak_complaint_received` | APPROVED | UTILITY | نعم | — |
+| `utak_complaint_resolved` | APPROVED | UTILITY | نعم | — |
+| `utak_delivered` | APPROVED | UTILITY | نعم | customer_delivery_done |
+| `utak_delivery_delay` | APPROVED | UTILITY | نعم | — |
+| `utak_delivery_done` | APPROVED | MARKETING | لا | — |
+| `utak_delivery_incoming` | APPROVED | UTILITY | نعم | — |
+| `utak_driver_collection` | APPROVED | UTILITY | نعم | driver_collection |
+| `utak_driver_dispatch` | APPROVED | UTILITY | نعم | driver_dispatch |
+| `utak_driver_stop` | APPROVED | UTILITY | نعم | driver_stop |
+| `utak_feedback` | APPROVED | MARKETING | لا | customer_feedback |
+| `utak_followup_customer` | APPROVED | MARKETING (كان UTILITY) | لا | — |
+| `utak_followup_order` | APPROVED | UTILITY | نعم | — |
+| `utak_followup_po` | APPROVED | UTILITY | نعم | — |
+| `utak_followup_supplier` | APPROVED | MARKETING (كان UTILITY) | لا | — |
+| `utak_invoice_customer_v2` | APPROVED | UTILITY | نعم | customer_invoice |
+| `utak_invoice_pdf_v1` | APPROVED | UTILITY | نعم | customer_invoice_pdf |
+| `utak_invoice_ready` | APPROVED | UTILITY | نعم | — |
+| `utak_item_shortage` | APPROVED | UTILITY | نعم | — |
+| `utak_order_confirm_remind_v1` | APPROVED | UTILITY | نعم | customer_order_remind |
+| `utak_order_confirmed` | APPROVED | UTILITY | نعم | customer_order_confirm |
+| `utak_order_cutoff` | APPROVED | MARKETING (كان UTILITY) | لا | — |
+| `utak_order_service_notice` | APPROVED | UTILITY | نعم | — |
+| `utak_order_update` | APPROVED | UTILITY | نعم | customer_order_update |
+| `utak_out_for_delivery` | APPROVED | UTILITY | نعم | customer_delivery_incoming |
+| `utak_owner_alert` | APPROVED | MARKETING (كان UTILITY) | لا | owner_alert |
+| `utak_owner_alert_v2` | APPROVED | MARKETING (كان UTILITY) | لا | — |
+| `utak_owner_alert_v3` | REJECTED | UTILITY | لا | — |
+| `utak_pay_remind_v3` | APPROVED | UTILITY | نعم | customer_pay_remind |
+| `utak_payment_received` | APPROVED | UTILITY | نعم | customer_payment_received |
+| `utak_payment_reminder` | APPROVED | UTILITY | نعم | — |
+| `utak_po_changed` | APPROVED | UTILITY | نعم | — |
+| `utak_po_confirmed` | APPROVED | UTILITY | نعم | — |
+| `utak_po_quality_issue` | APPROVED | UTILITY | نعم | — |
+| `utak_purchase_list_remind_v1` | APPROVED | MARKETING (كان UTILITY) | لا | — |
+| `utak_purchase_list_remind_v2` | APPROVED | UTILITY | نعم | purchase_list_remind |
+| `utak_purchase_list_v2` | APPROVED | UTILITY | نعم | purchase_list |
+| `utak_quality_issue` | APPROVED | MARKETING (كان UTILITY) | لا | — |
+| `utak_quotation_pdf_v1` | APPROVED | UTILITY | نعم | customer_quotation_pdf |
+| `utak_reactivate` | APPROVED | MARKETING | لا | — |
+| `utak_service_notice` | APPROVED | MARKETING (كان UTILITY) | لا | — |
+| `utak_shift_start` | APPROVED | MARKETING (كان UTILITY) | لا | — |
+| `utak_shift_start_v2` | APPROVED | UTILITY | نعم | team_shift_start |
+| `utak_standing_remind_v2` | APPROVED | UTILITY | نعم | customer_daily_remind |
+| `utak_supplier_ask_v2` | APPROVED | UTILITY | نعم | supplier_ask |
+| `utak_supplier_confirm_v1` | APPROVED | UTILITY | نعم | supplier_confirm |
+| `utak_supplier_daily_ask` | APPROVED | MARKETING (كان UTILITY) | لا | — |
+| `utak_supplier_price_nudge` | APPROVED | UTILITY | نعم | supplier_price_nudge |
+| `utak_update_customer` | PENDING | MARKETING (كان UTILITY) | لا | conv_open_customer |
+| `utak_update_owner` | PENDING | MARKETING (كان UTILITY) | لا | conv_open_owner |
+| `utak_update_supplier` | PENDING | UTILITY | لا | conv_open_supplier |
+| `utak_update_team` | APPROVED | MARKETING (كان UTILITY) | لا | conv_open_team |
+| `utak_v2_collection` | APPROVED | UTILITY | نعم | — |
+| `utak_v2_commission` | APPROVED | MARKETING | لا | commission |
+| `utak_v2_daily_remind` | APPROVED | MARKETING | لا | — |
+| `utak_v2_driver_route` | APPROVED | UTILITY | نعم | — |
+| `utak_v2_inactive` | APPROVED | MARKETING | لا | customer_inactive |
+| `utak_v2_loading` | APPROVED | UTILITY | نعم | loading_done |
+| `utak_v2_order_confirm` | APPROVED | UTILITY | نعم | — |
+| `utak_v2_pay_remind` | APPROVED | UTILITY | نعم | — |
+| `utak_v2_purchase` | APPROVED | UTILITY | نعم | — |
+| `utak_v2_summary` | APPROVED | UTILITY | نعم | owner_summary |
+| `utak_v2_welcome` | APPROVED | MARKETING | لا | — |
+| `utak_welcome` | APPROVED | UTILITY | نعم | customer_welcome |
+
+</details>
+
+### ج) (ب) التشخيص: رسائل اليوم في المصادر الثلاثة
+
+**السكربت:** [s36-20260925-reconcile.mts](../scripts/s36-20260925-reconcile.mts)، قراءة فقط. يطابق كل صادر في يوم الرياض 2026-09-25 (من 09-24 21:00 UTC) عبر ثلاثة مصادر:
+- سجل D1 `sim_outbound`: كل إرسال وصل Meta من sim أو pilot، ومنه سكربتات التجارب عبر `cf-live-env`.
+- `x_wa_message` الصادر.
+- أسطر «UTAK بوت» في قنوات واتساب.
+
+المطابقة بالـ wamid، ثم بالرقم والنص والوقت. المخرج: `scripts/artifacts/s36-20260925-reconcile-before.{md,json}`.
+
+**قبل:** 11 إرسالاً في D1: 2 للمورد أحمد …7704 كاملة، و9 لبراء …4962.
+
+| D1 | UTC | لبراء | المسار | صف | سطر |
+|---|---|---|---|---|---|
+| 98 | 02:00:26 | `utak_owner_alert` (05:00) | التنبيه القديم قبل § 33، ورفضه Meta لاحقاً بـ 131049 | #149 بلا شريك، ونصه `[text]` | ✗ |
+| 99 | 03:00:04 | `utak_shift_start_v2` (06:00) | `ownerWindowStep` | ✗ | ✗ |
+| 100 | 03:00:06 | `utak_owner_alert` (06:00) | كما 98 | #150 بلا شريك، ونصه `[text]` | ✗ |
+| 101 | 03:53:28 | «✅ تم…» بعد ضغطته | رد الضغطة | ✗ | ✗ |
+| 102 | 15:35:46 | تفريغ تجربة § 34 | `flushHeld` | #153 بلا شريك | ✗ |
+| 103 | 16:02:01 | نسخة نشر الأسعار | `publishPriceDay` ← `owner_prices` | ✗ | ✗ |
+| 104 | 16:02:02 | «أصناف بلا هامش» | `sendOwnerAlert` | ✗ | ✗ |
+| 105 | 18:15:10 | «📊 21:15 لا يوجد طلبات مؤكدة» | تنبيه 21:15 | ✗ | ✗ |
+| 106 | 18:15:15 | «⚠️ المورد أحمد حسان لم يرسل» | تنبيه 21:15 | ✗ | ✗ |
+
+**السبب واحد، في `echoOutboundToInbox` بالبوابة ([wa-gateway.ts](../src/wa-gateway.ts) قبل § 36):**
+- `if (isOwnerRecipient) … return`: أي إرسال لرقم براء لا صدى له في المحادثة. ولا صف له إلا قالب الفتح.
+- `partnerForNumber` يرجع `null` لرقم براء. فحتى الصفوف التي كُتبت له (المحفوظة، و`recordSendFailure`) كُتبت بلا شريك، فلا تظهر في سجله.
+- ورسالته المحفوظة لا سطر لها أيضاً (`hold` كان يتخطاه).
+- قناته موجودة وتصلها رسائله الواردة: #29 «واتساب · Bara.a - U TAK · +966505154962»، والشريك 45.
+- **وللجميع:** صف الإرسال الآلي كان يُكتب داخل مهمة الصدى نفسها (`ctx.waitUntil`). فإن انقطعت المهمة ضاع الصف مع السطر.
+
+**«تصحيح صيغة العدّ»:** لا إرسال له في أي مصدر. D1 بلا شيء بين 16:02:02 و18:15:10. كان تعديلاً في الكود أُعيد نشره (`21afd2eb`، § 35)، ولم تخرج به رسالة. النسخة التي وصلت براء (D1 103) بالصيغة القديمة «3 صنفاً لـ 4 عميل».
+
+**خارج D1:** الصف #154 «skipped» (قالب فتح براء PENDING، 15:03) ليس إرسالاً، فتُرك كما هو.
+
+### د) الإصلاح: [wa-record.ts](../src/wa-record.ts) (جديد)، ومسار واحد لكل إرسال
+
+**مسار واحد لكل إرسال:**
+- كل إرسال قبله Meta (أو التقطه sim) يمر بـ `recordAccepted` ← `recordSent`، من فرعي `dispatchToMeta` كليهما.
+- هذا يشمل كل المسارات: النص المباشر، والتفريغ بعد الحفظ، والقالب، والنشر، ونسخة براء، والتنبيهات، والإيصال، وملاحظات عمر، والإرسال اليدوي من `x_wa_message`، وسكربتات التجارب (بلا ctx، فكل شيء مُنتظَر).
+
+**الصف أولاً، ومُنتظَر قبل أن يعود الإرسال:**
+- على شريك الرقم، وبراء منهم: `partnerForNumber` يقرأ القناة أولاً ثم الرقم، ولا استثناء للمالك.
+- `x_body` = النص كما قرأه المستلم.
+- `x_processed_at` = وقت الإرسال.
+- `x_echo_status` = «بانتظار المحادثة».
+- للقالب: `x_template_id` و`x_params`، والاسم في `x_debug_payload`.
+- صف رفضه Odoo يُحفظ في KV (`wa_rec:v1:orphans`) ويُنشأ في الدورة التالية، بحد 3 محاولات.
+
+**ثم السطر**، في `ctx.waitUntil` إن وُجد:
+- صندوق § 28 نفسه: «🤖 آلي»، و«🤖 آلي · قالب» للقالب، و«📤 يدوي» للإرسال اليدوي.
+- ثم `x_echo_status` = «في المحادثة» و`x_echo_message_id`.
+- رد براء من الصندوق وحده بلا صف ولا سطر من البوابة، لأن رسالته هي السطر ومساره يكتب صفه. وإن حُفظ ثم أُرسل، يُحدَّث سطر حالته.
+
+**الإعادة** (`retryPendingRecords` في نبضة */5):
+- الصفوف «بانتظار المحادثة» التي مضى على آخر كتابة فيها دقيقتان، وأحدث من 3 أيام.
+- محاولة لكل صف في كل نبضة. بعد 3 محاولات فاشلة: «فشل الصدى». العدّاد في KV `wa_echo_try:v1:<الصف>`.
+
+**المحفوظة:**
+- `hold()` يكتب الصف «held» مع «بانتظار المحادثة». ثم السطر لكل رقم، براء منهم: النص الكامل، وتحته `<p>⏳ محفوظة: … وتنتهي صلاحيتها …</p>`.
+- **التفريغ والانتهاء والتخطي والرفض:** تفريغ الرسالة يكتب الصف «sent»، والكنس «expired»، وخروج الرقم من القائمة «skipped»، ورفض Meta بعد التفريغ «failed»، و131047 يعيدها «held».
+- **ثم يُحدَّث السطر نفسه** بإجراء الخادم: «✅ أُرسلت HH:MM»، أو «⌛ انتهت صلاحيتها ولم تُرسل…»، أو «⏭️ لم تُرسل: السبب»، أو «⚠️ لم تصل: …».
+- **إن رفض Odoo التعديل** (أو لم يجد الإجراء): رد قصير بالنص نفسه على الرسالة نفسها (`parent_id`).
+
+**النص:**
+- `renderTemplateMessage` تبني نص القالب من `x_body_text`:
+  - المتغيرات معبأة.
+  - رأس المستند «📎 اسم الملف»، والصورة «🖼️ صورة».
+  - التذييل كما هو.
+  - زر لكل سطر «🔘».
+- بلا نص: «⚠️ نص القالب غير متزامن» ثم «• متغير» لكل متغير، ويُعلَّم الصف `unsynced` في `x_debug_payload`.
+- وأزرار الرسائل التفاعلية صارت «🔘» أيضاً بدل `[أزرار: …]`.
+- `sessionEchoText` لم يعد يكتب «📋 قالب: الاسم» في أي مسار.
+
+**ما تغير في الملفات:**
+- [wa-gateway.ts](../src/wa-gateway.ts): حُذفت `echoOutboundToInbox` و`dispatchEcho` و`echoHeldToInbox` و`HANDLED_BY_CALLER` و`partnerForNumber` المحلية، وحلّت محلها دوال wa-record.
+- [send-failure.ts](../src/send-failure.ts): صف الفشل على شريك الرقم (براء منهم)، وبنص المستلم، والاسم في `x_debug_payload`. و`templateFromEcho` يقرأ الصفوف القديمة والجديدة.
+- [wa-template-sync.ts](../src/wa-template-sync.ts): `templateDisplayText` و`templateSyncVals`. تملأ المزامنة `x_body_text` (الرأس النصي والمتن والتذييل، سطراً لكل منها) و`x_buttons_text`. وإن غاب الحقلان في Odoo تكتب بدونهما، فلا تتعطل 05:00.
+- [index.ts](../src/index.ts): `retryPendingRecords` في */5.
+
+### هـ) Odoo (تشغيل جاف، ثم لقطة، ثم تطبيق، ثم تحقق)
+
+**السكربت:** [s36-20260925-odoo.mts](../scripts/s36-20260925-odoo.mts)، مع `--apply` و`--verify` و`--rollback [--drop] [--apply]`. اللقطة: `scripts/artifacts/s36-20260925-odoo-rollback.json`.
+
+| ما أُنشئ | المعرّف |
+|---|---|
+| `x_whatsapp_template.x_body_text` «نص القالب المعتمد» (text) | حقل 20415 |
+| `x_whatsapp_template.x_buttons_text` «تسميات الأزرار» (text) | 20417 |
+| `x_wa_message.x_echo_status` «صدى المناقشة»: في المحادثة / بانتظار المحادثة / فشل الصدى / بلا محادثة | 20419 |
+| `x_wa_message.x_echo_message_id` «رسالة المناقشة» (integer) | 20421 |
+| `x_wa_message.x_backfilled` «مستكمل» (boolean) | 20423 |
+| إجراء الخادم «UTAK — سطر حالة رسالة واتساب» (code، على `x_wa_message`، لمجموعة الإعدادات فقط) | 1010 |
+| واجهتا وراثة: في القائمة «وقت الإرسال» و«المحادثة» و«مستكمل»، وفي النموذج الحقول الثلاثة | 2837 و2838 |
+
+- **لماذا إجراء خادم:** في saas~19.4 لا يكتب رسالة القناة عبر ORM إلا كاتبها (§ 28)، والكاتب «UTAK بوت».
+  - الإجراء يُشغَّل على الصف (`active_id`)، فتحقق `run()` من صلاحية الكتابة يقع على `x_wa_message`.
+  - لا يعدّل إلا رسالة يشير إليها الصف، ولا إلا إن كانت سطر «UTAK بوت» في قناة واتساب.
+  - ولا يعدّل إلا فقرتها الأخيرة، وإلا إن كانت سطر حالة. ويبني النص من حالة الصف ووقته، ولا نص من الخارج.
+- **كود الإجراء مولَّد** من `heldLineActionCode()` في wa-record.ts.
+- **`--verify` = 17/17**، ومنها:
+  - الكود المخزّن = المولَّد حرفياً.
+  - دالتا Python `status_line` و`new_body` شُغّلتا في python3 على 8 حالات و4 أجسام، فطابقتا `statusLineFor` و`replaceStatusLine` حرفاً بحرف.
+  - `get_views` يعرض الحقول الجديدة.
+  - الأتمتة 7 ما زالت على `queued` وحده.
+  - الأتمتة 12 ما زالت `on_create` لكاتب ≠ 42، فتعديل سطر البوت أو الرد عليه لا يرسل شيئاً.
+- **fixture الحقول:** [fixtures-odoo-fields-20260925-s36.json](../tests/fixtures-odoo-fields-20260925-s36.json) ([s36-20260925-fields-fixture.mjs](../scripts/s36-20260925-fields-fixture.mjs)). صار في بوابة الحقول الصارمة لكل الاختبارات التسعة التي تمر بالبوابة.
+
+### و) (ب-3) الاستكمال بأثر رجعي من D1
+
+**السكربت:** [s36-20260925-backfill.mts](../scripts/s36-20260925-backfill.mts). جاف افتراضياً، ومع `--apply`: لقطة، ثم كتابة، ثم إعادة المطابقة. لا إرسال واتساب (Graph POST محجوب)، ولا حذف.
+- **اللقطة:** `scripts/artifacts/s36-20260925-backfill-rollback.json`، ومعها `-plan` و`-applied`.
+
+| D1 | الصف | السطر في #29 |
+|---|---|---|
+| 98 | #149 أُكمل: الشريك 45، ونص القالب، والقالب | #2585، و«⚠️ لم تصل: Meta 131049…» |
+| 99 | #156 جديد | #2586، و«✅ أُرسلت 06:00» |
+| 100 | #150 أُكمل | #2587، و«⚠️ لم تصل: Meta 131049…» |
+| 101 | #157 جديد | #2588 |
+| 102 | #153 أُكمل (الشريك) | #2589 |
+| 103 | #158 جديد | #2590 |
+| 104 | #159 جديد | #2591 |
+| 105 | #160 جديد | #2592 |
+| 106 | #161 جديد | #2593 |
+
+- **المجموع:** 6 صفوف جديدة، و3 مكمَّلة، و9 أسطر. كلها `x_backfilled` «مستكمل»، والسطر «🤖 آلي · مستكمل» (و«· قالب» للقالب).
+- **الوقت:**
+  - سطر المحادثة مؤرَّخ بوقت الإرسال الفعلي. قبل Odoo `date` في `message_post`: 2585 = 02:00:26 UTC … 2593 = 18:15:15.
+  - `create_date` للصف لم يقبله Odoo، فهو 19:09. `x_processed_at` = وقت الإرسال في الصفوف التسعة، وأُضيف عموداً «وقت الإرسال» في قائمة رسائل واتساب بجانب «التاريخ».
+- **الحالة من الصف لا من D1:** D1 98 و100 «مقبولة» في D1، ثم رفضها Meta لاحقاً. فسطرهما «لم تصل» من حالة الصف `failed`.
+- **بعد:** 11/11 لها صف وسطر، والفجوات 0 (`s36-20260925-reconcile-after-backfill.{md,json}`).
+- **أسطر المورد القديمة لم تُعدَّل** (#2488 و#2557). ما زالت بصيغة «📋 قالب: …».
+
+### ز) الاختبارات
+
+- **[tests/wa-record.test.mts](../tests/wa-record.test.mts)** (جديد، **61 فحصاً**، ضمن `npm test`، خلف بوابة الحقول الصارمة):
+  - [0] مسار واحد، وبراء غير مستثنى، وتشغيل الإعادة في */5، والإجراء مولَّد من الدوال.
+  - [1] كل مسار إرسال يكتب صفاً وسطراً:
+    - النص المباشر، والتفريغ (السطر نفسه)، والقالب.
+    - النشر، ونسخة براء، وتنبيه «بلا هامش».
+    - التنبيه، والإيصال بقالب `utak_payment_received`، وملاحظة التوصيل.
+    - السكربت بلا ctx.
+    - مع ctx: الصف قبل `waitUntil`، والسطر بعده.
+    - اليدوي من Odoo «📤 يدوي»، ورد براء بلا تكرار.
+  - [2] فشل السطر: الإرسال والصف باقيان، ولا إعادة قبل دقيقتين، ثم فشل فنجاح، أو ثلاث فشل ← «فشل الصدى» بلا رابعة. والصف المرفوض يُنشأ في الدورة التالية بوقت الإرسال.
+  - [3] التعبئة والأزرار والمستند والتذييل. ونص غير متزامن: المتغيرات بلا الاسم. و`x_template_id` و`x_params`.
+  - [4] المحفوظة ⏳ ← «✅ أُرسلت 11:40» في الرسالة نفسها بلا رسالة جديدة. والرفض ← رد. و⌛ عند الكنس، و⏭️ عند الخروج من القائمة، وتنبيه براء المحفوظ ثم ضغطته. و«مستكمل».
+  - [5] لا `utak_` ولا «📋 قالب» في أي رسالة محادثة، والأسماء في `x_debug_payload`.
+  - [6] `utak_update_supplier`.
+  - [7] بوابة الحقول.
+- **الأداة** ([wa-harness.mts](../tests/wa-harness.mts)):
+  - `message_post` يحفظ `mail.message` ويرجع معرّفها.
+  - `ir.actions.server.run` يشغّل مرآة يسجلها الاختبار (`serverActions`).
+  - `write_date` على صفوف `x_wa_message` وحدها.
+- **الاختبارات القائمة:** [wa-opener](../tests/wa-opener.test.mts) [1] صار يطلب اسم قالب الفتح في `x_debug_payload` و`x_template_id` لا في النص. كان الفحص يمر بسبب نص تنبيه براء المحفوظ الذي يذكر الاسم. والـ fixture الجديد في بوابات تسعة ملفات.
+- **فحص الطفرة:** [s36-20260925-mutations.mjs](../scripts/s36-20260925-mutations.mjs)، **29/29 التُقطت** (`scripts/artifacts/s36-20260925-mutations.json`). تشمل: لا تسجيل، وبراء مستثنى، وبلا شريك، وبلا سطر محفوظ، واستثناء المالك القديم، وتكرار رد براء، واليدوي «آلي»، وفشل السطر يكسر الإرسال، وحراسة الدقيقتين، والحد 3 (99 و1)، والصف المرفوض، والإعادة خارج */5، والتعبئة، والأزرار، والمستند، والاسم بدل النص، وبلا متغيرات، و`x_template_id`، وسطر الحالة بلا نص أو بلا حالة، وتعديل أو رد مفقودان، و⌛ و⏭️، والإجراء لأي كاتب، و«مستكمل»، وقالب المورد.
+- **وأُعيد فحص الطفرات السابقة على الكود الجديد:**
+  - § 34: 28/28، و§ 35: 30/30.
+  - § 33 ([gw-20260925-mutations.mjs](../scripts/gw-20260925-mutations.mjs)): 27/28.
+    - نمطان فيه تقادما منذ § 34 (`noHold` على سطر الحفظ، و`flushed = …` في التفريغ)، فحُدّثا.
+    - الطفرة الوحيدة التي مرّت «MARKETING لتنبيهات براء» على team-shifts. منذ § 34 لا مسار قالب لتنبيهاته أصلاً، والطفرة نفسها على wa-gateway التُقطت.
+- `tsc` نظيف، و`npm test` أخضر: **2551 ✓ و0 ✗**.
+
+### ح) التجربة الحية على sim (براء …4962 وحده)
+
+**السكربت:** [s36-20260925-live-trial.mts](../scripts/s36-20260925-live-trial.mts)، على بيئة sim الحية (`cf-live-env`)، والمخرج في `scripts/artifacts/s36-20260925-live-trial-{send,state}.json`، وسجل `wrangler tail` في `s36-20260925-live-tail.log`.
+
+| الخطوة (UTC) | ما حدث | الصف | السطر في #29 |
+|---|---|---|---|
+| 19:12:59 | ١. نص داخل النافذة (مفتوحة من رسالته 15:35) | #162 sent | #2594 «🤖 آلي» والنص |
+| 19:13:03 | ٢. `utak_shift_start_v2` (APPROVED/UTILITY) و{{1}} = «🧪 تجربة § 36 (2 من 3)» | #163 delivered، و`x_template_id` 74 | #2595 «🤖 آلي · قالب»: «مرحباً 🧪 تجربة § 36 (2 من 3)، مهامك في يو تاك لهذا اليوم جاهزة. اضغط زر «بدء الدوام» أدناه…» ثم «🔘 بدء الدوام» |
+| 19:13:10 | ٣. نافذته مقفلة في KV (كما يفعل 131047)، ثم رسالة مهمة (`owner_alert`) | #164 held، و#165 «skipped» لقالب الفتح (`utak_update_owner` PENDING) | #2596 النص كاملاً، وتحته «⏳ محفوظة: … وتنتهي صلاحيتها 27 سبتمبر 2026، 10:13» |
+| 19:18:49 | براء أرسل «تم» إلى رقم يو تاك، فالوركر المنشور `14115ca3` فرّغ المحفوظ فوراً | `[gateway] sent purpose=owner_alert to=…4962 via=text (held → flushed)`، و`flush {"sent":1,…}`. #164 sent ثم read | **#2596 نفسها** صار سطرها الأخير «✅ أُرسلت 22:18» بإجراء الخادم 1010. لا رد ولا رسالة جديدة، و#2597 رسالته «تم» |
+| 19:19 | Meta: الثلاث «read» | #162 و#163 و#164 read | — |
+
+**مثال رسالة قالب كما تظهر الآن في المحادثة** (#2595):
+
+```
+🤖 آلي · قالب
+مرحباً 🧪 تجربة § 36 (2 من 3)، مهامك في يو تاك لهذا اليوم جاهزة. اضغط زر «بدء الدوام» أدناه لاستلام التفاصيل والمواقع.
+🔘 بدء الدوام
+```
+
+كانت قبل § 36: «🤖 آلي · owner_window» ثم «📋 قالب: utak_shift_start_v2 (براء)»، وتلك لرقم غير براء فقط.
+
+- **ملاحظة جانبية، لم تُصلَح:** حالتا Meta للصف #162 وصلتا بترتيب معكوس في الثانية نفسها («delivered» ثم «sent»)، فبقي الصف «sent». هذا في `updateWaStatusByWamid`، ولا يمنع حالة أدنى من أن تكتب فوق حالة أعلى. قائم قبل § 36.
+
+### ط) ما يتغير لبراء عملياً
+
+- **محادثتك «واتساب · Bara.a - U TAK»** صارت تعرض كل ما يصلك من يو تاك:
+  - التنبيهات، ونسخة الأسعار، ورسالة 06:00، و«✅ تم»، وملاحظات عمر، والمحفوظ.
+  - وفي «رسائل واتساب» صف لكل منها على شريكك.
+- **القوالب** تظهر بنصها كما وصل، والأزرار «🔘». لا اسم قالب في المحادثة بعد اليوم.
+- **الرسالة المحفوظة** سطر واحد يتغير: «⏳ محفوظة» ← «✅ أُرسلت 21:40» حين تخرج.
+- **قائمة «رسائل واتساب»:**
+  - «وقت الإرسال».
+  - «المحادثة»: في المحادثة، أو بانتظار، أو فشل الصدى.
+  - «مستكمل» للصفوف التسعة المكتوبة اليوم بأثر رجعي.
+  - حدّث الصفحة بـ Cmd+Shift+R لتظهر الأعمدة.
+
+### ي) التراجع — لا يُشغَّل إلا بطلب
+
+- **الكود أولاً:** `npx wrangler rollback 21afd2eb-3f9c-4431-9b1a-b5b5ae197eea --env sim`، أو `git revert` لهذا الـ commit ثم `npx wrangler deploy --env sim`.
+  - يعود كما كان: لا صف ولا سطر لرسائل براء، ولا سطر حالة يتغير.
+  - الحقول الجديدة تبقى في Odoo بلا ضرر، لأن الكود القديم لا يقرؤها.
+- **Odoo:**
+  1. جافاً: `node --experimental-strip-types --experimental-loader=./tests/loader.mjs scripts/s36-20260925-odoo.mts --rollback`
+  2. ثم `--rollback --apply`: الواجهتان مطفأتان، والإجراء 1010 بلا عمل، ولا حذف.
+  3. `--rollback --drop --apply` يحذف الحقول الخمسة والإجراء والواجهتين ومعها القيم. **لا يُشغَّل بلا قرار.**
+- **نص القوالب:** `… scripts/s36-20260925-template-sync.mts c --rollback --apply` يعيد الحقلين فارغين. و`… a --rollback --apply` يعيد متن #82 إلى #85 وأزرارها إلى ما كانت عليه.
+- **الاستكمال:** `… scripts/s36-20260925-backfill.mts --rollback --apply` يعيد #149 و#150 و#153 كما كانت. الصفوف #156 إلى #161 والأسطر #2585 إلى #2593 تبقى، فلا حذف.
+- **KV:** `wa_echo_try:v1:*` (3 أيام)، و`wa_rec:v1:orphans` (3 أيام)، و`wa_rec:v1:line_action_id` (ساعة). لا تحتاج تنظيفاً.
+
+### ك) التالي
+
+- **دفع الموردين** (حسب براء).
+- **قوالب الفتح:** لا تغيير. `utak_update_supplier` يعمل وحده إن اعتمده Meta UTILITY.
+- **حالة Meta المعكوسة** (ح): حارس لا يكتب «sent» فوق «delivered» أو «read».
+- **الانتقال إلى prod:** الإجراء 1010 والحقول لا تحتاج تعديلاً، لأن الإجراء لا يعرف بيئة.

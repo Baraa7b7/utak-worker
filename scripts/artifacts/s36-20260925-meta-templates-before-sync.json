@@ -1,0 +1,2447 @@
+{
+  "label": "before-sync",
+  "at": "2026-09-25T18:38:40.672Z",
+  "fetched": 66,
+  "odooRows": 66,
+  "templates": [
+    {
+      "name": "hello_world",
+      "language": "en_US",
+      "id": "1019963650859786",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 45,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:18"
+      },
+      "components": [
+        {
+          "type": "HEADER",
+          "format": "TEXT",
+          "text": "Hello World"
+        },
+        {
+          "type": "BODY",
+          "text": "Welcome and congratulations!! This message demonstrates your ability to send a WhatsApp message notification from the Cloud API, hosted by Meta. Thank you for taking the time to test with us."
+        },
+        {
+          "type": "FOOTER",
+          "text": "WhatsApp Business Platform sample message"
+        }
+      ]
+    },
+    {
+      "name": "utak_collection_request",
+      "language": "ar",
+      "id": "2430332914045015",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 10,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "collection_request",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:17"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "💰 طلب تحصيل\n\nالعميل: {{1}}\nالحي: {{2}}\nالفاتورة: {{3}}\nالمبلغ: {{4}} ر.س\n\nاختر طريقة التحصيل 👇",
+          "example": {
+            "body_text": [
+              [
+                "مطعم البركة",
+                "العليا",
+                "UTAK-INV-20260831-001",
+                "250.00"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "QUICK_REPLY",
+              "text": "نقد"
+            },
+            {
+              "type": "QUICK_REPLY",
+              "text": "تحويل"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "utak_collection_summary",
+      "language": "ar",
+      "id": "3203733563160578",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 11,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "collection_summary",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:17"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "📋 قائمة تحصيل اليوم {{1}}:\n\n{{2}}\n\nإجمالي مطلوب: {{3}} ر.س\nعدد الفواتير: {{4}}\n\nلما تحصّل من أي عميل، افتح رسالة الفاتورة واضغط زر التحصيل.",
+          "example": {
+            "body_text": [
+              [
+                "2026-08-31",
+                "1. مطعم البركة (العليا) — 250 ر.س — UTAK-INV-001\n2. بقالة النجم (الملز) — 180 ر.س — UTAK-INV-002",
+                "430",
+                "2"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_complaint_received",
+      "language": "ar",
+      "id": "2929521647400691",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 55,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:15"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "استلمنا ملاحظتك على طلب رقم {{1}}، وسنعود لك خلال {{2}}. يو تاك",
+          "example": {
+            "body_text": [
+              [
+                "12345",
+                "ساعتين"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_complaint_resolved",
+      "language": "ar",
+      "id": "1748542679722660",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 54,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:14"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "تمت معالجة ملاحظتك على طلب رقم {{1}}: {{2}}. نشكرك على إبلاغنا",
+          "example": {
+            "body_text": [
+              [
+                "12345",
+                "استبدلنا الصنف التالف بديل طازج"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_delivered",
+      "language": "ar",
+      "id": "4558427631098839",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 60,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "customer_delivery_done",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:15"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "تم تسليم طلبك رقم {{1}}. إذا فيه أي ملاحظة على الجودة رد علينا خلال اليوم",
+          "example": {
+            "body_text": [
+              [
+                "12345"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_delivery_delay",
+      "language": "ar",
+      "id": "1415513907178696",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 62,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:15"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "نعتذر عن تأخر طلبك رقم {{1}}، والوصول المتوقع {{2}}. نقدّر صبرك",
+          "example": {
+            "body_text": [
+              [
+                "12345",
+                "خلال ساعة"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_delivery_done",
+      "language": "ar",
+      "id": "1507286694773751",
+      "status": "APPROVED",
+      "category": "MARKETING",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": false,
+      "odoo": {
+        "id": 18,
+        "status": "APPROVED",
+        "category": "MARKETING",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:18"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "تم توصيل طلبك يا {{1}} بنجاح\n\nنتمنى كل شي يعجبك. لو فيه أي ملاحظة لا تتردد!",
+          "example": {
+            "body_text": [
+              [
+                "أبو محمد"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "QUICK_REPLY",
+              "text": "كل شي تمام"
+            },
+            {
+              "type": "QUICK_REPLY",
+              "text": "عندي ملاحظة"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "utak_delivery_incoming",
+      "language": "ar",
+      "id": "1292700166118950",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 17,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:18"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "مرحبا {{1}} طلبك في الطريق\n\nالسائق: {{2}}\nالوصول المتوقع: {{3}} تقريباً",
+          "example": {
+            "body_text": [
+              [
+                "أبو محمد",
+                "عماد",
+                "10:30 صباحاً"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_driver_collection",
+      "language": "ar",
+      "id": "2117735278951540",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 9,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "driver_collection",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:18"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "مرحبا {{1}} وصلت طلبية {{2}} ولا لا؟\n\nالمبلغ المطلوب: {{3}} ريال",
+          "example": {
+            "body_text": [
+              [
+                "عماد",
+                "بقالة النور",
+                "350"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "QUICK_REPLY",
+              "text": "تم التسليم"
+            },
+            {
+              "type": "QUICK_REPLY",
+              "text": "فيه مشكلة"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "utak_driver_dispatch",
+      "language": "ar",
+      "id": "1536306124913358",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 7,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "driver_dispatch",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:17"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "🚚 صباح الخير {{1}}،\n\nمسارك اليوم {{2}}:\n\n{{3}}\n\nإجمالي التوصيلات: {{4}}\n\nراح تجيك رسالة مستقلة لكل توصيلة، اضغط تم التسليم على كل واحدة بعد ما تخلصها.",
+          "example": {
+            "body_text": [
+              [
+                "عمر",
+                "2026-08-31",
+                "1. مطعم البركة — العليا\n2. بقالة النجم — الملز\n3. كافيه الأمل — النرجس",
+                "3"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_driver_stop",
+      "language": "ar",
+      "id": "1097071079728050",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 8,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "driver_stop",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:16"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "📦 توصيلة #{{1}}\n\nالعميل: {{2}}\nالحي: {{3}}\nالعنوان: {{4}}\n\nالأصناف:\n{{5}}\n\nلما توصل، اضغط تم التسليم 👇",
+          "example": {
+            "body_text": [
+              [
+                "1",
+                "مطعم البركة",
+                "العليا",
+                "شارع الأمير سلطان، مبنى 42",
+                "• طماطم فلين × 3\n• خيار جرم × 2"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "QUICK_REPLY",
+              "text": "تم التسليم"
+            },
+            {
+              "type": "QUICK_REPLY",
+              "text": "مشكلة"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "utak_feedback",
+      "language": "ar",
+      "id": "3618642818299842",
+      "status": "APPROVED",
+      "category": "MARKETING",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": false,
+      "odoo": {
+        "id": 22,
+        "status": "APPROVED",
+        "category": "MARKETING",
+        "purpose": "customer_feedback",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:18"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "مرحبا {{1}} كيف كانت تجربتك مع آخر طلب؟ رأيك يهمنا عشان نطوّر لك الخدمة",
+          "example": {
+            "body_text": [
+              [
+                "أبو محمد"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "QUICK_REPLY",
+              "text": "ممتازة"
+            },
+            {
+              "type": "QUICK_REPLY",
+              "text": "تحتاج تحسين"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "utak_followup_customer",
+      "language": "ar",
+      "id": "1112439368023747",
+      "status": "APPROVED",
+      "category": "MARKETING",
+      "previous_category": "UTILITY",
+      "rejected_reason": null,
+      "usable_operational": false,
+      "odoo": {
+        "id": 67,
+        "status": "APPROVED",
+        "category": "MARKETING",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:16"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "مرحباً {{1}}، لدينا تحديث بخصوص {{2}}. نرجو الرد على هذه الرسالة لنكمل معك. فريق يو تاك",
+          "example": {
+            "body_text": [
+              [
+                "أبو خالد",
+                "طلبك الأخير"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_followup_order",
+      "language": "ar",
+      "id": "1057512237161078",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 71,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:13"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "مرحباً {{1}}، لدينا تحديث بخصوص طلبك رقم {{2}} لدى يو تاك. نرجو الرد على هذه الرسالة حتى نكمل معك التفاصيل. شكراً لك",
+          "example": {
+            "body_text": [
+              [
+                "أبو خالد",
+                "12345"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_followup_po",
+      "language": "ar",
+      "id": "3279128172271098",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 70,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:13"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "السلام عليكم {{1}}، لدينا تحديث بخصوص طلب الشراء رقم {{2}} من يو تاك. نرجو الرد على هذه الرسالة حتى نكمل معك التفاصيل. شكراً لك",
+          "example": {
+            "body_text": [
+              [
+                "أخي محمد",
+                "PO-100"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_followup_supplier",
+      "language": "ar",
+      "id": "1075348055264519",
+      "status": "APPROVED",
+      "category": "MARKETING",
+      "previous_category": "UTILITY",
+      "rejected_reason": null,
+      "usable_operational": false,
+      "odoo": {
+        "id": 66,
+        "status": "APPROVED",
+        "category": "MARKETING",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:16"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "السلام عليكم {{1}}، نحتاج نتواصل معك بخصوص {{2}}. نرجو الرد على هذه الرسالة. يو تاك",
+          "example": {
+            "body_text": [
+              [
+                "أخي محمد",
+                "أسعار اليوم"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_invoice_customer_v2",
+      "language": "ar",
+      "id": "2077945416418255",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 19,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "customer_invoice",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:16"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "مرحباً {{1}}،\n\n🧾 فاتورتك من UTAK\nرقم الفاتورة: {{2}}\n\n{{3}}\n\nالإجمالي: {{4}} ر.س\n\nشكراً لتعاملكم معنا 🌿",
+          "example": {
+            "body_text": [
+              [
+                "مطعم البركة",
+                "UTAK-INV-20260831-001",
+                "• طماطم فلين × 3 = 91.08 ر.س\n• خيار جرم × 2 = 46.00 ر.س",
+                "137.08"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_invoice_pdf_v1",
+      "language": "ar",
+      "id": "1444507614539542",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 23,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "customer_invoice_pdf",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:16"
+      },
+      "components": [
+        {
+          "type": "HEADER",
+          "format": "DOCUMENT",
+          "example": {
+            "header_handle": [
+              "https://scontent.whatsapp.net/v/t61.29466-34/796816602_1444507617872875_1918362725536581589_n.pdf?ccb=1-7&_nc_sid=8b1bef&_nc_ohc=7SpglXTboaEQ7kNvwFdxhXH&_nc_oc=AdrbrIaGaLrfUg1NqOfnPoBCNcvjj3hN9wiTNKY5GoIRUiL4qJ1XwzuHDmxIx2c3pbeobAECMOEKN0jAiqYRm9E8&_nc_zt=3&_nc_ht=scontent.whatsapp.net&edm=AH51TzQEAAAA&_nc_gid=5w9VHEeC6niQnqKBvKMHfQ&_nc_tpa=Q5bMBQLBD0xsWCYeNOvdR5Jr56AVRviYqWxwXedCBoM8hbHU3dk4P46laALWXyI3QwK5lyfJu9LDRhXOgg&oh=01_Q5Aa5gFlAcA_uXZJKE5bdZt2sXJcjYBhouXPIT8weyAjoscLpw&oe=6ADE21A7"
+            ]
+          }
+        },
+        {
+          "type": "BODY",
+          "text": "هلا {{1}} 🌿\nفاتورتك رقم {{2}} بتاريخ {{3}}\nالإجمالي: {{4}} ريال\nالتفاصيل الكاملة بالفاتورة المرفقة.\nيعطيك العافية — UTAK 💚",
+          "example": {
+            "body_text": [
+              [
+                "أبو محمد",
+                "UTAK-INV-20260906-001",
+                "06 Sep 2026",
+                "1,245.50"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "FOOTER",
+          "text": "UTAK | يو تاك"
+        }
+      ]
+    },
+    {
+      "name": "utak_invoice_ready",
+      "language": "ar",
+      "id": "1116046994195967",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 58,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:15"
+      },
+      "components": [
+        {
+          "type": "HEADER",
+          "format": "DOCUMENT",
+          "example": {
+            "header_handle": [
+              "https://scontent.whatsapp.net/v/t61.29466-34/589288658_1116046997529300_3836065481072066865_n.pdf?ccb=1-7&_nc_sid=8b1bef&_nc_ohc=_NU9mEJohAcQ7kNvwF8NCzy&_nc_oc=Adpm7hPdv9P6QH-5hiY7ediF3DHTzKLUAM8xJ89CD-H3bW_x6vnHpYh0RURLt2eU_vb1mDCxAGBxITVWcrbwADi2&_nc_zt=3&_nc_ht=scontent.whatsapp.net&edm=AH51TzQEAAAA&_nc_gid=5w9VHEeC6niQnqKBvKMHfQ&_nc_tpa=Q5bMBQI_wOApG1dxPOs4E-C6Adhtk9Z62jLkAz00DVuoZ8PqdtsFRJUIsRJ06itaqb3ZYegRTe6s50u0iQ&oh=01_Q5Aa5gFooh0ybTOWpNIeRte33tBQQqRsPtLX8AzWdDTnX1Przw&oe=6ADE2171"
+            ]
+          }
+        },
+        {
+          "type": "BODY",
+          "text": "فاتورة طلبك رقم {{1}} بمبلغ {{2}} ريال، وتاريخ الاستحقاق {{3}}. شكراً لتعاملك مع يو تاك",
+          "example": {
+            "body_text": [
+              [
+                "12345",
+                "540",
+                "بعد 7 أيام"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_item_shortage",
+      "language": "ar",
+      "id": "2533188717106094",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 63,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:15"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "نعتذر، الصنف {{1}} غير متوفر اليوم في طلبك رقم {{2}}. البديل المقترح: {{3}}. اختر من الأزرار أدناه",
+          "example": {
+            "body_text": [
+              [
+                "طماطم",
+                "12345",
+                "خيار مكانه"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "QUICK_REPLY",
+              "text": "موافق على البديل"
+            },
+            {
+              "type": "QUICK_REPLY",
+              "text": "بدون بديل"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "utak_order_confirm_remind_v1",
+      "language": "ar",
+      "id": "2136724353593206",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 78,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "customer_order_remind",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:10"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "تذكير من يو تاك: طلبك رقم {{1}} لسه ما تأكد، ويُلغى تلقائياً الساعة {{2}}. اضغط «تأكيد الطلب» عشان يدخل طلبات اليوم، أو «إلغاء» لو ما تحتاجه.",
+          "example": {
+            "body_text": [
+              [
+                "#1234",
+                "9:00 مساءً"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "QUICK_REPLY",
+              "text": "تأكيد الطلب"
+            },
+            {
+              "type": "QUICK_REPLY",
+              "text": "إلغاء"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "utak_order_confirmed",
+      "language": "ar",
+      "id": "27847019058309951",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 65,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "customer_order_confirm",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:16"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "تم تأكيد طلبك رقم {{1}}، والتوصيل {{2}}. شكراً لاختيارك يو تاك",
+          "example": {
+            "body_text": [
+              [
+                "12345",
+                "بكرة الصباح"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_order_cutoff",
+      "language": "ar",
+      "id": "1481651350447678",
+      "status": "APPROVED",
+      "category": "MARKETING",
+      "previous_category": "UTILITY",
+      "rejected_reason": null,
+      "usable_operational": false,
+      "odoo": {
+        "id": 59,
+        "status": "APPROVED",
+        "category": "MARKETING",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:15"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "تذكير: آخر موعد لطلبات الغد الساعة {{1}}. أرسل طلبك الآن لضمان التوصيل",
+          "example": {
+            "body_text": [
+              [
+                "9 مساءً"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_order_service_notice",
+      "language": "ar",
+      "id": "3588139654700244",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 69,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:13"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "تنبيه بخصوص توصيل طلبك رقم {{1}} لدى يو تاك: {{2}}. نعتذر عن أي إزعاج، ونحن متاحون للرد على أي استفسار",
+          "example": {
+            "body_text": [
+              [
+                "12345",
+                "تأخر السائق بسبب زحمة الطريق"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_order_update",
+      "language": "ar",
+      "id": "1759753935175243",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 64,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "customer_order_update",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:15"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "تحديث على طلبك رقم {{1}}: {{2}}. لأي استفسار رد على هذه الرسالة",
+          "example": {
+            "body_text": [
+              [
+                "12345",
+                "أضفنا البطاطس للطلب"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_out_for_delivery",
+      "language": "ar",
+      "id": "1786280269077330",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 61,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "customer_delivery_incoming",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:15"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "طلبك رقم {{1}} في الطريق إليك الآن مع {{2}}. يو تاك",
+          "example": {
+            "body_text": [
+              [
+                "12345",
+                "السائق أحمد"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_owner_alert",
+      "language": "ar",
+      "id": "1058511596785943",
+      "status": "APPROVED",
+      "category": "MARKETING",
+      "previous_category": "UTILITY",
+      "rejected_reason": null,
+      "usable_operational": false,
+      "odoo": {
+        "id": 24,
+        "status": "APPROVED",
+        "category": "MARKETING",
+        "purpose": "owner_alert",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:16"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "تنبيه تشغيلي من نظام يو تاك:\n{{1}}\nيرجى مراجعة التفاصيل واتخاذ الإجراء المناسب.",
+          "example": {
+            "body_text": [
+              [
+                "لا يوجد سعر اليوم لصنف البطاطس"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_owner_alert_v2",
+      "language": "ar",
+      "id": "1122506210738949",
+      "status": "APPROVED",
+      "category": "MARKETING",
+      "previous_category": "UTILITY",
+      "rejected_reason": null,
+      "usable_operational": false,
+      "odoo": {
+        "id": 73,
+        "status": "APPROVED",
+        "category": "MARKETING",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:12"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "تنبيه تشغيلي من نظام يو تاك: {{1}} — يرجى مراجعة التفاصيل واتخاذ الإجراء المناسب.",
+          "example": {
+            "body_text": [
+              [
+                "قائمة شراء اليوم لم تُؤكَّد حتى الآن"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_owner_alert_v3",
+      "language": "ar",
+      "id": "2448491342224622",
+      "status": "REJECTED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": "INCORRECT_CATEGORY",
+      "usable_operational": false,
+      "odoo": {
+        "id": 80,
+        "status": "REJECTED",
+        "category": "UTILITY",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:10"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "إشعار آلي من نظام يو تاك بشأن عمليات حسابك، سُجّل بتاريخ {{1}}: {{2}}. يصلك هذا الإشعار بصفتك مالك الحساب، وتفاصيله محفوظة في سجل النظام.",
+          "example": {
+            "body_text": [
+              [
+                "25 سبتمبر 2026، 18:01",
+                "فشل إرسال ملخص التحصيل إلى المحصّل (الرمز 132018)"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_pay_remind_v3",
+      "language": "ar",
+      "id": "1781382093182549",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 76,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "customer_pay_remind",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:11"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "تذكير من يو تاك: عزيزنا {{1}}، يوجد على حسابكم مبلغ مستحق قدره {{2}} ريال. نأمل التكرم بسداده في أقرب وقت، ولأي استفسار يسعدنا ردكم على هذه الرسالة.",
+          "example": {
+            "body_text": [
+              [
+                "مطعم الوادي",
+                "1250.00"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_payment_received",
+      "language": "ar",
+      "id": "2164551181106533",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 56,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "customer_payment_received",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:15"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "استلمنا دفعتك بمبلغ {{1}} ريال على فاتورة {{2}}. شكراً لك",
+          "example": {
+            "body_text": [
+              [
+                "540",
+                "12345"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_payment_reminder",
+      "language": "ar",
+      "id": "28802984192639619",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 57,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:15"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "تذكير ودي: فاتورة رقم {{1}} بمبلغ {{2}} ريال مستحقة بتاريخ {{3}}. شاكرين تعاونك",
+          "example": {
+            "body_text": [
+              [
+                "12345",
+                "540",
+                "بعد 3 أيام"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_po_changed",
+      "language": "ar",
+      "id": "1498362785382449",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 50,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:13"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "تعديل على طلب الشراء رقم {{1}}: {{2}}. نرجو التأكيد",
+          "example": {
+            "body_text": [
+              [
+                "PO-100",
+                "الكمية 15 بدل 10"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "QUICK_REPLY",
+              "text": "تأكيد"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "utak_po_confirmed",
+      "language": "ar",
+      "id": "1762383581639184",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 47,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:13"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "لديك طلب شراء جديد من يو تاك رقم {{1}}. البنود المطلوبة: {{2}}. موعد الاستلام {{3}}. نرجو التأكيد باختيار أحد الأزرار أدناه",
+          "example": {
+            "body_text": [
+              [
+                "PO-100",
+                "10 كراتين طماطم و5 كراتين خيار",
+                "بكرة صباحاً"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "QUICK_REPLY",
+              "text": "تأكيد"
+            },
+            {
+              "type": "QUICK_REPLY",
+              "text": "لا أستطيع"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "utak_po_quality_issue",
+      "language": "ar",
+      "id": "1070020045921856",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 68,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:12"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "لدينا ملاحظة جودة على طلب الشراء رقم {{1}} المورَّد إلى يو تاك، والتفاصيل: {{2}}. نحتاج نتفق معك على طريقة المعالجة",
+          "example": {
+            "body_text": [
+              [
+                "PO-100",
+                "الطماطم فيها كرتونان متعبان"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_purchase_list_remind_v1",
+      "language": "ar",
+      "id": "28819520131014626",
+      "status": "APPROVED",
+      "category": "MARKETING",
+      "previous_category": "UTILITY",
+      "rejected_reason": null,
+      "usable_operational": false,
+      "odoo": {
+        "id": 79,
+        "status": "APPROVED",
+        "category": "MARKETING",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:10"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "تذكير من يو تاك: قائمة شراء يوم {{1}} لم يُضغط فيها على «تم الشراء» حتى الآن، وعدد أصنافها {{2}}. يرجى الضغط على الزر أدناه بعد إتمام الشراء، أو الرد على هذه الرسالة إن وُجدت مشكلة.",
+          "example": {
+            "body_text": [
+              [
+                "25 سبتمبر 2026",
+                "12"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "QUICK_REPLY",
+              "text": "تم الشراء"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "utak_purchase_list_remind_v2",
+      "language": "ar",
+      "id": "1607339444467363",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 81,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "purchase_list_remind",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:10"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "تحديث حالة مهمة في يو تاك: قائمة الشراء رقم {{1}} المسندة إليك ليوم {{2}}، وعدد أصنافها {{3}}، حالتها الآن «بانتظار التأكيد». عند إنجاز المهمة اضغط «تم الشراء» لتحديث حالتها، أو رد على هذه الرسالة إن وُجدت مشكلة في التنفيذ.",
+          "example": {
+            "body_text": [
+              [
+                "14",
+                "25 سبتمبر 2026",
+                "12"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "QUICK_REPLY",
+              "text": "تم الشراء"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "utak_purchase_list_v2",
+      "language": "ar",
+      "id": "1028879440153009",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 5,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "purchase_list",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:16"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "🌅 صباح الخير {{1}}،\n\nقائمة شراء اليوم {{2}}:\n\n{{3}}\n\nإجمالي الأصناف: {{4}}\n\nاضغط الزر لما تخلص الشراء 👇",
+          "example": {
+            "body_text": [
+              [
+                "عمر",
+                "2026-08-31",
+                "• طماطم فلين × 15\n• خيار جرم × 20\n• بطاطس كرتون × 8",
+                "3"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "QUICK_REPLY",
+              "text": "تم الشراء"
+            },
+            {
+              "type": "QUICK_REPLY",
+              "text": "مشكلة"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "utak_quality_issue",
+      "language": "ar",
+      "id": "1616819346585000",
+      "status": "APPROVED",
+      "category": "MARKETING",
+      "previous_category": "UTILITY",
+      "rejected_reason": null,
+      "usable_operational": false,
+      "odoo": {
+        "id": 49,
+        "status": "APPROVED",
+        "category": "MARKETING",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:13"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "ملاحظة جودة على توريد {{1}}: {{2}}. نحتاج نتفق على المعالجة",
+          "example": {
+            "body_text": [
+              [
+                "PO-100",
+                "الطماطم فيها 4 كراتين متعبة"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_quotation_pdf_v1",
+      "language": "ar",
+      "id": "1072693768988955",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 77,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "customer_quotation_pdf",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:10"
+      },
+      "components": [
+        {
+          "type": "HEADER",
+          "format": "DOCUMENT",
+          "example": {
+            "header_handle": [
+              "https://scontent.whatsapp.net/v/t61.29466-34/534416372_1072693772322288_8489125661459644076_n.pdf?ccb=1-7&_nc_sid=8b1bef&_nc_ohc=siKFmzlhiloQ7kNvwEexTmC&_nc_oc=AdohBhL0zJRKsgdN4uvjQlPtNHQIZZ5VHql2o22jZo7HA-rs1GE3LbkU-8fHmNZrpVBDj-hQk0oE9XGcT_oXF9s0&_nc_zt=3&_nc_ht=scontent.whatsapp.net&edm=AH51TzQEAAAA&_nc_gid=5w9VHEeC6niQnqKBvKMHfQ&_nc_tpa=Q5bMBQIhYRIhcseYPsOMMlk3WbnfD_TBN23aYtwSh7Gxup5mfJElejyNlnVgeWWndnqf6zD2ZOOufJbfJA&oh=01_Q5Aa5gHGlJYpH17ClQWIYwqPqeAug0QQV9h3mQ0q9uVouaneBQ&oe=6ADE36E0"
+            ]
+          }
+        },
+        {
+          "type": "BODY",
+          "text": "مرحباً {{1}}، مرفق عرض السعر رقم {{2}} من يو تاك بتاريخ {{3}}، بإجمالي {{4}} ريال. الأسعار سارية حتى موعد إقفال الطلبات في يوم الإصدار، ولأي استفسار يسعدنا ردكم على هذه الرسالة.",
+          "example": {
+            "body_text": [
+              [
+                "مطعم الوادي",
+                "QUO-2026-0032",
+                "24 سبتمبر 2026",
+                "480"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_reactivate",
+      "language": "ar",
+      "id": "2150023025934757",
+      "status": "APPROVED",
+      "category": "MARKETING",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": false,
+      "odoo": {
+        "id": 51,
+        "status": "APPROVED",
+        "category": "MARKETING",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:13"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "اشتقنا لك {{1}}! عندنا اليوم {{2}}. اطلب الآن ويوصلك بكرة",
+          "example": {
+            "body_text": [
+              [
+                "أبو خالد",
+                "طماطم طازة بسعر ممتاز"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_service_notice",
+      "language": "ar",
+      "id": "2929895674013091",
+      "status": "APPROVED",
+      "category": "MARKETING",
+      "previous_category": "UTILITY",
+      "rejected_reason": null,
+      "usable_operational": false,
+      "odoo": {
+        "id": 52,
+        "status": "APPROVED",
+        "category": "MARKETING",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:14"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "تنبيه: {{1}} بتاريخ {{2}}. نعتذر عن أي إزعاج",
+          "example": {
+            "body_text": [
+              [
+                "إجازة عيد الفطر — لا توصيل",
+                "2026-04-01"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_shift_start",
+      "language": "ar",
+      "id": "2131129101092462",
+      "status": "APPROVED",
+      "category": "MARKETING",
+      "previous_category": "UTILITY",
+      "rejected_reason": null,
+      "usable_operational": false,
+      "odoo": {
+        "id": 25,
+        "status": "APPROVED",
+        "category": "MARKETING",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:16"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "مساء الخير {{1}}، مهام يو تاك لليوم جاهزة. اضغط الزر أدناه لبدء الدوام واستلام التفاصيل.",
+          "example": {
+            "body_text": [
+              [
+                "عمر"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "QUICK_REPLY",
+              "text": "بدء الدوام"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "utak_shift_start_v2",
+      "language": "ar",
+      "id": "1748771209727120",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 74,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "team_shift_start",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:11"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "مرحباً {{1}}، مهامك في يو تاك لهذا اليوم جاهزة. اضغط زر «بدء الدوام» أدناه لاستلام التفاصيل والمواقع.",
+          "example": {
+            "body_text": [
+              [
+                "عمر"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "QUICK_REPLY",
+              "text": "بدء الدوام"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "utak_standing_remind_v2",
+      "language": "ar",
+      "id": "1996283197754125",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 75,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "customer_daily_remind",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:11"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "مساء الخير {{1}}، قائمتك الثابتة عند يو تاك جاهزة لطلب بكرة. تحب نرسلها مثل ما هي، أو تعدّل عليها؟",
+          "example": {
+            "body_text": [
+              [
+                "مطعم الوادي"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "QUICK_REPLY",
+              "text": "تمام أرسلوها"
+            },
+            {
+              "type": "QUICK_REPLY",
+              "text": "أبغى أعدّل"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "utak_supplier_ask_v2",
+      "language": "ar",
+      "id": "4532146783740851",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 72,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "supplier_ask",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:12"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "صباح الخير {{1}}، معك يو تاك. نحتاج أسعارك اليوم لهالأصناف: {{2}}. يا ليت ترد بسعر كل صنف وتعبئته (مثال: طماطم كرتون 25 ريال)، والله يعطيك العافية.",
+          "example": {
+            "body_text": [
+              [
+                "أحمد حسان",
+                "طماطم، خيار، بطاطس، خس"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_supplier_confirm_v1",
+      "language": "ar",
+      "id": "949738058176454",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 46,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "supplier_confirm",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:16"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "شكراً {{1}} 🌿\n\nاستلمنا أسعارك لـ {{2}} صنف اليوم. سنعتمدها لطلبات اليوم.\n\nلو تحتاج تعديل، اضغط \"تعديل الأسعار\" أو رد \"تعديل\".",
+          "example": {
+            "body_text": [
+              [
+                "أحمد",
+                "7"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "QUICK_REPLY",
+              "text": "تعديل الأسعار"
+            },
+            {
+              "type": "QUICK_REPLY",
+              "text": "توقف اليوم"
+            },
+            {
+              "type": "QUICK_REPLY",
+              "text": "شكراً"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "utak_supplier_daily_ask",
+      "language": "ar",
+      "id": "1077122728036007",
+      "status": "APPROVED",
+      "category": "MARKETING",
+      "previous_category": "UTILITY",
+      "rejected_reason": null,
+      "usable_operational": false,
+      "odoo": {
+        "id": 4,
+        "status": "APPROVED",
+        "category": "MARKETING",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:17"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "🌅 صباح الخير،\n\nنبغى أسعار اليوم لهذي الأصناف:\n\n{{1}}\n\nرد بأسعارك (مثال: طماطم كرتون 25 ريال). شكراً 🌿",
+          "example": {
+            "body_text": [
+              [
+                "• طماطم\n• خيار\n• بطاطس\n• خس"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_supplier_price_nudge",
+      "language": "ar",
+      "id": "1783630256057113",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 48,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "supplier_price_nudge",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:13"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "أهلاً {{1}}، لم تصلنا أسعارك اليوم بعد. نحتاجها قبل الساعة {{2}} لو سمحت",
+          "example": {
+            "body_text": [
+              [
+                "أخي محمد",
+                "3 مساءً"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_update_customer",
+      "language": "ar",
+      "id": "933950629337336",
+      "status": "PENDING",
+      "category": "MARKETING",
+      "previous_category": "UTILITY",
+      "rejected_reason": null,
+      "usable_operational": false,
+      "odoo": {
+        "id": 82,
+        "status": "PENDING",
+        "category": "MARKETING",
+        "purpose": "conv_open_customer",
+        "in_sync": true,
+        "last_synced": false
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "يوجد تحديث على حسابك لدى يو تاك رقم {{1}}: {{2}}. اضغط «عرض التحديث» للتفاصيل.",
+          "example": {
+            "body_text": [
+              [
+                "1045",
+                "إيصال الدفع"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "QUICK_REPLY",
+              "text": "عرض التحديث"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "utak_update_owner",
+      "language": "ar",
+      "id": "1091510086973633",
+      "status": "PENDING",
+      "category": "MARKETING",
+      "previous_category": "UTILITY",
+      "rejected_reason": null,
+      "usable_operational": false,
+      "odoo": {
+        "id": 85,
+        "status": "PENDING",
+        "category": "MARKETING",
+        "purpose": "conv_open_owner",
+        "in_sync": true,
+        "last_synced": false
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "يوجد تحديث تشغيلي على حساب يو تاك بتاريخ {{1}}: {{2}}. اضغط «عرض التحديث» للتفاصيل.",
+          "example": {
+            "body_text": [
+              [
+                "26 سبتمبر 2026",
+                "تنبيه تشغيلي"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "QUICK_REPLY",
+              "text": "عرض التحديث"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "utak_update_supplier",
+      "language": "ar",
+      "id": "1114139324289565",
+      "status": "PENDING",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": false,
+      "odoo": {
+        "id": 84,
+        "status": "PENDING",
+        "category": "UTILITY",
+        "purpose": "conv_open_supplier",
+        "in_sync": true,
+        "last_synced": false
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "يوجد تحديث على طلب التوريد بتاريخ {{1}}: {{2}}. اضغط «عرض التحديث» للتفاصيل.",
+          "example": {
+            "body_text": [
+              [
+                "26 سبتمبر 2026",
+                "تعديل الكمية"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "QUICK_REPLY",
+              "text": "عرض التحديث"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "utak_update_team",
+      "language": "ar",
+      "id": "2152058979020380",
+      "status": "APPROVED",
+      "category": "MARKETING",
+      "previous_category": "UTILITY",
+      "rejected_reason": null,
+      "usable_operational": false,
+      "odoo": {
+        "id": 83,
+        "status": "APPROVED",
+        "category": "MARKETING",
+        "purpose": "conv_open_team",
+        "in_sync": true,
+        "last_synced": false
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "يوجد تحديث على مهامك في وردية {{1}}: {{2}}. اضغط «عرض التحديث» للتفاصيل.",
+          "example": {
+            "body_text": [
+              [
+                "26 سبتمبر 2026",
+                "مسار التوصيل"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "QUICK_REPLY",
+              "text": "عرض التحديث"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "utak_v2_collection",
+      "language": "ar",
+      "id": "1540873677725782",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 42,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:17"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "كشف التحصيل جاهز يا {{1}} الله يوفقك\n\nعدد العملاء: {{2}}\nالمبلغ الإجمالي: {{3}} ريال",
+          "example": {
+            "body_text": [
+              [
+                "عماد",
+                "6",
+                "4200"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_v2_commission",
+      "language": "ar",
+      "id": "1029772783281554",
+      "status": "APPROVED",
+      "category": "MARKETING",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": false,
+      "odoo": {
+        "id": 12,
+        "status": "APPROVED",
+        "category": "MARKETING",
+        "purpose": "commission",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:17"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "كشف عمولتك جاهز يا {{1}} يعطيك العافية\n\nالفترة: {{2}}\nالإجمالي: {{3}} ريال",
+          "example": {
+            "body_text": [
+              [
+                "سعد",
+                "1-15 أغسطس",
+                "2400"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_v2_daily_remind",
+      "language": "ar",
+      "id": "1989626061743408",
+      "status": "APPROVED",
+      "category": "MARKETING",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": false,
+      "odoo": {
+        "id": 15,
+        "status": "APPROVED",
+        "category": "MARKETING",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:18"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "مساء الخير {{1}} يسعد مساك\n\nقائمتك الثابتة جاهزة لبكرة. تبي نرسلها زي ما هي ولا تبي تعدّل؟",
+          "example": {
+            "body_text": [
+              [
+                "أبو محمد"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "QUICK_REPLY",
+              "text": "تمام أرسلوها"
+            },
+            {
+              "type": "QUICK_REPLY",
+              "text": "أبغى أعدّل"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "utak_v2_driver_route",
+      "language": "ar",
+      "id": "1480071154141352",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 44,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:17"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "صباح الخير يا {{1}} مسارك جاهز\n\nعدد التوصيلات: {{2}}\n\nالله يوفقك ويسهّل دربك.",
+          "example": {
+            "body_text": [
+              [
+                "عماد",
+                "8"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_v2_inactive",
+      "language": "ar",
+      "id": "1683847247081021",
+      "status": "APPROVED",
+      "category": "MARKETING",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": false,
+      "odoo": {
+        "id": 21,
+        "status": "APPROVED",
+        "category": "MARKETING",
+        "purpose": "customer_inactive",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:18"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "وحشتنا يا {{1}} والله\n\nصار لك فترة ما طلبت. لو تبي ترجع قائمتك أو عندك أي استفسار، حنا هنا!",
+          "example": {
+            "body_text": [
+              [
+                "أبو محمد"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "QUICK_REPLY",
+              "text": "أبغى أطلب"
+            },
+            {
+              "type": "QUICK_REPLY",
+              "text": "عندي ملاحظة"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "utak_v2_loading",
+      "language": "ar",
+      "id": "1436340221879097",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 6,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "loading_done",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:17"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "تم تحميل البضاعة بنجاح\n\nعدد الأصناف: {{1}}\nعدد العملاء: {{2}}\n\nجاهز للانطلاق؟",
+          "example": {
+            "body_text": [
+              [
+                "12",
+                "8"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "QUICK_REPLY",
+              "text": "تمام جاهز"
+            },
+            {
+              "type": "QUICK_REPLY",
+              "text": "فيه نقص"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "utak_v2_order_confirm",
+      "language": "ar",
+      "id": "876742095294737",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 16,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:18"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "تم استلام طلبك يا {{1}} بنجاح\n\nعدد الأصناف: {{2}}\nالتوصيل: {{3}}\n\nبنأكد لك قبل التحميل إن شاء الله.",
+          "example": {
+            "body_text": [
+              [
+                "أبو محمد",
+                "5",
+                "صباح بكرة"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_v2_pay_remind",
+      "language": "ar",
+      "id": "1371906455125185",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 20,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:18"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "تذكير ودي يا {{1}} الله يحفظك\n\nعندك مبلغ {{2}} ريال مستحق.\nنتمنى تسوية المبلغ في أقرب وقت عشان نقدر نستمر بالخدمة بدون انقطاع.",
+          "example": {
+            "body_text": [
+              [
+                "أبو محمد",
+                "1250"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_v2_purchase",
+      "language": "ar",
+      "id": "1066273129707521",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 43,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:17"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "صباح الخير يا {{1}} قائمتك جاهزة\n\nقائمة مشتريات اليوم:\nعدد الأصناف: {{2}}\n\nالله يعطيك العافية.",
+          "example": {
+            "body_text": [
+              [
+                "أحمد",
+                "15"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_v2_summary",
+      "language": "ar",
+      "id": "1816743862834577",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 13,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "owner_summary",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:17"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "ملخص اليوم جاهز\n\nطلبات: {{1}}\nتوصيلات: {{2}}\nإجمالي: {{3}} ريال\n\nتفاصيل أكثر في لوحة القيادة.",
+          "example": {
+            "body_text": [
+              [
+                "25",
+                "23",
+                "8500"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utak_v2_welcome",
+      "language": "ar",
+      "id": "2013770169267554",
+      "status": "APPROVED",
+      "category": "MARKETING",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": false,
+      "odoo": {
+        "id": 14,
+        "status": "APPROVED",
+        "category": "MARKETING",
+        "purpose": "other",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:18"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "هلا والله {{1}} نورت\n\nأنا من فريق UTAK — نوصّل لك خضار وفواكه طازجة كل يوم لباب محلك.\n\nكيف نقدر نخدمك؟",
+          "example": {
+            "body_text": [
+              [
+                "أبو محمد"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "QUICK_REPLY",
+              "text": "أبغى أطلب"
+            },
+            {
+              "type": "QUICK_REPLY",
+              "text": "أبغى أعرف أكثر"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "utak_welcome",
+      "language": "ar",
+      "id": "4047089872260272",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "usable_operational": true,
+      "odoo": {
+        "id": 53,
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "purpose": "customer_welcome",
+        "in_sync": true,
+        "last_synced": "2026-09-25 02:00:14"
+      },
+      "components": [
+        {
+          "type": "BODY",
+          "text": "أهلاً {{1}}، تم تفعيل حسابك في يو تاك. اطلب مباشرة من هنا، وآخر موعد للطلب يومياً الساعة {{2}}. حياك",
+          "example": {
+            "body_text": [
+              [
+                "أبو خالد",
+                "9 مساءً"
+              ]
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

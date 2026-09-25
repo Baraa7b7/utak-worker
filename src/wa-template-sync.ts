@@ -10,6 +10,11 @@
 //    x_language filled, x_purpose left empty so automated flows never
 //    auto-select it. Baraa can wire it later via the form.
 //  - Missing in Meta → x_missing_in_meta = true, no delete.
+//  - 2026-09-25 (STATUS § 36) — x_body_text is the approved text as the
+//    recipient reads it: a text header, the body and the footer, one per
+//    line, {{n}} unfilled; x_buttons_text is the button labels, one per line.
+//    The gateway renders every template send from them (src/wa-record.ts),
+//    so Discuss and x_wa_message show the message, not the template's name.
 //
 // Arabic labels (2026-09-21):
 //  - x_label_ar is the source of truth for the human-friendly Arabic name; the
@@ -46,7 +51,7 @@ export function hasArabicLabel(technicalName: string): boolean {
   return typeof map[technicalName] === "string" && map[technicalName].trim().length > 0;
 }
 
-interface MetaTemplate {
+export interface MetaTemplate {
   id: string;
   name: string;
   language: string;
@@ -94,6 +99,50 @@ function countBodyParams(body: string): number {
   if (!matches) return 0;
   const nums = new Set(matches.map((m) => Number(m.replace(/[^0-9]/g, ""))));
   return nums.size;
+}
+
+/**
+ * § 36 — the approved text (text header, body, footer — one per line) and the
+ * button labels (one per line) of a Meta template.
+ */
+export function templateDisplayText(tpl: Pick<MetaTemplate, "components">): { bodyText: string; buttonsText: string } {
+  const comps = tpl.components ?? [];
+  const header = comps.find((c) => c.type === "HEADER" && c.format === "TEXT" && typeof c.text === "string")?.text ?? "";
+  const body = comps.find((c) => c.type === "BODY" && typeof c.text === "string")?.text ?? "";
+  const footer = comps.find((c) => c.type === "FOOTER" && typeof c.text === "string")?.text ?? "";
+  const buttons = comps.find((c) => c.type === "BUTTONS" && Array.isArray(c.buttons))?.buttons ?? [];
+  return {
+    bodyText: [header, body, footer].map((t) => t.trim()).filter(Boolean).join("\n"),
+    buttonsText: buttons.map((b) => String(b.text ?? "").trim()).filter(Boolean).join("\n"),
+  };
+}
+
+/** Every value the sync writes from a Meta template (labels excepted). */
+export function templateSyncVals(t: MetaTemplate): Record<string, unknown> {
+  const { body, buttons } = extractBodyAndButtons(t);
+  const { bodyText, buttonsText } = templateDisplayText(t);
+  return {
+    x_meta_id: t.id,
+    x_meta_status: t.status,
+    x_category: t.category,
+    x_body: body,
+    x_param_count: countBodyParams(body),
+    x_buttons: buttons,
+    x_body_text: bodyText,
+    x_buttons_text: buttonsText,
+  };
+}
+
+/** The § 36 text fields: left out of a write when this Odoo does not have them yet. */
+const TEXT_FIELDS = ["x_body_text", "x_buttons_text"];
+function withoutTextFields(vals: Record<string, unknown>): Record<string, unknown> {
+  const v = { ...vals };
+  for (const f of TEXT_FIELDS) delete v[f];
+  return v;
+}
+function missingTextField(e: unknown): boolean {
+  const m = String((e as Error)?.message ?? e);
+  return TEXT_FIELDS.some((f) => m.includes(f));
 }
 
 function extractBodyAndButtons(tpl: MetaTemplate): { body: string; buttons: string } {
@@ -184,23 +233,39 @@ export async function syncTemplates(env: Env): Promise<TemplateSyncReport> {
     }
   }
   const seenKeys = new Set<string>();
+  // § 36 — an Odoo without x_body_text / x_buttons_text (setup not run yet):
+  // those two are left out for the rest of the run, nothing else changes.
+  let textFields = true;
+  const write = async (ids: number[], vals: Record<string, unknown>) => {
+    try {
+      await call<boolean>(env, "x_whatsapp_template", "write", { ids, vals: textFields ? vals : withoutTextFields(vals) });
+    } catch (e) {
+      if (!textFields || !missingTextField(e)) throw e;
+      textFields = false;
+      console.warn("[wa-sync] x_body_text / x_buttons_text missing in Odoo — synced without them");
+      await call<boolean>(env, "x_whatsapp_template", "write", { ids, vals: withoutTextFields(vals) });
+    }
+  };
+  const create = async (vals: Record<string, unknown>) => {
+    try {
+      await call<number[]>(env, "x_whatsapp_template", "create", { vals_list: [textFields ? vals : withoutTextFields(vals)] });
+    } catch (e) {
+      if (!textFields || !missingTextField(e)) throw e;
+      textFields = false;
+      await call<number[]>(env, "x_whatsapp_template", "create", { vals_list: [withoutTextFields(vals)] });
+    }
+  };
 
   for (const t of metaTemplates) {
     const key = keyOf(t.name, t.language);
     seenKeys.add(key);
-    const { body, buttons } = extractBodyAndButtons(t);
-    const paramCount = countBodyParams(body);
+    const synced = templateSyncVals(t);
     const existing = odooByKey.get(key);
     try {
       if (existing) {
         // ONLY the new fields — never x_meta_template_id / x_language / x_purpose
         const vals: Record<string, unknown> = {
-          x_meta_id: t.id,
-          x_meta_status: t.status,
-          x_category: t.category,
-          x_body: body,
-          x_param_count: paramCount,
-          x_buttons: buttons,
+          ...synced,
           x_last_synced: nowOdoo(),
           x_missing_in_meta: false,
         };
@@ -219,29 +284,19 @@ export async function syncTemplates(env: Env): Promise<TemplateSyncReport> {
         // pointless writes but ensures the display column is always Arabic.
         const currentName = typeof existing.x_name === "string" ? existing.x_name.trim() : "";
         if (currentName !== finalLabel) vals.x_name = finalLabel;
-        await call<boolean>(env, "x_whatsapp_template", "write", {
-          ids: [existing.id],
-          vals,
-        });
+        await write([existing.id], vals);
         report.updated++;
       } else {
         // New — x_purpose left unset so fetchMapping never picks it.
         const desired = pickArabicLabel(t.name);
-        await call<number[]>(env, "x_whatsapp_template", "create", {
-          vals_list: [{
-            x_meta_template_id: t.name,
-            x_language: t.language,
-            x_meta_id: t.id,
-            x_meta_status: t.status,
-            x_category: t.category,
-            x_body: body,
-            x_param_count: paramCount,
-            x_buttons: buttons,
-            x_last_synced: nowOdoo(),
-            x_missing_in_meta: false,
-            x_label_ar: desired,
-            x_name: desired,
-          }],
+        await create({
+          x_meta_template_id: t.name,
+          x_language: t.language,
+          ...synced,
+          x_last_synced: nowOdoo(),
+          x_missing_in_meta: false,
+          x_label_ar: desired,
+          x_name: desired,
         });
         report.created++;
         report.created_names.push(`${t.name}/${t.language}`);

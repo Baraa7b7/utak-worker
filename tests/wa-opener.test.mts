@@ -48,6 +48,8 @@ const FX = [
   "./fixtures-odoo-fields-20260924.json", "./fixtures-odoo-fields-20260925-review.json",
   "./fixtures-odoo-fields-20260925-gateway.json", "./fixtures-odoo-fields-20260925-team.json",
   "./fixtures-odoo-fields-20260925-opener.json",
+  // STATUS § 36 — x_body_text / x_buttons_text, x_echo_status / x_echo_message_id / x_backfilled
+  "./fixtures-odoo-fields-20260925-s36.json",
 ].map(load);
 const REAL: Record<string, string[]> = Object.assign({}, ...FX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FX.map((f) => f._selections));
@@ -179,8 +181,13 @@ console.log("\n[1] the template follows the category");
   assert("customer: [account number, «فاتورة جديدة»]", params(c[0]).join("|") === `${CUST}|فاتورة جديدة`, JSON.stringify(params(c[0])));
   assert("customer: button 0 payload wa_update_open", payloads(c[0]).join() === OPEN_PAYLOAD);
   assert("customer: the invoice text is held", heldFor(env, CUST_PHONE).some((i) => i.purpose === "customer_invoice"));
-  assert("the opener is logged in x_wa_message (a sent template row)", rows("x_wa_message").some((r) => r.x_status === "sent" && String(r.x_body).includes("utak_update_customer")),
-    JSON.stringify(rows("x_wa_message").map((r) => [r.x_status, r.x_body])));
+  // § 36 — the row carries the text as read; the template's name only in the technical fields
+  const openerRow = (name: string) => rows("x_wa_message").find((r) => r.x_status === "sent" && r.x_kind === "template"
+    && JSON.parse(String(r.x_debug_payload || "{}")).template === name);
+  const cRow = openerRow("utak_update_customer");
+  assert("the opener is logged in x_wa_message (a sent template row, name in x_template_id / x_debug_payload only)",
+    !!cRow && !!cRow.x_template_id && !String(cRow.x_body).includes("utak_update_customer"),
+    JSON.stringify(rows("x_wa_message").map((r) => [r.x_status, r.x_body, r.x_debug_payload])));
 
   const t = await quiet(() => sendOpenerForHeld(env, COLL_PHONE, "owner_team_note"));
   const tb = tpl(COLL_PHONE, "utak_update_team")[0];
@@ -192,7 +199,8 @@ console.log("\n[1] the template follows the category");
   await quiet(() => sendOwnerAlert(env, "⚠️ تنبيه تجريبي"));
   const ob = tpl(OWNER, "utak_update_owner")[0];
   assert("owner → utak_update_owner [date, «تنبيه تشغيلي»]", params(ob).join("|") === "26 سبتمبر 2026|تنبيه تشغيلي", JSON.stringify(sentTo(OWNER)));
-  assert("owner: the opener is logged in x_wa_message too", rows("x_wa_message").some((r) => String(r.x_body).includes("utak_update_owner") && r.x_status === "sent"));
+  const oRow = openerRow("utak_update_owner");
+  assert("owner: the opener is logged in x_wa_message too", !!oRow && !!oRow.x_template_id && !String(oRow.x_body).includes("utak_update_owner"));
   const cat = await quiet(() => recipientCategory(env, "966500000510"));
   assert("an unknown number has no category (no opener)", cat.category === null, JSON.stringify(cat));
 }

@@ -31,6 +31,12 @@
 //      noHold is skipped instead of held (its content is covered elsewhere).
 //   4. one attempt at Meta. Never a second one for the same request.
 //
+// § 36 — every message on record (src/wa-record.ts): a send Meta accepted, a
+// held message, and every later change of fate get their x_wa_message row
+// (awaited) and their line in the number's Discuss channel — Baraa's number
+// included — with the text as the recipient reads it (a template rendered
+// from its approved text, never its name).
+//
 // Meta's refusals, in the send response or in a later `failed` status
 // (handleStatusFailure), are all recorded in x_wa_message with their reason:
 //   • 131047 → the window is marked closed at once, and a session message that
@@ -56,6 +62,9 @@ import {
 } from "./wa-queue";
 import { pickTemplate, TEMPLATE_CANDIDATE_FIELDS, type TemplateCandidate } from "./template-pick";
 import { riyadhDateKey, riyadhMinutes } from "./hours";
+import {
+  echoRowSoon, outboundText, partnerForNumber, recordSent, recordStateChange, sessionText,
+} from "./wa-record";
 
 // ------------------------------------------------------------------ types
 
@@ -464,6 +473,7 @@ async function hold(env: Env, req: GatewayRequest, to: string, opt: GwSession, w
   item.rowId = await upsertRow(env, item.rowId, to, {
     x_status: "held",
     x_debug_payload: payload,
+    x_echo_status: "pending",
   }, { body: text, kind: kindOf(opt.body), manual: req.manual, purpose: req.purpose });
   await enqueueHeld(env, to, item, now);
   console.log(`[gateway] held purpose=${req.purpose} to=${maskPhone(to)} until=${new Date(expiresAt).toISOString()} — ${reason}`);
@@ -473,10 +483,9 @@ async function hold(env: Env, req: GatewayRequest, to: string, opt: GwSession, w
     const { sendOpenerForHeld } = await import("./wa-opener");
     opener = await sendOpenerForHeld(env, to, req.purpose, { ctx: req.ctx, now });
   }
-  if (!isOwnerRecipient(env, to)) {
-    await echoHeldToInbox(env, to, text, riyadhLabel(expiresAt), req.ctx);
-    if (important) await alertOwnerOnce(env, req.purpose, to, "held", riyadhLabel(expiresAt), opener);
-  }
+  // § 36 — the full text under «⏳ محفوظة», in the number's channel (Baraa's too)
+  await echoRowSoon(env, item.rowId, to, req.ctx);
+  if (!isOwnerRecipient(env, to) && important) await alertOwnerOnce(env, req.purpose, to, "held", riyadhLabel(expiresAt), opener);
   return decided(jsonResponse({ gateway: { decision: "held", expiresAt, opener: opener?.outcome } }, 202), { action: "held", reason, expiresAt });
 }
 
@@ -514,24 +523,6 @@ function kindOf(body: Record<string, unknown>): "text" | "template" | "document"
   return t === "template" ? "template" : t === "document" ? "document" : "text";
 }
 
-async function partnerForNumber(env: Env, to: string): Promise<{ id: number; name: string } | null> {
-  const digits = waDigits(to);
-  if (!digits || isOwnerRecipient(env, to)) return null;
-  try {
-    const { call } = await import("./odoo");
-    const rows = await call<Array<{ id: number; name: string }>>(env, "res.partner", "search_read", {
-      domain: ["|", ["x_whatsapp_number", "ilike", digits], ["phone", "ilike", digits]],
-      fields: ["id", "name"],
-      limit: 1,
-    });
-    if (rows[0]) return rows[0];
-    const { inboxPartnerForNumber } = await import("./wa-inbox");
-    return await inboxPartnerForNumber(env, to);
-  } catch {
-    return null;
-  }
-}
-
 /** Write `vals` on row `rowId`, or create the row. Returns its id (null if Odoo refused). */
 async function upsertRow(
   env: Env,
@@ -557,6 +548,7 @@ async function upsertRow(
       status: String(vals.x_status ?? "sent"),
       metaError: typeof vals.x_meta_error === "string" ? vals.x_meta_error : undefined,
       debugPayload: typeof vals.x_debug_payload === "string" ? vals.x_debug_payload : undefined,
+      extra: typeof vals.x_echo_status === "string" ? { x_echo_status: partner ? vals.x_echo_status : "none" } : undefined,
     });
     return id ?? undefined;
   } catch (e) {
@@ -620,7 +612,6 @@ async function dispatchToMeta(
 ): Promise<Response> {
   const body: Record<string, unknown> = { messaging_product: "whatsapp", to, ...content };
   const rm = runtimeMode(env);
-  const echoPurpose = req.purpose;
 
   // ---- template variables (2026-09-24, WA-SCENARIOS ح1) ----
   // Newlines/tabs become " · ", runs of spaces collapse, empty becomes "-", long
@@ -669,7 +660,7 @@ async function dispatchToMeta(
       return refused(msg, "SimStorageError", 500);
     }
     await afterAccepted(env, req, to, body, wamid, templateName);
-    await dispatchEcho(env, to, body, req.ctx, echoPurpose, wamid, req.rowId ?? req.queued?.rowId, templateName);
+    await recordAccepted(env, req, to, body, wamid);
     return decided(synthesizeMetaResponse(to, wamid), via);
   }
 
@@ -704,7 +695,7 @@ async function dispatchToMeta(
   }
   if (resp.ok) {
     await afterAccepted(env, req, to, body, wamid, templateName);
-    await dispatchEcho(env, to, body, req.ctx, echoPurpose, wamid, req.rowId ?? req.queued?.rowId, templateName);
+    await recordAccepted(env, req, to, body, wamid);
     return decided(resp, via);
   }
 
@@ -715,7 +706,7 @@ async function dispatchToMeta(
   const handled = await handleRejection(env, { to, code, meta, message: metaError?.message ?? `HTTP ${resp.status}` });
   await recordSendFailure(env, {
     to, what: sendWhat(body), code, message: metaError?.message ?? `HTTP ${resp.status}`,
-    phase: "sync", body: sessionEchoText(body), hasRow: handled.rowHandled,
+    phase: "sync", body: (await outboundText(env, body).catch(() => ({ text: sessionEchoText(body) }))).text, hasRow: handled.rowHandled,
   });
   return decided(resp, { action: "rejected", code, template: templateName });
 }
@@ -786,6 +777,7 @@ async function handleRejection(
       }, { body: sessionEchoText(m.s), kind: kindOf(m.s), manual: m.m, purpose: m.p });
       await putBack(env, to, [item], now);
       console.log(`[gateway] 131047 purpose=${m.p} to=${maskPhone(to)} — back in the queue (attempt ${attempts})`);
+      await recordStateChange(env, item.rowId, to);
       return { rowHandled: !!item.rowId };
     }
     if (m?.s) console.warn(`[gateway] 131047 purpose=${m.p} to=${maskPhone(to)} — not re-queued (attempt ${attempts}, expired or refused before)`);
@@ -804,6 +796,7 @@ async function handleRejection(
       x_status: "failed",
       x_meta_error: `Meta ${f.code ?? "?"}: ${f.message}`.slice(0, 2000),
     }, { body: "", kind: "text", purpose: m.p });
+    await recordStateChange(env, m.r, to);
     return { rowHandled: true };
   }
   return { rowHandled: false };
@@ -837,7 +830,7 @@ export async function handleStatusFailure(
     const { recordSendFailure, templateFromEcho } = await import("./send-failure");
     await recordSendFailure(env, {
       to: String(s.recipient),
-      what: meta?.t ?? templateFromEcho(row?.body) ?? (row?.body?.startsWith("📍") ? "location" : "text"),
+      what: meta?.t ?? templateFromEcho(row?.body, row?.debugPayload) ?? (row?.body?.startsWith("📍") ? "location" : "text"),
       code: s.code,
       message: s.message,
       phase: "async",
@@ -905,6 +898,7 @@ export async function flushHeld(
       // e.g. the number left the allowlist meanwhile: not sent, and the row says why
       await upsertRow(env, item.rowId, to, { x_status: "skipped", x_meta_error: `البوابة: ${d.reason}`.slice(0, 2000) },
         { body: "", kind: "text", purpose: item.purpose });
+      await recordStateChange(env, item.rowId, to, ctx);
     }
     out.dropped++;
   }
@@ -914,10 +908,11 @@ export async function flushHeld(
 
 async function markExpired(env: Env, to: string, item: QueueItem): Promise<void> {
   console.warn(`[gateway] expired purpose=${item.purpose} to=${maskPhone(to)} created=${new Date(item.createdAt).toISOString()} — dropped, not sent`);
-  await upsertRow(env, item.rowId, to, {
+  const rowId = await upsertRow(env, item.rowId, to, {
     x_status: "expired",
     x_meta_error: `البوابة: انتهت صلاحيتها (${riyadhLabel(item.expiresAt)}) ولم يراسل الرقم قبلها، فلم تُرسل`,
   }, { body: sessionEchoText(item.body), kind: kindOf(item.body), manual: item.manual, purpose: item.purpose });
+  await recordStateChange(env, rowId, to);
 }
 
 /** The every-5-minutes cron: drop and log every expired held item, even for numbers that never wrote back. */
@@ -939,135 +934,32 @@ export async function sweepExpiredHeld(env: Env, now: number = Date.now()): Prom
 
 // ------------------------------------------------------------------ echo into Odoo Discuss
 
-/** Human-readable text of a Meta body (Discuss echo, x_wa_message x_body). */
+/** Human-readable text of a session body (x_wa_message x_body, Discuss) — src/wa-record.ts sessionText. */
 export function sessionEchoText(body: Record<string, unknown>): string {
-  const b = body as {
-    type?: string;
-    text?: { body?: string };
-    template?: { name?: string; components?: Array<{ parameters?: Array<{ text?: string }> }> };
-    location?: { latitude?: number; longitude?: number; name?: string; address?: string };
-    interactive?: { body?: { text?: string }; action?: { buttons?: Array<{ reply?: { title?: string } }> } };
-    document?: { filename?: string };
-  };
-  if (b.type === "text") return String(b.text?.body ?? "");
-  if (b.type === "template") {
-    const name = b.template?.name ?? "?";
-    const params = (b.template?.components ?? []).flatMap((c) => c?.parameters ?? []).map((p) => p?.text ?? "").filter(Boolean);
-    return params.length ? `📋 قالب: ${name} (${params.join("، ")})` : `📋 قالب: ${name}`;
-  }
-  if (b.type === "location") {
-    const label = b.location?.name ?? b.location?.address ?? "";
-    return `📍 موقع${label ? " · " + label : ""} — https://maps.google.com/?q=${b.location?.latitude},${b.location?.longitude}`;
-  }
-  if (b.type === "interactive") {
-    const text = b.interactive?.body?.text ?? "";
-    const btns = (b.interactive?.action?.buttons ?? []).map((btn) => btn?.reply?.title ?? "").filter(Boolean);
-    return btns.length ? `${text}\n[أزرار: ${btns.join(" | ")}]` : text;
-  }
-  if (b.type === "document") return `📎 ${b.document?.filename ?? "مستند"}`;
-  return `[${b.type ?? "unknown"}]`;
+  return sessionText(body);
 }
 
-// Purposes whose caller writes its own x_wa_message row and shows the message
-// itself (Baraa's Discuss reply is already his own message in the channel).
-const HANDLED_BY_CALLER: ReadonlySet<string> = new Set(["inbox_reply", "wa_message_manual"]);
-
-async function dispatchEcho(
-  env: Env,
-  to: string,
-  body: Record<string, unknown>,
-  ctx: ExecutionContext | undefined,
-  purpose: string,
-  wamid: string | undefined,
-  rowId: number | undefined,
-  templateName?: string,
-): Promise<void> {
-  const task = echoOutboundToInbox(env, to, body, purpose, wamid, rowId, templateName).catch((e) =>
-    console.warn("[gateway] echo failed:", (e as Error).message));
-  if (ctx) { ctx.waitUntil(task); return; }
-  await task;
+/**
+ * § 36 — a send Meta accepted: its x_wa_message row (awaited) and its Discuss
+ * line (src/wa-record.ts). A held message now sent settles its own row and
+ * its «⏳ محفوظة» line. Baraa's reply from Discuss is already his own line
+ * there, and his route writes its row: nothing here for it, unless it was held.
+ */
+async function recordAccepted(env: Env, req: GatewayRequest, to: string, body: Record<string, unknown>, wamid: string | undefined): Promise<void> {
+  const rowId = req.rowId ?? req.queued?.rowId;
+  if (req.purpose === "inbox_reply" && !rowId) return;
+  await recordSent(env, {
+    to,
+    purpose: req.purpose,
+    body,
+    wamid: wamid && !wamid.includes(".no_id.") ? wamid : undefined,
+    rowId,
+    manual: req.manual || purposePolicy(req.purpose)?.kind === "manual",
+    ctx: req.ctx,
+  });
 }
 
-async function echoOutboundToInbox(
-  env: Env,
-  to: string,
-  body: Record<string, unknown>,
-  purpose: string,
-  wamid: string | undefined,
-  rowId: number | undefined,
-  templateName?: string,
-): Promise<void> {
-  const realWamid = wamid && !wamid.includes(".no_id.") ? wamid : undefined;
-  // A held message now sent: its row becomes «sent» with the wamid.
-  if (rowId) {
-    try {
-      const { call } = await import("./odoo");
-      await call(env, "x_wa_message", "write", {
-        ids: [rowId],
-        vals: {
-          x_status: "sent",
-          x_meta_message_id: realWamid ?? false,
-          x_processed_at: new Date().toISOString().replace("T", " ").slice(0, 19),
-        },
-      });
-    } catch (e) {
-      console.warn("[gateway] held row → sent failed", (e as Error)?.message);
-    }
-  }
-  // The owner is not a customer conversation — never echoed into Discuss.
-  // § 34: his «فتح المحادثة» template is logged in x_wa_message, like every
-  // other opener (the others get their row with the echo below).
-  if (isOwnerRecipient(env, to)) {
-    const { OPENER_TEMPLATE_NAMES } = await import("./wa-opener");
-    if (templateName && OPENER_TEMPLATE_NAMES.has(templateName) && !rowId) {
-      try {
-        const { logWaMessage } = await import("./wa-message-send");
-        await logWaMessage(env, {
-          partnerId: null,
-          direction: "out",
-          kind: "template",
-          body: sessionEchoText(body),
-          source: "auto",
-          status: "sent",
-          metaMessageId: realWamid,
-        });
-      } catch (e) {
-        console.warn("[gateway] owner opener row failed:", (e as Error).message);
-      }
-    }
-    return;
-  }
-  const echoText = sessionEchoText(body);
-  if (!echoText || HANDLED_BY_CALLER.has(purpose)) return;
-  const partner = await partnerForNumber(env, to);
-  if (!partner) return;
-  const { echoOutbound } = await import("./wa-inbox");
-  try {
-    await echoOutbound(env, partner.id, partner.name, echoText, body.type === "template" ? purpose : undefined, to);
-  } catch (e) {
-    // STATUS § 34 — the Discuss mirror failing does not cost the send its
-    // x_wa_message row (the record of every send, openers included).
-    console.warn("[gateway] echo failed:", (e as Error).message);
-  }
-  if (rowId) return;
-  // An x_wa_message row for the auto send, with the wamid (one row per send).
-  try {
-    const { logWaMessage } = await import("./wa-message-send");
-    await logWaMessage(env, {
-      partnerId: partner.id,
-      direction: "out",
-      kind: body.type === "template" ? "template" : "text",
-      body: echoText,
-      source: "auto",
-      status: "sent",
-      metaMessageId: realWamid,
-    });
-  } catch (e) {
-    console.warn("[gateway] echo logWaMessage failed:", (e as Error).message);
-  }
-}
-
-/** «⚠️ ما انرسلت: <reason>» in the recipient's Discuss channel. Owner: silent. */
+/** «⚠️ ما انرسلت: <reason>» in the recipient's Discuss channel (§ 36: Baraa's too). */
 async function dispatchFailureEcho(env: Env, to: string, reason: string, ctx: ExecutionContext | undefined): Promise<void> {
   const task = (async () => {
     const partner = await partnerForNumber(env, to);
@@ -1077,22 +969,6 @@ async function dispatchFailureEcho(env: Env, to: string, reason: string, ctx: Ex
       await echoFailure(env, partner.id, partner.name, reason);
     } catch (e) {
       console.warn("[gateway] failure echo:", (e as Error).message);
-    }
-  })();
-  if (ctx) ctx.waitUntil(task);
-  else await task;
-}
-
-/** «⏳ محفوظة…» in the recipient's Discuss channel: what waits, and until when. */
-async function echoHeldToInbox(env: Env, to: string, text: string, until: string, ctx: ExecutionContext | undefined): Promise<void> {
-  const task = (async () => {
-    const partner = await partnerForNumber(env, to);
-    if (!partner) return;
-    try {
-      const { echoHeld } = await import("./wa-inbox");
-      await echoHeld(env, partner.id, partner.name, text, until);
-    } catch (e) {
-      console.warn("[gateway] held echo:", (e as Error).message);
     }
   })();
   if (ctx) ctx.waitUntil(task);

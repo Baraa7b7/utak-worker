@@ -49,10 +49,20 @@ export function sendWhat(body: Record<string, unknown>): string {
   return b.type === "template" ? String(b.template?.name ?? "template") : String(b.type ?? "unknown");
 }
 
-/** "📋 قالب: utak_x (…)" (the echo text logWaMessage stores) → "utak_x". */
-export function templateFromEcho(echo: string | null | undefined): string | null {
+/**
+ * The template of a logged send: "📋 قالب: utak_x (…)" in rows written before
+ * § 36, else {"template":"utak_x"} in x_debug_payload (§ 36: the text is what
+ * the recipient read, the name stays technical).
+ */
+export function templateFromEcho(echo: string | null | undefined, debugPayload?: string | null): string | null {
   const m = /📋 قالب: ([A-Za-z0-9_]+)/.exec(String(echo ?? ""));
-  return m ? m[1] : null;
+  if (m) return m[1];
+  try {
+    const t = JSON.parse(String(debugPayload ?? ""))?.template;
+    return typeof t === "string" && t ? t : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function recordSendFailure(env: Env, f: SendFailure): Promise<void> {
@@ -72,23 +82,17 @@ export async function recordSendFailure(env: Env, f: SendFailure): Promise<void>
   // 2) x_wa_message row with x_status='failed'
   if (!f.hasRow) {
     try {
-      const { call } = await import("./odoo");
-      const digits = String(f.to ?? "").replace(/[^0-9]/g, "");
-      let partnerId: number | null = null;
-      if (digits && !isOwner(env, f.to)) {
-        const rows = await call<Array<{ id: number }>>(env, "res.partner", "search_read", {
-          domain: ["|", ["x_whatsapp_number", "ilike", digits], ["phone", "ilike", digits]],
-          fields: ["id"],
-          limit: 1,
-        });
-        partnerId = rows[0]?.id ?? null;
-      }
-      const { logWaMessage } = await import("./wa-message-send");
-      await logWaMessage(env, {
+      // § 36 — on the number's partner, Baraa's included (his channel shows it too).
+      const { partnerForNumber } = await import("./wa-record");
+      const partnerId = (await partnerForNumber(env, String(f.to ?? "")))?.id ?? null;
+      const { createWaMessageRow } = await import("./wa-message-send");
+      await createWaMessageRow(env, {
         partnerId,
         direction: "out",
         kind: f.what.startsWith("utak_") || f.what === "template" ? "template" : "text",
-        body: f.body ?? (f.what.startsWith("utak_") ? `📋 قالب: ${f.what}` : `[${f.what}]`),
+        // § 36 — the text the recipient would have read; a template's name only in x_debug_payload
+        body: f.body ?? `[${f.what.startsWith("utak_") ? "template" : f.what}]`,
+        debugPayload: f.what.startsWith("utak_") ? JSON.stringify({ template: f.what }) : undefined,
         source: "auto",
         status: "failed",
         metaError: errText,

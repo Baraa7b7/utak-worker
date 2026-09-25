@@ -32,6 +32,8 @@ const M2O: Record<string, string> = {
   x_wa_channel_id: "discuss.channel", x_wa_partner_id: "res.partner",
   // 2026-09-25 (STATUS § 35) — «أسعار اليوم»
   x_day_id: "x_price_day", x_daily_price_id: "x_daily_price", x_default_price_id: "x_daily_price", x_approved_by: "res.users",
+  // 2026-09-25 (STATUS § 37) — «💵 دفع الموردين»
+  x_recorded_by: "res.partner", x_decided_by: "res.users", x_purchase_list_id: "x_purchase_list", x_due_id: "x_supplier_due",
 };
 /**
  * 2026-09-25 (STATUS § 35) — a test may mirror a stored compute of the tenant

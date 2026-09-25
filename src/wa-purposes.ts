@@ -76,6 +76,10 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   supplier_ask: op("طلب الأسعار", true),
   supplier_confirm: op("تأكيد استلام الأسعار"),
   supplier_price_nudge: op("تذكير الأسعار"),
+  // § 37 — the supplier's notice of a payment Baraa approved: critical
+  // («مهمة»): text inside his window, utak_supplier_payment_sent (UTILITY)
+  // outside it, else held three days with his «فتح المحادثة» when usable.
+  supplier_payment_sent: crit(op("إشعار دفعة المورد", false, { hours: 72 }), "دفعة جديدة"),
   // ---- team
   purchase_list: op("قائمة الشراء", true, { hours: 36 }),
   purchase_list_remind: op("تذكير قائمة الشراء", true, { hours: 36 }),
@@ -93,6 +97,8 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   team_shift_start: op("بدء الدوام"),
   team_task: op("مهمة الفريق", false, { hours: 36 }),
   shift_ack: op("رد بدء الدوام", false, { hours: 2 }),
+  // § 37 — Baraa's decision on the member's supplier payment (approved / rejected with the reason).
+  team_sp_decision: op("قرار دفعة المورد", false, { hours: 36 }),
   // ---- Baraa
   // alerts wait for his next tap (the 06:00 «بدء الدوام» opens his window);
   // § 34: critical — held, they also send utak_update_owner once a day.

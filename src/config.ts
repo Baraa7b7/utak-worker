@@ -37,6 +37,12 @@ export interface Env {
   /** Phase 1+: shared token for /odoo/hook/* routes (template sync, manual WA send). */
   ODOO_HOOK_TOKEN?: string;
   /**
+   * § 37 — a live trial's tag («🧪 تجربة § 37»): set only in a trial script's
+   * environment (never in wrangler.toml). Supplier payments created under it
+   * carry it (x_trial_tag), and every text about them starts with it.
+   */
+  TRIAL_TAG?: string;
+  /**
    * 2026-09-19 — token gating GET /internal/sale-quotation-pdf.
    * Independent of INTERNAL_WEBHOOK_SECRET and ODOO_HOOK_TOKEN so this
    * browser-facing URL (Odoo Server Action → ir.actions.act_url) can be

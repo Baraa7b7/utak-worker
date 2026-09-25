@@ -583,7 +583,9 @@ async function handleButton(
       if (partner?.id) await env.MSG_DEDUP.delete(`pending_purchase_issue:${partner.id}`).catch(() => {});
       return `تمام 👍 تم إرسال المسارات لـ ${routesDispatched} سواق (${ordersMoved} توصيلة).`;
     });
-    return { text };
+    // STATUS § 37 — the warehouse just bought: «💵 دفعت لمورد» under the reply.
+    const { startButton } = await import("./supplier-pay");
+    return { bodyBeforeButtons: text, buttons: [startButton()] };
   }
 
   // ---- 2026-09-24 (ح7): warehouse reported a problem with the purchase list ----

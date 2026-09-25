@@ -186,6 +186,18 @@ export default {
           } catch (e) {
             console.error("[prices tick] failed", (e as Error)?.message);
           }
+          // 2026-09-25 (STATUS § 37) — supplier payments: the dues of recent
+          // confirmed purchase lists (a price that arrived later), and a
+          // decided payment whose webhook was lost.
+          try {
+            const { runSupplierPayTick } = await import("./supplier-pay");
+            const sp = await runSupplierPayTick(env, Date.now(), ctx);
+            const busy = (Array.isArray(sp.dues) && sp.dues.some((d) => d.action === "synced")) || !Array.isArray(sp.dues)
+              || (Array.isArray(sp.settled) && sp.settled.length > 0) || !Array.isArray(sp.settled);
+            if (busy) console.log("[supplier-pay tick]", JSON.stringify(sp));
+          } catch (e) {
+            console.error("[supplier-pay tick] failed", (e as Error)?.message);
+          }
           break;
         }
         default: console.warn(`[scheduled] unhandled cron: ${cron}`);
@@ -1522,6 +1534,39 @@ export default {
       return json({ status: "accepted", op, id }, 202);
     }
 
+    // 2026-09-25 (STATUS § 37) — Odoo → Worker, from «💵 دفع الموردين»:
+    //   op=created — a payment was created (Baraa's own are approved at once:
+    //                its balance, «رصيد دائن», the supplier's notice);
+    //   op=decided — «اعتماد» / «رفض» on a pending payment (the notice, and
+    //                the member's line with the decision);
+    //   op=refresh — «🔄 إعادة حساب المستحقات»: the dues of the last 7 days.
+    // 202 at once (Odoo's webhook waits one second); the work runs in waitUntil.
+    if (request.method === "POST" && url.pathname === "/odoo/hook/supplier-pay") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      let body: { _model?: string; _id?: number; id?: number } = {};
+      try {
+        body = (await request.json()) as typeof body;
+      } catch {
+        body = {};
+      }
+      const id = Number(body._id ?? body.id ?? 0);
+      const op = url.searchParams.get("op") ?? "";
+      if (!["created", "decided", "refresh"].includes(op)) return json({ error: "missing op" }, 400);
+      if (op !== "refresh" && body._model && body._model !== "x_supplier_payment") return json({ error: `unexpected model: ${body._model}` }, 400);
+      if (op !== "refresh" && !id) return json({ error: "missing id" }, 400);
+      const sp = await import("./supplier-pay");
+      const task = (op === "refresh"
+        ? sp.syncRecentDues(env, Date.now(), { force: true, daysBack: 7 }).then((r) => console.log("[supplier-pay hook] refresh", JSON.stringify(r.map((x) => [x.listId, x.action]))))
+        : sp.onPaymentHook(env, id, { ctx, op: op as "created" | "decided" }).then((r) => console.log(`[supplier-pay hook] ${op}`, JSON.stringify(r)))
+      ).catch((e) => console.error(`[supplier-pay hook] ${op} failed`, (e as Error)?.message));
+      ctx.waitUntil(task);
+      return json({ status: "accepted", op, id }, 202);
+    }
+
     // Item 2 (2026-09-17) — Odoo → Worker: process x_wa_message.x_status='queued'.
     // Fired by the base.automation (wa_message.on_queued) via ir.actions.server
     // (wa_message.send_webhook). The full send pipeline (validate → media
@@ -2173,6 +2218,16 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         } catch (e) {
           console.warn("[media] customer handling failed", (e as Error)?.message);
         }
+      } else if (teamMatch && hasMedia && (msg.type === "image" || msg.type === "document")) {
+        // STATUS § 37 — the receipt photo of «💵 دفعت لمورد» (only while the
+        // flow waits for it; any other team media keeps the old behaviour).
+        try {
+          const { handlePayMedia } = await import("./supplier-pay");
+          const reply = await handlePayMedia(env, teamMatch, msg.media!, msg.messageId);
+          if (reply) await sendFlowReply(env, msg.from, reply, ctx);
+        } catch (e) {
+          console.warn("[supplier-pay] receipt media failed", (e as Error)?.message);
+        }
       } else if (!teamMatch && supplierMatch) {
         // 2026-09-25 (م6) — a supplier's voice note / image / document (a price
         // list): «وصلتنا» + owner alert, never a guessed price.
@@ -2241,12 +2296,29 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       const att = await attendanceHold(env, teamMember.id);
       if (!att.hold) await flushTeamQueue(env, msg.from);
 
-      if (isButton) {
+      if (isButton && msg.buttonId!.startsWith("sp_")) {
+        // STATUS § 37 — «💵 دفعت لمورد»: the supplier, then «تخطي» the receipt.
+        const { handlePayButton } = await import("./supplier-pay");
+        const reply = await handlePayButton(env, teamMember, msg.buttonId!).catch((e) => {
+          console.warn("[supplier-pay] button failed", (e as Error)?.message);
+          return { text: "تعذّر تسجيل الدفعة الآن. جرّب بعد قليل، أو أرسلها لبراء نصاً." };
+        });
+        await sendFlowReply(env, msg.from, reply, ctx);
+      } else if (isButton) {
         const reply: RouterReply = await dispatch(env, {
           msg, intent: "other", senderType: "customer",
           partner: { id: teamMember.id, name: teamMember.name, x_whatsapp_number: teamMember.x_whatsapp_number },
         });
         await sendReply(env, msg.from, reply, ctx);
+      } else if (msg.type === "text" && (await import("./supplier-pay").then((m) => m.readFlow(env, teamMember.id)))) {
+        // STATUS § 37 — a text inside the supplier-payment flow: the amount, a
+        // word in the receipt step, or «إلغاء». Before any earlier pending state.
+        const { handlePayText } = await import("./supplier-pay");
+        const reply = await handlePayText(env, teamMember, msg.text).catch((e) => {
+          console.warn("[supplier-pay] text failed", (e as Error)?.message);
+          return { text: "تعذّر تسجيل الدفعة الآن. جرّب بعد قليل، أو أرسلها لبراء نصاً." };
+        });
+        if (reply) await sendFlowReply(env, msg.from, reply, ctx);
       } else if (msg.type === "text") {
         const pendingKey = `pending_issue:${teamMember.id}`;
         const pendingOrderId = await env.MSG_DEDUP.get(pendingKey);
@@ -2295,7 +2367,13 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
             sent = await resendOpenPurchaseLists(env, msg.from).catch(() => 0);
           }
           if (sent === 0) {
-            await sendText(env, msg.from, `مرحبا ${teamMember.name} 👋 استخدم الأزرار عشان نأكد الحالة.`, { ctx, purpose: "bot_reply" });
+            // STATUS § 37 — the purchase and collection roles: «💵 دفعت لمورد».
+            const { isPaymentMember, startButton } = await import("./supplier-pay");
+            if (isPaymentMember(teamMember)) {
+              await sendButtons(env, msg.from, `مرحبا ${teamMember.name} 👋 استخدم الأزرار عشان نأكد الحالة.`, [startButton()], { ctx, purpose: "bot_reply" });
+            } else {
+              await sendText(env, msg.from, `مرحبا ${teamMember.name} 👋 استخدم الأزرار عشان نأكد الحالة.`, { ctx, purpose: "bot_reply" });
+            }
           }
         }
       }
@@ -2568,6 +2646,21 @@ async function enrichSupplier(env: Env, supplier: OdooPartner): Promise<OdooPart
     x_supplied_product_ids: extra?.x_supplied_product_ids ?? [],
     x_whatsapp_number: extra?.x_whatsapp_number ?? supplier.x_whatsapp_number ?? "",
   };
+}
+
+/** STATUS § 37 — a reply of the supplier-payment flow: a list (the suppliers), else buttons or text. */
+async function sendFlowReply(
+  env: Env,
+  to: string,
+  reply: import("./supplier-pay").FlowReply,
+  ctx?: ExecutionContext,
+): Promise<void> {
+  if (reply.list) {
+    const { sendViaGateway } = await import("./wa-gateway");
+    await sendViaGateway(env, { purpose: "bot_reply", to, content: reply.list, ctx });
+    return;
+  }
+  await sendReply(env, to, reply, ctx);
 }
 
 async function sendReply(

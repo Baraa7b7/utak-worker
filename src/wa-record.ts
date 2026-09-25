@@ -230,7 +230,7 @@ export function sessionText(body: Record<string, unknown>): string {
     type?: string;
     text?: { body?: string };
     location?: { latitude?: number; longitude?: number; name?: string; address?: string };
-    interactive?: { body?: { text?: string }; action?: { buttons?: Array<{ reply?: { title?: string } }> } };
+    interactive?: { body?: { text?: string }; action?: { buttons?: Array<{ reply?: { title?: string } }>; sections?: Array<{ rows?: Array<{ title?: string }> }> } };
     document?: { filename?: string };
     template?: unknown;
   };
@@ -242,6 +242,8 @@ export function sessionText(body: Record<string, unknown>): string {
   if (b.type === "interactive") {
     const text = b.interactive?.body?.text ?? "";
     const btns = (b.interactive?.action?.buttons ?? []).map((btn) => btn?.reply?.title ?? "").filter(Boolean).map((t) => `🔘 ${t}`);
+    // § 37 — a list message: one «🔘» line per row
+    for (const sec of b.interactive?.action?.sections ?? []) for (const row of sec?.rows ?? []) if (row?.title) btns.push(`🔘 ${row.title}`);
     return [text, ...btns].filter(Boolean).join("\n");
   }
   if (b.type === "document") return `📎 ${b.document?.filename ?? "مستند"}`;

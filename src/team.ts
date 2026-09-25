@@ -431,6 +431,15 @@ export async function warehouseConfirmedPurchase(
   // ACCOUNTING_SYNC. Runs last and never throws: routes and WhatsApp above
   // have already gone out, and a refusal only alerts the owner.
   await syncPurchaseListToAccounting(env, listId);
+  // 2026-09-25 (STATUS § 37) — the confirmed list's supplier dues (quantity ×
+  // each supplier's own price of the day; «بلا سعر» lines alerted). Never
+  // throws: the */5 tick builds them if this fails.
+  try {
+    const { syncSupplierDues } = await import("./supplier-pay");
+    await syncSupplierDues(env, listId);
+  } catch (e) {
+    console.warn(`[supplier-pay] dues for list ${listId} failed — the tick retries`, (e as Error)?.message);
+  }
   return { routesDispatched: routes.length, ordersMoved };
 }
 

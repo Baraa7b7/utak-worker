@@ -454,6 +454,42 @@ interface UploadedAttachment {
  * or short download is refused, and the stored size is read back: an
  * attachment Odoo did not keep whole is removed, never left broken.
  */
+/**
+ * A Meta media object's bytes: GET the media (URL + mime), then the URL. Null
+ * when Meta or the download fails, or the bytes are empty / not the size Meta
+ * gave. Used by the inbox mirror and by the supplier-payment receipt (§ 37).
+ */
+export async function fetchMetaMediaBytes(
+  env: Env,
+  mediaId: string,
+): Promise<{ bytes: Uint8Array; mime: string | undefined } | null> {
+  const gv = env.META_GRAPH_VERSION || "v20.0";
+  // 1) get URL + mime
+  const metaRes = await fetch(`https://graph.facebook.com/${gv}/${mediaId}`, {
+    headers: { Authorization: `Bearer ${env.META_ACCESS_TOKEN}` },
+  });
+  if (!metaRes.ok) {
+    console.warn("[wa-inbox] media meta fetch failed", metaRes.status);
+    return null;
+  }
+  const meta = (await metaRes.json()) as { url?: string; mime_type?: string; file_size?: number };
+  if (!meta.url) return null;
+  // 2) fetch bytes
+  const binRes = await fetch(meta.url, {
+    headers: { Authorization: `Bearer ${env.META_ACCESS_TOKEN}` },
+  });
+  if (!binRes.ok) {
+    console.warn("[wa-inbox] media bytes fetch failed", binRes.status);
+    return null;
+  }
+  const bytes = new Uint8Array(await binRes.arrayBuffer());
+  if (bytes.length === 0 || (typeof meta.file_size === "number" && meta.file_size > 0 && bytes.length !== meta.file_size)) {
+    console.warn(`[wa-inbox] media bytes incomplete: got ${bytes.length}, Meta says ${meta.file_size ?? "?"}`);
+    return null;
+  }
+  return { bytes, mime: meta.mime_type };
+}
+
 export async function attachMetaMedia(
   env: Env,
   mediaId: string,
@@ -462,31 +498,10 @@ export async function attachMetaMedia(
   filenameHint?: string,
 ): Promise<UploadedAttachment | null> {
   try {
-    const gv = env.META_GRAPH_VERSION || "v20.0";
-    // 1) get URL + mime
-    const metaRes = await fetch(`https://graph.facebook.com/${gv}/${mediaId}`, {
-      headers: { Authorization: `Bearer ${env.META_ACCESS_TOKEN}` },
-    });
-    if (!metaRes.ok) {
-      console.warn("[wa-inbox] media meta fetch failed", metaRes.status);
-      return null;
-    }
-    const meta = (await metaRes.json()) as { url?: string; mime_type?: string; file_size?: number };
-    if (!meta.url) return null;
-    const mime = overrideMime || meta.mime_type || "application/octet-stream";
-    // 2) fetch bytes
-    const binRes = await fetch(meta.url, {
-      headers: { Authorization: `Bearer ${env.META_ACCESS_TOKEN}` },
-    });
-    if (!binRes.ok) {
-      console.warn("[wa-inbox] media bytes fetch failed", binRes.status);
-      return null;
-    }
-    const bytes = new Uint8Array(await binRes.arrayBuffer());
-    if (bytes.length === 0 || (typeof meta.file_size === "number" && meta.file_size > 0 && bytes.length !== meta.file_size)) {
-      console.warn(`[wa-inbox] media bytes incomplete: got ${bytes.length}, Meta says ${meta.file_size ?? "?"}`);
-      return null;
-    }
+    const got = await fetchMetaMediaBytes(env, mediaId);
+    if (!got) return null;
+    const { bytes } = got;
+    const mime = overrideMime || got.mime || "application/octet-stream";
     const filename = filenameHint || defaultFilename(mime, mediaId);
     // 3) upload as ir.attachment on the discuss.channel
     const created = await call<number[]>(env, "ir.attachment", "create", {

@@ -1,0 +1,62 @@
+{
+  "script": "scripts/s37-20260925-supplier-payment-template.mjs",
+  "created": {
+    "at": "2026-09-25T19:42:27.544Z",
+    "http": 200,
+    "response": {
+      "id": "1824898421860833",
+      "status": "PENDING",
+      "category": "UTILITY"
+    },
+    "payload": {
+      "name": "utak_supplier_payment_sent",
+      "language": "ar",
+      "category": "UTILITY",
+      "components": [
+        {
+          "type": "BODY",
+          "text": "تم تسجيل دفعة لك من يو تاك بمبلغ {{1}} ر.س بتاريخ {{2}}، رقم المرجع {{3}}. الرصيد المتبقي لك: {{4}} ر.س.",
+          "example": {
+            "body_text": [
+              [
+                "1500.00",
+                "26 سبتمبر 2026",
+                "SP-2026-0001",
+                "250.00"
+              ]
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "status": {
+    "id": "1824898421860833",
+    "status": "APPROVED",
+    "category": "UTILITY",
+    "previous_category": null,
+    "rejected_reason": "NONE"
+  },
+  "statusAt": "2026-09-25T20:00:59.896Z",
+  "history": [
+    {
+      "at": "2026-09-25T19:42:16.383Z"
+    },
+    {
+      "at": "2026-09-25T19:42:28.168Z",
+      "id": "1824898421860833",
+      "status": "PENDING",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": "NONE"
+    },
+    {
+      "at": "2026-09-25T20:00:59.896Z",
+      "id": "1824898421860833",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": "NONE"
+    }
+  ]
+}

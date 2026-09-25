@@ -204,6 +204,12 @@ export const T = {
   CONV_OPEN_TEAM: "conv_open_team",
   CONV_OPEN_SUPPLIER: "conv_open_supplier",
   CONV_OPEN_OWNER: "conv_open_owner",
+  /**
+   * § 37 — utak_supplier_payment_sent (UTILITY, 4 vars: amount, date,
+   * reference, remaining): the supplier's notice of an approved payment
+   * outside his window (src/supplier-pay.ts settlePayment).
+   */
+  SUPPLIER_PAYMENT_SENT: "supplier_payment_sent",
 } as const;
 
 // ============================================================

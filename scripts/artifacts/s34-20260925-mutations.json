@@ -150,7 +150,7 @@
     "exit": 1,
     "failed": 6,
     "first": [
-      "critical = Baraa's list (prices, receipt, his alerts, team notes, order confirm/change, invoices) — customer_invoice",
+      "critical = Baraa's list (prices, receipt, his alerts, team notes, order confirm/change, invoices, the supplier's pay",
       "owner → utak_update_owner [date, «تنبيه تشغيلي»] — [{\"messaging_product\":\"whatsapp\",\"to\":\"966500000001\",\"type\":\"text",
       "owner: the opener is logged in x_wa_message too"
     ]

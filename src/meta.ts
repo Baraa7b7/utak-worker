@@ -193,6 +193,34 @@ export function buttonsContent(bodyText: string, buttons: Array<{ id: string; ti
   };
 }
 
+/**
+ * § 37 — an interactive list (up to 10 rows: title ≤ 24 chars, id ≤ 200) under
+ * one button; the reply arrives as a button id (list_reply) like a button tap.
+ */
+export function listContent(bodyText: string, buttonText: string, rows: Array<{ id: string; title: string; description?: string }>): GwSession {
+  return {
+    kind: "session",
+    body: {
+      type: "interactive",
+      interactive: {
+        type: "list",
+        body: { text: bodyText.slice(0, 1024) },
+        action: {
+          button: buttonText.slice(0, 20),
+          sections: [{
+            title: buttonText.slice(0, 24),
+            rows: rows.slice(0, 10).map((r) => ({
+              id: r.id.slice(0, 200),
+              title: r.title.slice(0, 24),
+              ...(r.description ? { description: r.description.slice(0, 72) } : {}),
+            })),
+          }],
+        },
+      },
+    },
+  };
+}
+
 export function locationContent(latitude: number, longitude: number, name?: string, address?: string): GwSession {
   const loc: Record<string, unknown> = { latitude, longitude };
   if (name) loc.name = name.slice(0, 1000);

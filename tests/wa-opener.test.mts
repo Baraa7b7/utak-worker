@@ -148,8 +148,10 @@ console.log("\n[0] critical purposes, openers, owner guard");
     "customer_invoice", "customer_invoice_pdf", "customer_order_confirm", "customer_order_remind", "customer_order_update",
     "customer_payment_received", "customer_receipt", "owner_alert", "owner_team_note",
     ...(PURPOSES.customer_prices ? ["customer_prices", "owner_prices"] : []),
+    // § 37 — the supplier's notice of an approved payment («رسالة مهمة محفوظة بقواعد § 34»)
+    ...(PURPOSES.supplier_payment_sent ? ["supplier_payment_sent"] : []),
   ].sort();
-  assert("critical = Baraa's list (prices, receipt, his alerts, team notes, order confirm/change, invoices)", critical.join() === expected.join(), critical.join());
+  assert("critical = Baraa's list (prices, receipt, his alerts, team notes, order confirm/change, invoices, the supplier's payment notice)", critical.join() === expected.join(), critical.join());
   assert("every critical purpose has a 2–3 word update", critical.every((k) => { const w = String(PURPOSES[k].update ?? "").trim().split(/\s+/); return w.length >= 2 && w.length <= 3; }),
     critical.map((k) => `${k}=${PURPOSES[k].update}`).join(" | "));
   assert("the rest keeps § 33 (e.g. purchase_list, collection_request, supplier_ask not critical)", !PURPOSES.purchase_list.critical && !PURPOSES.collection_request.critical && !PURPOSES.supplier_ask.critical && !PURPOSES.bot_reply.critical);

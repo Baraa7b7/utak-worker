@@ -198,8 +198,10 @@ export const CUST = 501, CUST_PHONE = "966500000501";
 export const CUST2 = 502, CUST2_PHONE = "966500000502";
 export const WH = 601, WH_PHONE = "966500000601";
 export const COLL = 602, COLL_PHONE = "966500000602";
-const TPL: Array<[string, string, number]> = [
-  ["owner_alert", "utak_owner_alert", 1],
+// [purpose, template, params, category]. 2026-09-25 (STATUS § 33) — utak_owner_alert
+// is MARKETING at Meta, as on the tenant: the gateway never uses it for an alert.
+const TPL: Array<[string, string, number, string?]> = [
+  ["owner_alert", "utak_owner_alert", 1, "MARKETING"],
   ["purchase_list", "utak_purchase_list_v2", 4],
   ["collection_summary", "utak_collection_summary", 4],
   ["customer_order_update", "utak_order_update", 2],
@@ -225,11 +227,15 @@ export function reset(): any {
   seed("product.template", { id: 2, name: "خيار" });
   seed("x_product_packaging", { id: 11, x_name: "كرتون", x_product_tmpl_id: 1 });
   seed("x_product_packaging", { id: 21, x_name: "جرم", x_product_tmpl_id: 2 });
-  TPL.forEach(([purpose, name, n], i) => seed("x_whatsapp_template", {
+  TPL.forEach(([purpose, name, n, cat], i) => seed("x_whatsapp_template", {
     id: 900 + i, x_purpose: purpose, x_meta_template_id: name, x_language: "ar",
-    x_meta_status: "APPROVED", x_param_count: n, x_category: "UTILITY",
+    x_meta_status: "APPROVED", x_param_count: n, x_category: cat ?? "UTILITY",
   }));
   const env = makeEnv();
+  // 2026-09-25 (STATUS § 33) — Baraa's 24h window is open, as after his daily
+  // 06:00 «بدء الدوام» tap, whatever clock a test sets: his alerts go as text.
+  // A test that needs it closed calls closeOwnerWindow(env).
+  env.MSG_DEDUP.store.set(`wa_win:v1:${OWNER}`, JSON.stringify({ in: RealDate.UTC(2100, 0, 1) }));
   env.MSG_DEDUP.store.set("catalog:v2", JSON.stringify([
     { id: 1, name: "طماطم", packagings: [{ id: 11, name: "كرتون" }] },
     { id: 2, name: "خيار", packagings: [{ id: 21, name: "جرم" }] },
@@ -265,6 +271,18 @@ export function workSchedule(lines: Array<[number, number, number]>, extra: Reco
     seed("resource.calendar.attendance", { calendar_id: cal, dayofweek: String(d), hour_from: from, hour_to: to, duration_based: false, date: false, recurrency: false });
   }
   return cal;
+}
+export function closeOwnerWindow(env: any): void {
+  env.MSG_DEDUP.store.delete(`wa_win:v1:${OWNER}`);
+}
+/** The number wrote `minutesAgo` minutes ago (Meta's clock): its 24h window is open. */
+export function openWindow(env: any, digits: string, minutesAgo = 1): void {
+  const d = String(digits).replace(/\D/g, "");
+  env.MSG_DEDUP.store.set(`wa_win:v1:${d}`, JSON.stringify({ in: (fixedNow ?? RealDate.now()) - minutesAgo * 60_000 }));
+}
+/** What the gateway holds for a number (STATUS § 33). */
+export function heldFor(env: any, digits: string): any[] {
+  return JSON.parse(env.MSG_DEDUP.store.get(`wa_q:v1:${String(digits).replace(/\D/g, "")}`) ?? "[]");
 }
 export const sentTo = (digits: string) => graph.filter((b) => b?.to === digits);
 export const ownerAlerts = () => sentTo(OWNER).map((b) => JSON.stringify(b));

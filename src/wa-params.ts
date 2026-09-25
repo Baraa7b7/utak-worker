@@ -3,11 +3,11 @@
 // Meta rejects a template send with #132018 when a body variable carries a
 // newline, a tab, or more than four consecutive spaces, and #131008 when it is
 // empty. Proven on sim: utak_collection_summary failed 6/6 because {{2}} was a
-// multi-line list. Rather than trusting every caller, fetchMeta runs every
+// multi-line list. Rather than trusting every caller, the send gateway runs every
 // template send through sanitizeTemplateBody (one place, every path), and
 // callers that build lists use joinCapped so the cut falls on an item boundary.
 
-/** Longest single variable fetchMeta lets through (template bodies cap at 1024 total). */
+/** Longest single variable the send gateway lets through (template bodies cap at 1024 total). */
 export const TEMPLATE_PARAM_MAX = 900;
 /** Budget for a list variable built by a caller (leaves room for the template text). */
 export const TEMPLATE_LIST_MAX = 600;
@@ -52,7 +52,7 @@ export interface ParamFix {
 /**
  * Sanitize every text parameter of a template message in place (body and
  * header). Returns what had to be fixed — a non-empty list is a caller bug
- * (the caller passed Meta-invalid text) and is logged as such by fetchMeta.
+ * (the caller passed Meta-invalid text) and is logged as such by the send gateway.
  */
 export function sanitizeTemplateBody(body: Record<string, unknown>): { fixes: ParamFix[]; invalid: ParamFix[] } {
   const fixes: ParamFix[] = [];

@@ -14,8 +14,13 @@
 //
 // Runs under Node --experimental-strip-types; no framework. Nothing leaves
 // the process: fetch is mocked for both graph.facebook.com and Odoo.
+//
+// 2026-09-25 (STATUS § 33) — sends go through the single gateway
+// (sendViaGateway); fetchMeta is gone. Templates carry their row (APPROVED /
+// UTILITY), session texts need the number's window (opened with noteInbound).
 
-import { fetchMeta } from "../src/meta.ts";
+import { sendViaGateway, type GwOption } from "../src/wa-gateway.ts";
+import { noteInbound } from "../src/wa-window.ts";
 import {
   autoSendKey,
   claimAutoSend,
@@ -95,6 +100,13 @@ const tpl = (name: string, to = "966500000002") => ({
   type: "template",
   template: { name, language: { code: "ar" }, components: [] },
 });
+const row = (name: string) => ({ id: 1, x_meta_template_id: name, x_language: "ar", x_meta_status: "APPROVED", x_category: "UTILITY", x_param_count: 0 });
+const sendTpl = (env: any, name: string, purpose: string, to = "966500000002") =>
+  sendViaGateway(env, { purpose, to, content: { kind: "template", row: row(name) } });
+const text = (body: string): GwOption => ({ kind: "session", body: { type: "text", text: { body } } });
+const sendTxt = (env: any, body: string, purpose: string, to = "966500000002") =>
+  sendViaGateway(env, { purpose, to, content: text(body) });
+const openWindow = (env: any, to: string) => noteInbound(env, to, Date.now() - 3600_000);
 
 let passed = 0, failed = 0;
 const failures: string[] = [];
@@ -108,8 +120,8 @@ console.log("\n[1] double automated call → one Meta send");
 {
   reset();
   const env = withAutoSendJob(makeEnv(), CRON_JOB["0 23 * * *"]);
-  const r1 = await fetchMeta(env, tpl("utak_supplier_daily_ask"), { purpose: "supplier_ask" });
-  const r2 = await fetchMeta(env, tpl("utak_supplier_daily_ask"), { purpose: "supplier_ask" });
+  const r1 = await sendTpl(env, "utak_supplier_daily_ask", "supplier_ask");
+  const r2 = await sendTpl(env, "utak_supplier_daily_ask", "supplier_ask");
   assert("first send ok", r1.ok);
   assert("second refused with 409", r2.status === 409, String(r2.status));
   assert("second flagged SkippedDuplicate", await isSkippedDuplicate(r2));
@@ -141,8 +153,9 @@ console.log("\n[3] same template, different job, same day → both sent");
   reset();
   const base = makeEnv();
   const owner = "966500000001";
-  const r1 = await fetchMeta(withAutoSendJob(base, "open_ordering"), tpl("utak_owner_alert", owner), { purpose: "owner_alert" });
-  const r2 = await fetchMeta(withAutoSendJob(base, "aggregate_purchase"), tpl("utak_owner_alert", owner), { purpose: "owner_alert" });
+  await openWindow(base, owner);
+  const r1 = await sendTxt(withAutoSendJob(base, "open_ordering"), "تنبيه", "owner_alert", owner);
+  const r2 = await sendTxt(withAutoSendJob(base, "aggregate_purchase"), "تنبيه", "owner_alert", owner);
   assert("06:00 alert sent", r1.ok);
   assert("21:15 alert sent", r2.ok);
   assert("Meta hit twice", metaCalls.length === 2, String(metaCalls.length));
@@ -155,8 +168,8 @@ console.log("\n[4] manual send from Odoo is never blocked");
   const warns: string[] = [];
   const origWarn = console.warn;
   console.warn = (...a: unknown[]) => { warns.push(a.map(String).join(" ")); };
-  const r1 = await fetchMeta(env, tpl("utak_invoice_customer_v2"), { purpose: "wa_message_manual" });
-  const r2 = await fetchMeta(env, tpl("utak_invoice_customer_v2"), { purpose: "wa_message_manual" });
+  const r1 = await sendTpl(env, "utak_invoice_customer_v2", "wa_message_manual");
+  const r2 = await sendTpl(env, "utak_invoice_customer_v2", "wa_message_manual");
   console.warn = origWarn;
   assert("manual #1 sent", r1.ok);
   assert("manual #2 sent", r2.ok);
@@ -184,28 +197,34 @@ console.log("\n[6] key written before the send (held even when Meta fails)");
   reset();
   metaStatus = 500;
   const env = withAutoSendJob(makeEnv(), "collection_summary");
-  const r1 = await fetchMeta(env, tpl("utak_collection_summary"), { purpose: "collection_summary" });
+  await openWindow(env, "966500000001");
+  await openWindow(env, "966500000002");
+  const r1 = await sendTpl(env, "utak_collection_summary", "collection_summary");
   metaStatus = 200;
-  const r2 = await fetchMeta(env, tpl("utak_collection_summary"), { purpose: "collection_summary" });
+  const key = autoSendKey("966500000002", tpl("utak_collection_summary"), "collection_summary");
+  assert("the job key was written before the send", (env.MSG_DEDUP as any).store.has(key), key);
+  const r2 = await sendTpl(env, "utak_collection_summary", "collection_summary");
   // 2026-09-24 (ح6): a failure also alerts the owner (+966500000001) once —
   // only the calls to the original recipient count here.
   const toRecipient = metaCalls.filter((b: any) => b?.to === "966500000002");
   assert("first attempt reached Meta and failed", !r1.ok && toRecipient.length === 1, String(toRecipient.length));
   assert("the failure alerted the owner", metaCalls.some((b: any) => b?.to === "966500000001"));
-  assert("retry of the same template same job refused", await isSkippedDuplicate(r2));
-  // The caller's text fallback is a different kind → its own key.
-  const r3 = await fetchMeta(env, { messaging_product: "whatsapp", to: "966500000002", type: "text", text: { body: "fallback" } }, {});
-  assert("text fallback in same job still allowed once", r3.ok);
-  const r4 = await fetchMeta(env, { messaging_product: "whatsapp", to: "966500000002", type: "text", text: { body: "fallback" } }, {});
-  assert("second text fallback refused", await isSkippedDuplicate(r4));
+  assert("retry of the same template same job refused (409)", r2.status === 409, String(r2.status));
+  // STATUS § 33 — Meta refused the purpose: no automatic send of it to this
+  // number for 24h, not even the text fallback (it used to go once).
+  const r3 = await sendTxt(env, "fallback", "collection_summary");
+  assert("text fallback of the refused purpose refused too", r3.status === 409, String(r3.status));
+  const again = metaCalls.filter((b: any) => b?.to === "966500000002");
+  assert("Meta reached once for this recipient — no retry", again.length === 1, String(again.length));
 }
 
 console.log("\n[7] request paths (no AUTO_SEND_JOB) are untouched");
 {
   reset();
   const env = makeEnv();
-  const a = await fetchMeta(env, { messaging_product: "whatsapp", to: "966500000002", type: "text", text: { body: "hi" } }, {});
-  const b = await fetchMeta(env, { messaging_product: "whatsapp", to: "966500000002", type: "text", text: { body: "hi" } }, {});
+  await openWindow(env, "966500000002");
+  const a = await sendTxt(env, "hi", "bot_reply");
+  const b = await sendTxt(env, "hi", "bot_reply");
   assert("bot replies both sent", a.ok && b.ok && metaCalls.length === 2);
 }
 

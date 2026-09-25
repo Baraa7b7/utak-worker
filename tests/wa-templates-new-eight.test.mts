@@ -8,7 +8,7 @@
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/wa-templates-new-eight.test.mts
 
 import {
-  CUST, OWNER, WH, graph, order, quiet, reset, seed, setFail, setRiyadh, table,
+  CUST, OWNER, WH, closeOwnerWindow, graph, order, quiet, reset, seed, setFail, setRiyadh, table,
 } from "./wa-harness.mts";
 
 const { NEW_EIGHT, placeholders, textProblems, retrySpec, specFor } = await import("../scripts/wa-templates-20260925-new-eight.mjs");
@@ -113,6 +113,9 @@ console.log("\n[2] owner_alert — v3 [when, alert]; v2 and the legacy one [aler
 setRiyadh("2026-09-25 18:01");
 {
   const env = reset();
+  // STATUS § 33 — outside his window an alert takes a UTILITY owner_alert
+  // template if one is mapped (as here); inside it, text.
+  closeOwnerWindow(env);
   mapPurpose("owner_alert", "utak_owner_alert_v3", 2);
   await quiet(() => sendOwnerAlert(env, "فشل إرسال ملخص التحصيل\nالرمز 132018"));
   const b = checkSend("owner_alert → utak_owner_alert_v3", "utak_owner_alert_v3", specFor("utak_owner_alert_v3"));
@@ -126,7 +129,8 @@ setRiyadh("2026-09-25 18:01");
 }
 for (const name of ["utak_owner_alert_v2", "utak_owner_alert"]) {
   const env = reset();
-  mapPurpose("owner_alert", name, 1);
+  closeOwnerWindow(env);
+  mapPurpose("owner_alert", name, 1); // seeded UTILITY here; at Meta both are MARKETING (never used, tests/wa-gateway.test.mts)
   await quiet(() => sendOwnerAlert(env, "سطر أول\nسطر ثانٍ"));
   const b = checkSend(`owner_alert → ${name}`, name, spec("owner_alert"));
   assert(`owner_alert → ${name}: to the owner, one line`, b?.to === OWNER && !/[\r\n]/.test(bodyParams(b)[0] ?? "\n"));

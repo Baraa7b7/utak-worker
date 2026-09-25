@@ -45,7 +45,9 @@ const load = (f: string) => JSON.parse(readFileSync(new URL(f, import.meta.url),
 const FX = ["./fixtures-odoo-fields-20260924.json", "./fixtures-odoo-fields-20260925-suppliers.json",
   "./fixtures-odoo-fields-20260925-attendance.json", "./fixtures-odoo-fields-20260925-review.json",
   // STATUS § 31 — hr.employee, resource.calendar.*, x_team_attendance.x_employee_id (last: wins)
-  "./fixtures-odoo-fields-20260925-team.json"].map(load);
+  "./fixtures-odoo-fields-20260925-team.json",
+  // STATUS § 33 — x_wa_message.x_status: held / expired / skipped (the send gateway)
+  "./fixtures-odoo-fields-20260925-gateway.json"].map(load);
 const REAL: Record<string, string[]> = Object.assign({}, ...FX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FX.map((f) => f._selections));
 const rejected: string[] = [];

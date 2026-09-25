@@ -11,15 +11,16 @@
 //   4. If x_manual is NOT set, honor SIM_ALLOWLIST (via isRecipientAllowed).
 //      x_manual bypasses allowlist for this route ONLY. Owner-guard is
 //      never bypassed.
-//   5. dry_run=true: run all validation, never call fetchMeta / no media
+//   5. dry_run=true: run all validation, never call the gateway / no media
 //      upload. Terminate with x_status='dry_ok'.
 //   6. Kind branches:
 //      - template: verify x_meta_status='APPROVED' and x_param_count matches
-//        the number of params. Send via fetchMeta as an approved template.
-//      - text: 24h-window write via fetchMeta ({type:'text', text:{body}}).
+//        the number of params. Send through the gateway as an approved template.
+//      - text: through the gateway ({type:'text', text:{body}}); outside the 24h
+//        window it is held (x_status «held») until the number writes.
 //        Meta 131047 (=outside the 24h window) → x_status='failed' with the
 //        Arabic reason from the spec.
-//      - document: upload x_attachment to Meta /media, then fetchMeta as
+//      - document: upload x_attachment to Meta /media, then the gateway as
 //        {type:'document', document:{id:<media_id>, filename:<x_filename>}}.
 //      - button_reply: not a valid outbound kind — reject.
 //   7. Persist wamid / status / processed_at / meta_error. Post an audit
@@ -29,7 +30,7 @@
 import type { Env } from "./config";
 import { isRecipientAllowed } from "./config";
 import { call } from "./odoo";
-import { fetchMeta } from "./meta";
+import { gatewayDecision, sendViaGateway } from "./wa-gateway";
 
 interface WaMessageRow {
   id: number;
@@ -63,6 +64,7 @@ interface TemplateRow {
   x_meta_status: string | false;
   x_language: string | false;
   x_param_count: number | false;
+  x_category: string | false;
 }
 
 const nowOdoo = (): string =>
@@ -131,6 +133,7 @@ async function fetchTemplate(env: Env, id: number): Promise<TemplateRow | null> 
       "x_meta_status",
       "x_language",
       "x_param_count",
+      "x_category",
     ],
   });
   return rows[0] ?? null;
@@ -358,46 +361,44 @@ export async function handleWaMessageWebhook(
     return { ok: true, final_status: "dry_ok" };
   }
 
-  // 6. Real send.
+  // 6. Real send — through the single gateway (STATUS § 33). A text or a
+  //    document outside the number's 24h window is held there (x_status
+  //    «held») and goes at the number's next inbound; a template goes if Meta
+  //    approved it (a MARKETING one only to a number that did not opt out).
   let resp: Response;
+  const base = { purpose: "wa_message_manual", to, manual: msg.x_manual, rowId: waId, ctx } as const;
   try {
     if (isText) {
-      resp = await fetchMeta(env, {
-        messaging_product: "whatsapp",
-        to: to.replace(/^\+/, ""),
-        type: "text",
-        text: { body: (msg.x_body || "").slice(0, 4096) },
-      }, { purpose: "wa_message_manual", ctx });
+      resp = await sendViaGateway(env, {
+        ...base,
+        content: { kind: "session", body: { type: "text", text: { body: (msg.x_body || "").slice(0, 4096) } } },
+      });
     } else if (isTemplate && tmpl) {
-      const components =
-        paramsArray.length > 0
-          ? [{
-              type: "body",
-              parameters: paramsArray.map((t) => ({ type: "text", text: t })),
-            }]
-          : [];
-      resp = await fetchMeta(env, {
-        messaging_product: "whatsapp",
-        to: to.replace(/^\+/, ""),
-        type: "template",
-        template: {
-          name: tmpl.x_meta_template_id,
-          language: { code: tmpl.x_language || "ar" },
-          components,
+      resp = await sendViaGateway(env, {
+        ...base,
+        content: {
+          kind: "template",
+          row: {
+            id: tmpl.id,
+            x_meta_template_id: String(tmpl.x_meta_template_id || ""),
+            x_language: tmpl.x_language,
+            x_meta_status: tmpl.x_meta_status,
+            x_category: tmpl.x_category,
+            x_param_count: tmpl.x_param_count,
+          },
+          params: paramsArray,
         },
-      }, { purpose: "wa_message_manual", ctx });
+      });
     } else if (isDocument) {
       const mediaId = await uploadMediaToMeta(
         env,
         msg.x_attachment as string,
         (msg.x_filename as string) || "file",
       );
-      resp = await fetchMeta(env, {
-        messaging_product: "whatsapp",
-        to: to.replace(/^\+/, ""),
-        type: "document",
-        document: { id: mediaId, filename: (msg.x_filename as string) || "file" },
-      }, { purpose: "wa_message_manual", ctx });
+      resp = await sendViaGateway(env, {
+        ...base,
+        content: { kind: "session", body: { type: "document", document: { id: mediaId, filename: (msg.x_filename as string) || "file" } } },
+      });
     } else {
       return await fail(`نوع غير مدعوم: ${kind}`);
     }
@@ -405,7 +406,21 @@ export async function handleWaMessageWebhook(
     return await fail(`استثناء عند الإرسال: ${(e as Error)?.message ?? String(e)}`);
   }
 
-  // 7. Interpret Meta's response.
+  // 7. Interpret the gateway's answer.
+  const decision = gatewayDecision(resp);
+  if (decision?.action === "held") {
+    // The gateway wrote x_status «held» on this row; it becomes «sent» at the flush.
+    const note = `⏳ رسالة واتساب #${waId} محفوظة: الرقم خارج نافذة 24 ساعة، وتُرسل عند أول رسالة منه.`;
+    if (msg.x_partner_id) await postChatter(env, "res.partner", msg.x_partner_id[0], note);
+    if (msg.x_res_model && typeof msg.x_res_id === "number" && msg.x_res_id > 0) {
+      await postChatter(env, msg.x_res_model, msg.x_res_id, note);
+    }
+    return { ok: true, final_status: "held", reason: decision.reason };
+  }
+  if (decision?.action === "skipped") {
+    // Row already «skipped» / «expired» with the reason.
+    return { ok: false, final_status: "skipped", reason: decision.reason };
+  }
   const rawText = await resp.text();
   let parsed: unknown = null;
   try { parsed = JSON.parse(rawText); } catch { parsed = null; }
@@ -493,13 +508,25 @@ export interface LogInboundArgs {
 }
 
 export async function logWaMessage(env: Env, a: LogInboundArgs): Promise<void> {
+  await createWaMessageRow(env, a);
+}
+
+/**
+ * logWaMessage, returning the new row's id (null when it was skipped or failed).
+ * 2026-09-25 (STATUS § 33) — the gateway keeps the id of a held message's row,
+ * to turn it «sent» / «expired» later.
+ */
+export async function createWaMessageRow(
+  env: Env,
+  a: LogInboundArgs & { debugPayload?: string },
+): Promise<number | null> {
   try {
     // 2026-09-23 — logical unique index on x_meta_message_id: one row per
     // wamid. Odoo has no DB constraint on this studio field, so the check
     // lives here, in the single function every logger goes through.
     if (a.metaMessageId && (await waMessageExistsForWamid(env, a.metaMessageId))) {
       console.log(`[logWaMessage] wamid=${a.metaMessageId.slice(-10)} already logged — skip`);
-      return;
+      return null;
     }
     const processedAt = typeof a.metaTimestampMs === "number" && Number.isFinite(a.metaTimestampMs)
       ? new Date(a.metaTimestampMs).toISOString().replace("T", " ").slice(0, 19)
@@ -517,6 +544,7 @@ export async function logWaMessage(env: Env, a: LogInboundArgs): Promise<void> {
     if (a.resId) vals.x_res_id = a.resId;
     if (typeof a.manual === "boolean") vals.x_manual = a.manual;
     if (a.metaError) vals.x_meta_error = a.metaError.slice(0, 2000);
+    if (a.debugPayload) vals.x_debug_payload = a.debugPayload.slice(0, 4000);
     const source =
       a.source ??
       (a.direction === "in" ? "inbound" : a.manual === true ? "manual" : "auto");
@@ -526,20 +554,21 @@ export async function logWaMessage(env: Env, a: LogInboundArgs): Promise<void> {
     // still created. Best-effort; failure of that retry is still logged.
     vals.x_source = source;
     try {
-      await call<number[]>(env, "x_wa_message", "create", { vals_list: [vals] });
-      return;
+      const ids = await call<number[]>(env, "x_wa_message", "create", { vals_list: [vals] });
+      return Array.isArray(ids) ? ids[0] ?? null : null;
     } catch (e) {
       const em = (e as Error)?.message ?? "";
       if (/x_source/i.test(em)) {
         delete vals.x_source;
-        await call<number[]>(env, "x_wa_message", "create", { vals_list: [vals] });
+        const ids = await call<number[]>(env, "x_wa_message", "create", { vals_list: [vals] });
         console.warn("[logWaMessage] created without x_source — run apply script");
-        return;
+        return Array.isArray(ids) ? ids[0] ?? null : null;
       }
       throw e;
     }
   } catch (e) {
     console.warn("[logWaMessage] failed", (e as Error)?.message);
+    return null;
   }
 }
 

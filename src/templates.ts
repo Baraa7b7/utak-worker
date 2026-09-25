@@ -3,41 +3,19 @@
 // and sends via Meta Graph API with body params + button payloads.
 // ============================================================
 import type { Env } from "./config";
-import { fetchMeta } from "./meta";
 import { ORDERING_HOURS_CLOSE } from "./config";
-import { pickTemplate, TEMPLATE_CANDIDATE_FIELDS, type TemplateCandidate } from "./template-pick";
+import {
+  clearTemplateCache,
+  sendViaGateway,
+  type GwOption,
+  type HeaderMedia,
+  type QuickReplyPayload,
+} from "./wa-gateway";
 
-// Candidate rows per purpose are cached in-memory per Worker isolate for
-// MAPPING_TTL_MS, so moving an x_purpose in Odoo takes effect within minutes
-// (was: until isolate recycling, up to ~24h).
-const MAPPING_TTL_MS = 10 * 60 * 1000;
-const cache = new Map<string, { rows: TemplateCandidate[]; at: number }>();
-
-/** Test hook — drop cached mappings. */
-export function clearTemplateCache(): void { cache.clear(); }
-
-async function fetchCandidates(env: Env, purpose: string): Promise<TemplateCandidate[] | null> {
-  const cached = cache.get(purpose);
-  if (cached && Date.now() - cached.at < MAPPING_TTL_MS) return cached.rows;
-  const res = await fetch(`${env.ODOO_URL}/json/2/x_whatsapp_template/search_read`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${env.ODOO_API_KEY}`,
-    },
-    body: JSON.stringify({
-      domain: [["x_purpose", "=", purpose]],
-      fields: TEMPLATE_CANDIDATE_FIELDS,
-      order: "id desc",
-      limit: 10,
-    }),
-  });
-  if (!res.ok) return null;
-  const rows = (await res.json()) as TemplateCandidate[];
-  // "No mapping" is not cached: a purpose wired in Odoo is picked up on the next send.
-  if (rows.length > 0) cache.set(purpose, { rows, at: Date.now() });
-  return rows;
-}
+// 2026-09-25 (STATUS § 33) — the per-purpose candidate cache moved into the
+// gateway with the lookup itself; re-exported for the tests that clear it.
+export { clearTemplateCache };
+export type { HeaderMedia, QuickReplyPayload };
 
 /**
  * Two or more rows share an x_purpose: log every time, alert the owner once
@@ -71,26 +49,17 @@ export async function reportDuplicatePurpose(
   }
 }
 
-export interface QuickReplyPayload {
-  /** button index in the template (0-based) */
-  index: number;
-  /** payload string (what our webhook receives as buttonId when tapped) */
-  payload: string;
-}
-
 /**
- * Send an approved Meta template by internal purpose.
- * @param bodyParams — ordered strings that map to {{1}}, {{2}}, ... — or a function of the
- *                     resolved Meta template name, for a purpose that is moving between
- *                     templates with different variables (the params follow the template).
- * @param buttonPayloads — for templates with QUICK_REPLY buttons: assign a payload per button index.
- *                        Omit to accept Meta's default (which sends the button text back).
+ * Send an approved Meta template by internal purpose, through the single
+ * gateway (src/wa-gateway.ts): the template goes only if it is APPROVED and
+ * its Meta category may carry the purpose (UTILITY; MARKETING only for a
+ * marketing purpose), whatever the window. Otherwise the fallbacks, in order
+ * (a session message there waits for the number's window).
+ * @param bodyParams — ordered strings for {{1}}, {{2}}, … — or a function of the
+ *                     resolved Meta template name, for a purpose moving between
+ *                     templates with different variables.
+ * @param buttonPayloads — QUICK_REPLY payload per button index.
  */
-export type HeaderMedia =
-  | { type: "document"; link: string; filename: string }
-  | { type: "image"; link: string }
-  | { type: "video"; link: string };
-
 export async function sendTemplateByPurpose(
   env: Env,
   to: string,
@@ -98,59 +67,29 @@ export async function sendTemplateByPurpose(
   bodyParams: string[] | ((templateName: string) => string[]) = [],
   buttonPayloads: QuickReplyPayload[] = [],
   headerMedia?: HeaderMedia,
-  // 2026-09-25 (STATUS § 29) — the purpose fetchMeta sees, when it differs from
-  // the lookup purpose: Baraa's daily utak_shift_start_v2 is looked up as
-  // team_shift_start but sent as owner_window, the one extra purpose the owner
-  // guard lets through.
-  opts: { sendPurpose?: string } = {},
-): Promise<Response | null> {
-  const rows = await fetchCandidates(env, purpose);
-  const paramsFor = (name: string): string[] =>
-    typeof bodyParams === "function" ? bodyParams(name) : bodyParams;
-  const chosen = rows ? pickTemplate(rows, (name) => paramsFor(name).length) : null;
-  if (!rows || !chosen) {
-    console.warn(`[templates] no mapping for purpose='${purpose}'`);
-    return null;
-  }
-  if (rows.length > 1) await reportDuplicatePurpose(env, purpose, rows, chosen);
-  const mapping = { name: chosen.x_meta_template_id, language: chosen.x_language || "ar" };
-  const params = paramsFor(mapping.name);
-  const components: any[] = [];
-  if (headerMedia) {
-    const param: any = { type: headerMedia.type };
-    if (headerMedia.type === "document") {
-      param.document = { link: headerMedia.link, filename: headerMedia.filename };
-    } else if (headerMedia.type === "image") {
-      param.image = { link: headerMedia.link };
-    } else if (headerMedia.type === "video") {
-      param.video = { link: headerMedia.link };
-    }
-    components.push({ type: "header", parameters: [param] });
-  }
-  if (params.length > 0) {
-    components.push({
-      type: "body",
-      parameters: params.map((t) => ({ type: "text", text: String(t) })),
-    });
-  }
-  for (const b of buttonPayloads) {
-    components.push({
-      type: "button",
-      sub_type: "quick_reply",
-      index: String(b.index),
-      parameters: [{ type: "payload", payload: b.payload }],
-    });
-  }
-  return fetchMeta(env, {
-    messaging_product: "whatsapp",
-    to: to.replace(/^\+/, ""),
-    type: "template",
-    template: {
-      name: mapping.name,
-      language: { code: mapping.language },
-      components,
-    },
-  }, { purpose: opts.sendPurpose ?? purpose });
+  opts: {
+    // 2026-09-25 (STATUS § 29) — the purpose the owner guard sees, when it
+    // differs from the lookup purpose: Baraa's daily utak_shift_start_v2 is
+    // looked up as team_shift_start and sent as owner_window.
+    sendPurpose?: string;
+    /** The message's purpose when it differs from the template lookup purpose. */
+    requestPurpose?: string;
+    fallback?: GwOption[];
+    ctx?: ExecutionContext;
+    important?: boolean;
+    expiresAt?: number;
+  } = {},
+): Promise<Response> {
+  return sendViaGateway(env, {
+    purpose: opts.requestPurpose ?? purpose,
+    to,
+    content: { kind: "template", purpose, params: bodyParams, buttons: buttonPayloads, header: headerMedia },
+    fallback: opts.fallback,
+    guardPurpose: opts.sendPurpose,
+    ctx: opts.ctx,
+    important: opts.important,
+    expiresAt: opts.expiresAt,
+  });
 }
 
 // ---- Params per template for a purpose that changed template ----
@@ -256,87 +195,43 @@ export const T = {
 } as const;
 
 // ============================================================
-// Owner-facing alert helper (2026-09-17)
+// Owner-facing alert helper
 //
-// Every "Baraa needs to know" event used to go through sendText(env,
-// OWNER_WHATSAPP, ...) — free-form text that Meta refuses outside the
-// 24-hour customer service window. The 06:00 supplier-recap alert
-// silently failed because Baraa hadn't messaged the number that day.
-//
-// Route the same text through an approved template first (`owner_alert`
-// purpose, template `utak_owner_alert`); on any failure — no Odoo
-// mapping, template pending Meta approval, non-2xx Meta response —
-// fall back to the original sendText so behavior is never worse than
-// today.
-//
-// Meta template variable rules: no newline / tab / 4+ consecutive
-// spaces. Alerts often contain \n from string interpolation; sanitize
-// them to " | " and cap at 900 chars so the parameter always passes
-// Meta's validation.
+// 2026-09-17: through the utak_owner_alert template, with a text fallback.
+// 2026-09-25 (STATUS § 26): text inside his 24h window, the template outside.
+// 2026-09-25 (STATUS § 33, the single gateway): utak_owner_alert is MARKETING
+// at Meta (v2 too; v3 refused), and Meta dropped it with #131049 again and
+// again (§ 26, § 28, § 32) — an operational alert never uses a MARKETING
+// template now. Inside his window the alert goes as text; outside it, it is
+// held for his number and reaches him at his next message or tap (the 06:00
+// «بدء الدوام» template opens his window every day). If a UTILITY template is
+// ever approved and mapped to owner_alert, the gateway uses it outside the
+// window, like any other purpose.
 // ============================================================
-import { sendText } from "./meta";
 import { arabicDate, sanitizeTemplateParam } from "./wa-params";
 import { riyadhDateKey, riyadhMinutes } from "./hours";
 
 // 2026-09-24 — the owner alert keeps its own " | " separator (reads better in
-// an alert than " · "), then the shared sanitizer in fetchMeta applies to it
-// like to every other template variable.
+// an alert than " · "), then the shared sanitizer applies to it like to every
+// other template variable.
 function sanitizeOwnerAlertParam(text: string): string {
   return sanitizeTemplateParam(String(text ?? "").replace(/[\r\n\t]+/g, " | "));
-}
-
-/**
- * 2026-09-25 — is the owner inside Meta's 24h window? His partner is looked up
- * by OWNER_WHATSAPP (id cached 1h in KV). Any failure answers «no».
- */
-async function ownerInsideWindow(env: Env): Promise<boolean> {
-  try {
-    const key = "owner_alert:partner_id";
-    let id = Number(await env.MSG_DEDUP.get(key)) || 0;
-    if (!id) {
-      const e164 = "+" + String(env.OWNER_WHATSAPP ?? "").replace(/\D/g, "");
-      const { call } = await import("./odoo");
-      const rows = await call<Array<{ id: number }>>(env, "res.partner", "search_read", {
-        domain: ["|", ["x_whatsapp_number", "=", e164], ["phone", "=", e164]], fields: ["id"], limit: 1,
-      });
-      id = rows[0]?.id ?? 0;
-      if (id) await env.MSG_DEDUP.put(key, String(id), { expirationTtl: 3600 });
-    }
-    if (!id) return false;
-    const { isInside24hWindow } = await import("./wa-inbox");
-    return await isInside24hWindow(env, id);
-  } catch {
-    return false;
-  }
 }
 
 export async function sendOwnerAlert(env: Env, text: string): Promise<void> {
   const owner = env.OWNER_WHATSAPP;
   if (!owner) return;
   const original = String(text ?? "");
-  // 2026-09-25 — utak_owner_alert is MARKETING at Meta (v2 too; v3 refused as
-  // INCORRECT_CATEGORY), and on 09-24 21:15 Meta dropped one with #131049
-  // (marketing frequency cap). Inside the owner's 24h window a session text is
-  // not capped, so it goes first there; outside it, the template as before.
-  if (await ownerInsideWindow(env)) {
-    try {
-      const r = await sendText(env, owner, original, { purpose: "owner_alert" });
-      if (r.ok) return;
-    } catch (e) {
-      console.warn("[owner-alert] in-window text failed", (e as Error)?.message);
-    }
-  }
+  const param = sanitizeOwnerAlertParam(original);
+  const when = ownerAlertTime();
   try {
-    const param = sanitizeOwnerAlertParam(original);
-    const when = ownerAlertTime();
-    const resp = await sendTemplateByPurpose(env, owner, T.OWNER_ALERT, (name) => ownerAlertParams(name, param, when));
-    if (resp && resp.ok) return;
+    await sendViaGateway(env, {
+      purpose: T.OWNER_ALERT,
+      to: owner,
+      content: { kind: "session", body: { type: "text", text: { body: original } } },
+      fallback: [{ kind: "template", purpose: T.OWNER_ALERT, params: (name) => ownerAlertParams(name, param, when) }],
+    });
   } catch (e) {
-    console.warn("[owner-alert] template send exception", (e as Error)?.message);
-  }
-  try {
-    await sendText(env, owner, original, { purpose: "owner_alert" });
-  } catch (e) {
-    console.error("[owner-alert] fallback sendText failed", (e as Error)?.message);
+    console.warn("[owner-alert] gateway send failed", (e as Error)?.message);
   }
 }

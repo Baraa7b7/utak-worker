@@ -80,8 +80,8 @@ export default {
     const cron = event.cron;
     console.log(`[scheduled] cron=${cron} at ${new Date().toISOString()}`);
     // 2026-09-23 — every send made inside a cron job is automated: mark env
-    // so fetchMeta claims a per-(recipient, template, Riyadh day, job) KV
-    // key before sending. See src/auto-send-guard.ts.
+    // so the send gateway claims a per-(recipient, template, Riyadh day, job)
+    // KV key before sending. See src/auto-send-guard.ts.
     const { CRON_JOB, withAutoSendJob } = await import("./auto-send-guard");
     const env = withAutoSendJob(rawEnv, CRON_JOB[cron] ?? `cron:${cron}`);
     try {
@@ -155,6 +155,16 @@ export default {
           const acted = r.members.filter((m) => !["no_time", "before_shift", "waiting", "reminded"].includes(m.action) && !m.action.startsWith("tapped") && !m.action.startsWith("already"));
           if (acted.length || !["before", "passed", "sent_before"].includes(r.owner.action)) {
             console.log(`[attendance ${r.at}]`, JSON.stringify({ owner: r.owner.action, acted: acted.map((m) => `${m.name}:${m.action}`) }));
+          }
+          // 2026-09-25 (STATUS § 33) — held messages past their expiry are
+          // dropped and their x_wa_message rows marked «expired», even for a
+          // number that never writes back.
+          try {
+            const { sweepExpiredHeld } = await import("./wa-gateway");
+            const sw = await sweepExpiredHeld(env);
+            if (sw.expired) console.log(`[gateway sweep] ${JSON.stringify(sw)}`);
+          } catch (e) {
+            console.error("[gateway sweep] failed", (e as Error)?.message);
           }
           break;
         }
@@ -640,7 +650,7 @@ export default {
             ``,
             `شكراً لتعاملكم مع UTAK 🌿`,
           ].join("\n");
-          const resp = await sendText(env, customerPhone, body);
+          const resp = await sendText(env, customerPhone, body, { purpose: "customer_receipt" });
           if (!resp || !resp.ok) {
             const errText = resp ? await resp.text().catch(() => "") : "no response";
             steps["4_send_whatsapp"] = `error: ${resp?.status ?? "?"} ${errText.slice(0, 200)}`;
@@ -976,7 +986,7 @@ export default {
             ``,
             `الوثيقة: ${uploaded.publicUrl}`,
           ].join("\n");
-          const resp = await sendText(env, driverPhone, body);
+          const resp = await sendText(env, driverPhone, body, { purpose: "driver_delivery_note" });
           if (!resp || !resp.ok) {
             const errText = resp ? await resp.text().catch(() => "") : "no response";
             steps["4_send_whatsapp"] = `error: ${resp?.status ?? "?"} ${errText.slice(0, 200)}`;
@@ -1608,7 +1618,7 @@ async function handleSimRoute(
 
   // TEMPORARY 2026-09-12 — T2 isolation harness.
   // POST /sim/test-send?to=+9665...&text=...  — calls sendText() directly,
-  // no Odoo, no template lookup, no handleWebhook. Returns the fetchMeta
+  // no Odoo, no template lookup, no handleWebhook. Returns the gateway's
   // Response status/body verbatim so a caller can assert AllowlistBlocked
   // (403) or SIM capture (200 + wamid). Remove once T2 signs off.
   if (request.method === "POST" && url.pathname === "/sim/test-send") {
@@ -1616,7 +1626,7 @@ async function handleSimRoute(
     const text = url.searchParams.get("text") ?? "T2 probe";
     if (!to) return json({ error: "missing to" }, 400);
     const { sendText } = await import("./meta");
-    const resp = await sendText(env, to, text);
+    const resp = await sendText(env, to, text, { purpose: "sim_test" });
     const body = await resp.text();
     return json({
       status: resp.status,
@@ -1805,46 +1815,28 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           console.log(
             `[inbox] wamid=${wamid.slice(-10)} from=${phoneTail(String(to))} kind=status status=${s2}`,
           );
-          const row = await updateWaStatusByWamid(env, wamid, s2, errMsg);
           if (s2 === "failed") {
-            // 2026-09-24 (ح6) — a late failure (e.g. 131047: free-form text
-            // outside the 24h window) is a failure, not a success: counter +
-            // owner alert on the first failure of this template today.
+            // 2026-09-24 (ح6) — a late failure is a failure: row, counter,
+            // owner alert, Discuss line. 2026-09-25 (STATUS § 33) — and the
+            // gateway's policy: 131047 closes the number's window (a valid
+            // session message goes back to its queue), 131049 stops that
+            // template to that number today, anything else stops the purpose
+            // to that number for 24h. A status Meta delivers twice is handled once.
             try {
-              const { recordSendFailure, templateFromEcho } = await import("./send-failure");
-              await recordSendFailure(env, {
-                to: String(to),
-                what: templateFromEcho(row?.body) ?? (row?.body?.startsWith("📍") ? "location" : "text"),
-                code: s?.errors?.[0]?.code ?? null,
-                message: s?.errors?.[0]?.message ?? s?.errors?.[0]?.title ?? "failed status",
-                phase: "async",
-                hasRow: !!row,
+              const { handleStatusFailure } = await import("./wa-gateway");
+              await handleStatusFailure(env, {
                 wamid,
+                recipient: String(to),
+                code: typeof s?.errors?.[0]?.code === "number" ? s.errors[0].code : null,
+                message: s?.errors?.[0]?.message ?? s?.errors?.[0]?.title ?? "failed status",
+                errText: errMsg,
               });
             } catch (e) {
-              console.warn("[status-failed record]", (e as Error)?.message);
+              console.warn("[status-failed]", (e as Error)?.message);
             }
+            continue;
           }
-          if (s2 === "failed" && to) {
-            try {
-              const { findCustomerByWhatsApp, findSupplierByWhatsApp, findTeamMemberByWhatsApp } =
-                await import("./odoo");
-              const digits = String(to).replace(/[^0-9]/g, "");
-              const e164 = digits.startsWith("+") ? digits : `+${digits}`;
-              const [t, sup, cus] = await Promise.all([
-                findTeamMemberByWhatsApp(env, e164).catch(() => null),
-                findSupplierByWhatsApp(env, e164).catch(() => null),
-                findCustomerByWhatsApp(env, e164).catch(() => null),
-              ]);
-              const partner = t ?? sup ?? cus;
-              if (partner) {
-                const { echoFailure } = await import("./wa-inbox");
-                await echoFailure(env, partner.id, partner.name, errMsg ?? "Meta failed");
-              }
-            } catch (e) {
-              console.warn("[status-failed mirror]", (e as Error)?.message);
-            }
-          }
+          await updateWaStatusByWamid(env, wamid, s2, errMsg);
         }
       }
     }
@@ -1881,6 +1873,18 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
     // window used to pass seenBefore and produce a second auto-reply. The
     // per-branch markSeen calls below stay (idempotent re-put).
     await markSeen(env, msg.messageId);
+
+    // 2026-09-25 (STATUS § 33) — the number's 24h window, by Meta's own
+    // timestamp: a message or tap opens it; one older than 24h (a late
+    // re-delivery) does not.
+    let inboundWindow: import("./wa-window").WindowState | null = null;
+    try {
+      const { noteInbound } = await import("./wa-window");
+      const { parseMetaTimestampMs } = await import("./wa-inbox");
+      inboundWindow = await noteInbound(env, msg.from, parseMetaTimestampMs(msg.timestamp));
+    } catch (e) {
+      console.warn("[wa-window] note failed", (e as Error)?.message);
+    }
 
     // 2026-09-20 (cover) — single funnel for every inbound. Ingests BEFORE
     // any team/supplier/customer bot routing so a failure in one of those
@@ -2038,6 +2042,17 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       continue;
     }
 
+    // 2026-09-25 (STATUS § 33) — the window just opened: what the gateway held
+    // for this number goes now, oldest first, before any reply.
+    if (inboundWindow?.open) {
+      try {
+        const { flushHeld } = await import("./wa-gateway");
+        await flushHeld(env, msg.from, inboundWindow, ctx);
+      } catch (e) {
+        console.warn("[gateway] flush failed", (e as Error)?.message);
+      }
+    }
+
     // 2026-09-20 (inbox) — bot routing runs only on text / button / location.
     // Media messages are mirrored above and terminate here (with markSeen so
     // Meta retries stay dedup'd).
@@ -2062,7 +2077,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         // list): «وصلتنا» + owner alert, never a guessed price.
         try {
           const reply = await handleSupplierMedia(env, supplierMatch, msg);
-          await sendText(env, msg.from, reply, { ctx });
+          await sendText(env, msg.from, reply, { ctx, purpose: "bot_reply" });
         } catch (e) {
           console.warn("[media] supplier handling failed", (e as Error)?.message);
         }
@@ -2100,15 +2115,15 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           const { parseMetaTimestampMs } = await import("./wa-inbox");
           const tap = await recordShiftTap(env, teamMember.id, parseMetaTimestampMs(msg.timestamp) ?? Date.now());
           if (tap.kind === "not_on_attendance") {
-            await sendText(env, msg.from, "تم بدء الدوام ✅ هذي مواقع توصيلات اليوم", { ctx });
+            await sendText(env, msg.from, "تم بدء الدوام ✅ هذي مواقع توصيلات اليوم", { ctx, purpose: "shift_ack" });
             await flushTeamQueue(env, msg.from);
           } else if (tap.kind === "owner") {
             await sendText(env, msg.from, tap.text, { ctx, purpose: "owner_alert" });
           } else if (tap.kind === "not_started" || tap.kind === "off_today") {
             // STATUS § 31 — a day off / time off: nothing recorded, nothing released.
-            await sendText(env, msg.from, tap.text, { ctx });
+            await sendText(env, msg.from, tap.text, { ctx, purpose: "shift_ack" });
           } else {
-            await sendText(env, msg.from, tap.text, { ctx });
+            await sendText(env, msg.from, tap.text, { ctx, purpose: "shift_ack" });
             // STATUS § 31 — a tap after the end of the shift: recorded (late),
             // and the tasks wait for the next shift.
             if (!tap.afterEnd) await deliverTasksOnTap(env, teamMember, msg.from);
@@ -2149,7 +2164,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           const { sendOwnerAlert } = await import("./templates");
           await sendOwnerAlert(env,
             `⚠️ مشكلة في قائمة الشراء #${listId}\nمن: ${teamMember.name}\nالمشكلة: ${msg.text}`);
-          await sendText(env, msg.from, "وصلت المشكلة لبراء وسُجّلت على قائمة الشراء ✅ بيتواصل معك.", { ctx });
+          await sendText(env, msg.from, "وصلت المشكلة لبراء وسُجّلت على قائمة الشراء ✅ بيتواصل معك.", { ctx, purpose: "bot_reply" });
         } else if (pendingOrderId) {
           const orderId = Number(pendingOrderId);
           await markStopIssue(env, orderId, msg.text);
@@ -2159,9 +2174,9 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
             await sendOwnerAlert(env,
               `⚠️ مشكلة توصيل\nسواق: ${teamMember.name}\nطلب: #${orderId}\nالمشكلة: ${msg.text}`);
           }
-          await sendText(env, msg.from, "تم تسجيل المشكلة، براء بيراجعها 🙏", { ctx });
+          await sendText(env, msg.from, "تم تسجيل المشكلة، براء بيراجعها 🙏", { ctx, purpose: "bot_reply" });
         } else if (att.hold) {
-          await sendText(env, msg.from, holdText(att), { ctx });
+          await sendText(env, msg.from, holdText(att), { ctx, purpose: "bot_reply" });
         } else {
           // ح1 — the purchase-list template carries a one-line (possibly cut)
           // list; any message from the warehouse gets the full open list(s).
@@ -2170,7 +2185,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
             sent = await resendOpenPurchaseLists(env, msg.from).catch(() => 0);
           }
           if (sent === 0) {
-            await sendText(env, msg.from, `مرحبا ${teamMember.name} 👋 استخدم الأزرار عشان نأكد الحالة.`, { ctx });
+            await sendText(env, msg.from, `مرحبا ${teamMember.name} 👋 استخدم الأزرار عشان نأكد الحالة.`, { ctx, purpose: "bot_reply" });
           }
         }
       }
@@ -2188,13 +2203,13 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       const action = supplierButtonAction(msg);
       if (action) {
         const replyText = await handleSupplierButton(env, supplier, action);
-        if (replyText) await sendText(env, msg.from, replyText, { ctx });
+        if (replyText) await sendText(env, msg.from, replyText, { ctx, purpose: "bot_reply" });
         await markSeen(env, msg.messageId);
         continue;
       }
       const enriched = await enrichSupplier(env, supplier);
       const replyText = await handleSupplierReply(env, enriched, msg.text, msg.messageId);
-      if (replyText) await sendText(env, msg.from, replyText, { ctx });
+      if (replyText) await sendText(env, msg.from, replyText, { ctx, purpose: "bot_reply" });
       await markSeen(env, msg.messageId);
       continue;
     }
@@ -2284,7 +2299,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
     if (optoutCmd) {
       const { handleOptoutCommand } = await import("./optout");
       const reply = await handleOptoutCommand(env, partner, msg.text);
-      if (reply) await sendText(env, msg.from, reply, { ctx });
+      if (reply) await sendText(env, msg.from, reply, { ctx, purpose: "bot_reply" });
       await markSeen(env, msg.messageId);
       continue;
     }
@@ -2295,7 +2310,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       const { isPaymentClaim, readPayRemindSent, notifyPaymentClaim, PAY_CLAIM_REPLY } = await import("./pay-claim");
       const reminded = isPaymentClaim(msg.text) ? await readPayRemindSent(env, partner.id) : null;
       if (reminded) {
-        await sendText(env, msg.from, PAY_CLAIM_REPLY, { ctx });
+        await sendText(env, msg.from, PAY_CLAIM_REPLY, { ctx, purpose: "bot_reply" });
         await notifyPaymentClaim(env, partner, reminded, `«${msg.text}»`);
         await markSeen(env, msg.messageId);
         continue;
@@ -2316,7 +2331,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           await sendButtons(env, msg.from, `طلبك رقم #${o.id} بانتظار تأكيدك، ويُلغى تلقائياً الساعة 9:00 مساءً لو ما تأكد 👇`, [
             { id: `confirm_order_${o.id}`, title: "تأكيد الطلب ✅" },
             { id: `cancel_order_${o.id}`, title: "إلغاء ❌" },
-          ], { ctx });
+          ], { ctx, purpose: "bot_reply" });
           await markSeen(env, msg.messageId);
           continue;
         }
@@ -2338,7 +2353,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         await savePartnerLocation(env, partner.id, latitude, longitude, neigh);
         await setOrderLocation(env, orderId, latitude, longitude, neigh);
         await env.MSG_DEDUP.delete(pendingKey);
-        await sendText(env, msg.from, `حفظنا موقع التوصيل لطلبك رقم #${orderId} ✅`, { ctx });
+        await sendText(env, msg.from, `حفظنا موقع التوصيل لطلبك رقم #${orderId} ✅`, { ctx, purpose: "bot_reply" });
         await markSeen(env, msg.messageId);
         continue;
       }
@@ -2347,7 +2362,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         await savePartnerNeighborhood(env, partner.id, neigh);
         await setOrderNeighborhood(env, orderId, neigh);
         await env.MSG_DEDUP.delete(pendingKey);
-        await sendText(env, msg.from, `حفظنا الحي: ${neigh} ✅ لطلبك رقم #${orderId}.`, { ctx });
+        await sendText(env, msg.from, `حفظنا الحي: ${neigh} ✅ لطلبك رقم #${orderId}.`, { ctx, purpose: "bot_reply" });
         await markSeen(env, msg.messageId);
         continue;
       }
@@ -2380,7 +2395,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           await env.MSG_DEDUP.delete(pendingKey);
           await sendText(env, msg.from,
             `حفظنا الحي: ${neigh} ✅\nلو تقدر ترسل موقعك من قوقل مابس (📎 → موقع → موقعي الحالي) بيوصلك السائق أدق مرة جاية 🌿`,
-            { ctx });
+            { ctx, purpose: "bot_reply" });
           const reply: RouterReply = await dispatch(env, {
             msg: { ...msg, text: "خلاص" },
             intent: "request_quotation",
@@ -2392,7 +2407,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         }
         await sendText(env, msg.from,
           "أرسل موقعك من قوقل مابس (📎 → موقع → موقعي الحالي)، أو اكتب اسم الحي فقط 🙏",
-          { ctx });
+          { ctx, purpose: "bot_reply" });
         await markSeen(env, msg.messageId);
         continue;
       }
@@ -2402,7 +2417,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       const { latitude, longitude, name, address } = msg.location;
       const neigh = (name ?? address ?? "").trim().slice(0, 60);
       await savePartnerLocation(env, partner.id, latitude, longitude, neigh);
-      await sendText(env, msg.from, "حفظنا موقعك للتوصيل ✅ طلباتك الجاية بيوصلك السائق مباشرة.", { ctx });
+      await sendText(env, msg.from, "حفظنا موقعك للتوصيل ✅ طلباتك الجاية بيوصلك السائق مباشرة.", { ctx, purpose: "bot_reply" });
       await markSeen(env, msg.messageId);
       continue;
     }
@@ -2453,11 +2468,11 @@ async function sendReply(
 ): Promise<void> {
   if (reply.buttons && reply.buttons.length > 0) {
     const body = reply.bodyBeforeButtons ?? reply.text ?? "";
-    await sendButtons(env, to, body, reply.buttons, { ctx });
+    await sendButtons(env, to, body, reply.buttons, { ctx, purpose: "bot_reply" });
     return;
   }
   if (reply.text && reply.text.trim()) {
-    await sendText(env, to, reply.text, { ctx });
+    await sendText(env, to, reply.text, { ctx, purpose: "bot_reply" });
   }
 }
 
@@ -2529,7 +2544,7 @@ export async function handleCustomerMedia(
     const { readPayRemindSent, notifyPaymentClaim, PAY_RECEIPT_REPLY } = await import("./pay-claim");
     const reminded = await readPayRemindSent(env, customer.id);
     if (reminded) {
-      await sendText(env, msg.from, PAY_RECEIPT_REPLY, { ctx });
+      await sendText(env, msg.from, PAY_RECEIPT_REPLY, { ctx, purpose: "bot_reply" });
       const caption = msg.media?.caption ? ` — التعليق: ${msg.media.caption.slice(0, 120)}` : "";
       await notifyPaymentClaim(env, customer, reminded, `${kind} (غالباً إيصال التحويل، في محادثته في Discuss)${caption}`);
       return true;
@@ -2539,7 +2554,7 @@ export async function handleCustomerMedia(
     env,
     msg.from,
     `وصلتنا ${kind} ✅ الفريق بيتابعها ويرد عليك قريب. ولو هي طلب، تقدر تكتب الأصناف والكميات نصاً عشان تتسجل مباشرة 🌿`,
-    { ctx },
+    { ctx, purpose: "bot_reply" },
   );
   const { sendOwnerAlert } = await import("./templates");
   const who = customer?.name || msg.profileName || "عميل جديد";

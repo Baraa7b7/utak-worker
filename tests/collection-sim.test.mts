@@ -46,6 +46,7 @@ const summaryTo = (digits: string) => sentTo(digits).filter((b) => b?.template?.
 const textTo = (digits: string) => sentTo(digits).filter((b) => b?.type === "text");
 const params = (b: any): string[] => b.template.components.find((c: any) => c.type === "body").parameters.map((p: any) => p.text);
 const inWindow = (env: any) => env.MSG_DEDUP.put(kvLastInboundTs(COLL), String(Date.now() - 3600e3));
+const heldFor = (env: any, digits: string): any[] => JSON.parse(env.MSG_DEDUP.store.get(`wa_q:v1:${digits}`) ?? "[]");
 
 // ================================================================ 1
 console.log("\n[1] simulation invoices never reach the collection summary");
@@ -80,7 +81,10 @@ console.log("\n[1] simulation invoices never reach the collection summary");
   const r = await quiet(() => sendDailyCollectionSummary(env));
   assert("all-simulation: no summary template at all", summaryTo(COLL_PHONE).length === 0);
   assert("all-simulation, outside window: nothing sent to the collector", sentTo(COLL_PHONE).length === 0, JSON.stringify(sentTo(COLL_PHONE)));
-  assert("report says why", r.invoices === 0 && r.sends[0]?.via === "none" && /outside 24h/.test(r.sends[0]?.reason ?? ""), JSON.stringify(r));
+  // STATUS § 33 — outside the window the «nothing to collect» text waits for
+  // the collector's next message (until the end of the day), never sent blind.
+  assert("report says why (held for the collector)", r.invoices === 0 && r.sends[0]?.via === "held" && /نافذة/.test(r.sends[0]?.reason ?? ""), JSON.stringify(r));
+  assert("the text is held for the collector", heldFor(env, COLL_PHONE).length === 1 && heldFor(env, COLL_PHONE)[0].body.text.body === NOTHING_TO_COLLECT_TEXT);
 
   const env2 = reset(); clearTemplateCache(); setRiyadh("2026-09-24 18:00");
   for (let i = 0; i < 15; i++) invoice(`UTAK-VAT-E-${i}`, 37, true);
@@ -133,7 +137,7 @@ console.log("\n[3] no free-text fallback outside the 24h window (#131047); failu
   assert("the refusal is an x_wa_message row with x_status=failed + 132018",
     failedRows.length === 1 && String(failedRows[0].x_meta_error).includes("132018"), JSON.stringify(rows("x_wa_message")));
   assert("owner alerted once with template + code", ownerAlerts().filter((a) => a.includes("utak_collection_summary") && a.includes("132018")).length === 1, ownerAlerts().join("\n"));
-  assert("report: via none, reason template + outside window", r.sends[0]?.via === "none" && /outside 24h/.test(r.sends[0]?.reason ?? ""), JSON.stringify(r));
+  assert("report: via none, reason Meta 132018", r.sends[0]?.via === "none" && /132018/.test(r.sends[0]?.reason ?? ""), JSON.stringify(r));
 }
 {
   const env = reset(); clearTemplateCache(); setRiyadh("2026-09-24 18:00");
@@ -142,8 +146,10 @@ console.log("\n[3] no free-text fallback outside the 24h window (#131047); failu
   await inWindow(env);
   const r = await quiet(() => sendDailyCollectionSummary(env));
   const t = textTo(COLL_PHONE);
-  assert("inside window + template refused: the full text goes out", t.length === 1 && t[0].text.body.includes("UTAK-INV-20260924-001"), JSON.stringify(t));
-  assert("report: via text", r.sends[0]?.via === "text", JSON.stringify(r));
+  // STATUS § 33 — one attempt per message: Meta refused the template, so no
+  // text follows it (and none of this purpose to this number for 24h).
+  assert("inside window + template refused: no second message", t.length === 0, JSON.stringify(t));
+  assert("report: via none, Meta 132018", r.sends[0]?.via === "none" && /132018/.test(r.sends[0]?.reason ?? ""), JSON.stringify(r));
 }
 {
   const env = reset(); clearTemplateCache(); setRiyadh("2026-09-24 18:00");
@@ -151,7 +157,8 @@ console.log("\n[3] no free-text fallback outside the 24h window (#131047); failu
   for (const [id, t] of table("x_whatsapp_template")) if (t.x_purpose === "collection_summary") table("x_whatsapp_template").delete(id);
   await quiet(() => sendDailyCollectionSummary(env));
   assert("no template mapped, outside window: nothing to the collector", sentTo(COLL_PHONE).length === 0);
-  assert("…and the owner is told", ownerAlerts().some((a) => a.includes("ملخص التحصيل") && a.includes("collection_summary")), ownerAlerts().join("\n"));
+  assert("…the full text is held for the collector", heldFor(env, COLL_PHONE).length === 1 && String(heldFor(env, COLL_PHONE)[0].body.text.body).includes("UTAK-INV-20260924-001"));
+  assert("…and the owner is told once", ownerAlerts().filter((a) => a.includes("ملخص التحصيل") && a.includes("محفوظة")).length === 1, ownerAlerts().join("\n"));
 }
 {
   const env = reset(); clearTemplateCache(); setRiyadh("2026-09-24 18:00");

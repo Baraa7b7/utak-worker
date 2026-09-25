@@ -11,7 +11,7 @@
 //
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/inbox-title.test.mts
 
-import { ctx as baseCtx, employee, odooLog, quiet, reset, rows, seed, table } from "./wa-harness.mts";
+import { ctx as baseCtx, employee, odooLog, openWindow, quiet, reset, rows, seed, table } from "./wa-harness.mts";
 
 let passed = 0, failed = 0;
 const failures: string[] = [];
@@ -183,7 +183,8 @@ console.log("\n[6] outbound echo reaches the number's channel when no active par
   // saved by hand as «+966 50 000 0777»: the echo's ilike on the digits misses it
   seed("res.partner", { id: 41, name: "ماجد المجهلي", phone: "+966 50 000 0777", phone_sanitized: "+966500000777", x_wa_channel_id: 18 });
   seed("discuss.channel", { id: 18, name: "واتساب · ماجد المجهلي", x_wa_partner_id: 41 });
-  await quiet(() => sendText(env, "+966500000777", "طلبك في الطريق"));
+  openWindow(env, "966500000777"); // STATUS § 33 — a session text needs the window
+  await quiet(() => sendText(env, "+966500000777", "طلبك في الطريق", { purpose: "bot_reply" }));
   const posts = odooLog.filter((l) => l.model === "discuss.channel" && l.method === "message_post");
   assert("echo posted in the number's channel", posts.length === 1 && posts[0].body.ids[0] === 18, JSON.stringify(posts.map((p) => p.body.ids)));
   assert("no channel created", channelCreates() === 0);

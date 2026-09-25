@@ -11,7 +11,7 @@
 import {
   CUST, CUST2, COLL, FakeDate, OWNER, WH, ctx, graph, inbound, order, ownerAlerts, partnerOf,
   quiet, reset, rows, seed, sentTo, setClaude, setFail, setRiyadh, signed, table,
-  employee,
+  employee, openWindow,
 } from "./wa-harness.mts";
 
 const CUST_PHONE = "966500000501", CUST2_PHONE = "966500000502", WH_PHONE = "966500000601";
@@ -26,7 +26,8 @@ function assert(name: string, cond: unknown, detail = ""): void {
 }
 
 
-const { fetchMeta } = await import("../src/meta.ts");
+// 2026-09-25 (STATUS § 33) — the single send gateway replaces fetchMeta.
+const { sendViaGateway } = await import("../src/wa-gateway.ts");
 const { sendTemplateByPurpose, clearTemplateCache } = await import("../src/templates.ts");
 const { sanitizeTemplateParam, isInvalidTemplateParam, joinCapped, arabicDate } = await import("../src/wa-params.ts");
 const { readRecentSendFailures } = await import("../src/send-failure.ts");
@@ -63,9 +64,9 @@ console.log("\n[ح1] template variables never carry a newline to Meta");
   assert("new: list variable reaches Meta as one line", params.length === 4 && !/[\r\n\t]/.test(params[2].text), JSON.stringify(params[2]));
   assert("new: items separated with « · »", String(params[2].text).includes(" · "));
   // old: a raw multi-line body built by hand still cannot reach Meta
-  await quiet(() => fetchMeta(env, { messaging_product: "whatsapp", to: WH_PHONE, type: "template",
-    template: { name: "utak_collection_summary", language: { code: "ar" }, components: [{ type: "body", parameters: [
-      { type: "text", text: "2026-09-24" }, { type: "text", text: "a\nb\nc" }, { type: "text", text: "" }, { type: "text", text: "x    \t   y" }] }] } }));
+  await quiet(() => sendViaGateway(env, { purpose: "collection_summary", to: WH_PHONE, content: { kind: "template",
+    row: { id: 1, x_meta_template_id: "utak_collection_summary", x_language: "ar", x_meta_status: "APPROVED", x_category: "UTILITY" },
+    params: ["2026-09-24", "a\nb\nc", "", "x    \t   y"] } }));
   const last = sentTo(WH_PHONE).at(-1);
   const all = last.template.components[0].parameters.map((p: any) => p.text);
   assert("old: no variable of a hand-built body has \\n/\\t", all.every((t: string) => !/[\r\n\t]/.test(t)), JSON.stringify(all));
@@ -104,10 +105,13 @@ console.log("\n[ح6] a failed send is recorded as a failure and alerts the owner
   const alerts = ownerAlerts();
   assert("owner alerted once, with template name + code", alerts.length === 1 && alerts[0].includes("utak_purchase_list_v2") && alerts[0].includes("132018"), alerts.join("\n"));
   assert("recipient masked in the alert (last 4 only)", alerts[0].includes("…0601") && !alerts[0].includes(WH_PHONE));
+  const graphBefore = sentTo(WH_PHONE).length;
   await quiet(() => sendTemplateByPurpose(env, "+" + WH_PHONE, "purchase_list", ["أحمد", "d", "l", "1"]));
   assert("second failure same template same day: no second alert", ownerAlerts().length === 1);
+  // STATUS § 33 — Meta refused the purpose for this number: no automatic send of it for 24h.
+  assert("the repeat never reaches Meta (24h purpose block)", sentTo(WH_PHONE).length === graphBefore);
   const counts = await readRecentSendFailures(env, 7);
-  assert("/health counter counts both failures", counts.reduce((a, b) => a + b.count, 0) === 2, JSON.stringify(counts));
+  assert("/health counter counts the one failure", counts.reduce((a, b) => a + b.count, 0) === 1, JSON.stringify(counts));
   // old: text fallback after a failed template is not a success — the failed row stays
   const before = rows("x_wa_message").filter((w) => w.x_status === "failed").length;
   await quiet(() => team.followUpUnconfirmedPurchaseLists(env)); // no lists → no-op
@@ -122,7 +126,7 @@ console.log("\n[ح6] a failed send is recorded as a failure and alerts the owner
   assert("async: first failure of utak_order_update alerted", ownerAlerts().some((a) => a.includes("utak_order_update") && a.includes("131047")));
   const h = await quiet(() => worker.fetch(new Request("https://w.test/health"), env, ctx));
   const hj: any = await h.json();
-  assert("/health exposes sendFailures.totalLast7Days", hj?.sendFailures?.totalLast7Days === 3, JSON.stringify(hj?.sendFailures));
+  assert("/health exposes sendFailures.totalLast7Days", hj?.sendFailures?.totalLast7Days === 2, JSON.stringify(hj?.sendFailures));
 }
 
 // ================================================================ ح2
@@ -226,6 +230,7 @@ console.log("\n[ح4] quotation buttons check the order state first");
 console.log("\n[ح5] customer voice / image: reply + immediate owner alert");
 {
   const env = reset(); setRiyadh("2026-09-24 11:00");
+  openWindow(env, CUST_PHONE); // the voice note just arrived (handleWebhook notes the window)
   const ok = await quiet(() => handleCustomerMedia(env,
     { messageId: "m1", from: "+" + CUST_PHONE, fromRaw: CUST_PHONE, profileName: "", text: "", timestamp: "", type: "audio", media: { id: "M1", voice: true } } as any,
     partnerOf(CUST)));

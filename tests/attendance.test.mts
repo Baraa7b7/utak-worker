@@ -41,8 +41,10 @@ const F3 = load("./fixtures-odoo-fields-20260925-attendance.json");
 const F4 = load("./fixtures-odoo-fields-20260925-review.json");
 // 2026-09-25 (STATUS § 31) — hr.employee, resource.calendar.*, x_team_attendance.x_employee_id
 const F5 = load("./fixtures-odoo-fields-20260925-team.json");
-const REAL: Record<string, string[]> = { ...F1, ...F2, ...F3, ...F4, ...F5 };
-const SELECTIONS: Record<string, string[]> = { ...F1._selections, ...F2._selections, ...F3._selections, ...F4._selections, ...F5._selections };
+// STATUS § 33 — x_wa_message.x_status gained held / expired / skipped (the send gateway).
+const F6 = load("./fixtures-odoo-fields-20260925-gateway.json");
+const REAL: Record<string, string[]> = { ...F1, ...F2, ...F3, ...F4, ...F5, ...F6 };
+const SELECTIONS: Record<string, string[]> = { ...F1._selections, ...F2._selections, ...F3._selections, ...F4._selections, ...F5._selections, ...F6._selections };
 const rejected: string[] = [];
 function known(model: string, name: string): boolean {
   const list = REAL[model];
@@ -324,19 +326,26 @@ console.log("\n[4] Baraa: the window template daily at the fixed 06:00 (عمر's
 // ================================================================ 5. re-runs
 console.log("\n[5] re-running the job repeats nothing");
 {
+  // A KV wipe loses the dedup keys; Baraa's window (open in the harness, as
+  // after his 06:00 tap) is put back so his alerts stay countable (STATUS § 33).
+  const wipeKV = () => {
+    const win = ENV.MSG_DEDUP.store.get(`wa_win:v1:${OWNER}`);
+    ENV.MSG_DEDUP.store.clear();
+    if (win) ENV.MSG_DEDUP.store.set(`wa_win:v1:${OWNER}`, win);
+  };
   ENV = fresh(`${DAY} 05:00`);
   await tick(`${DAY} 05:00`); await tick(`${DAY} 05:00`); await tick(`${DAY} 05:00`);
   assert("same minute ×3: one start", tpl(OMAR_PHONE).length === 1 && rows("x_team_attendance").filter((r) => r.x_partner_id === OMAR).length === 1);
-  ENV.MSG_DEDUP.store.clear();
+  wipeKV();
   await tick(`${DAY} 05:05`);
   assert("KV wiped, next tick: still one start (Odoo x_sent_at)", tpl(OMAR_PHONE).length === 1);
   await Promise.all([tick(`${DAY} 05:30`), tick(`${DAY} 05:30`)]);
   assert("two +30 ticks at once: one reminder, one alert", tpl(OMAR_PHONE).length === 2 && ownerSays("لم يسجّل حضوره").length === 1, `${tpl(OMAR_PHONE).length} / ${ownerSays("لم يسجّل حضوره").length}`);
-  ENV.MSG_DEDUP.store.clear();
+  wipeKV();
   await tick(`${DAY} 05:45`);
   assert("KV wiped after the reminder: no second reminder or alert (x_reminder_sent)", tpl(OMAR_PHONE).length === 2 && ownerSays("لم يسجّل حضوره").length === 1);
   await Promise.all([tick(`${DAY} 06:00`), tick(`${DAY} 06:00`)]);
-  ENV.MSG_DEDUP.store.clear();
+  wipeKV();
   await tick(`${DAY} 06:10`);
   assert("absent: one alert across parallel ticks and a KV wipe (x_status)", ownerSays("سُجّل غائباً").length === 1 && row(OMAR).x_status === "absent");
   // start: two ticks at once

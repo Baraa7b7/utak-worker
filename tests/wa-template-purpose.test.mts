@@ -3,7 +3,8 @@
 //   1. pickTemplate ranks APPROVED → param count the code sends → UTILITY → newest id.
 //   2. findDuplicatePurposes flags shared purposes and ignores "other".
 //   3. sendTemplateByPurpose with two rows on one purpose: sends the ranked
-//      winner, logs, alerts the owner once per purpose per day.
+//      winner, logs, alerts the owner once per purpose per day (held for him
+//      outside his 24h window, STATUS § 33).
 //   4. owner_alert duplicated: logged only (no recursive alert).
 //   5. Function params follow the resolved template (delivered / welcome
 //      migration): new template gets the new variables, the legacy one the old.
@@ -88,6 +89,9 @@ function assert(label: string, cond: boolean, detail?: string) {
 function reset(rows: any[]) { templateRows = rows; metaSends = []; clearTemplateCache(); }
 const sentName = () => metaSends.filter((b) => b.to === "966500000002").map((b) => b.template?.name);
 const ownerAlerts = () => metaSends.filter((b) => b.to === "966500000001");
+// 2026-09-25 (STATUS § 33) — outside Baraa's 24h window an alert is held for
+// him (the MARKETING utak_owner_alert is never used): read his queue.
+const ownerHeld = (env: any): any[] => JSON.parse(env.MSG_DEDUP.store.get("wa_q:v1:966500000001") ?? "[]");
 
 console.log("\n[1] pickTemplate ranking");
 {
@@ -128,8 +132,9 @@ console.log("\n[3] duplicate purpose on send → winner + one owner alert per da
   await sendTemplateByPurpose(env, "+966500000002", T.COLLECTION_SUMMARY, ["2026-09-24", "x", "10", "1"]);
   console.error = origErr;
   assert("both sends used utak_collection_summary", sentName().join() === "utak_collection_summary,utak_collection_summary", sentName().join());
-  assert("owner alerted exactly once", ownerAlerts().length === 1, String(ownerAlerts().length));
-  assert("alert names the purpose", JSON.stringify(ownerAlerts()[0] ?? "").includes("collection_summary"));
+  assert("owner alert held exactly once (outside his window)", ownerHeld(env).length === 1 && ownerAlerts().length === 0,
+    `${ownerHeld(env).length}/${ownerAlerts().length}`);
+  assert("alert names the purpose", JSON.stringify(ownerHeld(env)[0] ?? "").includes("collection_summary"));
   assert("logged on every send", errors.filter((e) => e.includes("duplicate x_purpose='collection_summary'")).length === 2);
 }
 
@@ -154,8 +159,8 @@ console.log("\n[5] params follow the resolved template");
     metaSends[0]?.template?.components?.[0]?.parameters?.[0]?.text === "123");
   reset([row(18, "utak_delivery_done", "customer_delivery_done", 1, "MARKETING")]);
   await sendTemplateByPurpose(makeEnv(), "+966500000002", T.CUSTOMER_DELIVERY_DONE, deliveredParams);
-  assert("rollback: utak_delivery_done gets the name",
-    metaSends[0]?.template?.components?.[0]?.parameters?.[0]?.text === "سالم");
+  // STATUS § 33 — the legacy utak_delivery_done is MARKETING: never used for this operational notice.
+  assert("rollback to the MARKETING utak_delivery_done: not sent", metaSends.length === 0, String(metaSends.length));
 
   assert("cutoffLabel(21) = 9:00 مساءً", cutoffLabel(21) === "9:00 مساءً", cutoffLabel(21));
   assert("cutoffLabel(12) = 12:00 مساءً", cutoffLabel(12) === "12:00 مساءً");
@@ -179,7 +184,7 @@ console.log("\n[6] getTemplateByPurpose (supplier path) ranks + alerts");
   const t = await getTemplateByPurpose(env, "supplier_ask", 1);
   console.error = origErr;
   assert("param-count match wins over newer UTILITY", t?.x_meta_template_id === "utak_supplier_daily_ask", t?.x_meta_template_id);
-  assert("owner alerted", ownerAlerts().length === 1, String(ownerAlerts().length));
+  assert("owner alert held (outside his window)", ownerHeld(env).length === 1, String(ownerHeld(env).length));
 }
 
 console.log("\n[7] syncTemplates reports duplicates");

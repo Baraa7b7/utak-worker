@@ -120,109 +120,107 @@ assert("empty gives <p></p>",
   textToHtml("") === "<p></p>");
 
 // ============================================================
-// 3. isInside24hWindow — KV first, then Odoo fallbacks
+// 3. The 24h window — src/wa-window.ts (STATUS § 33). isInside24hWindow is
+//    gone: it also read arrival times (x_message_analysis, the Discuss
+//    mirror), so a message Meta re-delivered days late opened a window Meta
+//    had closed. Now: Meta timestamps only, per number, 10-minute margin.
 // ============================================================
-console.log("\n[3] isInside24hWindow — KV first, Odoo fallback, UTC boundaries");
-const { isInside24hWindow, kvLastInboundTs, parseMetaTimestampMs } = await import("../src/wa-inbox.ts");
+console.log("\n[3] the 24h window — Meta timestamps only, per number, 10-minute margin");
+const { parseMetaTimestampMs } = await import("../src/wa-inbox.ts");
+const { readWindow, noteInbound, markWindowClosed, WINDOW_MARGIN_MS } = await import("../src/wa-window.ts");
+const NUM = "+966500000100";
+const now = Date.now();
+const odooTs = (ms: number) => new Date(ms).toISOString().replace("T", " ").slice(0, 19);
+const recent = odooTs(now - 60 * 60 * 1000);
+const old = odooTs(now - 48 * 60 * 60 * 1000);
 
 // case 3a: nothing anywhere → closed
 reset();
+mockResponses.set("res.partner.search_read", [{ id: 100 }]);
 mockResponses.set("x_wa_message.search_read", []);
-mockResponses.set("x_message_analysis.search_read", []);
-mockResponses.set("mail.message.search_read", []);
 {
-  const ok = await isInside24hWindow(makeEnv(), 100);
-  assert("no evidence anywhere → false", ok === false);
+  const w = await readWindow(makeEnv(), NUM);
+  assert("no evidence anywhere → closed", w.open === false);
 }
 
-// case 3b: recent x_wa_message row → open (KV empty; Odoo fallback path)
+// case 3b: an inbound row with Meta's timestamp (x_processed_at) 1h ago → open
 reset();
-const now = Date.now();
-const recent = new Date(now - 60 * 60 * 1000).toISOString().replace("T", " ").slice(0, 19);
-mockResponses.set("x_wa_message.search_read", [{ create_date: recent }]);
-mockResponses.set("x_message_analysis.search_read", []);
-mockResponses.set("mail.message.search_read", []);
+mockResponses.set("res.partner.search_read", [{ id: 100 }]);
+mockResponses.set("x_wa_message.search_read", [{ x_processed_at: recent }]);
 {
-  const ok = await isInside24hWindow(makeEnv(), 100);
-  assert("recent x_wa_message.create_date → true", ok === true);
+  const w = await readWindow(makeEnv(), NUM);
+  assert("inbound x_processed_at (Meta) 1h ago → open", w.open === true && w.source === "odoo");
+  const q = captured.find((c) => String(c.url).includes("/json/2/x_wa_message/search_read"));
+  const dom = JSON.stringify((q?.body as { domain?: unknown })?.domain ?? []);
+  assert("reads inbound rows with x_processed_at only", dom.includes("x_direction") && dom.includes("x_processed_at"), dom);
 }
 
-// case 3c: old x_wa_message + old classifier → closed
+// case 3c: Meta's timestamp 48h ago → closed, however recent the row's arrival
 reset();
-const old = new Date(now - 48 * 60 * 60 * 1000).toISOString().replace("T", " ").slice(0, 19);
-mockResponses.set("x_wa_message.search_read", [{ create_date: old }]);
-mockResponses.set("x_message_analysis.search_read", [{ x_created_at: old }]);
-mockResponses.set("mail.message.search_read", []);
+mockResponses.set("res.partner.search_read", [{ id: 100 }]);
+mockResponses.set("x_wa_message.search_read", [{ x_processed_at: old, create_date: recent }]);
 {
-  const ok = await isInside24hWindow(makeEnv(), 100);
-  assert("both old + no channel history → false", ok === false);
+  const w = await readWindow(makeEnv(), NUM);
+  assert("Meta 48h ago, arrived 1h ago → closed (arrival never counts)", w.open === false);
 }
 
-// case 3d: only x_message_analysis recent → open
+// case 3d: only arrival-time evidence (classifier row, Discuss mirror) → closed, never queried
 reset();
+mockResponses.set("res.partner.search_read", [{ id: 100 }]);
 mockResponses.set("x_wa_message.search_read", []);
 mockResponses.set("x_message_analysis.search_read", [{ x_created_at: recent }]);
-mockResponses.set("mail.message.search_read", []);
-{
-  const ok = await isInside24hWindow(makeEnv(), 100);
-  assert("recent x_message_analysis → true", ok === true);
-}
-
-// case 3e: KV holds a recent Meta timestamp → open, Odoo not queried at all
-reset();
-mockResponses.set("x_wa_message.search_read", [{ create_date: old }]);
-mockResponses.set("x_message_analysis.search_read", [{ x_created_at: old }]);
-mockResponses.set("mail.message.search_read", []);
-{
-  const env = makeEnv();
-  await env.MSG_DEDUP.put(kvLastInboundTs(100), String(now - 2 * 60 * 60 * 1000)); // 2h ago
-  const ok = await isInside24hWindow(env, 100);
-  assert("KV recent → open even when Odoo says old", ok === true);
-  const odooCalls = captured.filter(
-    (c) => String(c.url).includes("/json/2/x_wa_message/search_read") ||
-           String(c.url).includes("/json/2/x_message_analysis/search_read"),
-  );
-  assert("KV hit short-circuits Odoo reads", odooCalls.length === 0,
-    `unexpected Odoo reads: ${odooCalls.length}`);
-}
-
-// case 3f: KV old, Odoo old, mail.message on channel recent → open (safety net)
-reset();
-mockResponses.set("x_wa_message.search_read", []);
-mockResponses.set("x_message_analysis.search_read", []);
 mockResponses.set("mail.message.search_read", [{ date: recent }]);
 {
-  const ok = await isInside24hWindow(makeEnv(), 100);
-  assert("recent mail.message on channel → true (safety net)", ok === true);
+  const w = await readWindow(makeEnv(), NUM);
+  assert("x_message_analysis / mail.message recent → still closed", w.open === false);
+  const arrival = captured.filter((c) => String(c.url).includes("/x_message_analysis/") || String(c.url).includes("/mail.message/"));
+  assert("arrival-time sources are not read at all", arrival.length === 0, `reads=${arrival.length}`);
 }
 
-// case 3g: UTC boundary — exactly 24h - 1ms ago is still inside, exactly 24h ago is outside
+// case 3e: KV (Meta timestamp) → open, Odoo not queried
 reset();
-mockResponses.set("x_wa_message.search_read", []);
-mockResponses.set("x_message_analysis.search_read", []);
-mockResponses.set("mail.message.search_read", []);
 {
   const env = makeEnv();
-  // 24h + 1s ago: definitely outside
-  await env.MSG_DEDUP.put(kvLastInboundTs(101), String(now - (24 * 60 * 60 * 1000 + 1000)));
-  const outside = await isInside24hWindow(env, 101);
-  assert("24h + 1s ago → outside", outside === false);
-  // 5 minutes ago: inside
-  await env.MSG_DEDUP.put(kvLastInboundTs(102), String(now - 5 * 60 * 1000));
-  const inside = await isInside24hWindow(env, 102);
-  assert("5min ago → inside", inside === true);
-  // exactly the cutoff boundary: 24h - 100ms ago → inside
-  await env.MSG_DEDUP.put(kvLastInboundTs(103), String(now - (24 * 60 * 60 * 1000 - 100)));
-  const inside2 = await isInside24hWindow(env, 103);
-  assert("24h - 100ms → inside", inside2 === true);
+  await noteInbound(env, NUM, now - 2 * 60 * 60 * 1000, now);
+  captured = [];
+  const w = await readWindow(env, NUM);
+  assert("KV recent → open", w.open === true && w.source === "kv");
+  assert("KV hit short-circuits Odoo", captured.length === 0, `reads=${captured.length}`);
 }
 
-// case 3h: partnerId=0 always false (owner-guard failure path shouldn't leak)
+// case 3f: the 10-minute margin and the 24h edge
 reset();
 {
-  const ok = await isInside24hWindow(makeEnv(), 0);
-  assert("partnerId=0 → false without any I/O", ok === false);
-  assert("no fetches issued for partnerId=0", captured.length === 0);
+  const env = makeEnv();
+  await noteInbound(env, "+966500000101", now - (24 * 60 - 15) * 60 * 1000, now); // 23h45m ago
+  assert("23h45m ago → open", (await readWindow(env, "+966500000101")).open === true);
+  await noteInbound(env, "+966500000102", now - (24 * 60 - 5) * 60 * 1000, now); // 23h55m ago
+  assert("23h55m ago → closed (10-minute margin)", (await readWindow(env, "+966500000102")).open === false);
+  assert("margin is 10 minutes", WINDOW_MARGIN_MS === 10 * 60 * 1000);
+}
+
+// case 3g: a message Meta stamped 25h ago (re-delivered late) does not open it
+reset();
+mockResponses.set("res.partner.search_read", [{ id: 100 }]);
+mockResponses.set("x_wa_message.search_read", []);
+{
+  const env = makeEnv();
+  const w = await noteInbound(env, NUM, now - 25 * 60 * 60 * 1000, now);
+  assert("late inbound (25h by Meta) → closed", w.open === false);
+  assert("… and nothing written for it", (await env.MSG_DEDUP.get("wa_win:v1:966500000100")) === null);
+}
+
+// case 3h: 131047 closes it at once; only a newer inbound reopens it
+reset();
+{
+  const env = makeEnv();
+  await noteInbound(env, NUM, now - 60 * 60 * 1000, now);
+  await markWindowClosed(env, NUM, now);
+  assert("131047 → closed at once", (await readWindow(env, NUM)).open === false);
+  await noteInbound(env, NUM, now - 30 * 60 * 1000, now);
+  assert("an inbound older than the refusal does not reopen", (await readWindow(env, NUM)).open === false);
+  await noteInbound(env, NUM, now + 1000, now + 2000);
+  assert("a newer inbound reopens", (await readWindow(env, NUM, now + 2000)).open === true);
 }
 
 // case 3i: parseMetaTimestampMs — pure helper for the timestamp gate

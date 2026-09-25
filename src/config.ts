@@ -98,7 +98,7 @@ export interface Env {
   /**
    * 2026-09-23 — NOT a wrangler var. Set in code only, on a shallow copy
    * of env that scheduled() / runSimJob() hand to a job (see
-   * withAutoSendJob in src/auto-send-guard.ts). When present, fetchMeta
+   * withAutoSendJob in src/auto-send-guard.ts). When present, the send gateway
    * claims a KV idempotency key per (recipient, template, Riyadh day,
    * job) before sending, so a second run of the same job cannot send the
    * same message twice. Request paths (webhook replies, Odoo manual send)
@@ -200,12 +200,12 @@ export function isRecipientAllowed(env: Env, to: string): boolean {
  * `isTestMode`  = "should Odoo creates be stamped with x_is_simulation AND
  *                 should outbound messages be recorded in sim_outbound?"
  *   → true for sim AND pilot.
- *   → drives the injection in src/odoo.ts::call and the D1 record in fetchMeta.
+ *   → drives the injection in src/odoo.ts::call and the D1 record in the send gateway.
  *   → also used by /sim/purge as the criterion for "this row is disposable".
  *
  * `shouldRealSend` = "should we actually POST to graph.facebook.com?"
  *   → false for sim; true for pilot and prod.
- *   → drives whether fetchMeta hits Meta.
+ *   → drives whether the send gateway hits Meta.
  *
  * A "misconfig" env (both flags true, or pilot with empty allowlist) is
  * treated as test mode — fail-closed — so no unstamped row can slip

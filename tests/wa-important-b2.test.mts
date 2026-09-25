@@ -19,7 +19,7 @@
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/wa-important-b2.test.mts
 
 import { readFileSync } from "node:fs";
-import { ctx, graph, inbound, ownerAlerts, quiet, reset, rows, seed, sentTo, setRiyadh, signed, table } from "./wa-harness.mts";
+import { closeOwnerWindow, ctx, graph, inbound, ownerAlerts, quiet, reset, rows, seed, sentTo, setRiyadh, signed, table } from "./wa-harness.mts";
 
 let passed = 0, failed = 0;
 const failures: string[] = [];
@@ -33,8 +33,10 @@ const F1 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260924.json
 const F2 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260925-suppliers.json", import.meta.url), "utf8"));
 // 2026-09-25 (STATUS § 30) — the review fields on res.partner (x_contact_class …).
 const F3 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260925-review.json", import.meta.url), "utf8"));
-const REAL: Record<string, string[]> = { ...F1, ...F2, ...F3 };
-const SELECTIONS: Record<string, string[]> = { ...F1._selections, ...F2._selections, ...F3._selections };
+// STATUS § 33 — x_wa_message.x_status: held / expired / skipped (the send gateway).
+const F4 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260925-gateway.json", import.meta.url), "utf8"));
+const REAL: Record<string, string[]> = { ...F1, ...F2, ...F3, ...F4 };
+const SELECTIONS: Record<string, string[]> = { ...F1._selections, ...F2._selections, ...F3._selections, ...F4._selections };
 // added on the tenant by scripts/wa-20260925-supplier-nudge-purpose.mjs (selection #4025)
 SELECTIONS["x_whatsapp_template.x_purpose"] = [...SELECTIONS["x_whatsapp_template.x_purpose"], "supplier_price_nudge"];
 const rejected: string[] = [];
@@ -282,9 +284,14 @@ console.log("\n[owner] alerts: session text inside the owner's 24h window (no #1
   const OWNER_DIGITS = "966500000001";
   const ownerSends = () => sentTo(OWNER_DIGITS);
   ENV = fresh("2026-09-25 21:15");
+  closeOwnerWindow(ENV);
   seed("res.partner", { id: 45, name: "براء", x_whatsapp_number: "+" + OWNER_DIGITS });
   await quiet(() => sendOwnerAlert(ENV, "تنبيه تجريبي خارج النافذة"));
-  assert("outside the window: the utak_owner_alert template (as before)", ownerSends().at(-1)?.template?.name === "utak_owner_alert", JSON.stringify(ownerSends().at(-1)));
+  // STATUS § 33 — utak_owner_alert is MARKETING: never used for an alert. Outside
+  // his window the alert waits for his next message or tap.
+  assert("outside the window: nothing sent, no utak_owner_alert", ownerSends().length === 0, JSON.stringify(ownerSends().at(-1)));
+  const held = JSON.parse(ENV.MSG_DEDUP.store.get(`wa_q:v1:${OWNER_DIGITS}`) ?? "[]");
+  assert("outside the window: the alert is held for him", held.length === 1 && held[0].body?.text?.body === "تنبيه تجريبي خارج النافذة", JSON.stringify(held));
   await ENV.MSG_DEDUP.put("wa_inbox:last_in_ts:45", String(Date.now() - 2 * 3600e3));
   await quiet(() => sendOwnerAlert(ENV, "تنبيه تجريبي داخل النافذة\nسطر ثانٍ"));
   const last = ownerSends().at(-1);

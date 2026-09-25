@@ -9,7 +9,7 @@ import {
   getOrderForInvoicing,
   resolvePackagingNames,
 } from "./odoo";
-import { sendText } from "./meta";
+import { textContent } from "./meta";
 import { sendTemplateByPurpose, T, sendOwnerAlert } from "./templates";
 import {
   BRAND_COLORS,
@@ -582,6 +582,19 @@ export async function createAndDispatchQuotationForRecord(
     };
   } else {
     try {
+      // Plain text with the PDF link: the fallback while utak_quotation_pdf_v1
+      // cannot go (unmapped, not approved); it needs the 24h window, and waits
+      // for it in the gateway's queue otherwise (STATUS § 33).
+      const body = [
+        `📄 عرض السعر رقم ${data.quotationNumber}`,
+        ``,
+        `العميل: ${data.customer.name}`,
+        `الإجمالي: ${data.grandTotal} ر.س`,
+        ``,
+        `الملف: ${uploaded.publicUrl}`,
+        ``,
+        `الأسعار سارية حتى ٩:٠٠ مساءً من تاريخ الإصدار، وتخضع لأسعار السوق اليومية. شكراً لتعاملكم مع UTAK 🌿`,
+      ].join("\n");
       let resp: Response | null = null;
       try {
         resp = await sendTemplateByPurpose(
@@ -591,25 +604,10 @@ export async function createAndDispatchQuotationForRecord(
           quotationTemplateParams(data, quotationDate),
           [],
           { type: "document", link: uploaded.publicUrl, filename: `${data.quotationNumber}.pdf` },
+          { requestPurpose: "customer_quotation", fallback: [textContent(body)] },
         );
       } catch (e) {
-        console.warn(`[quotation] template send threw`, (e as Error).message);
-      }
-
-      if (!resp || !resp.ok) {
-        // Fallback: plain text with PDF link (works until utak_quotation_pdf_v1 is approved and
-        // mapped to customer_quotation_pdf; also reaches the customer only inside the 24h window)
-        const body = [
-          `📄 عرض السعر رقم ${data.quotationNumber}`,
-          ``,
-          `العميل: ${data.customer.name}`,
-          `الإجمالي: ${data.grandTotal} ر.س`,
-          ``,
-          `الملف: ${uploaded.publicUrl}`,
-          ``,
-          `الأسعار سارية حتى ٩:٠٠ مساءً من تاريخ الإصدار، وتخضع لأسعار السوق اليومية. شكراً لتعاملكم مع UTAK 🌿`,
-        ].join("\n");
-        resp = await sendText(env, customerPhone, body);
+        console.warn(`[quotation] send threw`, (e as Error).message);
       }
 
       if (resp?.ok) {

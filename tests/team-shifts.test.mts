@@ -25,7 +25,7 @@
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/team-shifts.test.mts
 
 import { readFileSync } from "node:fs";
-import { ctx, employee, graph, inbound, OWNER, quiet, reset, rows, seed, sentTo, setRiyadh, signed, workSchedule } from "./wa-harness.mts";
+import { closeOwnerWindow, ctx, employee, graph, heldFor, inbound, OWNER, quiet, reset, rows, seed, sentTo, setRiyadh, signed, workSchedule } from "./wa-harness.mts";
 
 let passed = 0, failed = 0;
 const failures: string[] = [];
@@ -38,7 +38,9 @@ function assert(name: string, cond: unknown, detail = ""): void {
 const load = (f: string) => JSON.parse(readFileSync(new URL(f, import.meta.url), "utf8"));
 const FX = ["./fixtures-odoo-fields-20260924.json", "./fixtures-odoo-fields-20260925-suppliers.json",
   "./fixtures-odoo-fields-20260925-attendance.json", "./fixtures-odoo-fields-20260925-review.json",
-  "./fixtures-odoo-fields-20260925-team.json"].map(load);
+  "./fixtures-odoo-fields-20260925-team.json",
+  // STATUS § 33 — x_wa_message.x_status: held / expired / skipped (the send gateway)
+  "./fixtures-odoo-fields-20260925-gateway.json"].map(load);
 const REAL: Record<string, string[]> = Object.assign({}, ...FX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FX.map((f) => f._selections));
 const rejected: string[] = [];
@@ -176,7 +178,9 @@ console.log("\n[1] Saturday 26/09 — عمر 02:00–12:00, عثمان 06:00–1
 console.log("\n[2] the dawn alerts reach Baraa as text inside the window his 06:00 tap opened the day before");
 {
   // (a) he taps Friday's 06:00 template at 06:03 → the window lasts until Saturday 06:03
+  //     (STATUS § 33: less the 10-minute margin — until 05:53)
   ENV = fresh(`${FRI0} 05:55`);
+  closeOwnerWindow(ENV); // the harness opens it by default; here only his tap opens it
   await tick(`${FRI0} 05:55`);
   await tick(`${FRI0} 06:00`);
   assert("Friday 25/09 06:00: his window template (Friday is a day off for the team, Baraa still gets it)", tpl(OWNER).length === 1 && tpl(OMAR_PHONE).length === 0 && tpl(OTHMAN_PHONE).length === 0);
@@ -196,12 +200,22 @@ console.log("\n[2] the dawn alerts reach Baraa as text inside the window his 06:
   for (const a of ["06:30", "07:00"]) await tick(`${SAT1} ${a}`);
   const morning = sentTo(OWNER).slice(m);
   assert("Saturday 06:30 and 07:00 (عثمان): text as well", morning.length === 2 && morning.every((b) => b.type === "text"), JSON.stringify(morning.map(describe)));
-  // (c) no tap the day before → the same dawn alerts go as the approved template (utak_owner_alert)
+  // (c) no tap the day before → STATUS § 33: the dawn alerts wait for him (the
+  //     MARKETING utak_owner_alert is never used), and his 06:00 tap brings them
   ENV = fresh(`${SAT1} 01:55`);
+  closeOwnerWindow(ENV);
   for (const a of ["01:55", "02:00", "02:30", "03:00"]) await tick(`${SAT1} ${a}`);
   const cold = sentTo(OWNER);
-  assert("without the tap: the two dawn alerts as utak_owner_alert (the template), not as a free text Meta would drop",
-    cold.length === 2 && cold.every((b) => b.type === "template" && b.template?.name === "utak_owner_alert"), JSON.stringify(cold.map(describe)));
+  assert("without the tap: nothing to him at dawn — no utak_owner_alert, no free text Meta would drop",
+    cold.length === 0, JSON.stringify(cold.map(describe)));
+  const waiting = heldFor(ENV, OWNER);
+  assert("…the two dawn alerts are held for him, in order", waiting.length === 2 && String(waiting[0].body?.text?.body).includes("لم يسجّل حضوره") && String(waiting[1].body?.text?.body).includes("سُجّل غائباً"), JSON.stringify(waiting.map((w: any) => w.body?.text?.body)));
+  for (const a of ["05:55", "06:00"]) await tick(`${SAT1} ${a}`);
+  await tap(OWNER, `${SAT1} 06:02`);
+  const after = sentTo(OWNER).filter((b) => b.type === "text").map((b) => String(b.text?.body));
+  assert("his 06:00 tap: the two held alerts first (oldest first), then «✅ تم»",
+    after.length === 3 && after[0].includes("لم يسجّل حضوره") && after[1].includes("سُجّل غائباً") && after[2].startsWith("✅ تم"), JSON.stringify(after));
+  assert("…and his queue is empty", heldFor(ENV, OWNER).length === 0);
   assert("schema gate: nothing rejected", rejected.length === 0, rejected.join(" / "));
 }
 

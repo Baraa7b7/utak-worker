@@ -2,7 +2,7 @@
 // Simulation-mode module.
 //
 // One low-level interception point (metaSendOrSim) that every WhatsApp
-// outbound call funnels through — see fetchMeta() in meta.ts.
+// outbound call funnels through — see sendViaGateway() in wa-gateway.ts.
 //
 // In SIMULATION_MODE the exact JSON body we would have POSTed to Meta is
 // written to the sim_outbound D1 table together with a synthetic wamid,
@@ -77,7 +77,7 @@ export async function setCurrentRunId(env: Env, runId: string): Promise<void> {
 }
 
 // ------------------------------------------------------------
-// Outbound recording (called from meta.ts::fetchMeta)
+// Outbound recording (called from wa-gateway.ts::dispatchToMeta)
 //
 // Two operations, one usable in either sim or pilot mode:
 //   recordOutbound         — write one row to sim_outbound (D1). Throws

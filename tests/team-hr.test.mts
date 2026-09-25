@@ -43,7 +43,9 @@ function assert(name: string, cond: unknown, detail = ""): void {
 const load = (f: string) => JSON.parse(readFileSync(new URL(f, import.meta.url), "utf8"));
 const FX = ["./fixtures-odoo-fields-20260924.json", "./fixtures-odoo-fields-20260925-suppliers.json",
   "./fixtures-odoo-fields-20260925-attendance.json", "./fixtures-odoo-fields-20260925-review.json",
-  "./fixtures-odoo-fields-20260925-team.json"].map(load);
+  "./fixtures-odoo-fields-20260925-team.json",
+  // STATUS § 33 — x_wa_message.x_status: held / expired / skipped (the send gateway)
+  "./fixtures-odoo-fields-20260925-gateway.json"].map(load);
 const REAL: Record<string, string[]> = Object.assign({}, ...FX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FX.map((f) => f._selections));
 const rejected: string[] = [];
@@ -314,10 +316,12 @@ console.log("\n[3] after the shift: the task waits for the next shift, one owner
   setRiyadh(`${SUN} 21:15`);
   await quiet(() => team.aggregateAndDispatchToWarehouse(ENV));
   assert("21:15 purchase list after the shift: no template to عمر, one alert «قائمة الشراء»", tpl(OMAR_PHONE, "utak_purchase_list_v2").length === 0 && ownerSays("مهمة لـعمر المجهلي بعد دوامه: قائمة الشراء").length === 1);
-  // Baraa is outside his 24h window here: every alert must be the approved template (a free text would be dropped by Meta, #131047)
+  // STATUS § 33 — Baraa's window is open (his 06:00 tap): every alert goes as
+  // text, and never as the MARKETING utak_owner_alert (outside his window they
+  // wait for him instead: tests/wa-gateway.test.mts).
   const offAlerts = ownerSays("بعد دوامه");
-  assert("each of the four «بعد دوامه» alerts went as the approved template, none as a free-text fallback",
-    offAlerts.length === 4 && offAlerts.every((b) => b.type === "template" && b.template?.name === "utak_owner_alert"), JSON.stringify(offAlerts.map((b) => b.type)));
+  assert("each of the four «بعد دوامه» alerts went as text inside his window, none as utak_owner_alert",
+    offAlerts.length === 4 && offAlerts.every((b) => b.type === "text"), JSON.stringify(offAlerts.map((b) => b.type)));
   // he writes after the shift
   await say(OMAR_PHONE, `${SUN} 21:30`, "مساء الخير");
   assert("a text after the shift: «دوامك اليوم انتهى …» and the queue stays", texts(OMAR_PHONE).at(-1)?.includes("دوامك اليوم انتهى") && queue(OMAR_PHONE).length > 0, JSON.stringify(texts(OMAR_PHONE).at(-1)));
@@ -335,7 +339,11 @@ console.log("\n[3] after the shift: the task waits for the next shift, one owner
   assert("Monday's tap: the two queued routes, the open purchase list, the unpaid list",
     got.some((b) => b.includes("delivered_2")) && got.some((b) => b.includes("delivered_3")) && got.some((b) => b.includes("purchase_done_")) && got.some((b) => b.includes("INV-88")), got.map((b) => b.slice(0, 60)).join(" | "));
   assert("…queue emptied", queue(OMAR_PHONE).length === 0);
-  assert("no alert repeats on Monday for Sunday's tasks", ownerSays("مهمة لـ").length === 5, String(ownerSays("مهمة لـ").length));
+  // STATUS § 33 — the payment-claim note no longer skips a collector outside
+  // his 24h window (the gateway decides now): خالد, off shift, gets it queued
+  // for his next shift like عمر, with its own «بعد دوامه» alert → 6 on Sunday.
+  assert("…خالد's note waits for his next shift too", queue(KHALID_PHONE).some((q) => String(q.text ?? "").includes("مطعم الوادي")));
+  assert("no alert repeats on Monday for Sunday's tasks", ownerSays("مهمة لـ").length === 6, String(ownerSays("مهمة لـ").length));
 
   // Thursday after the shift → the next shift is Sunday; Friday (day off) the same
   ENV = fresh(`${THU} 16:00`);

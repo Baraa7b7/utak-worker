@@ -32,7 +32,8 @@ import {
   invoiceSaleOrderOnDelivery,
   saleLineDescription,
 } from "./sale-accounting";
-import { sendText, sendButtons } from "./meta";
+import { buttonsContent, sendText, textContent } from "./meta";
+import { gatewayDecision, sendViaGateway, type GwOption } from "./wa-gateway";
 import { sendOwnerAlert, sendTemplateByPurpose, T } from "./templates";
 import {
   BRAND_COLORS,
@@ -266,7 +267,9 @@ export async function createAndDispatchInvoiceForOrder(
     console.warn(`[invoice] collector queue failed — sending now`, (e as Error).message);
   }
   try {
-    const resp = await sendTemplateByPurpose(env, collector.whatsapp, T.COLLECTION_REQUEST,
+    // STATUS § 33 — one gateway request: the template, else the buttons in the
+    // collector's window (held for it otherwise). No second try after a refusal.
+    await sendTemplateByPurpose(env, collector.whatsapp, T.COLLECTION_REQUEST,
       [
         order.customer_name || "",
         order.neighborhood || "-",
@@ -276,10 +279,9 @@ export async function createAndDispatchInvoiceForOrder(
       [
         { index: 0, payload: `collect_cash_${invoiceId}` },
         { index: 1, payload: `collect_transfer_${invoiceId}` },
-      ]);
-    if (!resp || !resp.ok) {
-      await sendButtons(env, collector.whatsapp, body, collectButtons);
-    }
+      ],
+      undefined,
+      { fallback: [buttonsContent(body, collectButtons)] });
     await writeInvoice(env, invoiceId, { x_sent_to_collector_at: nowOdoo() });
   } catch (e) {
     console.warn(`[invoice] failed to send to collector`, (e as Error).message);
@@ -305,35 +307,41 @@ interface CustomerInvoiceSend {
   lines: Array<{ product: string; packaging: string; qty: number; unit: number; line_total: number }>;
 }
 
-/** PDF template → text template → plain text. Throws when all three fail. */
+/**
+ * PDF template → text template → plain text, as ONE gateway request (STATUS
+ * § 33): the first that can go now is sent — a template if approved (UTILITY),
+ * the text inside the customer's window — and nothing is tried after Meta
+ * refuses it. Outside the window with no usable template the text is held for
+ * the customer. Throws when nothing went and nothing is held.
+ */
 async function dispatchInvoiceToCustomer(env: Env, a: CustomerInvoiceSend): Promise<void> {
   if (!a.to) throw new Error("customer has no WhatsApp number");
   // ت5 (2026-09-24): «24 سبتمبر 2026» — Arabic month, Latin digits, no bidi marks.
   const invoiceDate = arabicDate(a.invoiceDateYmd);
-  let resp: Response | null = null;
-  if (a.pdfUrl) {
-    // utak_invoice_pdf_v1 with document header
-    resp = await sendTemplateByPurpose(
-      env,
-      a.to,
-      T.CUSTOMER_INVOICE_PDF,
-      [a.customerName || "", a.invoiceNumber, invoiceDate, String(a.total)],
-      [],
-      { type: "document", link: a.pdfUrl, filename: `${a.invoiceNumber}.pdf` },
-    );
-  }
-  if (!resp || !resp.ok) {
-    // Fallback: old text template
-    // ح1: one line — the multi-line {{3}} was refused by Meta (#132018).
-    const linesFormatted = joinCapped(a.lines.map(p => `${p.product} × ${p.qty} = ${p.line_total} ر.س`)).text;
-    resp = await sendTemplateByPurpose(env, a.to, T.CUSTOMER_INVOICE,
-      [a.customerName || "", a.invoiceNumber, linesFormatted, String(a.total)]);
-  }
-  if (!resp || !resp.ok) {
-    const customerText = buildCustomerInvoiceText(a.invoiceNumber, a.lines, a.subtotal, a.total, a.tax);
-    resp = await sendText(env, a.to, customerText);
-    if (!resp.ok) throw new Error(`invoice WhatsApp failed (HTTP ${resp.status})`);
-  }
+  // ح1: one line — the multi-line {{3}} was refused by Meta (#132018).
+  const linesFormatted = joinCapped(a.lines.map(p => `${p.product} × ${p.qty} = ${p.line_total} ر.س`)).text;
+  const customerText = buildCustomerInvoiceText(a.invoiceNumber, a.lines, a.subtotal, a.total, a.tax);
+  const textTemplate: GwOption = {
+    kind: "template",
+    purpose: T.CUSTOMER_INVOICE,
+    params: [a.customerName || "", a.invoiceNumber, linesFormatted, String(a.total)],
+  };
+  const pdfTemplate: GwOption | null = a.pdfUrl
+    ? {
+        kind: "template",
+        purpose: T.CUSTOMER_INVOICE_PDF,
+        params: [a.customerName || "", a.invoiceNumber, invoiceDate, String(a.total)],
+        header: { type: "document", link: a.pdfUrl, filename: `${a.invoiceNumber}.pdf` },
+      }
+    : null;
+  const options: GwOption[] = [...(pdfTemplate ? [pdfTemplate] : []), textTemplate, textContent(customerText)];
+  const resp = await sendViaGateway(env, {
+    purpose: T.CUSTOMER_INVOICE,
+    to: a.to,
+    content: options[0],
+    fallback: options.slice(1),
+  });
+  if (!resp.ok) throw new Error(`invoice WhatsApp failed (HTTP ${resp.status})`);
 }
 
 /** The order's x_invoice, if one was already issued. */
@@ -597,7 +605,7 @@ export async function recordCollection(
     : null;
   if (customerWa) {
     try {
-      await sendText(env, customerWa, `تم استلام الدفعة ${amount} ر.س، شكراً لك 🙏`);
+      await sendText(env, customerWa, `تم استلام الدفعة ${amount} ر.س، شكراً لك 🙏`, { purpose: "customer_payment_ack" });
     } catch (e) {
       console.warn(`[collection] failed to notify customer`, (e as Error).message);
     }
@@ -654,18 +662,19 @@ export interface CollectionSummaryReport {
   invoices: number;
   total: number;
   /** per collector (last 4 digits): what went out, or why nothing did. */
-  sends: Array<{ to: string; via: "template" | "text" | "none"; reason?: string }>;
+  sends: Array<{ to: string; via: "template" | "text" | "held" | "none"; reason?: string }>;
 }
 
 /**
  * 18:00 Riyadh — the collectors' list of unpaid invoices (simulation invoices
  * excluded, see getUnpaidInvoicesWithCustomer).
  *
- * 2026-09-24 — free text goes out only inside Meta's 24h window. Outside it,
- * Meta accepts the POST and fails it later with #131047: on 09-24 the
- * template failed (#132018) and this fallback then failed (#131047), so the
- * list never arrived. A failed template is recorded and alerted by fetchMeta
- * (ح6); «no template mapped» is alerted here, since nothing else would say so.
+ * 2026-09-24 — on 09-24 the template failed (#132018) and the free-text
+ * fallback then failed too (#131047, outside the 24h window), so the list
+ * never arrived. 2026-09-25 (STATUS § 33) — one gateway request: the approved
+ * template, else the text inside the collector's window, else the text waits
+ * for the collector's next message (and Baraa hears of it once). A refused
+ * template is recorded and alerted by the gateway, and never followed by text.
  */
 export async function sendDailyCollectionSummary(env: Env): Promise<CollectionSummaryReport> {
   const unpaid = await getUnpaidInvoicesWithCustomer(env);
@@ -676,27 +685,31 @@ export async function sendDailyCollectionSummary(env: Env): Promise<CollectionSu
     console.warn(`[collection-cron] no collectors — skip`);
     return report;
   }
-  const { isInside24hWindow } = await import("./wa-inbox");
   const { attendanceHold, holdForTask } = await import("./attendance");
   const tail = (wa: string) => "…" + wa.replace(/\D/g, "").slice(-4);
   // 2026-09-25 (STATUS § 29) — a collector who has not tapped «بدء الدوام»
   // today gets the unpaid list right after the tap (sendCollectorBacklog).
   const HELD = "held until «بدء الدوام»";
+  const outcome = (r: Response): { via: "template" | "text" | "held" | "none"; reason?: string } => {
+    const d = gatewayDecision(r);
+    if (d?.action === "template") return { via: "template" };
+    if (d?.action === "session") return { via: "text" };
+    if (d?.action === "held") return { via: "held", reason: d.reason };
+    if (d?.action === "rejected") return { via: "none", reason: `Meta ${d.code}` };
+    return { via: "none", reason: d && "reason" in d ? d.reason : `HTTP ${r.status}` };
+  };
 
   if (unpaid.length === 0) {
-    // «Nothing today» is not worth a paid template: inside the window only.
+    // «Nothing today» is not worth a paid template: a session text, which
+    // waits for the collector's window until the end of the day.
     for (const c of collectors) {
       try {
         if ((await attendanceHold(env, c.id)).hold) {
           report.sends.push({ to: tail(c.whatsapp), via: "none", reason: HELD });
           continue;
         }
-        if (!(await isInside24hWindow(env, c.id))) {
-          report.sends.push({ to: tail(c.whatsapp), via: "none", reason: "nothing unpaid, outside 24h window" });
-          continue;
-        }
-        const r = await sendText(env, c.whatsapp, NOTHING_TO_COLLECT_TEXT);
-        report.sends.push({ to: tail(c.whatsapp), via: r.ok ? "text" : "none", reason: r.ok ? undefined : `text HTTP ${r.status}` });
+        const r = await sendText(env, c.whatsapp, NOTHING_TO_COLLECT_TEXT, { purpose: "collection_nothing" });
+        report.sends.push({ to: tail(c.whatsapp), ...outcome(r) });
       } catch (e) {
         console.warn(`[collection-cron] send to ${tail(c.whatsapp)} failed`, (e as Error).message);
       }
@@ -714,20 +727,9 @@ export async function sendDailyCollectionSummary(env: Env): Promise<CollectionSu
         report.sends.push({ to: tail(c.whatsapp), via: "none", reason: HELD });
         continue;
       }
-      const resp = await sendTemplateByPurpose(env, c.whatsapp, T.COLLECTION_SUMMARY, s.params);
-      if (resp?.ok) { report.sends.push({ to: tail(c.whatsapp), via: "template" }); continue; }
-      const why = resp ? `template HTTP ${resp.status}` : "no template mapped for collection_summary";
-      if (await isInside24hWindow(env, c.id)) {
-        const r = await sendText(env, c.whatsapp, s.text);
-        report.sends.push({ to: tail(c.whatsapp), via: r.ok ? "text" : "none", reason: why });
-        continue;
-      }
-      console.warn(`[collection-cron] ${why}; ${tail(c.whatsapp)} is outside the 24h window — no free-text fallback`);
-      report.sends.push({ to: tail(c.whatsapp), via: "none", reason: `${why}, outside 24h window` });
-      if (!resp) {
-        await sendOwnerAlert(env,
-          `⚠️ ملخص التحصيل لم يصل إلى ${c.name}: لا قالب مربوط بالغرض collection_summary، والمحصّل خارج نافذة 24 ساعة (${unpaid.length} فاتورة، ${s.grandTotal} ر.س).`);
-      }
+      const resp = await sendTemplateByPurpose(env, c.whatsapp, T.COLLECTION_SUMMARY, s.params, [], undefined,
+        { fallback: [textContent(s.text)] });
+      report.sends.push({ to: tail(c.whatsapp), ...outcome(resp) });
     } catch (e) {
       console.warn(`[collection-cron] send to ${tail(c.whatsapp)} failed`, (e as Error).message);
     }
@@ -744,7 +746,7 @@ export async function sendCollectorBacklog(env: Env, to: string): Promise<number
   const unpaid = await getUnpaidInvoicesWithCustomer(env);
   if (unpaid.length === 0) return 0;
   const s = buildCollectionSummary(unpaid, new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10));
-  const r = await sendText(env, to, s.text);
+  const r = await sendText(env, to, s.text, { purpose: "collection_summary" });
   return r.ok ? 1 : 0;
 }
 

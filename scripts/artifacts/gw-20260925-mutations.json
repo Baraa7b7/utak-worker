@@ -1,0 +1,392 @@
+[
+  {
+    "mutation": "window: a session text goes whatever the window",
+    "files": [
+      "src/wa-gateway.ts"
+    ],
+    "test": "tests/wa-gateway.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 28,
+    "first": [
+      "closed + UTILITY template: the template goes — {\"action\":\"session\"}",
+      "closed + template: no text",
+      "closed, no template: held (202, nothing to Graph) — {\"action\":\"session\"}"
+    ]
+  },
+  {
+    "mutation": "window: closed and no template → skipped instead of held",
+    "files": [
+      "src/wa-gateway.ts"
+    ],
+    "test": "tests/wa-gateway.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 28,
+    "first": [
+      "closed, no template: held (202, nothing to Graph) — {\"action\":\"skipped\",\"reason\":\"الرقم خارج نافذة 24 ساعة\"}",
+      "…one item in the number's queue, with the purpose's expiry (end of the Riyadh day) — []",
+      "…an x_wa_message row «held»"
+    ]
+  },
+  {
+    "mutation": "window: no 10-minute margin",
+    "files": [
+      "src/wa-window.ts"
+    ],
+    "test": "tests/wa-gateway.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "23h55m: inside Meta's 24h but past the margin — held"
+    ]
+  },
+  {
+    "mutation": "window: a message older than 24h (Meta's clock) is written as the last inbound",
+    "files": [
+      "src/wa-window.ts"
+    ],
+    "test": "tests/wa-inbox.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": null,
+    "first": [
+      "… and nothing written for it",
+      "… and nothing written for it"
+    ]
+  },
+  {
+    "mutation": "window: our arrival time instead of Meta's timestamp",
+    "files": [
+      "src/index.ts"
+    ],
+    "test": "tests/wa-gateway.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "late inbound (71h): the window stays closed"
+    ]
+  },
+  {
+    "mutation": "window: the Odoo fallback reads the row's arrival (create_date)",
+    "files": [
+      "src/wa-window.ts",
+      "src/wa-window.ts"
+    ],
+    "test": "tests/wa-inbox.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": null,
+    "first": [
+      "Meta 48h ago, arrived 1h ago → closed (arrival never counts)",
+      "Meta 48h ago, arrived 1h ago → closed (arrival never counts)"
+    ]
+  },
+  {
+    "mutation": "queue: not flushed on the number's inbound",
+    "files": [
+      "src/index.ts"
+    ],
+    "test": "tests/wa-gateway.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 10,
+    "first": [
+      "a button tap opens it and flushes the queue — [\"هذا الزر من رسالة قديمة وما عاد يشتغل 🙏 اكتب لنا طلبك أو استفسارك م",
+      "flush: the two valid ones, oldest first — [\"[]\"]",
+      "flush: before the bot's reply to «مرحبا» — [\"[]\"]"
+    ]
+  },
+  {
+    "mutation": "queue: flushed newest first",
+    "files": [
+      "src/wa-queue.ts"
+    ],
+    "test": "tests/wa-gateway.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "flush: the two valid ones, oldest first — [\"الثانية\",\"الأولى\",\"[]\"]"
+    ]
+  },
+  {
+    "mutation": "queue: an expired item is sent anyway",
+    "files": [
+      "src/wa-gateway.ts"
+    ],
+    "test": "tests/wa-gateway.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 4,
+    "first": [
+      "flush: the two valid ones, oldest first — [\"بوت قديم\",\"الأولى\",\"الثانية\",\"[]\"]",
+      "the expired one (2h bot reply, 08:00) not sent",
+      "…its row marked «expired» with the reason — []"
+    ]
+  },
+  {
+    "mutation": "queue: the same message held twice",
+    "files": [
+      "src/wa-gateway.ts",
+      "src/wa-queue.ts"
+    ],
+    "test": "tests/wa-gateway.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "the same message again: held once (no duplicate in the queue)",
+      "three distinct held (the duplicate held once)"
+    ]
+  },
+  {
+    "mutation": "queue: two racing flushes send twice (no per-item mark)",
+    "files": [
+      "src/wa-gateway.ts"
+    ],
+    "test": "tests/wa-gateway.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "two racing flushes: sent once"
+    ]
+  },
+  {
+    "mutation": "queue: the sweep drops nothing",
+    "files": [
+      "src/wa-gateway.ts"
+    ],
+    "test": "tests/wa-gateway.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "the */5 sweep: the expired item dropped and logged «expired» — {\"numbers\":1,\"expired\":0}"
+    ]
+  },
+  {
+    "mutation": "queue: the held row is not «held»",
+    "files": [
+      "src/wa-gateway.ts"
+    ],
+    "test": "tests/wa-gateway.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 4,
+    "first": [
+      "…an x_wa_message row «held»",
+      "the sent ones: their held rows became «sent» with the wamid (no second row)",
+      "…no alert about alerts (owner is never «important»)"
+    ]
+  },
+  {
+    "mutation": "category: any category for any purpose",
+    "files": [
+      "src/wa-purposes.ts"
+    ],
+    "test": "tests/wa-gateway.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 9,
+    "first": [
+      "MARKETING: not for operational / reply",
+      "unknown / AUTHENTICATION category: never",
+      "operational + MARKETING template: the template is not sent"
+    ]
+  },
+  {
+    "mutation": "category: MARKETING for every purpose (utak_owner_alert back)",
+    "files": [
+      "src/wa-purposes.ts"
+    ],
+    "test": "tests/wa-gateway.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 8,
+    "first": [
+      "MARKETING: not for operational / reply",
+      "operational + MARKETING template: the template is not sent",
+      "…outside the window the text is held instead"
+    ]
+  },
+  {
+    "mutation": "category: MARKETING for owner alerts (team-shifts dawn)",
+    "files": [
+      "src/wa-purposes.ts"
+    ],
+    "test": "tests/team-shifts.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 3,
+    "first": [
+      "without the tap: nothing to him at dawn — no utak_owner_alert, no free text Meta would drop — [\"تنبيه(قالب): ⏰ عمر ا",
+      "…the two dawn alerts are held for him, in order — []",
+      "his 06:00 tap: the two held alerts first (oldest first), then «✅ تم» — [\"✅ تم. تنبيهات يو تاك توصلك هنا نصاً حتى 06:"
+    ]
+  },
+  {
+    "mutation": "opt-out (§ 23) ignored for a MARKETING template",
+    "files": [
+      "src/wa-gateway.ts"
+    ],
+    "test": "tests/wa-gateway.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "opted out («إيقاف», § 23): the marketing template is not sent"
+    ]
+  },
+  {
+    "mutation": "important: Baraa told on every held message",
+    "files": [
+      "src/wa-gateway.ts"
+    ],
+    "test": "tests/wa-gateway.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "a second one, same purpose + number + day: held, no second alert"
+    ]
+  },
+  {
+    "mutation": "131047: the window stays open",
+    "files": [
+      "src/wa-gateway.ts"
+    ],
+    "test": "tests/wa-gateway.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 4,
+    "first": [
+      "…the window is marked closed at once",
+      "the next text to him is held without calling Meta",
+      "refused twice: dropped (attempt cap), the rest waits — no loop — [[\"[]\",1]]"
+    ]
+  },
+  {
+    "mutation": "131047: the message is not re-queued",
+    "files": [
+      "src/wa-gateway.ts"
+    ],
+    "test": "tests/wa-gateway.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 6,
+    "first": [
+      "…the message is back in the queue (attempt 1)",
+      "the next text to him is held without calling Meta",
+      "refused twice: dropped (attempt cap), the rest waits — no loop — [[\"[]\",0]]"
+    ]
+  },
+  {
+    "mutation": "131047: no retry cap (a send loop)",
+    "files": [
+      "src/wa-gateway.ts"
+    ],
+    "test": "tests/wa-gateway.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "refused twice: dropped (attempt cap), the rest waits — no loop — [[\"نص قد يُرفض\",2],[\"نص آخر\",0],[\"[]\",0]]"
+    ]
+  },
+  {
+    "mutation": "131049: the template goes again the same day",
+    "files": [
+      "src/wa-gateway.ts"
+    ],
+    "test": "tests/wa-gateway.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "…the same template to the same number the same day: not sent",
+      "…the next day: sent again"
+    ]
+  },
+  {
+    "mutation": "other refusal: the purpose goes again within 24h",
+    "files": [
+      "src/wa-gateway.ts"
+    ],
+    "test": "tests/wa-gateway.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "…the same purpose to the same number within 24h: blocked (409), Meta not called"
+    ]
+  },
+  {
+    "mutation": "other refusal: bot replies blocked for 24h too",
+    "files": [
+      "src/wa-gateway.ts"
+    ],
+    "test": "tests/wa-gateway.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "a refused bot reply (131026) does not block the next reply"
+    ]
+  },
+  {
+    "mutation": "a status delivered twice is handled twice",
+    "files": [
+      "src/wa-gateway.ts"
+    ],
+    "test": "tests/wa-gateway.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "…no second «⚠️ ما انرسلت» line and no second count on /health — 1→2 1"
+    ]
+  },
+  {
+    "mutation": "allowlist skipped (a refused number would be held)",
+    "files": [
+      "src/wa-gateway.ts"
+    ],
+    "test": "tests/wa-gateway.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "not allowed: refused 403 before any window decision",
+      "…never held (no queue, no row)"
+    ]
+  },
+  {
+    "mutation": "unknown purpose accepted",
+    "files": [
+      "src/wa-gateway.ts"
+    ],
+    "test": "tests/wa-gateway.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": null,
+    "first": []
+  },
+  {
+    "mutation": "a direct Graph POST outside the gateway (static check)",
+    "files": [
+      "src/meta.ts"
+    ],
+    "test": "tests/wa-gateway.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "only src/wa-gateway.ts builds the Graph /messages URL — meta.ts",
+      "other Graph calls are reads or the media upload only (inbox media GET, template list GET, /media POST) — meta.ts,wa-"
+    ]
+  }
+]

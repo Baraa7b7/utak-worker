@@ -13,10 +13,10 @@ import type { Env } from "./config";
 import {
   evaluateInboxReplyMessage,
   echoFailure,
-  isInside24hWindow,
   type ReplyGate,
 } from "./wa-inbox";
 import { sendText } from "./meta";
+import { gatewayDecision } from "./wa-gateway";
 import { logWaMessage } from "./wa-message-send";
 
 interface ReplyResult {
@@ -25,7 +25,7 @@ interface ReplyResult {
     | "sent"
     | "skipped"        // not our concern (bot, echo, non-comment, wrong model)
     | "attachment_only"// no text body, only attachments (unsupported for now)
-    | "window_closed"
+    | "held"           // outside the 24h window: waits for the contact's next message (STATUS § 33)
     | "meta_failed"
     | "no_phone";
   skip?: string;
@@ -52,18 +52,6 @@ export async function handleInboxReplyHook(
 
   const bodyText = (body ?? "").trim();
 
-  // 24h window
-  const inWindow = await isInside24hWindow(env, partnerId!);
-  if (!inWindow) {
-    await echoFailure(
-      env,
-      partnerId!,
-      partnerName ?? "",
-      "انتهت نافذة 24 ساعة. أرسل قالب من بطاقة الجهة أول.",
-    );
-    return { ok: false, action: "window_closed" };
-  }
-
   // Attachments from the Discuss composer are not sent as media yet — send
   // the text portion (if any) and note the missing attachments.
   if (attachmentCount > 0 && bodyText) {
@@ -89,11 +77,16 @@ export async function handleInboxReplyHook(
     return { ok: true, action: "skipped", skip: "empty body" };
   }
 
-  // Send via Meta. sendText → fetchMeta already handles the owner-guard
-  // and the SIM_ALLOWLIST + x_wa_allowed gate, so a rejected recipient
-  // shows up as a non-ok response here.
+  // Through the single gateway (STATUS § 33): the owner guard, the
+  // SIM_ALLOWLIST + x_wa_allowed gate, and the 24h window. Outside the window
+  // the reply is held for the contact (a «⏳ محفوظة» line in this channel and
+  // an x_wa_message row «held») and goes at their next message — it used to
+  // be refused here with «انتهت نافذة 24 ساعة».
   const to = partnerPhone.startsWith("+") ? partnerPhone : `+${partnerPhone.replace(/[^0-9]/g, "")}`;
   const resp = await sendText(env, to, bodyText, { purpose: "inbox_reply", ctx });
+  if (gatewayDecision(resp)?.action === "held") {
+    return { ok: true, action: "held" };
+  }
   if (!resp.ok) {
     let errText = "";
     try { errText = (await resp.clone().text()).slice(0, 200); } catch { /* ignore */ }

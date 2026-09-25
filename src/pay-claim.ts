@@ -6,10 +6,10 @@
 // image got the ح5 «وصلتنا صورة» reply; nobody who collects money heard of
 // it. Now, within PAY_CLAIM_WINDOW_H of a reminder that reached Meta:
 //   • the customer gets an honest «وصلنا، المحصّل بيتأكد» reply;
-//   • the owner gets an alert (template-backed, always delivered);
-//   • each collector who is inside Meta's 24h window gets the same note as
-//     text (outside it free text fails with #131047, and the owner alert
-//     already carries it).
+//   • the owner gets an alert;
+//   • each collector gets the same note as text — inside Meta's 24h window at
+//     once, outside it held for the collector's next message (STATUS § 33:
+//     the gateway decides; free text outside the window failed with #131047).
 // Alerts are throttled per customer (PAY_CLAIM_ALERT_EVERY_H) so «حولت» then
 // a receipt then «تمام» does not ring three times.
 // ============================================================
@@ -84,12 +84,14 @@ export async function notifyPaymentClaim(
   let collectors = 0;
   try {
     const { getTeamMembersByRole } = await import("./odoo");
-    const { isInside24hWindow } = await import("./wa-inbox");
     const { sendText } = await import("./meta");
+    const { gatewayDecision } = await import("./wa-gateway");
     const { holdForTask } = await import("./attendance");
     const { enqueueTeamItems } = await import("./team-queue");
     for (const c of await getTeamMembersByRole(env, "collector")) {
-      if (!c.x_whatsapp_number || !(await isInside24hWindow(env, c.id))) continue;
+      // STATUS § 33 — the gateway decides: text inside the collector's window,
+      // held for it otherwise (no template for this note).
+      if (!c.x_whatsapp_number) continue;
       // 2026-09-25 (STATUS § 31) — a collector on attendance before their tap,
       // after their shift, or off today: the note waits for their next tap.
       const att = await holdForTask(env, c.id, { kind: "pay_claim", label: `تحقق من تحويل ${customer.name}` });
@@ -97,8 +99,8 @@ export async function notifyPaymentClaim(
         await enqueueTeamItems(env, c.x_whatsapp_number, [{ text: note }], att.queueTtl);
         continue;
       }
-      const r = await sendText(env, c.x_whatsapp_number, note);
-      if (r.ok) collectors++;
+      const r = await sendText(env, c.x_whatsapp_number, note, { purpose: "pay_claim_notice" });
+      if (gatewayDecision(r)?.action === "session") collectors++;
     }
   } catch (e) {
     console.warn("[pay-claim] collector notice failed", (e as Error)?.message);

@@ -39,7 +39,8 @@ import {
   updateSupplierLog,
   writePartner,
 } from "./odoo";
-import { sendTemplate, sendText } from "./meta";
+import { textContent } from "./meta";
+import { gatewayDecision, sendViaGateway } from "./wa-gateway";
 import { cutoffLabel, sendOwnerAlert, sendTemplateByPurpose, supplierAskParams, SUPPLIER_ASK_LEGACY } from "./templates";
 import { extractSupplierPrices } from "./claude";
 import { odooUtcToRiyadhHHMM, riyadhDateKey, riyadhHHMM, riyadhMinutes } from "./hours";
@@ -194,16 +195,14 @@ export async function askAllSuppliersForPrices(env: Env): Promise<void> {
         (n) => `وغيرها (${n})`,
       ).text;
 
-      const res = await sendTemplate(
-        env,
-        s.x_whatsapp_number,
-        tmpl.x_meta_template_id,
-        tmpl.x_language || "ar",
-        supplierAskParams(tmpl.x_meta_template_id, supplierName, productList),
-        // 2026-09-23 — purpose threads through to the echo so the single
-        // x_wa_message row fetchMeta writes is labelled supplier_ask.
-        { purpose: TMPL_SUPPLIER_ASK },
-      );
+      // STATUS § 33 — the resolved row goes to the gateway, which sends it only
+      // if Meta approved it as UTILITY (the legacy utak_supplier_daily_ask is
+      // MARKETING and is never used for this operational ask).
+      const res = await sendViaGateway(env, {
+        purpose: TMPL_SUPPLIER_ASK,
+        to: s.x_whatsapp_number,
+        content: { kind: "template", row: tmpl, params: supplierAskParams(tmpl.x_meta_template_id, supplierName, productList) },
+      });
       if (await isSkippedDuplicate(res)) {
         // Same job already asked this supplier today — not a failure and
         // not a new ask, so no log row.
@@ -224,7 +223,7 @@ export async function askAllSuppliersForPrices(env: Env): Promise<void> {
       sent++;
       console.log(`[cron 02:00] asked supplier ${s.id} (${s.name}) log=${logId}`);
       // 2026-09-23 — the manual logWaMessage that used to follow here wrote
-      // a second x_wa_message row for the same send: fetchMeta's echo
+      // a second x_wa_message row for the same send: the gateway's echo
       // already logs it (with the wamid). Removed; one row per send.
     } catch (e) {
       failed++;
@@ -390,18 +389,22 @@ export async function handleSupplierReply(
   // Approved-template confirmation, if available. 2026-09-24 —
   // utak_supplier_confirm_v1 is «شكراً {{1}} … لـ {{2}} صنف»: two variables.
   // 2026-09-25 (م7) — its three buttons now carry payloads (supplierButtonAction).
+  const thanks = `تمام، استلمنا ${created} صنف بأسعار اليوم. الله يعطيك العافية 🌿`;
   if (supplier.x_whatsapp_number) {
+    // STATUS § 33 — one gateway request: the template with its buttons, else
+    // the thank-you text (the supplier just wrote, so the window is open). No
+    // second message after Meta refuses the first.
     try {
-      const res = await sendTemplateByPurpose(env, supplier.x_whatsapp_number, TMPL_SUPPLIER_CONFIRM,
-        [supplier.name || "", String(created)], SUPPLIER_CONFIRM_BUTTONS);
-      if (res?.ok) return ""; // template already delivered — no extra text
-      if (res) console.warn("[supplier reply] confirm template failed", res.status);
+      await sendTemplateByPurpose(env, supplier.x_whatsapp_number, TMPL_SUPPLIER_CONFIRM,
+        [supplier.name || "", String(created)], SUPPLIER_CONFIRM_BUTTONS, undefined,
+        { fallback: [textContent(thanks)] });
+      return "";
     } catch (e) {
-      console.warn("[supplier reply] confirm template exception", (e as Error)?.message);
+      console.warn("[supplier reply] confirm send exception", (e as Error)?.message);
     }
   }
 
-  return `تمام، استلمنا ${created} صنف بأسعار اليوم. الله يعطيك العافية 🌿`;
+  return thanks;
 }
 
 // ============================================================
@@ -525,14 +528,14 @@ export async function nudgeLateSuppliers(env: Env): Promise<{ nudged: number; sk
     await env.MSG_DEDUP.put(nudgeKey(l.id), riyadhHHMM(), { expirationTtl: 2 * 24 * 3600 });
     try {
       const name = String(p.name || "").replace(/\s+/g, " ").trim();
-      const r = await sendTemplateByPurpose(env, p.x_whatsapp_number, TMPL_SUPPLIER_PRICE_NUDGE, [name, needBy]);
-      if (r) { if (r.ok) nudged++; else skipped++; continue; }
-      const { isInside24hWindow } = await import("./wa-inbox");
-      if (await isInside24hWindow(env, p.id)) {
-        const t = await sendText(env, p.x_whatsapp_number, `تذكير من يو تاك: ما وصلتنا أسعارك اليوم للحين، نحتاجها قبل الساعة ${needBy} لو سمحت.`);
-        if (t.ok) nudged++; else skipped++;
-      } else {
-        console.warn(`[supplier nudge] no ${TMPL_SUPPLIER_PRICE_NUDGE} template and ${p.name} is outside the 24h window — no reminder`);
+      // STATUS § 33 — the approved template, else the same reminder as text
+      // inside the supplier's window (held for it otherwise, until the day ends).
+      const r = await sendTemplateByPurpose(env, p.x_whatsapp_number, TMPL_SUPPLIER_PRICE_NUDGE, [name, needBy], [], undefined,
+        { fallback: [textContent(`تذكير من يو تاك: ما وصلتنا أسعارك اليوم للحين، نحتاجها قبل الساعة ${needBy} لو سمحت.`)] });
+      const d = gatewayDecision(r);
+      if (d?.action === "template" || d?.action === "session") nudged++;
+      else {
+        if (d?.action === "held") console.warn(`[supplier nudge] ${p.name}: held until they write — ${d.reason}`);
         skipped++;
       }
     } catch (e) {

@@ -16,7 +16,7 @@
 
 import { readFileSync } from "node:fs";
 import {
-  COLL, CUST, CUST2, ctx, inbound, ownerAlerts, quiet, reset, rows, seed, sentTo, setFail, setRiyadh, signed, table,
+  COLL, CUST, CUST2, OWNER, ctx, inbound, ownerAlerts, quiet, reset, rows, seed, sentTo, setFail, setRiyadh, signed, table,
 } from "./wa-harness.mts";
 
 const CUST_PHONE = "966500000501", CUST2_PHONE = "966500000502", COLL_PHONE = "966500000602";
@@ -33,8 +33,10 @@ const FIXTURE = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260924
 // 2026-09-25 (STATUS § 30) — the tenant now has the review fields on res.partner
 // (x_contact_class …, read by the outreach tasks): the later fields_get joins.
 const F_REVIEW = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260925-review.json", import.meta.url), "utf8"));
-const REAL: Record<string, string[]> = { ...FIXTURE, ...F_REVIEW };
-const SELECTIONS: Record<string, string[]> = { ...FIXTURE._selections, ...F_REVIEW._selections };
+// STATUS § 33 — x_wa_message.x_status: held / expired / skipped (the send gateway).
+const F_GW = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260925-gateway.json", import.meta.url), "utf8"));
+const REAL: Record<string, string[]> = { ...FIXTURE, ...F_REVIEW, ...F_GW };
+const SELECTIONS: Record<string, string[]> = { ...FIXTURE._selections, ...F_REVIEW._selections, ...F_GW._selections };
 let optoutFieldExists = true;
 const rejected: string[] = [];
 function known(model: string, name: string): boolean {
@@ -97,6 +99,8 @@ const EXTRA_TPL: Array<[string, string, number, string]> = [
 function fresh(riyadh: string): any {
   const env = reset(); clearTemplateCache(); setRiyadh(riyadh);
   env.MSG_DEDUP = new TtlKV();
+  // STATUS § 33 — Baraa's 24h window open (his daily 06:00 tap): alerts as text.
+  env.MSG_DEDUP.store.set(`wa_win:v1:${OWNER}`, { v: JSON.stringify({ in: Date.UTC(2100, 0, 1) }), exp: 0 });
   EXTRA_TPL.forEach(([purpose, name, n, cat], i) => seed("x_whatsapp_template", {
     id: 950 + i, x_purpose: purpose, x_meta_template_id: name, x_language: "ar", x_meta_status: "APPROVED", x_param_count: n, x_category: cat,
   }));
@@ -178,6 +182,10 @@ console.log(`\n[م2] cap: every ${PAY_REMIND_EVERY_DAYS} days, ${PAY_REMIND_MAX}
   setFail({ utak_v2_pay_remind: 131026 });
   await quiet(() => sendPaymentReminders(env));
   setFail({});
+  // STATUS § 33 — Meta refused it: no automatic resend of this purpose to this number for 24h.
+  await quiet(() => sendPaymentReminders(env));
+  assert("a re-run the same day does not resend (24h after a refusal)", tpl(CUST_PHONE, "utak_v2_pay_remind").length === 1);
+  setRiyadh("2026-09-25 08:00");
   await quiet(() => sendPaymentReminders(env));
   assert("a failed send does not use up a slot (retried next run)", tpl(CUST_PHONE, "utak_v2_pay_remind").length === 2);
   assert("… and it is the success that arms the «حولت» window", (await readPayRemindSent(env, CUST))?.amount === 100);

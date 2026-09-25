@@ -1,0 +1,90 @@
+{
+  "at": "2026-09-25T13:51:13.206Z",
+  "field": {
+    "id": 20129,
+    "name": "x_status",
+    "ttype": "selection",
+    "state": "manual",
+    "field_description": "الحالة"
+  },
+  "before": [
+    {
+      "id": 3838,
+      "value": "draft",
+      "name": "مسودة",
+      "sequence": 0
+    },
+    {
+      "id": 3836,
+      "value": "queued",
+      "name": "بالطابور",
+      "sequence": 1
+    },
+    {
+      "id": 3842,
+      "value": "sending",
+      "name": "قيد الإرسال",
+      "sequence": 2
+    },
+    {
+      "id": 3840,
+      "value": "sent",
+      "name": "انرسلت",
+      "sequence": 3
+    },
+    {
+      "id": 3837,
+      "value": "delivered",
+      "name": "تسلّمت",
+      "sequence": 4
+    },
+    {
+      "id": 3834,
+      "value": "read",
+      "name": "مقروءة",
+      "sequence": 5
+    },
+    {
+      "id": 3839,
+      "value": "failed",
+      "name": "فشل",
+      "sequence": 6
+    },
+    {
+      "id": 3841,
+      "value": "received",
+      "name": "واردة",
+      "sequence": 7
+    },
+    {
+      "id": 3835,
+      "value": "dry_ok",
+      "name": "dry-run ناجحة",
+      "sequence": 8
+    }
+  ],
+  "automations": [
+    {
+      "id": 7,
+      "name": "wa_message.on_queued",
+      "active": true,
+      "trigger": "on_create_or_write",
+      "filter_domain": "[[\"x_status\", \"=\", \"queued\"]]",
+      "filter_pre_domain": false
+    }
+  ],
+  "created": [
+    {
+      "id": 4040,
+      "value": "held"
+    },
+    {
+      "id": 4041,
+      "value": "expired"
+    },
+    {
+      "id": 4042,
+      "value": "skipped"
+    }
+  ]
+}

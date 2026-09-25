@@ -12,7 +12,7 @@
 
 import { readFileSync } from "node:fs";
 import {
-  COLL, CUST, CUST_PHONE, WH, ctx, graph, odooLog, order, partnerOf, quiet, reset, rows, seed, setRiyadh, table,
+  COLL, CUST, CUST_PHONE, WH, ctx, graph, odooLog, openWindow, order, partnerOf, quiet, reset, rows, seed, setRiyadh, table,
 } from "./wa-harness.mts";
 
 let passed = 0, failed = 0;
@@ -182,21 +182,24 @@ const simEnv = () => {
 };
 {
   const env = simEnv();
+  // STATUS § 33 — a session text needs the number's 24h window (the gateway
+  // holds it otherwise): each number wrote a minute ago.
+  for (const num of Object.keys(TEAM)) openWindow(env, num);
   for (const [num, who] of Object.entries(TEAM)) {
     graph.length = 0;
-    const r = await quiet(() => sendText(env, num, "اختبار", { purpose: who === "براء" ? "owner_alert" : "team" }));
+    const r = await quiet(() => sendText(env, num, "اختبار", { purpose: who === "براء" ? "owner_alert" : "team_task" }));
     assert(`team ${who} (…${num.slice(-4)}): sent`, r.ok && graph.length === 1, String(r.status));
   }
   graph.length = 0;
-  const r = await quiet(() => sendText(env, "+" + CUST_PHONE, "اختبار", { purpose: "customer_reply" }));
+  const r = await quiet(() => sendText(env, "+" + CUST_PHONE, "اختبار", { purpose: "bot_reply" }));
   assert("customer (partner x_wa_allowed unset): blocked 403 AllowlistBlocked, nothing to Graph", r.status === 403 && graph.length === 0 && (await r.text()).includes("AllowlistBlocked"));
   table("res.partner").get(CUST)!.x_wa_allowed = false;
   await env.MSG_DEDUP.delete("wa_allowed:+" + CUST_PHONE);
-  const r2 = await quiet(() => sendText(env, "+" + CUST_PHONE, "اختبار", { purpose: "customer_reply" }));
+  const r2 = await quiet(() => sendText(env, "+" + CUST_PHONE, "اختبار", { purpose: "bot_reply" }));
   assert("customer with x_wa_allowed=false: blocked", r2.status === 403 && graph.length === 0);
   const old = { ...env, SIM_ALLOWLIST: "+966505154962,+966536251307,+966571777704" };
-  const r3 = await quiet(() => sendText(old, "+966536251307", "اختبار", { purpose: "customer_reply" }));
-  const r4 = await quiet(() => sendText(env, "+966536251307", "اختبار", { purpose: "customer_reply" }));
+  const r3 = await quiet(() => sendText(old, "+966536251307", "اختبار", { purpose: "bot_reply" }));
+  const r4 = await quiet(() => sendText(env, "+966536251307", "اختبار", { purpose: "bot_reply" }));
   assert("removed entry +966536251307: allowed by the old list, blocked by the new", r3.ok && r4.status === 403);
 }
 {
@@ -204,21 +207,24 @@ const simEnv = () => {
   graph.length = 0;
   const wa = seed("x_wa_message", { x_status: "queued", x_partner_id: CUST, x_kind: "text", x_body: "يدوي", x_manual: true, x_dry_run: false });
   const res = await quiet(() => handleWaMessageWebhook(env, wa, ctx));
-  assert("x_manual from Odoo to a customer: still blocked in fetchMeta (no Graph)", graph.length === 0 && table("x_wa_message").get(wa)!.x_status === "failed", JSON.stringify(res));
+  assert("x_manual from Odoo to a customer: still blocked by the send gateway (no Graph)", graph.length === 0 && table("x_wa_message").get(wa)!.x_status === "failed", JSON.stringify(res));
 }
 {
-  // The one Graph POST outside fetchMeta: signature-failure alert fallback.
+  // The signature-failure alert: its direct Graph fallback is gone (STATUS
+  // § 33) — it goes through the gateway, allowlist first, like any send.
   const env = simEnv();
   env.OWNER_WHATSAPP = "+966500000777"; // an owner number the list does not carry
   graph.length = 0;
   await quiet(() => handleSignatureFailure(env, { rawBodyLength: 10, signatureHeader: "sha256=abc" }));
   assert("sig-fail direct fallback: owner outside SIM_ALLOWLIST on sim → no Graph POST", graph.length === 0, String(graph.length));
   const env2 = simEnv();
+  openWindow(env2, env2.OWNER_WHATSAPP); // STATUS § 33 — inside his window: text
   graph.length = 0;
   await quiet(() => handleSignatureFailure(env2, { rawBodyLength: 10, signatureHeader: "sha256=abc" }));
   assert("sig-fail alert to the real owner (in the list): one send", graph.length === 1, String(graph.length));
   const prod: any = { ...simEnv(), PILOT_MODE: "false", SIM_ALLOWLIST: "", OWNER_WHATSAPP: "+966500000777" };
   delete prod.PILOT_MODE;
+  openWindow(prod, "966500000777");
   graph.length = 0;
   await quiet(() => handleSignatureFailure(prod, { rawBodyLength: 10, signatureHeader: "sha256=abc" }));
   assert("prod (no test mode) unchanged: alert still sent", graph.length === 1, String(graph.length));

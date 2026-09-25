@@ -49,6 +49,7 @@ import { claimButton, releaseButton } from "./button-lock";
 import { odooUtcToRiyadhHHMM, riyadhDateKey, riyadhDayMinuteMs, riyadhHHMM, toOdooUtc } from "./hours";
 import { flushTeamQueue, TEAM_QUEUE_TTL } from "./team-queue";
 import { sendText } from "./meta";
+import { gatewayDecision } from "./wa-gateway";
 import {
   dayPlan, loadRoster, memberByPartner, nextShiftStart,
   type DayPlan, type Roster, type RosterMember,
@@ -60,7 +61,7 @@ export const LATE_AFTER_MIN = 15;
 export const REMIND_AFTER_MIN = 30;
 export const ABSENT_AFTER_MIN = 60;
 export const OWNER_WINDOW_DEFAULT = "06:00";
-/** fetchMeta's owner guard lets this purpose reach OWNER_WHATSAPP (the window-opening template only). */
+/** The send gateway's owner guard lets this purpose reach OWNER_WHATSAPP (the window-opening template only). */
 export const OWNER_WINDOW_PURPOSE = "owner_window";
 const OWNER_TEMPLATE_NAME = "براء";
 const CLAIM_TTL = 2 * 24 * 60 * 60;
@@ -228,7 +229,7 @@ async function sendStart(env: Env, m: RosterMember, day: string, shiftMs: number
     throw e;
   }
   const r = await shiftTemplate(env, "shift_start", m.whatsapp, m.name);
-  if (!r) return "no_template";
+  if (gatewayDecision(r)?.action === "skipped") return "no_template";
   if (!r.ok) return `start_failed:${r.status}`;
   await writeRow(env, rowId, { x_sent_at: toOdooUtc(nowMs) });
   return "start_sent";
@@ -266,7 +267,7 @@ async function ownerWindowStep(env: Env, day: string, nowMs: number, windowMinut
   if (!claim.claimed) return "sent_before";
   const r = await sendTemplateByPurpose(withAutoSendJob(env, OWNER_WINDOW_PURPOSE), owner, T.TEAM_SHIFT_START,
     [OWNER_TEMPLATE_NAME], [{ index: 0, payload: SHIFT_START_PAYLOAD }], undefined, { sendPurpose: OWNER_WINDOW_PURPOSE });
-  if (!r) return "no_template";
+  if (gatewayDecision(r)?.action === "skipped") return "no_template";
   return r.ok ? "sent" : `failed:${r.status}`;
 }
 
@@ -439,7 +440,7 @@ export async function deliverTasksOnTap(env: Env, member: { x_role?: string; x_r
     const { sendCollectorBacklog } = await import("./invoice");
     n += await sendCollectorBacklog(env, to).catch(() => 0);
   }
-  if (n === 0) await sendText(env, to, NO_TASKS_TEXT);
+  if (n === 0) await sendText(env, to, NO_TASKS_TEXT, { purpose: "shift_ack" });
   return n;
 }
 

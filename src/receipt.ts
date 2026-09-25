@@ -355,7 +355,7 @@ export async function createAndDispatchReceiptForRecord(
         ``,
         `شكراً لتعاملكم مع UTAK 🌿`,
       ].join("\n");
-      const resp = await sendText(env, customerPhone, body);
+      const resp = await sendText(env, customerPhone, body, { purpose: "customer_receipt" });
       if (resp?.ok) {
         try {
           const j = (await resp.json()) as { messages?: Array<{ id?: string }> };

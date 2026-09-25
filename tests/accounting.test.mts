@@ -441,6 +441,12 @@ async function testPaymentGuardFailureCancels(): Promise<void> {
   reset();
   responder = paymentResponder({ debitAccount: 70 }); // income on the debit side
   const env = makeEnv({ ACCOUNTING_SYNC: "true" });
+  // STATUS § 33 — the alert goes through the send gateway: text inside
+  // Baraa's 24h window (opened here by his message an hour ago).
+  const kv = new Map<string, string>();
+  env.MSG_DEDUP = { get: async (k: string) => kv.get(k) ?? null, put: async (k: string, v: string) => { kv.set(k, v); }, delete: async (k: string) => { kv.delete(k); } };
+  const { noteInbound } = await import("../src/wa-window.ts");
+  await noteInbound(env, "+966505154962", Date.now() - 3600_000);
   let threw = false;
   let r: number | null = -1;
   try { r = await syncPaymentToAccounting(env, PAY_ARGS); } catch { threw = true; }
@@ -450,8 +456,8 @@ async function testPaymentGuardFailureCancels(): Promise<void> {
   assert("x_payment NOT linked", !captured.some((c) => c.url.endsWith("/x_payment/write")));
   const alert = captured.find((c) => c.url.includes("graph.facebook.com"));
   const alertText = JSON.stringify(alert?.body ?? "");
-  assert("owner alert sent via owner_alert template", !!captured.find((c) =>
-    c.url.endsWith("/x_whatsapp_template/search_read") && JSON.stringify(c.body).includes("owner_alert")));
+  assert("owner alert sent as text inside his window (no MARKETING template)",
+    alert?.body?.type === "text" && !captured.some((c) => JSON.stringify(c.body ?? "").includes("utak_owner_alert")));
   assert("alert names the invoice number", alertText.includes("UTAK-INV-TEST-GUARD"), alertText.slice(0, 200));
   assert("alert names the reason (income)", alertText.includes("income"), alertText.slice(0, 200));
 }

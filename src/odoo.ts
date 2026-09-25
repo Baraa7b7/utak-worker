@@ -273,7 +273,7 @@ async function callOnce<T>(
   // "Test mode" = SIMULATION_MODE OR PILOT_MODE. Both worlds create rows
   // that /sim/purge must be able to clean up afterwards; only the outbound
   // WhatsApp behavior differs (captured vs really-sent), handled in
-  // src/meta.ts::fetchMeta.
+  // src/wa-gateway.ts (sendViaGateway).
   //
   // Odoo JSON-2 create uses either `vals_list: [{...}, ...]` (batch) or
   // `values: {...}` (single). We patch whichever form is present.
@@ -367,7 +367,7 @@ export async function findSupplierByWhatsApp(env: Env, e164: string): Promise<Od
 }
 
 // item4 (2026-09-17) — Per-partner WhatsApp allow-flag lookup with a short
-// KV cache so fetchMeta doesn't re-hit Odoo on every send.
+// KV cache so the send gateway doesn't re-hit Odoo on every send.
 //
 // isRecipientAllowed (config.ts) reads only SIM_ALLOWLIST prefixes; item4
 // broadens the gate with an Odoo-backed toggle Baraa can flip from the

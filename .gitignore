@@ -27,3 +27,8 @@ scripts/artifacts/*signature*.png
 
 # Logo previews (2026-09-24)
 scripts/artifacts/brand-*.png
+
+# 2026-09-25 (STATUS § 33) — raw read-only snapshot of the send log: customers'
+# message texts. Regenerate with scripts/gw-20260925-scan.mjs; the committed
+# analysis is scripts/artifacts/gw-20260925-analysis.{md,json}.
+scripts/artifacts/gw-20260925-scan.json

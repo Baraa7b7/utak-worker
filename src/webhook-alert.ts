@@ -13,21 +13,19 @@
 //   • The 401 response is NEVER blocked on this module. The caller schedules
 //     handleSignatureFailure via ctx.waitUntil so the bad-signature response
 //     returns immediately, and any thrown error stays inside this file.
-//   • Alerts route through sendText with purpose="owner_alert", the one
-//     purpose the owner-guard in meta.ts permits toward OWNER_WHATSAPP. If
-//     the guard ever changes and blocks that purpose (a 403
-//     OwnerGuardBlocked / AllowlistBlocked from fetchMeta), we retry once
-//     through a direct Graph POST that skips fetchMeta entirely — the
-//     bypass is scoped to this alert path only.
-//   • Meta's own errors (24-hour re-engagement window closed, etc.) are
-//     logged and swallowed — we already recorded the failure in KV, so the
-//     operator picks it up via /health.
+//   • Alerts go through sendOwnerAlert, i.e. the single send gateway
+//     (src/wa-gateway.ts, STATUS § 33): text inside Baraa's 24h window, held
+//     for his next message or tap outside it. The direct Graph POST that used
+//     to bypass fetchMeta when its guard refused (§ 27) is gone: nothing sends
+//     to Meta outside the gateway.
+//   • Meta's own errors are logged by the gateway — we already recorded the
+//     failure in KV, so the operator picks it up via /health.
 //   • Secrets never appear in logs. We print body length, whether the
 //     header was present, and the first 8 characters of the signature the
 //     caller sent — nothing more.
 
 import type { Env } from "./config";
-import { isRecipientAllowed, isTestMode, runtimeMode } from "./config";
+import { runtimeMode } from "./config";
 import { riyadhDateKey } from "./hours";
 
 const SIG_FAIL_KEY_PREFIX = "wa_sig_fail:";
@@ -164,83 +162,11 @@ async function deliverOwnerAlert(env: Env, text: string): Promise<void> {
     console.warn("[wa-sig-fail] OWNER_WHATSAPP unset — skipping alert");
     return;
   }
-
-  // Primary path: through fetchMeta with the owner_alert purpose the
-  // owner-guard already permits. In sim mode this yields a synthetic 200 +
-  // fake wamid and the alert is captured in D1 like any other outbound;
-  // that is fine — Baraa reads sim traffic in the Discuss mirror too.
-  const { sendText } = await import("./meta");
-  const resp = await sendText(env, owner, text, { purpose: "owner_alert" });
-  if (resp.ok) return;
-
-  let bodyText = "";
-  try {
-    bodyText = await resp.clone().text();
-  } catch {
-    /* ignore */
-  }
-
-  const guardBlocked =
-    resp.status === 403 &&
-    (bodyText.includes("OwnerGuardBlocked") ||
-      bodyText.includes("AllowlistBlocked"));
-
-  if (guardBlocked) {
-    console.warn(
-      `[wa-sig-fail] owner-guard blocked alert (status=${resp.status}) — using direct bypass`,
-    );
-    await sendOwnerDirect(env, owner, text);
-    return;
-  }
-
-  // Meta itself rejected the send (24-hour window closed, template needed,
-  // etc.). The KV counter has already been incremented, so the operator
-  // still has a trail via /health. Log and let it go — never throw.
-  console.warn(
-    `[wa-sig-fail] alert send blocked by Meta status=${resp.status} body=${bodyText.slice(0, 200)}`,
-  );
-}
-
-async function sendOwnerDirect(env: Env, owner: string, text: string): Promise<void> {
-  // 2026-09-25 (STATUS § 27) — the one POST to Graph outside fetchMeta. In
-  // sim / pilot it still honours SIM_ALLOWLIST, so no send on a test worker
-  // skips the list.
-  if (isTestMode(env) && !isRecipientAllowed(env, owner)) {
-    console.warn("[wa-sig-fail] direct alert skipped — owner not in SIM_ALLOWLIST");
-    return;
-  }
-  try {
-    const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/${env.META_PHONE_NUMBER_ID}/messages`;
-    const to = owner.replace(/^\+/, "");
-    const resp = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.META_ACCESS_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to,
-        type: "text",
-        text: { body: text },
-      }),
-    });
-    if (!resp.ok) {
-      let body = "";
-      try {
-        body = await resp.text();
-      } catch {
-        /* ignore */
-      }
-      console.warn(
-        `[wa-sig-fail] direct alert Meta status=${resp.status} body=${body.slice(0, 200)}`,
-      );
-    }
-  } catch (e) {
-    console.warn(
-      `[wa-sig-fail] direct alert threw: ${(e as Error)?.message ?? e}`,
-    );
-  }
+  // The single gateway (purpose owner_alert, the one the owner guard permits
+  // with owner_summary / owner_window). In sim mode this yields a synthetic
+  // 200 + fake wamid captured in D1 like any other outbound.
+  const { sendOwnerAlert } = await import("./templates");
+  await sendOwnerAlert(env, text);
 }
 
 function sanitizeSigPrefix(header: string): string {

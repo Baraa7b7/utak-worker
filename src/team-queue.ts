@@ -12,9 +12,11 @@
 import type { Env } from "./config";
 import { sendButtons, sendLocation, sendText } from "./meta";
 
+// `purpose` (STATUS § 33): the gateway purpose the item is sent with after
+// the tap; team_task when absent (items queued before § 33).
 export type TeamQueueItem =
-  | { latitude: number; longitude: number; name?: string; address?: string }
-  | { text: string; buttons?: Array<{ id: string; title: string }> };
+  | { latitude: number; longitude: number; name?: string; address?: string; purpose?: string }
+  | { text: string; buttons?: Array<{ id: string; title: string }>; purpose?: string };
 
 /** Long enough for a task queued at 21:15 to wait for the next day's tap. */
 export const TEAM_QUEUE_TTL = 36 * 60 * 60;
@@ -59,12 +61,13 @@ export async function flushTeamQueue(env: Env, to: string): Promise<number> {
   await env.MSG_DEDUP.delete(key);
   let sent = 0;
   for (const l of items) {
+    const purpose = typeof l?.purpose === "string" && l.purpose ? l.purpose : "team_task";
     if (typeof l?.text === "string" && l.text) {
       const buttons = Array.isArray(l.buttons) ? (l.buttons as Array<{ id: string; title: string }>) : [];
       try {
         const r = buttons.length
-          ? await sendButtons(env, to, l.text.slice(0, 1024), buttons)
-          : await sendText(env, to, l.text);
+          ? await sendButtons(env, to, l.text.slice(0, 1024), buttons, { purpose })
+          : await sendText(env, to, l.text, { purpose });
         if (r.ok) sent++;
       } catch (e) {
         console.warn("[pending_loc] send failed", (e as Error)?.message);
@@ -73,7 +76,7 @@ export async function flushTeamQueue(env: Env, to: string): Promise<number> {
     }
     if (typeof l?.latitude !== "number" || typeof l?.longitude !== "number") continue;
     try {
-      const r = await sendLocation(env, to, l.latitude, l.longitude, l.name as string | undefined, l.address as string | undefined);
+      const r = await sendLocation(env, to, l.latitude, l.longitude, l.name as string | undefined, l.address as string | undefined, { purpose });
       if (r.ok) sent++;
     } catch (e) {
       console.warn("[pending_loc] sendLocation failed", (e as Error)?.message);

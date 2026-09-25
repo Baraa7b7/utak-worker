@@ -331,7 +331,7 @@ export async function createAndDispatchDeliveryNoteForStop(
       `الوثيقة: ${uploaded.publicUrl}`,
     ].join("\n");
     try {
-      const resp = await sendText(env, driverPhone, body);
+      const resp = await sendText(env, driverPhone, body, { purpose: "driver_delivery_note" });
       if (resp?.ok) {
         try {
           const j = (await resp.json()) as { messages?: Array<{ id?: string }> };

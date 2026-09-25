@@ -304,3 +304,34 @@ async function announceReview(env: Env, a: {
   const { sendOwnerAlert } = await import("./templates");
   await sendOwnerAlert(env, `${REVIEW_ALERT_PREFIX}${a.name}`);
 }
+
+// ---------------------------------------------------------------- archived numbers (STATUS § 31)
+
+export const ARCHIVED_ASK_PREFIX = "رقم مؤرشف يطلب: ";
+
+/**
+ * 2026-09-25 (STATUS § 31) — an archived partner wrote: the message is in its
+ * inbox and the bot sends nothing. Its recent texts go to the same screening
+ * classifier (screenContact, one Haiku call); when it reads «طلب أو استفسار
+ * شراء», Baraa gets ONE alert «رقم مؤرشف يطلب: {الاسم}» per partner and
+ * Riyadh day. Nothing is written on the archived partner.
+ */
+export async function alertArchivedPurchase(env: Env, a: {
+  partnerId: number; name: string; profileName?: string; text: string; nowMs?: number;
+}): Promise<{ intent: AiIntent | null; alerted: boolean }> {
+  const texts = await recentInboundTexts(env, a.partnerId, a.text);
+  const r = await screenContact(env, texts, a.profileName || a.name);
+  if (!r) return { intent: null, alerted: false };
+  if (r.intent !== "purchase") {
+    console.log(`[screen] archived partner=${a.partnerId} intent=${r.intent} — no alert`);
+    return { intent: r.intent, alerted: false };
+  }
+  const { riyadhDateKey } = await import("./hours");
+  const day = riyadhDateKey(new Date(a.nowMs ?? Date.now()));
+  const claim = await claimButton(env, `archived:ask:${day}:${a.partnerId}`, 26 * 60 * 60);
+  if (!claim.claimed) return { intent: r.intent, alerted: false };
+  const { sendOwnerAlert } = await import("./templates");
+  await sendOwnerAlert(env, `${ARCHIVED_ASK_PREFIX}${a.name}`);
+  console.log(`[screen] archived partner=${a.partnerId} intent=purchase — owner alerted`);
+  return { intent: r.intent, alerted: true };
+}

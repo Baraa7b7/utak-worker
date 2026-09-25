@@ -57,11 +57,12 @@ const MEDIA_MARK = /^\[(audio|image|video|document|sticker|location|voice)[:\]\s
 async function load() {
   const partners = await call("res.partner", "search_read", {
     domain: ["|", ["x_whatsapp_number", "!=", false], ["phone", "!=", false]],
-    fields: ["id", "name", "active", "phone", "x_whatsapp_number", "customer_rank", "supplier_rank", "x_role_ids", ...FIELDS],
+    fields: ["id", "name", "active", "phone", "x_whatsapp_number", "customer_rank", "supplier_rank", ...FIELDS],
     context: { active_test: false }, order: "id asc",
   });
-  const roles = await call("x_employee_role", "search_read", { domain: [], fields: ["id", "x_code", "x_active"], context: { active_test: false } });
-  const activeRoleIds = new Set(roles.filter((r: any) => r.x_active && r.x_code !== "customer").map((r: any) => r.id));
+  // STATUS § 31 — the team is hr.employee: its Work Contacts are known partners.
+  const team = await call("hr.employee", "search_read", { domain: [["x_utak_role_ids", "!=", false]], fields: ["work_contact_id"] });
+  const teamPartnerIds = new Set<number>(team.map((e: any) => e.work_contact_id?.[0]).filter(Boolean));
   const numOf = new Map(partners.map((p: any) => [p.id, digits(p.x_whatsapp_number || p.phone)]));
   const orderNumbers = new Set<string>();
   for (const o of await call("x_daily_order", "search_read", { domain: [], fields: ["x_customer_id"], context: { active_test: false }, limit: 5000 })) {
@@ -85,7 +86,7 @@ async function load() {
     push(m.x_customer_id?.[0], m.x_message_text, m.x_created_at || m.create_date);
   }
   for (const [pid, list] of history) history.set(pid, list.sort((a, b) => String(a.at).localeCompare(String(b.at))));
-  return { partners, activeRoleIds, orderNumbers, history };
+  return { partners, teamPartnerIds, orderNumbers, history };
 }
 
 // ---------------------------------------------------------------- rollback

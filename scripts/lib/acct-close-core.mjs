@@ -235,8 +235,9 @@ export async function collectFindings(call, { first, last, month, summary, outst
   (r) => `تحصيل ${r.id} ${r.x_collected_at} UTC — ${r.x_amount} ${r.x_method} — بواسطة ${m2o(r.x_collected_by)} — فاتورة UTAK ${Array.isArray(r.x_invoice_id) ? r.x_invoice_id[0] : "—"}`));
 
   // payroll: salaried employees but no UTAK-PAYROLL-<month> entry
-  const salaried = await call("res.partner", "search_count", {
-    domain: [["active", "=", true], ["x_monthly_salary", ">", 0], real],
+  // (STATUS § 31: the team is hr.employee — «أدوار UTAK» + the contract's wage)
+  const salaried = await call("hr.employee", "search_count", {
+    domain: [["active", "=", true], ["x_utak_role_ids", "!=", false], ["wage", ">", 0]],
   });
   if (salaried) {
     const pay = await call("account.move", "search_count", { domain: [["ref", "=", `UTAK-PAYROLL-${month}`], ["state", "=", "posted"]] });

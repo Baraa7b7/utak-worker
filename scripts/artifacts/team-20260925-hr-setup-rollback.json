@@ -1,0 +1,133 @@
+{
+  "created": {
+    "fields": {
+      "hr.employee.x_utak_role_ids": 20340,
+      "hr.employee.x_utak_attendance": 20342,
+      "hr.employee.x_utak_whatsapp": 20344,
+      "hr.employee.x_utak_neighborhood_ids": 20346,
+      "x_team_attendance.x_employee_id": 20348
+    },
+    "attPartnerLabel": true,
+    "employees": {
+      "9": 4,
+      "15": 5
+    },
+    "attRowsMoved": [],
+    "formExt": 2829,
+    "kanban": 2830,
+    "list": 2831,
+    "search": 2832,
+    "empAction": 995,
+    "menu551": true,
+    "leavesAction": 996,
+    "leavesMenu": 571,
+    "action926": true,
+    "attViews": [
+      2823,
+      2824
+    ],
+    "serverActions": [
+      997,
+      998,
+      999
+    ],
+    "automations": [
+      15,
+      16,
+      17,
+      18,
+      19,
+      20
+    ]
+  },
+  "before": {
+    "at": "2026-09-25T01:27:50.805Z",
+    "partners": [
+      {
+        "id": 9,
+        "name": "عمر المجهلي",
+        "phone": "+966545816832",
+        "email": false,
+        "x_whatsapp_number": "+966545816832",
+        "image_1920": false,
+        "active": true,
+        "customer_rank": 0,
+        "supplier_rank": 0,
+        "x_contact_class": false,
+        "x_role_ids": [
+          1,
+          2,
+          3
+        ],
+        "x_shift_start": 0,
+        "x_neighborhoods": [
+          1,
+          2
+        ],
+        "x_hire_date": "2025-01-01",
+        "x_wa_channel_id": [
+          19,
+          "واتساب · عمر المجهلي · ⁦+966545816832⁩"
+        ],
+        "company_id": false
+      },
+      {
+        "id": 15,
+        "name": "عثمان عبدالوهاب",
+        "phone": "+966530399474",
+        "email": false,
+        "x_whatsapp_number": "+966530399474",
+        "image_1920": false,
+        "active": true,
+        "customer_rank": 1,
+        "supplier_rank": 0,
+        "x_contact_class": "team",
+        "x_role_ids": [
+          4
+        ],
+        "x_shift_start": 0,
+        "x_neighborhoods": [],
+        "x_hire_date": false,
+        "x_wa_channel_id": [
+          16,
+          "واتساب · عثمان عبدالوهاب · ⁦+966530399474⁩"
+        ],
+        "company_id": false
+      }
+    ],
+    "partnerImages": {
+      "9": false,
+      "15": false
+    },
+    "menu551": {
+      "id": 551,
+      "name": "الموظفين",
+      "action": "ir.actions.act_window,927",
+      "parent_id": [
+        546,
+        "UTAK/🚚 التوصيل والفريق"
+      ],
+      "sequence": 10
+    },
+    "action926Domain": "[('customer_rank', '>', 0), ('x_role_ids', '=', False)]",
+    "customersBefore": 2,
+    "customersBeforeIds": [
+      20,
+      31
+    ],
+    "attViews": {
+      "2823": "<list string=\"حضور الفريق\" default_order=\"x_date desc, x_shift_at asc\" create=\"0\" decoration-danger=\"x_status == 'absent'\" decoration-warning=\"x_status == 'late'\" decoration-success=\"x_status == 'present'\">\n  <field name=\"x_date\"/>\n  <field name=\"x_partner_id\"/>\n  <field name=\"x_shift_at\"/>\n  <field name=\"x_sent_at\"/>\n  <field name=\"x_tapped_at\"/>\n  <field name=\"x_status\"/>\n  <field name=\"x_reminder_sent\"/>\n</list>",
+      "2824": "<search string=\"حضور الفريق\">\n  <field name=\"x_partner_id\"/>\n  <filter name=\"today\" string=\"اليوم\" domain=\"[('x_date', '=', context_today().strftime('%Y-%m-%d'))]\"/>\n  <separator/>\n  <filter name=\"absent\" string=\"غائب\" domain=\"[('x_status', '=', 'absent')]\"/>\n  <filter name=\"late\" string=\"متأخر\" domain=\"[('x_status', '=', 'late')]\"/>\n  <filter name=\"present\" string=\"حاضر\" domain=\"[('x_status', '=', 'present')]\"/>\n  <group>\n    <filter name=\"by_partner\" string=\"الموظف\" context=\"{'group_by': 'x_partner_id'}\"/>\n    <filter name=\"by_date\" string=\"التاريخ\" context=\"{'group_by': 'x_date'}\"/>\n  </group>\n</search>"
+    },
+    "attPartnerField": {
+      "id": 20308,
+      "field_description": "الموظف"
+    },
+    "attRows": 0,
+    "employeesBefore": [
+      2,
+      1,
+      3
+    ]
+  }
+}

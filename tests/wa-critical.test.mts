@@ -11,6 +11,7 @@
 import {
   CUST, CUST2, COLL, FakeDate, OWNER, WH, ctx, graph, inbound, order, ownerAlerts, partnerOf,
   quiet, reset, rows, seed, sentTo, setClaude, setFail, setRiyadh, signed, table,
+  employee,
 } from "./wa-harness.mts";
 
 const CUST_PHONE = "966500000501", CUST2_PHONE = "966500000502", WH_PHONE = "966500000601";
@@ -333,8 +334,9 @@ console.log("\n[م11/ت5/ت6/ت1] delivery note after «بدء الدوام», A
   assert("ت1: unknown button answered politely", replyText(r).includes("رسالة قديمة"));
   // م11: deferred queue flushes text items (delivery note) on «بدء الدوام»
   const env2 = reset(); graph.length = 0;
-  const drv = seed("res.partner", { name: "عمر", x_whatsapp_number: "+966500000700", x_role_ids: [72] });
-  void drv;
+  // STATUS § 31 — the driver is an hr.employee on his partner (Work Contact)
+  const drv = seed("res.partner", { name: "عمر", x_whatsapp_number: "+966500000700" });
+  employee(drv, [72]);
   env2.MSG_DEDUP.store.set("pending_loc:+966500000700", JSON.stringify([{ latitude: 24.7, longitude: 46.6, name: "#1" }, { text: "📦 إذن تسليم للطلب 1" }]));
   await quiet(() => worker.fetch(signed(inbound("966500000700", { type: "button", button: { payload: "shift_start", text: "بدء الدوام" } })), env2, ctx));
   const toDrv = sentTo("966500000700");

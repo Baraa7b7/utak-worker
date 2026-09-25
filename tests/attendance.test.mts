@@ -23,7 +23,7 @@
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/attendance.test.mts
 
 import { readFileSync } from "node:fs";
-import { ctx, graph, inbound, odooLog, OWNER, quiet, reset, rows, seed, sentTo, setRiyadh, signed, table } from "./wa-harness.mts";
+import { ctx, employee, graph, inbound, odooLog, OWNER, quiet, reset, rows, seed, sentTo, setRiyadh, signed, table, workSchedule } from "./wa-harness.mts";
 
 let passed = 0, failed = 0;
 const failures: string[] = [];
@@ -39,8 +39,10 @@ const F2 = load("./fixtures-odoo-fields-20260925-suppliers.json");
 const F3 = load("./fixtures-odoo-fields-20260925-attendance.json");
 // 2026-09-25 (STATUS § 30) — the review fields on res.partner (x_contact_class …).
 const F4 = load("./fixtures-odoo-fields-20260925-review.json");
-const REAL: Record<string, string[]> = { ...F1, ...F2, ...F3, ...F4 };
-const SELECTIONS: Record<string, string[]> = { ...F1._selections, ...F2._selections, ...F3._selections, ...F4._selections };
+// 2026-09-25 (STATUS § 31) — hr.employee, resource.calendar.*, x_team_attendance.x_employee_id
+const F5 = load("./fixtures-odoo-fields-20260925-team.json");
+const REAL: Record<string, string[]> = { ...F1, ...F2, ...F3, ...F4, ...F5 };
+const SELECTIONS: Record<string, string[]> = { ...F1._selections, ...F2._selections, ...F3._selections, ...F4._selections, ...F5._selections };
 const rejected: string[] = [];
 function known(model: string, name: string): boolean {
   const list = REAL[model];
@@ -89,10 +91,14 @@ const worker = (await import("../src/index.ts")).default;
 
 // ---------------------------------------------------------------- data
 const DAY = "2026-09-26";
-const OMAR = 801, OMAR_PHONE = "966500000801";    // warehouse + driver + collector, 05:00
-const NOTIME = 802, NOTIME_PHONE = "966500000802"; // driver, no time (0.0)
-const KHALID = 803, KHALID_PHONE = "966500000803"; // collector, 07:30
-const NOROLE = 804, NOROLE_PHONE = "966500000804"; // shift time but no role → not on the roster
+// 2026-09-25 (STATUS § 31) — each is an hr.employee on the partner (its Work
+// Contact), «مشمول بالتحضير» on, with a working schedule every day of the week.
+const OMAR = 801, OMAR_PHONE = "966500000801";    // warehouse + driver + collector, 05:00–13:00
+const NOTIME = 802, NOTIME_PHONE = "966500000802"; // driver, on attendance but no working schedule
+const KHALID = 803, KHALID_PHONE = "966500000803"; // collector, 07:30–15:30
+const NOROLE = 804, NOROLE_PHONE = "966500000804"; // a schedule (06:00) but no UTAK role → not on the roster
+const EMP = (pid: number) => 7000 + pid;           // the employee of a partner (wa-harness employee())
+const everyDay = (from: number, to: number) => workSchedule([0, 1, 2, 3, 4, 5, 6].map((d) => [d, from, to] as [number, number, number]));
 const SUP = 805, SUP_PHONE = "966500000805";       // a supplier (ب)
 const OWNER_PID = 806;
 const SHIFT_TPL = "utak_shift_start_v2";
@@ -102,13 +108,18 @@ function fresh(riyadh = `${DAY} 04:00`, extra: Record<string, unknown> = {}): an
   claudeCalls = 0; rejected.length = 0;
   Object.assign(env, extra);
   seed("res.users", { id: 2, login: "x", partner_id: 3 });
-  seed("res.partner", { id: OMAR, name: "عمر المجهلي", x_whatsapp_number: "+" + OMAR_PHONE, x_role_ids: [71, 72, 73], x_shift_start: 5 });
-  seed("res.partner", { id: NOTIME, name: "سالم السواق", x_whatsapp_number: "+" + NOTIME_PHONE, x_role_ids: [72], x_shift_start: 0 });
-  seed("res.partner", { id: KHALID, name: "خالد", x_whatsapp_number: "+" + KHALID_PHONE, x_role_ids: [73], x_shift_start: 7.5 });
-  seed("res.partner", { id: NOROLE, name: "بلا دور", x_whatsapp_number: "+" + NOROLE_PHONE, x_role_ids: [], x_shift_start: 6 });
+  seed("res.partner", { id: OMAR, name: "عمر المجهلي", x_whatsapp_number: "+" + OMAR_PHONE });
+  seed("res.partner", { id: NOTIME, name: "سالم السواق", x_whatsapp_number: "+" + NOTIME_PHONE });
+  seed("res.partner", { id: KHALID, name: "خالد", x_whatsapp_number: "+" + KHALID_PHONE });
+  seed("res.partner", { id: NOROLE, name: "بلا دور", x_whatsapp_number: "+" + NOROLE_PHONE });
   seed("res.partner", { id: SUP, name: "مورد", supplier_rank: 1, x_whatsapp_number: "+" + SUP_PHONE, x_supplied_product_ids: [1] });
-  // Baraa himself, WITH a role and a time: the roster must still leave him out.
-  seed("res.partner", { id: OWNER_PID, name: "Bara.a - U TAK", x_whatsapp_number: "+" + OWNER, x_role_ids: [71], x_shift_start: 5 });
+  // Baraa himself, WITH a role and a schedule: the roster must still leave him out.
+  seed("res.partner", { id: OWNER_PID, name: "Bara.a - U TAK", x_whatsapp_number: "+" + OWNER });
+  employee(OMAR, [71, 72, 73], { x_utak_attendance: true, resource_calendar_id: everyDay(5, 13) });
+  employee(NOTIME, [72], { x_utak_attendance: true, resource_calendar_id: false });
+  employee(KHALID, [73], { x_utak_attendance: true, resource_calendar_id: everyDay(7.5, 15.5) });
+  employee(NOROLE, [], { x_utak_attendance: true, resource_calendar_id: everyDay(6, 14) });
+  employee(OWNER_PID, [71], { x_utak_attendance: true, resource_calendar_id: everyDay(5, 13) });
   seed("res.partner", { name: "UTAK بوت" });
   seed("x_whatsapp_template", { x_purpose: "team_shift_start", x_meta_template_id: SHIFT_TPL, x_language: "ar", x_meta_status: "APPROVED", x_param_count: 1, x_category: "UTILITY" });
   seed("x_whatsapp_template", { x_purpose: "driver_dispatch", x_meta_template_id: "utak_driver_dispatch", x_language: "ar", x_meta_status: "APPROVED", x_param_count: 4, x_category: "UTILITY" });
@@ -122,7 +133,7 @@ const params = (b: any): string[] => (b?.template?.components ?? []).find((c: an
 const payloads = (b: any): string[] => (b?.template?.components ?? []).filter((c: any) => c.type === "button").map((c: any) => c.parameters?.[0]?.payload);
 const texts = (digits: string) => sentTo(digits).filter((b) => b?.type === "text").map((b) => String(b.text?.body ?? ""));
 const ownerSays = (needle: string) => sentTo(OWNER).filter((b) => JSON.stringify(b).includes(needle));
-const row = (pid: number) => rows("x_team_attendance").find((r) => r.x_partner_id === pid && r.x_date === DAY) as any;
+const row = (pid: number) => rows("x_team_attendance").find((r) => r.x_employee_id === EMP(pid) && r.x_date === DAY) as any;
 const tap = (digits: string, at: string, extra: Record<string, unknown> = {}) => {
   setRiyadh(at);
   return quiet(() => worker.fetch(signed(inbound(digits, { type: "button", button: { payload: "shift_start", text: "بدء الدوام" }, ...extra })), ENV, ctx));
@@ -145,10 +156,11 @@ console.log("\n[1] «بدء الدوام» at the shift time — not before, not
   assert("05:00: utak_shift_start_v2 to عمر, once", t.length === 1, String(t.length));
   assert("[{{1}} = name], button 0 payload shift_start", params(t[0]).join("|") === "عمر المجهلي" && payloads(t[0]).join("|") === "shift_start", JSON.stringify(t[0]?.template));
   const rw = row(OMAR);
-  assert("Odoo row: date, shift 05:00 (02:00 UTC), sent at, no tap, no status", rw && rw.x_shift_at === "2026-09-26 02:00:00" && rw.x_sent_at === "2026-09-26 02:00:00" && !rw.x_tapped_at && !rw.x_status && rw.x_reminder_sent === false, JSON.stringify(rw));
-  assert("no time (0.0) → nothing, reported «no_time»", tpl(NOTIME_PHONE).length === 0 && r.members.find((m: any) => m.id === NOTIME)?.action === "no_time", JSON.stringify(r.members));
-  assert("time but no role → not on the roster at all", tpl(NOROLE_PHONE).length === 0 && !r.members.some((m: any) => m.id === NOROLE));
-  assert("خالد (07:30) not yet", tpl(KHALID_PHONE).length === 0 && r.members.find((m: any) => m.id === KHALID)?.action === "before_shift");
+  assert("Odoo row: employee (and the old partner link), date, shift 05:00 (02:00 UTC), sent at, no tap, no status",
+    rw && rw.x_employee_id === EMP(OMAR) && rw.x_partner_id === OMAR && rw.x_shift_at === "2026-09-26 02:00:00" && rw.x_sent_at === "2026-09-26 02:00:00" && !rw.x_tapped_at && !rw.x_status && rw.x_reminder_sent === false, JSON.stringify(rw));
+  assert("no working schedule → nothing, reported «no_calendar»", tpl(NOTIME_PHONE).length === 0 && r.members.find((m: any) => m.partnerId === NOTIME)?.action === "no_calendar", JSON.stringify(r.members));
+  assert("schedule but no UTAK role → not on the roster at all", tpl(NOROLE_PHONE).length === 0 && !r.members.some((m: any) => m.partnerId === NOROLE));
+  assert("خالد (07:30) not yet", tpl(KHALID_PHONE).length === 0 && r.members.find((m: any) => m.partnerId === KHALID)?.action === "before_shift");
   await tick(`${DAY} 07:30`);
   assert("07:30: خالد gets his", tpl(KHALID_PHONE).length === 1);
   await tick(`${DAY} 23:55`);
@@ -156,7 +168,7 @@ console.log("\n[1] «بدء الدوام» at the shift time — not before, not
   // a deploy/outage past +30 does not send a start that late
   ENV = fresh();
   const late = await tick(`${DAY} 05:35`);
-  assert("first tick only at +35: no start (window missed), reported", tpl(OMAR_PHONE).length === 0 && late.members.find((m: any) => m.id === OMAR)?.action === "start_window_missed", JSON.stringify(late.members.find((m: any) => m.id === OMAR)));
+  assert("first tick only at +35: no start (window missed), reported", tpl(OMAR_PHONE).length === 0 && late.members.find((m: any) => m.partnerId === OMAR)?.action === "start_window_missed", JSON.stringify(late.members.find((m: any) => m.partnerId === OMAR)));
   assert("schema gate: nothing rejected", rejected.length === 0, rejected.join(" / "));
 }
 
@@ -210,7 +222,7 @@ console.log("\n[2] no task before the tap; all of them after it");
   const held = await att.attendanceHold(ENV, KHALID);
   assert("خالد (07:30) at 06:00: held", held.hold === true && held.shift === "07:30" && held.sent === false, JSON.stringify(held));
   const noTimeHold = await att.attendanceHold(ENV, NOTIME);
-  assert("no-time member: never held (old behaviour)", noTimeHold.hold === false && noTimeHold.onAttendance === false);
+  assert("member without a working schedule: never held (old behaviour)", noTimeHold.hold === false && noTimeHold.onAttendance === false);
   const summary = await quiet(() => invoice.sendDailyCollectionSummary(ENV));
   assert("18:00 summary to a held collector: nothing sent, reported «held»", sentTo(KHALID_PHONE).length === 0 && summary.sends.some((s: any) => s.reason === "held until «بدء الدوام»"), JSON.stringify(summary));
   assert("schema gate: nothing rejected", rejected.length === 0, rejected.join(" / "));
@@ -263,7 +275,7 @@ console.log("\n[3] +30: one reminder + one alert; +60: absent + one alert; late 
   ENV = fresh(`${DAY} 04:00`);
   await tap(OMAR_PHONE, `${DAY} 04:10`);
   assert("tap before today's template: «دوامك اليوم يبدأ 05:00», no row", texts(OMAR_PHONE).at(-1)?.includes("دوامك اليوم يبدأ 05:00") && !row(OMAR));
-  // a member without a time taps a route's «بدء الدوام»: the 09-17 behaviour
+  // a member without a working schedule taps a route's «بدء الدوام»: the 09-17 behaviour
   ENV = fresh(`${DAY} 10:00`);
   ENV.MSG_DEDUP.store.set(`pending_loc:+${NOTIME_PHONE}`, JSON.stringify([{ latitude: 24.7, longitude: 46.6, name: "#9" }]));
   await tap(NOTIME_PHONE, `${DAY} 10:00`);
@@ -282,7 +294,7 @@ console.log("\n[4] Baraa: the window template daily at the earliest shift − 15
   assert("04:45 (عمر 05:00 − 15): utak_shift_start_v2 to Baraa [«براء»], payload shift_start", t.length === 1 && params(t[0]).join() === "براء" && payloads(t[0]).join() === "shift_start", JSON.stringify(t[0]?.template));
   for (const at of ["04:50", "05:10", "05:15", "06:00", "09:00", "23:55"]) await tick(`${DAY} ${at}`);
   assert("once a day: no second one", tpl(OWNER).length === 1);
-  assert("never on the roster (even with a role and 05:00): no row, no alert about him", !rows("x_team_attendance").some((r) => r.x_partner_id === OWNER_PID) && ownerSays("Bara.a").length === 0);
+  assert("never on the roster (even an employee with a role and 05:00): no row, no alert about him", !rows("x_team_attendance").some((r) => r.x_partner_id === OWNER_PID || r.x_employee_id === EMP(OWNER_PID)) && ownerSays("Bara.a").length === 0);
   await tap(OWNER, `${DAY} 04:55`);
   const ack = texts(OWNER).at(-1) ?? "";
   assert("his tap: one line «✅ تم. تنبيهات …», nothing recorded", ack.startsWith("✅ تم. تنبيهات يو تاك") && !rows("x_team_attendance").some((r) => r.x_partner_id === OWNER_PID), ack);
@@ -290,12 +302,12 @@ console.log("\n[4] Baraa: the window template daily at the earliest shift − 15
   // next day again
   await tick(`2026-09-27 04:45`);
   assert("next day 04:45: again, once", tpl(OWNER).length === 2);
-  // nobody with a time on the roster → OWNER_WINDOW_OPEN_AT, a fallback only
+  // nobody with a working schedule on the roster → OWNER_WINDOW_OPEN_AT, a fallback only
   ENV = fresh(`${DAY} 05:00`, { OWNER_WINDOW_OPEN_AT: "05:30" });
-  for (const id of [OMAR, KHALID]) table("res.partner").get(id)!.x_shift_start = 0;
+  for (const id of [OMAR, KHALID]) table("hr.employee").get(EMP(id))!.resource_calendar_id = false;
   await tick(`${DAY} 05:25`);
   await tick(`${DAY} 05:30`);
-  assert("no shift time anywhere: OWNER_WINDOW_OPEN_AT=05:30 → at 05:30", tpl(OWNER).length === 1);
+  assert("no working schedule anywhere: OWNER_WINDOW_OPEN_AT=05:30 → at 05:30", tpl(OWNER).length === 1);
   // the owner guard still refuses the purpose team_shift_start to Baraa
   const { sendTemplateByPurpose, T } = await import("../src/templates.ts");
   const blocked = await quiet(() => sendTemplateByPurpose(ENV, "+" + OWNER, T.TEAM_SHIFT_START, ["x"], [{ index: 0, payload: "shift_start" }]));
@@ -336,7 +348,7 @@ console.log("\n[5] re-running the job repeats nothing");
 console.log("\n[6] (ب) a message Meta re-delivers after 24h: mirrored, no bot action");
 {
   ENV = fresh(`${DAY} 10:00`);
-  // control: a fresh text from a team member without a time gets the bot's reply
+  // control: a fresh text from a team member without a working schedule gets the bot's reply
   await say(NOTIME_PHONE, `${DAY} 10:00`, "صباح الورد");
   assert("fresh: the bot answers", texts(NOTIME_PHONE).length === 1, JSON.stringify(texts(NOTIME_PHONE)));
   await say(NOTIME_PHONE, `${DAY} 10:05`, "صباح الورد", { timestamp: secondsAgo(71) });

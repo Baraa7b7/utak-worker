@@ -1,0 +1,496 @@
+[
+  {
+    "mutation": "weekly day off ignored (a day without a line = work)",
+    "file": "src/team-roster.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 6,
+    "first": [
+      "Friday (no schedule line): no template, no row, no absence all day, reported «day_off» — [{\"id\":7601,\"partnerId\":601",
+      "Saturday (no schedule line): no template, no row, no absence all day, reported «day_off» — [{\"id\":7601,\"partnerId\":6",
+      "Thursday 16:00: queued, alert names «الأحد 07:00», the queue lives past Sunday 07:00 — 183600 vs 226800"
+    ]
+  },
+  {
+    "mutation": "time off ignored",
+    "file": "src/team-roster.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 5,
+    "first": [
+      "عمر's time off: no template, no row, no absence; reported «leave» — [{\"id\":7601,\"partnerId\":601,\"name\":\"أحمد\",\"to\":\"",
+      "…and عمر is back the next day",
+      "company time off: nobody gets «بدء الدوام», nobody absent"
+    ]
+  },
+  {
+    "mutation": "company time off ignored",
+    "file": "src/team-roster.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "company time off: nobody gets «بدء الدوام», nobody absent"
+    ]
+  },
+  {
+    "mutation": "company time off of another schedule applies",
+    "file": "src/team-roster.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "time off for another schedule / counted as work / another company / after the start: the template goes out — [null,n"
+    ]
+  },
+  {
+    "mutation": "time off «counted as working time» applies",
+    "file": "src/team-roster.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "time off for another schedule / counted as work / another company / after the start: the template goes out — [null,{"
+    ]
+  },
+  {
+    "mutation": "«مشمول بالتحضير» ignored",
+    "file": "src/team-roster.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "…and their tasks are not held (the old behaviour)",
+      "the default schedule alone (attendance off) does not enroll anyone"
+    ]
+  },
+  {
+    "mutation": "no working schedule = a shift every day",
+    "file": "src/team-roster.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "no schedule / attendance off: no template all day, no row",
+      "…and their tasks are not held (the old behaviour)"
+    ]
+  },
+  {
+    "mutation": "hours-only lines (Odoo's default 40 h) count as clock times",
+    "file": "src/team-roster.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "the default hours-only schedule sends nothing, even with attendance on (reported «no_clock_time») — [{\"id\":7601,\"par",
+      "Baraa's window falls back to 06:00"
+    ]
+  },
+  {
+    "mutation": "the first line's start, not the first period's",
+    "file": "src/team-roster.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "two periods (07–11, 13–17): template at 07:00, shift ends 17:00 — {\"id\":7801,\"partnerId\":801,\"name\":\"عمر المجهلي\",\"t",
+      "the break (12:00) is inside the shift; 17:00 is after it — [{\"hold\":true,\"onAttendance\":true,\"shift\":\"13:00\",\"sent\":"
+    ]
+  },
+  {
+    "mutation": "the end of the first period, not the last",
+    "file": "src/team-roster.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "two periods (07–11, 13–17): template at 07:00, shift ends 17:00 — {\"id\":7801,\"partnerId\":801,\"name\":\"عمر المجهلي\",\"t",
+      "the break (12:00) is inside the shift; 17:00 is after it — [{\"hold\":true,\"onAttendance\":true,\"shift\":\"07:00\",\"phase\""
+    ]
+  },
+  {
+    "mutation": "variable schedule: recurrence ignored",
+    "file": "src/team-roster.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "variable: every 2 weeks from Monday 09-28 (09-28 yes, 10-05 no, 10-12 yes), an excluded date no, a one-off date yes,"
+    ]
+  },
+  {
+    "mutation": "fixed / variable lines mixed",
+    "file": "src/team-roster.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "variable: every 2 weeks from Monday 09-28 (09-28 yes, 10-05 no, 10-12 yes), an excluded date no, a one-off date yes,"
+    ]
+  },
+  {
+    "mutation": "an employee without a UTAK role on the roster",
+    "file": "src/team-roster.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "an employee with only an archived «Customer» role is not team"
+    ]
+  },
+  {
+    "mutation": "team not found by its Work Contact number",
+    "file": "src/team-roster.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 12,
+    "first": [
+      "the break (12:00) is inside the shift; 17:00 is after it — [{\"hold\":true,\"onAttendance\":true,\"shift\":\"07:00\",\"sent\":",
+      "in the shift (10:00): the route goes out now",
+      "a text after the shift: «دوامك اليوم انتهى …» and the queue stays — \"أهلاً وسهلاً\""
+    ]
+  },
+  {
+    "mutation": "driver neighborhoods not from the employee",
+    "file": "src/team-roster.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "driver's neighborhoods come from the employee («أحياء التوصيل»)",
+      "an order in النرجس → the driver of النرجس, العليا → عمر (neighborhoods from hr.employee) — [[801,[10025]],[833,[1002"
+    ]
+  },
+  {
+    "mutation": "no roster cache (a read per lookup)",
+    "file": "src/team-roster.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 3,
+    "first": [
+      "11 employees, a tick, three lookups, a hold, a second tick in 5 minutes: ONE hr.employee read, one schedule-lines re",
+      "after 5 minutes: read again (the cache is ≤ 5 min) — 6",
+      "hook: 202, and the next lookup reads Odoo again (the change is seen at once) — 202 7"
+    ]
+  },
+  {
+    "mutation": "roster cache longer than 5 minutes",
+    "file": "src/team-roster.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "after 5 minutes: read again (the cache is ≤ 5 min) — 1",
+      "hook: 202, and the next lookup reads Odoo again (the change is seen at once) — 202 2"
+    ]
+  },
+  {
+    "mutation": "the Odoo hook does not drop the cache",
+    "file": "src/index.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "hook: 202, and the next lookup reads Odoo again (the change is seen at once) — 202 2"
+    ]
+  },
+  {
+    "mutation": "attendance row without the employee link",
+    "file": "src/attendance.ts",
+    "test": "tests/attendance.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": null,
+    "first": [
+      "Odoo row: employee (and the old partner link), date, shift 05:00 (02:00 UTC), sent at, no tap, no status",
+      "after the template, before the tap: «اضغط بدء الدوام» — [\"دوامك اليوم يبدأ 05:00، ووقتها يوصلك زر «بدء الدوام» ومعه ",
+      "tap: «تم تسجيل حضورك» first — {\"messaging_product\":\"whatsapp\",\"to\":\"966500000801\",\"type\":\"text\",\"text\":{\"body\":\"دوام"
+    ]
+  },
+  {
+    "mutation": "after the shift: not held",
+    "file": "src/attendance.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 16,
+    "first": [
+      "the break (12:00) is inside the shift; 17:00 is after it — [{\"hold\":false,\"onAttendance\":true,\"shift\":\"07:00\",\"sent\"",
+      "after the shift (16:00): nothing to عمر — [{\"messaging_product\":\"whatsapp\",\"to\":\"966500000801\",\"type\":\"template\",\"te",
+      "…the route is queued for the next shift"
+    ]
+  },
+  {
+    "mutation": "day off / time off: not held",
+    "file": "src/attendance.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "Friday (day off): queued, a new day → one alert for it"
+    ]
+  },
+  {
+    "mutation": "no «مهمة لـ… بعد دوامه» alert",
+    "file": "src/attendance.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 9,
+    "first": [
+      "…ONE owner alert «مهمة لـعمر المجهلي بعد دوامه: مسار التوصيل …» with the next shift — []",
+      "a second route the same evening: queued, no second alert",
+      "…one alert per collector: «مهمة لـعمر المجهلي … ملخص التحصيل» and «مهمة لـخالد …»"
+    ]
+  },
+  {
+    "mutation": "the «بعد دوامه» alert repeats for the same kind (no daily claim)",
+    "file": "src/attendance.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 3,
+    "first": [
+      "a second route the same evening: queued, no second alert",
+      "each of the four «بعد دوامه» alerts went as the approved template, none as a free-text fallback — [\"template\",\"templ",
+      "no alert repeats on Monday for Sunday's tasks — 6"
+    ]
+  },
+  {
+    "mutation": "queue expires before the next shift (36 h)",
+    "file": "src/team.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "…the queue lives past the next shift start (36 h ≥ 15 h + 36 h) — 129600",
+      "Thursday 16:00: queued, alert names «الأحد 07:00», the queue lives past Sunday 07:00 — 129600 vs 226800"
+    ]
+  },
+  {
+    "mutation": "18:00 summary sent after the shift",
+    "file": "src/invoice.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 4,
+    "first": [
+      "18:00 summary after the shift: not sent to عمر nor خالد (his ended 14:30); a collector not on attendance still gets ",
+      "…one alert per collector: «مهمة لـعمر المجهلي … ملخص التحصيل» and «مهمة لـخالد …»",
+      "each of the four «بعد دوامه» alerts went as the approved template, none as a free-text fallback — [\"template\",\"templ"
+    ]
+  },
+  {
+    "mutation": "payment-claim note sent to a collector after the shift",
+    "file": "src/pay-claim.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "payment claim after the shift: the note is queued for عمر (not sent), one «بعد دوامه» alert — {\"alerted\":true,\"colle"
+    ]
+  },
+  {
+    "mutation": "21:15 purchase list sent after the shift",
+    "file": "src/team.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 3,
+    "first": [
+      "21:15 purchase list after the shift: no template to عمر, one alert «قائمة الشراء»",
+      "each of the four «بعد دوامه» alerts went as the approved template, none as a free-text fallback — [\"template\",\"templ",
+      "no alert repeats on Monday for Sunday's tasks — 4"
+    ]
+  },
+  {
+    "mutation": "a tap after the end of the shift releases the tasks",
+    "file": "src/index.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "tap at 15:30 (shift 07:00–15:00): «متأخر», told the shift ended, the queue stays — [{\"x_name\":\"عمر المجهلي · 2026-09"
+    ]
+  },
+  {
+    "mutation": "a tap on a day off releases the tasks",
+    "file": "src/index.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "a tap on Friday: «اليوم ما عندك دوام» + the next shift, nothing released — [\"اليوم ما عندك دوام حسب جدولك، ومهامك تو"
+    ]
+  },
+  {
+    "mutation": "window: an employee on time off counts",
+    "file": "src/attendance.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "خالد on time off → عمر 07:00 − 15 = 06:45"
+    ]
+  },
+  {
+    "mutation": "window: no 15-minute lead",
+    "file": "src/attendance.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 3,
+    "first": [
+      "Sunday: عمر 07:00, خالد 06:30 → 06:15, once",
+      "خالد on time off → عمر 07:00 − 15 = 06:45",
+      "Baraa as an employee with a role and an earlier schedule does not count"
+    ]
+  },
+  {
+    "mutation": "window: Baraa's own schedule counts",
+    "file": "src/attendance.ts",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "Baraa's own time never counts (03:00 on his number)"
+    ]
+  },
+  {
+    "mutation": "window: Baraa's own employee record on the roster",
+    "file": "src/attendance.ts",
+    "test": "tests/attendance.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "never on the roster (even an employee with a role and 05:00): no row, no alert about him",
+      "his tap: one line «✅ تم. تنبيهات …», nothing recorded — ✅ تم. تنبيهات يو تاك توصلك هنا نصاً حتى 04:55 بكرة."
+    ]
+  },
+  {
+    "mutation": "ensureCustomerRoleId blind to archived rows (duplicates)",
+    "file": "src/odoo.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "archived «Customer» rows exist: the oldest (5) every time, no new row — 10017,10017,10017 / 1"
+    ]
+  },
+  {
+    "mutation": "a new WhatsApp partner gets the «Customer» role again",
+    "file": "src/odoo.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 3,
+    "first": [
+      "src/*.ts: no code reads x_role_ids / x_shift_start / x_neighborhoods — odoo.ts:448: x_role_ids: [[4, 5, 0]],",
+      "a full day (tick, tap, text, route after the shift, 18:00, a new number): no Odoo call reads the old fields — [{\"mod",
+      "a new WhatsApp number: one partner, «غير مراجَع», no x_role_ids — [{\"vals_list\":[{\"name\":\"زبون جديد\",\"phone\":\"+96650"
+    ]
+  },
+  {
+    "mutation": "archived: only the reviewed ones (the old rule)",
+    "file": "src/odoo.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 5,
+    "first": [
+      "no new partner, nothing sent to him (no welcome, no reply)",
+      "both messages kept on the archived partner (x_wa_message)",
+      "«طلب أو استفسار شراء» → ONE owner alert «رقم مؤرشف يطلب: مؤرشف قديم» for the day — []"
+    ]
+  },
+  {
+    "mutation": "archived: no «رقم مؤرشف يطلب» alert",
+    "file": "src/screening.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 3,
+    "first": [
+      "«طلب أو استفسار شراء» → ONE owner alert «رقم مؤرشف يطلب: مؤرشف قديم» for the day — []",
+      "the next day: one more",
+      "not a purchase / an image: no alert, the image is not classified, nothing sent"
+    ]
+  },
+  {
+    "mutation": "archived: the alert every message (no daily claim)",
+    "file": "src/screening.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 3,
+    "first": [
+      "«طلب أو استفسار شراء» → ONE owner alert «رقم مؤرشف يطلب: مؤرشف قديم» for the day — [{\"messaging_product\":\"whatsapp\",",
+      "the next day: one more",
+      "not a purchase / an image: no alert, the image is not classified, nothing sent"
+    ]
+  },
+  {
+    "mutation": "archived: ingest routes it as new",
+    "file": "src/wa-inbox.ts",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "no welcome, no reply",
+      "classified once (the text), nothing written, nothing entered review, no owner alert — 0"
+    ]
+  },
+  {
+    "mutation": "personal: the customer route (alert «رقم جديد راسل»)",
+    "file": "src/wa-inbox.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 3,
+    "first": [
+      "…no owner alert at all — [{\"messaging_product\":\"whatsapp\",\"to\":\"966500000001\",\"type\":\"template\",\"template\":{\"name\":\"",
+      "«شخصي» without a customer rank: no new partner, nothing sent, no alert",
+      "control: a stranger outside the allowlist raises «رقم جديد راسل»"
+    ]
+  },
+  {
+    "mutation": "personal without a customer rank: a duplicate partner",
+    "file": "src/odoo.ts",
+    "test": "tests/team-hr.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "«شخصي» without a customer rank: no new partner, nothing sent, no alert",
+      "control: a stranger outside the allowlist raises «رقم جديد راسل»"
+    ]
+  }
+]

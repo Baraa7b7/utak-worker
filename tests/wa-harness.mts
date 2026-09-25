@@ -58,8 +58,26 @@ function fieldValue(m: string, r: Rec, f: string): unknown {
   if (f === "x_role_ids.x_code") {
     return ((r.x_role_ids as number[]) ?? []).map((id) => table("x_employee_role").get(id)?.x_code);
   }
+  // 2026-09-25 (STATUS § 31) — hr.employee: x_utak_whatsapp is computed from
+  // the Work Contact (x_whatsapp_number, else phone), as on the tenant.
+  if (m === "hr.employee" && f === "x_utak_whatsapp") {
+    const c = table("res.partner").get(r.work_contact_id as number);
+    return c?.x_whatsapp_number || c?.phone || false;
+  }
+  if (m === "resource.calendar.attendance" && f === "calendar_type") {
+    return table("resource.calendar").get(r.calendar_id as number)?.calendar_type ?? "fixed";
+  }
   if (f === "active" && r.active === undefined) return true;
+  if (f === "x_active" && r.x_active === undefined) return true;
   return r[f];
+}
+/** Odoo's active_test for the models whose archived rows matter here (STATUS § 31). */
+const ACTIVE_FIELD: Record<string, string> = { "hr.employee": "active", "x_employee_role": "x_active" };
+function activeOk(m: string, r: Rec, body: any): boolean {
+  const f = ACTIVE_FIELD[m];
+  if (!f || body?.context?.active_test === false) return true;
+  if ((body?.domain ?? []).some((t: unknown) => Array.isArray(t) && t[0] === f)) return true;
+  return fieldValue(m, r, f) !== false;
 }
 function readRec(m: string, r: Rec, fields?: string[]): Record<string, unknown> {
   const out: Record<string, unknown> = { id: r.id };
@@ -105,13 +123,13 @@ function odoo(model: string, method: string, body: any): unknown {
   const all = () => [...t.values()];
   switch (method) {
     case "search_read": {
-      let rows = all().filter((r) => match(model, r, body?.domain ?? []));
+      let rows = all().filter((r) => activeOk(model, r, body) && match(model, r, body?.domain ?? []));
       if (String(body?.order ?? "").includes("desc")) rows = rows.reverse();
       if (body?.limit) rows = rows.slice(0, body.limit);
       return rows.map((r) => readRec(model, r, body?.fields));
     }
-    case "search": return all().filter((r) => match(model, r, body?.domain ?? [])).map((r) => r.id);
-    case "search_count": return all().filter((r) => match(model, r, body?.domain ?? [])).length;
+    case "search": return all().filter((r) => activeOk(model, r, body) && match(model, r, body?.domain ?? [])).map((r) => r.id);
+    case "search_count": return all().filter((r) => activeOk(model, r, body) && match(model, r, body?.domain ?? [])).length;
     case "read": return (body?.ids ?? []).map((id: number) => t.get(id)).filter(Boolean).map((r: Rec) => readRec(model, r, body?.fields));
     case "create": {
       const list = body?.vals_list ?? (body?.values ? [body.values] : []);
@@ -198,8 +216,11 @@ export function reset(): any {
   seed("x_employee_role", { id: 71, x_code: "warehouse" });
   seed("x_employee_role", { id: 72, x_code: "driver" });
   seed("x_employee_role", { id: 73, x_code: "collector" });
-  seed("res.partner", { id: WH, name: "أحمد", x_whatsapp_number: "+" + WH_PHONE, x_role_ids: [71] });
-  seed("res.partner", { id: COLL, name: "سالم", x_whatsapp_number: "+" + COLL_PHONE, x_role_ids: [73] });
+  // 2026-09-25 (STATUS § 31) — the team is hr.employee; the partner is its Work Contact.
+  seed("res.partner", { id: WH, name: "أحمد", x_whatsapp_number: "+" + WH_PHONE });
+  seed("res.partner", { id: COLL, name: "سالم", x_whatsapp_number: "+" + COLL_PHONE });
+  employee(WH, [71]);
+  employee(COLL, [73]);
   seed("product.template", { id: 1, name: "طماطم" });
   seed("product.template", { id: 2, name: "خيار" });
   seed("x_product_packaging", { id: 11, x_name: "كرتون", x_product_tmpl_id: 1 });
@@ -219,6 +240,31 @@ export function order(customer: number, state: string, date: string, lines = 1, 
   const id = seed("x_daily_order", { x_customer_id: customer, x_state: state, x_order_date: date, x_created_via: "whatsapp", ...extra });
   for (let i = 0; i < lines; i++) seed("x_daily_order_line", { x_order_id: id, x_product_tmpl_id: 1, x_packaging_id: 11, x_quantity: 3, x_status: "pending" });
   return id;
+}
+/**
+ * 2026-09-25 (STATUS § 31) — a team member: hr.employee on the partner (its
+ * Work Contact) with «أدوار UTAK». Extra fields: x_utak_attendance,
+ * resource_calendar_id, resource_id, x_utak_neighborhood_ids, name…
+ */
+export function employee(partnerId: number, roleIds: number[], extra: Record<string, unknown> = {}): number {
+  const p = table("res.partner").get(partnerId);
+  const id = (extra.id as number) ?? 7000 + partnerId;
+  return seed("hr.employee", {
+    id, name: p?.name ?? `موظف ${partnerId}`, work_contact_id: partnerId, x_utak_role_ids: roleIds,
+    x_utak_attendance: false, resource_calendar_id: false, resource_id: id + 100000, company_id: 1, x_utak_neighborhood_ids: [],
+    ...extra,
+  });
+}
+/**
+ * A fixed working schedule: lines as [dayofweek (Odoo: Monday 0 … Sunday 6), from, to].
+ * Returns the calendar id.
+ */
+export function workSchedule(lines: Array<[number, number, number]>, extra: Record<string, unknown> = {}): number {
+  const cal = seed("resource.calendar", { name: "دوام", calendar_type: "fixed", company_id: 1, ...extra });
+  for (const [d, from, to] of lines) {
+    seed("resource.calendar.attendance", { calendar_id: cal, dayofweek: String(d), hour_from: from, hour_to: to, duration_based: false, date: false, recurrency: false });
+  }
+  return cal;
 }
 export const sentTo = (digits: string) => graph.filter((b) => b?.to === digits);
 export const ownerAlerts = () => sentTo(OWNER).map((b) => JSON.stringify(b));

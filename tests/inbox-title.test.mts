@@ -11,7 +11,7 @@
 //
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/inbox-title.test.mts
 
-import { ctx as baseCtx, odooLog, quiet, reset, rows, seed, table } from "./wa-harness.mts";
+import { ctx as baseCtx, employee, odooLog, quiet, reset, rows, seed, table } from "./wa-harness.mts";
 
 let passed = 0, failed = 0;
 const failures: string[] = [];
@@ -125,7 +125,8 @@ console.log("\n[4] syncInboxChannelTitles");
   seed("discuss.channel", { id: 21, name: "واتساب · عمر", x_wa_partner_id: 17 });
   seed("discuss.channel", { id: 30, name: "واتساب · عمر", x_wa_partner_id: 46 });
   // another «عمر», another number
-  seed("res.partner", { id: 9, name: "عمر المجهلي", x_whatsapp_number: "+966545816832", x_role_ids: [73], x_wa_channel_id: 19 });
+  seed("res.partner", { id: 9, name: "عمر المجهلي", x_whatsapp_number: "+966545816832", x_wa_channel_id: 19 });
+  employee(9, [73]); // STATUS § 31 — the team is hr.employee (Work Contact 9)
   seed("discuss.channel", { id: 19, name: "واتساب · عمر المجهلي", x_wa_partner_id: 9 });
   // archived partner, the only channel of its number: not «(قديم)»
   seed("res.partner", { id: 18, name: "🤍", x_whatsapp_number: "+967774375736", active: false, x_wa_channel_id: 22 });

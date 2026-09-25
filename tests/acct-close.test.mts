@@ -242,7 +242,8 @@ function closeOdoo(opts: { draft?: any[]; orphanOrders?: any[] } = {}) {
       return saleCheck ? opts.orphanOrders ?? [] : [];
     }
     if (method === "search_read" && model.startsWith("x_")) return [];
-    if (key === "res.partner.search_count") return 0;
+    // STATUS § 31 — salaried team members: hr.employee («أدوار UTAK» + wage)
+    if (key === "hr.employee.search_count") return 0;
     if (key === "account.move.search_count") return 0;
     if (key === "res.company.search_read") return [{ ...company }];
     if (key === "res.company.write") { Object.assign(company, body.vals); return true; }

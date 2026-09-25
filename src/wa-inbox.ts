@@ -578,7 +578,8 @@ export interface InboundForInbox {
 // Ingest — the single funnel every inbound Meta message flows through.
 // -------------------------------------------------------------
 
-export type InboundRoute = "team" | "supplier" | "customer" | "new" | "owner" | "archived";
+// "quiet" (STATUS § 31): x_contact_class «شخصي» — mirrored, nothing sent.
+export type InboundRoute = "team" | "supplier" | "customer" | "new" | "owner" | "archived" | "quiet";
 
 export interface IngestResult {
   /** last-4 tail of the sender, for the [inbox] log line. */
@@ -868,7 +869,7 @@ export async function ingestInbound(
   looked?: {
     team?: { id: number; name: string } | null;
     supplier?: { id: number; name: string } | null;
-    customer?: { id: number; name: string } | null;
+    customer?: { id: number; name: string; x_contact_class?: string | false } | null;
   },
 ): Promise<IngestResult> {
   const fromTail = phoneTail(m.from);
@@ -892,7 +893,7 @@ export async function ingestInbound(
   const lCustomer = looked?.customer ?? null;
   if (lTeam) { matched = { id: lTeam.id, name: lTeam.name }; route = "team"; }
   else if (lSupplier) { matched = { id: lSupplier.id, name: lSupplier.name }; route = "supplier"; }
-  else if (lCustomer) { matched = { id: lCustomer.id, name: lCustomer.name }; route = "customer"; }
+  else if (lCustomer) { matched = { id: lCustomer.id, name: lCustomer.name }; route = lCustomer.x_contact_class === "personal" ? "quiet" : "customer"; }
 
   if (!matched) {
     // Fall back to fresh lookups (a caller that already did Promise.all
@@ -907,7 +908,7 @@ export async function ingestInbound(
       ]);
       if (team) { matched = { id: team.id, name: team.name }; route = "team"; }
       else if (sup) { matched = { id: sup.id, name: sup.name }; route = "supplier"; }
-      else if (cus) { matched = { id: cus.id, name: cus.name }; route = "customer"; }
+      else if (cus) { matched = { id: cus.id, name: cus.name }; route = cus.x_contact_class === "personal" ? "quiet" : "customer"; }
     } catch (e) {
       console.warn("[inbox ingest] lookup failed:", (e as Error).message);
     }
@@ -923,7 +924,7 @@ export async function ingestInbound(
       matched = { id: created.id, name: created.name || m.profileName || m.from };
       // 2026-09-25 (STATUS § 30) — archived from «مراجعة الأرقام»: the message
       // lands on that partner's inbox, and the bot leaves it alone.
-      route = created.archived ? "archived" : "new";
+      route = created.archived ? "archived" : created.quiet ? "quiet" : "new";
     } catch (e) {
       const skip = `partner-create: ${(e as Error).message}`;
       return { fromTail, partnerId: null, partnerName: "", route: "new", mirrored: false, skip };

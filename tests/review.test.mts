@@ -26,7 +26,7 @@
 
 import { readFileSync } from "node:fs";
 import { createHmac } from "node:crypto";
-import { ctx, graph, odooLog, OWNER, quiet, reset, rows, seed, sentTo, setRiyadh, table, CUST, CUST_PHONE, WH_PHONE } from "./wa-harness.mts";
+import { ctx, employee, graph, odooLog, OWNER, quiet, reset, rows, seed, sentTo, setRiyadh, table, workSchedule, CUST, CUST_PHONE, WH_PHONE } from "./wa-harness.mts";
 // @ts-ignore — plain .mjs
 import { REVIEW_BUTTONS } from "../scripts/lib/review-buttons.mjs";
 // @ts-ignore
@@ -42,7 +42,9 @@ function assert(name: string, cond: unknown, detail = ""): void {
 // ---------------------------------------------------------------- strict schema gate
 const load = (f: string) => JSON.parse(readFileSync(new URL(f, import.meta.url), "utf8"));
 const FX = ["./fixtures-odoo-fields-20260924.json", "./fixtures-odoo-fields-20260925-suppliers.json",
-  "./fixtures-odoo-fields-20260925-attendance.json", "./fixtures-odoo-fields-20260925-review.json"].map(load);
+  "./fixtures-odoo-fields-20260925-attendance.json", "./fixtures-odoo-fields-20260925-review.json",
+  // STATUS § 31 — hr.employee, resource.calendar.*, x_team_attendance.x_employee_id (last: wins)
+  "./fixtures-odoo-fields-20260925-team.json"].map(load);
 const REAL: Record<string, string[]> = Object.assign({}, ...FX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FX.map((f) => f._selections));
 const rejected: string[] = [];
@@ -280,7 +282,8 @@ console.log("\n[4] team, supplier, a customer with orders, Baraa: never screened
 {
   ENV = fresh();
   const SUP = seed("res.partner", { name: "مورد", supplier_rank: 1, x_whatsapp_number: "+966500000810", x_supplied_product_ids: [1] });
-  const OTH = seed("res.partner", { name: "عثمان", x_whatsapp_number: "+966500000811", customer_rank: 1, x_role_ids: [71], x_contact_class: "team" });
+  const OTH = seed("res.partner", { name: "عثمان", x_whatsapp_number: "+966500000811", customer_rank: 1, x_contact_class: "team" });
+  employee(OTH, [71]); // STATUS § 31 — the team is hr.employee
   CLASSIFY = "other"; SCREEN = { intent: "spam", reason: "x" };
   await say(WH_PHONE, "مرحبا", "أحمد");
   await say("966500000810", "طماطم 20", "مورد");
@@ -435,12 +438,16 @@ console.log("\n[8] a number archived from the review writes again: no new partne
   assert("no new partner", rows("res.partner").length === before, `${rows("res.partner").length - before}`);
   assert("no welcome, no reply", toNumber("966500000921").length === 0);
   assert("the message is in his inbox (logged on the archived partner)", rows("x_wa_message").some((m: any) => m.x_partner_id === A && m.x_direction === "in"));
-  assert("not screened, nothing entered review, no owner alert", calls.screen === 0 && reviewPosts().length === 0 && sentTo(OWNER).length === 0);
-  // an archived partner WITHOUT a class (an old duplicate) keeps the old behaviour
+  // STATUS § 31 — its text is only READ by the screening classifier (one call, the image none):
+  // not «شراء» → nothing written, nothing entered review, no owner alert.
+  assert("classified once (the text), nothing written, nothing entered review, no owner alert",
+    calls.screen === 1 && aiWrites(A).length === 0 && reviewPosts().length === 0 && sentTo(OWNER).length === 0, `${calls.screen}`);
+  // STATUS § 31 — an archived partner WITHOUT a class (an old duplicate): the same now
   const B = seed("res.partner", { id: 922, name: "قديم مؤرشف", x_whatsapp_number: "+966500000922", customer_rank: 1, active: false });
   const n0 = rows("res.partner").length;
   await say("966500000922", "هلا", "جديد");
-  assert("archived without a class: a new partner as before (and it starts «غير مراجَع»)", rows("res.partner").length === n0 + 1 && partnerByNumber("966500000922").some((p: any) => p.id !== B && p.x_contact_class === "unreviewed"),
+  assert("archived without a class: no new partner, no welcome, no reply, logged on it (was: a new partner + welcome)",
+    rows("res.partner").length === n0 && toNumber("966500000922").length === 0 && rows("x_wa_message").some((m: any) => m.x_partner_id === B && m.x_direction === "in"),
     JSON.stringify({ added: rows("res.partner").length - n0, byNumber: partnerByNumber("966500000922") }));
 }
 
@@ -494,11 +501,11 @@ console.log("\n[9] two texts at once: one channel message, one alert; Claude dow
 // ================================================================ 10. the backfill plan
 console.log("\n[10] backfill plan: only WhatsApp-created unknown partners, only the new fields");
 {
-  const P = (id: number, extra: Record<string, unknown>) => ({ id, name: `p${id}`, active: true, phone: false, x_whatsapp_number: `+9665000${id}`, customer_rank: 1, supplier_rank: 0, x_role_ids: [], ...extra });
+  const P = (id: number, extra: Record<string, unknown>) => ({ id, name: `p${id}`, active: true, phone: false, x_whatsapp_number: `+9665000${id}`, customer_rank: 1, supplier_rank: 0, ...extra });
   const partners = [
     P(1, { x_whatsapp_number: "+966500000001" }),                       // Baraa's number
-    P(2, { x_role_ids: [4] }),                                            // active team role
-    P(3, { x_role_ids: [10] }),                                           // only the archived «Customer» role → not team
+    P(2, {}),                                                             // Work Contact of an employee with a role (STATUS § 31)
+    P(3, { x_role_ids: [10] }),                                           // an old partner role is not read → not team
     P(4, { supplier_rank: 5 }),                                           // supplier
     P(5, {}),                                                             // order on its number
     P(6, { customer_rank: 0 }),                                           // not created by the bot
@@ -516,29 +523,30 @@ console.log("\n[10] backfill plan: only WhatsApp-created unknown partners, only 
   ]);
   const any = { intent: "spam", reason: "لو صُنّف" };
   const plan = planBackfill({
-    partners, activeRoleIds: new Set([1, 2, 3, 4]), orderNumbers: new Set(["96650005"]), history, ownerNumber: "+966500000001",
+    partners, teamPartnerIds: new Set([2]), orderNumbers: new Set(["96650005"]), history, ownerNumber: "+966500000001",
     decisions: { 1: any, 2: any, 4: any, 5: any, 6: any, 7: any, 8: any, 9: any,
       3: { intent: "vendor_pitch", reason: "يعرض" }, 10: { intent: "purchase", reason: "طلب" }, 11: { intent: "unclear", reason: "حرف" } },
   });
   const by = (id: number) => plan.find((r: any) => r.id === id);
-  const why: Record<number, string> = { 1: "معروف: رقم براء", 2: "معروف: فريق (له دور)", 4: "معروف: مورد", 5: "معروف: له طلب على الرقم", 8: "مؤرشف", 9: "مصنّف مسبقاً (team)" };
+  const why: Record<number, string> = { 1: "معروف: رقم براء", 2: "معروف: فريق (موظف له دور)", 4: "معروف: مورد", 5: "معروف: له طلب على الرقم", 8: "مؤرشف", 9: "مصنّف مسبقاً (team)" };
   assert("Baraa, team, supplier, order on the number, archived, already classified: untouched, each by its own rule",
     Object.entries(why).every(([id, w]) => by(Number(id))?.skip === w && !by(Number(id))?.vals), JSON.stringify(plan.filter((r: any) => Number(r.id) in why)));
   assert("not created by the bot (customer_rank 0 / no conversation): untouched", !!by(6)?.skip && !!by(7)?.skip);
-  assert("only an archived «Customer» role is not «team»: classified", by(3)?.intent === "vendor_pitch" && by(3)?.pending === true);
+  assert("a partner role alone is not «team» (only hr.employee is): classified", by(3)?.intent === "vendor_pitch" && by(3)?.pending === true);
   assert("purchase: not flagged; unclear: flagged", by(10)?.pending === false && by(11)?.pending === true);
   assert("writes only the six new fields — never ranks, never active",
     plan.filter((r: any) => r.vals).every((r: any) => Object.keys(r.vals).sort().join() === "x_ai_intent,x_ai_reason,x_contact_class,x_review_last_at,x_review_last_msg,x_review_pending"));
   assert("last message = the latest text; first message kept for the channel", by(11)?.vals.x_review_last_msg === "ب" && by(11)?.vals.x_review_last_at === "2026-09-24 11:00:00" && by(11)?.first === "ا");
   let threw = false;
-  try { planBackfill({ partners: [P(12, {})], activeRoleIds: new Set(), orderNumbers: new Set(), history: new Map([[12, [{ body: "x", at: "1" }]]]), ownerNumber: "", decisions: {} }); } catch { threw = true; }
+  try { planBackfill({ partners: [P(12, {})], teamPartnerIds: new Set(), orderNumbers: new Set(), history: new Map([[12, [{ body: "x", at: "1" }]]]), ownerNumber: "", decisions: {} }); } catch { threw = true; }
   assert("a classifiable partner without an explicit decision stops the plan", threw);
 }
 
 // ================================================================ 11. Baraa's window: earliest shift − 15 min
 console.log("\n[11] Baraa's morning template: earliest shift − 15 min, else OWNER_WINDOW_OPEN_AT (06:00)");
 {
-  const m = (id: number, shiftStart: number | false, whatsapp = `+96650000${id}`) => ({ id, name: `m${id}`, whatsapp, codes: ["driver"] as any, shiftStart });
+  // STATUS § 31 — the plan takes today's shift starts (from the working schedules)
+  const m = (id: number, shiftStart: number | false, whatsapp = `+96650000${id}`) => ({ whatsapp, startMin: shiftStart ? Math.round(shiftStart * 60) : null });
   const env0: any = { OWNER_WHATSAPP: "+" + OWNER, OWNER_WINDOW_OPEN_AT: "06:00" };
   const hh = (p: { minutes: number }) => att.hhmm(p.minutes);
   assert("05:00 and 07:30 → 04:45", hh(att.ownerWindowPlan(env0, [m(1, 5), m(2, 7.5)])) === "04:45");
@@ -550,8 +558,13 @@ console.log("\n[11] Baraa's morning template: earliest shift − 15 min, else OW
   // through the real tick, with the roster in Odoo
   const run = async (shifts: Record<number, number>, ticks: string[]) => {
     ENV = fresh("2026-09-26 00:00"); ENV.OWNER_WINDOW_OPEN_AT = "06:00";
-    for (const [id, s] of Object.entries(shifts)) seed("res.partner", { id: Number(id), name: `موظف ${id}`, x_whatsapp_number: `+9665000${id}`, x_role_ids: [72], x_shift_start: s });
-    seed("res.partner", { id: 950, name: "بلا دور", x_whatsapp_number: "+966500000950", x_role_ids: [], x_shift_start: 3 });
+    // STATUS § 31 — employees on attendance, a schedule for Saturday (Odoo weekday 5); 0 = no schedule
+    for (const [id, s] of Object.entries(shifts)) {
+      seed("res.partner", { id: Number(id), name: `موظف ${id}`, x_whatsapp_number: `+9665000${id}` });
+      employee(Number(id), [72], { x_utak_attendance: true, resource_calendar_id: s ? workSchedule([[5, s, s + 8]]) : false });
+    }
+    seed("res.partner", { id: 950, name: "بلا دور", x_whatsapp_number: "+966500000950" });
+    employee(950, [], { x_utak_attendance: true, resource_calendar_id: workSchedule([[5, 3, 11]]) });
     const out: string[] = [];
     for (const t of ticks) {
       setRiyadh(`2026-09-26 ${t}`);
@@ -564,7 +577,7 @@ console.log("\n[11] Baraa's morning template: earliest shift − 15 min, else OW
   const withTime = await run({ 961: 5, 962: 7.5 }, ["04:40", "04:45", "05:00", "06:00"]);
   assert("tick: عمر 05:00 → Baraa's template at 04:45, once", withTime.join() === "04:45@04:45/earliest_shift", withTime.join());
   const noTime = await run({ 961: 0 }, ["04:45", "05:55", "06:00", "06:05"]);
-  assert("tick: nobody with a time → 06:00, once (a no-role partner's 03:00 does not count)", noTime.join() === "06:00@06:00/fallback", noTime.join());
+  assert("tick: nobody with a schedule → 06:00, once (a no-role employee's 03:00 does not count)", noTime.join() === "06:00@06:00/fallback", noTime.join());
   assert("no field rejected by the schema gate", rejected.length === 0, rejected.join(" | "));
 }
 

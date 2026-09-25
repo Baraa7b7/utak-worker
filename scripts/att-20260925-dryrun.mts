@@ -20,6 +20,12 @@
 
 import { readFileSync, writeFileSync } from "node:fs";
 
+// 2026-09-25 (STATUS § 31) — superseded. The roster is hr.employee and the
+// shift comes from its working schedule (x_shift_start and getAttendanceTeam
+// are gone). The same dry run, on the new source: scripts/team-20260925-dryrun.mts.
+console.log("superseded by scripts/team-20260925-dryrun.mts (STATUS § 31)");
+process.exit(0);
+
 // ---------------------------------------------------------------- clock
 const RealDate = Date;
 let fixedNow: number | null = null;

@@ -347,7 +347,8 @@ export async function findCustomerByWhatsApp(env: Env, e164: string): Promise<Od
       ["x_whatsapp_number", "=", e164],
       ["phone", "=", e164],
     ],
-    fields: ["id", "name", "customer_rank", "x_whatsapp_number"],
+    // x_contact_class: «شخصي» takes the quiet route (STATUS § 31)
+    fields: ["id", "name", "customer_rank", "x_whatsapp_number", "x_contact_class"],
     limit: 1,
   });
   return rows[0] ?? null;
@@ -420,52 +421,42 @@ export async function isPartnerWaAllowed(env: Env, to: string): Promise<boolean>
 }
 
 /**
- * Fetch — or create if missing — the `customer` row in x_employee_role.
- * Only ever creates the "customer" role. Never staff roles (driver,
- * warehouse, collector, admin). Result is cached in ROLE_CODE_CACHE.
+ * The `customer` row of x_employee_role — archived rows included.
  *
- * A stray failure during the role search must NOT prevent partner creation
- * — the fallback path is documented in createCustomer below.
+ * 2026-09-25 (STATUS § 31) — the model's active field is x_active, so the
+ * default active_test hid every «Customer» row (they are all archived): the
+ * old search found nothing and created a new, archived row on every cold
+ * cache (rows 5–11, one per new WhatsApp partner). Now the search sees the
+ * archived rows and a row is created only when the table has no `customer`
+ * code at all — never a duplicate. Nothing links it to partners any more: a
+ * new partner's class is x_contact_class (STATUS § 30).
  */
-async function ensureCustomerRoleId(env: Env): Promise<number | null> {
-  // Cache path
-  if (ROLE_CODE_CACHE) {
-    for (const [id, code] of ROLE_CODE_CACHE) if (code === "customer") return id;
-  }
+export async function ensureCustomerRoleId(env: Env): Promise<number | null> {
   try {
     const found = await call<Array<{ id: number }>>(env, "x_employee_role", "search_read", {
       domain: [["x_code", "=", "customer"]],
       fields: ["id"],
+      order: "id asc",
       limit: 1,
+      context: { active_test: false },
     });
-    if (found[0]) {
-      if (ROLE_CODE_CACHE) ROLE_CODE_CACHE.set(found[0].id, "customer");
-      return found[0].id;
-    }
+    if (found[0]) return found[0].id;
     const ids = await call<number[]>(env, "x_employee_role", "create", {
       vals_list: [{ x_name: "Customer", x_code: "customer" }],
-    });
-    const id = ids[0];
-    if (ROLE_CODE_CACHE) ROLE_CODE_CACHE.set(id, "customer");
-    console.log(`[roles] created customer role id=${id} in x_employee_role`);
-    return id;
+    }, { probe: [["x_code", "=", "customer"], "|", ["x_active", "=", true], ["x_active", "=", false]] });
+    console.log(`[roles] created customer role id=${ids[0]} in x_employee_role (none existed)`);
+    return ids[0];
   } catch (e) {
-    // Common causes: x_name field named differently, or ACL blocks role
-    // creation. Log loudly — partner creation still proceeds without role.
-    console.error(
-      "[roles] ensureCustomerRoleId failed — partner will be created without a role",
-      (e as Error)?.message,
-    );
+    console.error("[roles] ensureCustomerRoleId failed", (e as Error)?.message);
     return null;
   }
 }
 
 export async function createCustomer(env: Env, name: string, e164: string): Promise<number> {
-  // Rule (v8+): every partner auto-created from an incoming WhatsApp message
-  // gets the `customer` role explicitly. Never a staff role, regardless of
-  // what the message text says — spec §8. This eliminates the "pending
-  // no-role" rows we were accumulating.
-  const customerRoleId = await ensureCustomerRoleId(env);
+  // 2026-09-25 (STATUS § 31) — no role on a partner created from WhatsApp:
+  // the «Customer» role link is gone (it duplicated the role row on every cold
+  // cache); the class is x_contact_class «غير مراجَع» (STATUS § 30), and the
+  // team lives in hr.employee.
   const values: Record<string, unknown> = {
     name: name || e164,
     phone: e164,
@@ -475,12 +466,6 @@ export async function createCustomer(env: Env, name: string, e164: string): Prom
     // the conversation shows its intent (screening.ts).
     x_contact_class: "unreviewed",
   };
-  if (customerRoleId !== null) {
-    // Odoo M2M "add" command; keeps any pre-existing role ids untouched
-    // (there won't be any on a brand-new row, but the tuple form is stable
-    // across Odoo versions).
-    values.x_role_ids = [[4, customerRoleId, 0]];
-  }
   const ids = await call<number[]>(env, "res.partner", "create", {
     vals_list: [values],
   });
@@ -488,20 +473,43 @@ export async function createCustomer(env: Env, name: string, e164: string): Prom
 }
 
 /**
- * 2026-09-25 (STATUS § 30) — a number Baraa archived from «مراجعة الأرقام»
- * (archived, with a classification). A new message from it must not create a
- * fresh partner (a new welcome, a new review): it stays on the archived one.
+ * An archived partner with this number (the newest). 2026-09-25 (STATUS § 30)
+ * — a number Baraa archived from «مراجعة الأرقام» kept its archived partner;
+ * 2026-09-25 (STATUS § 31) — the same for EVERY archived partner (before, an
+ * archived partner without a class got a fresh partner, a welcome and a bot
+ * reply). A new message from it must not create a fresh partner: it lands on
+ * the archived one's inbox, and the bot leaves it alone.
  */
-export async function findArchivedReviewedPartner(env: Env, e164: string): Promise<OdooPartner | null> {
+export async function findArchivedPartner(env: Env, e164: string): Promise<OdooPartner | null> {
   const rows = await call<OdooPartner[]>(env, "res.partner", "search_read", {
     domain: [
       ["active", "=", false],
-      ["x_contact_class", "!=", false],
       "|",
       ["x_whatsapp_number", "=", e164],
       ["phone", "=", e164],
     ],
     fields: ["id", "name", "customer_rank", "x_whatsapp_number"],
+    order: "id desc",
+    limit: 1,
+  });
+  return rows[0] ?? null;
+}
+
+/**
+ * 2026-09-25 (STATUS § 31) — an active partner with this number that Baraa
+ * classified «شخصي» but that has no customer rank: it keeps its number (no
+ * fresh partner, no welcome) and takes the quiet route.
+ */
+export async function findPersonalPartner(env: Env, e164: string): Promise<OdooPartner | null> {
+  const rows = await call<OdooPartner[]>(env, "res.partner", "search_read", {
+    domain: [
+      ["x_contact_class", "=", "personal"],
+      "|",
+      ["x_whatsapp_number", "=", e164],
+      ["phone", "=", e164],
+    ],
+    fields: ["id", "name", "customer_rank", "x_whatsapp_number", "x_contact_class"],
+    order: "id desc",
     limit: 1,
   });
   return rows[0] ?? null;
@@ -511,11 +519,13 @@ export async function findOrCreateCustomer(
   env: Env,
   e164: string,
   profileName: string,
-): Promise<OdooPartner & { archived?: boolean }> {
+): Promise<OdooPartner & { archived?: boolean; quiet?: boolean }> {
   const existing = await findCustomerByWhatsApp(env, e164);
-  if (existing) return existing;
-  const archived = await findArchivedReviewedPartner(env, e164).catch(() => null);
+  if (existing) return existing.x_contact_class === "personal" ? { ...existing, quiet: true } : existing;
+  const archived = await findArchivedPartner(env, e164).catch(() => null);
   if (archived) return { ...archived, archived: true };
+  const personal = await findPersonalPartner(env, e164).catch(() => null);
+  if (personal) return { ...personal, quiet: true };
   const id = await createCustomer(env, profileName, e164);
   return {
     id,
@@ -1104,135 +1114,28 @@ import type {
   RouteStop,
 } from "./types";
 
-// ---- Employee role cache (v8: many2many x_role_ids) ----
-let ROLE_CODE_CACHE: Map<number, TeamRole> | null = null;
-async function getRoleCodeMap(env: Env): Promise<Map<number, TeamRole>> {
-  if (ROLE_CODE_CACHE) return ROLE_CODE_CACHE;
-  const rows = await call<Array<{ id: number; x_code: string }>>(
-    env,
-    "x_employee_role",
-    "search_read",
-    { domain: [], fields: ["id", "x_code"], limit: 20 },
-  );
-  ROLE_CODE_CACHE = new Map(rows.map((r) => [r.id, r.x_code as TeamRole]));
-  return ROLE_CODE_CACHE;
-}
+// ---- Team members — hr.employee (2026-09-25, STATUS § 31) ----
+// The team is the Employees app: «أدوار UTAK» on hr.employee, the number from
+// its Work Contact. One cached roster read (team-roster.ts) answers every
+// lookup below; res.partner.x_role_ids is not read any more.
 
-// ---- Team members (drivers / collector / warehouse) by role ----
+/** Team members with this role (a number and a Work Contact), in employee order. */
 export async function getTeamMembersByRole(
   env: Env,
   role: TeamRole,
 ): Promise<TeamMember[]> {
-  const rows = await call<Array<{
-    id: number;
-    name: string;
-    x_whatsapp_number: string | false;
-    x_role_ids: number[] | false;
-    x_neighborhoods: number[] | false;
-  }>>(env, "res.partner", "search_read", {
-    domain: [["x_role_ids.x_code", "=", role], ["active", "=", true]],
-    fields: ["id", "name", "x_whatsapp_number", "x_role_ids", "x_neighborhoods"],
-    limit: 50,
-  });
-  const roleMap = await getRoleCodeMap(env);
-  return rows
-    .filter((r) => typeof r.x_whatsapp_number === "string" && r.x_whatsapp_number.length > 3)
-    .map((r) => {
-      const codes: TeamRole[] = Array.isArray(r.x_role_ids)
-        ? (r.x_role_ids.map((id) => roleMap.get(id)).filter(Boolean) as TeamRole[])
-        : [role];
-      return {
-        id: r.id,
-        name: r.name,
-        x_whatsapp_number: r.x_whatsapp_number as string,
-        x_role: role,
-        x_role_codes: codes,
-        x_neighborhoods: Array.isArray(r.x_neighborhoods) ? r.x_neighborhoods : [],
-      };
-    });
+  const { loadRoster, membersByRole, toTeamMember } = await import("./team-roster");
+  return membersByRole(await loadRoster(env), role).map((m) => toTeamMember(m, role));
 }
 
-/**
- * 2026-09-25 (STATUS § 29) — the attendance roster: every active partner with
- * at least one ACTIVE role (driver / warehouse / collector / admin; the
- * archived «Customer» role rows map to nothing), with x_shift_start (float
- * hours, Riyadh; 0 = no time).
- */
-export interface AttendanceMember {
-  id: number;
-  name: string;
-  whatsapp: string;
-  codes: TeamRole[];
-  shiftStart: number | false;
-}
-export async function getAttendanceTeam(env: Env): Promise<AttendanceMember[]> {
-  const rows = await call<Array<{
-    id: number;
-    name: string;
-    x_whatsapp_number: string | false;
-    phone: string | false;
-    x_role_ids: number[] | false;
-    x_shift_start: number | false;
-  }>>(env, "res.partner", "search_read", {
-    domain: [["x_role_ids", "!=", false], ["active", "=", true]],
-    fields: ["id", "name", "x_whatsapp_number", "phone", "x_role_ids", "x_shift_start"],
-    order: "id asc",
-    limit: 100,
-  });
-  const roleMap = await getRoleCodeMap(env);
-  const out: AttendanceMember[] = [];
-  for (const r of rows) {
-    const codes = (Array.isArray(r.x_role_ids) ? r.x_role_ids : [])
-      .map((id) => roleMap.get(id))
-      .filter((c): c is TeamRole => !!c && c !== "customer");
-    if (codes.length === 0) continue;
-    out.push({
-      id: r.id,
-      name: r.name,
-      whatsapp: (typeof r.x_whatsapp_number === "string" && r.x_whatsapp_number) || (typeof r.phone === "string" && r.phone) || "",
-      codes,
-      shiftStart: typeof r.x_shift_start === "number" ? r.x_shift_start : false,
-    });
-  }
-  return out;
-}
-
+/** The team member whose Work Contact number is `e164`, or null. */
 export async function findTeamMemberByWhatsApp(
   env: Env,
   e164: string,
 ): Promise<TeamMember | null> {
-  const rows = await call<Array<{
-    id: number;
-    name: string;
-    x_whatsapp_number: string | false;
-    x_role_ids: number[] | false;
-    x_neighborhoods: number[] | false;
-  }>>(env, "res.partner", "search_read", {
-    domain: [
-      "|",
-      ["x_whatsapp_number", "=", e164],
-      ["phone", "=", e164],
-      ["x_role_ids", "!=", false],
-      ["active", "=", true],
-    ],
-    fields: ["id", "name", "x_whatsapp_number", "x_role_ids", "x_neighborhoods"],
-    limit: 1,
-  });
-  const r = rows[0];
-  if (!r || !Array.isArray(r.x_role_ids) || r.x_role_ids.length === 0) return null;
-  const roleMap = await getRoleCodeMap(env);
-  const codes = r.x_role_ids
-    .map((id) => roleMap.get(id))
-    .filter(Boolean) as TeamRole[];
-  if (codes.length === 0) return null;
-  return {
-    id: r.id,
-    name: r.name,
-    x_whatsapp_number: typeof r.x_whatsapp_number === "string" ? r.x_whatsapp_number : e164,
-    x_role: codes[0],           // backward compat: primary role
-    x_role_codes: codes,        // all roles (v8+)
-    x_neighborhoods: Array.isArray(r.x_neighborhoods) ? r.x_neighborhoods : [],
-  };
+  const { loadRoster, memberByNumber, toTeamMember } = await import("./team-roster");
+  const m = memberByNumber(await loadRoster(env), e164);
+  return m ? toTeamMember(m) : null;
 }
 
 // ---- Riyadh calendar date helper (kept local to avoid circular import) ----
@@ -2748,22 +2651,13 @@ export async function getOrderCustomerWhatsapp(
   return p?.x_whatsapp_number || p?.phone || null;
 }
 
-// ---- Collectors (team members with x_role=collector) ----
+// ---- Collectors («محصّل» in «أدوار UTAK», hr.employee — STATUS § 31) ----
 export async function getCollectorTeamMembers(
   env: Env,
-): Promise<Array<{ id: number; name: string; whatsapp: string }>> {
-  type Row = { id: number; name: string; phone: string | false; x_whatsapp_number: string | false };
-  const rows = await call<Row[]>(env, "res.partner", "search_read", {
-    domain: [
-      ["x_role_ids.x_code", "=", "collector"],
-      ["active", "=", true],
-    ],
-    fields: ["id", "name", "phone", "x_whatsapp_number"],
-    limit: 50,
-  });
-  return rows
-    .map((r) => ({ id: r.id, name: r.name, whatsapp: r.x_whatsapp_number || r.phone || "" }))
-    .filter((r) => r.whatsapp);
+): Promise<Array<{ id: number; name: string; whatsapp: string; employeeId: number }>> {
+  const { loadRoster, membersByRole } = await import("./team-roster");
+  return membersByRole(await loadRoster(env), "collector")
+    .map((m) => ({ id: m.partnerId, name: m.name, whatsapp: m.whatsapp, employeeId: m.employeeId }));
 }
 
 // ---- Unpaid invoices for the 18:00 collection summary ----

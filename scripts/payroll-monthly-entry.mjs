@@ -9,9 +9,12 @@
 // Paying the salaries later is a separate entry that debits 201004 (see
 // docs/EXPENSES.md).
 //
-// Employees = active res.partner with x_monthly_salary > 0 and not
-// x_is_simulation. Team members (x_role_ids) without a salary are listed as
-// warnings, not paid.
+// Employees = UTAK's team in the Employees app (STATUS § 31): active
+// hr.employee with «أدوار UTAK» (x_utak_role_ids) and a wage (the contract's
+// «Wage», hr.version.wage) > 0. Team members without a wage are listed as
+// warnings, not paid. The journal line's partner is the employee's Work
+// Contact. (Before 2026-09-25: res.partner.x_monthly_salary — kept in Odoo
+// for rollback only; nothing reads it.)
 //
 // Date = the month's last day or today (Asia/Riyadh), whichever is earlier —
 // l10n_sa refuses to post a date after today. A month that has not started
@@ -22,8 +25,8 @@
 // cancel it in Odoo, then run again.
 //
 // Test mode (live verification only):
-//   --test-partners=ID,ID  use exactly these partners, which MUST be
-//                          x_is_simulation=true; ref gets the prefix
+//   --test-employees=ID,ID use exactly these hr.employee, whose names MUST
+//                          start with «SIM-TEST»; ref gets the prefix
 //                          SIM-TEST-<tag>- so it never blocks a real month
 //   --tag=NAME             the SIM-TEST tag (default "run")
 //
@@ -90,7 +93,7 @@ function round2(n) { return Math.round(n * 100) / 100; }
 const args = process.argv.slice(2);
 const month = args.find((a) => /^\d{4}-\d{2}$/.test(a));
 const DRY = args.includes("--dry-run");
-const testArg = args.find((a) => a.startsWith("--test-partners="));
+const testArg = args.find((a) => a.startsWith("--test-employees="));
 const tag = (args.find((a) => a.startsWith("--tag=")) ?? "--tag=run").slice(6);
 if (!month || Number(month.slice(5)) < 1 || Number(month.slice(5)) > 12) {
   console.error("usage: node scripts/payroll-monthly-entry.mjs YYYY-MM [--dry-run]");
@@ -123,37 +126,36 @@ async function main() {
     return { status: "exists", move_id: existing[0].id };
   }
 
+  // STATUS § 31 — the team is hr.employee: «أدوار UTAK» + the contract's wage.
+  const EMP_FIELDS = ["id", "name", "wage", "work_contact_id", "x_utak_role_ids"];
   let employees;
   if (testArg) {
-    const ids = testArg.slice(16).split(",").map(Number).filter(Boolean);
-    employees = await call("res.partner", "read", { ids, fields: ["id", "name", "x_monthly_salary", "x_is_simulation"] });
-    const real = employees.filter((p) => !p.x_is_simulation);
-    if (real.length) throw new Error(`--test-partners must be x_is_simulation=true: ${real.map((p) => p.id).join(",")}`);
+    const ids = testArg.slice(17).split(",").map(Number).filter(Boolean);
+    employees = await call("hr.employee", "read", { ids, fields: EMP_FIELDS, context: { active_test: false } });
+    const real = employees.filter((e) => !String(e.name).startsWith("SIM-TEST"));
+    if (real.length) throw new Error(`--test-employees must be named SIM-TEST…: ${real.map((e) => e.id).join(",")}`);
   } else {
-    employees = await call("res.partner", "search_read", {
-      domain: [["active", "=", true], ["x_monthly_salary", ">", 0], ["x_is_simulation", "!=", true]],
-      fields: ["id", "name", "x_monthly_salary"], order: "name",
+    const team = await call("hr.employee", "search_read", {
+      domain: [["active", "=", true], ["x_utak_role_ids", "!=", false]],
+      fields: EMP_FIELDS, order: "name",
     });
-    const team = await call("res.partner", "search_read", {
-      domain: [["active", "=", true], ["x_role_ids", "!=", false], ["x_is_simulation", "!=", true]],
-      fields: ["id", "name", "x_role_ids", "x_monthly_salary"],
-    });
-    for (const p of team) {
-      if (Array.isArray(p.x_role_ids) && p.x_role_ids.length && !(Number(p.x_monthly_salary) > 0)) {
-        console.log(`  ⚠️ ${p.name} (id ${p.id}) has a team role but no x_monthly_salary — not included`);
-      }
+    for (const e of team) {
+      if (!(Number(e.wage) > 0)) console.log(`  ⚠️ ${e.name} (employee ${e.id}) is on the team but has no wage — not included`);
     }
+    employees = team;
   }
-  employees = employees.filter((p) => Number(p.x_monthly_salary) > 0);
-  if (!employees.length) { console.log("no employee with x_monthly_salary > 0 — nothing to post"); return { status: "empty" }; }
+  employees = employees.filter((e) => Number(e.wage) > 0);
+  if (!employees.length) { console.log("no team employee with a wage > 0 — nothing to post"); return { status: "empty" }; }
+  const noContact = employees.filter((e) => !e.work_contact_id);
+  if (noContact.length) throw new Error(`employees without a Work Contact: ${noContact.map((e) => e.id).join(",")}`);
 
-  const total = round2(employees.reduce((s, p) => s + Number(p.x_monthly_salary), 0));
-  const lines = employees.map((p) => [0, 0, {
-    account_id: salary.id, partner_id: p.id, name: `راتب ${month} — ${p.name}`,
-    debit: round2(Number(p.x_monthly_salary)), credit: 0,
+  const total = round2(employees.reduce((s, e) => s + Number(e.wage), 0));
+  const lines = employees.map((e) => [0, 0, {
+    account_id: salary.id, partner_id: e.work_contact_id[0], name: `راتب ${month} — ${e.name}`,
+    debit: round2(Number(e.wage)), credit: 0,
   }]);
   lines.push([0, 0, { account_id: accrued.id, name: `مستحقات رواتب ${month}`, debit: 0, credit: total }]);
-  for (const p of employees) console.log(`  Dr ${SALARY_CODE}  ${round2(Number(p.x_monthly_salary)).toFixed(2).padStart(10)}  ${p.name}`);
+  for (const e of employees) console.log(`  Dr ${SALARY_CODE}  ${round2(Number(e.wage)).toFixed(2).padStart(10)}  ${e.name}`);
   console.log(`  Cr ${ACCRUED_CODE}  ${total.toFixed(2).padStart(10)}  total (${employees.length})`);
   if (DRY) { console.log("dry-run — nothing written"); return { status: "dry-run", total }; }
 

@@ -86,8 +86,17 @@ export async function notifyPaymentClaim(
     const { getTeamMembersByRole } = await import("./odoo");
     const { isInside24hWindow } = await import("./wa-inbox");
     const { sendText } = await import("./meta");
+    const { holdForTask } = await import("./attendance");
+    const { enqueueTeamItems } = await import("./team-queue");
     for (const c of await getTeamMembersByRole(env, "collector")) {
       if (!c.x_whatsapp_number || !(await isInside24hWindow(env, c.id))) continue;
+      // 2026-09-25 (STATUS § 31) — a collector on attendance before their tap,
+      // after their shift, or off today: the note waits for their next tap.
+      const att = await holdForTask(env, c.id, { kind: "pay_claim", label: `تحقق من تحويل ${customer.name}` });
+      if (att.hold) {
+        await enqueueTeamItems(env, c.x_whatsapp_number, [{ text: note }], att.queueTtl);
+        continue;
+      }
       const r = await sendText(env, c.x_whatsapp_number, note);
       if (r.ok) collectors++;
     }

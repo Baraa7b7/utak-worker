@@ -61,6 +61,7 @@ export interface OdooPartner {
   supplier_rank?: number;
   customer_rank?: number;
   x_whatsapp_number?: string;
+  x_contact_class?: string | false;   // STATUS § 30 / § 31 (read by findCustomerByWhatsApp)
 }
 
 export interface ClassifyResult {
@@ -141,15 +142,18 @@ export interface WhatsAppTemplateRow {
 // v4 — team roles & orchestration
 // ============================================================
 
-export type TeamRole = "customer" | "driver" | "collector" | "warehouse";
+// 2026-09-25 (STATUS § 31) — the codes of x_employee_role, read from
+// hr.employee.x_utak_role_ids («أدوار UTAK»). "admin" = «مدير».
+export type TeamRole = "customer" | "driver" | "collector" | "warehouse" | "admin";
 
 export interface TeamMember {
-  id: number;
+  id: number;                      // the employee's Work Contact (res.partner: the WhatsApp chat)
+  employeeId?: number;             // hr.employee (STATUS § 31)
   name: string;
   x_whatsapp_number: string;
   x_role: TeamRole;                // primary/queried role (backward compat)
-  x_role_codes?: TeamRole[];       // all roles from x_role_ids many2many (v8+)
-  x_neighborhoods?: number[];      // ids of x_neighborhood
+  x_role_codes?: TeamRole[];       // all roles («أدوار UTAK» on hr.employee)
+  x_neighborhoods?: number[];      // ids of x_neighborhood («أحياء التوصيل» on hr.employee)
 }
 
 // A row in the aggregated purchase list Ahmad receives at 21:15

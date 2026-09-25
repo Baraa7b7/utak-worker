@@ -41,7 +41,7 @@ import { syncPurchaseListToAccounting } from "./purchase-accounting";
 import { riyadhDateKey } from "./hours";
 import { arabicDate, joinCapped } from "./wa-params";
 import type { PurchaseListItem } from "./types";
-import { attendanceHold } from "./attendance";
+import { holdForTask } from "./attendance";
 import { heldPartnerIds } from "./screening";
 import { enqueueTeamItems, type TeamQueueItem } from "./team-queue";
 
@@ -192,7 +192,7 @@ export async function aggregateAndDispatchToWarehouse(env: Env): Promise<void> {
 
   const warehouseMembers = await getTeamMembersByRole(env, "warehouse");
   if (warehouseMembers.length === 0) {
-    console.error("[cron 21:15] no warehouse team member found — check res.partner x_role='warehouse'");
+    console.error("[cron 21:15] no warehouse team member found — check «أدوار UTAK» (شراء) on hr.employee");
     if (env.OWNER_WHATSAPP) {
       await sendOwnerAlert(
         env,
@@ -205,7 +205,9 @@ export async function aggregateAndDispatchToWarehouse(env: Env): Promise<void> {
   for (const wh of warehouseMembers) {
     // 2026-09-25 (STATUS § 29) — not tapped «بدء الدوام» today: the open list
     // reaches them right after the tap (resendOpenPurchaseLists), not now.
-    if ((await attendanceHold(env, wh.id)).hold) {
+    // STATUS § 31 — after the shift (or on a day off / time off) the same, until
+    // the next shift's tap, and Baraa gets one «مهمة لـ… بعد دوامه».
+    if ((await holdForTask(env, wh.id, { kind: "purchase_list", label: `قائمة الشراء #${listId} (${items.length} صنف)` })).hold) {
       console.log(`[cron 21:15] list ${listId} waits for ${wh.name}'s «بدء الدوام»`);
       continue;
     }
@@ -313,9 +315,12 @@ export async function followUpUnconfirmedPurchaseLists(env: Env): Promise<{ remi
   if (ids.length === 0) return { reminded: 0 };
   const warehouse = await getTeamMembersByRole(env, "warehouse");
   // 2026-09-25 (STATUS § 29) — a member who has not tapped «بدء الدوام» today
-  // gets the open list right after the tap instead of this reminder.
+  // gets the open list right after the tap instead of this reminder (and after
+  // the shift / on a day off: at the next shift, STATUS § 31).
   const held = new Set<number>();
-  for (const wh of warehouse) if ((await attendanceHold(env, wh.id)).hold) held.add(wh.id);
+  for (const wh of warehouse) {
+    if ((await holdForTask(env, wh.id, { kind: "purchase_list_remind", label: `تذكير قائمة الشراء (${ids.map((i) => "#" + i).join("، ")})` })).hold) held.add(wh.id);
+  }
   let reminded = 0;
   for (const id of ids) {
     const list = await getPurchaseListBrief(env, id);
@@ -425,12 +430,14 @@ export async function sendDriverRoute(
     { id: `delivery_issue_${s.order_id}`, title: "فيه مشكلة ⚠️" },
   ];
 
-  // 2026-09-25 (STATUS § 29) — attendance. A driver with a shift time who has
+  // 2026-09-25 (STATUS § 29) — attendance. A driver on attendance who has
   // not tapped today's «بدء الدوام» gets the whole route after the tap: the
   // list, then per stop its location, delivery note and buttons, all queued in
   // order. A driver who already tapped today gets it now, without a second
-  // «بدء الدوام» template. A driver without a shift time: unchanged below.
-  const att = await attendanceHold(env, driver.id);
+  // «بدء الدوام» template. A driver not on attendance: unchanged below.
+  // STATUS § 31 — after the shift (or on a day off / time off) the route is
+  // queued the same way for the next shift, and Baraa gets one alert.
+  const att = await holdForTask(env, driver.id, { kind: "route", label: `مسار التوصيل (${stops.length} توصيلة، المسار #${routeId})` });
   if (att.hold) {
     const q: TeamQueueItem[] = [{ text: trimmed }];
     for (const s of stops) {
@@ -449,7 +456,7 @@ export async function sendDriverRoute(
       }
       q.push({ text: stopBody(s), buttons: stopButtons(s) });
     }
-    await enqueueTeamItems(env, driver.x_whatsapp_number, q);
+    await enqueueTeamItems(env, driver.x_whatsapp_number, q, att.queueTtl);
     console.log(`[sendDriverRoute] route ${routeId} (${stops.length} stops) queued until ${driver.name}'s «بدء الدوام»`);
     return;
   }

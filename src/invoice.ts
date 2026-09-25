@@ -248,13 +248,16 @@ export async function createAndDispatchInvoiceForOrder(
     { id: `collect_cash_${invoiceId}`, title: "نقد 💵" },
     { id: `collect_transfer_${invoiceId}`, title: "تحويل 🏦" },
   ];
-  // 2026-09-25 (STATUS § 29) — a collector with a shift time who has not
+  // 2026-09-25 (STATUS § 29) — a collector on attendance who has not
   // tapped «بدء الدوام» today gets the request (with its buttons) after the tap.
+  // STATUS § 31 — after the shift (or on a day off / time off): at the next
+  // shift's tap, and Baraa gets one «مهمة لـ… بعد دوامه».
   try {
-    const { attendanceHold } = await import("./attendance");
-    if ((await attendanceHold(env, collector.id)).hold) {
+    const { holdForTask } = await import("./attendance");
+    const att = await holdForTask(env, collector.id, { kind: "collection_request", label: `طلب تحصيل ${invoiceNumber} (${order.customer_name || "-"}، ${total} ر.س)` });
+    if (att.hold) {
       const { enqueueTeamItems } = await import("./team-queue");
-      await enqueueTeamItems(env, collector.whatsapp, [{ text: body, buttons: collectButtons }]);
+      await enqueueTeamItems(env, collector.whatsapp, [{ text: body, buttons: collectButtons }], att.queueTtl);
       await writeInvoice(env, invoiceId, { x_sent_to_collector_at: nowOdoo() });
       console.log(`[invoice] collection request ${invoiceNumber} queued until ${collector.name}'s «بدء الدوام»`);
       return { invoiceId, number: invoiceNumber, total };
@@ -674,7 +677,7 @@ export async function sendDailyCollectionSummary(env: Env): Promise<CollectionSu
     return report;
   }
   const { isInside24hWindow } = await import("./wa-inbox");
-  const { attendanceHold } = await import("./attendance");
+  const { attendanceHold, holdForTask } = await import("./attendance");
   const tail = (wa: string) => "…" + wa.replace(/\D/g, "").slice(-4);
   // 2026-09-25 (STATUS § 29) — a collector who has not tapped «بدء الدوام»
   // today gets the unpaid list right after the tap (sendCollectorBacklog).
@@ -705,7 +708,9 @@ export async function sendDailyCollectionSummary(env: Env): Promise<CollectionSu
   report.total = s.grandTotal;
   for (const c of collectors) {
     try {
-      if ((await attendanceHold(env, c.id)).hold) {
+      // STATUS § 31 — after the shift / on a day off: the list waits for the
+      // next shift's tap (sendCollectorBacklog), with one owner alert.
+      if ((await holdForTask(env, c.id, { kind: "collection_summary", label: `ملخص التحصيل (${unpaid.length} فاتورة، ${s.grandTotal} ر.س)` })).hold) {
         report.sends.push({ to: tail(c.whatsapp), via: "none", reason: HELD });
         continue;
       }

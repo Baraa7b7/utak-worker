@@ -4,7 +4,8 @@
 // Only a partner created automatically from WhatsApp is classified: active,
 // customer_rank > 0, with a number and a WhatsApp conversation (x_wa_message
 // or x_message_analysis). Known partners are never touched: Baraa's number,
-// an active team role, a supplier, or any order on the number (x_daily_order
+// the team (the Work Contact of an hr.employee with «أدوار UTAK» — STATUS
+// § 31), a supplier, or any order on the number (x_daily_order
 // or sale.order, on any partner with that number, archived included). A
 // partner that already has a class is left as it is. Every classified partner
 // needs an explicit decision (intent + reason) read from its conversation.
@@ -19,14 +20,14 @@ export const maskNumber = (s) => {
 
 /**
  * @param {object} a
- * @param {Array<{id:number,name:string,active:boolean,phone?:string|false,x_whatsapp_number?:string|false,customer_rank:number,supplier_rank:number,x_role_ids:number[],x_contact_class?:string|false}>} a.partners
- * @param {Set<number>} a.activeRoleIds          team roles with x_active (never «customer»)
+ * @param {Array<{id:number,name:string,active:boolean,phone?:string|false,x_whatsapp_number?:string|false,customer_rank:number,supplier_rank:number,x_contact_class?:string|false}>} a.partners
+ * @param {Set<number>} a.teamPartnerIds         Work Contacts of the hr.employee with «أدوار UTAK»
  * @param {Set<string>} a.orderNumbers           digits of every number that has an order
  * @param {Map<number, Array<{body:string, at:string}>>} a.history  inbound texts per partner, oldest first
  * @param {string} a.ownerNumber
  * @param {Record<number, {intent:string, reason:string}>} a.decisions
  */
-export function planBackfill({ partners, activeRoleIds, orderNumbers, history, ownerNumber, decisions }) {
+export function planBackfill({ partners, teamPartnerIds, orderNumbers, history, ownerNumber, decisions }) {
   const owner = digits(ownerNumber);
   const rows = [];
   for (const p of partners) {
@@ -35,7 +36,7 @@ export function planBackfill({ partners, activeRoleIds, orderNumbers, history, o
     if (!p.active) { rows.push({ ...base, skip: "مؤرشف" }); continue; }
     if (!num) { rows.push({ ...base, skip: "بلا رقم" }); continue; }
     if (owner && num === owner) { rows.push({ ...base, skip: "معروف: رقم براء" }); continue; }
-    if ((p.x_role_ids ?? []).some((r) => activeRoleIds.has(r))) { rows.push({ ...base, skip: "معروف: فريق (له دور)" }); continue; }
+    if (teamPartnerIds.has(p.id)) { rows.push({ ...base, skip: "معروف: فريق (موظف له دور)" }); continue; }
     if ((p.supplier_rank ?? 0) > 0) { rows.push({ ...base, skip: "معروف: مورد" }); continue; }
     if (orderNumbers.has(num)) { rows.push({ ...base, skip: "معروف: له طلب على الرقم" }); continue; }
     if ((p.customer_rank ?? 0) <= 0) { rows.push({ ...base, skip: "لم يُنشأ من واتساب (ليس عميلاً)" }); continue; }

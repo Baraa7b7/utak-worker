@@ -29,8 +29,6 @@ export interface Env {
 
   // ---- Optional secrets ----
   ADMIN_TOKEN?: string;
-  /** Temporary — scoped auth for /admin/audit-partners diagnostic only. Delete once dedup done. */
-  AUDIT_TOKEN?: string;
   GOTENBERG_URL?: string;
   GOTENBERG_USER?: string;
   GOTENBERG_PASSWORD?: string;

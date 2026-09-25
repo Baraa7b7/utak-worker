@@ -224,30 +224,6 @@ export default {
       }
     }
 
-    // TEMPORARY 2026-09-12 — one-shot partner-dedup audit.
-    // Reads Othman id=8/id=15 with linked-record counts, dumps role state,
-    // audits suppliers, and reports customers missing a delivery neighborhood.
-    // Optional: ?create_pilot=1 creates ONE pilot customer.
-    // NEVER archives, NEVER unlinks. Gate: AUDIT_TOKEN secret.
-    if (request.method === "GET" && url.pathname === "/admin/audit-partners") {
-      const token = url.searchParams.get("token") ?? request.headers.get("x-audit-token") ?? "";
-      const expected = env.AUDIT_TOKEN ?? "";
-      if (!expected || token !== expected) {
-        return json({ error: "unauthorized" }, 401);
-      }
-      try {
-        const { runPartnerAudit } = await import("./audit-partners");
-        const createPilot = url.searchParams.get("create_pilot") === "1";
-        const result = await runPartnerAudit(env, { createPilot });
-        return json({ ok: true, ...result });
-      } catch (e) {
-        return json(
-          { ok: false, error: (e as Error).message, stack: (e as Error).stack },
-          500,
-        );
-      }
-    }
-
     // 2026-09-05 — invoice PDF preview + optional R2 upload
     if (request.method === "GET" && url.pathname === "/test-invoice") {
       const token = url.searchParams.get("token") ?? request.headers.get("x-admin-token") ?? "";
@@ -1468,6 +1444,33 @@ export default {
       return json({ status: "accepted", partner_id: partnerId }, 202);
     }
 
+    // 2026-09-25 (STATUS § 31) — Odoo → Worker: an employee, a working
+    // schedule line or a time off changed (automations «utak.team_roster ←
+    // hr.employee / resource.calendar.attendance / resource.calendar.leaves»,
+    // on create / edit / delete). The cached roster is dropped; the next read
+    // comes from Odoo. Nothing else happens here.
+    if (request.method === "POST" && url.pathname === "/odoo/hook/team-roster") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      let body: { _model?: string; _id?: number; id?: number } = {};
+      try {
+        body = (await request.json()) as typeof body;
+      } catch {
+        body = {};
+      }
+      const { TEAM_ROSTER_HOOK_MODELS } = await import("./team-roster");
+      if (body._model && !TEAM_ROSTER_HOOK_MODELS.includes(body._model)) {
+        return json({ error: `unexpected model: ${body._model}` }, 400);
+      }
+      const { invalidateRoster } = await import("./team-roster");
+      await invalidateRoster(env);
+      console.log("[team-roster hook]", JSON.stringify({ model: body._model ?? "-", id: body._id ?? body.id ?? "-" }));
+      return json({ status: "roster_dropped" }, 202);
+    }
+
     // Item 2 (2026-09-17) — Odoo → Worker: process x_wa_message.x_status='queued'.
     // Fired by the base.automation (wa_message.on_queued) via ir.actions.server
     // (wa_message.send_webhook). The full send pipeline (validate → media
@@ -1894,7 +1897,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
     // Team, supplier and customer matches are also passed through to the
     // bot routing below so we do not re-run the same Odoo lookups a
     // second time on the hot path.
-    let ingestRoute: "team" | "supplier" | "customer" | "new" | "owner" | "archived" = "new";
+    let ingestRoute: import("./wa-inbox").InboundRoute = "new";
     let ingestPartnerId = 0;
     let ingestPartnerName = "";
     let teamMatch: Awaited<ReturnType<typeof findTeamMemberByWhatsApp>> | null = null;
@@ -1936,7 +1939,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         {
           team: t ? { id: t.id, name: t.name } : null,
           supplier: sup ? { id: sup.id, name: sup.name } : null,
-          customer: cus ? { id: cus.id, name: cus.name } : null,
+          customer: cus ? { id: cus.id, name: cus.name, x_contact_class: cus.x_contact_class } : null,
         },
       );
       ingestRoute = ingest.route;
@@ -1956,7 +1959,9 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       // 2026-09-20 — the unallowed-inbound alert still fires only for
       // strangers (no team, no supplier match). We keep the 24h KV throttle
       // and use the same partner name from the customer match if present.
-      if (!sup && !t && ingest.route !== "archived") {
+      // 2026-09-25 (STATUS § 31) — «شخصي» (route quiet): its message is kept,
+      // and nothing is sent — not this alert either.
+      if (!sup && !t && ingest.route !== "archived" && ingest.route !== "quiet") {
         const { isRecipientAllowed } = await import("./config");
         const { isPartnerWaAllowed } = await import("./odoo");
         const allowlistOK = isRecipientAllowed(env, msg.from);
@@ -2008,8 +2013,27 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
 
     // 2026-09-25 (STATUS § 30) — a number Baraa archived from «مراجعة الأرقام»:
     // mirrored to its inbox above, and nothing automated follows.
+    // 2026-09-25 (STATUS § 31) — every archived partner (not only the ones
+    // archived from review): the bot sends nothing; a text the screening
+    // classifier reads as «طلب أو استفسار شراء» reaches Baraa as one alert.
     if (ingestRoute === "archived") {
       console.log(`[screen] wamid=${msg.messageId.slice(-10)} partner=${ingestPartnerId} archived skip=bot`);
+      if (msg.type === "text" && msg.text && ingestPartnerId > 0) {
+        try {
+          const { alertArchivedPurchase } = await import("./screening");
+          await alertArchivedPurchase(env, { partnerId: ingestPartnerId, name: ingestPartnerName, profileName: msg.profileName, text: msg.text });
+        } catch (e) {
+          console.warn("[screen] archived purchase check failed", (e as Error)?.message);
+        }
+      }
+      await markSeen(env, msg.messageId);
+      continue;
+    }
+
+    // 2026-09-25 (STATUS § 31) — a number Baraa classified «شخصي»: mirrored to
+    // its inbox above; no reply, no message, no alert.
+    if (ingestRoute === "quiet") {
+      console.log(`[screen] wamid=${msg.messageId.slice(-10)} partner=${ingestPartnerId} personal skip=bot`);
       await markSeen(env, msg.messageId);
       continue;
     }
@@ -2080,11 +2104,14 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
             await flushTeamQueue(env, msg.from);
           } else if (tap.kind === "owner") {
             await sendText(env, msg.from, tap.text, { ctx, purpose: "owner_alert" });
-          } else if (tap.kind === "not_started") {
+          } else if (tap.kind === "not_started" || tap.kind === "off_today") {
+            // STATUS § 31 — a day off / time off: nothing recorded, nothing released.
             await sendText(env, msg.from, tap.text, { ctx });
           } else {
             await sendText(env, msg.from, tap.text, { ctx });
-            await deliverTasksOnTap(env, teamMember, msg.from);
+            // STATUS § 31 — a tap after the end of the shift: recorded (late),
+            // and the tasks wait for the next shift.
+            if (!tap.afterEnd) await deliverTasksOnTap(env, teamMember, msg.from);
           }
         } catch (e) {
           console.warn("[shift_start] failed", (e as Error)?.message);
@@ -2206,9 +2233,9 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
     const { parseOptoutCommand } = await import("./optout");
     const optoutCmd = msg.type === "text" ? parseOptoutCommand(msg.text) : null;
     const partner = await findOrCreateCustomer(env, msg.from, msg.profileName);
-    // 2026-09-25 (STATUS § 30) — archived from «مراجعة الأرقام» (reached here
-    // only if the ingest above failed): no welcome, no new partner, no reply.
-    if (partner.archived) {
+    // 2026-09-25 (STATUS § 30 / § 31) — archived, or «شخصي» (reached here only
+    // if the ingest above failed): no welcome, no new partner, no reply.
+    if (partner.archived || partner.quiet) {
       await markSeen(env, msg.messageId);
       continue;
     }

@@ -1,0 +1,575 @@
+{
+  "mode": "no owner tap",
+  "assumedTaps": [],
+  "days": [
+    "2026-09-26",
+    "2026-10-02",
+    "2026-10-03"
+  ],
+  "crons": [
+    "0 23 * * *",
+    "0 2 * * *",
+    "0 3 * * *",
+    "0 17 * * *",
+    "0 18 * * *",
+    "15 18 * * *",
+    "0 15 * * *",
+    "0 14 * * *",
+    "0 5 * * *",
+    "*/5 * * * *"
+  ],
+  "ownerWindowOpenAt": "06:00",
+  "roster": [
+    {
+      "employee": 4,
+      "partner": 9,
+      "name": "عمر المجهلي",
+      "to": "…6832",
+      "roles": [
+        "driver",
+        "warehouse",
+        "collector"
+      ],
+      "attendance": true,
+      "calendar": "UTAK — عمر"
+    },
+    {
+      "employee": 5,
+      "partner": 15,
+      "name": "عثمان عبدالوهاب",
+      "to": "…9474",
+      "roles": [
+        "admin"
+      ],
+      "attendance": true,
+      "calendar": "UTAK — عثمان"
+    }
+  ],
+  "plans": {
+    "2026-09-26": [
+      {
+        "kind": "work",
+        "day": "2026-09-26",
+        "startMin": 120,
+        "endMin": 720,
+        "name": "عمر المجهلي",
+        "to": "…6832",
+        "roles": [
+          "driver",
+          "warehouse",
+          "collector"
+        ],
+        "attendance": true,
+        "calendar": "UTAK — عمر"
+      },
+      {
+        "kind": "work",
+        "day": "2026-09-26",
+        "startMin": 360,
+        "endMin": 960,
+        "name": "عثمان عبدالوهاب",
+        "to": "…9474",
+        "roles": [
+          "admin"
+        ],
+        "attendance": true,
+        "calendar": "UTAK — عثمان"
+      }
+    ],
+    "2026-10-02": [
+      {
+        "kind": "day_off",
+        "day": "2026-10-02",
+        "name": "عمر المجهلي",
+        "to": "…6832",
+        "roles": [
+          "driver",
+          "warehouse",
+          "collector"
+        ],
+        "attendance": true,
+        "calendar": "UTAK — عمر"
+      },
+      {
+        "kind": "day_off",
+        "day": "2026-10-02",
+        "name": "عثمان عبدالوهاب",
+        "to": "…9474",
+        "roles": [
+          "admin"
+        ],
+        "attendance": true,
+        "calendar": "UTAK — عثمان"
+      }
+    ],
+    "2026-10-03": [
+      {
+        "kind": "work",
+        "day": "2026-10-03",
+        "startMin": 120,
+        "endMin": 720,
+        "name": "عمر المجهلي",
+        "to": "…6832",
+        "roles": [
+          "driver",
+          "warehouse",
+          "collector"
+        ],
+        "attendance": true,
+        "calendar": "UTAK — عمر"
+      },
+      {
+        "kind": "work",
+        "day": "2026-10-03",
+        "startMin": 360,
+        "endMin": 960,
+        "name": "عثمان عبدالوهاب",
+        "to": "…9474",
+        "roles": [
+          "admin"
+        ],
+        "attendance": true,
+        "calendar": "UTAK — عثمان"
+      }
+    ]
+  },
+  "ownerWindowAt": {
+    "2026-09-26": "06:00",
+    "2026-10-02": "06:00",
+    "2026-10-03": "06:00"
+  },
+  "sends": [
+    {
+      "day": "2026-09-26",
+      "at": "02:00",
+      "to": "…7704",
+      "what": "قالب utak_supplier_ask_v2 [أحمد حسان | افوكادو، رمان وسط]",
+      "kind": "utak_supplier_ask_v2",
+      "who": "…7704"
+    },
+    {
+      "day": "2026-09-26",
+      "at": "02:00",
+      "to": "…6832",
+      "what": "قالب utak_shift_start_v2 [عمر المجهلي]",
+      "kind": "utak_shift_start_v2",
+      "who": "عمر المجهلي"
+    },
+    {
+      "day": "2026-09-26",
+      "at": "02:30",
+      "to": "…6832",
+      "what": "قالب utak_shift_start_v2 [عمر المجهلي]",
+      "kind": "utak_shift_start_v2",
+      "who": "عمر المجهلي"
+    },
+    {
+      "day": "2026-09-26",
+      "at": "02:30",
+      "to": "…4962",
+      "what": "نص: ⏰ عمر المجهلي لم يسجّل حضوره: دوامه 02:00، ومضت 30 دقيقة بلا ضغط «بدء الدوام». أُرسل له تذكير.",
+      "kind": "text",
+      "who": "براء"
+    },
+    {
+      "day": "2026-09-26",
+      "at": "03:00",
+      "to": "…4962",
+      "what": "نص: ❌ عمر المجهلي سُجّل غائباً اليوم: لم يضغط «بدء الدوام» خلال 60 دقيقة من دوامه (02:00).",
+      "kind": "text",
+      "who": "براء"
+    },
+    {
+      "day": "2026-09-26",
+      "at": "06:00",
+      "to": "…4962",
+      "what": "نص: ☀️ صباح الخير براء — ما فيه طلبات أسعار انرسلت الليلة (لعل القوالب لسا PENDING).",
+      "kind": "text",
+      "who": "براء"
+    },
+    {
+      "day": "2026-09-26",
+      "at": "06:00",
+      "to": "…4962",
+      "what": "قالب utak_shift_start_v2 [براء]",
+      "kind": "utak_shift_start_v2",
+      "who": "براء"
+    },
+    {
+      "day": "2026-09-26",
+      "at": "06:00",
+      "to": "…9474",
+      "what": "قالب utak_shift_start_v2 [عثمان عبدالوهاب]",
+      "kind": "utak_shift_start_v2",
+      "who": "عثمان عبدالوهاب"
+    },
+    {
+      "day": "2026-09-26",
+      "at": "06:30",
+      "to": "…9474",
+      "what": "قالب utak_shift_start_v2 [عثمان عبدالوهاب]",
+      "kind": "utak_shift_start_v2",
+      "who": "عثمان عبدالوهاب"
+    },
+    {
+      "day": "2026-09-26",
+      "at": "06:30",
+      "to": "…4962",
+      "what": "نص: ⏰ عثمان عبدالوهاب لم يسجّل حضوره: دوامه 06:00، ومضت 30 دقيقة بلا ضغط «بدء الدوام». أُرسل له تذكير.",
+      "kind": "text",
+      "who": "براء"
+    },
+    {
+      "day": "2026-09-26",
+      "at": "07:00",
+      "to": "…4962",
+      "what": "قالب utak_owner_alert [❌ عثمان عبدالوهاب سُجّل غائباً اليوم: لم يضغط «بدء الدوام» خلال 60 دقيقة من دوامه (06:00).]",
+      "kind": "utak_owner_alert",
+      "who": "براء"
+    },
+    {
+      "day": "2026-09-26",
+      "at": "13:00",
+      "to": "…4962",
+      "what": "قالب utak_owner_alert [⏳ مهمة لـعمر المجهلي بعد دوامه: مهمة تجريبية 13:00. تصله مع بداية دوامه القادم (الأحد 02:00).]",
+      "kind": "utak_owner_alert",
+      "who": "براء"
+    },
+    {
+      "day": "2026-09-26",
+      "at": "21:15",
+      "to": "…4962",
+      "what": "قالب utak_owner_alert [📊 21:15 | لا يوجد طلبات مؤكدة اليوم — ما تم إنشاء قائمة شراء.]",
+      "kind": "utak_owner_alert",
+      "who": "براء"
+    },
+    {
+      "day": "2026-10-02",
+      "at": "01:00",
+      "to": "…4962",
+      "what": "قالب utak_owner_alert [⏳ مهمة لـعمر المجهلي بعد دوامه: مهمة تجريبية 01:00. تصله مع بداية دوامه القادم (السبت 02:00).]",
+      "kind": "utak_owner_alert",
+      "who": "براء"
+    },
+    {
+      "day": "2026-10-02",
+      "at": "02:00",
+      "to": "…7704",
+      "what": "قالب utak_supplier_ask_v2 [أحمد حسان | افوكادو، رمان وسط]",
+      "kind": "utak_supplier_ask_v2",
+      "who": "…7704"
+    },
+    {
+      "day": "2026-10-02",
+      "at": "06:00",
+      "to": "…4962",
+      "what": "قالب utak_owner_alert [☀️ صباح الخير براء — ما فيه طلبات أسعار انرسلت الليلة (لعل القوالب لسا PENDING).]",
+      "kind": "utak_owner_alert",
+      "who": "براء"
+    },
+    {
+      "day": "2026-10-02",
+      "at": "06:00",
+      "to": "…4962",
+      "what": "قالب utak_shift_start_v2 [براء]",
+      "kind": "utak_shift_start_v2",
+      "who": "براء"
+    },
+    {
+      "day": "2026-10-02",
+      "at": "21:15",
+      "to": "…4962",
+      "what": "قالب utak_owner_alert [📊 21:15 | لا يوجد طلبات مؤكدة اليوم — ما تم إنشاء قائمة شراء.]",
+      "kind": "utak_owner_alert",
+      "who": "براء"
+    },
+    {
+      "day": "2026-10-03",
+      "at": "02:00",
+      "to": "…7704",
+      "what": "قالب utak_supplier_ask_v2 [أحمد حسان | افوكادو، رمان وسط]",
+      "kind": "utak_supplier_ask_v2",
+      "who": "…7704"
+    },
+    {
+      "day": "2026-10-03",
+      "at": "02:00",
+      "to": "…6832",
+      "what": "قالب utak_shift_start_v2 [عمر المجهلي]",
+      "kind": "utak_shift_start_v2",
+      "who": "عمر المجهلي"
+    },
+    {
+      "day": "2026-10-03",
+      "at": "02:30",
+      "to": "…6832",
+      "what": "قالب utak_shift_start_v2 [عمر المجهلي]",
+      "kind": "utak_shift_start_v2",
+      "who": "عمر المجهلي"
+    },
+    {
+      "day": "2026-10-03",
+      "at": "02:30",
+      "to": "…4962",
+      "what": "قالب utak_owner_alert [⏰ عمر المجهلي لم يسجّل حضوره: دوامه 02:00، ومضت 30 دقيقة بلا ضغط «بدء الدوام». أُرسل له تذكير.]",
+      "kind": "utak_owner_alert",
+      "who": "براء"
+    },
+    {
+      "day": "2026-10-03",
+      "at": "03:00",
+      "to": "…4962",
+      "what": "قالب utak_owner_alert [❌ عمر المجهلي سُجّل غائباً اليوم: لم يضغط «بدء الدوام» خلال 60 دقيقة من دوامه (02:00).]",
+      "kind": "utak_owner_alert",
+      "who": "براء"
+    },
+    {
+      "day": "2026-10-03",
+      "at": "06:00",
+      "to": "…4962",
+      "what": "قالب utak_owner_alert [☀️ صباح الخير براء — ما فيه طلبات أسعار انرسلت الليلة (لعل القوالب لسا PENDING).]",
+      "kind": "utak_owner_alert",
+      "who": "براء"
+    },
+    {
+      "day": "2026-10-03",
+      "at": "06:00",
+      "to": "…4962",
+      "what": "قالب utak_shift_start_v2 [براء]",
+      "kind": "utak_shift_start_v2",
+      "who": "براء"
+    },
+    {
+      "day": "2026-10-03",
+      "at": "06:00",
+      "to": "…9474",
+      "what": "قالب utak_shift_start_v2 [عثمان عبدالوهاب]",
+      "kind": "utak_shift_start_v2",
+      "who": "عثمان عبدالوهاب"
+    },
+    {
+      "day": "2026-10-03",
+      "at": "06:30",
+      "to": "…9474",
+      "what": "قالب utak_shift_start_v2 [عثمان عبدالوهاب]",
+      "kind": "utak_shift_start_v2",
+      "who": "عثمان عبدالوهاب"
+    },
+    {
+      "day": "2026-10-03",
+      "at": "06:30",
+      "to": "…4962",
+      "what": "قالب utak_owner_alert [⏰ عثمان عبدالوهاب لم يسجّل حضوره: دوامه 06:00، ومضت 30 دقيقة بلا ضغط «بدء الدوام». أُرسل له تذكير.]",
+      "kind": "utak_owner_alert",
+      "who": "براء"
+    },
+    {
+      "day": "2026-10-03",
+      "at": "07:00",
+      "to": "…4962",
+      "what": "قالب utak_owner_alert [❌ عثمان عبدالوهاب سُجّل غائباً اليوم: لم يضغط «بدء الدوام» خلال 60 دقيقة من دوامه (06:00).]",
+      "kind": "utak_owner_alert",
+      "who": "براء"
+    },
+    {
+      "day": "2026-10-03",
+      "at": "13:00",
+      "to": "…4962",
+      "what": "قالب utak_owner_alert [⏳ مهمة لـعمر المجهلي بعد دوامه: مهمة تجريبية 13:00. تصله مع بداية دوامه القادم (الأحد 02:00).]",
+      "kind": "utak_owner_alert",
+      "who": "براء"
+    },
+    {
+      "day": "2026-10-03",
+      "at": "21:15",
+      "to": "…4962",
+      "what": "قالب utak_owner_alert [📊 21:15 | لا يوجد طلبات مؤكدة اليوم — ما تم إنشاء قائمة شراء.]",
+      "kind": "utak_owner_alert",
+      "who": "براء"
+    }
+  ],
+  "probes": [
+    {
+      "day": "2026-09-26",
+      "at": "01:00",
+      "hold": {
+        "hold": true,
+        "phase": "before",
+        "next": "-"
+      }
+    },
+    {
+      "day": "2026-09-26",
+      "at": "10:00",
+      "hold": {
+        "hold": true,
+        "phase": "before",
+        "next": "-"
+      }
+    },
+    {
+      "day": "2026-09-26",
+      "at": "13:00",
+      "hold": {
+        "hold": true,
+        "phase": "after",
+        "next": "الأحد 02:00"
+      }
+    },
+    {
+      "day": "2026-09-26",
+      "at": "21:30",
+      "hold": {
+        "hold": true,
+        "phase": "after",
+        "next": "الأحد 02:00"
+      }
+    },
+    {
+      "day": "2026-10-02",
+      "at": "01:00",
+      "hold": {
+        "hold": true,
+        "phase": "off",
+        "next": "السبت 02:00"
+      }
+    },
+    {
+      "day": "2026-10-02",
+      "at": "10:00",
+      "hold": {
+        "hold": true,
+        "phase": "off",
+        "next": "السبت 02:00"
+      }
+    },
+    {
+      "day": "2026-10-02",
+      "at": "13:00",
+      "hold": {
+        "hold": true,
+        "phase": "off",
+        "next": "السبت 02:00"
+      }
+    },
+    {
+      "day": "2026-10-02",
+      "at": "21:30",
+      "hold": {
+        "hold": true,
+        "phase": "off",
+        "next": "السبت 02:00"
+      }
+    },
+    {
+      "day": "2026-10-03",
+      "at": "01:00",
+      "hold": {
+        "hold": true,
+        "phase": "before",
+        "next": "-"
+      }
+    },
+    {
+      "day": "2026-10-03",
+      "at": "10:00",
+      "hold": {
+        "hold": true,
+        "phase": "before",
+        "next": "-"
+      }
+    },
+    {
+      "day": "2026-10-03",
+      "at": "13:00",
+      "hold": {
+        "hold": true,
+        "phase": "after",
+        "next": "الأحد 02:00"
+      }
+    },
+    {
+      "day": "2026-10-03",
+      "at": "21:30",
+      "hold": {
+        "hold": true,
+        "phase": "after",
+        "next": "الأحد 02:00"
+      }
+    }
+  ],
+  "attendanceRows": [
+    {
+      "id": 1,
+      "x_name": "عمر المجهلي · 2026-09-26",
+      "x_employee_id": 4,
+      "x_partner_id": 9,
+      "x_date": "2026-09-26",
+      "x_shift_at": "2026-09-25 23:00:00",
+      "x_reminder_sent": true,
+      "x_sent_at": "2026-09-25 23:00:00",
+      "x_status": "absent"
+    },
+    {
+      "id": 2,
+      "x_name": "عثمان عبدالوهاب · 2026-09-26",
+      "x_employee_id": 5,
+      "x_partner_id": 15,
+      "x_date": "2026-09-26",
+      "x_shift_at": "2026-09-26 03:00:00",
+      "x_reminder_sent": true,
+      "x_sent_at": "2026-09-26 03:00:00",
+      "x_status": "absent"
+    },
+    {
+      "id": 3,
+      "x_name": "عمر المجهلي · 2026-10-03",
+      "x_employee_id": 4,
+      "x_partner_id": 9,
+      "x_date": "2026-10-03",
+      "x_shift_at": "2026-10-02 23:00:00",
+      "x_reminder_sent": true,
+      "x_sent_at": "2026-10-02 23:00:00",
+      "x_status": "absent"
+    },
+    {
+      "id": 4,
+      "x_name": "عثمان عبدالوهاب · 2026-10-03",
+      "x_employee_id": 5,
+      "x_partner_id": 15,
+      "x_date": "2026-10-03",
+      "x_shift_at": "2026-10-03 03:00:00",
+      "x_reminder_sent": true,
+      "x_sent_at": "2026-10-03 03:00:00",
+      "x_status": "absent"
+    }
+  ],
+  "writesOutsideAttendance": 34,
+  "writesOutsideAttendanceByModel": [
+    [
+      "discuss.channel.message_post",
+      11
+    ],
+    [
+      "x_wa_message.create",
+      11
+    ],
+    [
+      "x_supplier_price_request_log.create",
+      3
+    ],
+    [
+      "res.partner.write",
+      6
+    ],
+    [
+      "x_wa_control.write",
+      3
+    ]
+  ],
+  "blocked": [],
+  "errors": [],
+  "refused": [
+    "https://graph.facebook.com/v22.0/2144001136512196/message_templates"
+  ]
+}

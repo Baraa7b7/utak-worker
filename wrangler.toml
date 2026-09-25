@@ -178,6 +178,8 @@ ACCOUNTING_SYNC       = "false"
 # 2026-09-25 (STATUS § 29) — Riyadh time of Baraa's daily «بدء الدوام» template
 # (utak_shift_start_v2): it only opens his 24h window so owner alerts reach him
 # as text (utak_owner_alert is MARKETING and Meta drops it with 131049).
+# STATUS § 32: a fixed time every day — the team's schedules do not move it
+# (his tap keeps the window open 24h, over the next dawn's alerts too).
 # Change the time here, then wrangler deploy --env sim.
 OWNER_WINDOW_OPEN_AT  = "06:00"
 

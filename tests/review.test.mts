@@ -14,7 +14,8 @@
 //     gets nothing (no new partner, no welcome, no reply);
 //   • the backfill plan: only WhatsApp-created, unknown partners, only the new
 //     fields;
-//   • Baraa's window: earliest shift − 15 min, or OWNER_WINDOW_OPEN_AT.
+//   • Baraa's window: the fixed OWNER_WINDOW_OPEN_AT (STATUS § 32; it was the
+//     earliest shift − 15 min in § 30–31).
 //
 // In-memory Odoo + captured Graph (tests/wa-harness.mts) behind the strict
 // schema gate from the tenant's real field lists (…-20260924, …-suppliers,
@@ -542,19 +543,17 @@ console.log("\n[10] backfill plan: only WhatsApp-created unknown partners, only 
   assert("a classifiable partner without an explicit decision stops the plan", threw);
 }
 
-// ================================================================ 11. Baraa's window: earliest shift − 15 min
-console.log("\n[11] Baraa's morning template: earliest shift − 15 min, else OWNER_WINDOW_OPEN_AT (06:00)");
+// ================================================================ 11. Baraa's window: the fixed OWNER_WINDOW_OPEN_AT
+console.log("\n[11] Baraa's morning template: the fixed OWNER_WINDOW_OPEN_AT (06:00), whatever the shifts (STATUS § 32)");
 {
-  // STATUS § 31 — the plan takes today's shift starts (from the working schedules)
-  const m = (id: number, shiftStart: number | false, whatsapp = `+96650000${id}`) => ({ whatsapp, startMin: shiftStart ? Math.round(shiftStart * 60) : null });
   const env0: any = { OWNER_WHATSAPP: "+" + OWNER, OWNER_WINDOW_OPEN_AT: "06:00" };
+  const plan = (e: any) => att.ownerWindowPlan(e);
   const hh = (p: { minutes: number }) => att.hhmm(p.minutes);
-  assert("05:00 and 07:30 → 04:45", hh(att.ownerWindowPlan(env0, [m(1, 5), m(2, 7.5)])) === "04:45");
-  assert("only 07:30 → 07:15", hh(att.ownerWindowPlan(env0, [m(2, 7.5)])) === "07:15");
-  assert("no time (00:00 / empty) → 06:00 (fallback)", hh(att.ownerWindowPlan(env0, [m(1, 0), m(2, false)])) === "06:00" && att.ownerWindowPlan(env0, []).source === "fallback");
-  assert("no time, OWNER_WINDOW_OPEN_AT unset → 06:00", hh(att.ownerWindowPlan({ OWNER_WHATSAPP: "+" + OWNER } as any, [])) === "06:00");
-  assert("Baraa's own time never counts (03:00 on his number)", hh(att.ownerWindowPlan(env0, [m(9, 3, "+" + OWNER), m(1, 5)])) === "04:45");
-  assert("00:10 → 00:00 (not the day before)", hh(att.ownerWindowPlan(env0, [m(1, 10 / 60)])) === "00:00");
+  assert("OWNER_WINDOW_OPEN_AT=06:00 → 06:00 (source OWNER_WINDOW_OPEN_AT)", hh(plan(env0)) === "06:00" && plan(env0).source === "OWNER_WINDOW_OPEN_AT");
+  assert("OWNER_WINDOW_OPEN_AT=05:30 → 05:30", hh(plan({ ...env0, OWNER_WINDOW_OPEN_AT: "05:30" })) === "05:30");
+  assert("« 7:15 » (one-digit hour, spaces) → 07:15", hh(plan({ ...env0, OWNER_WINDOW_OPEN_AT: " 7:15 " })) === "07:15");
+  assert("unset → 06:00 (source default)", hh(plan({ OWNER_WHATSAPP: "+" + OWNER })) === "06:00" && plan({ OWNER_WHATSAPP: "+" + OWNER }).source === "default");
+  assert("not «HH:MM» («6», «25:00», «06:60», «ستة») → 06:00 (default)", ["6", "25:00", "06:60", "ستة", ""].every((v) => hh(plan({ ...env0, OWNER_WINDOW_OPEN_AT: v })) === "06:00" && plan({ ...env0, OWNER_WINDOW_OPEN_AT: v }).source === "default"));
   // through the real tick, with the roster in Odoo
   const run = async (shifts: Record<number, number>, ticks: string[]) => {
     ENV = fresh("2026-09-26 00:00"); ENV.OWNER_WINDOW_OPEN_AT = "06:00";
@@ -574,10 +573,12 @@ console.log("\n[11] Baraa's morning template: earliest shift − 15 min, else OW
     }
     return out;
   };
-  const withTime = await run({ 961: 5, 962: 7.5 }, ["04:40", "04:45", "05:00", "06:00"]);
-  assert("tick: عمر 05:00 → Baraa's template at 04:45, once", withTime.join() === "04:45@04:45/earliest_shift", withTime.join());
+  const withTime = await run({ 961: 5, 962: 7.5 }, ["04:40", "04:45", "05:00", "05:55", "06:00", "06:05"]);
+  assert("tick: عمر 05:00 → Baraa's template still at 06:00 (not 04:45), once", withTime.join() === "06:00@06:00/OWNER_WINDOW_OPEN_AT", withTime.join());
+  const dawn = await run({ 961: 2 }, ["01:45", "02:00", "05:55", "06:00", "06:05"]);
+  assert("tick: a 02:00 shift → still 06:00 (not 01:45), once", dawn.join() === "06:00@06:00/OWNER_WINDOW_OPEN_AT", dawn.join());
   const noTime = await run({ 961: 0 }, ["04:45", "05:55", "06:00", "06:05"]);
-  assert("tick: nobody with a schedule → 06:00, once (a no-role employee's 03:00 does not count)", noTime.join() === "06:00@06:00/fallback", noTime.join());
+  assert("tick: nobody with a schedule → 06:00, once (a no-role employee's 03:00 does not count)", noTime.join() === "06:00@06:00/OWNER_WINDOW_OPEN_AT", noTime.join());
   assert("no field rejected by the schema gate", rejected.length === 0, rejected.join(" | "));
 }
 

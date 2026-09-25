@@ -22,9 +22,10 @@
 //     بعد دوامه» with the task's name (one per employee, task kind and day).
 //   • Baraa: the same template every day only to open his 24h window, so
 //     owner alerts reach him as text. No attendance, lateness or alerts about
-//     him. The time: the earliest shift start today among the employees on
-//     attendance who work today and are not on time off, minus 15 minutes;
-//     nobody → OWNER_WINDOW_OPEN_AT (default 06:00).
+//     him. The time is fixed: OWNER_WINDOW_OPEN_AT (Riyadh, default 06:00),
+//     whoever works that day (STATUS § 32 — it replaced «the earliest shift
+//     − 15 min» of § 31: his tap opens the window for 24 hours, so it also
+//     covers the dawn alerts of the next day, e.g. a 02:00 shift's +30 / +60).
 //   • Nothing is sent twice to the same person on the same day, even if the
 //     job runs again.
 //
@@ -93,13 +94,6 @@ export function parseHHMM(s: unknown): number | null {
   const h = Number(m[1]), mi = Number(m[2]);
   return h < 24 && mi < 60 ? h * 60 + mi : null;
 }
-/** Baraa's fallback window-opening time (wrangler var OWNER_WINDOW_OPEN_AT, default 06:00). */
-export function ownerWindowMinutes(env: Env): number {
-  return parseHHMM(env.OWNER_WINDOW_OPEN_AT) ?? (parseHHMM(OWNER_WINDOW_DEFAULT) as number);
-}
-/** Baraa's window opens this long before the earliest shift, so the +30 / +60 alerts reach him as text. */
-export const OWNER_WINDOW_LEAD_MIN = 15;
-
 const WEEKDAYS = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
 /** «الأحد 07:00». */
 export function shiftLabel(day: string, startMin: number): string {
@@ -107,22 +101,14 @@ export function shiftLabel(day: string, startMin: number): string {
 }
 
 /**
- * Today's window-opening time: the earliest shift start among the employees
- * on attendance who work today (not on a day off or time off), never Baraa,
- * minus 15 minutes, not before 00:00. Nobody → the fallback
- * (OWNER_WINDOW_OPEN_AT, default 06:00).
+ * Today's window-opening time: fixed, OWNER_WINDOW_OPEN_AT (Riyadh); unset or
+ * not «HH:MM» → 06:00. The team's schedules do not move it (STATUS § 32).
  */
-export function ownerWindowPlan(
-  env: Env,
-  today: Array<{ whatsapp: string; startMin: number | null }>,
-): { minutes: number; source: "earliest_shift" | "fallback"; earliest: string | null } {
-  const starts = today
-    .filter((m) => m.whatsapp && !isOwnerNumber(env, m.whatsapp))
-    .map((m) => m.startMin)
-    .filter((v): v is number => typeof v === "number" && v >= 0 && v < 24 * 60);
-  if (!starts.length) return { minutes: ownerWindowMinutes(env), source: "fallback", earliest: null };
-  const earliest = Math.min(...starts);
-  return { minutes: Math.max(0, earliest - OWNER_WINDOW_LEAD_MIN), source: "earliest_shift", earliest: hhmm(earliest) };
+export function ownerWindowPlan(env: Env): { minutes: number; source: "OWNER_WINDOW_OPEN_AT" | "default" } {
+  const set = parseHHMM(env.OWNER_WINDOW_OPEN_AT);
+  return set === null
+    ? { minutes: parseHHMM(OWNER_WINDOW_DEFAULT) as number, source: "default" }
+    : { minutes: set, source: "OWNER_WINDOW_OPEN_AT" };
 }
 /** «حاضر» up to +15 min after the shift start, «متأخر» after. */
 export function statusForTap(tapMs: number, shiftMs: number): "present" | "late" {
@@ -168,7 +154,7 @@ export interface TickReport { day: string; at: string; owner: { at: string; sour
 export async function runAttendanceTick(env: Env, nowMs: number = Date.now()): Promise<TickReport> {
   const day = riyadhDateKey(new Date(nowMs));
   // Baraa is never on the attendance roster, even if he is an employee one day.
-  // A roster read that fails still opens his window, at the fallback time.
+  // His window does not depend on the roster: a roster read that fails still opens it.
   let roster: Roster | null = null;
   let teamError: unknown = null;
   try {
@@ -178,7 +164,7 @@ export async function runAttendanceTick(env: Env, nowMs: number = Date.now()): P
   }
   const team = (roster?.members ?? []).filter((m) => !isOwnerNumber(env, m.whatsapp));
   const plans = roster ? team.map((m) => ({ m, plan: dayPlan(roster as Roster, m, day) })) : [];
-  const plan = ownerWindowPlan(env, plans.filter((p) => p.plan.kind === "work").map((p) => ({ whatsapp: p.m.whatsapp, startMin: p.plan.startMin ?? null })));
+  const plan = ownerWindowPlan(env);
   const report: TickReport = { day, at: riyadhHHMM(new Date(nowMs)), owner: { at: hhmm(plan.minutes), source: plan.source, action: "-" }, members: [] };
   try {
     report.owner.action = await ownerWindowStep(env, day, nowMs, plan.minutes);

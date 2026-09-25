@@ -9,8 +9,9 @@
 //       tap, ONE owner alert «مهمة لـ{الاسم} بعد دوامه» per task kind and day,
 //       the queue lives until the next shift, a late tap after the end
 //       releases nothing;
-//   [4] Baraa's morning template: the earliest shift of the employees who
-//       work today and are not on time off, − 15 min; nobody → 06:00;
+//   [4] Baraa's morning template: the fixed OWNER_WINDOW_OPEN_AT (06:00)
+//       every day — the team's shifts, days off and time off do not move it
+//       (STATUS § 32; it was the earliest shift − 15 min in § 31);
 //   [5] routing and roles from hr.employee only (Work Contact number,
 //       neighborhoods, an old partner role is not team);
 //   [6] no place reads the old source (code scan + every Odoo call made);
@@ -274,7 +275,7 @@ console.log("\n[2] safety: no schedule, «مشمول بالتحضير» off, Odo
     tpl(OMAR_PHONE).length === 0 && rows("x_team_attendance").length === 0 && rep.members.find((m: any) => m.partnerId === OMAR)?.action === "no_clock_time", JSON.stringify(rep.members));
   assert("the default schedule alone (attendance off) does not enroll anyone", tpl(KHALID_PHONE).length === 0 && rep.members.find((m: any) => m.partnerId === KHALID)?.action === "not_enrolled");
   assert("an employee without a UTAK role (Odoo's sample data) is not on the roster", !rep.members.some((m: any) => m.partnerId === 821));
-  assert("Baraa's window falls back to 06:00", rep.owner.at === "06:00" && rep.owner.source === "fallback");
+  assert("Baraa's window: 06:00 (OWNER_WINDOW_OPEN_AT unset → the default)", rep.owner.at === "06:00" && rep.owner.source === "default");
   assert("schema gate: nothing rejected", rejected.length === 0, rejected.join(" / "));
 }
 
@@ -361,7 +362,7 @@ console.log("\n[3] after the shift: the task waits for the next shift, one owner
 }
 
 // ================================================================ 4. Baraa's morning template
-console.log("\n[4] Baraa: the earliest shift today among those who work and are not on time off, − 15 min");
+console.log("\n[4] Baraa: the fixed OWNER_WINDOW_OPEN_AT (06:00), whatever the team's shifts (STATUS § 32)");
 {
   const at = async (day: string, prep?: () => void) => {
     ENV = fresh(`${day} 00:00`, { OWNER_WINDOW_OPEN_AT: "06:00" }); prep?.();
@@ -374,14 +375,16 @@ console.log("\n[4] Baraa: the earliest shift today among those who work and are 
     }
     return out.join();
   };
-  assert("Sunday: عمر 07:00, خالد 06:30 → 06:15, once", (await at(SUN)) === "06:15/earliest_shift");
-  assert("خالد on time off → عمر 07:00 − 15 = 06:45", (await at(SUN, () => { leave({ resource_id: RES(KHALID), date_from: utc(`${SUN} 00:00`), date_to: utc(`${SUN} 23:59`) }); })) === "06:45/earliest_shift");
-  assert("Friday (nobody works) → 06:00", (await at(FRI)) === "06:00/fallback");
-  assert("nobody on attendance → 06:00", (await at(SUN, () => { for (const p of [OMAR, KHALID]) table("hr.employee").get(EMP(p))!.x_utak_attendance = false; })) === "06:00/fallback");
-  assert("Baraa as an employee with a role and an earlier schedule does not count", (await at(SUN, () => {
+  const FIXED = "06:00/OWNER_WINDOW_OPEN_AT";
+  assert("Sunday: عمر 07:00, خالد 06:30 → 06:00 (not 06:15), once", (await at(SUN)) === FIXED);
+  assert("خالد on time off → 06:00 (not 06:45)", (await at(SUN, () => { leave({ resource_id: RES(KHALID), date_from: utc(`${SUN} 00:00`), date_to: utc(`${SUN} 23:59`) }); })) === FIXED);
+  assert("Friday (nobody works) → 06:00", (await at(FRI)) === FIXED);
+  assert("nobody on attendance → 06:00", (await at(SUN, () => { for (const p of [OMAR, KHALID]) table("hr.employee").get(EMP(p))!.x_utak_attendance = false; })) === FIXED);
+  assert("عمر 04:00 (a dawn shift) → still 06:00 (not 03:45)", (await at(SUN, () => { table("hr.employee").get(EMP(OMAR))!.resource_calendar_id = sunThu(4, 12); })) === FIXED);
+  assert("Baraa as an employee with a role and an earlier schedule does not move it", (await at(SUN, () => {
     seed("res.partner", { id: 806, name: "Bara.a", x_whatsapp_number: "+" + OWNER });
     employee(806, [71], { x_utak_attendance: true, resource_calendar_id: sunThu(4, 12) });
-  })) === "06:15/earliest_shift");
+  })) === FIXED);
 }
 
 // ================================================================ 5. routing and roles from hr.employee

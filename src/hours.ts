@@ -81,3 +81,32 @@ export function nextOrderingDate(now: Date = new Date()): string {
 export function isAfterPurchaseCutoff(now: Date = new Date()): boolean {
   return riyadhMinutes(now) >= PURCHASE_LIST_MINUTE || riyadhHour(now) < ORDERING_HOURS_OPEN;
 }
+
+// ---- 2026-09-25 — clock helpers shared by suppliers.ts and attendance.ts ----
+
+/** «14:05» in Riyadh. */
+export function riyadhHHMM(now: Date = new Date()): string {
+  const m = riyadhMinutes(now);
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+}
+
+/** Odoo UTC «YYYY-MM-DD HH:MM:SS» → unix ms (NaN when empty or invalid). */
+export function odooUtcMs(v: string | false | null | undefined): number {
+  return v ? Date.parse(String(v).replace(" ", "T") + "Z") : NaN;
+}
+
+/** Odoo UTC «YYYY-MM-DD HH:MM:SS» → «HH:MM» in Riyadh. */
+export function odooUtcToRiyadhHHMM(v: string | false | undefined): string {
+  const t = odooUtcMs(v);
+  return Number.isFinite(t) ? riyadhHHMM(new Date(t)) : "—";
+}
+
+/** unix ms → Odoo UTC «YYYY-MM-DD HH:MM:SS». */
+export function toOdooUtc(ms: number): string {
+  return new Date(ms).toISOString().replace("T", " ").slice(0, 19);
+}
+
+/** Unix ms of «HH:MM» (minutes after midnight) on a Riyadh calendar day. */
+export function riyadhDayMinuteMs(day: string, minutes: number): number {
+  return Date.parse(`${day}T00:00:00+03:00`) + minutes * 60_000;
+}

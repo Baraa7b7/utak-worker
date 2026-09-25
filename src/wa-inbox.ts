@@ -787,6 +787,46 @@ export async function echoOutbound(
   await postToChannel(env, channelId, bot, autoLabelHtml(body, templateLabel));
 }
 
+// -------------------------------------------------------------
+// Late re-delivery — 2026-09-25 (STATUS § 29 ب)
+//
+// Meta re-delivers a webhook it could not hand over, days later, with the
+// message's ORIGINAL timestamp. On 09-20/21 Ahmad's «صباح الورد» and «ابشر»
+// (sent 09-17 23:02 UTC) arrived 71 and 75 hours late; the bot answered at
+// once and Meta failed both answers with #131047 (the 24h window had closed
+// days before). A message older than Meta's window is mirrored to the inbox
+// as usual, but the bot does not act on it: no reply (it would fail), no
+// price saved under today's date, no order for today from an old message.
+// -------------------------------------------------------------
+export const LATE_INBOUND_MS = 24 * 60 * 60 * 1000;
+
+/** Hours since Meta's timestamp when it is older than the 24h window; otherwise null. */
+export function lateInboundHours(metaTimestamp: string | undefined, nowMs: number = Date.now()): number | null {
+  const t = parseMetaTimestampMs(metaTimestamp);
+  if (t === null) return null;
+  const age = nowMs - t;
+  return age >= LATE_INBOUND_MS ? Math.floor(age / 3_600_000) : null;
+}
+
+/** One line in the contact's channel under the late message: why the bot stayed silent. */
+export async function noteLateInbound(
+  env: Env,
+  partnerId: number,
+  partnerName: string,
+  metaTimestamp: string | undefined,
+  nowMs: number = Date.now(),
+): Promise<void> {
+  const hours = lateInboundHours(metaTimestamp, nowMs);
+  if (!partnerId || hours === null) return;
+  const channelId = await ensureInboxChannel(env, partnerId, partnerName);
+  if (!channelId) return;
+  const bot = await getBotPartnerId(env);
+  if (!bot) return;
+  const sent = new Date((parseMetaTimestampMs(metaTimestamp) as number) + 3 * 3_600_000).toISOString().slice(0, 16).replace("T", " ");
+  await postToChannel(env, channelId, bot,
+    `<p>⏳ وصلتنا هذه الرسالة من Meta متأخرة ${hours} ساعة (أُرسلت ${escapeHtml(sent)} بتوقيت الرياض). نافذة 24 ساعة انتهت، فلم يرد البوت عليها ولم ينفّذ شيئاً منها.</p>`);
+}
+
 /**
  * Post a "did not send" note into the recipient's Discuss channel, so Baraa
  * sees why a Discuss reply failed to reach Meta.

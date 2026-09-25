@@ -41,6 +41,8 @@ import { syncPurchaseListToAccounting } from "./purchase-accounting";
 import { riyadhDateKey } from "./hours";
 import { arabicDate, joinCapped } from "./wa-params";
 import type { PurchaseListItem } from "./types";
+import { attendanceHold } from "./attendance";
+import { enqueueTeamItems, type TeamQueueItem } from "./team-queue";
 
 // ============================================================
 // Customer order notice — 2026-09-24 (ح3)
@@ -198,6 +200,12 @@ export async function aggregateAndDispatchToWarehouse(env: Env): Promise<void> {
   }
 
   for (const wh of warehouseMembers) {
+    // 2026-09-25 (STATUS § 29) — not tapped «بدء الدوام» today: the open list
+    // reaches them right after the tap (resendOpenPurchaseLists), not now.
+    if ((await attendanceHold(env, wh.id)).hold) {
+      console.log(`[cron 21:15] list ${listId} waits for ${wh.name}'s «بدء الدوام»`);
+      continue;
+    }
     await sendPurchaseListTemplate(env, wh, listId, items);
   }
   await markPurchaseListSent(env, listId);
@@ -301,16 +309,26 @@ export async function followUpUnconfirmedPurchaseLists(env: Env): Promise<{ remi
   const ids = await getUnconfirmedPurchaseLists(env, riyadhDateKey(new Date(Date.now() - 36 * 3600 * 1000)));
   if (ids.length === 0) return { reminded: 0 };
   const warehouse = await getTeamMembersByRole(env, "warehouse");
+  // 2026-09-25 (STATUS § 29) — a member who has not tapped «بدء الدوام» today
+  // gets the open list right after the tap instead of this reminder.
+  const held = new Set<number>();
+  for (const wh of warehouse) if ((await attendanceHold(env, wh.id)).hold) held.add(wh.id);
   let reminded = 0;
   for (const id of ids) {
     const list = await getPurchaseListBrief(env, id);
     if (!list) continue;
     for (const wh of warehouse) {
+      if (held.has(wh.id)) continue;
       if (await sendPurchaseListReminder(env, wh, id, list)) reminded++;
     }
+    const sentTo = warehouse.filter((w) => !held.has(w.id)).map((w) => w.name).join("، ");
+    const waiting = warehouse.filter((w) => held.has(w.id)).map((w) => w.name).join("، ");
     await sendOwnerAlert(
       env,
-      `⏰ قائمة الشراء #${id} (${arabicDate(list.date)}) لم يُضغط عليها «تم الشراء» حتى الآن، فلا مسارات ولا توصيل. أُرسل تذكير للمستودع (${warehouse.map((w) => w.name).join("، ") || "لا يوجد موظف مستودع"}).`,
+      `⏰ قائمة الشراء #${id} (${arabicDate(list.date)}) لم يُضغط عليها «تم الشراء» حتى الآن، فلا مسارات ولا توصيل. ` +
+        (waiting
+          ? `${sentTo ? `أُرسل تذكير للمستودع (${sentTo}). ` : ""}بانتظار «بدء الدوام»: ${waiting}، وتصله القائمة بعد الضغط.`
+          : `أُرسل تذكير للمستودع (${warehouse.map((w) => w.name).join("، ") || "لا يوجد موظف مستودع"}).`),
     );
   }
   return { reminded };
@@ -397,6 +415,41 @@ export async function sendDriverRoute(
   const footer = `\nلما تخلّص كل توصيلة، ابعث لي رقم الطلب واضغط الأزرار اللي تجيك.`;
   const body = `${header}\n\n${list}\n${footer}`;
   const trimmed = body.length <= 1024 ? body : body.slice(0, 1020) + "…";
+  const stopBody = (s: RouteStop) =>
+    `توصيلة #${s.order_id} — ${s.customer_name}${s.neighborhood ? " (" + s.neighborhood + ")" : ""}\n${s.line_summary}`.slice(0, 1024);
+  const stopButtons = (s: RouteStop) => [
+    { id: `delivered_${s.order_id}`, title: "تم التسليم ✅" },
+    { id: `delivery_issue_${s.order_id}`, title: "فيه مشكلة ⚠️" },
+  ];
+
+  // 2026-09-25 (STATUS § 29) — attendance. A driver with a shift time who has
+  // not tapped today's «بدء الدوام» gets the whole route after the tap: the
+  // list, then per stop its location, delivery note and buttons, all queued in
+  // order. A driver who already tapped today gets it now, without a second
+  // «بدء الدوام» template. A driver without a shift time: unchanged below.
+  const att = await attendanceHold(env, driver.id);
+  if (att.hold) {
+    const q: TeamQueueItem[] = [{ text: trimmed }];
+    for (const s of stops) {
+      if (typeof s.latitude === "number" && typeof s.longitude === "number") {
+        q.push({ latitude: s.latitude, longitude: s.longitude, name: `#${s.order_id} — ${s.customer_name}`, address: s.neighborhood || undefined });
+      } else if (s.map_url) {
+        q.push({ text: `📍 #${s.order_id} — ${s.customer_name}\n${s.map_url}` });
+      }
+      if (typeof s.stop_id === "number") {
+        try {
+          const dn = await createAndDispatchDeliveryNoteForStop(env, s.stop_id, driver.x_whatsapp_number, { defer: true });
+          if (dn?.deferredText) q.push({ text: dn.deferredText });
+        } catch (e) {
+          console.warn(`[sendDriverRoute] delivery-note failed for stop ${s.stop_id}`, (e as Error)?.message);
+        }
+      }
+      q.push({ text: stopBody(s), buttons: stopButtons(s) });
+    }
+    await enqueueTeamItems(env, driver.x_whatsapp_number, q);
+    console.log(`[sendDriverRoute] route ${routeId} (${stops.length} stops) queued until ${driver.name}'s «بدء الدوام»`);
+    return;
+  }
 
   // 2026-09-17 — shift-start gate. Before the driver_dispatch template we
   // send an approved team_shift_start template with a QUICK_REPLY button.
@@ -407,13 +460,15 @@ export async function sendDriverRoute(
   // handleWebhook team branch). If the shift template fails or is not
   // wired up in Odoo yet, we fall through to the old inline behaviour so
   // pilot is never worse off than before.
-  const shiftResp = await sendTemplateByPurpose(
-    env,
-    driver.x_whatsapp_number,
-    T.TEAM_SHIFT_START,
-    [driver.name || ""],
-    [{ index: 0, payload: "shift_start" }],
-  );
+  const shiftResp = att.onAttendance
+    ? null
+    : await sendTemplateByPurpose(
+      env,
+      driver.x_whatsapp_number,
+      T.TEAM_SHIFT_START,
+      [driver.name || ""],
+      [{ index: 0, payload: "shift_start" }],
+    );
   const shiftOk = !!shiftResp && shiftResp.ok;
 
   // v7: use approved driver_dispatch template (opens conversation window;
@@ -501,11 +556,7 @@ export async function sendDriverRoute(
       ]);
     if (!resp2 || !resp2.ok) {
       // Fallback to plain buttons if template send fails
-      const stopBody = `توصيلة #${s.order_id} — ${s.customer_name}${s.neighborhood ? " (" + s.neighborhood + ")" : ""}\n${s.line_summary}`;
-      await sendButtons(env, driver.x_whatsapp_number, stopBody.slice(0, 1024), [
-        { id: `delivered_${s.order_id}`, title: "تم التسليم ✅" },
-        { id: `delivery_issue_${s.order_id}`, title: "فيه مشكلة ⚠️" },
-      ]);
+      await sendButtons(env, driver.x_whatsapp_number, stopBody(s), stopButtons(s));
     }
   }
 
@@ -514,11 +565,9 @@ export async function sendDriverRoute(
   // (shift_start button, or any other reply within 20h).
   if (shiftOk && pendingLocations.length > 0) {
     try {
-      await env.MSG_DEDUP.put(
-        `pending_loc:${driver.x_whatsapp_number}`,
-        JSON.stringify(pendingLocations),
-        { expirationTtl: 20 * 60 * 60 },
-      );
+      // 2026-09-25 — appended (team-queue.ts), no longer overwriting anything
+      // already queued for this number.
+      await enqueueTeamItems(env, driver.x_whatsapp_number, pendingLocations, 20 * 60 * 60);
     } catch (e) {
       console.warn(
         `[sendDriverRoute] failed to queue locations for ${driver.x_whatsapp_number}`,

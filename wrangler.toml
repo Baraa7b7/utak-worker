@@ -69,11 +69,11 @@ preview_id = "b423e1498d624696ac10ed101c621742"
 #      (wrangler deploy --env sim). هذا يوقف جدولة sim قبل تفعيل جدولة prod.
 #   2) تحقّق من Cloudflare dashboard و`wrangler tail utak-worker-sim` أن
 #      utak-worker-sim لم يعد يشغّل الكرونات.
-#   3) انسخ المواعيد التسعة من الكتلة المحفوظة أدناه إلى crons = [ ... ]
+#   3) انسخ المواعيد العشرة من الكتلة المحفوظة أدناه إلى crons = [ ... ]
 #      هنا حرفياً (بنفس التعليقات).
 #   4) `wrangler deploy` (بدون --env) لإعادة تفعيل جدولة prod.
 #
-# المواعيد المحفوظة للاستعادة (بنسخ ولصق حرفياً — لا تعدّل بدون سبب؛ صارت تسعة في 2026-09-24):
+# المواعيد المحفوظة للاستعادة (بنسخ ولصق حرفياً — لا تعدّل بدون سبب؛ صارت تسعة في 2026-09-24، وعشرة في 2026-09-25):
 #   "0 23 * * *",   # 02:00 Riyadh — v3: ask all active suppliers for daily prices
 #   "0 2 * * *",    # 05:00 Riyadh — v3: recompute supplier reliability scores
 #   "0 3 * * *",    # 06:00 Riyadh — v3: open ordering flag + missing-supplier alert
@@ -82,7 +82,8 @@ preview_id = "b423e1498d624696ac10ed101c621742"
 #   "15 18 * * *",  # 21:15 Riyadh — v4: aggregate + dispatch purchase list to warehouse
 #   "0 15 * * *",   # 18:00 Riyadh — v5: daily collection summary
 #   "0 14 * * *",   # 17:00 Riyadh — v6.1: standing-order reminders
-#   "0 5 * * *"     # 08:00 Riyadh — v7: daily outreach (feedback, pay_remind, inactive)
+#   "0 5 * * *",    # 08:00 Riyadh — v7: daily outreach (feedback, pay_remind, inactive)
+#   "*/5 * * * *"   # every 5 min — 2026-09-25 (STATUS § 29): team attendance («بدء الدوام»)
 # ------------------------------------------------------------
 [triggers]
 crons = []
@@ -136,7 +137,8 @@ crons = [
   "15 18 * * *",  # 21:15 Riyadh — v4: aggregate + dispatch purchase list to warehouse
   "0 15 * * *",   # 18:00 Riyadh — v5: daily collection summary
   "0 14 * * *",   # 17:00 Riyadh — v6.1: standing-order reminders
-  "0 5 * * *"     # 08:00 Riyadh — v7: daily outreach (feedback, pay_remind, inactive)
+  "0 5 * * *",    # 08:00 Riyadh — v7: daily outreach (feedback, pay_remind, inactive)
+  "*/5 * * * *"   # every 5 min — 2026-09-25 (STATUS § 29): team attendance — «بدء الدوام» at each shift time, +30 reminder, +60 absent, Baraa's window template at OWNER_WINDOW_OPEN_AT
 ]
 
 [env.sim.vars]
@@ -172,6 +174,12 @@ SIM_ALLOWLIST         = "+966505154962,+966571777704,+966530399474,+966545816832
 # أمر شراء ولا قيد ولا دفعة من sim. x_invoice وx_payment يصدران كما هما.
 # التراجع: "true" ثم wrangler deploy --env sim.
 ACCOUNTING_SYNC       = "false"
+
+# 2026-09-25 (STATUS § 29) — Riyadh time of Baraa's daily «بدء الدوام» template
+# (utak_shift_start_v2): it only opens his 24h window so owner alerts reach him
+# as text (utak_owner_alert is MARKETING and Meta drops it with 131049).
+# Change the time here, then wrangler deploy --env sim.
+OWNER_WINDOW_OPEN_AT  = "06:00"
 
 # Secrets on the sim worker (set once, mirrored from prod plus one new):
 #   wrangler secret put META_APP_SECRET       --env sim

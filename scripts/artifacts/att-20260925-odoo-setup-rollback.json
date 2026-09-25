@@ -1,0 +1,41 @@
+{
+  "at": "2026-09-24T23:48:54.578Z",
+  "before": {
+    "model": [],
+    "shiftField": [],
+    "views": [],
+    "action": [],
+    "menu": [],
+    "parentViews": [
+      {
+        "id": 2735,
+        "name": "utak.employee_form",
+        "arch_db": "<form string=\"موظف\">\n    <sheet>\n        <field name=\"image_1920\" widget=\"image\" class=\"oe_avatar\"/>\n        <div class=\"oe_title\">\n            <h1><field name=\"name\" placeholder=\"اسم الموظف الكامل\"/></h1>\n        </div>\n        <group>\n            <group string=\"التواصل\">\n                <field name=\"phone\" widget=\"phone\" placeholder=\"+9665...\"/>\n                <field name=\"x_whatsapp_number\" placeholder=\"رقم الواتساب (E.164)\"/>\n                <field name=\"email\"/>\n            </group>\n            <group string=\"الأدوار والمناطق\">\n                <field name=\"x_role_ids\" widget=\"many2many_tags\" options=\"{'color_field': 'x_color', 'no_create_edit': True}\"/>\n                <field name=\"x_neighborhoods\" widget=\"many2many_tags\"/>\n            </group>\n        </group>\n        <notebook>\n            <page string=\"بيانات التوظيف\">\n                <group>\n                    <group string=\"الوظيفة\">\n                        <field name=\"x_hire_date\"/>\n                        <field name=\"x_monthly_salary\" widget=\"monetary\"/>\n                    </group>\n                    <group string=\"المستندات\">\n                        <field name=\"x_iqama_number\"/>\n                        <field name=\"x_iqama_expiry\" decoration-danger=\"x_iqama_expiry &lt; current_date\"/>\n                        <field name=\"x_iban\"/>\n                    </group>\n                </group>\n            </page>\n            <page string=\"العنوان\">\n                <group>\n                    <field name=\"street\" placeholder=\"الشارع\"/>\n                    <field name=\"city\" placeholder=\"المدينة\"/>\n                </group>\n            </page>\n        </notebook>\n    </sheet>\n</form>"
+      },
+      {
+        "id": 2728,
+        "name": "utak.employees_list",
+        "arch_db": "<list string=\"الموظفين\" sample=\"1\">\n    <field name=\"name\"/>\n    <field name=\"phone\" widget=\"phone\"/>\n    <field name=\"x_role_ids\" string=\"الأدوار\" widget=\"many2many_tags\" options=\"{'color_field': 'x_color'}\"/>\n    <field name=\"x_neighborhoods\" string=\"الأحياء\" widget=\"many2many_tags\" optional=\"show\"/>\n    <field name=\"x_iqama_expiry\" string=\"انتهاء الإقامة\" optional=\"show\" decoration-danger=\"x_iqama_expiry &lt; current_date\"/>\n    <field name=\"x_hire_date\" string=\"تاريخ التوظيف\" optional=\"hide\"/>\n    <field name=\"x_monthly_salary\" string=\"الراتب\" optional=\"hide\"/>\n    <field name=\"x_iban\" string=\"IBAN\" optional=\"hide\"/>\n    <field name=\"x_iqama_number\" string=\"الإقامة\" optional=\"hide\"/>\n</list>"
+      }
+    ]
+  },
+  "created": {
+    "shiftField": 20296,
+    "model": 6114,
+    "fields": [
+      20308,
+      20310,
+      20312,
+      20314,
+      20316,
+      20318,
+      20320
+    ],
+    "formExt": 2821,
+    "listExt": 2822,
+    "attList": 2823,
+    "attSearch": 2824,
+    "action": 987,
+    "menu": 569
+  }
+}

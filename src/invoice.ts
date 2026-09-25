@@ -244,6 +244,24 @@ export async function createAndDispatchInvoiceForOrder(
     neighborhood: order.neighborhood,
     total,
   });
+  const collectButtons = [
+    { id: `collect_cash_${invoiceId}`, title: "نقد 💵" },
+    { id: `collect_transfer_${invoiceId}`, title: "تحويل 🏦" },
+  ];
+  // 2026-09-25 (STATUS § 29) — a collector with a shift time who has not
+  // tapped «بدء الدوام» today gets the request (with its buttons) after the tap.
+  try {
+    const { attendanceHold } = await import("./attendance");
+    if ((await attendanceHold(env, collector.id)).hold) {
+      const { enqueueTeamItems } = await import("./team-queue");
+      await enqueueTeamItems(env, collector.whatsapp, [{ text: body, buttons: collectButtons }]);
+      await writeInvoice(env, invoiceId, { x_sent_to_collector_at: nowOdoo() });
+      console.log(`[invoice] collection request ${invoiceNumber} queued until ${collector.name}'s «بدء الدوام»`);
+      return { invoiceId, number: invoiceNumber, total };
+    }
+  } catch (e) {
+    console.warn(`[invoice] collector queue failed — sending now`, (e as Error).message);
+  }
   try {
     const resp = await sendTemplateByPurpose(env, collector.whatsapp, T.COLLECTION_REQUEST,
       [
@@ -257,10 +275,7 @@ export async function createAndDispatchInvoiceForOrder(
         { index: 1, payload: `collect_transfer_${invoiceId}` },
       ]);
     if (!resp || !resp.ok) {
-      await sendButtons(env, collector.whatsapp, body, [
-        { id: `collect_cash_${invoiceId}`, title: "نقد 💵" },
-        { id: `collect_transfer_${invoiceId}`, title: "تحويل 🏦" },
-      ]);
+      await sendButtons(env, collector.whatsapp, body, collectButtons);
     }
     await writeInvoice(env, invoiceId, { x_sent_to_collector_at: nowOdoo() });
   } catch (e) {
@@ -659,12 +674,20 @@ export async function sendDailyCollectionSummary(env: Env): Promise<CollectionSu
     return report;
   }
   const { isInside24hWindow } = await import("./wa-inbox");
+  const { attendanceHold } = await import("./attendance");
   const tail = (wa: string) => "…" + wa.replace(/\D/g, "").slice(-4);
+  // 2026-09-25 (STATUS § 29) — a collector who has not tapped «بدء الدوام»
+  // today gets the unpaid list right after the tap (sendCollectorBacklog).
+  const HELD = "held until «بدء الدوام»";
 
   if (unpaid.length === 0) {
     // «Nothing today» is not worth a paid template: inside the window only.
     for (const c of collectors) {
       try {
+        if ((await attendanceHold(env, c.id)).hold) {
+          report.sends.push({ to: tail(c.whatsapp), via: "none", reason: HELD });
+          continue;
+        }
         if (!(await isInside24hWindow(env, c.id))) {
           report.sends.push({ to: tail(c.whatsapp), via: "none", reason: "nothing unpaid, outside 24h window" });
           continue;
@@ -682,6 +705,10 @@ export async function sendDailyCollectionSummary(env: Env): Promise<CollectionSu
   report.total = s.grandTotal;
   for (const c of collectors) {
     try {
+      if ((await attendanceHold(env, c.id)).hold) {
+        report.sends.push({ to: tail(c.whatsapp), via: "none", reason: HELD });
+        continue;
+      }
       const resp = await sendTemplateByPurpose(env, c.whatsapp, T.COLLECTION_SUMMARY, s.params);
       if (resp?.ok) { report.sends.push({ to: tail(c.whatsapp), via: "template" }); continue; }
       const why = resp ? `template HTTP ${resp.status}` : "no template mapped for collection_summary";
@@ -701,6 +728,19 @@ export async function sendDailyCollectionSummary(env: Env): Promise<CollectionSu
     }
   }
   return report;
+}
+
+/**
+ * 2026-09-25 (STATUS § 29) — right after a collector taps «بدء الدوام»: the
+ * unpaid list as text (the 18:00 summary's own text; the tap opened the 24h
+ * window). Nothing unpaid → nothing sent. Returns how many messages went out.
+ */
+export async function sendCollectorBacklog(env: Env, to: string): Promise<number> {
+  const unpaid = await getUnpaidInvoicesWithCustomer(env);
+  if (unpaid.length === 0) return 0;
+  const s = buildCollectionSummary(unpaid, new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10));
+  const r = await sendText(env, to, s.text);
+  return r.ok ? 1 : 0;
 }
 
 // --------------------------------------------------------------

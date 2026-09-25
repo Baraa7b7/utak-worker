@@ -1,0 +1,50 @@
+{
+  "day": "2026-09-26",
+  "assume": {},
+  "ownerWindowAt": "06:00",
+  "ticks": 288,
+  "roster": [
+    {
+      "id": 9,
+      "name": "عمر المجهلي",
+      "to": "…6832",
+      "roles": [
+        "driver",
+        "warehouse",
+        "collector"
+      ],
+      "shift": null
+    }
+  ],
+  "people": [
+    {
+      "id": 9,
+      "name": "عمر المجهلي",
+      "to": "…6832",
+      "roles": [
+        "driver",
+        "warehouse",
+        "collector"
+      ],
+      "shift": null,
+      "sends": []
+    },
+    {
+      "id": 0,
+      "name": "براء (المالك)",
+      "to": "…4962",
+      "roles": [
+        "—"
+      ],
+      "shift": "06:00 (نافذة)",
+      "sends": [
+        "06:00 قالب utak_shift_start_v2 [براء]"
+      ]
+    }
+  ],
+  "attendanceRows": [],
+  "writesOutsideAttendance": [],
+  "blocked": [],
+  "errors": [],
+  "refused": []
+}

@@ -23,7 +23,7 @@
 //   GET  /delivery-note-pdf/{num}/{tok}.pdf → PUBLIC delivery-note PDF from R2 (HMAC-signed)
 
 import type { Env } from "./config";
-import { handleVerify, verifySignature, parseWebhook, sendText, sendButtons, sendLocation } from "./meta";
+import { handleVerify, verifySignature, parseWebhook, sendText, sendButtons } from "./meta";
 import { seenBefore, markSeen } from "./dedup";
 import {
   ensureLocationFields,
@@ -144,6 +144,18 @@ export default {
         case "0 5 * * *": {
           const { runDailyOutreach } = await import("./outreach");
           await runDailyOutreach(env);
+          break;
+        }
+        // 2026-09-25 (STATUS § 29) — team attendance: whatever is due now
+        // («بدء الدوام» at each shift time, the +30 reminder, +60 absence,
+        // and Baraa's window-opening template at OWNER_WINDOW_OPEN_AT).
+        case "*/5 * * * *": {
+          const { runAttendanceTick } = await import("./attendance");
+          const r = await runAttendanceTick(env);
+          const acted = r.members.filter((m) => !["no_time", "before_shift", "waiting", "reminded"].includes(m.action) && !m.action.startsWith("tapped") && !m.action.startsWith("already"));
+          if (acted.length || !["before", "passed", "sent_before"].includes(r.owner.action)) {
+            console.log(`[attendance ${r.at}]`, JSON.stringify({ owner: r.owner.action, acted: acted.map((m) => `${m.name}:${m.action}`) }));
+          }
           break;
         }
         default: console.warn(`[scheduled] unhandled cron: ${cron}`);
@@ -1738,48 +1750,19 @@ async function runSimJob(rawEnv: Env, job: string): Promise<unknown> {
       const { runDailyOutreach } = await import("./outreach");
       return runDailyOutreach(env);
     }
+    case "team_attendance": {
+      const { runAttendanceTick } = await import("./attendance");
+      return runAttendanceTick(env);
+    }
     default:
       throw new Error(
-        `unknown job '${job}'. valid: ask_suppliers | reliability_scores | supplier_nudge | open_ordering | purchase_followup | cutoff_reminder | close_unconfirmed | aggregate_purchase | supplier_noprice_alert | collection_summary | standing_reminders | daily_outreach`,
+        `unknown job '${job}'. valid: ask_suppliers | reliability_scores | supplier_nudge | open_ordering | purchase_followup | cutoff_reminder | close_unconfirmed | aggregate_purchase | supplier_noprice_alert | collection_summary | standing_reminders | daily_outreach | team_attendance`,
       );
   }
 }
 
-// 2026-09-17 — flush deferred sendLocation messages queued in KV by
-// sendDriverRoute under `pending_loc:<driver_phone>` (20h TTL). The team
-// branch calls this on the driver's first inbound; a corrupt payload is
-// dropped after logging so a bad row cannot brick the driver's flow.
-async function flushPendingLocations(env: Env, to: string, key: string): Promise<void> {
-  const raw = await env.MSG_DEDUP.get(key);
-  if (!raw) return;
-  let locs: Array<{ latitude?: number; longitude?: number; name?: string; address?: string; text?: string }> = [];
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) locs = parsed;
-  } catch (e) {
-    console.warn("[pending_loc] parse failed", (e as Error)?.message);
-    await env.MSG_DEDUP.delete(key);
-    return;
-  }
-  for (const l of locs) {
-    // 2026-09-24 (م11) — delivery-note texts are queued here too, in stop order.
-    if (typeof l?.text === "string" && l.text) {
-      try {
-        await sendText(env, to, l.text);
-      } catch (e) {
-        console.warn("[pending_loc] sendText failed", (e as Error)?.message);
-      }
-      continue;
-    }
-    if (typeof l?.latitude !== "number" || typeof l?.longitude !== "number") continue;
-    try {
-      await sendLocation(env, to, l.latitude, l.longitude, l.name, l.address);
-    } catch (e) {
-      console.warn("[pending_loc] sendLocation failed", (e as Error)?.message);
-    }
-  }
-  await env.MSG_DEDUP.delete(key);
-}
+// 2026-09-17 — the deferred queue (`pending_loc:<number>`) and its flush
+// live in src/team-queue.ts since 2026-09-25 (flushTeamQueue).
 
 async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext): Promise<void> {
   // Item 2 (2026-09-17) — Meta delivery-status callbacks land here alongside
@@ -1912,6 +1895,8 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
     // bot routing below so we do not re-run the same Odoo lookups a
     // second time on the hot path.
     let ingestRoute: "team" | "supplier" | "customer" | "new" | "owner" = "new";
+    let ingestPartnerId = 0;
+    let ingestPartnerName = "";
     let teamMatch: Awaited<ReturnType<typeof findTeamMemberByWhatsApp>> | null = null;
     let supplierMatch: Awaited<ReturnType<typeof findSupplierByWhatsApp>> | null = null;
     let customerMatchForRoute: OdooPartner | null = null;
@@ -1955,6 +1940,8 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         },
       );
       ingestRoute = ingest.route;
+      ingestPartnerId = ingest.partnerId ?? 0;
+      ingestPartnerName = ingest.partnerName ?? "";
 
       // Single console line every inbound produces, regardless of route.
       const skipOrOk = ingest.mirrored
@@ -2000,6 +1987,25 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       console.warn("[inbound-log] skipped", (e as Error)?.message);
     }
 
+    // 2026-09-25 (STATUS § 29 ب) — Meta re-delivered this message after its
+    // 24h window (the webhook carries the original timestamp). It is in the
+    // inbox now; the bot does not act on it (any reply fails with #131047, and
+    // an old price or order must not land on today).
+    {
+      const { lateInboundHours, noteLateInbound } = await import("./wa-inbox");
+      const lateH = lateInboundHours(msg.timestamp);
+      if (lateH !== null) {
+        console.log(`[inbox] wamid=${msg.messageId.slice(-10)} late=${lateH}h skip=bot (outside Meta's 24h window)`);
+        try {
+          await noteLateInbound(env, ingestPartnerId, ingestPartnerName, msg.timestamp);
+        } catch (e) {
+          console.warn("[inbox] late note failed", (e as Error)?.message);
+        }
+        await markSeen(env, msg.messageId);
+        continue;
+      }
+    }
+
     // 2026-09-20 (inbox) — bot routing runs only on text / button / location.
     // Media messages are mirrored above and terminate here (with markSeen so
     // Meta retries stay dedup'd).
@@ -2041,29 +2047,43 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       //   • "shift_start" button reply → text confirmation THEN locations
       //   • anything else from the driver → locations first, then the
       //     regular team handler continues.
-      const pendingLocKey = `pending_loc:${msg.from}`;
       // 2026-09-24 — template quick replies arrive as type "button", session
       // buttons as type "interactive". Both are button taps (the team branch
       // used to ignore the template ones: «تم الشراء» and «بدء الدوام» from
       // a template did nothing).
       const isButton = (msg.type === "interactive" || msg.type === "button") && !!msg.buttonId;
       const isShiftStart = isButton && msg.buttonId === "shift_start";
+      const { flushTeamQueue } = await import("./team-queue");
       if (isShiftStart) {
         try {
-          await sendText(
-            env,
-            msg.from,
-            "تم بدء الدوام ✅ هذي مواقع توصيلات اليوم",
-            { ctx },
-          );
-          await flushPendingLocations(env, msg.from, pendingLocKey);
+          // 2026-09-25 (STATUS § 29) — attendance: the tap is recorded (present /
+          // late, Meta's own tap time) and releases the member's tasks. A member
+          // without a shift time keeps the 09-17 behaviour.
+          const { recordShiftTap, deliverTasksOnTap } = await import("./attendance");
+          const { parseMetaTimestampMs } = await import("./wa-inbox");
+          const tap = await recordShiftTap(env, teamMember.id, parseMetaTimestampMs(msg.timestamp) ?? Date.now());
+          if (tap.kind === "not_on_attendance") {
+            await sendText(env, msg.from, "تم بدء الدوام ✅ هذي مواقع توصيلات اليوم", { ctx });
+            await flushTeamQueue(env, msg.from);
+          } else if (tap.kind === "owner") {
+            await sendText(env, msg.from, tap.text, { ctx, purpose: "owner_alert" });
+          } else if (tap.kind === "not_started") {
+            await sendText(env, msg.from, tap.text, { ctx });
+          } else {
+            await sendText(env, msg.from, tap.text, { ctx });
+            await deliverTasksOnTap(env, teamMember, msg.from);
+          }
         } catch (e) {
-          console.warn("[shift_start] flush failed", (e as Error)?.message);
+          console.warn("[shift_start] failed", (e as Error)?.message);
         }
         await markSeen(env, msg.messageId);
         continue;
       }
-      await flushPendingLocations(env, msg.from, pendingLocKey);
+      // 2026-09-25 (STATUS § 29) — before today's «بدء الدوام» tap, a member on
+      // attendance gets no task: the queue stays, and so do the open lists.
+      const { attendanceHold, holdText } = await import("./attendance");
+      const att = await attendanceHold(env, teamMember.id);
+      if (!att.hold) await flushTeamQueue(env, msg.from);
 
       if (isButton) {
         const reply: RouterReply = await dispatch(env, {
@@ -2100,6 +2120,8 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
               `⚠️ مشكلة توصيل\nسواق: ${teamMember.name}\nطلب: #${orderId}\nالمشكلة: ${msg.text}`);
           }
           await sendText(env, msg.from, "تم تسجيل المشكلة، براء بيراجعها 🙏", { ctx });
+        } else if (att.hold) {
+          await sendText(env, msg.from, holdText(att), { ctx });
         } else {
           // ح1 — the purchase-list template carries a one-line (possibly cut)
           // list; any message from the warehouse gets the full open list(s).
@@ -2151,6 +2173,13 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         console.log(
           `[owner-guard] inbound skip from=${msg.from} type=${msg.type}`,
         );
+        // 2026-09-25 (STATUS § 29) — his daily «بدء الدوام» only opens the 24h
+        // window (the inbound itself did that); one line says so. Nothing is
+        // recorded about him.
+        if ((msg.type === "interactive" || msg.type === "button") && msg.buttonId === "shift_start") {
+          const { ownerWindowAck } = await import("./attendance");
+          await sendText(env, msg.from, ownerWindowAck(), { ctx, purpose: "owner_alert" });
+        }
         await markSeen(env, msg.messageId);
         continue;
       }

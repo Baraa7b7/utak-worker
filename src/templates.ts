@@ -98,6 +98,11 @@ export async function sendTemplateByPurpose(
   bodyParams: string[] | ((templateName: string) => string[]) = [],
   buttonPayloads: QuickReplyPayload[] = [],
   headerMedia?: HeaderMedia,
+  // 2026-09-25 (STATUS § 29) — the purpose fetchMeta sees, when it differs from
+  // the lookup purpose: Baraa's daily utak_shift_start_v2 is looked up as
+  // team_shift_start but sent as owner_window, the one extra purpose the owner
+  // guard lets through.
+  opts: { sendPurpose?: string } = {},
 ): Promise<Response | null> {
   const rows = await fetchCandidates(env, purpose);
   const paramsFor = (name: string): string[] =>
@@ -145,7 +150,7 @@ export async function sendTemplateByPurpose(
       language: { code: mapping.language },
       components,
     },
-  }, { purpose });
+  }, { purpose: opts.sendPurpose ?? purpose });
 }
 
 // ---- Params per template for a purpose that changed template ----

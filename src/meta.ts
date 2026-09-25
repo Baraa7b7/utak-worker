@@ -213,9 +213,14 @@ export interface SendOpts {
 //   • "owner_summary"  — the approved Meta template T.OWNER_SUMMARY, in
 //                        case a future cron uses sendTemplateByPurpose to
 //                        deliver the daily summary to the owner.
+//   • "owner_window"   — 2026-09-25 (STATUS § 29): the daily «بدء الدوام»
+//                        template (utak_shift_start_v2) that opens the owner's
+//                        24h window, so his alerts arrive as text. Only
+//                        attendance.ts sends with it.
 const OWNER_ALLOWED_PURPOSES: ReadonlySet<string> = new Set([
   "owner_alert",
   "owner_summary",
+  "owner_window",
 ]);
 
 function ownerDigits(env: Env): string {

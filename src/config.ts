@@ -107,6 +107,12 @@ export interface Env {
    * never carry it.
    */
   AUTO_SEND_JOB?: string;
+
+  /**
+   * 2026-09-25 (STATUS § 29) — Riyadh «HH:MM» at which Baraa gets the daily
+   * «بدء الدوام» template that opens his 24h window. Absent/invalid = 06:00.
+   */
+  OWNER_WINDOW_OPEN_AT?: string;
 }
 
 // ============================================================

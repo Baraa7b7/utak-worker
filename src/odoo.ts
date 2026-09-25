@@ -1127,6 +1127,51 @@ export async function getTeamMembersByRole(
     });
 }
 
+/**
+ * 2026-09-25 (STATUS § 29) — the attendance roster: every active partner with
+ * at least one ACTIVE role (driver / warehouse / collector / admin; the
+ * archived «Customer» role rows map to nothing), with x_shift_start (float
+ * hours, Riyadh; 0 = no time).
+ */
+export interface AttendanceMember {
+  id: number;
+  name: string;
+  whatsapp: string;
+  codes: TeamRole[];
+  shiftStart: number | false;
+}
+export async function getAttendanceTeam(env: Env): Promise<AttendanceMember[]> {
+  const rows = await call<Array<{
+    id: number;
+    name: string;
+    x_whatsapp_number: string | false;
+    phone: string | false;
+    x_role_ids: number[] | false;
+    x_shift_start: number | false;
+  }>>(env, "res.partner", "search_read", {
+    domain: [["x_role_ids", "!=", false], ["active", "=", true]],
+    fields: ["id", "name", "x_whatsapp_number", "phone", "x_role_ids", "x_shift_start"],
+    order: "id asc",
+    limit: 100,
+  });
+  const roleMap = await getRoleCodeMap(env);
+  const out: AttendanceMember[] = [];
+  for (const r of rows) {
+    const codes = (Array.isArray(r.x_role_ids) ? r.x_role_ids : [])
+      .map((id) => roleMap.get(id))
+      .filter((c): c is TeamRole => !!c && c !== "customer");
+    if (codes.length === 0) continue;
+    out.push({
+      id: r.id,
+      name: r.name,
+      whatsapp: (typeof r.x_whatsapp_number === "string" && r.x_whatsapp_number) || (typeof r.phone === "string" && r.phone) || "",
+      codes,
+      shiftStart: typeof r.x_shift_start === "number" ? r.x_shift_start : false,
+    });
+  }
+  return out;
+}
+
 export async function findTeamMemberByWhatsApp(
   env: Env,
   e164: string,

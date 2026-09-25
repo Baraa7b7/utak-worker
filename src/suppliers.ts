@@ -42,7 +42,7 @@ import {
 import { sendTemplate, sendText } from "./meta";
 import { cutoffLabel, sendOwnerAlert, sendTemplateByPurpose, supplierAskParams, SUPPLIER_ASK_LEGACY } from "./templates";
 import { extractSupplierPrices } from "./claude";
-import { riyadhDateKey, riyadhMinutes } from "./hours";
+import { odooUtcToRiyadhHHMM, riyadhDateKey, riyadhHHMM, riyadhMinutes } from "./hours";
 import { isSkippedDuplicate } from "./auto-send-guard";
 
 const nowOdoo = (): string => new Date().toISOString().replace("T", " ").slice(0, 19);
@@ -98,16 +98,6 @@ export function isPriceOutlier(last: number, next: number): boolean {
   return Math.max(last, next) / Math.min(last, next) >= PRICE_OUTLIER_RATIO;
 }
 
-/** «14:05» in Riyadh. */
-function riyadhHHMM(now: Date = new Date()): string {
-  const m = riyadhMinutes(now);
-  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-}
-/** Odoo UTC «YYYY-MM-DD HH:MM:SS» → «HH:MM» in Riyadh. */
-function odooUtcToRiyadhHHMM(v: string | false | undefined): string {
-  const t = v ? Date.parse(String(v).replace(" ", "T") + "Z") : NaN;
-  return Number.isFinite(t) ? riyadhHHMM(new Date(t)) : "—";
-}
 
 // ============================================================
 // 02:00 Riyadh — ask all active suppliers

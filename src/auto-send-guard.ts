@@ -42,6 +42,11 @@ export const CRON_JOB: Readonly<Record<string, string>> = {
   "0 5 * * *": "daily_outreach",
   // 2026-09-24 (ح3) — 20:00 Riyadh reminder for unconfirmed orders. sim only.
   "0 17 * * *": "cutoff_reminder",
+  // 2026-09-25 (STATUS § 29) — team attendance, every 5 minutes. Its sends
+  // carry their own job names (shift_start / shift_remind / shift_absent /
+  // owner_window), so the start and the reminder of the same template on the
+  // same day are two different keys.
+  "*/5 * * * *": "team_attendance",
 };
 
 /** Shallow copy of env that marks every send inside the job as automated. */

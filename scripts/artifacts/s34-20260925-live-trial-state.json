@@ -1,0 +1,37 @@
+{
+  "mode": "state",
+  "owner": "…4962",
+  "state": {
+    "at": "2026-09-25T15:36:18.684Z",
+    "window": {
+      "open": true,
+      "lastInboundMs": 1790350533000,
+      "closesAtMs": 1790436333000,
+      "closedByMeta": false,
+      "source": "kv"
+    },
+    "queue": [],
+    "openerToday": null,
+    "openerCool": "2026-09-25T15:03:54.646Z القالب utak_update_owner حالته PENDING عند Meta",
+    "rows": [
+      {
+        "id": 154,
+        "x_status": "skipped",
+        "x_body": "📋 conv_open_owner",
+        "x_meta_error": "البوابة: القالب utak_update_owner حالته PENDING عند Meta",
+        "x_meta_message_id": false,
+        "create_date": "2026-09-25 15:03:57",
+        "write_date": "2026-09-25 15:03:57"
+      },
+      {
+        "id": 153,
+        "x_status": "delivered",
+        "x_body": "🧪 تجربة § 34 (فتح المحادثة): رسالة مهمة أُرسلت ونافذتك مقفلة، فحُفظت ولم تُرسل. وصلتك الآن لأنك راسلت رقم يو تاك أو ضغطت «عرض التحديث».",
+        "x_meta_error": false,
+        "x_meta_message_id": "wamid.HBgMOTY2NTA1MTU0OTYyFQIAERgSREYyRTc3NjQwQ0RFNDZDMDUyAA==",
+        "create_date": "2026-09-25 15:03:55",
+        "write_date": "2026-09-25 15:35:50"
+      }
+    ]
+  }
+}

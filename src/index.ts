@@ -30,7 +30,6 @@ import {
   findOrCreateCustomer,
   findSupplierByWhatsApp,
   findTeamMemberByWhatsApp,
-  markStopIssue,
   savePartnerLocation,
   savePartnerNeighborhood,
   setOrderLocation,
@@ -639,18 +638,9 @@ export default {
         steps["4_send_whatsapp"] = "skipped: no phone";
       } else {
         try {
-          const method = built.payments[0]?.method || "-";
-          const body = [
-            `✅ تم استلام دفعتك`,
-            `رقم الإيصال: ${built.receiptNumber}`,
-            `المبلغ: ${built.totalReceived} ر.س`,
-            `طريقة الدفع: ${method}`,
-            ``,
-            `الإيصال: ${uploaded.publicUrl}`,
-            ``,
-            `شكراً لتعاملكم مع UTAK 🌿`,
-          ].join("\n");
-          const resp = await sendText(env, customerPhone, body, { purpose: "customer_receipt" });
+          // STATUS § 34 — text inside the window, utak_payment_received outside it.
+          const { sendReceiptToCustomer } = await import("./receipt");
+          const resp = await sendReceiptToCustomer(env, customerPhone, built, uploaded.publicUrl);
           if (!resp || !resp.ok) {
             const errText = resp ? await resp.text().catch(() => "") : "no response";
             steps["4_send_whatsapp"] = `error: ${resp?.status ?? "?"} ${errText.slice(0, 200)}`;
@@ -1616,6 +1606,37 @@ async function handleSimRoute(
     return json({ error: "unauthorized" }, 401);
   }
 
+  // STATUS § 34 — the live «فتح المحادثة» trial, Baraa's number only (never
+  // anyone else). POST /sim/opener-trial?close=1&purpose=owner_alert|owner_team_note
+  // closes his 24h window in KV (as a 131047 would), then sends ONE critical
+  // message through the gateway: outside the window it is held, and his
+  // category's opener goes if usable. GET /sim/opener-state reads his window,
+  // his queue and today's opener mark. Nothing else is touched.
+  if (url.pathname === "/sim/opener-trial" || url.pathname === "/sim/opener-state") {
+    const owner = String(env.OWNER_WHATSAPP ?? "");
+    if (!owner) return json({ error: "no OWNER_WHATSAPP" }, 400);
+    const { readWindow, markWindowClosed } = await import("./wa-window");
+    const { readQueue } = await import("./wa-queue");
+    const { openerDayKey } = await import("./wa-opener");
+    const state = async () => ({
+      window: await readWindow(env, owner),
+      queue: (await readQueue(env, owner)).map((i) => ({ purpose: i.purpose, created: new Date(i.createdAt).toISOString(), expires: new Date(i.expiresAt).toISOString(), text: (i.body as { text?: { body?: string } })?.text?.body ?? i.body.type })),
+      openerToday: await env.MSG_DEDUP.get(openerDayKey(owner)).catch(() => null),
+    });
+    if (request.method === "GET") return json(await state());
+    if (request.method !== "POST") return json({ error: "method" }, 405);
+    const purpose = url.searchParams.get("purpose") === "owner_team_note" ? "owner_team_note" : "owner_alert";
+    const text = url.searchParams.get("text") || "🧪 تجربة § 34: رسالة مهمة محفوظة خارج النافذة — تصلك عند ضغطتك أو رسالتك التالية.";
+    const before = await state();
+    if (url.searchParams.get("close") === "1") await markWindowClosed(env, owner, Date.now());
+    const { sendOwnerMessage } = await import("./templates");
+    const { gatewayDecision } = await import("./wa-gateway");
+    const resp = await sendOwnerMessage(env, text, purpose);
+    let body: unknown = null;
+    try { body = resp ? await resp.clone().json() : null; } catch { body = null; }
+    return json({ purpose, decision: gatewayDecision(resp), status: resp?.status ?? null, body, before, after: await state() });
+  }
+
   // TEMPORARY 2026-09-12 — T2 isolation harness.
   // POST /sim/test-send?to=+9665...&text=...  — calls sendText() directly,
   // no Odoo, no template lookup, no handleWebhook. Returns the gateway's
@@ -2044,12 +2065,35 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
 
     // 2026-09-25 (STATUS § 33) — the window just opened: what the gateway held
     // for this number goes now, oldest first, before any reply.
+    let flushed: { sent: number } | null = null;
     if (inboundWindow?.open) {
       try {
         const { flushHeld } = await import("./wa-gateway");
-        await flushHeld(env, msg.from, inboundWindow, ctx);
+        flushed = await flushHeld(env, msg.from, inboundWindow, ctx);
       } catch (e) {
         console.warn("[gateway] flush failed", (e as Error)?.message);
+      }
+    }
+
+    // 2026-09-25 (STATUS § 34) — «عرض التحديث» on a «فتح المحادثة» template:
+    // the flush above was the answer. Baraa gets his usual «✅ تم» line; anyone
+    // else one line only when nothing was waiting. No other routing.
+    {
+      const { OPEN_PAYLOAD, OPEN_NOTHING_TEXT } = await import("./wa-opener");
+      if ((msg.type === "button" || msg.type === "interactive") && msg.buttonId === OPEN_PAYLOAD) {
+        console.log(`[opener] tap from=${msg.from.slice(-4)} flushed=${flushed?.sent ?? 0}`);
+        try {
+          if (isOwnerNumber(env, msg.from)) {
+            const { ownerWindowAck } = await import("./attendance");
+            await sendText(env, msg.from, ownerWindowAck(), { ctx, purpose: "owner_alert" });
+          } else if (!flushed || flushed.sent === 0) {
+            await sendText(env, msg.from, OPEN_NOTHING_TEXT, { ctx, purpose: "bot_reply" });
+          }
+        } catch (e) {
+          console.warn("[opener] tap reply failed", (e as Error)?.message);
+        }
+        await markSeen(env, msg.messageId);
+        continue;
       }
     }
 
@@ -2152,6 +2196,10 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         // 2026-09-24 (ح7) — the text after «مشكلة» on the purchase list.
         const purchaseIssueKey = `pending_purchase_issue:${teamMember.id}`;
         const pendingListId = await env.MSG_DEDUP.get(purchaseIssueKey);
+        // STATUS § 34 — the text after «ملاحظة 📝» on a collection.
+        const { pendingCollectNoteKey } = await import("./team-note");
+        const collectNoteKey = pendingCollectNoteKey(teamMember.id);
+        const pendingCollectNote = await env.MSG_DEDUP.get(collectNoteKey);
         if (pendingListId) {
           const listId = Number(pendingListId);
           await env.MSG_DEDUP.delete(purchaseIssueKey);
@@ -2167,14 +2215,19 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           await sendText(env, msg.from, "وصلت المشكلة لبراء وسُجّلت على قائمة الشراء ✅ بيتواصل معك.", { ctx, purpose: "bot_reply" });
         } else if (pendingOrderId) {
           const orderId = Number(pendingOrderId);
-          await markStopIssue(env, orderId, msg.text);
           await env.MSG_DEDUP.delete(pendingKey);
-          {
-            const { sendOwnerAlert } = await import("./templates");
-            await sendOwnerAlert(env,
-              `⚠️ مشكلة توصيل\nسواق: ${teamMember.name}\nطلب: #${orderId}\nالمشكلة: ${msg.text}`);
-          }
+          // STATUS § 34 — the driver's note: on the stop, and to Baraa as a
+          // critical message with the customer and the order.
+          const { recordTeamNote } = await import("./team-note");
+          await recordTeamNote(env, { kind: "delivery", memberName: teamMember.name, orderId, text: msg.text });
           await sendText(env, msg.from, "تم تسجيل المشكلة، براء بيراجعها 🙏", { ctx, purpose: "bot_reply" });
+        } else if (pendingCollectNote) {
+          // STATUS § 34 — the collector's note after «ملاحظة 📝».
+          const invoiceId = Number(pendingCollectNote);
+          await env.MSG_DEDUP.delete(collectNoteKey);
+          const { recordTeamNote, TEAM_NOTE_ACK } = await import("./team-note");
+          await recordTeamNote(env, { kind: "collection", memberName: teamMember.name, invoiceId, text: msg.text });
+          await sendText(env, msg.from, TEAM_NOTE_ACK, { ctx, purpose: "bot_reply" });
         } else if (att.hold) {
           await sendText(env, msg.from, holdText(att), { ctx, purpose: "bot_reply" });
         } else {

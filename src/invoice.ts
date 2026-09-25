@@ -245,9 +245,13 @@ export async function createAndDispatchInvoiceForOrder(
     neighborhood: order.neighborhood,
     total,
   });
+  // STATUS § 34 — a third session button: the collector's note to Baraa
+  // (the template utak_collection_request keeps its two).
+  const { collectNoteButton } = await import("./team-note");
   const collectButtons = [
     { id: `collect_cash_${invoiceId}`, title: "نقد 💵" },
     { id: `collect_transfer_${invoiceId}`, title: "تحويل 🏦" },
+    collectNoteButton(invoiceId),
   ];
   // 2026-09-25 (STATUS § 29) — a collector on attendance who has not
   // tapped «بدء الدوام» today gets the request (with its buttons) after the tap.
@@ -605,7 +609,13 @@ export async function recordCollection(
     : null;
   if (customerWa) {
     try {
-      await sendText(env, customerWa, `تم استلام الدفعة ${amount} ر.س، شكراً لك 🙏`, { purpose: "customer_payment_ack" });
+      // STATUS § 34 — inside the window only: outside it the receipt goes as
+      // utak_payment_received (x_payment → receipt), so this line is not held.
+      await sendText(env, customerWa, `تم استلام الدفعة ${amount} ر.س، شكراً لك 🙏`, {
+        purpose: "customer_payment_ack",
+        noHold: true,
+        noHoldReason: "الإيصال يؤكد الدفعة بقالب utak_payment_received",
+      });
     } catch (e) {
       console.warn(`[collection] failed to notify customer`, (e as Error).message);
     }

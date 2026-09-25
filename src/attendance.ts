@@ -50,6 +50,7 @@ import { odooUtcToRiyadhHHMM, riyadhDateKey, riyadhDayMinuteMs, riyadhHHMM, toOd
 import { flushTeamQueue, TEAM_QUEUE_TTL } from "./team-queue";
 import { sendText } from "./meta";
 import { gatewayDecision } from "./wa-gateway";
+import { arabicDate } from "./wa-params";
 import {
   dayPlan, loadRoster, memberByPartner, nextShiftStart,
   type DayPlan, type Roster, type RosterMember,
@@ -265,11 +266,25 @@ async function ownerWindowStep(env: Env, day: string, nowMs: number, windowMinut
   if (since >= REMIND_AFTER_MIN * MIN) return "passed";
   const claim = await claimButton(env, `att:${day}:owner:window`, CLAIM_TTL);
   if (!claim.claimed) return "sent_before";
+  // STATUS § 34 — utak_update_owner is the backup of this message only: it
+  // goes when utak_shift_start_v2 cannot (not approved, re-filed MARKETING,
+  // dropped today). Its «عرض التحديث» opens the window the same way.
+  const { markOpenerSentToday, OPENER_TEMPLATE_NAMES, openerOption } = await import("./wa-opener");
   const r = await sendTemplateByPurpose(withAutoSendJob(env, OWNER_WINDOW_PURPOSE), owner, T.TEAM_SHIFT_START,
-    [OWNER_TEMPLATE_NAME], [{ index: 0, payload: SHIFT_START_PAYLOAD }], undefined, { sendPurpose: OWNER_WINDOW_PURPOSE });
-  if (gatewayDecision(r)?.action === "skipped") return "no_template";
+    [OWNER_TEMPLATE_NAME], [{ index: 0, payload: SHIFT_START_PAYLOAD }], undefined, {
+      sendPurpose: OWNER_WINDOW_PURPOSE,
+      fallback: [openerOption("owner", [arabicDate(day), OWNER_OPENER_UPDATE])],
+    });
+  const d = gatewayDecision(r);
+  if (d?.action === "skipped") return "no_template";
+  if (d?.action === "template" && OPENER_TEMPLATE_NAMES.has(d.template)) {
+    await markOpenerSentToday(env, owner, d.template, nowMs);
+    return "sent_backup";
+  }
   return r.ok ? "sent" : `failed:${r.status}`;
 }
+/** The {{2}} of utak_update_owner when it stands in for the 06:00 message (§ 34). */
+export const OWNER_OPENER_UPDATE = "تنبيهات اليوم";
 
 // ---------------------------------------------------------------- the tap
 export type TapResult =

@@ -16,7 +16,8 @@ export const CONTRACT = {
   collection_summary:         { params: 4, where: "src/invoice.ts:630", used: true },
   commission:                 { params: null, where: "—", used: false },
   owner_summary:              { params: null, where: "—", used: false },
-  owner_alert:                { params: 1, where: "src/templates.ts:285 (sendOwnerAlert, ownerAlertParams)", used: true,
+  // STATUS § 34 — sendOwnerAlert has no template option any more (text, held outside his window).
+  owner_alert:                { params: 1, where: "src/templates.ts (sendOwnerAlert — no template since § 34)", used: false,
                                 byTemplate: { utak_owner_alert_v3: 2 } },
   team_shift_start:           { params: 1, where: "src/team.ts:410", used: true },
   customer_welcome:           { params: 2, where: "src/index.ts:1988 (welcomeParams)", used: true },
@@ -37,6 +38,16 @@ export const CONTRACT = {
   customer_order_remind:      { params: 2, where: "src/team.ts:79 (notifyOrderCustomer remind)", used: true },
   purchase_list_remind:       { params: 2, where: "src/team.ts:335 (sendPurchaseListReminder, purchaseRemindParams)", used: true,
                                 byTemplate: { utak_purchase_list_remind_v2: 3 } },
+  // 2026-09-25 (STATUS § 34) — utak_payment_received (#56): [amount, invoice number], the
+  // receipt outside the customer's window; and «فتح المحادثة» per category (#82–#85):
+  // [account number or date, the update in two or three words] + «عرض التحديث».
+  customer_payment_received:  { params: 2, where: "src/receipt.ts (sendReceiptToCustomer)", used: true },
+  // the collector's / driver's note to Baraa: text only (held outside his window), no template
+  owner_team_note:            { params: null, where: "src/team-note.ts (recordTeamNote, text only)", used: false },
+  conv_open_customer:         { params: 2, where: "src/wa-opener.ts (openerParams)", used: true },
+  conv_open_team:             { params: 2, where: "src/wa-opener.ts (openerParams)", used: true },
+  conv_open_supplier:         { params: 2, where: "src/wa-opener.ts (openerParams)", used: true },
+  conv_open_owner:            { params: 2, where: "src/wa-opener.ts (openerParams, attendance.ts 06:00 backup)", used: true },
 };
 
 /** Variables the code sends for `purpose` when it resolves to `templateName`. */

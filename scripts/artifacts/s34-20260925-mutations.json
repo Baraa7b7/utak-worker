@@ -1,0 +1,392 @@
+[
+  {
+    "mutation": "once a day: the day key is not checked (neither the early read nor the claim)",
+    "files": [
+      "src/wa-opener.ts",
+      "src/wa-opener.ts"
+    ],
+    "test": "tests/wa-opener.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 7,
+    "first": [
+      "three critical messages in one day → one opener — 3",
+      "the next Riyadh day → one more",
+      "Baraa: two alerts held, one opener"
+    ]
+  },
+  {
+    "mutation": "once a day: no read-back on the claim (a race sends twice)",
+    "files": [
+      "src/wa-opener.ts"
+    ],
+    "test": "tests/wa-opener.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "two holds racing → one opener — sent sent"
+    ]
+  },
+  {
+    "mutation": "once a day: the sent opener does not mark the day",
+    "files": [
+      "src/wa-opener.ts",
+      "src/wa-opener.ts"
+    ],
+    "test": "tests/wa-opener.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 6,
+    "first": [
+      "three critical messages in one day → one opener — 3",
+      "the next Riyadh day → one more",
+      "two holds racing → one opener — sent sent"
+    ]
+  },
+  {
+    "mutation": "category: every number is a customer",
+    "files": [
+      "src/wa-opener.ts",
+      "src/wa-opener.ts"
+    ],
+    "test": "tests/wa-opener.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "team → utak_update_team [shift date, update] — sent []",
+      "supplier → utak_update_supplier [date, update] — no_category []"
+    ]
+  },
+  {
+    "mutation": "category: archived numbers get an opener",
+    "files": [
+      "src/wa-opener.ts"
+    ],
+    "test": "tests/wa-opener.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "archived: no opener — already_today sent:2026-09-26T07:00:00.000Z:utak_update_customer"
+    ]
+  },
+  {
+    "mutation": "category: «شخصي» gets an opener",
+    "files": [
+      "src/wa-opener.ts"
+    ],
+    "test": "tests/wa-opener.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "«شخصي» with a supplier rank: no opener — already_today sent:2026-09-26T07:00:00.000Z:utak_update_supplier"
+    ]
+  },
+  {
+    "mutation": "category: the opted-out get an opener",
+    "files": [
+      "src/wa-opener.ts"
+    ],
+    "test": "tests/wa-opener.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "opted out (§ 23): no opener — already_today sent:2026-09-26T07:00:00.000Z:utak_update_customer"
+    ]
+  },
+  {
+    "mutation": "category: the review hold is ignored",
+    "files": [
+      "src/wa-opener.ts"
+    ],
+    "test": "tests/wa-opener.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "review hold (wrong number): no opener — already_today sent:2026-09-26T07:00:00.000Z:utak_update_customer"
+    ]
+  },
+  {
+    "mutation": "critical: a held critical message sends no opener",
+    "files": [
+      "src/wa-gateway.ts"
+    ],
+    "test": "tests/wa-opener.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 20,
+    "first": [
+      "customer → utak_update_customer — []",
+      "customer: [account number, «فاتورة جديدة»] — []",
+      "customer: button 0 payload wa_update_open"
+    ]
+  },
+  {
+    "mutation": "critical: every held message sends an opener",
+    "files": [
+      "src/wa-opener.ts",
+      "src/wa-gateway.ts"
+    ],
+    "test": "tests/wa-opener.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "collection_nothing / customer_payment_ack held, no opener"
+    ]
+  },
+  {
+    "mutation": "critical: owner alerts not critical",
+    "files": [
+      "src/wa-purposes.ts"
+    ],
+    "test": "tests/wa-opener.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 6,
+    "first": [
+      "critical = Baraa's list (prices, receipt, his alerts, team notes, order confirm/change, invoices) — customer_invoice",
+      "owner → utak_update_owner [date, «تنبيه تشغيلي»] — [{\"messaging_product\":\"whatsapp\",\"to\":\"966500000001\",\"type\":\"text",
+      "owner: the opener is logged in x_wa_message too"
+    ]
+  },
+  {
+    "mutation": "unusable: a final (MARKETING/REJECTED) template retried within the day",
+    "files": [
+      "src/wa-opener.ts"
+    ],
+    "test": "tests/wa-opener.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "MARKETING (as Meta filed team / owner): final → the day's one attempt is spent (no new row, no send)",
+      "REJECTED: final → the day's one attempt is spent (no new row, no send)"
+    ]
+  },
+  {
+    "mutation": "unusable: a PENDING template spends the day",
+    "files": [
+      "src/wa-opener.ts"
+    ],
+    "test": "tests/wa-opener.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "PENDING: no opener, the day freed, an hour's cool-down",
+      "…approved later the same day → the opener goes"
+    ]
+  },
+  {
+    "mutation": "refused: Meta's refusal frees the day (a second try)",
+    "files": [
+      "src/wa-opener.ts"
+    ],
+    "test": "tests/wa-opener.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "…not even an attempt (no «skipped» opener row) — [[\"held\",null],[\"failed\",\"Meta 131026: (#131026) Invalid parameter\""
+    ]
+  },
+  {
+    "mutation": "tap: not handled (routing continues)",
+    "files": [
+      "src/index.ts"
+    ],
+    "test": "tests/wa-opener.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 3,
+    "first": [
+      "the three held messages go out as text, oldest first — أولاً: الفاتورة / ثانياً: غير مهمة / ثالثاً: الإيصال / هذا ال",
+      "a second tap with nothing held → one line — [{\"messaging_product\":\"whatsapp\",\"to\":\"966500000501\",\"type\":\"text\",\"text",
+      "Baraa's tap: the alerts in order, then «✅ تم» — [\"تنبيه 1\",\"تنبيه 2\"]"
+    ]
+  },
+  {
+    "mutation": "tap: «ما فيه تحديث» even after a flush",
+    "files": [
+      "src/index.ts"
+    ],
+    "test": "tests/wa-opener.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "the three held messages go out as text, oldest first — أولاً: الفاتورة / ثانياً: غير مهمة / ثالثاً: الإيصال / ما فيه",
+      "…and nothing else (no «ما فيه تحديث» after a flush)"
+    ]
+  },
+  {
+    "mutation": "tap: Baraa gets no «✅ تم»",
+    "files": [
+      "src/index.ts"
+    ],
+    "test": "tests/wa-opener.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "Baraa's tap: the alerts in order, then «✅ تم» — [\"تنبيه 1\",\"تنبيه 2\"]"
+    ]
+  },
+  {
+    "mutation": "owner: an opener in the half hour before 06:00",
+    "files": [
+      "src/wa-opener.ts"
+    ],
+    "test": "tests/wa-opener.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "05:40 (the 06:00 message is due): no opener, the alert held"
+    ]
+  },
+  {
+    "mutation": "owner: utak_owner_alert back as a fallback",
+    "files": [
+      "src/templates.ts"
+    ],
+    "test": "tests/wa-opener.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "no owner_alert template, even a UTILITY one mapped",
+      "…utak_update_owner instead"
+    ]
+  },
+  {
+    "mutation": "owner: no utak_update_owner backup at 06:00",
+    "files": [
+      "src/attendance.ts"
+    ],
+    "test": "tests/wa-opener.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "06:00 with utak_shift_start_v2 unusable → utak_update_owner [date, «تنبيهات اليوم»] — []"
+    ]
+  },
+  {
+    "mutation": "owner: the 06:00 backup does not count as the day's opener",
+    "files": [
+      "src/attendance.ts"
+    ],
+    "test": "tests/wa-opener.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "…that counts as today's opener (an alert later: held, no second)"
+    ]
+  },
+  {
+    "mutation": "owner guard: owner_team_note blocked",
+    "files": [
+      "src/wa-gateway.ts"
+    ],
+    "test": "tests/wa-opener.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 6,
+    "first": [
+      "owner guard lets conv_open_owner and owner_team_note through — {\"action\":\"template\",\"template\":\"utak_update_owner\",\"",
+      "delivery note → Baraa, with the customer and the order — []",
+      "collection note → Baraa, with the customer, the order and the invoice — []"
+    ]
+  },
+  {
+    "mutation": "params: a customer's {{1}} is the date, not the account number",
+    "files": [
+      "src/wa-opener.ts"
+    ],
+    "test": "tests/wa-opener.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "customer: [account number, «فاتورة جديدة»] — [\"26 سبتمبر 2026\",\"فاتورة جديدة\"]",
+      "template re-filed MARKETING → the receipt held + utak_update_customer [account, «إيصال الدفع»] — [{\"messaging_produc"
+    ]
+  },
+  {
+    "mutation": "receipt: no utak_payment_received outside the window",
+    "files": [
+      "src/receipt.ts"
+    ],
+    "test": "tests/wa-opener.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 3,
+    "first": [
+      "closed window → utak_payment_received, sent directly",
+      "…[amount, invoice number] — []",
+      "…nothing held, no opener"
+    ]
+  },
+  {
+    "mutation": "receipt: the payment ack is held outside the window",
+    "files": [
+      "src/invoice.ts"
+    ],
+    "test": "tests/wa-opener.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "the ack to the customer: not sent, not held — «skipped» with the reason — [[\"received\",null],[\"held\",null]]"
+    ]
+  },
+  {
+    "mutation": "team note: without the customer's name",
+    "files": [
+      "src/team-note.ts"
+    ],
+    "test": "tests/wa-opener.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 4,
+    "first": [
+      "delivery note → Baraa, with the customer and the order — [\"⚠️ ملاحظة توصيل من عمر المجهلي\\nالعميل: -\\nالطلب: #10005\\",
+      "collection note → Baraa, with the customer, the order and the invoice — [\"⚠️ ملاحظة توصيل من عمر المجهلي\\nالعميل: -\\",
+      "Baraa outside his window: the note is held as owner_team_note — [{\"id\":\"6e23b066\",\"purpose\":\"owner_team_note\",\"body\""
+    ]
+  },
+  {
+    "mutation": "team note: the collection note is not kept on the payment",
+    "files": [
+      "src/team-note.ts"
+    ],
+    "test": "tests/wa-opener.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "…kept on the payment (x_notes) — false"
+    ]
+  },
+  {
+    "mutation": "team note: «ملاحظة 📝» not offered after a collection",
+    "files": [
+      "src/router.ts"
+    ],
+    "test": "tests/wa-opener.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "the collector's reply carries «ملاحظة 📝» (collect_note_<invoice>) — [{\"messaging_product\":\"whatsapp\",\"to\":\"96650000"
+    ]
+  }
+]

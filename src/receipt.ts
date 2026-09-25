@@ -4,6 +4,7 @@
 import type { Env } from "./config";
 import { call } from "./odoo";
 import { sendText } from "./meta";
+import { T } from "./templates";
 import {
   BRAND_COLORS,
   computePageMetrics,
@@ -48,6 +49,50 @@ export interface ReceiptPDFData {
   /** Issued document (numbered, sent / recorded). Only issued documents print
    *  the company seal + signature — never a preview or a draft. */
   issued?: boolean;
+}
+
+/** The receipt's WhatsApp text (inside the window): number, amount, method, link. */
+export function receiptMessageText(data: ReceiptPDFData, publicUrl: string): string {
+  const method = data.payments[0]?.method || "-";
+  return [
+    `✅ تم استلام دفعتك`,
+    `رقم الإيصال: ${data.receiptNumber}`,
+    `المبلغ: ${data.totalReceived} ر.س`,
+    `طريقة الدفع: ${method}`,
+    ``,
+    `الإيصال: ${publicUrl}`,
+    ``,
+    `شكراً لتعاملكم مع UTAK 🌿`,
+  ].join("\n");
+}
+
+/** utak_payment_received's {{1}}: «50» or «50.50». */
+export function receiptAmountLabel(amount: number): string {
+  const n = Math.round(Number(amount || 0) * 100) / 100;
+  return Number.isInteger(n) ? String(n) : n.toFixed(2);
+}
+
+/**
+ * STATUS § 34 — the payment receipt to the customer, one gateway request:
+ * the text with its link inside the customer's 24h window; outside it the
+ * approved UTILITY template utak_payment_received (x_purpose
+ * customer_payment_received) = [amount, invoice number], which needs no
+ * window. When that template cannot be used the text is held, and — the
+ * receipt being critical («مهمة») — utak_update_customer goes once that day.
+ */
+export async function sendReceiptToCustomer(
+  env: Env,
+  phone: string,
+  data: ReceiptPDFData,
+  publicUrl: string,
+  ctx?: ExecutionContext,
+): Promise<Response> {
+  const invoiceNumber = data.payments[0]?.invoiceNumber || data.receiptNumber;
+  return sendText(env, phone, receiptMessageText(data, publicUrl), {
+    purpose: "customer_receipt",
+    ctx,
+    fallback: [{ kind: "template", purpose: T.CUSTOMER_PAYMENT_RECEIVED, params: [receiptAmountLabel(data.totalReceived), invoiceNumber] }],
+  });
 }
 
 const RECEIPT_FOOTER =
@@ -336,26 +381,15 @@ export async function createAndDispatchReceiptForRecord(
   }
 
   const customerPhone = data.customer.phone;
-  const amount = data.totalReceived;
-  const method = data.payments[0]?.method || "-";
 
   let messageId: string | null = null;
   if (!customerPhone) {
     console.warn(`[receipt] ${paymentId} has no customer WhatsApp — skipping send`);
   } else {
     try {
-      // Plain-text fallback pending an approved receipt template (mirrors quotation).
-      const body = [
-        `✅ تم استلام دفعتك`,
-        `رقم الإيصال: ${data.receiptNumber}`,
-        `المبلغ: ${amount} ر.س`,
-        `طريقة الدفع: ${method}`,
-        ``,
-        `الإيصال: ${uploaded.publicUrl}`,
-        ``,
-        `شكراً لتعاملكم مع UTAK 🌿`,
-      ].join("\n");
-      const resp = await sendText(env, customerPhone, body, { purpose: "customer_receipt" });
+      // STATUS § 34 — the receipt with its link inside the customer's window;
+      // utak_payment_received outside it (sendReceiptToCustomer).
+      const resp = await sendReceiptToCustomer(env, customerPhone, data, uploaded.publicUrl);
       if (resp?.ok) {
         try {
           const j = (await resp.json()) as { messages?: Array<{ id?: string }> };

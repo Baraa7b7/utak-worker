@@ -25,7 +25,10 @@
 //      (src/wa-queue.ts), an x_wa_message row with x_status «held», a line in
 //      its Discuss channel, and — for an important purpose — one alert to
 //      Baraa per purpose and number per Riyadh day (through this gateway).
-//      No session option → «skipped», logged the same way.
+//      A critical («مهمة», § 34) purpose also sends the number's «فتح
+//      المحادثة» template, once per number and Riyadh day (src/wa-opener.ts).
+//      No session option → «skipped», logged the same way. A request marked
+//      noHold is skipped instead of held (its content is covered elsewhere).
 //   4. one attempt at Meta. Never a second one for the same request.
 //
 // Meta's refusals, in the send response or in a later `failed` status
@@ -110,6 +113,13 @@ export interface GatewayRequest {
   queued?: QueueItem;
   /** internal: the window is already known (the flush) */
   window?: WindowState;
+  /**
+   * § 34 — outside the window with nothing usable: skipped (logged), not held.
+   * For a message another send already covers (the payment ack, which the
+   * receipt's utak_payment_received confirms outside the window).
+   */
+  noHold?: boolean;
+  noHoldReason?: string;
 }
 
 export type GatewayDecision =
@@ -148,7 +158,9 @@ function refused(message: string, type: string, status: number): Response {
 //   • owner_summary — the approved T.OWNER_SUMMARY template
 //   • owner_window  — the daily «بدء الدوام» template (utak_shift_start_v2)
 //                     that opens his 24h window (STATUS § 29).
-const OWNER_ALLOWED_PURPOSES: ReadonlySet<string> = new Set(["owner_alert", "owner_summary", "owner_window"]);
+//   • conv_open_owner — utak_update_owner, his «فتح المحادثة» (§ 34)
+//   • owner_team_note — the collector's / driver's note (§ 34)
+const OWNER_ALLOWED_PURPOSES: ReadonlySet<string> = new Set(["owner_alert", "owner_summary", "owner_window", "conv_open_owner", "owner_team_note"]);
 
 function ownerDigits(env: Env): string {
   return waDigits(String(env.OWNER_WHATSAPP ?? ""));
@@ -399,7 +411,8 @@ export async function sendViaGateway(env: Env, req: GatewayRequest): Promise<Res
     held ??= opt;
     why.push(win.closedByMeta ? "Meta أغلق النافذة (131047)" : "الرقم خارج نافذة 24 ساعة");
   }
-  if (held) return hold(env, req, to, held, why);
+  if (held && !req.noHold) return hold(env, req, to, held, why);
+  if (held && req.noHoldReason) why.push(req.noHoldReason);
   const reason = why.join("؛ ") || "لا محتوى";
   console.warn(`[gateway] skipped purpose=${req.purpose} to=${maskPhone(to)} — ${reason}`);
   await logSkipped(env, req, to, reason, "skipped");
@@ -453,22 +466,37 @@ async function hold(env: Env, req: GatewayRequest, to: string, opt: GwSession, w
   }, { body: text, kind: kindOf(opt.body), manual: req.manual, purpose: req.purpose });
   await enqueueHeld(env, to, item, now);
   console.log(`[gateway] held purpose=${req.purpose} to=${maskPhone(to)} until=${new Date(expiresAt).toISOString()} — ${reason}`);
+  // § 34 — a critical message: the number's «فتح المحادثة» template, once a day.
+  let opener: import("./wa-opener").OpenerResult | null = null;
+  if (policy.critical) {
+    const { sendOpenerForHeld } = await import("./wa-opener");
+    opener = await sendOpenerForHeld(env, to, req.purpose, { ctx: req.ctx, now });
+  }
   if (!isOwnerRecipient(env, to)) {
     await echoHeldToInbox(env, to, text, riyadhLabel(expiresAt), req.ctx);
-    if (important) await alertOwnerOnce(env, req.purpose, to, "held", riyadhLabel(expiresAt));
+    if (important) await alertOwnerOnce(env, req.purpose, to, "held", riyadhLabel(expiresAt), opener);
   }
-  return decided(jsonResponse({ gateway: { decision: "held", expiresAt } }, 202), { action: "held", reason, expiresAt });
+  return decided(jsonResponse({ gateway: { decision: "held", expiresAt, opener: opener?.outcome } }, 202), { action: "held", reason, expiresAt });
 }
 
 /** One alert to Baraa per purpose, number and Riyadh day (held, skipped, or a 131047 re-queue). */
-async function alertOwnerOnce(env: Env, purpose: string, to: string, what: "held" | "skipped", detail: string): Promise<void> {
+async function alertOwnerOnce(
+  env: Env,
+  purpose: string,
+  to: string,
+  what: "held" | "skipped",
+  detail: string,
+  opener: import("./wa-opener").OpenerResult | null = null,
+): Promise<void> {
   if (isOwnerRecipient(env, to)) return;
   const key = `gw_alert:v1:${riyadhDateKey()}:${waDigits(to)}:${purpose}`;
   if (await kvGet(env, key)) return;
   await kvPut(env, key, new Date().toISOString(), 26 * 3600);
   const label = purposePolicy(purpose)?.label ?? purpose;
+  const openerLine = opener?.outcome === "sent" ? ` وأُرسل له قالب «فتح المحادثة» (${opener.template}).`
+    : opener?.outcome === "already_today" ? " وقالب «فتح المحادثة» أُرسل له اليوم." : "";
   const text = what === "held"
-    ? `📥 رسالة «${label}» إلى ${maskPhone(to)} محفوظة ولم تُرسل: الرقم خارج نافذة 24 ساعة ولا قالب UTILITY لها. تصله عند أول رسالة منه، وتنتهي صلاحيتها ${detail}.`
+    ? `📥 رسالة «${label}» إلى ${maskPhone(to)} محفوظة ولم تُرسل: الرقم خارج نافذة 24 ساعة ولا قالب UTILITY لها. تصله عند أول رسالة منه، وتنتهي صلاحيتها ${detail}.${openerLine}`
     : `⚠️ رسالة «${label}» إلى ${maskPhone(to)} لم تُرسل: ${detail}.`;
   try {
     const { sendOwnerAlert } = await import("./templates");
@@ -640,7 +668,7 @@ async function dispatchToMeta(
       return refused(msg, "SimStorageError", 500);
     }
     await afterAccepted(env, req, to, body, wamid, templateName);
-    await dispatchEcho(env, to, body, req.ctx, echoPurpose, wamid, req.rowId ?? req.queued?.rowId);
+    await dispatchEcho(env, to, body, req.ctx, echoPurpose, wamid, req.rowId ?? req.queued?.rowId, templateName);
     return decided(synthesizeMetaResponse(to, wamid), via);
   }
 
@@ -675,7 +703,7 @@ async function dispatchToMeta(
   }
   if (resp.ok) {
     await afterAccepted(env, req, to, body, wamid, templateName);
-    await dispatchEcho(env, to, body, req.ctx, echoPurpose, wamid, req.rowId ?? req.queued?.rowId);
+    await dispatchEcho(env, to, body, req.ctx, echoPurpose, wamid, req.rowId ?? req.queued?.rowId, templateName);
     return decided(resp, via);
   }
 
@@ -951,8 +979,9 @@ async function dispatchEcho(
   purpose: string,
   wamid: string | undefined,
   rowId: number | undefined,
+  templateName?: string,
 ): Promise<void> {
-  const task = echoOutboundToInbox(env, to, body, purpose, wamid, rowId).catch((e) =>
+  const task = echoOutboundToInbox(env, to, body, purpose, wamid, rowId, templateName).catch((e) =>
     console.warn("[gateway] echo failed:", (e as Error).message));
   if (ctx) { ctx.waitUntil(task); return; }
   await task;
@@ -965,6 +994,7 @@ async function echoOutboundToInbox(
   purpose: string,
   wamid: string | undefined,
   rowId: number | undefined,
+  templateName?: string,
 ): Promise<void> {
   const realWamid = wamid && !wamid.includes(".no_id.") ? wamid : undefined;
   // A held message now sent: its row becomes «sent» with the wamid.
@@ -984,13 +1014,40 @@ async function echoOutboundToInbox(
     }
   }
   // The owner is not a customer conversation — never echoed into Discuss.
-  if (isOwnerRecipient(env, to)) return;
+  // § 34: his «فتح المحادثة» template is logged in x_wa_message, like every
+  // other opener (the others get their row with the echo below).
+  if (isOwnerRecipient(env, to)) {
+    const { OPENER_TEMPLATE_NAMES } = await import("./wa-opener");
+    if (templateName && OPENER_TEMPLATE_NAMES.has(templateName) && !rowId) {
+      try {
+        const { logWaMessage } = await import("./wa-message-send");
+        await logWaMessage(env, {
+          partnerId: null,
+          direction: "out",
+          kind: "template",
+          body: sessionEchoText(body),
+          source: "auto",
+          status: "sent",
+          metaMessageId: realWamid,
+        });
+      } catch (e) {
+        console.warn("[gateway] owner opener row failed:", (e as Error).message);
+      }
+    }
+    return;
+  }
   const echoText = sessionEchoText(body);
   if (!echoText || HANDLED_BY_CALLER.has(purpose)) return;
   const partner = await partnerForNumber(env, to);
   if (!partner) return;
   const { echoOutbound } = await import("./wa-inbox");
-  await echoOutbound(env, partner.id, partner.name, echoText, body.type === "template" ? purpose : undefined, to);
+  try {
+    await echoOutbound(env, partner.id, partner.name, echoText, body.type === "template" ? purpose : undefined, to);
+  } catch (e) {
+    // STATUS § 34 — the Discuss mirror failing does not cost the send its
+    // x_wa_message row (the record of every send, openers included).
+    console.warn("[gateway] echo failed:", (e as Error).message);
+  }
   if (rowId) return;
   // An x_wa_message row for the auto send, with the wamid (one row per send).
   try {

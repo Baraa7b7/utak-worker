@@ -531,11 +531,38 @@ async function handleButton(
   const mCollect = /^collect_(cash|transfer)_(\d+)$/.exec(buttonId);
   if (mCollect) {
     const { handleCollectionButton } = await import("./invoice");
+    let collected = false;
     const text = await withButtonLock(env, `collect:${mCollect[2]}`, async () => {
       const result = await handleCollectionButton(env, buttonId, partner?.id ?? null);
+      collected = !!result;
       return result?.text ?? "";
     });
+    // STATUS § 34 — a note on this collection reaches Baraa with the customer and the order.
+    if (text && collected) {
+      const { collectNoteButton } = await import("./team-note");
+      return { bodyBeforeButtons: text, buttons: [collectNoteButton(Number(mCollect[2]))] };
+    }
     if (text) return { text };
+  }
+
+  // ---- STATUS § 34: the collector's note («ملاحظة 📝») ----
+  {
+    const { COLLECT_NOTE_RE, COLLECT_NOTE_PROMPT, pendingCollectNoteKey, PENDING_NOTE_TTL } = await import("./team-note");
+    const mNote = COLLECT_NOTE_RE.exec(buttonId);
+    if (mNote) {
+      await logMessageAnalysis(env, {
+        customerId: partner?.id ?? null,
+        text: buttonId,
+        intent: "collection_note",
+        actionTaken: `button:collect_note:${mNote[1]}`,
+      });
+      if (partner?.id) {
+        await env.MSG_DEDUP.put(pendingCollectNoteKey(partner.id), mNote[1], { expirationTtl: PENDING_NOTE_TTL });
+        await env.MSG_DEDUP.delete(`pending_issue:${partner.id}`).catch(() => {});
+        await env.MSG_DEDUP.delete(`pending_purchase_issue:${partner.id}`).catch(() => {});
+      }
+      return { text: COLLECT_NOTE_PROMPT };
+    }
   }
 
   // ---- v4: warehouse confirmed the purchase list ----
@@ -572,6 +599,7 @@ async function handleButton(
     if (partner?.id) {
       await env.MSG_DEDUP.put(`pending_purchase_issue:${partner.id}`, String(listId), { expirationTtl: 3 * 60 * 60 });
       await env.MSG_DEDUP.delete(`pending_issue:${partner.id}`).catch(() => {});
+      await env.MSG_DEDUP.delete(`pending_collect_note:${partner.id}`).catch(() => {});
     }
     try {
       await appendPurchaseListNote(env, listId, `${partner?.name ?? "المستودع"}: ضغط «مشكلة» — بانتظار التفاصيل`);
@@ -645,6 +673,7 @@ async function handleButton(
         { expirationTtl: 60 * 30 },
       );
       await env.MSG_DEDUP.delete(`pending_purchase_issue:${partner.id}`).catch(() => {});
+      await env.MSG_DEDUP.delete(`pending_collect_note:${partner.id}`).catch(() => {});
     }
     return { text: `تمام، اكتب لي وش المشكلة بالضبط (رسالة واحدة) وأنا أسجّلها لبراء.` };
   }

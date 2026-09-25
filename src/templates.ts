@@ -192,6 +192,18 @@ export const T = {
    * PURCHASE_LIST marked as a reminder.
    */
   PURCHASE_LIST_REMIND: "purchase_list_remind",
+  /**
+   * utak_payment_received (UTILITY, 2 vars: amount, invoice number). § 34 — the
+   * receipt's template outside the customer's window (receipt.ts).
+   */
+  CUSTOMER_PAYMENT_RECEIVED: "customer_payment_received",
+  /** § 34 — the collector's / driver's note to Baraa (src/team-note.ts). */
+  OWNER_TEAM_NOTE: "owner_team_note",
+  /** § 34 — «فتح المحادثة», one UTILITY template per category (src/wa-opener.ts). */
+  CONV_OPEN_CUSTOMER: "conv_open_customer",
+  CONV_OPEN_TEAM: "conv_open_team",
+  CONV_OPEN_SUPPLIER: "conv_open_supplier",
+  CONV_OPEN_OWNER: "conv_open_owner",
 } as const;
 
 // ============================================================
@@ -204,34 +216,35 @@ export const T = {
 // again (§ 26, § 28, § 32) — an operational alert never uses a MARKETING
 // template now. Inside his window the alert goes as text; outside it, it is
 // held for his number and reaches him at his next message or tap (the 06:00
-// «بدء الدوام» template opens his window every day). If a UTILITY template is
-// ever approved and mapped to owner_alert, the gateway uses it outside the
-// window, like any other purpose.
+// «بدء الدوام» template opens his window every day).
+// 2026-09-25 (STATUS § 34): no template option at all — utak_owner_alert is
+// not used. An alert is critical («مهمة»): held outside his window, it also
+// sends utak_update_owner once a day («عرض التحديث» flushes them all), the
+// backup of his 06:00 message (src/wa-opener.ts).
 // ============================================================
 import { arabicDate, sanitizeTemplateParam } from "./wa-params";
 import { riyadhDateKey, riyadhMinutes } from "./hours";
 
-// 2026-09-24 — the owner alert keeps its own " | " separator (reads better in
-// an alert than " · "), then the shared sanitizer applies to it like to every
-// other template variable.
-function sanitizeOwnerAlertParam(text: string): string {
-  return sanitizeTemplateParam(String(text ?? "").replace(/[\r\n\t]+/g, " | "));
+export async function sendOwnerAlert(env: Env, text: string): Promise<void> {
+  await sendOwnerMessage(env, text, T.OWNER_ALERT);
 }
 
-export async function sendOwnerAlert(env: Env, text: string): Promise<void> {
+/**
+ * A text to Baraa through the gateway, under `purpose` (owner_alert, or
+ * owner_team_note for the collector's / driver's note). Text only: inside his
+ * window it goes, outside it is held. Never throws.
+ */
+export async function sendOwnerMessage(env: Env, text: string, purpose: string = T.OWNER_ALERT): Promise<Response | null> {
   const owner = env.OWNER_WHATSAPP;
-  if (!owner) return;
-  const original = String(text ?? "");
-  const param = sanitizeOwnerAlertParam(original);
-  const when = ownerAlertTime();
+  if (!owner) return null;
   try {
-    await sendViaGateway(env, {
-      purpose: T.OWNER_ALERT,
+    return await sendViaGateway(env, {
+      purpose,
       to: owner,
-      content: { kind: "session", body: { type: "text", text: { body: original } } },
-      fallback: [{ kind: "template", purpose: T.OWNER_ALERT, params: (name) => ownerAlertParams(name, param, when) }],
+      content: { kind: "session", body: { type: "text", text: { body: String(text ?? "") } } },
     });
   } catch (e) {
     console.warn("[owner-alert] gateway send failed", (e as Error)?.message);
+    return null;
   }
 }

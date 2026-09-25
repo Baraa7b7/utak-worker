@@ -169,6 +169,9 @@ export interface SendOpts {
   expiresAt?: number;
   /** The purpose the owner guard sees, when it differs (owner_window). */
   guardPurpose?: string;
+  /** § 34 — outside the window: skipped (logged) instead of held; see GatewayRequest.noHold. */
+  noHold?: boolean;
+  noHoldReason?: string;
 }
 
 export function textContent(body: string): GwSession {
@@ -207,6 +210,8 @@ function send(env: Env, to: string, content: GwSession, opts: SendOpts): Promise
     expiresAt: opts.expiresAt,
     guardPurpose: opts.guardPurpose,
     ctx: opts.ctx,
+    noHold: opts.noHold,
+    noHoldReason: opts.noHoldReason,
   });
 }
 

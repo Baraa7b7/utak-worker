@@ -8,7 +8,7 @@
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/wa-templates-new-eight.test.mts
 
 import {
-  CUST, OWNER, WH, closeOwnerWindow, graph, order, quiet, reset, seed, setFail, setRiyadh, table,
+  CUST, OWNER, WH, closeOwnerWindow, graph, heldFor, order, quiet, reset, seed, sentTo, setFail, setRiyadh, table,
 } from "./wa-harness.mts";
 
 const { NEW_EIGHT, placeholders, textProblems, retrySpec, specFor } = await import("../scripts/wa-templates-20260925-new-eight.mjs");
@@ -109,31 +109,27 @@ for (const [name, n] of [["utak_supplier_ask_v2", 2], ["utak_supplier_daily_ask"
 }
 
 // ---------------------------------------------------------------- 2. owner_alert
-console.log("\n[2] owner_alert — v3 [when, alert]; v2 and the legacy one [alert]");
+console.log("\n[2] owner_alert — no owner_alert template at all (STATUS § 34); v3 [when, alert] kept for the record");
 setRiyadh("2026-09-25 18:01");
-{
+// STATUS § 34 — utak_owner_alert (MARKETING) is not used, and an alert has no
+// template option any more: even a UTILITY template mapped to owner_alert is
+// never sent. Outside his window the alert is held (critical: utak_update_owner
+// once that day, tests/wa-opener.test.mts).
+for (const [name, n] of [["utak_owner_alert_v3", 2], ["utak_owner_alert_v2", 1], ["utak_owner_alert", 1]] as const) {
   const env = reset();
-  // STATUS § 33 — outside his window an alert takes a UTILITY owner_alert
-  // template if one is mapped (as here); inside it, text.
   closeOwnerWindow(env);
-  mapPurpose("owner_alert", "utak_owner_alert_v3", 2);
+  mapPurpose("owner_alert", name, n); // seeded UTILITY here, on purpose
   await quiet(() => sendOwnerAlert(env, "فشل إرسال ملخص التحصيل\nالرمز 132018"));
-  const b = checkSend("owner_alert → utak_owner_alert_v3", "utak_owner_alert_v3", specFor("utak_owner_alert_v3"));
-  const p = bodyParams(b);
-  assert("v3: {{1}} = Riyadh time of the alert", p[0] === "25 سبتمبر 2026، 18:01", JSON.stringify(p));
-  assert("v3: {{2}} = the alert on one line", p[1]?.includes("ملخص التحصيل") && p[1]?.includes("132018") && !/[\r\n]/.test(p[1]), JSON.stringify(p));
+  const toOwner = sentTo(OWNER);
+  assert(`owner_alert mapped to ${name} (UTILITY): the template is never sent`, !toOwner.some((b) => b.template?.name === name), JSON.stringify(toOwner.map((b) => b.template?.name ?? b.type)));
+  const q = heldFor(env, OWNER);
+  assert(`owner_alert mapped to ${name}: the alert is held for his tap, as text`, q.length === 1 && q[0].purpose === "owner_alert" && String(q[0].body?.text?.body ?? "").includes("132018"), JSON.stringify(q));
+}
+{
   const long = ownerAlertParams("utak_owner_alert_v3", "ت".repeat(5000), "25 سبتمبر 2026، 18:01");
   const rendered = specFor("utak_owner_alert_v3").body.replace("{{1}}", long[0]).replace("{{2}}", long[1]);
-  assert("v3: the longest alert still fits Meta's 1024", rendered.length <= 1024, String(rendered.length));
+  assert("v3 (kept for the record): the longest alert still fits Meta's 1024", rendered.length <= 1024, String(rendered.length));
   assert("legacy / v2: the alert alone", ownerAlertParams("utak_owner_alert_v2", "x", "t").join("|") === "x" && ownerAlertParams("utak_owner_alert", "x", "t").join("|") === "x");
-}
-for (const name of ["utak_owner_alert_v2", "utak_owner_alert"]) {
-  const env = reset();
-  closeOwnerWindow(env);
-  mapPurpose("owner_alert", name, 1); // seeded UTILITY here; at Meta both are MARKETING (never used, tests/wa-gateway.test.mts)
-  await quiet(() => sendOwnerAlert(env, "سطر أول\nسطر ثانٍ"));
-  const b = checkSend(`owner_alert → ${name}`, name, spec("owner_alert"));
-  assert(`owner_alert → ${name}: to the owner, one line`, b?.to === OWNER && !/[\r\n]/.test(bodyParams(b)[0] ?? "\n"));
 }
 
 // ---------------------------------------------------------------- 3. team_shift_start

@@ -1,0 +1,73 @@
+{
+  "mode": "send",
+  "owner": "…4962",
+  "before": {
+    "at": "2026-09-25T15:03:52.333Z",
+    "window": {
+      "open": true,
+      "lastInboundMs": 1790308400000,
+      "closesAtMs": 1790394200000,
+      "closedByMeta": false,
+      "source": "odoo"
+    },
+    "queue": [],
+    "openerToday": null,
+    "openerCool": null,
+    "rows": []
+  },
+  "decision": {
+    "action": "held",
+    "reason": "Meta أغلق النافذة (131047)",
+    "expiresAt": 1790478234646
+  },
+  "status": 202,
+  "body": {
+    "gateway": {
+      "decision": "held",
+      "expiresAt": 1790478234646,
+      "opener": "unusable"
+    }
+  },
+  "after": {
+    "at": "2026-09-25T15:03:58.013Z",
+    "window": {
+      "open": false,
+      "lastInboundMs": 0,
+      "closesAtMs": 0,
+      "closedByMeta": true,
+      "source": "kv"
+    },
+    "queue": [
+      {
+        "id": "d9f7901d",
+        "purpose": "owner_alert",
+        "rowId": 153,
+        "created": "2026-09-25T15:03:54.646Z",
+        "expires": "2026-09-27T03:03:54.646Z",
+        "text": "🧪 تجربة § 34 (فتح المحادثة): رسالة مهمة أُرسلت ونافذتك مقفلة، فحُفظت ولم تُرسل. وصلتك الآن لأنك راسلت رقم يو تاك أو ضغطت «عرض التحديث»."
+      }
+    ],
+    "openerToday": null,
+    "openerCool": "2026-09-25T15:03:54.646Z القالب utak_update_owner حالته PENDING عند Meta",
+    "rows": [
+      {
+        "id": 154,
+        "x_status": "skipped",
+        "x_body": "📋 conv_open_owner",
+        "x_meta_error": "البوابة: القالب utak_update_owner حالته PENDING عند Meta",
+        "x_meta_message_id": false,
+        "create_date": "2026-09-25 15:03:57",
+        "write_date": "2026-09-25 15:03:57"
+      },
+      {
+        "id": 153,
+        "x_status": "held",
+        "x_body": "🧪 تجربة § 34 (فتح المحادثة): رسالة مهمة أُرسلت ونافذتك مقفلة، فحُفظت ولم تُرسل. وصلتك الآن لأنك راسلت رقم يو تاك أو ضغطت «عرض التحديث».",
+        "x_meta_error": false,
+        "x_meta_message_id": false,
+        "create_date": "2026-09-25 15:03:55",
+        "write_date": "2026-09-25 15:03:55"
+      }
+    ]
+  }
+}

@@ -141,7 +141,8 @@ for (const f of FLOWS) {
   const reply = await f.run(env);
   assert(`${f.name}: 0 calls to account.* / sale.* / purchase.*`, acctCalls().length === 0,
     acctCalls().map((c) => `${c.model}.${c.method}`).join(", "));
-  assert(`${f.name}: the button still answers`, String((reply as any)?.text ?? "").length > 0);
+  // STATUS § 34 — the collection's reply carries a «ملاحظة 📝» button, its text in bodyBeforeButtons.
+  assert(`${f.name}: the button still answers`, String((reply as any)?.text ?? (reply as any)?.bodyBeforeButtons ?? "").length > 0);
 }
 {
   // What the off path still does (x_invoice / x_payment issue as before).

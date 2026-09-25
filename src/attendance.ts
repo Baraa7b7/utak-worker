@@ -12,9 +12,11 @@
 //   • +60 min without a tap: status «غائب» in Odoo, and an owner alert.
 //   • A tap before +60: «حاضر», or «متأخر» after +15. A tap after +60:
 //     «متأخر» (not absent), the tasks, and an owner alert.
-//   • Baraa: the same template every day at OWNER_WINDOW_OPEN_AT (default
-//     06:00 Riyadh) only to open his 24h window, so owner alerts reach him as
-//     text. No attendance, lateness or alerts about him.
+//   • Baraa: the same template every day only to open his 24h window, so
+//     owner alerts reach him as text. No attendance, lateness or alerts about
+//     him. 2026-09-25 (STATUS § 30): at the earliest shift start of the
+//     roster minus 15 minutes, computed every day; with no shift time on the
+//     roster, OWNER_WINDOW_OPEN_AT (default 06:00) — a fallback only.
 //   • Nothing is sent twice to the same person on the same day, even if the
 //     job runs again.
 //
@@ -80,9 +82,27 @@ export function parseHHMM(s: unknown): number | null {
   const h = Number(m[1]), mi = Number(m[2]);
   return h < 24 && mi < 60 ? h * 60 + mi : null;
 }
-/** Baraa's daily window-opening time (wrangler var OWNER_WINDOW_OPEN_AT, default 06:00). */
+/** Baraa's fallback window-opening time (wrangler var OWNER_WINDOW_OPEN_AT, default 06:00). */
 export function ownerWindowMinutes(env: Env): number {
   return parseHHMM(env.OWNER_WINDOW_OPEN_AT) ?? (parseHHMM(OWNER_WINDOW_DEFAULT) as number);
+}
+/** Baraa's window opens this long before the earliest shift, so the +30 / +60 alerts reach him as text. */
+export const OWNER_WINDOW_LEAD_MIN = 15;
+
+/**
+ * 2026-09-25 (STATUS § 30) — today's window-opening time: the earliest shift
+ * start among the attendance roster (team role + shift time, never Baraa)
+ * minus 15 minutes, not before 00:00. Nobody with a time → the fallback
+ * (OWNER_WINDOW_OPEN_AT, default 06:00).
+ */
+export function ownerWindowPlan(env: Env, team: AttendanceMember[]): { minutes: number; source: "earliest_shift" | "fallback"; earliest: string | null } {
+  const shifts = team
+    .filter((m) => !isOwnerNumber(env, m.whatsapp) && m.whatsapp)
+    .map((m) => shiftMinutes(m.shiftStart))
+    .filter((v): v is number => v !== null);
+  if (!shifts.length) return { minutes: ownerWindowMinutes(env), source: "fallback", earliest: null };
+  const earliest = Math.min(...shifts);
+  return { minutes: Math.max(0, earliest - OWNER_WINDOW_LEAD_MIN), source: "earliest_shift", earliest: hhmm(earliest) };
 }
 /** «حاضر» up to +15 min after the shift start, «متأخر» after. */
 export function statusForTap(tapMs: number, shiftMs: number): "present" | "late" {
@@ -119,19 +139,28 @@ async function writeRow(env: Env, id: number, vals: Record<string, unknown>): Pr
 
 // ---------------------------------------------------------------- the 5-minute tick
 export interface TickMemberReport { id: number; name: string; to: string; shift: string | null; roles: string[]; action: string }
-export interface TickReport { day: string; at: string; owner: { at: string; action: string }; members: TickMemberReport[] }
+export interface TickReport { day: string; at: string; owner: { at: string; source: string; action: string }; members: TickMemberReport[] }
 
 export async function runAttendanceTick(env: Env, nowMs: number = Date.now()): Promise<TickReport> {
   const day = riyadhDateKey(new Date(nowMs));
-  const report: TickReport = { day, at: riyadhHHMM(new Date(nowMs)), owner: { at: hhmm(ownerWindowMinutes(env)), action: "-" }, members: [] };
+  // Baraa is never on the attendance roster, even if he gets a role one day.
+  // A roster read that fails still opens his window, at the fallback time.
+  let team: AttendanceMember[] = [];
+  let teamError: unknown = null;
   try {
-    report.owner.action = await ownerWindowStep(env, day, nowMs);
+    team = (await getAttendanceTeam(env)).filter((m) => !isOwnerNumber(env, m.whatsapp));
+  } catch (e) {
+    teamError = e;
+  }
+  const plan = ownerWindowPlan(env, team);
+  const report: TickReport = { day, at: riyadhHHMM(new Date(nowMs)), owner: { at: hhmm(plan.minutes), source: plan.source, action: "-" }, members: [] };
+  try {
+    report.owner.action = await ownerWindowStep(env, day, nowMs, plan.minutes);
   } catch (e) {
     report.owner.action = `error: ${(e as Error)?.message}`;
     console.error("[attendance] owner window failed", (e as Error)?.message);
   }
-  // Baraa is never on the attendance roster, even if he gets a role one day.
-  const team = (await getAttendanceTeam(env)).filter((m) => !isOwnerNumber(env, m.whatsapp));
+  if (teamError) throw teamError;
   const timed = team.filter((m) => shiftMinutes(m.shiftStart) !== null && m.whatsapp);
   const rows = timed.length ? await readRows(env, day, timed.map((m) => m.id)) : new Map<number, AttRow>();
   for (const m of team) {
@@ -212,10 +241,10 @@ async function markAbsent(env: Env, m: AttendanceMember, day: string, min: numbe
   return "absent_now";
 }
 
-async function ownerWindowStep(env: Env, day: string, nowMs: number): Promise<string> {
+async function ownerWindowStep(env: Env, day: string, nowMs: number, windowMinutes: number): Promise<string> {
   const owner = env.OWNER_WHATSAPP;
   if (!owner) return "no_owner";
-  const since = nowMs - riyadhDayMinuteMs(day, ownerWindowMinutes(env));
+  const since = nowMs - riyadhDayMinuteMs(day, windowMinutes);
   if (since < 0) return "before";
   if (since >= REMIND_AFTER_MIN * MIN) return "passed";
   const claim = await claimButton(env, `att:${day}:owner:window`, CLAIM_TTL);

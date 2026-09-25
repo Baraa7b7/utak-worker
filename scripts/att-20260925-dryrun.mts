@@ -151,7 +151,7 @@ const env: any = {
 
 const worker = (await import("../src/index.ts")).default;
 const { getAttendanceTeam } = await import("../src/odoo.ts");
-const { shiftMinutes, hhmm, ownerWindowMinutes } = await import("../src/attendance.ts");
+const { shiftMinutes, hhmm, ownerWindowPlan } = await import("../src/attendance.ts");
 
 // ---------------------------------------------------------------- the roster, from Odoo
 setRiyadh(`${DAY} 00:00`);
@@ -168,16 +168,18 @@ for (let min = 0; min < 24 * 60; min += 5) {
 
 const byTo = (digits: string) => sends.filter((s) => s.to === digits);
 const ownerDigits = String(env.OWNER_WHATSAPP).replace(/\D/g, "");
+// 2026-09-25 (STATUS § 30) — Baraa's window: earliest shift − 15 min, else OWNER_WINDOW_OPEN_AT
+const ownerAt = hhmm(ownerWindowPlan(env, team.filter((m) => String(m.whatsapp).replace(/\D/g, "") !== String(env.OWNER_WHATSAPP).replace(/\D/g, ""))).minutes);
 const people = [
   ...roster.map((r) => {
     const m = team.find((t) => t.id === r.id)!;
     const d = String(m.whatsapp).replace(/\D/g, "");
     return { ...r, sends: byTo(d).map((s) => `${s.at} ${s.what}`) };
   }),
-  { id: 0, name: "براء (المالك)", to: tail(ownerDigits), roles: ["—"], shift: hhmm(ownerWindowMinutes(env)) + " (نافذة)", sends: byTo(ownerDigits).map((s) => `${s.at} ${s.what}`) },
+  { id: 0, name: "براء (المالك)", to: tail(ownerDigits), roles: ["—"], shift: ownerAt + " (نافذة)", sends: byTo(ownerDigits).map((s) => `${s.at} ${s.what}`) },
 ];
 const report = {
-  day: DAY, assume: Object.fromEntries(assume), ownerWindowAt: hhmm(ownerWindowMinutes(env)),
+  day: DAY, assume: Object.fromEntries(assume), ownerWindowAt: ownerAt,
   ticks: 288, roster, people,
   attendanceRows: [...att.values()],
   writesOutsideAttendance: writes.filter((w) => w.model !== "x_team_attendance"),

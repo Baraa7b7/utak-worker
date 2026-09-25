@@ -30,8 +30,11 @@ function assert(name: string, cond: unknown, detail = ""): void {
 
 // ---------------------------------------------------------------- strict schema gate
 const FIXTURE = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260924.json", import.meta.url), "utf8"));
-const REAL: Record<string, string[]> = FIXTURE;
-const SELECTIONS: Record<string, string[]> = FIXTURE._selections;
+// 2026-09-25 (STATUS § 30) — the tenant now has the review fields on res.partner
+// (x_contact_class …, read by the outreach tasks): the later fields_get joins.
+const F_REVIEW = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260925-review.json", import.meta.url), "utf8"));
+const REAL: Record<string, string[]> = { ...FIXTURE, ...F_REVIEW };
+const SELECTIONS: Record<string, string[]> = { ...FIXTURE._selections, ...F_REVIEW._selections };
 let optoutFieldExists = true;
 const rejected: string[] = [];
 function known(model: string, name: string): boolean {

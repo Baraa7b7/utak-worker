@@ -1894,7 +1894,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
     // Team, supplier and customer matches are also passed through to the
     // bot routing below so we do not re-run the same Odoo lookups a
     // second time on the hot path.
-    let ingestRoute: "team" | "supplier" | "customer" | "new" | "owner" = "new";
+    let ingestRoute: "team" | "supplier" | "customer" | "new" | "owner" | "archived" = "new";
     let ingestPartnerId = 0;
     let ingestPartnerName = "";
     let teamMatch: Awaited<ReturnType<typeof findTeamMemberByWhatsApp>> | null = null;
@@ -1956,7 +1956,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       // 2026-09-20 — the unallowed-inbound alert still fires only for
       // strangers (no team, no supplier match). We keep the 24h KV throttle
       // and use the same partner name from the customer match if present.
-      if (!sup && !t) {
+      if (!sup && !t && ingest.route !== "archived") {
         const { isRecipientAllowed } = await import("./config");
         const { isPartnerWaAllowed } = await import("./odoo");
         const allowlistOK = isRecipientAllowed(env, msg.from);
@@ -2006,6 +2006,14 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       }
     }
 
+    // 2026-09-25 (STATUS § 30) — a number Baraa archived from «مراجعة الأرقام»:
+    // mirrored to its inbox above, and nothing automated follows.
+    if (ingestRoute === "archived") {
+      console.log(`[screen] wamid=${msg.messageId.slice(-10)} partner=${ingestPartnerId} archived skip=bot`);
+      await markSeen(env, msg.messageId);
+      continue;
+    }
+
     // 2026-09-20 (inbox) — bot routing runs only on text / button / location.
     // Media messages are mirrored above and terminate here (with markSeen so
     // Meta retries stay dedup'd).
@@ -2016,7 +2024,12 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       // owner alert. Team, supplier and owner media keep the old behaviour.
       if (!teamMatch && !supplierMatch && ingestRoute !== "owner" && !isOwnerNumber(env, msg.from)) {
         try {
-          await handleCustomerMedia(env, msg, customerMatchForRoute, ctx);
+          // 2026-09-25 (STATUS § 30) — a number waiting for review as not a
+          // customer (or decided personal / team / supplier): nothing automated.
+          const { readScreenState, isCustomerAutomationHeld } = await import("./screening");
+          const held = ingestPartnerId > 0 && isCustomerAutomationHeld(await readScreenState(env, ingestPartnerId));
+          if (held) console.log(`[screen] partner=${ingestPartnerId} held skip=media-reply`);
+          else await handleCustomerMedia(env, msg, customerMatchForRoute, ctx);
         } catch (e) {
           console.warn("[media] customer handling failed", (e as Error)?.message);
         }
@@ -2192,6 +2205,13 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
     // marketing opt-out: no welcome, no classifier.
     const { parseOptoutCommand } = await import("./optout");
     const optoutCmd = msg.type === "text" ? parseOptoutCommand(msg.text) : null;
+    const partner = await findOrCreateCustomer(env, msg.from, msg.profileName);
+    // 2026-09-25 (STATUS § 30) — archived from «مراجعة الأرقام» (reached here
+    // only if the ingest above failed): no welcome, no new partner, no reply.
+    if (partner.archived) {
+      await markSeen(env, msg.messageId);
+      continue;
+    }
     if (!existing && msg.type === "text" && !optoutCmd) {
       try {
         const { sendTemplateByPurpose, T, welcomeParams } = await import("./templates");
@@ -2199,8 +2219,40 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           (name) => welcomeParams(name, msg.profileName || "صديقنا"));
       } catch (e) { console.warn("[welcome] send failed", (e as Error).message); }
     }
-    const partner = await findOrCreateCustomer(env, msg.from, msg.profileName);
     const senderType: SenderType = "customer";
+
+    // 2026-09-25 (STATUS § 30) — screening. A partner held from customer
+    // automation (waiting for review as wrong number / vendor pitch / personal /
+    // spam, or decided personal / team / supplier) gets no bot reply. Its text
+    // is still screened while it is «غير مراجَع»: a purchase message lifts the
+    // hold and the bot answers it as usual. Odoo trouble reads as «not held».
+    const { readScreenState, isCustomerAutomationHeld, screenInbound } = await import("./screening");
+    const screenState = await readScreenState(env, partner.id);
+    let screened = false;
+    if (isCustomerAutomationHeld(screenState)) {
+      let held = true;
+      if (msg.type === "text" && !optoutCmd) {
+        screened = true;
+        try {
+          held = (await screenInbound(env, {
+            partnerId: partner.id, partnerName: partner.name, number: msg.from, profileName: msg.profileName,
+            text: msg.text, state: screenState,
+          })).held;
+        } catch (e) {
+          console.warn("[screen] held screening failed", (e as Error)?.message);
+        }
+      }
+      if (held) {
+        if (optoutCmd) {
+          // the preference is kept for later; no reply goes out
+          const { handleOptoutCommand } = await import("./optout");
+          await handleOptoutCommand(env, partner, msg.text).catch(() => null);
+        }
+        console.log(`[screen] wamid=${msg.messageId.slice(-10)} partner=${partner.id} held skip=bot`);
+        await markSeen(env, msg.messageId);
+        continue;
+      }
+    }
 
     if (optoutCmd) {
       const { handleOptoutCommand } = await import("./optout");
@@ -2337,6 +2389,18 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
     const reply: RouterReply = await dispatch(env, { msg, intent, senderType, partner });
 
     await sendReply(env, msg.from, reply, ctx);
+    // 2026-09-25 (STATUS § 30) — after the reply, so this text is answered as
+    // today; the result steers the next ones.
+    if (msg.type === "text" && !screened) {
+      try {
+        await screenInbound(env, {
+          partnerId: partner.id, partnerName: partner.name, number: msg.from, profileName: msg.profileName,
+          text: msg.text, classifyIntent: intent, state: screenState,
+        });
+      } catch (e) {
+        console.warn("[screen] failed", (e as Error)?.message);
+      }
+    }
     await markSeen(env, msg.messageId);
   }
 }

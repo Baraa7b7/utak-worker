@@ -471,6 +471,9 @@ export async function createCustomer(env: Env, name: string, e164: string): Prom
     phone: e164,
     x_whatsapp_number: e164,
     customer_rank: 1,
+    // 2026-09-25 (STATUS § 30) — every number starts as a customer, «غير مراجَع»:
+    // the conversation shows its intent (screening.ts).
+    x_contact_class: "unreviewed",
   };
   if (customerRoleId !== null) {
     // Odoo M2M "add" command; keeps any pre-existing role ids untouched
@@ -484,13 +487,35 @@ export async function createCustomer(env: Env, name: string, e164: string): Prom
   return ids[0];
 }
 
+/**
+ * 2026-09-25 (STATUS § 30) — a number Baraa archived from «مراجعة الأرقام»
+ * (archived, with a classification). A new message from it must not create a
+ * fresh partner (a new welcome, a new review): it stays on the archived one.
+ */
+export async function findArchivedReviewedPartner(env: Env, e164: string): Promise<OdooPartner | null> {
+  const rows = await call<OdooPartner[]>(env, "res.partner", "search_read", {
+    domain: [
+      ["active", "=", false],
+      ["x_contact_class", "!=", false],
+      "|",
+      ["x_whatsapp_number", "=", e164],
+      ["phone", "=", e164],
+    ],
+    fields: ["id", "name", "customer_rank", "x_whatsapp_number"],
+    limit: 1,
+  });
+  return rows[0] ?? null;
+}
+
 export async function findOrCreateCustomer(
   env: Env,
   e164: string,
   profileName: string,
-): Promise<OdooPartner> {
+): Promise<OdooPartner & { archived?: boolean }> {
   const existing = await findCustomerByWhatsApp(env, e164);
   if (existing) return existing;
+  const archived = await findArchivedReviewedPartner(env, e164).catch(() => null);
+  if (archived) return { ...archived, archived: true };
   const id = await createCustomer(env, profileName, e164);
   return {
     id,

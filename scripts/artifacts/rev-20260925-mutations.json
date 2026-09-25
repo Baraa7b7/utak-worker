@@ -1,0 +1,395 @@
+[
+  {
+    "mutation": "new partner not «غير مراجَع»",
+    "file": "src/odoo.ts",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 49,
+    "first": [
+      "purchase: created «غير مراجَع», intent written, reason written — {\"name\":\"اسم-purchase\",\"phone\":\"+966500000701\",\"x_w",
+      "purchase: one Claude screening call for one text — 0",
+      "purchase: second text screened too (once per text), no second channel message / alert"
+    ]
+  },
+  {
+    "mutation": "screens any class (known partners too)",
+    "file": "src/screening.ts",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 5,
+    "first": [
+      "class fixed: the next text is not screened (no call, no write)",
+      "no screening call for any of them — 1",
+      "no review field written on any of them"
+    ]
+  },
+  {
+    "mutation": "a real order does not confirm a customer",
+    "file": "src/screening.ts",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "real order → «عميل», flag cleared, no screening call — {\"name\":\"مطعم جديد\",\"phone\":\"+966500000708\",\"x_whatsapp_numbe",
+      "class fixed: the next text is not screened (no call, no write)"
+    ]
+  },
+  {
+    "mutation": "purchase flagged too",
+    "file": "src/screening.ts",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 5,
+    "first": [
+      "purchase: ينتظر المراجعة = false",
+      "purchase: channel messages = 0 — 1",
+      "purchase: owner alert «رقم جديد ينتظر المراجعة: اسم-purchase» ×0"
+    ]
+  },
+  {
+    "mutation": "non-customer intents not held",
+    "file": "src/screening.ts",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 12,
+    "first": [
+      "wrong_number: second text gets NO bot reply (held) — 1",
+      "vendor_pitch: second text gets NO bot reply (held) — 1",
+      "personal: second text gets NO bot reply (held) — 1"
+    ]
+  },
+  {
+    "mutation": "«شخصي» (decided) not held",
+    "file": "src/screening.ts",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 7,
+    "first": [
+      "rating (08:00): decided «شخصي» gets nothing — 1",
+      "pay reminder (08:00): decided «شخصي» gets nothing — 1",
+      "reactivation (08:00): decided «شخصي» gets nothing — 1"
+    ]
+  },
+  {
+    "mutation": "decided «عميل» held by an old flag",
+    "file": "src/screening.ts",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 6,
+    "first": [
+      "rating (08:00): decided «عميل» gets it — 0",
+      "pay reminder (08:00): decided «عميل» gets it — 0",
+      "reactivation (08:00): decided «عميل» gets it — 0"
+    ]
+  },
+  {
+    "mutation": "classifier not reused (a second Claude call)",
+    "file": "src/screening.ts",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 4,
+    "first": [
+      "product_inquiry → purchase, no screening call — {\"p\":\"unclear\",\"calls\":{\"classify\":1,\"screen\":1,\"extract\":0,\"reply\":",
+      "no review, no channel message, no alert",
+      "a greeting → the screening call (the classifier cannot tell)"
+    ]
+  },
+  {
+    "mutation": "announce: no race claim",
+    "file": "src/screening.ts",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "same stale state twice: both see «entered», still one channel message and one alert — 2/2"
+    ]
+  },
+  {
+    "mutation": "announce: no channel message",
+    "file": "src/screening.ts",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 13,
+    "first": [
+      "wrong_number: channel messages = 1 — 0",
+      "wrong_number: second text screened too (once per text), no second channel message / alert",
+      "vendor_pitch: channel messages = 1 — 0"
+    ]
+  },
+  {
+    "mutation": "announce: no owner alert",
+    "file": "src/screening.ts",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 12,
+    "first": [
+      "wrong_number: owner alert «رقم جديد ينتظر المراجعة: اسم-wrong_number» ×1",
+      "wrong_number: second text screened too (once per text), no second channel message / alert",
+      "vendor_pitch: owner alert «رقم جديد ينتظر المراجعة: اسم-vendor_pitch» ×1"
+    ]
+  },
+  {
+    "mutation": "inbound: held partner still answered",
+    "file": "src/index.ts",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 5,
+    "first": [
+      "wrong_number: second text gets NO bot reply (held) — 1",
+      "vendor_pitch: second text gets NO bot reply (held) — 1",
+      "personal: second text gets NO bot reply (held) — 1"
+    ]
+  },
+  {
+    "mutation": "inbound: a held text is not screened",
+    "file": "src/index.ts",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 11,
+    "first": [
+      "wrong_number: second text screened too (once per text), no second channel message / alert",
+      "wrong_number: last message kept for the list",
+      "vendor_pitch: second text screened too (once per text), no second channel message / alert"
+    ]
+  },
+  {
+    "mutation": "inbound: held «إيقاف» preference dropped",
+    "file": "src/index.ts",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "«إيقاف» still kept as his preference"
+    ]
+  },
+  {
+    "mutation": "inbound: text not screened after the reply",
+    "file": "src/index.ts",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 50,
+    "first": [
+      "purchase: created «غير مراجَع», intent written, reason written — {\"name\":\"اسم-purchase\",\"phone\":\"+966500000701\",\"x_w",
+      "purchase: one Claude screening call for one text — 0",
+      "purchase: second text screened too (once per text), no second channel message / alert"
+    ]
+  },
+  {
+    "mutation": "media: held partner answered + owner alert",
+    "file": "src/index.ts",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "text / location / image / «إيقاف»: nothing sent to him — [{\"messaging_product\":\"whatsapp\",\"to\":\"966500000911\",\"type\"",
+      "no owner alert about his image (no «📎 صورة من عميل»)"
+    ]
+  },
+  {
+    "mutation": "outreach (rating / pay / reactivation) not gated",
+    "file": "src/outreach.ts",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 6,
+    "first": [
+      "rating (08:00): held (spam, flagged) gets nothing — 1",
+      "rating (08:00): decided «شخصي» gets nothing — 1",
+      "pay reminder (08:00): held (spam, flagged) gets nothing — 1"
+    ]
+  },
+  {
+    "mutation": "standing reminder not gated",
+    "file": "src/standing.ts",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "standing reminder (17:00): held (spam, flagged) gets nothing — 1",
+      "standing reminder (17:00): decided «شخصي» gets nothing — 1"
+    ]
+  },
+  {
+    "mutation": "20:00 / 21:00 notices not gated",
+    "file": "src/team.ts",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 4,
+    "first": [
+      "order reminder (20:00): held (spam, flagged) gets nothing — 1",
+      "order reminder (20:00): decided «شخصي» gets nothing — 1",
+      "cancel notice (21:00): held (spam, flagged) gets nothing — 1"
+    ]
+  },
+  {
+    "mutation": "archived: ingest routes it as new",
+    "file": "src/wa-inbox.ts",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "no welcome, no reply",
+      "not screened, nothing entered review, no owner alert"
+    ]
+  },
+  {
+    "mutation": "archived: no lookup (a new partner is created)",
+    "file": "src/odoo.ts",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 5,
+    "first": [
+      "no new partner — 1",
+      "no welcome, no reply",
+      "the message is in his inbox (logged on the archived partner)"
+    ]
+  },
+  {
+    "mutation": "archived: customer path guard (after a failed ingest)",
+    "file": "src/index.ts",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "no new partner, no welcome, no reply — 0 / 1"
+    ]
+  },
+  {
+    "mutation": "button «عميل» keeps the flag",
+    "file": "scripts/lib/review-buttons.mjs",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "«عميل»: class customer, flag cleared, customer_rank ≥ 1 (4 stays 4), supplier_rank untouched — [{\"id\":1,\"active\":tru"
+    ]
+  },
+  {
+    "mutation": "button «مورد» without supplier_rank",
+    "file": "scripts/lib/review-buttons.mjs",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "«مورد»: class supplier, flag cleared, supplier_rank ≥ 1 (5 stays 5), customer_rank untouched — [{\"id\":1,\"active\":tru"
+    ]
+  },
+  {
+    "mutation": "button «أرشفة» deletes",
+    "file": "scripts/lib/review-buttons.mjs",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "«أرشفة»: active = False, flag cleared, class and ranks untouched, nothing deleted",
+      "no button's code deletes (no unlink anywhere)"
+    ]
+  },
+  {
+    "mutation": "button «فريق» sets «عميل»",
+    "file": "scripts/lib/review-buttons.mjs",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "«فريق»: class team only (no role, ranks untouched), flag cleared — [{\"id\":1,\"active\":true,\"x_contact_class\":\"custome"
+    ]
+  },
+  {
+    "mutation": "backfill: a supplier classified",
+    "file": "scripts/lib/review-backfill-core.mjs",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "Baraa, team, supplier, order on the number, archived, already classified: untouched, each by its own rule — [{\"id\":1"
+    ]
+  },
+  {
+    "mutation": "backfill: an order on the number ignored",
+    "file": "scripts/lib/review-backfill-core.mjs",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "Baraa, team, supplier, order on the number, archived, already classified: untouched, each by its own rule — [{\"id\":1"
+    ]
+  },
+  {
+    "mutation": "window: always the fallback",
+    "file": "src/attendance.ts",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 5,
+    "first": [
+      "05:00 and 07:30 → 04:45",
+      "only 07:30 → 07:15",
+      "Baraa's own time never counts (03:00 on his number)"
+    ]
+  },
+  {
+    "mutation": "window: no 15-minute lead",
+    "file": "src/attendance.ts",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 5,
+    "first": [
+      "05:00 and 07:30 → 04:45",
+      "only 07:30 → 07:15",
+      "Baraa's own time never counts (03:00 on his number)"
+    ]
+  },
+  {
+    "mutation": "window: Baraa's own time counts",
+    "file": "src/attendance.ts",
+    "test": "tests/review.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "Baraa's own time never counts (03:00 on his number)"
+    ]
+  },
+  {
+    "mutation": "window: always the fallback (attendance tests)",
+    "file": "src/attendance.ts",
+    "test": "tests/attendance.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 3,
+    "first": [
+      "04:45 (عمر 05:00 − 15): utak_shift_start_v2 to Baraa [«براء»], payload shift_start",
+      "next day 04:45: again, once",
+      "Baraa ×2 at 04:45: once"
+    ]
+  }
+]

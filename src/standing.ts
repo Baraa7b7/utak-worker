@@ -5,6 +5,7 @@ import {
   markStandingTriggered, setOrderConfirmed, getPartnerBasic,
 } from "./odoo-v6-append";
 import { sendTemplateByPurpose, T } from "./templates";
+import { heldPartnerIds } from "./screening";
 import { isAfterPurchaseCutoff, nextOrderingDate, riyadhDateKey } from "./hours";
 
 /**
@@ -17,7 +18,10 @@ export async function sendStandingOrderReminders(env: Env): Promise<{
 }> {
   const standings = await getActiveStandingOrders(env);
   let sent = 0, skipped = 0, errors = 0;
+  // 2026-09-25 (STATUS § 30) — no reminder to a partner held from customer automation.
+  const held = await heldPartnerIds(env, standings.map((s) => s.x_customer_id[0]));
   for (const s of standings) {
+    if (held.has(s.x_customer_id[0])) { skipped++; console.log(`[standing] ${s.id} held for review`); continue; }
     try {
       const cust = await getPartnerBasic(env, s.x_customer_id[0]);
       const whatsapp = cust?.whatsapp || cust?.phone;

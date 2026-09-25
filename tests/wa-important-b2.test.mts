@@ -31,8 +31,10 @@ function assert(name: string, cond: unknown, detail = ""): void {
 // ---------------------------------------------------------------- strict schema gate
 const F1 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260924.json", import.meta.url), "utf8"));
 const F2 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260925-suppliers.json", import.meta.url), "utf8"));
-const REAL: Record<string, string[]> = { ...F1, ...F2 };
-const SELECTIONS: Record<string, string[]> = { ...F1._selections, ...F2._selections };
+// 2026-09-25 (STATUS § 30) — the review fields on res.partner (x_contact_class …).
+const F3 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260925-review.json", import.meta.url), "utf8"));
+const REAL: Record<string, string[]> = { ...F1, ...F2, ...F3 };
+const SELECTIONS: Record<string, string[]> = { ...F1._selections, ...F2._selections, ...F3._selections };
 // added on the tenant by scripts/wa-20260925-supplier-nudge-purpose.mjs (selection #4025)
 SELECTIONS["x_whatsapp_template.x_purpose"] = [...SELECTIONS["x_whatsapp_template.x_purpose"], "supplier_price_nudge"];
 const rejected: string[] = [];

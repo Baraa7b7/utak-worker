@@ -12,6 +12,7 @@ import {
   SYSTEM_PROMPT_EXTRACT_ORDER,
   SYSTEM_PROMPT_EXTRACT_SUPPLIER_PRICES,
   SYSTEM_PROMPT_REPLY,
+  SYSTEM_PROMPT_SCREEN,
 } from "./config";
 import type {
   CatalogProduct,
@@ -100,6 +101,38 @@ export async function classifyIntent(
     return { intent, confidence };
   } catch {
     return { intent: "other", confidence: 0 };
+  }
+}
+
+// 2026-09-25 (STATUS § 30) — what an unreviewed number wants from UTAK. One
+// short Haiku call over its recent texts; null when Claude is unreachable (the
+// caller writes nothing and tries again on the next text).
+export const SCREEN_INTENTS = ["purchase", "wrong_number", "vendor_pitch", "personal", "spam", "unclear"] as const;
+export type ScreenIntent = typeof SCREEN_INTENTS[number];
+
+export async function screenContact(
+  env: Env,
+  texts: string[],
+  contactName: string,
+): Promise<{ intent: ScreenIntent; reason: string } | null> {
+  const lines = texts.map((t, i) => `${i + 1}. ${String(t).replace(/\s+/g, " ").trim().slice(0, 300)}`);
+  let raw: string;
+  try {
+    raw = await callClaude(env, env.CLAUDE_MODEL_CLASSIFY, SYSTEM_PROMPT_SCREEN,
+      `CONTACT NAME: ${contactName || "-"}\nMESSAGES (oldest first):\n${lines.join("\n")}`, 150);
+  } catch (e) {
+    console.warn("[screen] claude failed", (e as Error)?.message);
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(stripFences(raw)) as { intent?: string; reason?: string };
+    const intent = (SCREEN_INTENTS as readonly string[]).includes(parsed?.intent ?? "")
+      ? (parsed.intent as ScreenIntent)
+      : "unclear";
+    const reason = String(parsed?.reason ?? "").replace(/\s+/g, " ").trim().slice(0, 120) || "بلا سبب من الذكاء";
+    return { intent, reason };
+  } catch {
+    return { intent: "unclear", reason: "رد الذكاء غير مفهوم" };
   }
 }
 

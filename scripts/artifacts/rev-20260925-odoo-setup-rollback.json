@@ -1,0 +1,99 @@
+{
+  "at": "2026-09-25T00:36:48.730Z",
+  "before": {
+    "fields": [],
+    "serverActions": [],
+    "automation": [],
+    "views": [],
+    "action": [],
+    "menu": [],
+    "channel": [],
+    "view2822": {
+      "id": 2822,
+      "arch_db": "<data>\n  <xpath expr=\"//field[@name='x_role_ids']\" position=\"after\">\n    <field name=\"x_shift_start\" widget=\"float_time\" string=\"بداية الدوام\" optional=\"show\"/>\n  </xpath>\n</data>"
+    },
+    "action927": {
+      "id": 927,
+      "search_view_id": false
+    },
+    "othman": {
+      "id": 15,
+      "name": "عثمان عبدالوهاب",
+      "x_role_ids": [],
+      "customer_rank": 1,
+      "supplier_rank": 0,
+      "active": true
+    },
+    "action927Domain": "[('x_role_ids', '!=', False)]"
+  },
+  "created": {
+    "fields": [
+      20322,
+      20325,
+      20328,
+      20331,
+      20334,
+      20337
+    ],
+    "serverActions": {
+      "customer": 988,
+      "supplier": 989,
+      "team": 990,
+      "personal": 991,
+      "archive": 992
+    },
+    "reviewList": 2825,
+    "reviewSearch": 2826,
+    "formExt": 2827,
+    "empSearch": 2828,
+    "action": 993,
+    "menu": 570,
+    "counterSa": 994,
+    "automation": 14,
+    "channel": 36,
+    "view2822": true,
+    "action927": 2828,
+    "othman": true,
+    "action927Domain": true,
+    "tempPartner": null
+  },
+  "buttonsVerifiedAt": "2026-09-25T00:37:53.155Z",
+  "buttonsVerify": [
+    {
+      "check": "counter follows a new pending partner",
+      "ok": true
+    },
+    {
+      "check": "«عميل»: {\"id\":60,\"active\":true,\"x_contact_class\":\"customer\",\"x_review_pending\":false,\"customer_rank\":1,\"supplier_rank\":0,\"x_role_ids\":[]}",
+      "ok": true
+    },
+    {
+      "check": "«مورد»: {\"id\":60,\"active\":true,\"x_contact_class\":\"supplier\",\"x_review_pending\":false,\"customer_rank\":0,\"supplier_rank\":1,\"x_role_ids\":[]}",
+      "ok": true
+    },
+    {
+      "check": "«فريق»: {\"id\":60,\"active\":true,\"x_contact_class\":\"team\",\"x_review_pending\":false,\"customer_rank\":0,\"supplier_rank\":0,\"x_role_ids\":[]}",
+      "ok": true
+    },
+    {
+      "check": "«شخصي»: {\"id\":60,\"active\":true,\"x_contact_class\":\"personal\",\"x_review_pending\":false,\"customer_rank\":0,\"supplier_rank\":0,\"x_role_ids\":[]}",
+      "ok": true
+    },
+    {
+      "check": "«أرشفة»: {\"id\":60,\"active\":false,\"x_contact_class\":\"unreviewed\",\"x_review_pending\":false,\"customer_rank\":0,\"supplier_rank\":0,\"x_role_ids\":[]}",
+      "ok": true
+    },
+    {
+      "check": "«أرشفة» does not delete (the row is still there, archived)",
+      "ok": true
+    },
+    {
+      "check": "counter back after the decisions",
+      "ok": true
+    },
+    {
+      "check": "«عميل» keeps a higher customer_rank",
+      "ok": true
+    }
+  ]
+}

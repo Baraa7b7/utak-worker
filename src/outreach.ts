@@ -22,6 +22,7 @@ import { call } from "./odoo";
 import { readMarketingOptouts } from "./optout";
 import { markPayRemindSent } from "./pay-claim";
 import { sendOwnerAlert, sendTemplateByPurpose, T } from "./templates";
+import { isCustomerAutomationHeld, SCREEN_FIELDS, type ScreenState } from "./screening";
 
 /** م2 — pending Baraa (س3): one reminder every N days, at most MAX per debt. */
 export const PAY_REMIND_EVERY_DAYS = 3;
@@ -54,13 +55,22 @@ function daysBetween(fromYmd: string, toYmd: string): number {
   return Math.round((Date.parse(toYmd + "T00:00:00Z") - Date.parse(fromYmd + "T00:00:00Z")) / DAY_MS);
 }
 
+/**
+ * The partners an outreach task may message. 2026-09-25 (STATUS § 30): a
+ * partner held from customer automation (waiting for review as not a
+ * customer, or decided personal / team / supplier) is left out of all three
+ * tasks — feedback, pay reminder, inactive nudge.
+ */
 async function readPartners(env: Env, ids: number[], extra: unknown[] = []): Promise<PartnerRow[]> {
   if (ids.length === 0) return [];
-  return call<PartnerRow[]>(env, "res.partner", "search_read", {
+  const rows = await call<Array<PartnerRow & Partial<ScreenState>>>(env, "res.partner", "search_read", {
     domain: [["id", "in", ids], ["active", "=", true], ...extra],
-    fields: ["id", "name", "phone", "x_whatsapp_number"],
+    fields: ["id", "name", "phone", "x_whatsapp_number", ...SCREEN_FIELDS],
     limit: ids.length,
   });
+  const held = rows.filter(isCustomerAutomationHeld);
+  if (held.length) console.log(`[outreach] held for review: ${held.map((r) => r.id).join(",")}`);
+  return rows.filter((r) => !isCustomerAutomationHeld(r));
 }
 
 // ---------------------------------------------------------------- feedback

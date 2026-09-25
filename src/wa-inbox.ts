@@ -578,7 +578,7 @@ export interface InboundForInbox {
 // Ingest — the single funnel every inbound Meta message flows through.
 // -------------------------------------------------------------
 
-export type InboundRoute = "team" | "supplier" | "customer" | "new" | "owner";
+export type InboundRoute = "team" | "supplier" | "customer" | "new" | "owner" | "archived";
 
 export interface IngestResult {
   /** last-4 tail of the sender, for the [inbox] log line. */
@@ -921,7 +921,9 @@ export async function ingestInbound(
       const { findOrCreateCustomer } = await import("./odoo");
       const created = await findOrCreateCustomer(env, m.from, m.profileName ?? "");
       matched = { id: created.id, name: created.name || m.profileName || m.from };
-      route = "new";
+      // 2026-09-25 (STATUS § 30) — archived from «مراجعة الأرقام»: the message
+      // lands on that partner's inbox, and the bot leaves it alone.
+      route = created.archived ? "archived" : "new";
     } catch (e) {
       const skip = `partner-create: ${(e as Error).message}`;
       return { fromTail, partnerId: null, partnerName: "", route: "new", mirrored: false, skip };

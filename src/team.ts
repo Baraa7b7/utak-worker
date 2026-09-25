@@ -42,6 +42,7 @@ import { riyadhDateKey } from "./hours";
 import { arabicDate, joinCapped } from "./wa-params";
 import type { PurchaseListItem } from "./types";
 import { attendanceHold } from "./attendance";
+import { heldPartnerIds } from "./screening";
 import { enqueueTeamItems, type TeamQueueItem } from "./team-queue";
 
 // ============================================================
@@ -61,9 +62,11 @@ async function notifyOrderCustomer(
   session: { text: string; buttons?: Array<{ id: string; title: string }> },
   templateUpdate: string,
   opts: { remind?: boolean } = {},
-): Promise<"session" | "template" | "template_buttons" | "none" | "failed"> {
+): Promise<"session" | "template" | "template_buttons" | "none" | "held" | "failed"> {
   const cust = await getOrderCustomer(env, o.id);
   if (!cust?.phone) return "none";
+  // 2026-09-25 (STATUS § 30) — no reminder / notice to a partner held from customer automation.
+  if ((await heldPartnerIds(env, [cust.id])).has(cust.id)) return "held";
   const { isInside24hWindow } = await import("./wa-inbox");
   const inside = await isInside24hWindow(env, o.customerId || cust.id).catch(() => false);
   if (inside) {
@@ -122,7 +125,7 @@ export async function sendCutoffReminders(env: Env): Promise<{ reminded: number;
         await env.MSG_DEDUP.put(`cutoff_prompt:${o.customerId}`, String(o.id), { expirationTtl: CUTOFF_PROMPT_TTL });
       }
       if (how === "session" || how === "template" || how === "template_buttons") reminded++;
-      else failed++;
+      else if (how !== "held") failed++;
     } catch (e) {
       failed++;
       console.error(`[cron 20:00] reminder for order ${o.id} failed`, (e as Error)?.message);

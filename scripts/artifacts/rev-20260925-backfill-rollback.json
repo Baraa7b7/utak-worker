@@ -1,0 +1,127 @@
+{
+  "at": "2026-09-25T00:52:47.729Z",
+  "before": {
+    "19": {
+      "x_contact_class": false,
+      "x_ai_intent": false,
+      "x_ai_reason": false,
+      "x_review_pending": false,
+      "x_review_last_msg": false,
+      "x_review_last_at": false
+    },
+    "49": {
+      "x_contact_class": false,
+      "x_ai_intent": false,
+      "x_ai_reason": false,
+      "x_review_pending": false,
+      "x_review_last_msg": false,
+      "x_review_last_at": false
+    },
+    "50": {
+      "x_contact_class": false,
+      "x_ai_intent": false,
+      "x_ai_reason": false,
+      "x_review_pending": false,
+      "x_review_last_msg": false,
+      "x_review_last_at": false
+    },
+    "54": {
+      "x_contact_class": false,
+      "x_ai_intent": false,
+      "x_ai_reason": false,
+      "x_review_pending": false,
+      "x_review_last_msg": false,
+      "x_review_last_at": false
+    },
+    "59": {
+      "x_contact_class": false,
+      "x_ai_intent": false,
+      "x_ai_reason": false,
+      "x_review_pending": false,
+      "x_review_last_msg": false,
+      "x_review_last_at": false
+    }
+  },
+  "ranks": {
+    "19": {
+      "customer_rank": 1,
+      "supplier_rank": 0
+    },
+    "49": {
+      "customer_rank": 1,
+      "supplier_rank": 0
+    },
+    "50": {
+      "customer_rank": 1,
+      "supplier_rank": 0
+    },
+    "54": {
+      "customer_rank": 1,
+      "supplier_rank": 0
+    },
+    "59": {
+      "customer_rank": 1,
+      "supplier_rank": 0
+    }
+  },
+  "planned": {
+    "19": {
+      "x_contact_class": "unreviewed",
+      "x_ai_intent": "personal",
+      "x_ai_reason": "مندوب سمسا يبلغ عن توصيل شحنة لنا، لا طلب شراء",
+      "x_review_pending": true,
+      "x_review_last_msg": ".",
+      "x_review_last_at": "2026-09-12 17:49:12"
+    },
+    "49": {
+      "x_contact_class": "unreviewed",
+      "x_ai_intent": "personal",
+      "x_ai_reason": "روابط اجتماعات ومواعيد وإجازات ومقاطع، بلا أي طلب",
+      "x_review_pending": true,
+      "x_review_last_msg": "https://youtube.com/shorts/OALPlthkXN8?si=6Xvx9yMjqyT7qwAU",
+      "x_review_last_at": "2026-09-24 20:43:17"
+    },
+    "50": {
+      "x_contact_class": "unreviewed",
+      "x_ai_intent": "purchase",
+      "x_ai_reason": "ضغط «أبغى أطلب» بعد التحية",
+      "x_review_pending": false,
+      "x_review_last_msg": "أبغى أطلب",
+      "x_review_last_at": "2026-09-21 11:32:40"
+    },
+    "54": {
+      "x_contact_class": "unreviewed",
+      "x_ai_intent": "vendor_pitch",
+      "x_ai_reason": "فني شبكات يعرض علينا عرض إنترنت جديد",
+      "x_review_pending": true,
+      "x_review_last_msg": "حضرتك كنت مركبلك شبكه إنترنت الحين ف عرض جديد",
+      "x_review_last_at": "2026-09-23 12:35:10"
+    },
+    "59": {
+      "x_contact_class": "unreviewed",
+      "x_ai_intent": "unclear",
+      "x_ai_reason": "رسالة واحدة فيها حرف «ا» فقط",
+      "x_review_pending": true,
+      "x_review_last_msg": "ا",
+      "x_review_last_at": "2026-09-24 13:49:45"
+    }
+  },
+  "posted": [
+    {
+      "partnerId": 19,
+      "messageId": 2500
+    },
+    {
+      "partnerId": 49,
+      "messageId": 2501
+    },
+    {
+      "partnerId": 54,
+      "messageId": 2502
+    },
+    {
+      "partnerId": 59,
+      "messageId": 2503
+    }
+  ]
+}

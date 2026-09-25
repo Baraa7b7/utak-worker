@@ -6,8 +6,9 @@
 //     purchase list, a text from them); after the tap they all arrive;
 //   • +30: ONE reminder (same template) and one owner alert; +60: «غائب» and
 //     one owner alert; a tap after +15 is «متأخر», after +60 «متأخر» + alert;
-//   • Baraa: the same template daily at OWNER_WINDOW_OPEN_AT through the owner
-//     guard's owner_window purpose, never attendance/absence/alerts about him;
+//   • Baraa: the same template daily through the owner guard's owner_window
+//     purpose, at the roster's earliest shift − 15 min (STATUS § 30; with no
+//     shift time, OWNER_WINDOW_OPEN_AT), never attendance/absence/alerts about him;
 //   • re-running the job (same KV, wiped KV, two ticks at once) repeats nothing;
 //   • (ب) a message Meta re-delivers after its 24h window gets no bot action.
 //
@@ -36,8 +37,10 @@ const load = (f: string) => JSON.parse(readFileSync(new URL(f, import.meta.url),
 const F1 = load("./fixtures-odoo-fields-20260924.json");
 const F2 = load("./fixtures-odoo-fields-20260925-suppliers.json");
 const F3 = load("./fixtures-odoo-fields-20260925-attendance.json");
-const REAL: Record<string, string[]> = { ...F1, ...F2, ...F3 };
-const SELECTIONS: Record<string, string[]> = { ...F1._selections, ...F2._selections, ...F3._selections };
+// 2026-09-25 (STATUS § 30) — the review fields on res.partner (x_contact_class …).
+const F4 = load("./fixtures-odoo-fields-20260925-review.json");
+const REAL: Record<string, string[]> = { ...F1, ...F2, ...F3, ...F4 };
+const SELECTIONS: Record<string, string[]> = { ...F1._selections, ...F2._selections, ...F3._selections, ...F4._selections };
 const rejected: string[] = [];
 function known(model: string, name: string): boolean {
   const list = REAL[model];
@@ -269,29 +272,30 @@ console.log("\n[3] +30: one reminder + one alert; +60: absent + one alert; late 
 }
 
 // ================================================================ 4. Baraa
-console.log("\n[4] Baraa: the window template daily at 06:00 — no attendance, no alerts about him");
+console.log("\n[4] Baraa: the window template daily at the earliest shift − 15 min (عمر 05:00 → 04:45) — no attendance, no alerts about him");
 {
-  ENV = fresh(`${DAY} 05:00`);
-  for (const at of ["05:00", "05:30", "05:55"]) await tick(`${DAY} ${at}`);
-  assert("before 06:00: no window template to Baraa", tpl(OWNER).length === 0);
-  await tick(`${DAY} 06:00`);
+  ENV = fresh(`${DAY} 04:00`);
+  for (const at of ["04:00", "04:30", "04:40"]) await tick(`${DAY} ${at}`);
+  assert("before 04:45: no window template to Baraa", tpl(OWNER).length === 0);
+  await tick(`${DAY} 04:45`);
   const t = tpl(OWNER);
-  assert("06:00: utak_shift_start_v2 to Baraa [«براء»], payload shift_start", t.length === 1 && params(t[0]).join() === "براء" && payloads(t[0]).join() === "shift_start", JSON.stringify(t[0]?.template));
-  for (const at of ["06:05", "06:25", "06:30", "09:00", "23:55"]) await tick(`${DAY} ${at}`);
+  assert("04:45 (عمر 05:00 − 15): utak_shift_start_v2 to Baraa [«براء»], payload shift_start", t.length === 1 && params(t[0]).join() === "براء" && payloads(t[0]).join() === "shift_start", JSON.stringify(t[0]?.template));
+  for (const at of ["04:50", "05:10", "05:15", "06:00", "09:00", "23:55"]) await tick(`${DAY} ${at}`);
   assert("once a day: no second one", tpl(OWNER).length === 1);
   assert("never on the roster (even with a role and 05:00): no row, no alert about him", !rows("x_team_attendance").some((r) => r.x_partner_id === OWNER_PID) && ownerSays("Bara.a").length === 0);
-  await tap(OWNER, `${DAY} 06:10`);
+  await tap(OWNER, `${DAY} 04:55`);
   const ack = texts(OWNER).at(-1) ?? "";
   assert("his tap: one line «✅ تم. تنبيهات …», nothing recorded", ack.startsWith("✅ تم. تنبيهات يو تاك") && !rows("x_team_attendance").some((r) => r.x_partner_id === OWNER_PID), ack);
   await tick(`${DAY} 07:00`);
   // next day again
-  await tick(`2026-09-27 06:00`);
-  assert("next day 06:00: again, once", tpl(OWNER).length === 2);
-  // the time is one config line
+  await tick(`2026-09-27 04:45`);
+  assert("next day 04:45: again, once", tpl(OWNER).length === 2);
+  // nobody with a time on the roster → OWNER_WINDOW_OPEN_AT, a fallback only
   ENV = fresh(`${DAY} 05:00`, { OWNER_WINDOW_OPEN_AT: "05:30" });
+  for (const id of [OMAR, KHALID]) table("res.partner").get(id)!.x_shift_start = 0;
   await tick(`${DAY} 05:25`);
   await tick(`${DAY} 05:30`);
-  assert("OWNER_WINDOW_OPEN_AT=05:30 → at 05:30", tpl(OWNER).length === 1);
+  assert("no shift time anywhere: OWNER_WINDOW_OPEN_AT=05:30 → at 05:30", tpl(OWNER).length === 1);
   // the owner guard still refuses the purpose team_shift_start to Baraa
   const { sendTemplateByPurpose, T } = await import("../src/templates.ts");
   const blocked = await quiet(() => sendTemplateByPurpose(ENV, "+" + OWNER, T.TEAM_SHIFT_START, ["x"], [{ index: 0, payload: "shift_start" }]));
@@ -321,8 +325,8 @@ console.log("\n[5] re-running the job repeats nothing");
   await Promise.all([tick(`${DAY} 05:00`), tick(`${DAY} 05:00`)]);
   assert("two start ticks at once: one template, one row", tpl(OMAR_PHONE).length === 1 && rows("x_team_attendance").filter((r) => r.x_partner_id === OMAR).length === 1, `${tpl(OMAR_PHONE).length} / ${rows("x_team_attendance").length}`);
   // Baraa's window template, KV kept: once
-  await tick(`${DAY} 06:00`); await tick(`${DAY} 06:00`);
-  assert("Baraa ×2 at 06:00: once", tpl(OWNER).length === 1);
+  await tick(`${DAY} 04:45`); await tick(`${DAY} 04:45`);
+  assert("Baraa ×2 at 04:45: once", tpl(OWNER).length === 1);
   // and the next day starts clean
   await tick(`2026-09-27 05:00`);
   assert("next day: a new start and a new row", tpl(OMAR_PHONE).length === 2 && rows("x_team_attendance").filter((r) => r.x_partner_id === OMAR).length === 2);

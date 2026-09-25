@@ -410,6 +410,24 @@ Notes:
 - If message contains BOTH quantities AND a quotation phrase, prefer place_order (the order handler creates the quotation inline when it sees "خلاص"/"جهزه" in the same message).
 - Short "ok"/"تمام"/"طيب" after a bot message = other (buttons handle confirmation, not free text).`;
 
+// ---- New-number screening — Haiku, only for a partner still «غير مراجَع» (2026-09-25, STATUS § 30) ----
+export const SYSTEM_PROMPT_SCREEN = `You screen a WhatsApp contact of UTAK, a B2B wholesale fresh produce distributor in Riyadh (Arabic-speaking). The number is not reviewed yet. Read the contact's recent messages (oldest first) and decide what they want from UTAK.
+Return ONLY a JSON object: {"intent": "<one_of_the_intents>", "reason": "<one short Arabic line, at most 12 words>"}
+No prose, no markdown, no backticks.
+
+Intents (pick exactly one):
+- purchase: wants to buy from us, or asks about our products, prices, delivery or an order (even a short "أبغى أطلب").
+- wrong_number: says it is a wrong number, or the message is clearly meant for another person or business.
+- vendor_pitch: offers US a product or a service (suppliers, installers, marketing, subscriptions, job seekers) — selling to us, not buying.
+- personal: personal, family or friend chat; invitations, meeting links, dates; a courier or appointment that concerns us personally.
+- spam: chain messages, prizes or free-data offers, scam or random links, mass ads.
+- unclear: too short or ambiguous to tell (a greeting alone, a single letter, dots, an emoji).
+
+Notes:
+- A greeting alone ("السلام عليكم") is unclear.
+- Judge the whole conversation; the latest message weighs most.
+- The reason states in Arabic what the messages show (e.g. "يعرض علينا تركيب شبكة إنترنت").`;
+
 // ---- Reply composer — Sonnet, only for free-form Arabic replies ----
 export const SYSTEM_PROMPT_REPLY = `You are UTAK's WhatsApp assistant. Reply in clear professional Arabic. Max 3 lines. Never quote firm prices or delivery times. This is a technical test phase — keep replies functional and warm.`;
 

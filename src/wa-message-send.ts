@@ -587,13 +587,16 @@ export async function waMessageExistsForWamid(env: Env, wamid: string): Promise<
 // ============================================================
 // Meta status callback — a webhook `statuses` update. We correlate by
 // meta_message_id and bump x_status. Never creates rows.
+// 2026-09-25 (STATUS § 37 أ) — never down: sent < failed < delivered < read
+// (src/wa-status.ts statusVerdict). A lower status is not written; «failed»
+// after delivered / read is not written and is noted in x_debug_payload.
 // ============================================================
 export async function updateWaStatusByWamid(
   env: Env,
   wamid: string,
   status: "sent" | "delivered" | "read" | "failed",
   errorMessage?: string,
-): Promise<{ id: number; body: string; debugPayload?: string } | null> {
+): Promise<{ id: number; body: string; debugPayload?: string; previous: string; applied: boolean; verdict: import("./wa-status").VerdictWhy } | null> {
   try {
     const rows = await call<Array<{ id: number; x_status: string | false; x_body: string | false; x_debug_payload: string | false }>>(
       env,
@@ -606,16 +609,34 @@ export async function updateWaStatusByWamid(
       },
     );
     if (rows.length === 0) return null;
-    const vals: Record<string, unknown> = { x_status: status };
-    if (errorMessage) vals.x_meta_error = errorMessage.slice(0, 2000);
-    await call<boolean>(env, "x_wa_message", "write", {
-      ids: [rows[0].id],
-      vals,
-    });
+    const { statusVerdict, withIgnoredNote } = await import("./wa-status");
+    const previous = String(rows[0].x_status || "");
+    const v = statusVerdict(previous, status);
+    if (v.apply) {
+      const vals: Record<string, unknown> = { x_status: status };
+      if (errorMessage) vals.x_meta_error = errorMessage.slice(0, 2000);
+      await call<boolean>(env, "x_wa_message", "write", {
+        ids: [rows[0].id],
+        vals,
+      });
+    } else if (v.why === "failed_after_delivery") {
+      console.warn(`[status] wamid=${wamid.slice(-10)} row=${rows[0].id} failed after ${previous} — not written (technical log)`);
+      await call<boolean>(env, "x_wa_message", "write", {
+        ids: [rows[0].id],
+        vals: {
+          x_debug_payload: withIgnoredNote(rows[0].x_debug_payload, {
+            status, over: previous, at: new Date().toISOString(), error: (errorMessage ?? "").slice(0, 300),
+          }),
+        },
+      });
+    }
     return {
       id: rows[0].id,
       body: typeof rows[0].x_body === "string" ? rows[0].x_body : "",
       debugPayload: typeof rows[0].x_debug_payload === "string" ? rows[0].x_debug_payload : undefined,
+      previous,
+      applied: v.apply,
+      verdict: v.why,
     };
   } catch (e) {
     console.warn("[updateWaStatusByWamid] failed", (e as Error)?.message);

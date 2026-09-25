@@ -1,0 +1,138 @@
+{
+  "at": "2026-09-25T19:34:59.980Z",
+  "caught": 15,
+  "total": 15,
+  "results": [
+    {
+      "name": "the row's status written whatever it was (no guard)",
+      "caught": true,
+      "fails": [
+        "✗ sent / delivered / read in all six orders → read — sent→read→delivered = delivered; delivered→read→sent = sent; read→sent→delivered = delivered; read→delivered→sent = sent",
+        "✗ #162: «delivered» then «sent» in the same second → stays delivered — sent",
+        "✗ {sent, delivered, failed} in all six orders → delivered — sent→delivered→failed = failed; delivered→sent→failed = failed; delivered→failed→sent = sent; failed→delivered→sent = sent",
+        "✗ {sent, failed} in both orders → failed — failed→sent = sent"
+      ]
+    },
+    {
+      "name": "a lower status written over a higher one",
+      "caught": true,
+      "fails": [
+        "✗ all 16 pairs: a lower or equal status is never written; failed only over sent — [[\"delivered\",\"sent\"],[\"read\",\"sent\"],[\"read\",\"delivered\"],[\"failed\",\"sent\"]]",
+        "✗ sent / delivered / read in all six orders → read — sent→read→delivered = delivered; delivered→read→sent = sent; read→sent→delivered = delivered; read→delivered→sent = sent",
+        "✗ #162: «delivered» then «sent» in the same second → stays delivered — sent",
+        "✗ {sent, delivered, failed} in all six orders → delivered — delivered→sent→failed = failed; delivered→failed→sent = sent; failed→delivered→sent = sent"
+      ]
+    },
+    {
+      "name": "«failed» written over delivered / read",
+      "caught": true,
+      "fails": [
+        "✗ all 16 pairs: a lower or equal status is never written; failed only over sent — [[\"delivered\",\"failed\"],[\"read\",\"failed\"]]",
+        "✗ {sent, delivered, failed} in all six orders → delivered — sent→delivered→failed = failed; delivered→sent→failed = failed; delivered→failed→sent = failed",
+        "✗ delivered → failed: the row stays «delivered» — held",
+        "✗ …x_meta_error not written"
+      ]
+    },
+    {
+      "name": "«failed» ranked above delivered",
+      "caught": true,
+      "fails": [
+        "✗ ranks: sent 1 < failed 2 < delivered 3 < read 4",
+        "✗ all 16 pairs: a lower or equal status is never written; failed only over sent — [[\"delivered\",\"failed\"],[\"failed\",\"delivered\"]]",
+        "✗ failed after delivered / read: verdict «failed_after_delivery»",
+        "✗ highestStatus: read over delivered over failed over sent; nothing → null"
+      ]
+    },
+    {
+      "name": "«delivered» not written over «failed»",
+      "caught": true,
+      "fails": [
+        "✗ ranks: sent 1 < failed 2 < delivered 3 < read 4",
+        "✗ all 16 pairs: a lower or equal status is never written; failed only over sent — [[\"delivered\",\"failed\"],[\"read\",\"failed\"],[\"failed\",\"delivered\"],[\"failed\",\"read\"]]",
+        "✗ failed after delivered / read: verdict «failed_after_delivery»",
+        "✗ highestStatus: read over delivered over failed over sent; nothing → null"
+      ]
+    },
+    {
+      "name": "the same status written again",
+      "caught": true,
+      "fails": [
+        "✗ sent after delivered: «lower»; the same again: «same»",
+        "✗ …verdicts: higher, lower, higher, same, failed_after_delivery — higher,lower,higher,lower,failed_after_delivery"
+      ]
+    },
+    {
+      "name": "the gateway's own states overwritten (held …)",
+      "caught": true,
+      "fails": [
+        "✗ the gateway's own states are not overwritten (held, skipped, expired, queued, received)",
+        "✗ …a late «sent» for the old wamid does not overwrite the re-queued row"
+      ]
+    },
+    {
+      "name": "the ignored failure not noted in x_debug_payload",
+      "caught": true,
+      "fails": [
+        "✗ …the technical note in x_debug_payload (failed over delivered, with Meta's error)",
+        "✗ …the technical note in x_debug_payload (failed over read, with Meta's error)"
+      ]
+    },
+    {
+      "name": "a failed after delivery still acted on (line, alert, window, block)",
+      "caught": true,
+      "fails": [
+        "✗ {sent, delivered, failed} in all six orders → delivered — sent→delivered→failed = failed; delivered→sent→failed = failed; delivered→failed→sent = failed",
+        "✗ delivered → failed: the row stays «delivered» — held",
+        "✗ …x_meta_error not written",
+        "✗ …no «⚠️ ما انرسلت» line and no other Discuss line"
+      ]
+    },
+    {
+      "name": "no row: D1's delivered not consulted",
+      "caught": true,
+      "fails": [
+        "✗ …a later failed for it: D1 says delivered → not acted on (no alert, no failure row, window open)"
+      ]
+    },
+    {
+      "name": "the D1 status log not written",
+      "caught": true,
+      "fails": [
+        "✗ one line per call (5) — 0",
+        "✗ …verdicts: higher, lower, higher, same, failed_after_delivery",
+        "✗ …applied 1 only where written"
+      ]
+    },
+    {
+      "name": "a row created after its «delivered» starts at «sent»",
+      "caught": true,
+      "fails": [
+        "✗ a row created after its «delivered» starts at delivered (not «sent») — wamid.T2 sent"
+      ]
+    },
+    {
+      "name": "delivered after failed: the Discuss line not corrected",
+      "caught": true,
+      "fails": [
+        "✗ …a «✅ أُرسلت» line under the message — echo=10001"
+      ]
+    },
+    {
+      "name": "the webhook writes the status directly (no guard, no log)",
+      "caught": true,
+      "fails": [
+        "✗ …a «✅ أُرسلت» line under the message — echo=10001",
+        "✗ one line per call (5) — 1",
+        "✗ …verdicts: higher, lower, higher, same, failed_after_delivery — failed_after_delivery",
+        "✗ …applied 1 only where written"
+      ]
+    },
+    {
+      "name": "Meta's timestamp not logged",
+      "caught": true,
+      "fails": [
+        "✗ …Meta's timestamp, the row id, the recipient, the error code"
+      ]
+    }
+  ]
+}

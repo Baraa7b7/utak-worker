@@ -1860,8 +1860,12 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
   // sees the same "channel is out" cue for late-arriving failures as for
   // immediate ones. Non-failed states stay silent (they'd double the
   // channel's noise) but still stamp x_status on x_wa_message.
+  //
+  // 2026-09-25 (STATUS § 37 أ) — never down: sent < failed < delivered < read
+  // (src/wa-status.ts). Meta's calls arrive out of order; a lower one is not
+  // written, and «failed» after delivered / read is not acted on.
   try {
-    const { updateWaStatusByWamid } = await import("./wa-message-send");
+    const { applyMetaStatus } = await import("./wa-status");
     const { phoneTail } = await import("./wa-inbox");
     // deno-lint-ignore no-explicit-any
     const entries: any[] = (payload as any)?.entry ?? [];
@@ -1884,6 +1888,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
             ? `Meta ${s.errors[0].code ?? ""}: ${s.errors[0].message}`
             : undefined;
           const to = s?.recipient_id ?? "";
+          const metaTs = Number(s?.timestamp) > 0 ? Number(s.timestamp) : null;
           console.log(
             `[inbox] wamid=${wamid.slice(-10)} from=${phoneTail(String(to))} kind=status status=${s2}`,
           );
@@ -1902,13 +1907,14 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
                 code: typeof s?.errors?.[0]?.code === "number" ? s.errors[0].code : null,
                 message: s?.errors?.[0]?.message ?? s?.errors?.[0]?.title ?? "failed status",
                 errText: errMsg,
+                metaTs,
               });
             } catch (e) {
               console.warn("[status-failed]", (e as Error)?.message);
             }
             continue;
           }
-          await updateWaStatusByWamid(env, wamid, s2, errMsg);
+          await applyMetaStatus(env, { wamid, status: s2, recipient: String(to), metaTs, errText: errMsg }, ctx);
         }
       }
     }

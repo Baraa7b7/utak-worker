@@ -809,8 +809,8 @@ async function handleRejection(
  */
 export async function handleStatusFailure(
   env: Env,
-  s: { wamid: string; recipient: string; code: number | null; message: string; errText?: string },
-): Promise<{ duplicate: boolean }> {
+  s: { wamid: string; recipient: string; code: number | null; message: string; errText?: string; metaTs?: number | null },
+): Promise<{ duplicate: boolean; ignored?: boolean }> {
   const seen = rejectionSeenKey(s.wamid);
   if (await kvGet(env, seen)) {
     console.log(`[gateway] failed status wamid=${s.wamid.slice(-10)} already handled — duplicate delivery ignored`);
@@ -819,6 +819,23 @@ export async function handleStatusFailure(
   await kvPut(env, seen, new Date().toISOString(), 7 * 24 * 3600);
   const { updateWaStatusByWamid } = await import("./wa-message-send");
   const row = await updateWaStatusByWamid(env, s.wamid, "failed", s.errText);
+  // § 37 أ — «failed» after delivered / read is not written and not acted on:
+  // no row, no Discuss line, no alert, no window or purpose block.
+  const { highestLoggedStatus, logMetaStatus } = await import("./wa-status");
+  let over: string | null = row && !row.applied && row.verdict === "failed_after_delivery" ? row.previous : null;
+  if (!row) {
+    const hi = await highestLoggedStatus(env, s.wamid);
+    if (hi === "delivered" || hi === "read") over = hi;
+  }
+  await logMetaStatus(env, {
+    wamid: s.wamid, status: "failed", recipient: s.recipient, metaTs: s.metaTs ?? null, code: s.code,
+    rowId: row?.id ?? null, applied: row?.applied ?? false,
+    verdict: row ? row.verdict : over ? "failed_after_delivery" : "no_row",
+  });
+  if (over) {
+    console.warn(`[gateway] failed status wamid=${s.wamid.slice(-10)} to=${maskPhone(s.recipient)} code=${s.code ?? "?"} after «${over}» — not written, not acted on`);
+    return { duplicate: false, ignored: true };
+  }
   let meta: SentMeta | null = null;
   try {
     const raw = await kvGet(env, sentMetaKey(s.wamid));

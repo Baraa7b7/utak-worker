@@ -541,6 +541,13 @@ async function writeSentRow(env: Env, rec: SentRecord): Promise<{ rowId: number;
     ...(partner ? { x_partner_id: partner.id } : {}),
   };
   const { call } = await import("./odoo");
+  // § 37 أ — Meta's «delivered» / «read» can arrive before this row carries the
+  // wamid (the D1 status log kept it): the row starts at that status, not «sent».
+  if (rec.wamid) {
+    const { highestLoggedStatus } = await import("./wa-status");
+    const hi = await highestLoggedStatus(env, rec.wamid);
+    if (hi === "delivered" || hi === "read") vals.x_status = hi;
+  }
   if (rec.rowId) {
     if (shown.kind === "template") vals.x_body = shown.text.slice(0, 2000);
     vals.x_source = rec.manual ? "manual" : "auto";

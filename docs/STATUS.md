@@ -104,7 +104,7 @@
 
 المصدر: `wrangler deployments list`، وهو أمر قراءة فقط.
 
-**تحديث 2026-09-25 (جداول الفريق والتحضير):** sim = `eeb6bae6-001a-4db7-a661-cc57b365ab50` (قبله `267b27db`). prod بلا نشر (`5c138821`)، وجدولته الفعلية `[]` قبل النشر وبعده (Cloudflare API)، وsim عشرة مواعيد، و`/health` على sim: ok (§ 32).
+**تحديث 2026-09-25 (جداول الفريق والتحضير):** sim = `470932ce-dc73-4c3b-af7a-d333d597306e` (قبله `eeb6bae6` بالكود نفسه عدا دالة غير مستعملة، وقبلهما `267b27db`). prod بلا نشر (`5c138821`)، وجدولته الفعلية `[]` قبل النشر وبعده (Cloudflare API)، وsim عشرة مواعيد، و`/health` على sim: ok (§ 32).
 
 **تحديث 2026-09-25 (sim محاكاة خالصة):** sim = `2847dab3-20a0-4d76-b2b7-1fbef37fd5f7` (قبله `f3a65ad1`). المنشور: `ACCOUNTING_SYNC=false`، و`SIM_ALLOWLIST` = أرقام براء والفريق الأربعة. prod بلا نشر (`5c138821`)، وجدولته الفعلية `[]` قبل النشر وبعده (Cloudflare API)، وsim تسعة مواعيد، و`/health` على sim: ok (§ 27).
 
@@ -2724,10 +2724,11 @@
 **القيود:** sim فقط، لا prod ولا main. لا إرسال واتساب، ولا `/sim/trigger`. `ACCOUNTING_SYNC=false` والقائمة كما هي. كل كتابة في Odoo: تشغيل جاف، ثم لقطة، ثم تطبيق، ثم تحقق. لا حذف. لا قالب لُمس ولا سكربت ترحيله.
 
 **النشر:**
-- sim = `eeb6bae6-001a-4db7-a661-cc57b365ab50` (04:34 UTC). قبله `267b27db-7c8c-42a5-9fa6-de59f4c7efdb`، وهو هدف التراجع.
+- sim = `470932ce-dc73-4c3b-af7a-d333d597306e` (04:39:47 UTC). سبقه `eeb6bae6` (04:34) بالكود نفسه عدا `ownerWindowMinutes` غير المستعملة، حُذفت فأُعيد النشر ليطابق الـ commit. وقبلهما `267b27db-7c8c-42a5-9fa6-de59f4c7efdb`، وهو هدف التراجع.
 - `/health`: ok، وOdoo `connected (apikey)`. `sendFailures` = 2 يوم 09-25، وكلاهما قبل هذه الجلسة: نص لبراء عند 05:00 و06:00 رفضه Meta بـ `131049` (`x_wa_message` 149 و150، بلا نص محفوظ)، قبل ضغطته على قالب 06:00 (06:53).
-- المتغيرات قبل النشر وبعده متطابقة (Cloudflare API): `ACCOUNTING_SYNC=false`، و`SIM_ALLOWLIST` الأرقام الأربعة، و`PILOT_MODE=true`، و`SIMULATION_MODE=false`، و`OWNER_WINDOW_OPEN_AT=06:00`. المخرج في `scripts/artifacts/shift-20260925-cf-{before,after}-deploy.json`.
-- جدولة prod الفعلية `[]` قبل النشر وبعده، وprod `5c138821` بلا نشر. وsim عشرة مواعيد كما كانت.
+- المتغيرات قبل كل نشر وبعده متطابقة (Cloudflare API): `ACCOUNTING_SYNC=false`، و`SIM_ALLOWLIST` الأرقام الأربعة، و`PILOT_MODE=true`، و`SIMULATION_MODE=false`، و`OWNER_WINDOW_OPEN_AT=06:00`. المخرج في `scripts/artifacts/shift-20260925-cf-{before,after}-{deploy,redeploy}.json`.
+- جدولة prod الفعلية `[]` قبل النشرين وبعدهما، وprod `5c138821` بلا نشر. وsim عشرة مواعيد كما كانت.
+- **أول نبضة بالكود الجديد** (`wrangler tail`، 04:40:03 UTC، النسخة `470932ce`): `[attendance 07:40] {"owner":"passed","acted":["عمر المجهلي:day_off","عثمان عبدالوهاب:day_off"]}`. الجدولان يُقرآن من Odoo، واليوم الجمعة إجازة لهما، ولا إرسال.
 
 ### أ) التحقق قبل البدء
 

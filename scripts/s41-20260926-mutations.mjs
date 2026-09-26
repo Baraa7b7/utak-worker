@@ -50,6 +50,12 @@ const M = [
     "vatProfit(sale, buy.price, waste, vatRatePct, registered(buy.source)) * qty;", "vatProfit(sale, buy.price, waste, vatRatePct, true) * qty;"]], T],
   ["أ", "the 21:30 discount (VAT-inclusive) not divided", [[SM,
     "      ? Math.max(0, round2((grossByOrder.get(m2oId(i.x_order_id)) ?? 0) - (Number(i.x_total) || 0))) / (1 + vatRatePct / 100)\n      : d;", "      ? Math.max(0, round2((grossByOrder.get(m2oId(i.x_order_id)) ?? 0) - (Number(i.x_total) || 0)))\n      : d;"]], T40],
+  // ---------------------------------------------------------------- ب the «المحطات فارغ» alert gone
+  ["ب", "the daily alert back in the prices tick", [[PR,
+    "  // § 41 ب — the daily «عدد المحطات اليومية المخطط فارغ» alert (§ 40 د) was\n",
+    "  await sendOwnerAlert(env, \"⚠️ «عدد المحطات اليومية المخطط» فارغ في «⚙️ إعدادات التسعير».\").catch(() => {});\n  // § 41 ب — the daily «عدد المحطات اليومية المخطط فارغ» alert (§ 40 د) was\n"]], T],
+  ["ب", "empty planned stops → a discount anyway", [[OP,
+    "  if (settings.plannedStops === null) return { ...out, reason: \"«عدد المحطات اليومية المخطط» فارغ\" };\n", ""]], T],
 ];
 
 const want = new Set(process.argv.slice(2));

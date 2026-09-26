@@ -883,25 +883,9 @@ console.log("\n[د] the minimum order (150, before the discount): no confirm but
       && rows("x_quotation").length === 0 && o?.x_state === "draft", JSON.stringify(r));
 }
 
-console.log("\n[د] planned stops empty: one alert a day to Baraa while a tier gives a discount");
-{
-  const env = fresh("2026-10-03 05:55"); tiers(0);
-  const stopsAlerts = () => ownerTexts().filter((x) => x === OP.STOPS_ALERT_TEXT).length;
-  assert("05:55: not yet", (await quiet(() => OP.checkPlannedStops(env, Date.now(), 360))).action === "before" && stopsAlerts() === 0);
-  setRiyadh("2026-10-03 06:00");
-  const P6 = await quiet(() => PR.runPricesTick(env, Date.now()));
-  assert("06:00 (the prices tick): one alert", (P6.stops as any)?.action === "alerted" && stopsAlerts() === 1, JSON.stringify(P6.stops));
-  setRiyadh("2026-10-03 06:05");
-  await quiet(() => OP.checkPlannedStops(env, Date.now(), 360));
-  assert("the same day again: no second alert", stopsAlerts() === 1);
-  setRiyadh("2026-10-04 06:00");
-  await quiet(() => OP.checkPlannedStops(env, Date.now(), 360));
-  assert("the next day, still empty: one more", stopsAlerts() === 2);
-  const env2 = fresh("2026-10-03 06:00"); tiers(12);
-  assert("stops filled (12): no alert", (await quiet(() => OP.checkPlannedStops(env2, Date.now(), 360))).action === "set" && stopsAlerts() === 0);
-  const env3 = fresh("2026-10-03 06:00");
-  assert("no tier gives a discount: no alert", (await quiet(() => OP.checkPlannedStops(env3, Date.now(), 360))).action === "no_discount" && stopsAlerts() === 0);
-}
+// § 41 ب (2026-09-26): «[د] planned stops empty: one alert a day to Baraa» was
+// deleted with the alert itself; tests/s41.test.mts [ب] checks it is gone and
+// the discount still stays off while the field is empty.
 
 // ================================================================ [هـ]
 const SUM = await import("../src/owner-summary.ts");

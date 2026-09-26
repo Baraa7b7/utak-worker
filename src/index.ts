@@ -182,7 +182,6 @@ export default {
             const p = await runPricesTick(env, Date.now(), ctx);
             const quiet = (!p.marketAsk || ("action" in p.marketAsk && ["before", "after"].includes(p.marketAsk.action)))
               && (!p.exceptions || ("action" in p.exceptions && ["outside", "no_draft", "none", "notified_before", "many_before"].includes(p.exceptions.action)))
-              && (!p.stops || ("action" in p.stops && ["before", "checked", "set", "no_discount", "no_settings", "alerted_before"].includes(p.stops.action)))
               && (p.refresh && "action" in p.refresh && ["no_prices", "unchanged", "locked", "outside"].includes(p.refresh.action))
               && (p.deadline && "action" in p.deadline && ["before", "after_window", "claimed_before"].includes(p.deadline.action)) && !p.publish;
             if (!quiet) console.log("[prices tick]", JSON.stringify(p));

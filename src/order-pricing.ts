@@ -5,8 +5,9 @@
 // VAT (prices are VAT-inclusive from 2026-10-01: the net of each line, as the
 // invoice splits it). It is not applied when:
 //   • no tier gives a discount for that total;
-//   • «عدد المحطات اليومية المخطط» is empty (no discount at all — Baraa is
-//     told once a day until it is filled, src/prices.ts);
+//   • «عدد المحطات اليومية المخطط» is empty (no discount at all; § 41 ب:
+//     no alert about it any more — the automatic count of the stops comes
+//     after the launch);
 //   • the order's profit after the discount would fall below
 //     daily_operating_cost(the order's day) ÷ the planned stops — the order's
 //     profit = Σ (sale − purchase − waste % × purchase) × qty over its lines,
@@ -32,9 +33,7 @@ import { call, getLatestSalePrice, getOrderForInvoicing } from "./odoo";
 import { computeInclusiveTotals, isAccountingSyncEnabled, type InclusiveTotals } from "./accounting";
 import { NO_VAT, vatProfit, type VatContext } from "./pricing-engine";
 import { dailyOperatingCost, readPricingSettings } from "./operating-cost";
-import { riyadhDateKey, riyadhMinutes } from "./hours";
-import { claimButton, finishButton } from "./button-lock";
-import { sendOwnerAlert } from "./templates";
+import { riyadhDateKey } from "./hours";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const money = (x: number) => { const n = round2(x); return Number.isInteger(n) ? String(n) : n.toFixed(2); };
@@ -177,34 +176,4 @@ export async function orderMinimum(env: Env, orderId: number, day: string = riya
   total = round2(total);
   // a line without a price: the quotation's own «صنف بلا سعر» path decides, not the minimum
   return { total, min, below: unpriced === 0 && order.lines.length > 0 && total < min, unpriced };
-}
-
-// ---------------------------------------------------------------- the empty planned stops
-
-export const STOPS_ALERT_TEXT = "⚠️ «عدد المحطات اليومية المخطط» فارغ في «⚙️ إعدادات التسعير»: لا خصم كمية على أي طلب حتى يُعبَّأ.";
-
-/**
- * From `fromMinute` (the publication time), once a Riyadh day: while
- * «عدد المحطات اليومية المخطط» is empty and a tier gives a discount, one
- * alert to Baraa (no discount is applied at all meanwhile).
- */
-export async function checkPlannedStops(env: Env, nowMs: number, fromMinute: number): Promise<{ action: string }> {
-  const day = riyadhDateKey(new Date(nowMs));
-  if (riyadhMinutes(new Date(nowMs)) < fromMinute) return { action: "before" };
-  const doneKey = `pricing_stops_ok:v1:${day}`;
-  try {
-    if (await env.MSG_DEDUP.get(doneKey)) return { action: "checked" };
-  } catch { /* read Odoo */ }
-  const settings = await readPricingSettings(env, day);
-  const tiers = settings ? await readTiers(env, settings.configId) : [];
-  if (!settings || settings.plannedStops !== null || !tiers.some((t) => t.pct > 0)) {
-    try { await env.MSG_DEDUP.put(doneKey, "1", { expirationTtl: 26 * 3600 }); } catch { /* next tick */ }
-    return { action: !settings ? "no_settings" : settings.plannedStops !== null ? "set" : "no_discount" };
-  }
-  const claim = await claimButton(env, `pricing_stops:${day}`, 26 * 3600);
-  if (!claim.claimed) return { action: "alerted_before" };
-  await sendOwnerAlert(env, STOPS_ALERT_TEXT);
-  await finishButton(env, claim, 26 * 3600);
-  try { await env.MSG_DEDUP.put(doneKey, "1", { expirationTtl: 26 * 3600 }); } catch { /* the claim holds */ }
-  return { action: "alerted" };
 }

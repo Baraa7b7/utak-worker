@@ -232,13 +232,10 @@ const M = [
     "      if (minimum?.below) {\n        const why", "      if (false) {\n        const why"]], T],
   ["د", "the reply to ح3's template offers the button below the minimum", [["src/index.ts",
     "          if (minimum?.below) {\n            await sendText(env, msg.from, `طلبك رقم", "          if (false) {\n            await sendText(env, msg.from, `طلبك رقم"]], T],
-  ["د", "the stops alert although they are filled", [[OP,
-    "  if (!settings || settings.plannedStops !== null || !tiers.some((t) => t.pct > 0)) {", "  if (!settings || !tiers.some((t) => t.pct > 0)) {"]], T],
-  ["د", "the stops alert every tick", [[OP,
-    "  const claim = await claimButton(env, `pricing_stops:${day}`, 26 * 3600);", "  const claim = await claimButton(env, `pricing_stops:${day}:${Math.random()}`, 26 * 3600);"],
-    [OP, "    if (await env.MSG_DEDUP.get(doneKey)) return { action: \"checked\" };", "    if (false) return { action: \"checked\" };"]], T],
-  ["د", "the stops alert not in the prices tick", [[PR,
-    "    out.stops = await checkPlannedStops(env, now, dl);", "    out.stops = { action: \"before\" }; void checkPlannedStops;"]], T],
+  // § 41 ب (2026-09-26): the three mutations of the daily «المحطات فارغ» alert
+  // («the stops alert although they are filled», «… every tick», «… not in the
+  // prices tick») were deleted with the alert itself (checkPlannedStops); its
+  // absence is tested and mutated in tests/s41.test.mts / s41 mutations [ب].
   // ---------------------------------------------------------------- هـ the coverage line
   ["هـ", "the invoices' discount not taken off the profit", [[SM,
     // § 41: the discount per invoice (VAT-inclusive from the cutoff)

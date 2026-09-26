@@ -5,6 +5,8 @@
 //       coverage line are net of VAT — a registered source (x_vat_registered)
 //       ÷ 1.15, an unregistered one sale ÷ 1.15 − purchase − waste; the
 //       discount off before the division; nothing divided before the cutoff.
+//   [ب] the daily «المحطات فارغ» alert is gone; the discount stays off while
+//       «عدد المحطات اليومية المخطط» is empty.
 //
 // In-memory Odoo + captured Graph (tests/wa-harness.mts) behind a strict schema
 // gate built from the real field lists (fields_get on the tenant, read-only:
@@ -243,6 +245,33 @@ function deliveredYesterday(day: string, yday: string, source: number): void {
   table("res.partner").get(AHMED)!.x_vat_registered = false;
   const g = await quiet(() => SUM.readSummaryFigures(env));
   assert("10-01, not registered: 20 × (30 ÷ 1.15 − 21) = 101.74 → 20 %", g.coverage.profit === 101.74 && g.coverage.pct === 20, JSON.stringify(g.coverage));
+  assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
+}
+
+// ================================================================ [ب]
+console.log("\n[ب] «عدد المحطات اليومية المخطط» empty: no alert to Baraa, and still no discount");
+{
+  const env = fresh("2026-10-03 05:55"); sources(); tiers(0); publishedTomato("2026-10-03");
+  cost("السيارة والسائق (شامل)", "daily", 500, "2026-09-01");
+  const ownerLines = () => sentTo(OWNER).map((b: any) => String(b?.text?.body ?? b?.interactive?.body?.text ?? b?.template?.name ?? ""));
+  for (const t of ["05:55", "06:00", "06:05", "09:00", "12:00", "18:00"]) {
+    setRiyadh(`2026-10-03 ${t}`);
+    const tick: any = await quiet(() => PR.runPricesTick(env, Date.now()));
+    assert(`${t}: the prices tick has no «stops» step`, !("stops" in tick), JSON.stringify(Object.keys(tick)));
+  }
+  assert("no «المحطات» alert to Baraa all day", !ownerLines().some((x) => /عدد المحطات اليومية المخطط/.test(x)), JSON.stringify(ownerLines()));
+  assert("…and no KV key of it (pricing_stops*)", ![...env.MSG_DEDUP.store.keys()].some((k: string) => k.includes("pricing_stops")), [...env.MSG_DEDUP.store.keys()].join(","));
+  setRiyadh("2026-10-04 06:00");
+  await quiet(() => PR.runPricesTick(env, Date.now()));
+  assert("the next day neither", !ownerLines().some((x) => /عدد المحطات اليومية المخطط/.test(x)));
+  setRiyadh("2026-10-03 10:00");
+  const d = await quiet(() => OP.orderDiscount(env, { day: "2026-10-03", lines: [line(20)], vatRate: async () => 15 }));
+  assert("the discount stays off while the field is empty (600 in the 2 % tier)", !d.applied && d.tierPct === 2 && d.amount === 0 && /فارغ/.test(d.reason), JSON.stringify(d));
+  table("x_pricing_config").get(1)!.x_planned_stops = 10;
+  const d2 = await quiet(() => OP.orderDiscount(env, { day: "2026-10-03", lines: [line(20)], vatRate: async () => 15 }));
+  assert("filled (10): the discount comes back (10.43)", d2.applied && d2.amount === 10.43, JSON.stringify(d2));
+  const src = ["order-pricing.ts", "prices.ts", "index.ts"].map((f) => readFileSync(new URL(`../src/${f}`, import.meta.url), "utf8")).join("\n");
+  assert("no sender of it left in the code (checkPlannedStops, its text)", !/checkPlannedStops|STOPS_ALERT_TEXT|حتى يُعبَّأ/.test(src));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 

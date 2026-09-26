@@ -49,6 +49,10 @@ const MARKER_TTL = 12 * 60 * 60;
 export const marketAskText = (name: string): string =>
   `صباح الخير ${String(name || "").split(" ")[0]} 🌿 أرسل أسعار السوق اليوم لو سمحت: الصنف والتعبئة والسعر لكل صنف. ولو معك سعر شراء اكتب «شراء» جنب رقمه.`;
 export const marketAckText = (n: number): string => `وصلتنا أسعار السوق (${n} صنف) 🌿 الله يعطيك العافية.`;
+/** § 41 و (the live run) — the items whose offer Odoo did not take: named, to be sent again. */
+export const marketUnsavedText = (names: string[], none = false): string =>
+  none ? `⚠️ ما انحفظت أسعارك الآن (${names.join("، ")}). أرسلها مرة ثانية بعد دقيقة لو سمحت 🙏`
+    : `⚠️ ما انحفظ: ${names.join("، ")}. أرسله مرة ثانية لو سمحت 🙏`;
 
 // ---------------------------------------------------------------- «سوق» / «شراء» beside a number
 
@@ -415,6 +419,10 @@ export async function handleMarketReply(
   if (!check.kept.length) return null;
   const day = riyadhDateKey(new Date(nowMs));
   let saved = 0;
+  // § 41 و (the live run) — an offer Odoo refused (HTTP 429 after the retries)
+  // was dropped while the reply said «وصلتنا (3 صنف)»: Omar's avocado 60 on
+  // 09-27, so the market median was 62, not 61. It is named in the reply now.
+  const unsaved: string[] = [];
   for (const k of check.kept) {
     try {
       await saveOffer(env, {
@@ -424,9 +432,10 @@ export async function handleMarketReply(
       saved++;
     } catch (e) {
       console.error("[market-reply] offer write failed", (e as Error)?.message);
+      unsaved.push(String(products.find((p) => p.id === k.product_id)?.name ?? `#${k.product_id}`).replace(/^\[[^\]]*\]\s*/, ""));
     }
   }
-  if (!saved) return null;
+  if (!saved) return unsaved.length ? { saved, reply: marketUnsavedText(unsaved, true) } : null;
   if (check.dropped.length) console.log(`[market-reply] ${src.name}: dropped ${check.dropped.map((d) => `${d.item.product_id}:${d.reason}`).join(", ")}`);
   try {
     const { refreshPriceDay } = await import("./prices");
@@ -434,6 +443,7 @@ export async function handleMarketReply(
   } catch (e) {
     console.warn("[market-reply] prices refresh failed", (e as Error)?.message);
   }
+  if (unsaved.length) return { saved, reply: `${marketAckText(saved)}\n${marketUnsavedText(unsaved)}` };
   return { saved, reply: marketAckText(saved) };
 }
 

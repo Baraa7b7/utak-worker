@@ -37,6 +37,8 @@
 //       القالب», never «لا قالب مربوط» (Omar's 02:00 «بدء الدوام» was skipped).
 //   [حي] found by the live run: «خلاص» (a quotation word) or a reply word
 //       («تم») while the quotation waits for the location is not a district.
+//   [سوق] found by the live run: a market offer Odoo refused is named in the
+//       source's reply («ما انحفظ: افوكادو»), not counted as received.
 //   [سعر] found building [ج]: an order's lines are priced at the ORDER's day
 //       (the published price it was confirmed at), not the day the invoice is
 //       issued (delivery, the next morning, often before 06:00's list).
@@ -934,6 +936,43 @@ console.log("\n[حي] found by the live run: «خلاص» (or a reply word) whil
   claudeIntent = "other";
   await say(env, C1_PHONE, { type: "text", text: { body: "الملز" } });
   assert("then «الملز»: saved, the pending cleared", table("res.partner").get(C1)!.x_delivery_neighborhood === "الملز" && !env.MSG_DEDUP.store.get(`pending_neighborhood:${C1}`));
+}
+
+// ================================================================ [سوق]
+console.log("\n[سوق] found by the live run: an offer Odoo refused is named in the reply, not counted as received");
+{
+  const PS = await import("../src/price-sources.ts");
+  const omar = { partnerId: DRIVER, name: "عمر المجهلي" };
+  const item = (product: number, packaging: number, cost: number) =>
+    ({ product_id: product, packaging_id: packaging, cost_price: cost, market_price: null, available_qty: null, actual_weight_kg: null, notes: null });
+  const ask = async (at: string) => {
+    const env = fresh(at, { onAttendance: false }); sources();
+    openWindow(env, DRIVER_PHONE, 30);
+    await quiet(() => PS.runMarketAsk(env, Date.now(), 360));
+    extractOut = { prices: [item(1, 11, 24), item(2, 21, 30)], unrecognized: [] };   // fresh() cleared it
+    return env;
+  };
+  let env = await ask("2026-09-27 02:30");
+  setRiyadh("2026-09-27 02:45");
+  fail429["x_price_offer/create"] = 4;   // the first offer: the try and its 3 retries
+  const rep = await quiet(() => PS.tryMarketReply(env, omar, `+${DRIVER_PHONE}`, "طماطم 24\nخيار 30", "wamid.S1"));
+  const tname = String(table("product.template").get(1)!.name).replace(/^\[[^\]]*\]\s*/, "");
+  assert("one of two offers refused (429 after the retries): «وصلتنا (1 صنف)» and «ما انحفظ: <the item>»",
+    rep === `${PS.marketAckText(1)}\n${PS.marketUnsavedText([tname])}` && rows("x_price_offer").length === 1 && rows("x_price_offer")[0].x_product_tmpl_id === 2,
+    JSON.stringify({ rep, offers: rows("x_price_offer") }));
+  delete fail429["x_price_offer/create"];
+  env = await ask("2026-09-27 02:30");
+  setRiyadh("2026-09-27 02:45");
+  fail429["x_price_offer/create"] = 8;   // both
+  const none = await quiet(() => PS.tryMarketReply(env, omar, `+${DRIVER_PHONE}`, "طماطم 24\nخيار 30", "wamid.S2"));
+  assert("none saved: «ما انحفظت أسعارك … أرسلها مرة ثانية» (was: no reply, the message an ordinary one)",
+    none === PS.marketUnsavedText([tname, String(table("product.template").get(2)!.name).replace(/^\[[^\]]*\]\s*/, "")], true) && rows("x_price_offer").length === 0, String(none));
+  delete fail429["x_price_offer/create"];
+  env = await ask("2026-09-27 02:30");
+  setRiyadh("2026-09-27 02:45");
+  const all = await quiet(() => PS.tryMarketReply(env, omar, `+${DRIVER_PHONE}`, "طماطم 24\nخيار 30", "wamid.S3"));
+  assert("all saved: the reply as before", all === PS.marketAckText(2) && rows("x_price_offer").length === 2, String(all));
+  extractOut = { prices: [], unrecognized: [] };
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

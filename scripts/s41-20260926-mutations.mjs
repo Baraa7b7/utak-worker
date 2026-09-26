@@ -32,6 +32,7 @@ const SP = "src/supplier-pay.ts";
 const WI = "src/wa-inbox.ts";
 const WR = "src/wa-record.ts";
 const GW = "src/wa-gateway.ts";
+const PS = "src/price-sources.ts";
 
 // [part, name, [[file, find, replace], …], test file]
 const M = [
@@ -222,6 +223,12 @@ const M = [
     "  return !isQuotationTrigger(t) && !REPLY_WORDS.has(bare);", "  return !REPLY_WORDS.has(bare);"]], T],
   ["حي", "a reply word («تم») a neighborhood", [[IX,
     "  return !isQuotationTrigger(t) && !REPLY_WORDS.has(bare);", "  return !isQuotationTrigger(t);"]], T],
+  ["سوق", "a refused offer not named («وصلتنا» only)", [[PS,
+    "  if (unsaved.length) return { saved, reply: `${marketAckText(saved)}\\n${marketUnsavedText(unsaved)}` };\n", ""]], T],
+  ["سوق", "a refused offer not collected", [[PS,
+    "      unsaved.push(", "      void ("]], T],
+  ["سوق", "none saved: no reply (the message an ordinary one)", [[PS,
+    "  if (!saved) return unsaved.length ? { saved, reply: marketUnsavedText(unsaved, true) } : null;", "  if (!saved) return null;"]], T],
 ];
 
 const want = new Set(process.argv.slice(2));

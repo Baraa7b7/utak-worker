@@ -35,6 +35,8 @@
 //   [قالب] found by the live run (s41-live-1): the template lookup answered
 //       HTTP 429 → retried like every Odoo read; still failing → «تعذّر قراءة
 //       القالب», never «لا قالب مربوط» (Omar's 02:00 «بدء الدوام» was skipped).
+//   [حي] found by the live run: «خلاص» (a quotation word) or a reply word
+//       («تم») while the quotation waits for the location is not a district.
 //   [سعر] found building [ج]: an order's lines are priced at the ORDER's day
 //       (the published price it was confirmed at), not the day the invoice is
 //       issued (delivery, the next morning, often before 06:00's list).
@@ -907,6 +909,31 @@ const shiftTemplate = () => seed("x_whatsapp_template", {
   delete fail429["x_whatsapp_template/search_read"];
   const r2 = await quiet(() => sendViaGateway(env, { to: `+${DRIVER_PHONE}`, purpose: "team_shift_start", content: { kind: "template", purpose: "team_shift_start", params: ["عمر"] } } as any));
   assert("…and nothing cached from the failure: the next send finds the template", (gatewayDecision(r2) as any)?.action === "template", JSON.stringify(gatewayDecision(r2)));
+}
+
+// ================================================================ [حي]
+console.log("\n[حي] found by the live run: «خلاص» (or a reply word) while the quotation waits for the location is not the neighborhood");
+{
+  assert("isNeighborhoodText: «خلاص», «خلاص جهزه», «تم», «تمام 👍», «السلام عليكم» no; «الملز», «حي النرجس» yes",
+    !IX.isNeighborhoodText("خلاص") && !IX.isNeighborhoodText("خلاص جهزه") && !IX.isNeighborhoodText("تم") && !IX.isNeighborhoodText("تمام 👍")
+      && !IX.isNeighborhoodText("السلام عليكم") && IX.isNeighborhoodText("الملز") && IX.isNeighborhoodText("حي النرجس"));
+  const env = fresh("2026-09-27 10:00"); openWin(env, C1_PHONE); publishedTomato("2026-09-27");
+  const { ORDERING_OPEN_KEY } = await import("../src/config.ts");
+  env.MSG_DEDUP.store.set(ORDERING_OPEN_KEY("2026-09-27"), "true");
+  const o = seed("x_daily_order", { x_customer_id: C1, x_state: "draft", x_order_date: "2026-09-27", x_created_via: "whatsapp" });
+  seed("x_daily_order_line", { x_order_id: o, x_product_tmpl_id: 1, x_packaging_id: 11, x_quantity: 6, x_status: "pending" });
+  env.MSG_DEDUP.store.set(`pending_neighborhood:${C1}`, String(o));
+  claudeIntent = "request_quotation";
+  await say(env, C1_PHONE, { type: "text", text: { body: "خلاص" } });
+  const p = table("res.partner").get(C1)!;
+  assert("«خلاص» while the quotation waits for the location: not saved as the neighborhood (partner, order)",
+    p.x_delivery_neighborhood !== "خلاص" && table("x_daily_order").get(o)!.x_delivery_neighborhood !== "خلاص", String(p.x_delivery_neighborhood));
+  assert("…the location is asked again, the quotation still waits for it",
+    env.MSG_DEDUP.store.get(`pending_neighborhood:${C1}`) === String(o) && sentTo(C1_PHONE).some((b: any) => /أرسل موقعك من قوقل مابس/.test(JSON.stringify(b)))
+      && !sentTo(C1_PHONE).some((b: any) => /حفظنا الحي/.test(JSON.stringify(b))), JSON.stringify(sentTo(C1_PHONE).slice(-2)));
+  claudeIntent = "other";
+  await say(env, C1_PHONE, { type: "text", text: { body: "الملز" } });
+  assert("then «الملز»: saved, the pending cleared", table("res.partner").get(C1)!.x_delivery_neighborhood === "الملز" && !env.MSG_DEDUP.store.get(`pending_neighborhood:${C1}`));
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

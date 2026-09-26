@@ -206,7 +206,7 @@ const M = [
     "          if (!isSimRun(env)) try {\n            const { runTemplateSync }", "          if (true) try {\n            const { runTemplateSync }"]], T],
   // ---------------------------------------------------------------- موقع a pending location (found by the simulation)
   ["موقع", "a text with a number saved as the neighborhood (confirmed order)", [[IX,
-    "  return t.length >= 2 && t.length <= 60 && !hasDigits(t);", "  return t.length >= 2 && t.length <= 60;"]], T],
+    "  if (t.length < 2 || t.length > 60 || hasDigits(t)) return false;", "  if (t.length < 2 || t.length > 60) return false;"]], T],
   ["موقع", "a text with a number caught by the quotation's location wait", [[IX,
     "      if (msg.type === \"text\" && !hasDigits(msg.text)) {", "      if (msg.type === \"text\") {"]], T],
   // ---------------------------------------------------------------- قالب / حي / سوق (found by the live run)
@@ -218,6 +218,10 @@ const M = [
   ["قالب", "a failed lookup not told apart from «no mapping»", [[GW,
     "    if (!rows) return { ok: false, why: `تعذّر قراءة قالب الغرض ${lookup} من Odoo` };\n", ""], [GW,
     "    row = pickTemplate(rows, (name) => paramsFor(opt, name).length);\n    if (!row) {", "    row = rows ? pickTemplate(rows, (name) => paramsFor(opt, name).length) : null;\n    if (!row) {"]], T],
+  ["حي", "«خلاص» (a quotation word) a neighborhood", [[IX,
+    "  return !isQuotationTrigger(t) && !REPLY_WORDS.has(bare);", "  return !REPLY_WORDS.has(bare);"]], T],
+  ["حي", "a reply word («تم») a neighborhood", [[IX,
+    "  return !isQuotationTrigger(t) && !REPLY_WORDS.has(bare);", "  return !isQuotationTrigger(t);"]], T],
 ];
 
 const want = new Set(process.argv.slice(2));

@@ -68,6 +68,7 @@ import {
   type InjectInput,
 } from "./sim";
 import { parseAllowlist, runtimeMode, isSimRun } from "./config";
+import { isQuotationTrigger } from "./hours";
 import {
   classifySignatureFailure,
   handleSignatureFailure,
@@ -2872,8 +2873,17 @@ export async function handleCustomerMedia(
 export function hasDigits(text: string): boolean {
   return /[0-9\u0660-\u0669\u06F0-\u06F9]/.test(String(text ?? ""));
 }
-/** § 41 و — a text that can be a neighborhood name: 2–60 characters, no number. */
+/** § 41 و (the live run) — replies, never a district: «خلاص» typed while the
+ *  quotation waited for the location was saved as the neighborhood. */
+const REPLY_WORDS = new Set([
+  "تم", "تمام", "نعم", "ايوه", "أيوه", "ايوا", "اي", "لا", "اوكي", "اوك", "ok", "okay",
+  "الغاء", "إلغاء", "شكرا", "شكراً", "مشكور", "هلا", "مرحبا", "السلام عليكم", "وعليكم السلام",
+]);
+/** § 41 و — a text that can be a neighborhood name: 2–60 characters, no
+ *  number, not a quotation word («خلاص»، «جهزه») and not a reply word. */
 export function isNeighborhoodText(text: string): boolean {
   const t = String(text ?? "").trim();
-  return t.length >= 2 && t.length <= 60 && !hasDigits(t);
+  if (t.length < 2 || t.length > 60 || hasDigits(t)) return false;
+  const bare = t.replace(/[\p{P}\p{Extended_Pictographic}\s]+/gu, " ").trim().toLowerCase();
+  return !isQuotationTrigger(t) && !REPLY_WORDS.has(bare);
 }

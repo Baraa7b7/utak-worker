@@ -1,0 +1,116 @@
+{
+  "script": "scripts/s37-20260926-sim-cleanup.mts",
+  "createdAt": "2026-09-26T04:45:20.963Z",
+  "fields": {
+    "x_purchase_list": 20538,
+    "x_supplier_payment": 20540,
+    "x_supplier_due": 20542,
+    "x_supplier_due_line": 20544,
+    "x_wa_message": 20546
+  },
+  "computesBefore": {
+    "x_sp_due_total": {
+      "id": 20529,
+      "compute": "for record in self:\n    record['x_sp_due_total'] = round(sum(record.x_sp_due_ids.mapped('x_amount')), 2)",
+      "depends": "x_sp_due_ids.x_amount"
+    },
+    "x_sp_paid_total": {
+      "id": 20532,
+      "compute": "for record in self:\n    record['x_sp_paid_total'] = round(sum(record.x_sp_payment_ids.filtered(lambda p: p.x_state == 'approved').mapped('x_amount')), 2)",
+      "depends": "x_sp_payment_ids.x_amount,x_sp_payment_ids.x_state"
+    },
+    "x_sp_remaining": {
+      "id": 20535,
+      "compute": "for record in self:\n    due = sum(record.x_sp_due_ids.mapped('x_amount'))\n    paid = sum(record.x_sp_payment_ids.filtered(lambda p: p.x_state == 'approved').mapped('x_amount'))\n    record['x_sp_remaining'] = round(due - paid, 2)",
+      "depends": "x_sp_due_ids.x_amount,x_sp_payment_ids.x_amount,x_sp_payment_ids.x_state"
+    }
+  },
+  "o2mBefore": {
+    "x_sp_due_ids": {
+      "id": 20523,
+      "domain": "[]"
+    },
+    "x_sp_payment_ids": {
+      "id": 20526,
+      "domain": "[]"
+    }
+  },
+  "views": {
+    "paySearch": {
+      "id": 2846,
+      "arch_base": "<search string=\"دفعات الموردين\">\n  <field name=\"x_name\"/>\n  <field name=\"x_supplier_id\"/>\n  <filter name=\"f_pending\" string=\"بانتظار الاعتماد\" domain=\"[('x_state', '=', 'pending')]\"/>\n  <filter name=\"f_approved\" string=\"معتمدة\" domain=\"[('x_state', '=', 'approved')]\"/>\n  <filter name=\"f_rejected\" string=\"مرفوضة\" domain=\"[('x_state', '=', 'rejected')]\"/>\n  <filter name=\"f_overpaid\" string=\"رصيد دائن\" domain=\"[('x_overpaid', '=', True)]\"/>\n  <group>\n    <filter name=\"g_supplier\" string=\"المورد\" context=\"{'group_by': 'x_supplier_id'}\"/>\n    <filter name=\"g_state\" string=\"الحالة\" context=\"{'group_by': 'x_state'}\"/>\n  </group>\n</search>"
+    },
+    "payForm": {
+      "id": 2839,
+      "arch_base": "<form string=\"دفعة مورد\" duplicate=\"0\">\n  <header>\n    <button name=\"1015\" type=\"action\" string=\"اعتماد\" class=\"btn-primary\" invisible=\"x_state != 'pending'\" confirm=\"اعتماد هذه الدفعة؟ يُقفل السجل ويصل المورد إشعار.\"/>\n    <button name=\"1018\" type=\"action\" string=\"رفض\" invisible=\"x_state != 'pending'\" confirm=\"رفض هذه الدفعة؟ لازم «سبب الرفض» مكتوباً.\"/>\n    <field name=\"x_state\" widget=\"statusbar\" statusbar_visible=\"pending,approved,rejected\"/>\n  </header>\n  <sheet>\n    <div class=\"oe_title\"><h1><field name=\"x_name\" readonly=\"1\" placeholder=\"SP-…\"/></h1></div>\n    <div class=\"alert alert-warning\" role=\"alert\" invisible=\"not x_overpaid\">«رصيد دائن»: المدفوع المعتمد لهذا المورد أكبر من مستحقه.</div>\n    <group>\n      <group>\n        <field name=\"x_supplier_id\" readonly=\"id and x_state != 'pending'\" domain=\"[('supplier_rank', '&gt;', 0)]\" options=\"{'no_create': True}\"/>\n        <field name=\"x_amount\" readonly=\"id and x_state != 'pending'\"/>\n        <field name=\"x_method\" readonly=\"id and x_state != 'pending'\"/>\n        <field name=\"x_date\" readonly=\"id and x_state != 'pending'\"/>\n      </group>\n      <group>\n        <field name=\"x_recorded_by\" readonly=\"1\"/>\n        <field name=\"x_channel\" readonly=\"1\"/>\n        <field name=\"x_decided_by\" readonly=\"1\" invisible=\"not x_decided_by\"/>\n        <field name=\"x_decided_at\" readonly=\"1\" invisible=\"not x_decided_at\"/>\n        <field name=\"x_remaining_after\" readonly=\"1\" invisible=\"x_state != 'approved'\"/>\n        <field name=\"x_overpaid\" readonly=\"1\" invisible=\"not x_overpaid\"/>\n        <field name=\"x_supplier_notice\" readonly=\"1\" invisible=\"not x_supplier_notice\"/>\n        <field name=\"x_trial_tag\" readonly=\"1\" invisible=\"not x_trial_tag\"/>\n      </group>\n    </group>\n    <group>\n      <field name=\"x_receipt_filename\" invisible=\"1\"/>\n      <field name=\"x_receipt\" filename=\"x_receipt_filename\" readonly=\"id and x_state != 'pending'\"/>\n      <field name=\"x_note\" readonly=\"id and x_state != 'pending'\"/>\n      <field name=\"x_reject_reason\" readonly=\"x_state != 'pending'\" invisible=\"not id or x_state == 'approved'\" placeholder=\"مطلوب قبل «رفض»\"/>\n    </group>\n  </sheet>\n</form>"
+    },
+    "dueSearchCreated": 2851
+  },
+  "windows": {
+    "payments": {
+      "id": 1024,
+      "context": "{'search_default_f_pending': 1}"
+    },
+    "dues": {
+      "id": 1025,
+      "context": "{}",
+      "search_view_id": false
+    }
+  },
+  "marked": {
+    "odoo": {
+      "x_purchase_list": [
+        7
+      ],
+      "x_supplier_payment": [
+        1,
+        2,
+        3
+      ],
+      "x_supplier_due": [
+        1
+      ],
+      "x_supplier_due_line": [
+        1,
+        2,
+        3
+      ],
+      "x_wa_message": [
+        195,
+        196,
+        197,
+        198,
+        199,
+        200,
+        201
+      ]
+    },
+    "d1": {
+      "wa_status_log": [
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        58,
+        60,
+        61,
+        63,
+        66,
+        67,
+        68
+      ],
+      "sim_outbound": [
+        129,
+        130,
+        131,
+        132,
+        133
+      ]
+    }
+  }
+}

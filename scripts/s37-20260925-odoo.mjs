@@ -37,7 +37,9 @@ import { call } from "./lib/odoo-cli.mjs";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { SUPPLIER_PAYMENT_TEMPLATE } from "./s37-20260925-supplier-payment-template.mjs";
-import { CODE, DUE_TOTAL_COMPUTE, LOCK_WATCH, PAID_TOTAL_COMPUTE, REMAINING_COMPUTE, SEQ_CODE } from "./lib/s37-odoo-code.mjs";
+import {
+  CODE, DUE_TOTAL_COMPUTE, DUE_TOTAL_DEPENDS, LOCK_WATCH, PAID_TOTAL_COMPUTE, PAID_TOTAL_DEPENDS, REMAINING_COMPUTE, REMAINING_DEPENDS, SEQ_CODE,
+} from "./lib/s37-odoo-code.mjs";
 
 const APPLY = process.argv.includes("--apply");
 const VERIFY = process.argv.includes("--verify");
@@ -99,10 +101,11 @@ const PARTNER_O2M = [
   { name: "x_sp_due_ids", ttype: "one2many", relation: DUE, relation_field: "x_supplier_id", field_description: "المستحقات اليومية (دفع الموردين)" },
   { name: "x_sp_payment_ids", ttype: "one2many", relation: SP, relation_field: "x_supplier_id", field_description: "دفعات المورد" },
 ];
+// § 37 ج (2026-09-26): the computes leave x_utak_simulation out (scripts/s37-20260926-sim-cleanup.mts wrote them).
 const PARTNER_COMPUTES = [
-  { name: "x_sp_due_total", ttype: "float", field_description: "المستحق للمورد", compute: DUE_TOTAL_COMPUTE, depends: "x_sp_due_ids.x_amount", store: false, readonly: true },
-  { name: "x_sp_paid_total", ttype: "float", field_description: "المدفوع للمورد (المعتمد)", compute: PAID_TOTAL_COMPUTE, depends: "x_sp_payment_ids.x_amount,x_sp_payment_ids.x_state", store: false, readonly: true },
-  { name: "x_sp_remaining", ttype: "float", field_description: "المتبقي للمورد", compute: REMAINING_COMPUTE, depends: "x_sp_due_ids.x_amount,x_sp_payment_ids.x_amount,x_sp_payment_ids.x_state", store: false, readonly: true },
+  { name: "x_sp_due_total", ttype: "float", field_description: "المستحق للمورد", compute: DUE_TOTAL_COMPUTE, depends: DUE_TOTAL_DEPENDS, store: false, readonly: true },
+  { name: "x_sp_paid_total", ttype: "float", field_description: "المدفوع للمورد (المعتمد)", compute: PAID_TOTAL_COMPUTE, depends: PAID_TOTAL_DEPENDS, store: false, readonly: true },
+  { name: "x_sp_remaining", ttype: "float", field_description: "المتبقي للمورد", compute: REMAINING_COMPUTE, depends: REMAINING_DEPENDS, store: false, readonly: true },
 ];
 const VIEWS = {
   payForm: (a) => `<form string="دفعة مورد" duplicate="0">
@@ -305,7 +308,7 @@ class R:
         return self.__dict__[k]
 out = []
 for c in json.loads(sys.argv[1]):
-    rec = R(x_sp_due_ids=L([R(x_amount=a) for a in c['dues']]), x_sp_payment_ids=L([R(x_amount=a, x_state=s) for a, s in c['pays']]))
+    rec = R(x_sp_due_ids=L([R(x_amount=a, x_utak_simulation=False) for a in c['dues']]), x_sp_payment_ids=L([R(x_amount=a, x_state=s, x_utak_simulation=False) for a, s in c['pays']]))
     self = [rec]
 ${[dueCode, paidCode, remCode].map((code) => code.split("\n").map((l) => "    " + l).join("\n")).join("\n")}
     out.append([rec['x_sp_due_total'], rec['x_sp_paid_total'], rec['x_sp_remaining']])

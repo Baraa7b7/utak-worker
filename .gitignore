@@ -32,3 +32,7 @@ scripts/artifacts/brand-*.png
 # message texts. Regenerate with scripts/gw-20260925-scan.mjs; the committed
 # analysis is scripts/artifacts/gw-20260925-analysis.{md,json}.
 scripts/artifacts/gw-20260925-scan.json
+
+# 2026-09-26 (STATUS § 37 ج) — data backups before a cleanup (full Odoo / D1
+# rows, message texts, numbers). Never committed.
+backups/

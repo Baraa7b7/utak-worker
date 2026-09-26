@@ -31,6 +31,13 @@
 //
 // Nothing here creates account.move or account.payment: this is UTAK's own
 // ledger, not accounting (ACCOUNTING_SYNC stays out of it).
+//
+// § 37 ج (2026-09-26): a trial's record carries x_utak_simulation (SIM_FIELD)
+// on the list, the payment, the due and its line. It is counted nowhere — not
+// in a due, a paid, a remaining or a «رصيد دائن», not in the tick, not in
+// Omar's supplier picker — and a simulation payment's notice never goes: here
+// (settlePayment) and in the gateway itself, whoever sends it
+// (simulationPaymentRef). Never deleted.
 
 import type { Env } from "./config";
 import { isTestMode } from "./config";
@@ -55,6 +62,12 @@ export const SP_TEAM_PURPOSE = "team_sp_decision";
 export const SP_TEMPLATE = "utak_supplier_payment_sent";
 /** A payment the approve / create webhook did not settle is settled by the tick after this. */
 export const SETTLE_RETRY_AFTER_MS = 3 * 60_000;
+/** § 37 ج — «محاكاة (تجربة)»: a trial's list / payment / due / line, counted nowhere (not x_is_simulation, which every sim row has). */
+export const SIM_FIELD = "x_utak_simulation";
+/** The domain term every sum and list here carries. */
+const NOT_SIM: [string, string, boolean] = [SIM_FIELD, "!=", true];
+/** x_supplier_notice of a simulation payment. */
+export const SIM_NOTICE = "لا إشعار للمورد (محاكاة)";
 /** The tick recomputes the dues of confirmed lists this many days back. */
 export const DUE_DAYS_BACK = 3;
 /** A list confirmed less than this ago is left to the tap's own sync. */
@@ -200,6 +213,7 @@ interface ListRow {
   x_supplier_id: [number, string] | false;
   x_aggregated_items: string | false;
   x_ahmad_confirmed_at?: string | false;
+  x_utak_simulation?: boolean;
 }
 interface DueRow {
   id: number;
@@ -222,7 +236,7 @@ interface DueLineRow {
 }
 
 export interface DueSyncReport {
-  action: "not_found" | "not_confirmed" | "unchanged" | "synced";
+  action: "not_found" | "simulation" | "not_confirmed" | "unchanged" | "synced";
   listId: number;
   day?: string;
   dues?: Array<{ supplierId: number; amount: string; unpriced: number }>;
@@ -273,10 +287,15 @@ function tagged(tag: string | false | null | undefined, text: string): string {
  */
 export async function syncSupplierDues(env: Env, listId: number, opts: { force?: boolean } = {}): Promise<DueSyncReport> {
   const [list] = await call<ListRow[]>(env, "x_purchase_list", "read", {
-    ids: [listId], fields: ["id", "x_date", "x_status", "x_supplier_id", "x_aggregated_items"],
+    ids: [listId], fields: ["id", "x_date", "x_status", "x_supplier_id", "x_aggregated_items", SIM_FIELD],
   });
   if (!list) return { action: "not_found", listId };
   const day = String(list.x_date || "");
+  if (list.x_utak_simulation) {
+    // § 37 ج — a simulation list: no due is built or refreshed, no «بلا سعر» alert
+    console.log(`[supplier-pay] skip dues list=${listId} ${day} — simulation (${SIM_FIELD})`);
+    return { action: "simulation", listId, day };
+  }
   if (list.x_status !== "done") return { action: "not_confirmed", listId, day };
   const items = parseItems(list.x_aggregated_items);
   const prices = await readPricesFor(env, day, items);
@@ -387,13 +406,17 @@ export async function syncSupplierDues(env: Env, listId: number, opts: { force?:
 
 export interface Balance { dueH: number; paidH: number; remainingH: number }
 
-/** Due (all its daily dues) − approved paid. The same sums as the Odoo computes on res.partner. */
+/**
+ * Due (all its daily dues) − approved paid, simulation rows left out. The same
+ * sums as the Odoo computes on res.partner (scripts/lib/s37-odoo-code.mjs).
+ * Every «المتبقي» and «رصيد دائن» here comes from it.
+ */
 export async function supplierBalance(env: Env, supplierId: number): Promise<Balance> {
   const dues = await call<Array<{ x_amount: number }>>(env, DUE_MODEL, "search_read", {
-    domain: [["x_supplier_id", "=", supplierId]], fields: ["x_amount"], limit: 5000,
+    domain: [["x_supplier_id", "=", supplierId], NOT_SIM], fields: ["x_amount"], limit: 5000,
   });
   const paid = await call<Array<{ x_amount: number }>>(env, SP_MODEL, "search_read", {
-    domain: [["x_supplier_id", "=", supplierId], ["x_state", "=", "approved"]], fields: ["x_amount"], limit: 5000,
+    domain: [["x_supplier_id", "=", supplierId], ["x_state", "=", "approved"], NOT_SIM], fields: ["x_amount"], limit: 5000,
   });
   const dueH = dues.reduce((a, d) => a + halalas(d.x_amount), 0);
   const paidH = paid.reduce((a, p) => a + halalas(p.x_amount), 0);
@@ -405,7 +428,7 @@ export async function supplierBalance(env: Env, supplierId: number): Promise<Bal
 export const SP_FIELDS = [
   "id", "x_name", "x_supplier_id", "x_date", "x_amount", "x_method", "x_recorded_by", "x_channel", "x_state",
   "x_note", "x_reject_reason", "x_decided_by", "x_decided_at", "x_overpaid", "x_remaining_after", "x_supplier_notice",
-  "x_settled_at", "x_trial_tag", "x_source_wamid",
+  "x_settled_at", "x_trial_tag", "x_source_wamid", SIM_FIELD,
 ];
 export interface PaymentRow {
   id: number;
@@ -427,6 +450,7 @@ export interface PaymentRow {
   x_settled_at: string | false;
   x_trial_tag: string | false;
   x_source_wamid: string | false;
+  x_utak_simulation?: boolean;
 }
 
 const nowOdoo = (ms: number = Date.now()) => new Date(ms).toISOString().replace("T", " ").slice(0, 19);
@@ -442,6 +466,24 @@ export function supplierNoticeText(amountH: number, day: string, ref: string, re
 }
 export function supplierNoticeParams(amountH: number, day: string, ref: string, remainingH: number): string[] {
   return [money(amountH), arabicDate(day), ref, money(Math.max(0, remainingH))];
+}
+
+/** The payment references (SP-2026-0001 …) in a text or a template's parameters. */
+export function paymentRefsIn(s: string): string[] {
+  return [...new Set(String(s ?? "").match(/SP-\d{4}-\d{4,}/g) ?? [])];
+}
+
+/**
+ * § 37 ج — the gateway's check (src/wa-gateway.ts), whoever sends the notice:
+ * the first of these references that is a simulation payment, else null.
+ * Throws when Odoo cannot answer; the gateway then refuses the send.
+ */
+export async function simulationPaymentRef(env: Env, refs: string[]): Promise<string | null> {
+  if (!refs.length) return null;
+  const rows = await call<Array<{ x_name: string | false }>>(env, SP_MODEL, "search_read", {
+    domain: [["x_name", "in", refs], [SIM_FIELD, "=", true]], fields: ["x_name"], limit: refs.length,
+  });
+  return rows[0] ? String(rows[0].x_name) : null;
 }
 
 export interface TeamPaymentInput {
@@ -497,7 +539,7 @@ export async function createTeamPayment(env: Env, input: TeamPaymentInput): Prom
 }
 
 export interface SettleReport {
-  action: "not_found" | "pending" | "already" | "approved" | "rejected";
+  action: "not_found" | "pending" | "already" | "simulation" | "approved" | "rejected";
   id: number;
   ref?: string;
   remaining?: string;
@@ -529,6 +571,8 @@ async function supplierNumber(env: Env, supplierId: number): Promise<string> {
  *   approved → the balance after it (x_remaining_after, «رصيد دائن» + alert
  *              when negative), the supplier's notice, and — for Omar's — his line;
  *   rejected → Omar's line with the reason. No notice to the supplier.
+ *   simulation (§ 37 ج) → nothing goes out: no notice (text or template), no
+ *              line, no alert; only settled, with the skip in the log.
  */
 export async function settlePayment(env: Env, id: number, opts: { ctx?: ExecutionContext; now?: number } = {}): Promise<SettleReport> {
   const now = opts.now ?? Date.now();
@@ -536,6 +580,12 @@ export async function settlePayment(env: Env, id: number, opts: { ctx?: Executio
   if (!p) return { action: "not_found", id };
   if (p.x_state !== "approved" && p.x_state !== "rejected") return { action: "pending", id, ref: String(p.x_name || "") };
   if (p.x_settled_at) return { action: "already", id, ref: String(p.x_name || "") };
+  if (p.x_utak_simulation) {
+    const ref = String(p.x_name || `#${id}`);
+    console.warn(`[supplier-pay] skip ${ref} — simulation (${SIM_FIELD}): no notice, no ${SP_TEMPLATE}, no line, no alert`);
+    await call(env, SP_MODEL, "write", { ids: [id], vals: { x_settled_at: nowOdoo(now), x_supplier_notice: SIM_NOTICE } });
+    return { action: "simulation", id, ref, notice: SIM_NOTICE };
+  }
   const claim = await claimButton(env, `sp_settle:${id}`, 30 * 24 * 3600);
   if (!claim.claimed) return { action: "already", id, ref: String(p.x_name || "") };
   const penv = { ...env, AUTO_SEND_JOB: undefined } as Env;
@@ -627,11 +677,11 @@ export async function onPaymentHook(env: Env, id: number, opts: { ctx?: Executio
   return r;
 }
 
-/** Every confirmed list of the last days: its dues (a price that arrived later). */
+/** Every confirmed list of the last days (a simulation list aside): its dues (a price that arrived later). */
 export async function syncRecentDues(env: Env, now: number = Date.now(), opts: { force?: boolean; daysBack?: number } = {}): Promise<DueSyncReport[]> {
   const since = riyadhDateKey(new Date(now - (opts.daysBack ?? DUE_DAYS_BACK) * 24 * 3600_000));
   const lists = await call<ListRow[]>(env, "x_purchase_list", "search_read", {
-    domain: [["x_status", "=", "done"], ["x_date", ">=", since]],
+    domain: [["x_status", "=", "done"], ["x_date", ">=", since], NOT_SIM],
     fields: ["id", "x_ahmad_confirmed_at"], order: "id asc", limit: 30,
   });
   const out: DueSyncReport[] = [];
@@ -648,7 +698,7 @@ export interface SupplierPayTick {
   settled?: SettleReport[] | { error: string };
 }
 
-/** The every-5-minutes tick: the dues of recent confirmed lists, and a decided payment whose webhook was lost. */
+/** The every-5-minutes tick: the dues of recent confirmed lists, and a decided payment whose webhook was lost (never a simulation one). */
 export async function runSupplierPayTick(env: Env, now: number = Date.now(), ctx?: ExecutionContext): Promise<SupplierPayTick> {
   const out: SupplierPayTick = {};
   try {
@@ -659,7 +709,7 @@ export async function runSupplierPayTick(env: Env, now: number = Date.now(), ctx
   try {
     const rows = await call<Array<{ id: number }>>(env, SP_MODEL, "search_read", {
       domain: [["x_state", "in", ["approved", "rejected"]], ["x_settled_at", "=", false],
-        ["x_decided_at", "<=", nowOdoo(now - SETTLE_RETRY_AFTER_MS)], ["x_decided_at", ">=", nowOdoo(now - DUE_DAYS_BACK * 24 * 3600_000)]],
+        ["x_decided_at", "<=", nowOdoo(now - SETTLE_RETRY_AFTER_MS)], ["x_decided_at", ">=", nowOdoo(now - DUE_DAYS_BACK * 24 * 3600_000)], NOT_SIM],
       fields: ["id"], order: "id asc", limit: 20,
     });
     const settled: SettleReport[] = [];
@@ -731,11 +781,11 @@ export function startButton(): { id: string; title: string } {
   return { id: SP_START, title: SP_START_TITLE };
 }
 
-/** The suppliers of today's purchase list(s): lists sent or confirmed in the last 36 hours. */
+/** The suppliers of today's purchase list(s): lists sent or confirmed in the last 36 hours (not a simulation list). */
 export async function todaysSuppliers(env: Env, now: number = Date.now()): Promise<Array<{ id: number; name: string }>> {
   const since = riyadhDateKey(new Date(now - 36 * 3600_000));
   const lists = await call<ListRow[]>(env, "x_purchase_list", "search_read", {
-    domain: [["x_status", "in", ["sent", "done"]], ["x_date", ">=", since]],
+    domain: [["x_status", "in", ["sent", "done"]], ["x_date", ">=", since], NOT_SIM],
     fields: ["id", "x_supplier_id", "x_aggregated_items"], order: "id desc", limit: 5,
   });
   const ids: number[] = [];

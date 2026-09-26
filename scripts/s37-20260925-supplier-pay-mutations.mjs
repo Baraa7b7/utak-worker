@@ -1,4 +1,5 @@
-// Mutation check for STATUS § 37 ب (supplier payments): each mutation
+// Mutation check for STATUS § 37 ب (supplier payments) and § 37 ج (simulation
+// records, 2026-09-26): each mutation
 // disables ONE mechanism, runs tests/supplier-pay.test.mts, and must make it
 // fail. The source is restored in `finally` after every run; a pattern that
 // is not found exactly once stops the script.
@@ -14,6 +15,7 @@ const root = new URL("../", import.meta.url).pathname;
 const T = "tests/supplier-pay.test.mts";
 const SP = "src/supplier-pay.ts";
 const OC = "scripts/lib/s37-odoo-code.mjs";
+const GW = "src/wa-gateway.ts";
 
 // [name, [[file, find, replace], …], test file]
 const M = [
@@ -44,8 +46,8 @@ const M = [
     "    await syncSupplierDues(env, listId);\n", ""]], T],
   // ---- the balance and the payment
   ["pending payments counted as paid", [[SP,
-    "    domain: [[\"x_supplier_id\", \"=\", supplierId], [\"x_state\", \"=\", \"approved\"]], fields: [\"x_amount\"], limit: 5000,",
-    "    domain: [[\"x_supplier_id\", \"=\", supplierId], [\"x_state\", \"in\", [\"approved\", \"pending\"]]], fields: [\"x_amount\"], limit: 5000,"]], T],
+    "    domain: [[\"x_supplier_id\", \"=\", supplierId], [\"x_state\", \"=\", \"approved\"], NOT_SIM], fields: [\"x_amount\"], limit: 5000,",
+    "    domain: [[\"x_supplier_id\", \"=\", supplierId], [\"x_state\", \"in\", [\"approved\", \"pending\"]], NOT_SIM], fields: [\"x_amount\"], limit: 5000,"]], T],
   ["an overpayment not marked «رصيد دائن»", [[SP,
     "    const overpaid = bal.remainingH < 0;", "    const overpaid = false;"]], T],
   ["the supplier sees a negative remaining", [[SP,
@@ -53,9 +55,10 @@ const M = [
   ["a pending payment is settled (notice before the approval)", [[SP,
     "  if (p.x_state !== \"approved\" && p.x_state !== \"rejected\") return { action: \"pending\", id, ref: String(p.x_name || \"\") };",
     "  if (false) return { action: \"pending\", id, ref: String(p.x_name || \"\") };"]], T],
-  ["settled twice (no x_settled_at, no claim)", [[SP,
-    "  if (p.x_settled_at) return { action: \"already\", id, ref: String(p.x_name || \"\") };\n  const claim = await claimButton(env, `sp_settle:${id}`, 30 * 24 * 3600);\n  if (!claim.claimed) return",
-    "  const claim = await claimButton(env, `sp_settle:${id}:${Math.random()}`, 30 * 24 * 3600);\n  if (!claim.claimed) return"]], T],
+  ["settled twice (no x_settled_at, no claim)", [
+    [SP, "  if (p.x_settled_at) return { action: \"already\", id, ref: String(p.x_name || \"\") };\n", ""],
+    [SP, "  const claim = await claimButton(env, `sp_settle:${id}`, 30 * 24 * 3600);\n  if (!claim.claimed) return",
+      "  const claim = await claimButton(env, `sp_settle:${id}:${Math.random()}`, 30 * 24 * 3600);\n  if (!claim.claimed) return"]], T],
   ["a rejected payment notifies the supplier", [[SP,
     "    if (p.x_state === \"rejected\") {", "    if (false) {"]], T],
   ["the member not told of a rejection", [[SP,
@@ -120,6 +123,28 @@ const M = [
   // ---- no accounting
   ["the dues read account.move", [[SP,
     "  const prices = await readPricesFor(env, day, items);", "  const prices = await readPricesFor(env, day, items);\n  await call(env, \"account.move\", \"search_count\", { domain: [] });"]], T],
+  // ---- § 37 ج (2026-09-26): simulation records (x_utak_simulation)
+  ["a simulation due / payment counted in the balance", [
+    [SP, "    domain: [[\"x_supplier_id\", \"=\", supplierId], NOT_SIM], fields: [\"x_amount\"], limit: 5000,", "    domain: [[\"x_supplier_id\", \"=\", supplierId]], fields: [\"x_amount\"], limit: 5000,"],
+    [SP, "[\"x_state\", \"=\", \"approved\"], NOT_SIM], fields", "[\"x_state\", \"=\", \"approved\"]], fields"]], T],
+  ["a simulation list builds dues and alerts", [[SP,
+    "  if (list.x_utak_simulation) {\n    // § 37 ج", "  if (false) {\n    // § 37 ج"]], T],
+  ["the tick / refresh takes a simulation list", [[SP,
+    "[\"x_status\", \"=\", \"done\"], [\"x_date\", \">=\", since], NOT_SIM]", "[\"x_status\", \"=\", \"done\"], [\"x_date\", \">=\", since]]"]], T],
+  ["Omar's picker offers a simulation list's supplier", [[SP,
+    "[\"x_status\", \"in\", [\"sent\", \"done\"]], [\"x_date\", \">=\", since], NOT_SIM]", "[\"x_status\", \"in\", [\"sent\", \"done\"]], [\"x_date\", \">=\", since]]"]], T],
+  ["a simulation payment settled like a real one", [[SP,
+    "  if (p.x_utak_simulation) {\n    const ref", "  if (false) {\n    const ref"]], T],
+  ["the gateway lets a simulation notice through", [[GW,
+    "  if (simulation) {", "  if (false && simulation) {"]], T],
+  ["the gateway fails open when Odoo cannot say", [[GW,
+    "    return `تعذّر التحقق من أن ${refs.join(\"، \")} ليست دفعة محاكاة: ${(e as Error)?.message ?? e}`;", "    return null;"]], T],
+  ["the gateway checks only the purpose (not the template by row)", [[GW,
+    " || options.some((o) =>\n    o.kind === \"template\" && (o.purpose === SP_NOTICE_PURPOSE || o.row?.x_meta_template_id === SP_NOTICE_TEMPLATE));", ";"]], T],
+  ["Odoo's due compute counts a simulation due", [[OC,
+    "    record['x_sp_due_total'] = round(sum(record.x_sp_due_ids.filtered(lambda d: not d.${SIM_FIELD}).mapped('x_amount')), 2)", "    record['x_sp_due_total'] = round(sum(record.x_sp_due_ids.mapped('x_amount')), 2)"]], T],
+  ["Odoo's remaining compute counts a simulation payment", [[OC,
+    "    paid = sum(record.x_sp_payment_ids.filtered(lambda p: p.x_state == 'approved' and not p.${SIM_FIELD}).mapped('x_amount'))\n    record['x_sp_remaining']", "    paid = sum(record.x_sp_payment_ids.filtered(lambda p: p.x_state == 'approved').mapped('x_amount'))\n    record['x_sp_remaining']"]], T],
 ];
 
 const results = [];

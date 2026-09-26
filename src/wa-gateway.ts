@@ -12,6 +12,9 @@
 //   1. runtime sanity, the owner guard and the recipient allowlist (on sim /
 //      pilot: SIM_ALLOWLIST, then the partner's x_wa_allowed — § 27). A
 //      refused recipient is never held.
+//      § 37 ج — the supplier-payment notice (its purpose, or its template by
+//      purpose or by row) naming a payment marked x_utak_simulation is refused
+//      here, whoever sends it (settle, a held flush, a manual send from Odoo).
 //   2. a purpose Meta refused for this number in the last 24h (any refusal but
 //      131047 / 131049) is not retried automatically (manual sends excepted).
 //   3. the window decision, over the content and then each fallback in order:
@@ -347,6 +350,33 @@ async function resolveTemplate(env: Env, purpose: string, opt: GwTemplate, to: s
   return { ok: true, name, lookup: opt.row ? undefined : opt.purpose ?? purpose, body: buildTemplateBody(opt, name, row.x_language || "ar") };
 }
 
+const SP_NOTICE_PURPOSE = "supplier_payment_sent";
+const SP_NOTICE_TEMPLATE = "utak_supplier_payment_sent";
+
+/**
+ * § 37 ج — the reason a supplier-payment notice must not go: it names a
+ * payment marked x_utak_simulation (its reference in the text or in the
+ * template's parameters), or Odoo cannot say whether it does. Null for any
+ * other request (no Odoo read).
+ */
+async function simulationPaymentNotice(env: Env, req: GatewayRequest): Promise<string | null> {
+  const options: GwOption[] = [req.content, ...(req.fallback ?? [])];
+  const isNotice = req.purpose === SP_NOTICE_PURPOSE || options.some((o) =>
+    o.kind === "template" && (o.purpose === SP_NOTICE_PURPOSE || o.row?.x_meta_template_id === SP_NOTICE_TEMPLATE));
+  if (!isNotice) return null;
+  const { paymentRefsIn, simulationPaymentRef } = await import("./supplier-pay");
+  const refs = paymentRefsIn(options.map((o) => {
+    if (o.kind === "session") return JSON.stringify(o.body);
+    try { return paramsFor(o, SP_NOTICE_TEMPLATE).join(" "); } catch { return ""; }
+  }).join(" "));
+  try {
+    const ref = await simulationPaymentRef(env, refs);
+    return ref ? `دفعة محاكاة ${ref} (x_utak_simulation): لا إشعار للمورد ولا القالب ${SP_NOTICE_TEMPLATE}` : null;
+  } catch (e) {
+    return `تعذّر التحقق من أن ${refs.join("، ")} ليست دفعة محاكاة: ${(e as Error)?.message ?? e}`;
+  }
+}
+
 // ------------------------------------------------------------------ the gateway
 
 export async function sendViaGateway(env: Env, req: GatewayRequest): Promise<Response> {
@@ -385,6 +415,13 @@ export async function sendViaGateway(env: Env, req: GatewayRequest): Promise<Res
   if (!policy) {
     console.error(`[gateway] unknown purpose '${req.purpose}' — code bug, nothing sent`);
     return refused(`unknown purpose ${req.purpose}`, "UnknownPurpose", 400);
+  }
+
+  // ---- § 37 ج: a simulation supplier payment's notice never goes ----
+  const simulation = await simulationPaymentNotice(env, req);
+  if (simulation) {
+    console.warn(`[gateway] skip purpose=${req.purpose} to=${maskPhone(to)} — ${simulation}`);
+    return refused(simulation, "SimulationPayment", 409);
   }
 
   // ---- a purpose Meta refused for this number (not 131047 / 131049): 24h ----

@@ -26,6 +26,12 @@
 //   [7] no account.move and no account.payment, anywhere.
 //   [8] the hook (401 / 400 / 202) and the tick (a lost webhook, the dues).
 //   [9] schema: every Odoo write names real fields and values (§ 37 fixture).
+//  [10] § 37 ج — a simulation record (x_utak_simulation): out of the dues, the
+//       balance, «رصيد دائن», the tick and Omar's picker (the worker and the
+//       Odoo computes alike); a simulation payment's notice never goes — not
+//       from settle, not through the gateway (its purpose, its template by
+//       purpose or by row, a held flush), and Odoo unreachable refuses it;
+//       a normal payment beside them is counted and notified as before.
 //
 // In-memory Odoo + captured Graph (tests/wa-harness.mts). No network, no send.
 //
@@ -50,7 +56,7 @@ const load = (f: string) => JSON.parse(readFileSync(new URL(f, import.meta.url),
 const FX = [
   "./fixtures-odoo-fields-20260924.json", "./fixtures-odoo-fields-20260925-review.json", "./fixtures-odoo-fields-20260925-gateway.json",
   "./fixtures-odoo-fields-20260925-team.json", "./fixtures-odoo-fields-20260925-opener.json", "./fixtures-odoo-fields-20260925-prices.json",
-  "./fixtures-odoo-fields-20260925-s36.json", "./fixtures-odoo-fields-20260925-s37.json",
+  "./fixtures-odoo-fields-20260925-s36.json", "./fixtures-odoo-fields-20260925-s37.json", "./fixtures-odoo-fields-20260926-s37-sim.json",
 ].map(load);
 const REAL: Record<string, string[]> = Object.assign({}, ...FX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FX.map((f) => f._selections));
@@ -65,8 +71,13 @@ function known(model: string, name: string): boolean {
 const MEDIA_ID = "MEDIA-RECEIPT-1";
 const MEDIA_BYTES = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x01, 0x02, 0xff, 0xd9]);
 const harnessFetch = globalThis.fetch;
+/** § 37 ج — Odoo refuses reading the payments (the gateway's check must then refuse the notice). */
+let failSpRead = false;
 globalThis.fetch = (async (input: unknown, init?: any) => {
   const url = typeof input === "string" ? input : (input as any)?.url ?? String(input);
+  if (failSpRead && url.includes("/json/2/x_supplier_payment/search_read")) {
+    return new Response(JSON.stringify({ name: "odoo.exceptions.AccessError", message: "unreachable" }), { status: 403 });
+  }
   // the receipt photo at Meta (GET the media, then its bytes)
   if (url.includes("graph.facebook.com") && url.endsWith(`/${MEDIA_ID}`)) {
     return new Response(JSON.stringify({ url: "https://media.test/receipt", mime_type: "image/jpeg", file_size: MEDIA_BYTES.length }), { status: 200 });
@@ -593,6 +604,145 @@ console.log("\n[8] the hook (401 / 400 / 202) and the tick");
   assert("op=refresh → 202 (the dues of the last 7 days)", await hook("token=HOOKTOKEN&op=refresh", { _model: "res.partner", _id: SUP }) === 202);
   const r = await quiet(() => onPaymentHook(ENV, 99999, { waitMs: 1 }));
   assert("a payment Odoo has not committed yet: read again, then «not_found»", r.action === "not_found");
+}
+
+// ================================================================ 10. § 37 ج — simulation records
+console.log("\n[10] § 37 ج: a simulation record counts nowhere, and its notice never goes");
+{
+  const SIM = SPM.SIM_FIELD;
+  const { sendViaGateway, gatewayDecision, flushHeld } = await import("../src/wa-gateway.ts");
+  const { textContent } = await import("../src/meta.ts");
+  const { sendOwnerAlert } = await import("../src/templates.ts");
+  /** Run with the console captured (the skip lines), not printed. */
+  const logged = async <T,>(fn: () => Promise<T>): Promise<{ r: T; lines: string[] }> => {
+    const lines: string[] = [];
+    const real = { log: console.log, warn: console.warn, error: console.error };
+    console.log = console.warn = console.error = (...a: unknown[]) => { lines.push(a.map(String).join(" ")); };
+    try { return { r: await fn(), lines }; } finally { Object.assign(console, real); }
+  };
+  const spReads = () => odooLog.filter((l) => l.model === "x_supplier_payment" && l.method === "search_read").length;
+
+  // (1) out of the dues, the balance and «رصيد دائن»
+  ENV = fresh();
+  standardPrices(); price(SUP, 3, 31, 12);
+  const realList = confirmedList();
+  await quiet(() => syncSupplierDues(ENV, realList)); // SUP 216.00, SUP2 50.00
+  const simList = confirmedList({ [SIM]: true });
+  const alerts0 = ownerAlerts().length;
+  const s1 = await logged(() => syncSupplierDues(ENV, simList));
+  assert("a simulation list: no due built, no «بلا سعر» alert, the skip in the log",
+    s1.r.action === "simulation" && !dues().some((d) => d.x_purchase_list_id === simList) && ownerAlerts().length === alerts0
+      && s1.lines.some((l) => l.includes(`skip dues list=${simList}`) && l.includes(SIM)), JSON.stringify(s1));
+  const tick = await quiet(() => syncRecentDues(ENV, Date.now(), { force: true }));
+  assert("…the tick and «🔄 إعادة حساب المستحقات» leave it out, the real list is still synced", !tick.some((x) => x.listId === simList) && tick.some((x) => x.listId === realList));
+  // the trial's leftovers, marked afterwards: a due of 168 and an approved 150 on SUP, an overpaying 500 on SUP2
+  seed("x_supplier_due", { x_supplier_id: SUP, x_purchase_list_id: simList, x_date: DAY, x_amount: 168, x_unpriced_count: 1, [SIM]: true });
+  const simPaid = payment({ x_supplier_id: SUP, x_amount: 150, [SIM]: true });
+  payment({ x_supplier_id: SUP2, x_amount: 500, [SIM]: true });
+  const b1 = await supplierBalance(ENV, SUP);
+  assert("the balance leaves the simulation due (168) and payment (150) out: due 216.00, paid 0, remaining 216.00", b1.dueH === 21600 && b1.paidH === 0 && b1.remainingH === 21600, JSON.stringify(b1));
+  const b2 = await supplierBalance(ENV, SUP2);
+  assert("…a simulation overpayment is no «رصيد دائن» (SUP2: due 50.00, paid 0, remaining 50.00)", b2.dueH === 5000 && b2.paidH === 0 && b2.remainingH === 5000, JSON.stringify(b2));
+  const py = `
+import json, sys
+class L(list):
+    def mapped(self, f):
+        return [getattr(x, f) for x in self]
+    def filtered(self, fn):
+        return L([x for x in self if fn(x)])
+class R:
+    def __init__(self, **kw):
+        self.__dict__.update(kw)
+    def __setitem__(self, k, v):
+        self.__dict__[k] = v
+    def __getitem__(self, k):
+        return self.__dict__[k]
+code, dues, pays = json.loads(sys.argv[1])
+rec = R(x_sp_due_ids=L([R(**d) for d in dues]), x_sp_payment_ids=L([R(**p) for p in pays]))
+for c in code:
+    exec(c, {'self': [rec]})
+print(json.dumps([rec['x_sp_due_total'], rec['x_sp_paid_total'], rec['x_sp_remaining']]))
+`;
+  const only = (r: any, keys: string[]) => Object.fromEntries(keys.map((k) => [k, r[k] ?? false]));
+  const supDues = dues().filter((d) => d.x_supplier_id === SUP).map((d) => only(d, ["x_amount", SIM]));
+  const supPays = payments().filter((p) => p.x_supplier_id === SUP).map((p) => only(p, ["x_amount", "x_state", SIM]));
+  const odooSums = JSON.parse(execFileSync("python3", ["-c", py, JSON.stringify([[ODOO_CODE.DUE_TOTAL_COMPUTE, ODOO_CODE.PAID_TOTAL_COMPUTE, ODOO_CODE.REMAINING_COMPUTE], supDues, supPays])], { encoding: "utf8" }));
+  assert("Odoo's computes (python3, the same rows): 216 / 0 / 216 — the worker's sums", JSON.stringify(odooSums) === JSON.stringify([216, 0, 216]), JSON.stringify(odooSums));
+  assert("…and they depend on the flag (a mark recomputes them)", [ODOO_CODE.DUE_TOTAL_DEPENDS, ODOO_CODE.PAID_TOTAL_DEPENDS, ODOO_CODE.REMAINING_DEPENDS].every((d) => d.includes(SIM)) && ODOO_CODE.SP_O2M_DOMAIN.includes(SIM));
+  seed("res.partner", { id: 777, name: "مورد تجربة", supplier_rank: 1 });
+  seed("x_purchase_list", { x_date: DAY, x_status: "done", [SIM]: true, x_aggregated_items: JSON.stringify([{ product_id: 1, product_name: "طماطم", packaging_id: 11, packaging_name: "كرتون", total_quantity: 1, price_supplier_id: 777 }]) });
+  const today = await SPM.todaysSuppliers(ENV);
+  assert("Omar's picker: a supplier only on a simulation list is not «today's»", !today.some((s) => s.id === 777) && today.some((s) => s.id === SUP));
+
+  // (2) a simulation payment never reaches utak_supplier_payment_sent
+  tplRow("APPROVED", "UTILITY"); // outside his window, the template would go
+  const g0 = graph.length, a0 = ownerAlerts().length;
+  const s2 = await logged(() => settlePayment(ENV, simPaid));
+  const simRow = table("x_supplier_payment").get(simPaid) as any;
+  assert("a simulation payment, approved, outside the window with the template APPROVED / UTILITY: nothing to Meta, nothing held, no alert",
+    s2.r.action === "simulation" && graph.length === g0 && heldFor(ENV, SUP_PHONE).length === 0 && ownerAlerts().length === a0, JSON.stringify(s2.r));
+  assert("…settled «لا إشعار للمورد (محاكاة)», and the skip in the log naming the template",
+    !!simRow.x_settled_at && simRow.x_supplier_notice === SPM.SIM_NOTICE && s2.lines.some((l) => l.includes(`[supplier-pay] skip ${simRow.x_name}`) && l.includes("utak_supplier_payment_sent")), s2.lines.join(" | "));
+  const simOmar = payment({ x_supplier_id: SUP, x_amount: 40, x_channel: "whatsapp", x_method: "cash", x_recorded_by: WH, [SIM]: true });
+  decide(simOmar, "approved");
+  openWindow(ENV, SUP_PHONE, 5); openWindow(ENV, WH_PHONE, 5);
+  await quiet(() => settlePayment(ENV, simOmar));
+  assert("…Omar's simulation payment, inside both windows: no text to the supplier, no line to Omar", sentTo(SUP_PHONE).length === 0 && sentTo(WH_PHONE).length === 0);
+  ENV.MSG_DEDUP.store.delete(`wa_win:v1:${SUP_PHONE}`);
+  // the gateway itself, whoever sends
+  const simRef = String(simRow.x_name);
+  const params = SPM.supplierNoticeParams(15000, DAY, simRef, 0);
+  const g1 = graph.length;
+  const direct = await logged(() => sendViaGateway(ENV, {
+    purpose: "supplier_payment_sent", to: SUP_PHONE,
+    content: textContent(supplierNoticeText(15000, DAY, simRef, 0)),
+    fallback: [{ kind: "template", purpose: "supplier_payment_sent", params }],
+  }));
+  assert("the gateway: its notice (text, the template as fallback) naming a simulation payment → refused, nothing sent, the skip in the log",
+    gatewayDecision(direct.r)?.action === "refused" && graph.length === g1 && heldFor(ENV, SUP_PHONE).length === 0
+      && direct.lines.some((l) => l.includes("[gateway] skip purpose=supplier_payment_sent") && l.includes(simRef)), direct.lines.join(" | "));
+  const manual = await quiet(() => sendViaGateway(ENV, {
+    purpose: "wa_message_manual", to: SUP_PHONE, manual: true,
+    content: { kind: "template", row: { id: 1, x_meta_template_id: "utak_supplier_payment_sent", x_language: "ar", x_meta_status: "APPROVED", x_category: "UTILITY", x_param_count: 4 } as any, params },
+  }));
+  assert("…a manual send from Odoo of utak_supplier_payment_sent with that reference → refused", gatewayDecision(manual)?.action === "refused" && graph.length === g1);
+  // a notice held before its payment was marked: the flush refuses it
+  const late = payment({ x_supplier_id: SUP, x_amount: 60 });
+  const lateRef = String(table("x_supplier_payment").get(late)?.x_name);
+  await quiet(() => sendViaGateway(ENV, { purpose: "supplier_payment_sent", to: SUP_PHONE, content: textContent(supplierNoticeText(6000, DAY, lateRef, 0)) }));
+  assert("…(a real payment's notice outside the window is held, as before)", heldFor(ENV, SUP_PHONE).length === 1);
+  (table("x_supplier_payment").get(late) as any)[SIM] = true; // marked afterwards, as the cleanup did
+  openWindow(ENV, SUP_PHONE, 0);
+  const g2 = graph.length;
+  const fl = await quiet(() => flushHeld(ENV, SUP_PHONE, { open: true } as any));
+  assert("…held, then marked: at the supplier's next message the flush refuses it — not sent, its row «skipped» with the reason",
+    graph.length === g2 && fl.sent === 0 && fl.dropped === 1
+      && (rows("x_wa_message") as any[]).some((w) => w.x_status === "skipped" && String(w.x_meta_error).includes(`دفعة محاكاة ${lateRef}`)), JSON.stringify(fl));
+  ENV.MSG_DEDUP.store.delete(`wa_win:v1:${SUP_PHONE}`);
+  // Odoo cannot say: refused (a trial amount must not reach a real supplier)
+  failSpRead = true;
+  const down = await quiet(() => sendViaGateway(ENV, { purpose: "supplier_payment_sent", to: SUP_PHONE, content: textContent("x"), fallback: [{ kind: "template", purpose: "supplier_payment_sent", params: SPM.supplierNoticeParams(100, DAY, "SP-2026-0099", 0) }] }));
+  failSpRead = false;
+  assert("…Odoo unreachable for the check → refused, nothing sent", gatewayDecision(down)?.action === "refused" && String((gatewayDecision(down) as any)?.reason).includes("تعذّر التحقق") && graph.length === g2);
+  const reads0 = spReads();
+  await quiet(() => sendOwnerAlert(ENV, "تنبيه عادي"));
+  assert("…any other purpose: no payment read at all", spReads() === reads0);
+
+  // (3) a normal payment beside them: counted and notified exactly as before
+  const realPay = payment({ x_supplier_id: SUP, x_amount: 100 });
+  const g3 = graph.length;
+  const r3 = await quiet(() => settlePayment(ENV, realPay));
+  const t = sentTo(SUP_PHONE).at(-1);
+  const realRef = String(table("x_supplier_payment").get(realPay)?.x_name);
+  assert("a normal payment: approved, counted (paid 100.00, remaining 116.00 — the marked 60 out too), outside the window → utak_supplier_payment_sent",
+    r3.action === "approved" && r3.remaining === "116.00" && graph.length === g3 + 1 && t?.type === "template" && t.template.name === "utak_supplier_payment_sent"
+      && JSON.stringify(t.template.components[0].parameters.map((p: any) => p.text)) === JSON.stringify(["100.00", "26 سبتمبر 2026", realRef, "116.00"]), JSON.stringify({ r3, t }));
+  openWindow(ENV, SUP_PHONE, 5);
+  const realPay2 = payment({ x_supplier_id: SUP, x_amount: 6 });
+  await quiet(() => settlePayment(ENV, realPay2));
+  assert("…inside his window: the text, as before", texts(SUP_PHONE).at(-1) === supplierNoticeText(600, DAY, String(table("x_supplier_payment").get(realPay2)?.x_name), 11000));
+  const b3 = await supplierBalance(ENV, SUP);
+  assert("…the balance: due 216.00, paid 106.00 (100 + 6), remaining 110.00 — the simulation ones (150, 40, 60) still out", b3.dueH === 21600 && b3.paidH === 10600 && b3.remainingH === 11000, JSON.stringify(b3));
 }
 
 // ================================================================ 9. schema

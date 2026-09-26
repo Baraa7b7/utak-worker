@@ -1,7 +1,7 @@
 {
-  "at": "2026-09-26T05:35:13.890Z",
-  "caught": 16,
-  "total": 16,
+  "at": "2026-09-26T05:40:24.267Z",
+  "caught": 28,
+  "total": 28,
   "results": [
     {
       "name": "م12: the reminder without its KV claim (sent on every tick)",
@@ -125,6 +125,98 @@
       "caught": true,
       "fails": [
         "✗ scheduled() on that cron runs the follow-up — []"
+      ]
+    },
+    {
+      "name": "م8: «تم التسليم» does not notify the next stop",
+      "caught": true,
+      "fails": [
+        "✗ «تم التسليم» on stop 1 → stop 2's customer, only — 100",
+        "✗ a second tap on the same stop: nothing again — 100",
+        "✗ «تم التسليم» on stop 2 → stop 3's customer — 100",
+        "✗ the last stop: no one after it — 100"
+      ]
+    },
+    {
+      "name": "م8: the route's start does not notify the first stop",
+      "caught": true,
+      "fails": [
+        "✗ route sent now (tapped today): the first stop's customer at once — 000"
+      ]
+    },
+    {
+      "name": "م8: a held route without its route_start marker",
+      "caught": true,
+      "fails": [
+        "✗ …its marker closes the queued route — [{\"text\":\"توصيلة #10013 — مخبز السنبلة\\nطماطم كرتون × 3\",\"buttons\":[{\"id\":\"delivered_10013\",\"title\":\"تم التسليم ✅\"},{\"id\":\"delivery_issue_10013\",\"title\":\"فيه مشكلة ⚠️\"}]}]",
+        "✗ the flush after the tap: the first stop's customer gets it — 000"
+      ]
+    },
+    {
+      "name": "م8: the flush ignores the route_start marker",
+      "caught": true,
+      "fails": [
+        "✗ the flush after the tap: the first stop's customer gets it — 000"
+      ]
+    },
+    {
+      "name": "م8: no KV claim per order",
+      "caught": true,
+      "fails": [
+        "✗ claimed before (a re-run): nothing sent — 100 {\"action\":\"sent\",\"orderId\":10009,\"skipped\":[]}"
+      ]
+    },
+    {
+      "name": "م8: no record check (x_wa_message)",
+      "caught": true,
+      "fails": [
+        "✗ KV key lost: the record stops a second one — 200 {\"action\":\"sent\",\"orderId\":10009,\"skipped\":[]}"
+      ]
+    },
+    {
+      "name": "م8: a cancelled / delivered order not skipped",
+      "caught": true,
+      "fails": [
+        "✗ stop 2 cancelled: skipped, stop 3 gets it — 010"
+      ]
+    },
+    {
+      "name": "م8: a delivered stop not skipped",
+      "caught": true,
+      "fails": [
+        "✗ stop 2 delivered already: skipped, stop 3 gets it — 010"
+      ]
+    },
+    {
+      "name": "م8: a stop marked «مشكلة» does not stop the sequence",
+      "caught": true,
+      "fails": [
+        "✗ the next stop already «مشكلة»: the sequence waits there (no one notified) — 010",
+        "✗ …and says so — {\"action\":\"claimed\",\"orderId\":10011,\"skipped\":[]}"
+      ]
+    },
+    {
+      "name": "م8: a simulation order notified",
+      "caught": true,
+      "fails": [
+        "✗ a simulation order (x_utak_simulation) gets nothing, and the one after it waits — 010",
+        "✗ its «تم التسليم» moves on to stop 3 — 011",
+        "✗ a simulation first stop: nothing at the route's start"
+      ]
+    },
+    {
+      "name": "م8: the template first even inside the window",
+      "caught": true,
+      "fails": [
+        "✗ inside the customer's window: the text, not the template — {\"messaging_product\":\"whatsapp\",\"to\":\"966500000501\",\"type\":\"template\",\"template\":{\"name\":\"utak_out_for_delivery\",\"language\":{\"code\":\"ar\"},\"components\":[{\"type\":\"body\",\"parameters\":[{\"type\":\"text\",\"text\":\"10009\"},{\"type\":\"text\",\"text\":\"السائق عمر المجهلي\"}]}]}}"
+      ]
+    },
+    {
+      "name": "م8: {{2}} is the bare name (not «السائق …»)",
+      "caught": true,
+      "fails": [
+        "✗ its two variables: the order number, «السائق عمر المجهلي» (one line each) — [\"10009\",\"عمر المجهلي\"]",
+        "✗ inside the customer's window: the text, not the template — {\"messaging_product\":\"whatsapp\",\"to\":\"966500000501\",\"type\":\"text\",\"text\":{\"body\":\"🚚 طلبك رقم #10009 في الطريق إليك الآن مع عمر المجهلي. يو تاك\"}}"
       ]
     }
   ]

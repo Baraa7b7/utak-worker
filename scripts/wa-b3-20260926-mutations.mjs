@@ -14,6 +14,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 const root = new URL("../", import.meta.url).pathname;
 const T = "tests/wa-important-b3.test.mts";
 const DF = "src/driver-followup.ts";
+const OFD = "src/out-for-delivery.ts";
 
 // [name, [[file, find, replace], …], test file]
 const M = [
@@ -50,6 +51,32 @@ const M = [
     "  if (nowMs < at || nowMs >= at + STEP_GRACE_MIN * MIN) return `${plan.kind}:-`;", "  if (true) return `${plan.kind}:-`;"]], T],
   ["م12: the cron not wired", [["src/index.ts",
     "          const r = await runDriverFollowupTick(env);\n", "          const r = { at: \"\", drivers: [] as Array<{ name: string; steps: string[] }> };\n"]], T],
+  // ---- م8: «في الطريق»
+  ["م8: «تم التسليم» does not notify the next stop", [["src/router.ts",
+    "        await notifyNextAfterDelivered(env, orderId);\n", ""]], T],
+  ["م8: the route's start does not notify the first stop", [["src/team.ts",
+    "    await notifyRouteStart(env, routeId, driver.name || \"\");\n", ""]], T],
+  ["م8: a held route without its route_start marker", [["src/team.ts",
+    "    q.push({ route_start: routeId, driver: driver.name || \"\" });\n", ""]], T],
+  ["م8: the flush ignores the route_start marker", [["src/team-queue.ts",
+    "        await notifyRouteStart(env, l.route_start, typeof l.driver === \"string\" ? l.driver : undefined);\n", ""]], T],
+  ["م8: no KV claim per order", [[OFD,
+    "claimButton(env, `ofd:${orderId}`, OFD_CLAIM_TTL)", "claimButton(env, `ofd:${orderId}:${Math.random()}`, OFD_CLAIM_TTL)"]], T],
+  ["م8: no record check (x_wa_message)", [[OFD,
+    "  if (await ofdOnRecord(env, orderId)) return \"already\";\n", ""]], T],
+  ["م8: a cancelled / delivered order not skipped", [[OFD,
+    "    if (!o || DONE_STATES.has(String(o.x_state || \"\")) || s.status === \"delivered\") {", "    if (!o || s.status === \"delivered\") {"]], T],
+  ["م8: a delivered stop not skipped", [[OFD,
+    "    if (!o || DONE_STATES.has(String(o.x_state || \"\")) || s.status === \"delivered\") {", "    if (!o || DONE_STATES.has(String(o.x_state || \"\"))) {"]], T],
+  ["م8: a stop marked «مشكلة» does not stop the sequence", [[OFD,
+    "    if (s.status === \"issue\") return { action: \"issue_waits\", orderId: s.orderId, skipped };\n", ""]], T],
+  ["م8: a simulation order notified", [[OFD,
+    "    if (o[SIM_FIELD] === true) {", "    if (false) {"]], T],
+  ["م8: the template first even inside the window", [[OFD,
+    "    content: textContent(ofdText(orderId, driverName)),\n    fallback: [{ kind: \"template\", purpose: OFD_PURPOSE, params: ofdParams(orderId, driverName) }],",
+    "    content: { kind: \"template\", purpose: OFD_PURPOSE, params: ofdParams(orderId, driverName) },\n    fallback: [textContent(ofdText(orderId, driverName))],"]], T],
+  ["م8: {{2}} is the bare name (not «السائق …»)", [[OFD,
+    "  return n ? `السائق ${n}` : \"السائق\";", "  return n || \"السائق\";"]], T],
 ];
 
 const results = [];

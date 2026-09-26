@@ -5,6 +5,12 @@
 //        min one alert to Baraa with the order numbers; nothing when no stop is
 //        left; no reminder and one alert with the reason for a driver without a
 //        schedule, absent, or off today; a KV claim before every send;
+//   م8   «في الطريق» (utak_out_for_delivery, [order, «السائق الاسم»]): the first
+//        stop when the route goes out (or at the flush after «بدء الدوام»), each
+//        next stop at «تم التسليم» on the one before it, in route order; «مشكلة»
+//        stops the sequence, «تم التسليم» on it resumes; cancelled / delivered
+//        skipped; nothing for a simulation order; the opted-out customer still
+//        gets it; one message per order (KV claim + the x_wa_message record);
 //
 // In-memory Odoo + captured Graph (tests/wa-harness.mts) behind a strict schema
 // gate built from the real field lists (fields_get on the tenant, the last one
@@ -78,6 +84,10 @@ const { setOdooRetryHooksForTests } = await import("../src/odoo.ts");
 setOdooRetryHooksForTests({ sleep: async () => {}, alert: async () => {} });
 const { clearTemplateCache } = await import("../src/templates.ts");
 const drv = await import("../src/driver-followup.ts");
+const ofd = await import("../src/out-for-delivery.ts");
+const { dispatch } = await import("../src/router.ts");
+const { sendDriverRoute } = await import("../src/team.ts");
+const { flushTeamQueue } = await import("../src/team-queue.ts");
 const { CRON_JOB } = await import("../src/auto-send-guard.ts");
 const worker = (await import("../src/index.ts")).default;
 
@@ -299,6 +309,141 @@ console.log("\n[م12] wired: the sim cron, Riyadh time, sim only");
   setRiyadh(`${SAT} 08:32`);
   await quiet(() => worker.scheduled({ cron: drv.DRIVER_FOLLOWUP_CRON } as any, g.env, ctx));
   assert("08:32 Riyadh (05:32 UTC) is not the reminder time", graph.length === 0);
+}
+
+// ================================================================ م8
+const CUST_PHONE = "966500000501", CUST2_PHONE = "966500000502";
+const PHONES = [CUST_PHONE, CUST2_PHONE, CUST3_PHONE];
+/** fresh() + the utak_out_for_delivery row (APPROVED / UTILITY, as at Meta). */
+function freshOfd(riyadh = `${SAT} 06:10`, o: Parameters<typeof fresh>[1] = {}): Fresh {
+  const f = fresh(riyadh, o);
+  seed("x_whatsapp_template", { x_purpose: "customer_delivery_incoming", x_meta_template_id: "utak_out_for_delivery", x_language: "ar", x_meta_status: "APPROVED", x_param_count: 2, x_category: "UTILITY" });
+  return f;
+}
+const ofdTo = (digits: string) => sentTo(digits).filter((b) => b?.template?.name === "utak_out_for_delivery" || (b?.type === "text" && String(b.text?.body).includes("في الطريق إليك")));
+const ofdCounts = () => PHONES.map((p) => ofdTo(p).length).join("");
+const tplParams = (b: any): string[] => (b?.template?.components ?? []).find((c: any) => c.type === "body")?.parameters?.map((p: any) => p.text) ?? [];
+const driverPartner = { id: DRV, name: "عمر المجهلي", x_whatsapp_number: "+" + DRV_PHONE };
+const tap = (f: Fresh, id: string) => quiet(() => dispatch(f.env, { msg: { buttonId: id, type: "interactive", from: DRV_PHONE } as any, intent: "other", senderType: "customer", partner: driverPartner as any }));
+
+console.log("\n[م8] the first stop when the route goes out; each next one at «تم التسليم» on the stop before it");
+{
+  const f = freshOfd();
+  const r = await quiet(() => ofd.notifyRouteStart(f.env, f.route, "عمر المجهلي"));
+  const b = ofdTo(CUST_PHONE);
+  assert("new: the route's first stop gets «في الطريق», the others nothing", ofdCounts() === "100" && r.action === "sent", `${ofdCounts()} ${JSON.stringify(r)}`);
+  assert("outside the window: utak_out_for_delivery", b[0]?.template?.name === "utak_out_for_delivery", JSON.stringify(b[0]));
+  assert("its two variables: the order number, «السائق عمر المجهلي» (one line each)", tplParams(b[0]).join("|") === `${f.orders[0]}|السائق عمر المجهلي`, JSON.stringify(tplParams(b[0])));
+  await tap(f, `delivered_${f.orders[0]}`);
+  assert("«تم التسليم» on stop 1 → stop 2's customer, only", ofdCounts() === "110", ofdCounts());
+  await tap(f, `delivered_${f.orders[0]}`);
+  assert("a second tap on the same stop: nothing again", ofdCounts() === "110", ofdCounts());
+  await tap(f, `delivered_${f.orders[1]}`);
+  assert("«تم التسليم» on stop 2 → stop 3's customer", ofdCounts() === "111", ofdCounts());
+  await tap(f, `delivered_${f.orders[2]}`);
+  assert("the last stop: no one after it", ofdCounts() === "111", ofdCounts());
+}
+{
+  const f = freshOfd();
+  openWindow(f.env, CUST_PHONE, 30);
+  await quiet(() => ofd.notifyRouteStart(f.env, f.route, "عمر المجهلي"));
+  const b = ofdTo(CUST_PHONE)[0];
+  assert("inside the customer's window: the text, not the template", b?.type === "text" && String(b.text.body).includes(`#${f.orders[0]}`) && String(b.text.body).includes("السائق عمر المجهلي"), JSON.stringify(b));
+  assert("…one line", !String(b?.text?.body ?? "").includes("\n"));
+}
+
+console.log("\n[م8] «مشكلة» stops the sequence, «تم التسليم» on that stop resumes it");
+{
+  const f = freshOfd();
+  await quiet(() => ofd.notifyRouteStart(f.env, f.route, "عمر المجهلي"));
+  await tap(f, `delivered_${f.orders[0]}`);
+  await tap(f, `delivery_issue_${f.orders[1]}`);
+  assert("«مشكلة» on stop 2: nothing to stop 3", ofdCounts() === "110", ofdCounts());
+  await tap(f, `delivered_${f.orders[1]}`);
+  assert("then «تم التسليم» on stop 2: stop 3 gets it", ofdCounts() === "111", ofdCounts());
+}
+{
+  const f = freshOfd();
+  table("x_delivery_stop").get(f.stops[1])!.x_status = "issue"; // «مشكلة» tapped on stop 2 first
+  await tap(f, `delivered_${f.orders[0]}`);
+  assert("the next stop already «مشكلة»: the sequence waits there (no one notified)", ofdCounts() === "000", ofdCounts());
+  const r = await quiet(() => ofd.notifyNextAfterDelivered(f.env, f.orders[0]));
+  assert("…and says so", r.action === "issue_waits" && r.orderId === f.orders[1], JSON.stringify(r));
+}
+
+console.log("\n[م8] skipped: cancelled or delivered already; nothing for a simulation order");
+{
+  const f = freshOfd();
+  table("x_daily_order").get(f.orders[1])!.x_state = "cancelled";
+  await tap(f, `delivered_${f.orders[0]}`);
+  assert("stop 2 cancelled: skipped, stop 3 gets it", ofdCounts() === "001", ofdCounts());
+}
+{
+  const f = freshOfd();
+  table("x_delivery_stop").get(f.stops[1])!.x_status = "delivered"; // delivered already (its order's write lost)
+  await tap(f, `delivered_${f.orders[0]}`);
+  assert("stop 2 delivered already: skipped, stop 3 gets it", ofdCounts() === "001", ofdCounts());
+}
+{
+  const f = freshOfd();
+  deliver(f, 0);
+  const r = await quiet(() => ofd.notifyRouteStart(f.env, f.route, "عمر المجهلي"));
+  assert("the route's first stop delivered already: the second gets it", ofdCounts() === "010" && r.skipped.join() === String(f.orders[0]), `${ofdCounts()} ${JSON.stringify(r)}`);
+}
+{
+  const f = freshOfd();
+  table("x_daily_order").get(f.orders[1])!.x_utak_simulation = true;
+  await tap(f, `delivered_${f.orders[0]}`);
+  assert("a simulation order (x_utak_simulation) gets nothing, and the one after it waits", ofdCounts() === "000", ofdCounts());
+  await tap(f, `delivered_${f.orders[1]}`);
+  assert("its «تم التسليم» moves on to stop 3", ofdCounts() === "001", ofdCounts());
+  const g = freshOfd();
+  table("x_daily_order").get(g.orders[0])!.x_utak_simulation = true;
+  await quiet(() => ofd.notifyRouteStart(g.env, g.route, "عمر المجهلي"));
+  assert("a simulation first stop: nothing at the route's start", ofdCounts() === "000" && graph.filter((x) => x?.template?.name === "utak_out_for_delivery").length === 0);
+}
+{
+  const f = freshOfd();
+  table("res.partner").get(CUST)!.x_wa_marketing_optout = true;
+  await quiet(() => ofd.notifyRouteStart(f.env, f.route, "عمر المجهلي"));
+  assert("a customer who stopped marketing messages still gets it (UTILITY)", ofdTo(CUST_PHONE).length === 1 && ofdTo(CUST_PHONE)[0].template?.name === "utak_out_for_delivery", JSON.stringify(sentTo(CUST_PHONE)));
+}
+
+console.log("\n[م8] one message per order: the KV claim, then the record");
+{
+  const f = freshOfd();
+  f.env.MSG_DEDUP.store.set(`btnlock:v1:ofd:${f.orders[0]}`, "run:earlier");
+  const r = await quiet(() => ofd.notifyRouteStart(f.env, f.route, "عمر المجهلي"));
+  assert("claimed before (a re-run): nothing sent", ofdCounts() === "000" && r.action === "claimed", `${ofdCounts()} ${JSON.stringify(r)}`);
+}
+{
+  const f = freshOfd();
+  await quiet(() => ofd.notifyRouteStart(f.env, f.route, "عمر المجهلي"));
+  const row = [...table("x_wa_message").values()].find((w) => String(w.x_debug_payload ?? "").includes("customer_delivery_incoming"));
+  assert("the send is on record (x_wa_message, its purpose, the order number)", !!row && String(row.x_body).includes(String(f.orders[0])), JSON.stringify(row));
+  f.env.MSG_DEDUP.store.delete(`btnlock:v1:ofd:${f.orders[0]}`); // the KV key lost
+  const r = await quiet(() => ofd.notifyRouteStart(f.env, f.route, "عمر المجهلي"));
+  assert("KV key lost: the record stops a second one", ofdCounts() === "100" && r.action === "already", `${ofdCounts()} ${JSON.stringify(r)}`);
+}
+
+console.log("\n[م8] wired to the route: sent now, or at the flush after «بدء الدوام»");
+const routeStopsArg = (f: Fresh) => f.orders.map((id, i) => ({ order_id: id, customer_id: [CUST, CUST2, CUST3][i], customer_name: ["مطعم الوادي", "بقالة النخيل", "مخبز السنبلة"][i], customer_phone: "", neighborhood: "", sequence: (i + 1) * 10, line_summary: "طماطم كرتون × 3" }));
+const drvMember = { id: DRV, name: "عمر المجهلي", x_whatsapp_number: "+" + DRV_PHONE, x_role: "driver", x_role_codes: ["driver"] } as any;
+{
+  const f = freshOfd(`${SAT} 06:10`); // tapped «بدء الدوام» at 03:01
+  await quiet(() => sendDriverRoute(f.env, drvMember, routeStopsArg(f) as any, f.route));
+  assert("route sent now (tapped today): the first stop's customer at once", ofdCounts() === "100", ofdCounts());
+}
+{
+  const f = freshOfd(`${SAT} 02:10`, { status: "absent" });
+  const att = table("x_team_attendance");
+  for (const r of att.values()) Object.assign(r, { x_status: false, x_tapped_at: false }); // sent at 02:00, not tapped yet
+  await quiet(() => sendDriverRoute(f.env, drvMember, routeStopsArg(f) as any, f.route));
+  const q = JSON.parse(f.env.MSG_DEDUP.store.get(`pending_loc:+${DRV_PHONE}`) ?? "[]");
+  assert("route held until «بدء الدوام»: no «في الطريق» yet", ofdCounts() === "000", ofdCounts());
+  assert("…its marker closes the queued route", q.length > 0 && q[q.length - 1].route_start === f.route, JSON.stringify(q.slice(-1)));
+  await quiet(() => flushTeamQueue(f.env, `+${DRV_PHONE}`));
+  assert("the flush after the tap: the first stop's customer gets it", ofdCounts() === "100", ofdCounts());
 }
 
 // ================================================================ schema gate

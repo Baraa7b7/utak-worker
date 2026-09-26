@@ -194,12 +194,13 @@ console.log("\n[2] no task before the tap; all of them after it");
   await quiet(() => team.followUpUnconfirmedPurchaseLists(ENV));
   assert("route before the tap: nothing to عمر (no template, no location, no text)", sentTo(OMAR_PHONE).length === 0, JSON.stringify(sentTo(OMAR_PHONE)).slice(0, 200));
   const q = JSON.parse(ENV.MSG_DEDUP.store.get(`pending_loc:+${OMAR_PHONE}`) ?? "[]");
-  assert("…queued in order: list, location, stop 1 buttons, map link, stop 2 buttons", q.length === 5 && typeof q[1].latitude === "number" && q[2].buttons?.[0]?.id === "delivered_1" && String(q[3].text).includes("maps.example") && q[4].buttons?.[1]?.id === "delivery_issue_2", JSON.stringify(q).slice(0, 300));
+  // STATUS § 38 (م8) — the route closes with its route_start marker (the first stop's «في الطريق» at the flush).
+  assert("…queued in order: list, location, stop 1 buttons, map link, stop 2 buttons, route_start", q.length === 6 && typeof q[1].latitude === "number" && q[2].buttons?.[0]?.id === "delivered_1" && String(q[3].text).includes("maps.example") && q[4].buttons?.[1]?.id === "delivery_issue_2" && q[5].route_start === 1, JSON.stringify(q).slice(0, 300));
   assert("06:00 follow-up: no reminder to عمر; owner told he waits for «بدء الدوام»", tpl(OMAR_PHONE, "utak_purchase_list_v2").length === 0 && ownerSays("بانتظار «بدء الدوام»: عمر المجهلي").length === 1);
   // he writes before tapping
   await say(OMAR_PHONE, `${DAY} 04:40`, "صباح الخير");
   const early = texts(OMAR_PHONE);
-  assert("a text before the tap: told when his shift starts, still no task, queue untouched", early.length === 1 && early[0].includes("05:00") && JSON.parse(ENV.MSG_DEDUP.store.get(`pending_loc:+${OMAR_PHONE}`) ?? "[]").length === 5, JSON.stringify(early));
+  assert("a text before the tap: told when his shift starts, still no task, queue untouched", early.length === 1 && early[0].includes("05:00") && JSON.parse(ENV.MSG_DEDUP.store.get(`pending_loc:+${OMAR_PHONE}`) ?? "[]").length === 6, JSON.stringify(early));
   await tick(`${DAY} 05:00`);
   await say(OMAR_PHONE, `${DAY} 05:02`, "وصلت");
   assert("after the template, before the tap: «اضغط بدء الدوام»", texts(OMAR_PHONE).at(-1)?.includes("اضغط «بدء الدوام»"), JSON.stringify(texts(OMAR_PHONE)));

@@ -493,6 +493,8 @@ export async function sendDriverRoute(
       }
       q.push({ text: stopBody(s), buttons: stopButtons(s) });
     }
+    // STATUS § 38 (م8) — the route reaches him at the flush: its first stop's «في الطريق» then.
+    q.push({ route_start: routeId, driver: driver.name || "" });
     await enqueueTeamItems(env, driver.x_whatsapp_number, q, att.queueTtl);
     console.log(`[sendDriverRoute] route ${routeId} (${stops.length} stops) queued until ${driver.name}'s «بدء الدوام»`);
     return;
@@ -620,6 +622,14 @@ export async function sendDriverRoute(
         (e as Error)?.message,
       );
     }
+  }
+
+  // STATUS § 38 (م8) — the route went out: the first stop's customer gets «في الطريق».
+  try {
+    const { notifyRouteStart } = await import("./out-for-delivery");
+    await notifyRouteStart(env, routeId, driver.name || "");
+  } catch (e) {
+    console.warn(`[sendDriverRoute] «في الطريق» for route ${routeId} failed`, (e as Error)?.message);
   }
 }
 

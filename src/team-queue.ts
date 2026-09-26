@@ -14,9 +14,13 @@ import { sendButtons, sendLocation, sendText } from "./meta";
 
 // `purpose` (STATUS § 33): the gateway purpose the item is sent with after
 // the tap; team_task when absent (items queued before § 33).
+// STATUS § 38 (م8): `route_start` is not a message to the member — at the
+// flush, the route it closes has reached the driver, so its first stop's
+// customer gets «في الطريق» (src/out-for-delivery.ts).
 export type TeamQueueItem =
   | { latitude: number; longitude: number; name?: string; address?: string; purpose?: string }
-  | { text: string; buttons?: Array<{ id: string; title: string }>; purpose?: string };
+  | { text: string; buttons?: Array<{ id: string; title: string }>; purpose?: string }
+  | { route_start: number; driver?: string };
 
 /** Long enough for a task queued at 21:15 to wait for the next day's tap. */
 export const TEAM_QUEUE_TTL = 36 * 60 * 60;
@@ -61,6 +65,15 @@ export async function flushTeamQueue(env: Env, to: string): Promise<number> {
   await env.MSG_DEDUP.delete(key);
   let sent = 0;
   for (const l of items) {
+    if (typeof l?.route_start === "number") {
+      try {
+        const { notifyRouteStart } = await import("./out-for-delivery");
+        await notifyRouteStart(env, l.route_start, typeof l.driver === "string" ? l.driver : undefined);
+      } catch (e) {
+        console.warn(`[pending_loc] «في الطريق» for route ${l.route_start} failed`, (e as Error)?.message);
+      }
+      continue;
+    }
     const purpose = typeof l?.purpose === "string" && l.purpose ? l.purpose : "team_task";
     if (typeof l?.text === "string" && l.text) {
       const buttons = Array.isArray(l.buttons) ? (l.buttons as Array<{ id: string; title: string }>) : [];

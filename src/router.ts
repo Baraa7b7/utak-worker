@@ -648,6 +648,13 @@ async function handleButton(
       } catch (e) {
         console.error("[delivered] notify customer failed", (e as Error)?.message);
       }
+      // STATUS § 38 (م8) — the next stop's customer: «في الطريق» (once per order).
+      try {
+        const { notifyNextAfterDelivered } = await import("./out-for-delivery");
+        await notifyNextAfterDelivered(env, orderId);
+      } catch (e) {
+        console.warn(`[delivered] «في الطريق» after #${orderId} failed`, (e as Error)?.message);
+      }
       return allDone
         ? `تم التسليم ✅ — خلصت مسارك اليوم. شكراً 🙏`
         : `تم التسليم ✅ — التوصيلة الجاية بانتظارك.`;

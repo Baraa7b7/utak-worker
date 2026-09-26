@@ -183,6 +183,39 @@ export interface ClaudeScript {
   prices(text: string): { prices: unknown[]; unrecognized: string[] };
 }
 export const netLog: Array<{ host: string; method: string }> = [];
+// ---------------------------------------------------------------- Odoo pacing (--odoo=live)
+// s41-live-1 compressed two days into ~13 minutes, and the tenant's rate limiter
+// (odoo.com, HTTP 429) answered the burst: an offer, a template lookup and a
+// pricing read gave up after odoo.ts's retries, and each failure then cascaded
+// through the days. A real day spreads the same requests over 24 hours, so the
+// harness paces them: at most ODOO_PARALLEL at once, ODOO_GAP_MS between starts,
+// and a 429 that still comes is re-sent here (the limiter refused it before
+// Odoo ran it — odoo.ts's own rule), counted in odooStats for the report. The
+// worker's handling of a 429 that outlasts its retries is tested in
+// tests/s41.test.mts ([قالب] [سوق]), not here.
+const ODOO_PARALLEL = 2, ODOO_GAP_MS = 150, ODOO_429_TRIES = 8;
+export const odooStats = { requests: 0, absorbed429: 0 };
+let odooActive = 0, odooNext = 0;
+const odooQueue: Array<() => void> = [];
+async function odooPaced(send: () => Promise<Response>): Promise<Response> {
+  while (odooActive >= ODOO_PARALLEL) await new Promise<void>((r) => odooQueue.push(r));
+  odooActive++;
+  try {
+    for (let i = 0; ; i++) {
+      const now = realNow(), at = Math.max(now, odooNext);
+      odooNext = at + ODOO_GAP_MS;
+      if (at > now) await new Promise((r) => setTimeout(r, at - now));
+      odooStats.requests++;
+      const res = await send();
+      if (res.status !== 429 || i >= ODOO_429_TRIES) return res;
+      odooStats.absorbed429++;
+      await new Promise((r) => setTimeout(r, 1000 * 2 ** Math.min(i, 4)));
+    }
+  } finally {
+    odooActive--;
+    odooQueue.shift()?.();
+  }
+}
 export const MEDIA = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0xff, 0xd9]);
 export function installFetchGuard(mode: Mode, claude: ClaudeScript, prompts: { classify: string; screen: string; order: string; prices: string }, inner: typeof fetch): void {
   globalThis.fetch = (async (input: any, init?: any) => {
@@ -213,7 +246,7 @@ export function installFetchGuard(mode: Mode, claude: ClaudeScript, prompts: { c
         if (m && (m[2] === "unlink" || m[1] === "ir.module.module" || ((m[1] === "account.move" || m[1] === "account.payment") && m[2] !== "search_read" && m[2] !== "read" && m[2] !== "search_count"))) {
           throw new Error(`BLOCKED (simulation): ${m[1]}.${m[2]}`);
         }
-        return inner(input, init);
+        return odooPaced(() => inner(input, init));
       }
       if (u.host === "api.cloudflare.com" && u.pathname.includes("/d1/database/")) return inner(input, init);
       const gb = dotenv(".env.zatca-oneoff").GOTENBERG_URL;

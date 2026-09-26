@@ -31,7 +31,7 @@
 // created.json — every record this run created, for the marking — the PDFs).
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import {
-  FAKE_PREFIX, ROOT, TEAM, at, buildEnv, captured, cron, installFetchGuard, installLiveClock, internal, netLog, nowRiyadh, realNow,
+  FAKE_PREFIX, ROOT, TEAM, at, buildEnv, captured, cron, installFetchGuard, installLiveClock, internal, netLog, nowRiyadh, odooStats, realNow,
   takeCaptured, useHarnessClock, webhook, type Captured, type ClaudeScript,
 } from "./lib/s41-sim-kit.mts";
 
@@ -294,7 +294,15 @@ await step("النشر 06:00 وفتح الطلبات", "06:00", async () => {
   const d = await dayRecord(curDay);
   check("اليوم منشور", d?.x_state === "published", JSON.stringify(d));
   const toCustomers = cur().filter((m) => !Object.values(TEAM).includes("+" + m.to));
-  if (MODE === "live") check("قائمة الأسعار للعملاء (ملتقطة، لا إرسال حقيقي)", toCustomers.length > 0, `${toCustomers.length}`);
+  // s41-live-1: on the first day no simulation customer exists yet, so the list
+  // goes to the tenant's real customers only — and the allowlist refuses each
+  // of them (nothing sent, nothing captured). Baraa's copy counts them.
+  const copy = String(cur().find((m) => /نُشرت أسعار/.test(String(m.text ?? "")))?.text ?? "");
+  const listed = Number(/والعملاء: (\d+)/.exec(copy)?.[1] ?? -1), blocked = Number(/محجوبة (\d+)/.exec(copy)?.[1] ?? -1);
+  const toReal = toCustomers.filter((m) => !("+" + m.to).startsWith(FAKE_PREFIX));
+  if (MODE === "live") check("قائمة الأسعار: كل عميل حقيقي محجوب بالقائمة المسموحة (لا إرسال ولا التقاط لرقم حقيقي)",
+    listed > 0 && blocked === listed - toCustomers.length && toReal.length === 0,
+    `العملاء ${listed}، محجوبة ${blocked}، ملتقطة ${toCustomers.length}، لرقم حقيقي ${toReal.length} — ${copy.slice(0, 160)}`);
   return `published to ${toCustomers.length} numbers (captured)`;
 });
 await step("براء وعثمان يفتحان النافذة (قالب 06:00)", "06:02", async () => {
@@ -713,6 +721,7 @@ const report = {
   steps, invoices, payments, purchaseLists, qrs, summaries,
   network: Object.entries(netLog.reduce((a: Record<string, number>, n) => { a[`${n.host} ${n.method}`] = (a[`${n.host} ${n.method}`] ?? 0) + 1; return a; }, {})),
   capturedCount: captured.length,
+  odoo: odooStats,
   created: created.reduce((a: Record<string, number>, c) => { a[c.model] = (a[c.model] ?? 0) + c.ids.length; return a; }, {}),
 };
 writeFileSync(new URL("report.json", OUT), JSON.stringify(report, null, 1));

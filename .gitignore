@@ -36,3 +36,8 @@ scripts/artifacts/gw-20260925-scan.json
 # 2026-09-26 (STATUS § 37 ج) — data backups before a cleanup (full Odoo / D1
 # rows, message texts, numbers). Never committed.
 backups/
+
+# § 41 و — the full-day simulation: fake-backend runs and each run's local R2 / page images stay out of git
+scripts/artifacts/s41-sim/s41-fake-*/
+scripts/artifacts/s41-sim/*/r2/
+scripts/artifacts/s41-sim/*/*.png

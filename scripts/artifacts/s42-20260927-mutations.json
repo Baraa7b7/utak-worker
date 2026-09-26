@@ -1,0 +1,113 @@
+{
+  "at": "2026-09-26T21:03:09.531Z",
+  "caught": 11,
+  "total": 11,
+  "results": [
+    {
+      "part": "أ",
+      "name": "the market winner ignored (Omar's lines back under Ahmed)",
+      "caught": true,
+      "fails": [
+        "✗ with it: Ahmed keeps his own line only (potato 10 × 20 = 200.00), nothing «بلا سعر» — {\"supplierId\":701,\"lines\":[{\"productId\":3,\"productName\":\"p3\",\"packagingId\":31,\"packagingName\":\"k\",\"quantity\":10,\"unitPrice\":20,\"priceId\":1,\"subtotalH\":20000,\"noPrice\":false},{\"productId\":4,\"productName\":\"p4\",\"packagingId\":41,\"packagingName\":\"k\",\"quantity\":4,\"unitPrice\":13,\"priceId\":2,\"subtotalH\":5200,\"noPrice\":false},{\"productId\":5,\"productName\":\"p5\",\"packagingId\":51,\"packagingName\":\"k\",\"quantity\":2,\"unitPrice\":null,\"priceId\":null,\"subtotalH\":0,\"noPrice\":true}],\"amountH\":25200,\"unpriced\":1}",
+        "✗ …«مشتريات السوق النقدية»: avocado 4 × 11.5 + pomegranate 2 × 9 = 64.00, at Omar's written prices",
+        "✗ no partner found: the market lines have no supplier («بلا مورد»), still not Ahmed's",
+        "✗ synced: Ahmed 200.00 with one line and 0 «بلا سعر» — {\"action\":\"synced\",\"listId\":10008,\"day\":\"2026-09-27\",\"dues\":[{\"supplierId\":701,\"amount\":\"252.00\",\"unpriced\":1}],\"unpriced\":1,\"noSupplier\":0,\"alerted\":true}"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "a market line owed to the item's supplier (Ahmed), not the cash market",
+      "caught": true,
+      "fails": [
+        "✗ with it: Ahmed keeps his own line only (potato 10 × 20 = 200.00), nothing «بلا سعر» — {\"supplierId\":701,\"lines\":[{\"productId\":3,\"productName\":\"p3\",\"packagingId\":31,\"packagingName\":\"k\",\"quantity\":10,\"unitPrice\":20,\"priceId\":1,\"subtotalH\":20000,\"noPrice\":false},{\"productId\":4,\"productName\":\"p4\",\"packagingId\":41,\"packagingName\":\"k\",\"quantity\":4,\"unitPrice\":11.5,\"priceId\":null,\"subtotalH\":4600,\"noPrice\":false,\"marketBy\":\"سالم\"},{\"productId\":5,\"productName\":\"p5\",\"packagingId\":51,\"packagingName\":\"k\",\"quantity\":2,\"unitPrice\":9,\"priceId\":null,\"subtotalH\":1800,\"noPrice\":false,\"marketBy\":\"سالم\"}],\"amountH\":26400,\"unpriced\":0}",
+        "✗ …«مشتريات السوق النقدية»: avocado 4 × 11.5 + pomegranate 2 × 9 = 64.00, at Omar's written prices",
+        "✗ synced: Ahmed 200.00 with one line and 0 «بلا سعر» — {\"action\":\"synced\",\"listId\":10008,\"day\":\"2026-09-27\",\"dues\":[{\"supplierId\":701,\"amount\":\"264.00\",\"unpriced\":0}],\"unpriced\":0,\"noSupplier\":0,\"alerted\":false}",
+        "✗ «مشتريات السوق النقدية» #104: 64.00, two lines at Omar's prices, noted «سعر شراء سالم المكتوب من السوق» — []"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "a market line at the list's price (Ahmed's), not Omar's written one",
+      "caught": true,
+      "fails": [
+        "✗ «مشتريات السوق النقدية» #104: 64.00, two lines at Omar's prices, noted «سعر شراء سالم المكتوب من السوق» — [{\"x_due_id\":10009,\"x_product_tmpl_id\":4,\"x_packaging_id\":41,\"x_quantity\":4,\"x_unit_price\":11.5,\"x_subtotal\":52,\"x_no_price\":false,\"x_daily_price_id\":false,\"x_note\":\"سعر شراء سالم المكتوب من السوق (فاز بسعر الشراء في «أسعار اليوم»)\",\"x_is_simulation\":true,\"id\":10010},{\"x_due_id\":10009,\"x_product_tmpl_id\":5,\"x_packaging_id\":51,\"x_quantity\":2,\"x_unit_price\":9,\"x_subtotal\":18,\"x_no_price\":false,\"x_daily_price_id\":false,\"x_note\":\"سعر شراء سالم المكتوب من السوق (فاز بسعر الشراء في «أسعار اليوم»)\",\"x_is_simulation\":true,\"id\":10011}]",
+        "✗ approved: settled with «لا إشعار للمورد (مشتريات السوق النقدية بلا رقم)», remaining 0.00 — {\"action\":\"approved\",\"id\":10019,\"ref\":\"SP-2026-0001\",\"remaining\":\"6.00\",\"overpaid\":false,\"notice\":\"لا إشعار للمورد (مشتريات السوق النقدية بلا رقم)\",\"member\":\"نصاً 10:00\"}"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "no cash-market partner: the market lines «بلا سعر» under Ahmed again",
+      "caught": true,
+      "fails": [
+        "✗ no partner found: the market lines have no supplier («بلا مورد»), still not Ahmed's",
+        "✗ no «مشتريات السوق النقدية»: Ahmed 200 only, the two market lines «بلا مورد (شراء السوق…)» in Baraa's alert"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "a supplier's winning price read as the market's",
+      "caught": true,
+      "fails": [
+        "✗ synced: Ahmed 200.00 with one line and 0 «بلا سعر» — {\"action\":\"synced\",\"listId\":10008,\"day\":\"2026-09-27\",\"dues\":[{\"supplierId\":104,\"amount\":\"264.00\",\"unpriced\":0}],\"unpriced\":0,\"noSupplier\":0,\"alerted\":false}"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "a simulation day of «أسعار اليوم» read",
+      "caught": true,
+      "fails": [
+        "✗ synced: Ahmed 200.00 with one line and 0 «بلا سعر» — {\"action\":\"synced\",\"listId\":10008,\"day\":\"2026-09-27\",\"dues\":[{\"supplierId\":104,\"amount\":\"74.00\",\"unpriced\":0}],\"unpriced\":0,\"noSupplier\":0,\"alerted\":false}"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the cash-market partner never looked up",
+      "caught": true,
+      "fails": [
+        "✗ «مشتريات السوق النقدية» #104: 64.00, two lines at Omar's prices, noted «سعر شراء سالم المكتوب من السوق» — []",
+        "✗ no «بلا سعر» alert at all (Omar's lines are not Ahmed's) — {\"messaging_product\":\"whatsapp\",\"to\":\"966500000001\",\"type\":\"text\",\"text\":{\"body\":\"⚠️ مستحقات الموردين — قائمة الشراء #10008 (27 سبتمبر 2026): أسطر «بلا سعر» لم تُحسب في المستحق:\\n• بلا مورد (شراء السوق، ولا شريك «مشتريات السوق النقدية» بالمرجع UTAK-CASH-MARKET): افوكادو (كرتون · 4 كيلو) × 4\\n• بلا مورد (شراء السوق، ولا شريك «مشتريات السوق النقدية» بالمرجع UTAK-CASH-MARKET): رمان صغير (صندوق) × 2\\nأدخل سعر المورد لذلك اليوم في «الأسعار اليومية»، وتُحسب تلقائياً (أو «🔄 إعادة حساب المستحقات» في 💵 دفع الموردين).\"}}",
+        "✗ again: unchanged",
+        "✗ Omar's picker: Ahmed and «مشتريات السوق النقدية» — [\"sp_sup_701\"]"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "Omar's picker without the cash market",
+      "caught": true,
+      "fails": [
+        "✗ Omar's picker: Ahmed and «مشتريات السوق النقدية» — [\"sp_sup_701\"]",
+        "✗ …the amount step names it",
+        "✗ a pending cash payment to #104 by Omar, 64.00",
+        "✗ …Baraa's approval alert: the supplier, 64.00, the remaining 64.00 before it"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "a cash-market payment notified like any supplier's",
+      "caught": true,
+      "fails": [
+        "✗ approved: settled with «لا إشعار للمورد (مشتريات السوق النقدية بلا رقم)», remaining 0.00 — {\"action\":\"approved\",\"id\":10019,\"ref\":\"SP-2026-0001\",\"remaining\":\"0.00\",\"overpaid\":false,\"notice\":\"لا رقم واتساب للمورد\",\"member\":\"نصاً 10:00\"}",
+        "✗ …a payment settled after the number was added: still «لا إشعار», nothing to it (only Baraa's «رصيد دائن» alert: 74 paid of 64) — {\"action\":\"approved\",\"id\":10025,\"ref\":\"SP-2026-0002\",\"remaining\":\"-10.00\",\"overpaid\":true,\"notice\":\"محجوب: CashMarketSupplier: «مشتريات السوق النقدية» لا يُرسل له شيء (purpose=supplier_payment_sent)\"}"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the gateway sends to the cash market's number",
+      "caught": true,
+      "fails": [
+        "✗ the gateway refuses it for any purpose (notice, manual, bot reply), any spelling of the number — [{\"action\":\"session\"},{\"action\":\"refused\",\"reason\":\"AllowlistBlocked: to=0500000104 not permitted by SIM_ALLOWLIST (1 entries) and no partner with x_wa_allowed=true\"},{\"action\":\"session\"}]",
+        "✗ …a payment settled after the number was added: still «لا إشعار», nothing to it (only Baraa's «رصيد دائن» alert: 74 paid of 64) — {\"action\":\"approved\",\"id\":10027,\"ref\":\"SP-2026-0002\",\"remaining\":\"-10.00\",\"overpaid\":true,\"notice\":\"لا إشعار للمورد (مشتريات السوق النقدية بلا رقم)\"}"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the gateway matches the exact digits only (0500… vs 966500…)",
+      "caught": true,
+      "fails": [
+        "✗ the gateway refuses it for any purpose (notice, manual, bot reply), any spelling of the number — [{\"action\":\"session\"},{\"action\":\"refused\",\"reason\":\"CashMarketSupplier: «مشتريات السوق النقدية» لا يُرسل له شيء (purpose=wa_message_manual)\"},{\"action\":\"session\"}]",
+        "✗ …a payment settled after the number was added: still «لا إشعار», nothing to it (only Baraa's «رصيد دائن» alert: 74 paid of 64) — {\"action\":\"approved\",\"id\":10027,\"ref\":\"SP-2026-0002\",\"remaining\":\"-10.00\",\"overpaid\":true,\"notice\":\"لا إشعار للمورد (مشتريات السوق النقدية بلا رقم)\"}",
+        "✗ isCashMarketNumber: its number yes, Ahmed's no, empty no"
+      ]
+    }
+  ]
+}

@@ -51,6 +51,7 @@ import { arabicDate, maskPhone } from "./wa-params";
 import { riyadhDateKey } from "./hours";
 import type { RouterReply } from "./router";
 import type { TeamMember } from "./types";
+import { CASH_MARKET_NAME, CASH_MARKET_REF, findCashMarketSupplier, marketWinners, winnerKey, type MarketWinners } from "./cash-market";
 
 export const SP_MODEL = "x_supplier_payment";
 export const DUE_MODEL = "x_supplier_due";
@@ -68,6 +69,8 @@ export const SIM_FIELD = "x_utak_simulation";
 const NOT_SIM: [string, string, boolean] = [SIM_FIELD, "!=", true];
 /** x_supplier_notice of a simulation payment. */
 export const SIM_NOTICE = "لا إشعار للمورد (محاكاة)";
+/** § 42 أ — x_supplier_notice of a payment to «مشتريات السوق النقدية» (no number, never notified). */
+export const CASH_MARKET_NOTICE = "لا إشعار للمورد (مشتريات السوق النقدية بلا رقم)";
 /** The tick recomputes the dues of confirmed lists this many days back. */
 export const DUE_DAYS_BACK = 3;
 /** A list confirmed less than this ago is left to the tap's own sync. */
@@ -135,6 +138,8 @@ export interface DueLinePlan {
   priceId: number | null;
   subtotalH: number;
   noPrice: boolean;
+  /** § 42 أ — the market source whose written purchase price won this line (owed to «مشتريات السوق النقدية»). */
+  marketBy?: string;
 }
 export interface DuePlan {
   supplierId: number;
@@ -178,18 +183,43 @@ export function lineSubtotalH(quantity: number, unitPrice: number): number {
  * price (or «بلا سعر», not counted), the amount = sum of the priced lines.
  * Items with no supplier at all come back in `noSupplier`.
  */
-export function planDues(list: { x_date: string; listSupplierId: number | null }, items: ListItem[], prices: PriceRow[]): { dues: DuePlan[]; noSupplier: ListItem[] } {
+export function planDues(
+  list: { x_date: string; listSupplierId: number | null },
+  items: ListItem[],
+  prices: PriceRow[],
+  market?: MarketPlan,
+): { dues: DuePlan[]; noSupplier: ListItem[] } {
   const by = new Map<number, DuePlan>();
   const noSupplier: ListItem[] = [];
   for (const it of items) {
-    const sid = itemSupplier(it, list.listSupplierId);
-    if (!sid) { noSupplier.push(it); continue; }
-    const p = supplierPriceFor(prices, sid, it, list.x_date);
     const qty = Number(it.total_quantity) || 0;
-    const line: DueLinePlan = {
+    const base = {
       productId: it.product_id, productName: cleanName(it.product_name),
       packagingId: it.packaging_id, packagingName: cleanName(it.packaging_name),
       quantity: qty,
+    };
+    // § 42 أ — the winning purchase price came from a source that is not a
+    // supplier (Omar at the market): owed to «مشتريات السوق النقدية» at that
+    // written price, never to the item's usual supplier.
+    const won = market?.winners.get(winnerKey(it.product_id, it.packaging_id));
+    if (won) {
+      if (!market!.cashSupplierId) { noSupplier.push(it); continue; }
+      const sid = market!.cashSupplierId;
+      const line: DueLinePlan = {
+        ...base, unitPrice: won.price, priceId: null, subtotalH: lineSubtotalH(qty, won.price), noPrice: false,
+        marketBy: cleanName(won.sourceName) || "السوق",
+      };
+      const d = by.get(sid) ?? { supplierId: sid, lines: [], amountH: 0, unpriced: 0 };
+      d.lines.push(line);
+      d.amountH += line.subtotalH;
+      by.set(sid, d);
+      continue;
+    }
+    const sid = itemSupplier(it, list.listSupplierId);
+    if (!sid) { noSupplier.push(it); continue; }
+    const p = supplierPriceFor(prices, sid, it, list.x_date);
+    const line: DueLinePlan = {
+      ...base,
       unitPrice: p ? Number(p.x_price_sar) : null,
       priceId: p ? p.id : null,
       subtotalH: p ? lineSubtotalH(qty, Number(p.x_price_sar)) : 0,
@@ -202,6 +232,21 @@ export function planDues(list: { x_date: string; listSupplierId: number | null }
     by.set(sid, d);
   }
   return { dues: [...by.values()].sort((a, b) => a.supplierId - b.supplierId), noSupplier };
+}
+
+/** § 42 أ — the market-won lines of the list's day and the supplier they are owed to (null = not found). */
+export interface MarketPlan {
+  cashSupplierId: number | null;
+  winners: MarketWinners;
+}
+
+/** The market plan of one day: the winners, and «مشتريات السوق النقدية» only when there is one. Throws on Odoo trouble. */
+export async function readMarketPlan(env: Env, day: string): Promise<MarketPlan> {
+  const winners = await marketWinners(env, day);
+  if (!winners.size) return { cashSupplierId: null, winners };
+  const cash = await findCashMarketSupplier(env);
+  if (!cash) console.warn(`[supplier-pay] ${day}: ${winners.size} market line(s) but no «${CASH_MARKET_NAME}» partner (ref ${CASH_MARKET_REF}) — «بلا مورد»`);
+  return { cashSupplierId: cash?.id ?? null, winners };
 }
 
 // ---------------------------------------------------------------- the dues (Odoo)
@@ -299,7 +344,8 @@ export async function syncSupplierDues(env: Env, listId: number, opts: { force?:
   if (list.x_status !== "done") return { action: "not_confirmed", listId, day };
   const items = parseItems(list.x_aggregated_items);
   const prices = await readPricesFor(env, day, items);
-  const plan = planDues({ x_date: day, listSupplierId: list.x_supplier_id ? list.x_supplier_id[0] : null }, items, prices);
+  const market = await readMarketPlan(env, day);
+  const plan = planDues({ x_date: day, listSupplierId: list.x_supplier_id ? list.x_supplier_id[0] : null }, items, prices, market);
   const fp = fnv1a(JSON.stringify(plan));
   const fpKey = `sp_due_fp:v1:${listId}`;
   const summary = plan.dues.map((d) => ({ supplierId: d.supplierId, amount: money(d.amountH), unpriced: d.unpriced }));
@@ -350,7 +396,8 @@ export async function syncSupplierDues(env: Env, listId: number, opts: { force?:
         x_subtotal: toOdoo(l.subtotalH),
         x_no_price: l.noPrice,
         x_daily_price_id: l.priceId ?? false,
-        x_note: l.noPrice ? "بلا سعر: لا سعر من هذا المورد لهذا الصنف في ذلك اليوم" : false,
+        x_note: l.noPrice ? "بلا سعر: لا سعر من هذا المورد لهذا الصنف في ذلك اليوم"
+          : l.marketBy ? `سعر شراء ${l.marketBy} المكتوب من السوق (فاز بسعر الشراء في «أسعار اليوم»)` : false,
       };
       const old = oldLines.find((o) => o.x_due_id && o.x_due_id[0] === dueId && o.x_product_tmpl_id && o.x_product_tmpl_id[0] === l.productId
         && o.x_packaging_id && o.x_packaging_id[0] === l.packagingId);
@@ -387,7 +434,9 @@ export async function syncSupplierDues(env: Env, listId: number, opts: { force?:
     if (claim.claimed) {
       const lines = [
         ...noPriceLines.map((x) => `• ${names.get(x.supplierId) ?? "#" + x.supplierId}: ${x.l.productName} (${x.l.packagingName}) × ${x.l.quantity}`),
-        ...plan.noSupplier.map((i) => `• بلا مورد: ${cleanName(i.product_name)} (${cleanName(i.packaging_name)}) × ${i.total_quantity}`),
+        ...plan.noSupplier.map((i) => market.winners.has(winnerKey(i.product_id, i.packaging_id))
+          ? `• بلا مورد (شراء السوق، ولا شريك «${CASH_MARKET_NAME}» بالمرجع ${CASH_MARKET_REF}): ${cleanName(i.product_name)} (${cleanName(i.packaging_name)}) × ${i.total_quantity}`
+          : `• بلا مورد: ${cleanName(i.product_name)} (${cleanName(i.packaging_name)}) × ${i.total_quantity}`),
       ];
       await sendOwnerAlert(env, tagged(env.TRIAL_TAG, [
         `⚠️ مستحقات الموردين — قائمة الشراء #${listId} (${arabicDate(day)}): أسطر «بلا سعر» لم تُحسب في المستحق:`,
@@ -620,8 +669,11 @@ export async function settlePayment(env: Env, id: number, opts: { ctx?: Executio
     // the supplier's notice: text inside his window, else the UTILITY template, else held (critical, § 34).
     // A trial's notice (x_trial_tag) never uses the template: it cannot carry the tag, and a real
     // supplier must not read a trial payment as his own — text inside the window, held outside it.
-    const to = supplierId ? await supplierNumber(penv, supplierId) : "";
-    let notice = "لا رقم واتساب للمورد";
+    // § 42 أ — «مشتريات السوق النقدية» has no number and is never notified (not even one added later).
+    const cash = supplierId ? await findCashMarketSupplier(penv).catch(() => null) : null;
+    const isCash = !!cash && cash.id === supplierId;
+    const to = supplierId && !isCash ? await supplierNumber(penv, supplierId) : "";
+    let notice = isCash ? CASH_MARKET_NOTICE : "لا رقم واتساب للمورد";
     if (to) {
       const resp = await sendViaGateway(penv, {
         purpose: SP_NOTICE_PURPOSE,
@@ -786,13 +838,25 @@ export async function todaysSuppliers(env: Env, now: number = Date.now()): Promi
   const since = riyadhDateKey(new Date(now - 36 * 3600_000));
   const lists = await call<ListRow[]>(env, "x_purchase_list", "search_read", {
     domain: [["x_status", "in", ["sent", "done"]], ["x_date", ">=", since], NOT_SIM],
-    fields: ["id", "x_supplier_id", "x_aggregated_items"], order: "id desc", limit: 5,
+    fields: ["id", "x_date", "x_supplier_id", "x_aggregated_items"], order: "id desc", limit: 5,
   });
   const ids: number[] = [];
+  const markets = new Map<string, MarketPlan>();
   for (const l of lists) {
     const ls = l.x_supplier_id ? l.x_supplier_id[0] : null;
+    // § 42 أ — a line whose purchase price the market won is owed to «مشتريات السوق النقدية»
+    const day = String(l.x_date || "");
+    let market = markets.get(day);
+    if (!market) {
+      market = await readMarketPlan(env, day).catch((e) => {
+        console.warn(`[supplier-pay] market plan ${day} unreadable`, (e as Error)?.message);
+        return { cashSupplierId: null, winners: new Map() } as MarketPlan;
+      });
+      markets.set(day, market);
+    }
     for (const it of parseItems(l.x_aggregated_items)) {
-      const s = itemSupplier(it, ls);
+      const won = market.winners.has(winnerKey(it.product_id, it.packaging_id));
+      const s = won ? market.cashSupplierId : itemSupplier(it, ls);
       if (s && !ids.includes(s)) ids.push(s);
     }
     if (ls && !ids.includes(ls)) ids.push(ls);

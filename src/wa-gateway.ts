@@ -12,7 +12,10 @@
 //   1. runtime sanity, the owner guard and the recipient allowlist (on sim /
 //      pilot: SIM_ALLOWLIST, then the partner's x_wa_allowed — § 27). A
 //      refused recipient is never held.
-//      § 37 ج — the supplier-payment notice (its purpose, or its template by
+//      § 42 أ — «مشتريات السوق النقدية» (res.partner ref UTAK-CASH-MARKET)
+//      is refused whatever the purpose: it has no number, and one added to
+//      it later still never gets a message (src/cash-market.ts).
+//      § 37 ج —the supplier-payment notice (its purpose, or its template by
 //      purpose or by row) naming a payment marked x_utak_simulation is refused
 //      here, whoever sends it (settle, a held flush, a manual send from Odoo).
 //   2. a purpose Meta refused for this number in the last 24h (any refusal but
@@ -409,6 +412,18 @@ export async function sendViaGateway(env: Env, req: GatewayRequest): Promise<Res
     if (!OWNER_ALLOWED_PURPOSES.has(p)) {
       console.warn(`[owner-guard] blocked purpose=${p}`);
       return refused(`owner-guard: purpose=${p} not permitted for owner recipient`, "OwnerGuardBlocked", 403);
+    }
+  }
+
+  // ---- § 42 أ: «مشتريات السوق النقدية» is sent nothing, ever ----
+  // It has no number by design; a number added to it later in Odoo must still
+  // never receive a message (whoever sends: settle, a flush, a manual send).
+  {
+    const { isCashMarketNumber, CASH_MARKET_NAME } = await import("./cash-market");
+    if (await isCashMarketNumber(env, to)) {
+      const msg = `«${CASH_MARKET_NAME}» لا يُرسل له شيء (purpose=${req.purpose})`;
+      console.warn(`[gateway] skip to=${maskPhone(to)} — ${msg}`);
+      return refused(msg, "CashMarketSupplier", 403);
     }
   }
 

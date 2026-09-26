@@ -23,6 +23,16 @@
 // usual choice); neither → held for his next tap (36 h). Once a day: a KV
 // claim before the send. A figure Odoo cannot give: the summary still goes,
 // with «تعذّر» in its place — never a guessed number.
+//
+// § 40 هـ (2026-09-26) — the cost coverage: today's profit = Σ (sale −
+// purchase − waste − discount) over the lines of today's deliveries (the
+// orders of {{2}}: yesterday's ordering day, delivered / closed, simulation
+// out) — the sale the line's price (its manual price, else the price its
+// invoice wrote back), the purchase and the waste of the engine on the order's
+// day (x_price_day_line, x_pricing_config), the discount its invoice was
+// issued with; coverage % = profit ÷ daily_operating_cost(today) × 100. In the
+// text: a fourth line «تغطية تكاليف اليوم: X% (ربح Y من Z)». In the template:
+// the same, short, at the end of {{3}} on the same line (its «ريال» follows).
 
 import type { Env } from "./config";
 import { call, getLatestSalePrice } from "./odoo";
@@ -34,6 +44,7 @@ import { claimButton } from "./button-lock";
 import { riyadhDateKey, riyadhDayMinuteMs, toOdooUtc } from "./hours";
 import { arabicDate } from "./wa-params";
 import { SIM_FIELD } from "./supplier-pay";
+import { dailyOperatingCost, readPricingSettings } from "./operating-cost";
 
 /** The sim cron of the summary (wrangler.toml [env.sim.triggers], src/auto-send-guard.ts CRON_JOB): 21:30 Riyadh. */
 export const OWNER_SUMMARY_CRON = "30 18 * * *";
@@ -57,6 +68,8 @@ export interface SummaryFigures {
   deliveries: { delivered: number; total: number } | null;
   collected: number | null;
   pending: number | null;
+  /** § 40 هـ — today's profit (deliveries), today's operating cost, and the coverage (null = «تعذّر»). */
+  coverage: { profit: number | null; cost: number | null; pct: number | null };
   errors: string[];
 }
 
@@ -147,11 +160,53 @@ async function pendingUpTo(env: Env, day: string): Promise<number> {
   return round2(open.reduce((s, i) => s + Math.max(0, round2((Number(i.x_total) || 0) - (paid.get(i.id) ?? 0))), 0));
 }
 
+/**
+ * § 40 هـ — the profit of the day's deliveries (the orders of `orderDay`,
+ * delivered / closed, not simulation): Σ (sale − purchase − waste % ×
+ * purchase) × qty − their invoices' discounts. Null when a line has no sale
+ * price or no purchase price of its day (never a partial sum).
+ */
+async function deliveredProfit(env: Env, orderDay: string): Promise<number> {
+  const orders = await ordersOf(env, orderDay, [...DELIVERED_STATES]);
+  if (orders.length === 0) return 0;
+  const ids = orders.map((o) => o.id);
+  const lines = await call<Array<{ x_product_tmpl_id: M2O; x_packaging_id: M2O; x_quantity: number; x_status: string | false; x_unit_price: number | false; x_price_unit_manual: number | false }>>(env, "x_daily_order_line", "search_read", {
+    domain: [["x_order_id", "in", ids]],
+    fields: ["x_product_tmpl_id", "x_packaging_id", "x_quantity", "x_status", "x_unit_price", "x_price_unit_manual"],
+    limit: 10000,
+  });
+  const costs = await call<Array<{ x_product_tmpl_id: M2O; x_packaging_id: M2O; x_cost_price: number | false }>>(env, "x_price_day_line", "search_read", {
+    domain: [["x_day_id.x_date", "=", orderDay], ["x_cost_price", ">", 0]],
+    fields: ["x_product_tmpl_id", "x_packaging_id", "x_cost_price"],
+    limit: 2000,
+  });
+  const cost = new Map(costs.map((c) => [`${m2oId(c.x_product_tmpl_id)}:${m2oId(c.x_packaging_id)}`, Number(c.x_cost_price) || 0]));
+  const waste = (await readPricingSettings(env, orderDay))?.wastePct;
+  if (waste === undefined) throw new Error(`no pricing settings on ${orderDay}`);
+  let profit = 0;
+  for (const l of lines) {
+    if (l.x_status === "unavailable") continue;
+    const sale = Number(l.x_price_unit_manual) > 0 ? Number(l.x_price_unit_manual) : Number(l.x_unit_price) || 0;
+    const buy = cost.get(`${m2oId(l.x_product_tmpl_id)}:${m2oId(l.x_packaging_id)}`) ?? 0;
+    if (!(sale > 0)) throw new Error("a delivered line without a sale price");
+    if (!(buy > 0)) throw new Error("a delivered line without its day's purchase price");
+    profit += (sale - buy - (waste / 100) * buy) * (Number(l.x_quantity) || 0);
+  }
+  const invs = await call<Array<{ id: number; x_subtotal: number | false; x_tax_amount: number | false; x_total: number }>>(env, "x_invoice", "search_read", {
+    domain: [["x_order_id", "in", ids], [SIM_FIELD, "!=", true]],
+    fields: ["id", "x_subtotal", "x_tax_amount", "x_total"],
+    limit: 2000,
+  });
+  const { invoiceDiscount } = await import("./invoice");
+  for (const i of invs) profit -= invoiceDiscount({ subtotal: Number(i.x_subtotal) || 0, tax: Number(i.x_tax_amount) || 0, total: Number(i.x_total) || 0 });
+  return round2(profit);
+}
+
 /** Every figure, each on its own: one that Odoo cannot give is null (and named in errors). */
 export async function readSummaryFigures(env: Env, nowMs: number = Date.now()): Promise<SummaryFigures> {
   const day = riyadhDateKey(new Date(nowMs));
   const yesterday = riyadhDateKey(new Date(nowMs - DAY_MS));
-  const f: SummaryFigures = { day, tomorrow: null, deliveries: null, collected: null, pending: null, errors: [] };
+  const f: SummaryFigures = { day, tomorrow: null, deliveries: null, collected: null, pending: null, coverage: { profit: null, cost: null, pct: null }, errors: [] };
   const attempt = async <X>(name: string, fn: () => Promise<X>): Promise<X | null> => {
     try { return await fn(); } catch (e) {
       f.errors.push(`${name}: ${(e as Error)?.message ?? e}`);
@@ -168,7 +223,25 @@ export async function readSummaryFigures(env: Env, nowMs: number = Date.now()): 
   if (dl) f.deliveries = { delivered: dl.filter((o) => DELIVERED_STATES.has(o.x_state)).length, total: dl.length };
   f.collected = await attempt("collected", () => collectedOn(env, day));
   f.pending = await attempt("pending", () => pendingUpTo(env, day));
+  // § 40 هـ — the cost coverage of the day
+  const profit = await attempt("coverage_profit", () => deliveredProfit(env, yesterday));
+  const cost = await attempt("coverage_cost", async () => (await dailyOperatingCost(env, day, nowMs)).total);
+  f.coverage = { profit, cost, pct: profit !== null && cost !== null && cost > 0 ? Math.round((profit / cost) * 100) : null };
   return f;
+}
+
+/** «34%» / «تعذّر». */
+function pctText(c: SummaryFigures["coverage"]): string {
+  return c.pct === null ? UNAVAILABLE : `${c.pct}%`;
+}
+const amountText = (n: number | null) => (n === null ? UNAVAILABLE : sar(n));
+/** The text's fourth line: «تغطية تكاليف اليوم: X% (ربح Y من Z)». */
+export function coverageLine(c: SummaryFigures["coverage"]): string {
+  return `تغطية تكاليف اليوم: ${pctText(c)} (ربح ${amountText(c.profit)} من ${amountText(c.cost)})`;
+}
+/** The template's short form, appended to {{3}} (its «ريال» follows the cost). */
+export function coverageShort(c: SummaryFigures["coverage"]): string {
+  return `تغطية التكاليف ${pctText(c)} بربح ${amountText(c.profit)} من ${amountText(c.cost)}`;
 }
 
 /** The three variables of utak_v2_summary — one line each. */
@@ -180,17 +253,21 @@ export function summaryParams(f: SummaryFigures): [string, string, string] {
   const p2 = f.deliveries ? `${f.deliveries.delivered} مسلَّمة من ${f.deliveries.total}` : UNAVAILABLE;
   const p3 = f.collected === null && f.pending === null ? UNAVAILABLE
     : `المحصَّل اليوم ${f.collected === null ? UNAVAILABLE : sar(f.collected)} والمعلَّق ${f.pending === null ? UNAVAILABLE : sar(f.pending)}`;
-  return [p1, p2, p3];
+  // § 40 هـ — the coverage, short, on the same line at the end of {{3}}
+  return [p1, p2, `${p3} · ${coverageShort(f.coverage)}`];
 }
 
 /** The same summary as text, inside his window. */
 export function summaryText(f: SummaryFigures): string {
-  const [p1, p2, p3] = summaryParams(f);
+  const [p1, p2] = summaryParams(f);
+  const p3 = f.collected === null && f.pending === null ? UNAVAILABLE
+    : `المحصَّل اليوم ${f.collected === null ? UNAVAILABLE : sar(f.collected)} والمعلَّق ${f.pending === null ? UNAVAILABLE : sar(f.pending)}`;
   return [
     `📊 ملخص اليوم ${arabicDate(f.day)}`,
     `طلبات الغد: ${p1}`,
     `توصيلات اليوم: ${p2}`,
     `تحصيل اليوم: ${p3 === UNAVAILABLE || f.pending === null ? p3 : `${p3} ريال`}`,
+    coverageLine(f.coverage),
   ].join("\n");
 }
 

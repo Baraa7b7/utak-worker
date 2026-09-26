@@ -17,6 +17,7 @@ const PS = "src/price-sources.ts";
 const EN = "src/pricing-engine.ts";
 const PR = "src/prices.ts";
 const OP = "src/order-pricing.ts";
+const SM = "src/owner-summary.ts";
 
 // [part, name, [[file, find, replace], …], test file]
 const M = [
@@ -233,6 +234,31 @@ const M = [
     [OP, "    if (await env.MSG_DEDUP.get(doneKey)) return { action: \"checked\" };", "    if (false) return { action: \"checked\" };"]], T],
   ["د", "the stops alert not in the prices tick", [[PR,
     "    out.stops = await checkPlannedStops(env, now, dl);", "    out.stops = { action: \"before\" }; void checkPlannedStops;"]], T],
+  // ---------------------------------------------------------------- هـ the coverage line
+  ["هـ", "the invoices' discount not taken off the profit", [[SM,
+    "  for (const i of invs) profit -= invoiceDiscount(", "  for (const i of invs) void invoiceDiscount("]], T],
+  ["هـ", "the waste left out of the day's profit", [[SM,
+    "    profit += (sale - buy - (waste / 100) * buy) * (Number(l.x_quantity) || 0);", "    profit += (sale - buy) * (Number(l.x_quantity) || 0);"]], T],
+  ["هـ", "a simulation order counted", [[SM,
+    "    domain: [[\"x_order_date\", \"=\", day], [\"x_state\", \"in\", states], [SIM_FIELD, \"!=\", true]],", "    domain: [[\"x_order_date\", \"=\", day], [\"x_state\", \"in\", states]],"]], T],
+  ["هـ", "today's orders instead of today's deliveries", [[SM,
+    "  const profit = await attempt(\"coverage_profit\", () => deliveredProfit(env, yesterday));", "  const profit = await attempt(\"coverage_profit\", () => deliveredProfit(env, day));"]], T],
+  ["هـ", "a line without its day's purchase price counted at 0", [[SM,
+    "    if (!(buy > 0)) throw new Error(\"a delivered line without its day's purchase price\");\n", ""]], T],
+  ["هـ", "a line without a sale price counted at 0", [[SM,
+    "    if (!(sale > 0)) throw new Error(\"a delivered line without a sale price\");\n", ""]], T],
+  ["هـ", "the purchase price of any day, not the order's", [[SM,
+    "    domain: [[\"x_day_id.x_date\", \"=\", orderDay], [\"x_cost_price\", \">\", 0]],", "    domain: [[\"x_cost_price\", \">\", 0]],"]], T],
+  ["هـ", "yesterday's operating cost, not today's", [[SM,
+    "(await dailyOperatingCost(env, day, nowMs)).total", "(await dailyOperatingCost(env, yesterday, nowMs)).total"]], T],
+  ["هـ", "a coverage over a zero cost", [[SM,
+    "pct: profit !== null && cost !== null && cost > 0 ? Math.round((profit / cost) * 100) : null", "pct: profit !== null && cost !== null ? Math.round((profit / cost) * 100) : null"]], T],
+  ["هـ", "no fourth line in the text", [[SM,
+    "    coverageLine(f.coverage),\n", ""]], T],
+  ["هـ", "the template without the coverage", [[SM,
+    "  return [p1, p2, `${p3} · ${coverageShort(f.coverage)}`];", "  return [p1, p2, p3];"]], T],
+  ["هـ", "the coverage on its own line inside {{3}}", [[SM,
+    "  return [p1, p2, `${p3} · ${coverageShort(f.coverage)}`];", "  return [p1, p2, `${p3}\\n${coverageShort(f.coverage)}`];"]], T],
 ];
 
 const want = new Set(process.argv.slice(2));

@@ -1,260 +1,128 @@
 {
-  "at": "2026-09-26T08:24:30.723Z",
-  "caught": 26,
-  "total": 26,
+  "at": "2026-09-26T08:27:46.901Z",
+  "caught": 12,
+  "total": 12,
   "results": [
     {
-      "part": "د",
-      "name": "a tier's «إلى» exclusive (1,000 → no tier)",
+      "part": "هـ",
+      "name": "the invoices' discount not taken off the profit",
       "caught": true,
       "fails": [
-        "✗ 0 → 0 %, 499.99 → 0 %",
-        "✗ 500 → 2 %, 1,000 → 2 %",
-        "✗ 0 → 0 %, 499.99 → 0 %",
-        "✗ 500 → 2 %, 1,000 → 2 %"
+        "✗ profit 180 − the invoice's discount 10.43 = 169.57 (the simulation order out); cost 500; 34% — {\"profit\":180,\"cost\":500,\"pct\":36}",
+        "✗ the text: a fourth line «تغطية تكاليف اليوم: 34% (ربح 169.57 من 500.00)» — 📊 ملخص اليوم 3 أكتوبر 2026",
+        "✗ …the coverage at the end of {{3}}, on the same line (its «ريال» follows) — المحصَّل اليوم 0.00 والمعلَّق 588.01 · تغطية التكاليف 36% بربح 180.00 من 500.00",
+        "✗ …one line at the source too (not left to the gateway's cleanup) — [\"0 مؤكدة لـ 4 أكتوبر 2026 بإجمالي 0.00 ريال\",\"1 مسلَّمة من 1\",\"المحصَّل اليوم 0.00 والمعلَّق 588.01 · تغطية التكاليف 36% بربح 180.00 من 500.00\"]"
       ]
     },
     {
-      "part": "د",
-      "name": "an inactive tier used",
+      "part": "هـ",
+      "name": "the waste left out of the day's profit",
       "caught": true,
       "fails": [
-        "✗ an inactive tier is left out",
-        "✗ an inactive tier is left out"
+        "✗ profit 180 − the invoice's discount 10.43 = 169.57 (the simulation order out); cost 500; 34% — {\"profit\":189.57,\"cost\":500,\"pct\":38}",
+        "✗ the text: a fourth line «تغطية تكاليف اليوم: 34% (ربح 169.57 من 500.00)» — 📊 ملخص اليوم 3 أكتوبر 2026",
+        "✗ …the coverage at the end of {{3}}, on the same line (its «ريال» follows) — المحصَّل اليوم 0.00 والمعلَّق 588.01 · تغطية التكاليف 38% بربح 189.57 من 500.00",
+        "✗ …one line at the source too (not left to the gateway's cleanup) — [\"0 مؤكدة لـ 4 أكتوبر 2026 بإجمالي 0.00 ريال\",\"1 مسلَّمة من 1\",\"المحصَّل اليوم 0.00 والمعلَّق 588.01 · تغطية التكاليف 38% بربح 189.57 من 500.00\"]"
       ]
     },
     {
-      "part": "د",
-      "name": "the discount on the VAT-inclusive total",
+      "part": "هـ",
+      "name": "a simulation order counted",
       "caught": true,
       "fails": [
-        "✗ from 10-01 (VAT 15 % in the price): 2 % of the net 521.74 = 10.43 — {\"gross\":600,\"tierPct\":2,\"pct\":2,\"amount\":12,\"profitBefore\":180,\"profitAfter\":168,\"minProfit\":50,\"applied\":true,\"reason\":\"\"}",
-        "✗ the quotation: 600, a discount line 12 (10.43 + its VAT), total 588.01 — the invoice's total — {\"s\":600,\"d\":13.8,\"t\":586.2}",
-        "✗ …rendered: the «الخصم» row carries it",
-        "✗ the invoice: net 521.74, VAT 76.70, total 588.01, x_discount 10.43 (2 %) — {\"x_order_id\":10013,\"x_invoice_number\":\"UTAK-INV-20261003-001\",\"x_invoice_date\":\"2026-10-03\",\"x_subtotal\":521.74,\"x_tax_amount\":76.46,\"x_total\":586.2,\"x_status\":\"issued\",\"x_discount\":12,\"x_discount_pct\":2,\"x_is_simulation\":true,\"id\":10016,\"x_sent_to_customer_at\":\"2026-10-03 07:00:00\",\"x_sent_to_collector_at\":\"2026-10-03 07:00:00\"}"
+        "✗ profit 180 − the invoice's discount 10.43 = 169.57 (the simulation order out); cost 500; 34% — {\"profit\":619.57,\"cost\":500,\"pct\":124}",
+        "✗ the text: a fourth line «تغطية تكاليف اليوم: 34% (ربح 169.57 من 500.00)» — 📊 ملخص اليوم 3 أكتوبر 2026",
+        "✗ …the three lines before it as they were — 📊 ملخص اليوم 3 أكتوبر 2026",
+        "✗ …the coverage at the end of {{3}}, on the same line (its «ريال» follows) — المحصَّل اليوم 0.00 والمعلَّق 588.01 · تغطية التكاليف 124% بربح 619.57 من 500.00"
       ]
     },
     {
-      "part": "د",
-      "name": "no guard (profit after the discount unchecked)",
+      "part": "هـ",
+      "name": "today's orders instead of today's deliveries",
       "caught": true,
       "fails": [
-        "✗ the guard: 1 planned stop → the order must keep 500; 168 < 500 → no discount, with the reason — {\"gross\":600,\"tierPct\":2,\"pct\":2,\"amount\":12,\"profitBefore\":180,\"profitAfter\":168,\"minProfit\":500,\"applied\":true,\"reason\":\"\"}",
-        "✗ the guard: 1 planned stop → the order must keep 500; 168 < 500 → no discount, with the reason"
+        "✗ profit 180 − the invoice's discount 10.43 = 169.57 (the simulation order out); cost 500; 34% — {\"profit\":0,\"cost\":500,\"pct\":0}",
+        "✗ the text: a fourth line «تغطية تكاليف اليوم: 34% (ربح 169.57 من 500.00)» — 📊 ملخص اليوم 3 أكتوبر 2026",
+        "✗ …the coverage at the end of {{3}}, on the same line (its «ريال» follows) — المحصَّل اليوم 0.00 والمعلَّق 588.01 · تغطية التكاليف 0% بربح 0.00 من 500.00",
+        "✗ …one line at the source too (not left to the gateway's cleanup) — [\"0 مؤكدة لـ 4 أكتوبر 2026 بإجمالي 0.00 ريال\",\"1 مسلَّمة من 1\",\"المحصَّل اليوم 0.00 والمعلَّق 588.01 · تغطية التكاليف 0% بربح 0.00 من 500.00\"]"
       ]
     },
     {
-      "part": "د",
-      "name": "planned stops empty → a discount anyway",
+      "part": "هـ",
+      "name": "a line without its day's purchase price counted at 0",
       "caught": true,
       "fails": [
-        "✗ planned stops empty → no discount at all — {\"gross\":600,\"tierPct\":2,\"pct\":0,\"amount\":0,\"profitBefore\":180,\"profitAfter\":168,\"minProfit\":null,\"applied\":false,\"reason\":\"ربح الطلب بعد الخصم 168 أقل من Infinity (تكلفة اليوم ÷ المحطات)\"}",
-        "✗ planned stops empty → no discount at all"
+        "✗ a delivered line without its day's purchase price → profit and coverage «تعذّر» — {\"profit\":289.57,\"cost\":500,\"pct\":58}",
+        "✗ …«تغطية تكاليف اليوم: تعذّر (ربح تعذّر من 500.00)» — تغطية تكاليف اليوم: 58% (ربح 289.57 من 500.00)",
+        "✗ a delivered line without its day's purchase price → profit and coverage «تعذّر»",
+        "✗ …«تغطية تكاليف اليوم: تعذّر (ربح تعذّر من 500.00)»"
       ]
     },
     {
-      "part": "د",
-      "name": "a line without the day's purchase price counted at 0",
+      "part": "هـ",
+      "name": "a line without a sale price counted at 0",
       "caught": true,
       "fails": [
-        "✗ a line without the day's purchase price → no discount (never a guess) — {\"gross\":650,\"tierPct\":2,\"pct\":2,\"amount\":13,\"profitBefore\":180,\"profitAfter\":167,\"minProfit\":50,\"applied\":true,\"reason\":\"\"}",
-        "✗ a line without the day's purchase price → no discount (never a guess)"
+        "✗ a delivered line without a sale price → profit «تعذّر» — {\"profit\":124.57,\"cost\":500,\"pct\":25}",
+        "✗ a delivered line without a sale price → profit «تعذّر»"
       ]
     },
     {
-      "part": "د",
-      "name": "the waste left out of the order's profit",
+      "part": "هـ",
+      "name": "the purchase price of any day, not the order's",
       "caught": true,
       "fails": [
-        "✗ 600 before the VAT cutoff: 2 % of 600 = 12, applied (profit 180 − 12 = 168 ≥ 500 ÷ 10) — {\"gross\":600,\"tierPct\":2,\"pct\":2,\"amount\":12,\"profitBefore\":200,\"profitAfter\":188,\"minProfit\":50,\"applied\":true,\"reason\":\"\"}",
-        "✗ 600 before the VAT cutoff: 2 % of 600 = 12, applied (profit 180 − 12 = 168 ≥ 500 ÷ 10)"
+        "✗ profit 180 − the invoice's discount 10.43 = 169.57 (the simulation order out); cost 500; 34% — {\"profit\":43.57,\"cost\":500,\"pct\":9}",
+        "✗ the text: a fourth line «تغطية تكاليف اليوم: 34% (ربح 169.57 من 500.00)» — 📊 ملخص اليوم 3 أكتوبر 2026",
+        "✗ …the coverage at the end of {{3}}, on the same line (its «ريال» follows) — المحصَّل اليوم 0.00 والمعلَّق 588.01 · تغطية التكاليف 9% بربح 43.57 من 500.00",
+        "✗ …one line at the source too (not left to the gateway's cleanup) — [\"0 مؤكدة لـ 4 أكتوبر 2026 بإجمالي 0.00 ريال\",\"1 مسلَّمة من 1\",\"المحصَّل اليوم 0.00 والمعلَّق 588.01 · تغطية التكاليف 9% بربح 43.57 من 500.00\"]"
       ]
     },
     {
-      "part": "د",
-      "name": "the day's cost unreadable → a discount anyway",
+      "part": "هـ",
+      "name": "yesterday's operating cost, not today's",
       "caught": true,
       "fails": [
-        "✗ the day's cost unreadable (a monthly line, no driver schedule) → no discount — {\"gross\":600,\"tierPct\":2,\"pct\":2,\"amount\":12,\"profitBefore\":180,\"profitAfter\":168,\"minProfit\":0,\"applied\":true,\"reason\":\"\"}",
-        "✗ the day's cost unreadable (a monthly line, no driver schedule) → no discount"
+        "✗ today's cost (Saturday 10-03: 500 + 2600 ÷ 26 = 600), not yesterday's (Friday: 500) → 28% — {\"profit\":169.57,\"cost\":500,\"pct\":34}",
+        "✗ today's cost (Saturday 10-03: 500 + 2600 ÷ 26 = 600), not yesterday's (Friday: 500) → 28%"
       ]
     },
     {
-      "part": "د",
-      "name": "ACCOUNTING_SYNC on → a discount anyway",
+      "part": "هـ",
+      "name": "a coverage over a zero cost",
       "caught": true,
       "fails": [
-        "✗ ACCOUNTING_SYNC on: no discount (the sale order has no discount line yet) — {\"gross\":600,\"tierPct\":2,\"pct\":2,\"amount\":12,\"profitBefore\":180,\"profitAfter\":168,\"minProfit\":50,\"applied\":true,\"reason\":\"\"}",
-        "✗ ACCOUNTING_SYNC on: no discount (the sale order has no discount line yet)"
+        "✗ no cost line in force today (0): the coverage «تعذّر», the figures shown — {\"profit\":169.57,\"cost\":0,\"pct\":null}",
+        "✗ no cost line in force today (0): the coverage «تعذّر», the figures shown"
       ]
     },
     {
-      "part": "د",
-      "name": "the VAT on the net before the discount",
+      "part": "هـ",
+      "name": "no fourth line in the text",
       "caught": true,
       "fails": [
-        "✗ the totals: net 521.74, discount 10.43, VAT on 511.31 = 76.70, total 588.01 — {\"subtotal\":521.74,\"discount\":10.43,\"tax\":78.26,\"total\":589.57}",
-        "✗ the quotation: 600, a discount line 12 (10.43 + its VAT), total 588.01 — the invoice's total — {\"s\":600,\"d\":10.43,\"t\":589.57}",
-        "✗ …rendered: the «الخصم» row carries it",
-        "✗ the invoice: net 521.74, VAT 76.70, total 588.01, x_discount 10.43 (2 %) — {\"x_order_id\":10013,\"x_invoice_number\":\"UTAK-INV-20261003-001\",\"x_invoice_date\":\"2026-10-03\",\"x_subtotal\":521.74,\"x_tax_amount\":78.26,\"x_total\":589.57,\"x_status\":\"issued\",\"x_discount\":10.43,\"x_discount_pct\":2,\"x_is_simulation\":true,\"id\":10016,\"x_sent_to_customer_at\":\"2026-10-03 07:00:00\",\"x_sent_to_collector_at\":\"2026-10-03 07:00:00\"}"
+        "✗ the text: a fourth line «تغطية تكاليف اليوم: 34% (ربح 169.57 من 500.00)» — 📊 ملخص اليوم 3 أكتوبر 2026",
+        "✗ the text: a fourth line «تغطية تكاليف اليوم: 34% (ربح 169.57 من 500.00)»"
       ]
     },
     {
-      "part": "د",
-      "name": "the invoice ignores the discount",
+      "part": "هـ",
+      "name": "the template without the coverage",
       "caught": true,
       "fails": [
-        "✗ the invoice: net 521.74, VAT 76.70, total 588.01, x_discount 10.43 (2 %) — {\"x_order_id\":10013,\"x_invoice_number\":\"UTAK-INV-20261003-001\",\"x_invoice_date\":\"2026-10-03\",\"x_subtotal\":521.74,\"x_tax_amount\":78.26,\"x_total\":600,\"x_status\":\"issued\",\"x_is_simulation\":true,\"id\":10016,\"x_sent_to_customer_at\":\"2026-10-03 07:00:00\",\"x_sent_to_collector_at\":\"2026-10-03 07:00:00\"}",
-        "✗ …its PDF data: the discount 10.43 before the VAT row (the § 23 tax invoice layout) — {\"d\":0,\"v\":78.26,\"t\":600}",
-        "✗ …the customer's text: «خصم الكمية: 10.43 ر.س» between the net and the VAT — [{\"id\":\"1d936506\",\"purpose\":\"customer_invoice\",\"body\":{\"type\":\"text\",\"text\":{\"body\":\"🧾 فاتورتك رقم UTAK-INV-20261003-001\\n\\n• طماطم كرتون × 20 = 600 ر.س\\n\\nالإجمالي قبل الضريبة: 521.74 ر.س\\nضريبة القيمة المضافة 15%: 78.26 ر.س\\nالإجمالي شامل الضريبة: 600 ر.س\\n\\nشكراً لتعاملكم مع UTAK 🌿\"}},\"createdAt\":1791010800000,\"expiresAt\":1791061200000,\"important\":true,\"rowId\":10017,\"attempts\":0}]",
-        "✗ the invoice: net 521.74, VAT 76.70, total 588.01, x_discount 10.43 (2 %)"
+        "✗ …the coverage at the end of {{3}}, on the same line (its «ريال» follows) — المحصَّل اليوم 0.00 والمعلَّق 588.01",
+        "✗ …one line at the source too (not left to the gateway's cleanup) — [\"0 مؤكدة لـ 4 أكتوبر 2026 بإجمالي 0.00 ريال\",\"1 مسلَّمة من 1\",\"المحصَّل اليوم 0.00 والمعلَّق 588.01\"]",
+        "✗ …the coverage at the end of {{3}}, on the same line (its «ريال» follows)",
+        "✗ …one line at the source too (not left to the gateway's cleanup)"
       ]
     },
     {
-      "part": "د",
-      "name": "the invoice record without x_discount",
+      "part": "هـ",
+      "name": "the coverage on its own line inside {{3}}",
       "caught": true,
       "fails": [
-        "✗ the invoice: net 521.74, VAT 76.70, total 588.01, x_discount 10.43 (2 %) — {\"x_order_id\":10013,\"x_invoice_number\":\"UTAK-INV-20261003-001\",\"x_invoice_date\":\"2026-10-03\",\"x_subtotal\":521.74,\"x_tax_amount\":76.7,\"x_total\":588.01,\"x_status\":\"issued\",\"x_is_simulation\":true,\"id\":10016,\"x_sent_to_customer_at\":\"2026-10-03 07:00:00\",\"x_sent_to_collector_at\":\"2026-10-03 07:00:00\"}",
-        "✗ the invoice: net 521.74, VAT 76.70, total 588.01, x_discount 10.43 (2 %)"
-      ]
-    },
-    {
-      "part": "د",
-      "name": "the invoice PDF without the discount line",
-      "caught": true,
-      "fails": [
-        "✗ …its PDF data: the discount 10.43 before the VAT row (the § 23 tax invoice layout) — {\"d\":0,\"v\":76.7,\"t\":588.01}",
-        "✗ …its PDF data: the discount 10.43 before the VAT row (the § 23 tax invoice layout)"
-      ]
-    },
-    {
-      "part": "د",
-      "name": "the customer's invoice text without the discount",
-      "caught": true,
-      "fails": [
-        "✗ …the customer's text: «خصم الكمية: 10.43 ر.س» between the net and the VAT — [{\"id\":\"a32c7a0f\",\"purpose\":\"customer_invoice\",\"body\":{\"type\":\"text\",\"text\":{\"body\":\"🧾 فاتورتك رقم UTAK-INV-20261003-001\\n\\n• طماطم كرتون × 20 = 600 ر.س\\n\\nالإجمالي قبل الضريبة: 521.74 ر.س\\nضريبة القيمة المضافة 15%: 76.7 ر.س\\nالإجمالي شامل الضريبة: 588.01 ر.س\\n\\nشكراً لتعاملكم مع UTAK 🌿\"}},\"createdAt\":1791010800000,\"expiresAt\":1791061200000,\"important\":true,\"rowId\":10017,\"attempts\":0}]",
-        "✗ …the customer's text: «خصم الكمية: 10.43 ر.س» between the net and the VAT"
-      ]
-    },
-    {
-      "part": "د",
-      "name": "the quotation without the discount",
-      "caught": true,
-      "fails": [
-        "✗ the quotation: 600, a discount line 12 (10.43 + its VAT), total 588.01 — the invoice's total — {\"s\":600,\"d\":0,\"t\":600}",
-        "✗ …rendered: the «الخصم» row carries it",
-        "✗ the quotation: 600, a discount line 12 (10.43 + its VAT), total 588.01 — the invoice's total",
-        "✗ …rendered: the «الخصم» row carries it"
-      ]
-    },
-    {
-      "part": "د",
-      "name": "no minimum at all",
-      "caught": true,
-      "fails": [
-        "✗ 120 < 150 → below — {\"total\":120,\"min\":150,\"below\":false,\"unpriced\":0}",
-        "✗ «خلاص» → «أقل طلب 150 ريال، أضف أصنافاً ليكتمل», no buttons, no quotation — {\"bodyBeforeButtons\":\"📄 الكوتيشن رقم UTAK-Q-20261003-001\\n• طماطم كرتون × 4\\n\\n📍 التوصيل إلى: العليا\\nالأسعار النهائية عند التسليم. اختر:\",\"buttons\":[{\"id\":\"confirm_order_10009\",\"title\":\"تأكيد الطلب ✅\"},{\"id\":\"edit_order_10009\",\"title\":\"تعديل ✏️\"},{\"id\":\"cancel_order_10009\",\"title\":\"إلغاء ❌\"}]}",
-        "✗ an old «تأكيد الطلب» tap below it → not confirmed, the same text; the order back to draft (open) — {\"text\":\"تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿\"}",
-        "✗ completed to 150 → the quotation with its confirm button — {\"text\":\"ما عندك طلب مفتوح اليوم. ابدأ بكتابة الأصناف اللي تحتاجها.\"}"
-      ]
-    },
-    {
-      "part": "د",
-      "name": "the minimum itself refused (≤ instead of <)",
-      "caught": true,
-      "fails": [
-        "✗ completed to 150 → the quotation with its confirm button — {\"text\":\"أقل طلب 150 ريال، أضف أصنافاً ليكتمل\\nمجموع طلبك الآن: 150 ريال.\"}",
-        "✗ …and «تأكيد الطلب» confirms it — {\"text\":\"أقل طلب 150 ريال، أضف أصنافاً ليكتمل\\nمجموع طلبك الآن: 150 ريال.\"}",
-        "✗ completed to 150 → the quotation with its confirm button",
-        "✗ …and «تأكيد الطلب» confirms it"
-      ]
-    },
-    {
-      "part": "د",
-      "name": "the quotation request ignores the minimum",
-      "caught": true,
-      "fails": [
-        "✗ «خلاص» → «أقل طلب 150 ريال، أضف أصنافاً ليكتمل», no buttons, no quotation — {\"bodyBeforeButtons\":\"📄 الكوتيشن رقم UTAK-Q-20261003-001\\n• طماطم كرتون × 4\\n\\n📍 التوصيل إلى: العليا\\nالأسعار النهائية عند التسليم. اختر:\",\"buttons\":[{\"id\":\"confirm_order_10009\",\"title\":\"تأكيد الطلب ✅\"},{\"id\":\"edit_order_10009\",\"title\":\"تعديل ✏️\"},{\"id\":\"cancel_order_10009\",\"title\":\"إلغاء ❌\"}]}",
-        "✗ completed to 150 → the quotation with its confirm button — {\"bodyBeforeButtons\":\"📄 الكوتيشن رقم UTAK-Q-20261003-002\\n• طماطم كرتون × 4\\n• طماطم كرتون × 1\\n\\n📍 التوصيل إلى: العليا\\nالأسعار النهائية عند التسليم. اختر:\",\"buttons\":[{\"id\":\"confirm_order_10009\",\"title\":\"تأكيد الطلب ✅\"},{\"id\":\"edit_order_10009\",\"title\":\"تعديل ✏️\"},{\"id\":\"cancel_order_10009\",\"title\":\"إلغاء ❌\"}]}",
-        "✗ «خلاص» → «أقل طلب 150 ريال، أضف أصنافاً ليكتمل», no buttons, no quotation",
-        "✗ completed to 150 → the quotation with its confirm button"
-      ]
-    },
-    {
-      "part": "د",
-      "name": "the inline «خلاص» ignores the minimum",
-      "caught": true,
-      "fails": [
-        "✗ «طماطم كرتون 4 خلاص» (120): the items recorded, «أقل طلب 150 …», no quotation, no button, the order open — {\"bodyBeforeButtons\":\"بديت لك طلب جديد ✅\\n• طماطم كرتون × 4\\n📍 التوصيل إلى: العليا\\n📄 الكوتيشن رقم UTAK-Q-20261003-001 — راجع الأصناف واختر:\",\"buttons\":[{\"id\":\"confirm_order_10010\",\"title\":\"تأكيد الطلب ✅\"},{\"id\":\"edit_order_10010\",\"title\":\"تعديل ✏️\"},{\"id\":\"cancel_order_10010\",\"title\":\"إلغاء ❌\"}]}",
-        "✗ «طماطم كرتون 4 خلاص» (120): the items recorded, «أقل طلب 150 …», no quotation, no button, the order open"
-      ]
-    },
-    {
-      "part": "د",
-      "name": "«تأكيد الطلب» confirms below the minimum",
-      "caught": true,
-      "fails": [
-        "✗ an old «تأكيد الطلب» tap below it → not confirmed, the same text; the order back to draft (open) — {\"text\":\"تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿\"}",
-        "✗ completed to 150 → the quotation with its confirm button — {\"text\":\"ما عندك طلب مفتوح اليوم. ابدأ بكتابة الأصناف اللي تحتاجها.\"}",
-        "✗ …and «تأكيد الطلب» confirms it — {\"text\":\"طلبك رقم #10009 مؤكد مسبقاً ✅\"}",
-        "✗ an old «تأكيد الطلب» tap below it → not confirmed, the same text; the order back to draft (open)"
-      ]
-    },
-    {
-      "part": "د",
-      "name": "a refused confirmation leaves the order waiting (not open)",
-      "caught": true,
-      "fails": [
-        "✗ an old «تأكيد الطلب» tap below it → not confirmed, the same text; the order back to draft (open) — {\"text\":\"أقل طلب 150 ريال، أضف أصنافاً ليكتمل\\nمجموع طلبك الآن: 120 ريال.\"}",
-        "✗ an old «تأكيد الطلب» tap below it → not confirmed, the same text; the order back to draft (open)"
-      ]
-    },
-    {
-      "part": "د",
-      "name": "ح3's reminder offers the button below the minimum",
-      "caught": true,
-      "fails": [
-        "✗ ح3 20:00, an order below the minimum: the reminder says so, without a confirm button — [{\"messaging_product\":\"whatsapp\",\"to\":\"966500000501\",\"type\":\"interactive\",\"interactive\":{\"type\":\"button\",\"body\":{\"text\":\"⏰ طلبك رقم #10009 لسه ما تأكد، ويُلغى تلقائياً الساعة 9:00 مساءً لو ما تأكد. اضغط «تأكيد الطلب» عشان يدخل طلبات اليوم 👇\"},\"action\":{\"buttons\":[{\"type\":\"reply\",\"reply\":{\"id\":\"confirm_order_10009\",\"title\":\"تأكيد الطلب ✅\"}},{\"type\":\"reply\",\"reply\":{\"id\":\"cancel_order_10009\",\"title\":\"إلغاء ❌\"}}]}}}]",
-        "✗ ح3 20:00, an order below the minimum: the reminder says so, without a confirm button"
-      ]
-    },
-    {
-      "part": "د",
-      "name": "the reply to ح3's template offers the button below the minimum",
-      "caught": true,
-      "fails": [
-        "✗ the reply to ح3's template below the minimum: the text, no confirm button — [{\"messaging_product\":\"whatsapp\",\"to\":\"966500000501\",\"type\":\"interactive\",\"interactive\":{\"type\":\"button\",\"body\":{\"text\":\"طلبك رقم #10009 بانتظار تأكيدك، ويُلغى تلقائياً الساعة 9:00 مساءً لو ما تأكد 👇\"},\"action\":{\"buttons\":[{\"type\":\"reply\",\"reply\":{\"id\":\"confirm_order_10009\",\"title\":\"تأكيد الطلب ✅\"}",
-        "✗ the reply to ح3's template below the minimum: the text, no confirm button"
-      ]
-    },
-    {
-      "part": "د",
-      "name": "the stops alert although they are filled",
-      "caught": true,
-      "fails": [
-        "✗ stops filled (12): no alert",
-        "✗ stops filled (12): no alert"
-      ]
-    },
-    {
-      "part": "د",
-      "name": "the stops alert every tick",
-      "caught": true,
-      "fails": [
-        "✗ the same day again: no second alert",
-        "✗ the next day, still empty: one more",
-        "✗ the same day again: no second alert",
-        "✗ the next day, still empty: one more"
-      ]
-    },
-    {
-      "part": "د",
-      "name": "the stops alert not in the prices tick",
-      "caught": true,
-      "fails": [
-        "✗ 06:00 (the prices tick): one alert — {\"action\":\"before\"}",
-        "✗ 06:00 (the prices tick): one alert"
+        "✗ …one line at the source too (not left to the gateway's cleanup) — [\"0 مؤكدة لـ 4 أكتوبر 2026 بإجمالي 0.00 ريال\",\"1 مسلَّمة من 1\",\"المحصَّل اليوم 0.00 والمعلَّق 588.01\\nتغطية التكاليف 34% بربح 169.57 من 500.00\"]",
+        "✗ …one line at the source too (not left to the gateway's cleanup)"
       ]
     }
   ]

@@ -889,6 +889,92 @@ console.log("\n[د] planned stops empty: one alert a day to Baraa while a tier g
   assert("no tier gives a discount: no alert", (await quiet(() => OP.checkPlannedStops(env3, Date.now(), 360))).action === "no_discount" && stopsAlerts() === 0);
 }
 
+// ================================================================ [هـ]
+const SUM = await import("../src/owner-summary.ts");
+const YDAY = "2026-10-02";
+/** Yesterday's order delivered this morning: its lines [product, packaging, qty, price written back by the invoice]. */
+function delivered(lines: Array<[number, number, number, number]>, extra: Record<string, unknown> = {}): number {
+  const id = seed("x_daily_order", { x_customer_id: C1, x_state: "delivered", x_order_date: YDAY, x_created_via: "whatsapp", ...extra });
+  for (const [p, k, q, u] of lines) seed("x_daily_order_line", { x_order_id: id, x_product_tmpl_id: p, x_packaging_id: k, x_quantity: q, x_unit_price: u, x_status: "delivered" });
+  return id;
+}
+function summaryEnv(): any {
+  const env = fresh("2026-10-03 21:30");
+  seed("x_whatsapp_template", { x_purpose: "owner_summary", x_meta_template_id: "utak_v2_summary", x_language: "ar", x_meta_status: "APPROVED", x_param_count: 3, x_category: "UTILITY",
+    x_body_text: "ملخص اليوم جاهز\nطلبات: {{1}}\nتوصيلات: {{2}}\nإجمالي: {{3}} ريال\nتفاصيل أكثر في لوحة القيادة." });
+  cost("السيارة والسائق (شامل)", "daily", 500, "2026-10-01");
+  publishedTomato(YDAY);                                      // yesterday: tomato bought at 20
+  publishedTomato(DAY, 26, 32);                               // today's prices: not the delivered orders' day
+  const o = delivered([[1, 11, 20, 30]]);                     // 20 × (30 − 20 − 1) = 180
+  seed("x_invoice", { x_invoice_number: "UTAK-INV-20261003-001", x_order_id: o, x_invoice_date: DAY, x_status: "issued", x_subtotal: 521.74, x_tax_amount: 76.7, x_total: 588.01, x_discount: 10.43 });
+  delivered([[1, 11, 50, 30]], { x_utak_simulation: true }); // simulation: out
+  return env;
+}
+const summaryMsgs = () => sentTo(OWNER).filter((b: any) => b?.type === "text" && String(b.text?.body).startsWith("📊") || b?.template?.name === "utak_v2_summary");
+
+console.log("\n[هـ] 21:30: today's profit ÷ today's operating cost — inside Baraa's window a fourth line");
+{
+  const env = summaryEnv();
+  const f = await quiet(() => SUM.readSummaryFigures(env));
+  assert("profit 180 − the invoice's discount 10.43 = 169.57 (the simulation order out); cost 500; 34%",
+    f.coverage.profit === 169.57 && f.coverage.cost === 500 && f.coverage.pct === 34, JSON.stringify(f.coverage));
+  const r = await quiet(() => SUM.sendOwnerSummary(env));
+  const t = String(summaryMsgs()[0]?.text?.body ?? "");
+  const lines = t.split("\n");
+  assert("the text: a fourth line «تغطية تكاليف اليوم: 34% (ربح 169.57 من 500.00)»", r.action === "session" && lines.length === 5 && lines[4] === "تغطية تكاليف اليوم: 34% (ربح 169.57 من 500.00)", t);
+  assert("…the three lines before it as they were", lines[3].startsWith("تحصيل اليوم:") && lines[2].startsWith("توصيلات اليوم: 1 مسلَّمة من 1"), t);
+}
+{
+  const env = summaryEnv();
+  closeOwnerWindow(env);
+  const r = await quiet(() => SUM.sendOwnerSummary(env));
+  const m = summaryMsgs()[0];
+  const p = (m?.template?.components ?? []).find((c: any) => c.type === "body")?.parameters?.map((x: any) => x.text) ?? [];
+  assert("outside his window: utak_v2_summary with its three variables as they are", r.action === "template" && p.length === 3, JSON.stringify(p));
+  assert("…the coverage at the end of {{3}}, on the same line (its «ريال» follows)",
+    p[2] === "المحصَّل اليوم 0.00 والمعلَّق 588.01 · تغطية التكاليف 34% بربح 169.57 من 500.00" && !/[\n\t]/.test(p[2]), p[2]);
+  const own = SUM.summaryParams(await quiet(() => SUM.readSummaryFigures(env)));
+  assert("…one line at the source too (not left to the gateway's cleanup)", own.every((x) => !/[\n\t]/.test(x)) && own[2].endsWith("· تغطية التكاليف 34% بربح 169.57 من 500.00"), JSON.stringify(own));
+}
+
+{
+  const env = summaryEnv();
+  cost("صيانة", "monthly", 2600, "2026-01-01");               // Saturday: 100 of it today (Friday, yesterday: 0)
+  const f = await quiet(() => SUM.readSummaryFigures(env));
+  assert("today's cost (Saturday 10-03: 500 + 2600 ÷ 26 = 600), not yesterday's (Friday: 500) → 28%", f.coverage.cost === 600 && f.coverage.pct === 28, JSON.stringify(f.coverage));
+}
+
+console.log("\n[هـ] a figure that cannot be read: «تعذّر», never a guess");
+{
+  const env = summaryEnv();
+  const o = delivered([[1, 11, 2, 30]]);
+  seed("x_daily_order_line", { x_order_id: o, x_product_tmpl_id: 1, x_packaging_id: 11, x_quantity: 3, x_unit_price: false, x_status: "delivered" });
+  const f = await quiet(() => SUM.readSummaryFigures(env));
+  assert("a delivered line without a sale price → profit «تعذّر»", f.coverage.profit === null && f.coverage.pct === null, JSON.stringify(f.coverage));
+}
+{
+  const env = summaryEnv();
+  delivered([[2, 21, 3, 40]]);                                // cucumber: no purchase price yesterday
+  const f = await quiet(() => SUM.readSummaryFigures(env));
+  assert("a delivered line without its day's purchase price → profit and coverage «تعذّر»", f.coverage.profit === null && f.coverage.pct === null && f.coverage.cost === 500, JSON.stringify(f.coverage));
+  assert("…«تغطية تكاليف اليوم: تعذّر (ربح تعذّر من 500.00)»", SUM.coverageLine(f.coverage) === "تغطية تكاليف اليوم: تعذّر (ربح تعذّر من 500.00)", SUM.coverageLine(f.coverage));
+}
+{
+  const env = summaryEnv();
+  cost("صيانة", "monthly", 2600, "2026-01-01");
+  table("hr.employee").get(OMAR_EMP)!.resource_calendar_id = false;
+  const f = await quiet(() => SUM.readSummaryFigures(env));
+  assert("the day's cost unreadable (a monthly line, no driver schedule) → «تعذّر (ربح 169.57 من تعذّر)»",
+    f.coverage.cost === null && f.coverage.pct === null && SUM.coverageLine(f.coverage) === "تغطية تكاليف اليوم: تعذّر (ربح 169.57 من تعذّر)", JSON.stringify(f.coverage));
+}
+{
+  const env = summaryEnv();
+  rows("x_operating_cost").forEach((r: any) => { r.x_date_from = "2026-12-01"; });
+  const f = await quiet(() => SUM.readSummaryFigures(env));
+  assert("no cost line in force today (0): the coverage «تعذّر», the figures shown", f.coverage.cost === 0 && f.coverage.pct === null && SUM.coverageLine(f.coverage) === "تغطية تكاليف اليوم: تعذّر (ربح 169.57 من 0.00)", JSON.stringify(f.coverage));
+  assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) {
   console.log(failures.map((f) => `  ✗ ${f}`).join("\n"));

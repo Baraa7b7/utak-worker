@@ -572,7 +572,8 @@ console.log("\n[م17] 21:30: tomorrow's orders, today's deliveries, today's coll
   const p = sum.summaryParams(f);
   assert("{{1}}", p[0] === "2 مؤكدة لـ 27 سبتمبر 2026 بإجمالي 54.00 ريال", p[0]);
   assert("{{2}}", p[1] === "2 مسلَّمة من 3", p[1]);
-  assert("{{3}}", p[2] === "المحصَّل اليوم 150.00 والمعلَّق 120.00", p[2]);
+  // § 40 هـ — the cost coverage appended on the same line (here: no purchase price on the delivered lines, no cost line)
+  assert("{{3}}", p[2] === "المحصَّل اليوم 150.00 والمعلَّق 120.00 · تغطية التكاليف تعذّر بربح تعذّر من 0.00", p[2]);
   assert("each variable is one line", p.every((x) => !/[\n\t]/.test(x)));
 }
 {
@@ -594,7 +595,7 @@ console.log("\n[م17] 21:30: tomorrow's orders, today's deliveries, today's coll
   const r = await quiet(() => sum.sendOwnerSummary(env));
   const m = ownerMsgs();
   assert("outside his window → utak_v2_summary", r.action === "template" && m.length === 1 && m[0].template?.name === "utak_v2_summary", `${r.action} ${JSON.stringify(m)}`);
-  assert("…with its three variables", tplParams(m[0]).join(" | ") === "2 مؤكدة لـ 27 سبتمبر 2026 بإجمالي 54.00 ريال | 2 مسلَّمة من 3 | المحصَّل اليوم 150.00 والمعلَّق 120.00", JSON.stringify(tplParams(m[0])));
+  assert("…with its three variables", tplParams(m[0]).join(" | ") === "2 مؤكدة لـ 27 سبتمبر 2026 بإجمالي 54.00 ريال | 2 مسلَّمة من 3 | المحصَّل اليوم 150.00 والمعلَّق 120.00 · تغطية التكاليف تعذّر بربح تعذّر من 0.00", JSON.stringify(tplParams(m[0])));
 }
 
 console.log("\n[م17] a figure Odoo cannot give: the summary goes with «تعذّر» in its place, never a guess");

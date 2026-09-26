@@ -200,6 +200,8 @@ const M = [
     "  if (isSimRun(env)) return null;\n  if (!partnerId) return null;", "  if (!partnerId) return null;"]], T],
   ["عزل", "a simulation run: its row «pending» (the deployed tick would post it)", [[WR,
     "  const echo = !rec.noEcho && !!partner && !isSimRun(env);", "  const echo = !rec.noEcho && !!partner;"]], T],
+  ["عزل", "a simulation run: a channel found by name (the review channel) still posted", [[WI,
+    "  if (isSimRun(env)) return false;\n  try {", "  try {"]], T],
 ];
 
 const want = new Set(process.argv.slice(2));

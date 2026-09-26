@@ -810,8 +810,10 @@ console.log("\n[عزل] a simulation run (SIM_RUN_ID + SIMULATION_MODE): the row
   const posts = rows("mail.message").filter((m: any) => m.model === "discuss.channel");
   const pendingWrites = odooLog.filter((l) => l.model === "x_wa_message" && JSON.stringify(l.body?.vals ?? l.body?.vals_list ?? {}).includes('"x_echo_status":"pending"'));
   assert("the x_wa_message row is written, echo «none» — never «pending» on the way (the deployed */5 tick would post it)", !!row && row.x_echo_status === "none" && pendingWrites.length === 0, JSON.stringify({ row, pendingWrites: pendingWrites.length }));
-  const { ensureInboxChannel } = await import("../src/wa-inbox.ts");
+  const { ensureInboxChannel, postToChannel } = await import("../src/wa-inbox.ts");
   assert("the channel lookup itself answers «none» in a simulation run (even for a partner with a channel)", (await quiet(() => ensureInboxChannel(env, C1, "مطعم الوادي"))) === null);
+  const review = seed("discuss.channel", { name: "📋 مراجعة الأرقام", channel_type: "channel" });
+  assert("…and a post to a channel found by name (the review channel «📋 مراجعة الأرقام») is refused", (await quiet(() => postToChannel(env, review, 3, "<p>x</p>"))) === false && rows("mail.message").length === 0);
   assert("…and nothing posted to a Discuss channel", posts.length === 0, JSON.stringify(posts));
   const toml = readFileSync(new URL("../wrangler.toml", import.meta.url), "utf8");
   assert("wrangler.toml sets SIM_RUN_ID for no worker (prod, sim, pilot)", !/SIM_RUN_ID/.test(toml));

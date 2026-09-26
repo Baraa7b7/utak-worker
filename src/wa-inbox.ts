@@ -404,6 +404,10 @@ export async function postToChannel(
   body: string,
   attachmentIds: number[] = [],
 ): Promise<boolean> {
+  // § 41 و — a simulation run posts nothing to a Discuss channel (the review
+  // channel «📋 مراجعة الأرقام» included: it is found by name, not through
+  // ensureInboxChannel).
+  if (isSimRun(env)) return false;
   try {
     const args: Record<string, unknown> = {
       ids: [channelId],

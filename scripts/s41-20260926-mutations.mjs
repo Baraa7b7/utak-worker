@@ -27,6 +27,11 @@ const TXI = "src/tax-invoice.ts";
 const RT = "src/router.ts";
 const PIV = "src/purchase-invoice.ts";
 const IX = "src/index.ts";
+const ATT = "src/attendance.ts";
+const SP = "src/supplier-pay.ts";
+const WI = "src/wa-inbox.ts";
+const WR = "src/wa-record.ts";
+const GW = "src/wa-gateway.ts";
 
 // [part, name, [[file, find, replace], …], test file]
 const M = [
@@ -102,7 +107,7 @@ const M = [
   ["سعر", "the quotation priced at the day it is built", [[QT,
     "      const lookup = await getLatestSalePrice(env, l.product_id, l.packaging_id, order.order_date ?? undefined);", "      const lookup = await getLatestSalePrice(env, l.product_id, l.packaging_id);"]], T],
   ["سعر", "the stale fallback takes a later day's price", [[OD,
-    "      [\"x_packaging_id\", \"=\", packagingId],\n      [\"x_date\", \"<=\", today],\n    ],", "      [\"x_packaging_id\", \"=\", packagingId],\n    ],"]], T],
+    "      [\"x_packaging_id\", \"=\", packagingId],\n      [\"x_date\", \"<=\", today],\n      [\"x_utak_simulation\"", "      [\"x_packaging_id\", \"=\", packagingId],\n      [\"x_utak_simulation\""]], T],
   // ---------------------------------------------------------------- د the tax invoice from 10-01
   ["د", "«فاتورة ضريبية» for every tax invoice (no «مبسطة»)", [[INV,
     "  const title = !isTaxInvoice ? UI.invoice : taxInvoiceKind(data.customer.vat) === \"tax\" ? UI.taxInvoice : UI.simplifiedTaxInvoice;", "  const title = !isTaxInvoice ? UI.invoice : UI.taxInvoice;"]], T],
@@ -152,6 +157,49 @@ const M = [
     "      [\"x_ahmad_confirmed_at\", \">=\", toOdooUtc(noon - DAY_MS)],\n", ""]], T],
   ["هـ", "the */5 tick does not run the 12:00 check", [[IX,
     "            const pi = await checkPurchaseInvoices(withAutoSendJob(rawEnv, PINV_JOB), Date.now());", "            const pi = { action: \"skip\" }; void checkPurchaseInvoices; void withAutoSendJob; void PINV_JOB;"]], T],
+  // ---------------------------------------------------------------- عزل the simulation's isolation (found designing و)
+  ["عزل", "the day's price record: a simulation day counts", [[PR,
+    "    domain: [[\"x_date\", \"=\", day], [\"x_utak_simulation\", \"!=\", true]], fields: DAY_FIELDS,", "    domain: [[\"x_date\", \"=\", day]], fields: DAY_FIELDS,"]], T],
+  ["عزل", "the published sale price: a simulation day counts", [[OD,
+    "        [\"x_day_id.x_utak_simulation\", \"!=\", true], // § 41\n", ""]], T],
+  ["عزل", "the discount guard's purchase: a simulation day counts", [[OP,
+    "[\"x_day_id.x_date\", \"=\", day], [\"x_day_id.x_utak_simulation\", \"!=\", true], [\"x_product_tmpl_id\"", "[\"x_day_id.x_date\", \"=\", day], [\"x_product_tmpl_id\""]], T],
+  ["عزل", "the 21:30 profit's purchase: a simulation day counts", [[SM,
+    "[\"x_day_id.x_date\", \"=\", orderDay], [\"x_day_id.x_utak_simulation\", \"!=\", true], [\"x_cost_price\"", "[\"x_day_id.x_date\", \"=\", orderDay], [\"x_cost_price\""]], T],
+  ["عزل", "the engine: a simulation supplier price counts", [[EN,
+    "[\"x_supplier_id\", \"in\", ids], [\"x_utak_simulation\", \"!=\", true]],", "[\"x_supplier_id\", \"in\", ids]],"]], T],
+  ["عزل", "the outlier reference: a simulation price counts", [[OD,
+    "      [\"x_utak_simulation\", \"!=\", true], // § 41 — a simulation price is no reference\n", ""]], T],
+  ["عزل", "the 21:15 prefill: a simulation price counts", [[OD,
+    "[\"x_date\", \"=\", ymd], [\"x_price_sar\", \">\", 0], [\"x_utak_simulation\", \"!=\", true]],", "[\"x_date\", \"=\", ymd], [\"x_price_sar\", \">\", 0]],"]], T],
+  ["عزل", "the sale price fallback: a simulation price counts", [[OD,
+    "      [\"x_date\", \"<=\", today],\n      [\"x_utak_simulation\", \"!=\", true], // § 41\n", "      [\"x_date\", \"<=\", today],\n"]], T],
+  ["عزل", "the day's supplier price: a simulation row counts", [[OD,
+    "      [\"x_date\", \"=\", today],\n      [\"x_utak_simulation\", \"!=\", true], // § 41\n", "      [\"x_date\", \"=\", today],\n"]], T],
+  ["عزل", "the supplier dues: a simulation price counts", [[SP,
+    "[\"x_price_sar\", \">\", 0], [\"x_utak_simulation\", \"!=\", true]],\n    fields: [\"id\", \"x_supplier_id\", \"x_product_tmpl_id\"", "[\"x_price_sar\", \">\", 0]],\n    fields: [\"id\", \"x_supplier_id\", \"x_product_tmpl_id\""]], T],
+  ["عزل", "the pending supplier ask: a simulation log counts", [[OD,
+    "      [\"x_replied_at\", \"=\", false],\n      [\"x_utak_simulation\", \"!=\", true], // § 41\n", "      [\"x_replied_at\", \"=\", false],\n"]], T],
+  ["عزل", "the latest supplier log: a simulation log counts", [[OD,
+    "    domain: [[\"x_supplier_id\", \"=\", supplierId], [\"x_utak_simulation\", \"!=\", true]],", "    domain: [[\"x_supplier_id\", \"=\", supplierId]],"]], T],
+  ["عزل", "the recent supplier logs: a simulation log counts", [[OD,
+    "    domain: [[\"x_sent_at\", \">=\", cutoff], [\"x_utak_simulation\", \"!=\", true]],", "    domain: [[\"x_sent_at\", \">=\", cutoff]],"]], T],
+  ["عزل", "attendance: a simulation row counts", [[ATT,
+    "[\"x_employee_id\", \"in\", employeeIds], [\"x_utak_simulation\", \"!=\", true]],", "[\"x_employee_id\", \"in\", employeeIds]],"]], T],
+  ["عزل", "the day's purchase list: a simulation list counts", [[OD,
+    "    domain: [[\"x_date\", \"=\", today], [\"x_utak_simulation\", \"!=\", true]],\n    fields: [\"id\", \"x_aggregated_items\", \"x_supplier_id\"],", "    domain: [[\"x_date\", \"=\", today]],\n    fields: [\"id\", \"x_aggregated_items\", \"x_supplier_id\"],"]], T],
+  ["عزل", "the 06:00 list follow-up: a simulation list counts", [[OD,
+    "[\"x_date\", \">=\", sinceDate], [\"x_utak_simulation\", \"!=\", true]],", "[\"x_date\", \">=\", sinceDate]],"]], T],
+  ["عزل", "today's latest list: a simulation list counts", [[OD,
+    "    domain: [[\"x_date\", \"=\", today], [\"x_utak_simulation\", \"!=\", true]],\n    fields: [\"id\"],\n    limit: 1,", "    domain: [[\"x_date\", \"=\", today]],\n    fields: [\"id\"],\n    limit: 1,"]], T],
+  ["عزل", "the 20:00 / 21:00 unconfirmed orders: a simulation order counts", [[OD,
+    "      [\"x_state\", \"in\", [\"waiting_confirmation\", \"draft\"]],\n      [\"x_utak_simulation\", \"!=\", true], // § 41\n", "      [\"x_state\", \"in\", [\"waiting_confirmation\", \"draft\"]],\n"]], T],
+  ["عزل", "the 21:15 confirmed lines: a simulation order counts", [[OD,
+    "[\"x_state\", \"=\", \"confirmed\"], [\"x_utak_simulation\", \"!=\", true]],", "[\"x_state\", \"=\", \"confirmed\"]],"]], T],
+  ["عزل", "a simulation run: its channel exists", [[WI,
+    "  if (isSimRun(env)) return null;\n  if (!partnerId) return null;", "  if (!partnerId) return null;"]], T],
+  ["عزل", "a simulation run: its row «pending» (the deployed tick would post it)", [[WR,
+    "  const echo = !rec.noEcho && !!partner && !isSimRun(env);", "  const echo = !rec.noEcho && !!partner;"]], T],
 ];
 
 const want = new Set(process.argv.slice(2));

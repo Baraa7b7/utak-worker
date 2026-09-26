@@ -258,7 +258,7 @@ async function readPricesFor(env: Env, day: string, items: ListItem[]): Promise<
   const productIds = [...new Set(items.map((i) => i.product_id).filter((n) => n > 0))];
   if (!productIds.length) return [];
   return await call<PriceRow[]>(env, "x_daily_price", "search_read", {
-    domain: [["x_date", "=", day], ["x_product_tmpl_id", "in", productIds], ["x_price_sar", ">", 0]],
+    domain: [["x_date", "=", day], ["x_product_tmpl_id", "in", productIds], ["x_price_sar", ">", 0], ["x_utak_simulation", "!=", true]],
     fields: ["id", "x_supplier_id", "x_product_tmpl_id", "x_packaging_id", "x_date", "x_price_sar", "x_extraction_status"],
     order: "id desc",
     limit: 1000,

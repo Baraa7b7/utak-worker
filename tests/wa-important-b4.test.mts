@@ -44,6 +44,7 @@ const FIX = [
   "fixtures-odoo-fields-20260925-s36.json",        // x_wa_message echo fields, template text
   "fixtures-odoo-fields-20260926-b3.json",         // § 38: x_utak_simulation on the order / invoice / payment
   "fixtures-odoo-fields-20260926-s39.json",        // § 39: … on the route / stop; x_wa_message x_res_model / x_res_id
+  "fixtures-odoo-fields-20260926-s41.json",        // § 41: x_utak_simulation on the per-day models
 ].map((f) => JSON.parse(readFileSync(new URL(`./${f}`, import.meta.url), "utf8")));
 const REAL: Record<string, string[]> = Object.assign({}, ...FIX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FIX.map((f) => f._selections ?? {}));

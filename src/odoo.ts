@@ -892,6 +892,7 @@ export async function getSupplierPendingLog(
     domain: [
       ["x_supplier_id", "=", supplierId],
       ["x_replied_at", "=", false],
+      ["x_utak_simulation", "!=", true], // § 41
     ],
     fields: ["id", "x_supplier_id", "x_sent_at", "x_replied_at", "x_status"],
     order: "x_sent_at desc",
@@ -906,7 +907,7 @@ export async function getLatestSupplierLog(
   supplierId: number,
 ): Promise<(SupplierLogRow & { x_name: string | false }) | null> {
   const rows = await call<Array<SupplierLogRow & { x_name: string | false }>>(env, "x_supplier_price_request_log", "search_read", {
-    domain: [["x_supplier_id", "=", supplierId]],
+    domain: [["x_supplier_id", "=", supplierId], ["x_utak_simulation", "!=", true]],
     fields: ["id", "x_name", "x_supplier_id", "x_sent_at", "x_replied_at", "x_status"],
     order: "x_sent_at desc",
     limit: 1,
@@ -932,7 +933,7 @@ export async function getRecentSupplierLogs(
   const cutoff = new Date(Date.now() - hours * 3600 * 1000)
     .toISOString().replace("T", " ").slice(0, 19);
   return await call<SupplierLogRow[]>(env, "x_supplier_price_request_log", "search_read", {
-    domain: [["x_sent_at", ">=", cutoff]],
+    domain: [["x_sent_at", ">=", cutoff], ["x_utak_simulation", "!=", true]],
     fields: [
       "id",
       "x_supplier_id",
@@ -1001,6 +1002,7 @@ export async function getLastSupplierPrice(
       ["x_product_tmpl_id", "=", productId],
       ["x_packaging_id", "=", packagingId],
       ["x_price_sar", ">", 0],
+      ["x_utak_simulation", "!=", true], // § 41 — a simulation price is no reference
     ],
     fields: ["x_price_sar", "x_date"],
     order: "x_date desc, id desc",
@@ -1162,6 +1164,7 @@ export async function getUnconfirmedOrders(env: Env, date: string = riyadhToday(
     domain: [
       ["x_order_date", "=", date],
       ["x_state", "in", ["waiting_confirmation", "draft"]],
+      ["x_utak_simulation", "!=", true], // § 41
     ],
     fields: ["id", "x_state", "x_customer_id", "x_line_ids"],
     limit: 500,
@@ -1354,7 +1357,7 @@ export async function appendPurchaseListNote(env: Env, id: number, line: string)
 /** Lists sent to the warehouse and still not confirmed, on or after `sinceDate`. */
 export async function getUnconfirmedPurchaseLists(env: Env, sinceDate: string): Promise<number[]> {
   const rows = await call<Array<{ id: number }>>(env, "x_purchase_list", "search_read", {
-    domain: [["x_status", "=", "sent"], ["x_date", ">=", sinceDate]],
+    domain: [["x_status", "=", "sent"], ["x_date", ">=", sinceDate], ["x_utak_simulation", "!=", true]],
     fields: ["id"], order: "id", limit: 20,
   });
   return rows.map((r) => r.id);
@@ -1368,7 +1371,7 @@ export async function getConfirmedLinesForToday(env: Env): Promise<ConfirmedLine
     x_customer_id: [number, string] | false;
     x_delivery_neighborhood: string | false;
   }>>(env, "x_daily_order", "search_read", {
-    domain: [["x_order_date", "=", today], ["x_state", "=", "confirmed"]],
+    domain: [["x_order_date", "=", today], ["x_state", "=", "confirmed"], ["x_utak_simulation", "!=", true]],
     fields: ["id", "x_customer_id", "x_delivery_neighborhood"],
     limit: 500,
   });
@@ -1454,7 +1457,7 @@ export async function prefillPurchasePrices(
   type Row = { x_product_tmpl_id: [number, string] | false; x_packaging_id: [number, string] | false; x_supplier_id: [number, string] | false; x_price_sar: number | false };
   const rows = productIds.length
     ? await call<Row[]>(env, "x_daily_price", "search_read", {
-        domain: [["x_product_tmpl_id", "in", productIds], ["x_date", "=", ymd], ["x_price_sar", ">", 0]],
+        domain: [["x_product_tmpl_id", "in", productIds], ["x_date", "=", ymd], ["x_price_sar", ">", 0], ["x_utak_simulation", "!=", true]],
         fields: ["x_product_tmpl_id", "x_packaging_id", "x_supplier_id", "x_price_sar"],
         order: "id desc",
         limit: 500,
@@ -1490,7 +1493,7 @@ export async function createPurchaseListRecord(
   const today = riyadhToday();
   // If one exists for today (idempotency), return it
   const existing = await call<Array<{ id: number; x_aggregated_items: string | false; x_supplier_id: [number, string] | false }>>(env, "x_purchase_list", "search_read", {
-    domain: [["x_date", "=", today]],
+    domain: [["x_date", "=", today], ["x_utak_simulation", "!=", true]],
     fields: ["id", "x_aggregated_items", "x_supplier_id"],
     limit: 1,
   });
@@ -1599,7 +1602,7 @@ export async function transitionOrdersToInPurchase(env: Env, orderIds: number[])
 export async function getLatestPurchaseListToday(env: Env): Promise<number | null> {
   const today = riyadhToday();
   const rows = await call<Array<{ id: number }>>(env, "x_purchase_list", "search_read", {
-    domain: [["x_date", "=", today]],
+    domain: [["x_date", "=", today], ["x_utak_simulation", "!=", true]],
     fields: ["id"],
     limit: 1,
     order: "id desc",
@@ -1623,7 +1626,7 @@ export async function buildAndCreateRoutesForDrivers(
   const today = riyadhToday();
   const domain = orderIds && orderIds.length > 0
     ? [["id", "in", orderIds], ["x_state", "=", "in_purchase"]]
-    : [["x_order_date", "=", today], ["x_state", "=", "in_purchase"]];
+    : [["x_order_date", "=", today], ["x_state", "=", "in_purchase"], ["x_utak_simulation", "!=", true]];
   const orders = await call<Array<{
     id: number;
     x_customer_id: [number, string] | false;
@@ -2484,6 +2487,7 @@ export async function getLatestSalePrice(
       domain: [
         ["x_day_id.x_date", "=", today],
         ["x_day_id.x_state", "=", "published"],
+        ["x_day_id.x_utak_simulation", "!=", true], // § 41
         ["x_product_tmpl_id", "=", productId],
         ["x_packaging_id", "=", packagingId],
         ["x_excluded", "=", false],
@@ -2508,6 +2512,7 @@ export async function getLatestSalePrice(
       ["x_product_tmpl_id", "=", productId],
       ["x_packaging_id", "=", packagingId],
       ["x_date", "=", today],
+      ["x_utak_simulation", "!=", true], // § 41
     ],
     fields: ["x_sale_price", "x_price_sar", "x_date"],
     order: "id desc",
@@ -2526,6 +2531,7 @@ export async function getLatestSalePrice(
       ["x_product_tmpl_id", "=", productId],
       ["x_packaging_id", "=", packagingId],
       ["x_date", "<=", today],
+      ["x_utak_simulation", "!=", true], // § 41
     ],
     fields: ["x_sale_price", "x_price_sar", "x_date"],
     order: "x_date desc, id desc",

@@ -52,6 +52,7 @@
 // loop: a held message leaves the queue only on the number's next inbound.
 
 import type { Env } from "./config";
+import { isSimRun } from "./config";
 import { isRecipientAllowed, parseAllowlist, runtimeMode } from "./config";
 import { claimAutoSend, noteManualSend, skippedDuplicateResponse } from "./auto-send-guard";
 import { extractRealWamid, generateFakeWamid, recordOutbound, synthesizeMetaResponse } from "./sim";
@@ -575,6 +576,8 @@ async function upsertRow(
   vals: Record<string, unknown>,
   create: { body: string; kind: "text" | "template" | "document"; manual?: boolean; purpose: string; link?: { model: string; id: number } },
 ): Promise<number | undefined> {
+  // § 41 و — a simulation run: the row, never a Discuss line (not even «pending»)
+  if (vals.x_echo_status === "pending" && isSimRun(env)) vals = { ...vals, x_echo_status: "none" };
   try {
     const { call } = await import("./odoo");
     if (rowId) {

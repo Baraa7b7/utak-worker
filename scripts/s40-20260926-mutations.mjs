@@ -113,7 +113,8 @@ const M = [
   ["ج", "sale = the purchase price", [[EN,
     "  return { status: \"auto\", sale: round2(p.market as number), excluded: false, reason: \"\" };", "  return { status: \"auto\", sale: round2(p.purchase as number), excluded: false, reason: \"\" };"]], T],
   ["ج", "the waste ignored in the unit profit", [[EN,
-    "  return round2(market - purchase - (wastePct / 100) * purchase);", "  return round2(market - purchase);"]], T],
+    // § 41 أ: the engine's unit profit is vatProfit (the waste term inside it)
+    "  const waste = (wastePct / 100) * purchase;\n  if (!vatRatePct) return sale - purchase - waste;", "  const waste = 0;\n  if (!vatRatePct) return sale - purchase - waste;"]], T],
   ["ج", "(1) no purchase price is not an exception", [[EN,
     "    if (purchase === null) exceptions.push(\"no_purchase\");\n", ""]], T],
   ["ج", "(2) no market price is not an exception", [[EN,
@@ -127,7 +128,8 @@ const M = [
   ["ج", "a source's earlier row counts over its latest", [[EN,
     "    if (!cur || o.rowId > cur.rowId) best.set(k, o);", "    if (!cur) best.set(k, o);"]], T],
   ["ج", "a supplier without «مصدر أسعار» counted", [[EN,
-    "[\"x_extraction_status\", \"!=\", \"failed\"], [\"x_supplier_id\", \"in\", ids]],", "[\"x_extraction_status\", \"!=\", \"failed\"]],"]], T],
+    // § 41: the simulation filter follows the supplier clause
+    "[\"x_extraction_status\", \"!=\", \"failed\"], [\"x_supplier_id\", \"in\", ids], [\"x_utak_simulation\"", "[\"x_extraction_status\", \"!=\", \"failed\"], [\"x_utak_simulation\""]], T],
   ["ج", "a simulation offer counted", [[EN,
     "    domain: [[\"x_date\", \"=\", day], [\"x_utak_simulation\", \"!=\", true], [\"x_source_partner_id\", \"in\", ids]],", "    domain: [[\"x_date\", \"=\", day], [\"x_source_partner_id\", \"in\", ids]],"]], T],
   ["ج", "yesterday's observations carried over", [[EN,
@@ -256,7 +258,8 @@ const M = [
   ["هـ", "a line without a sale price counted at 0", [[SM,
     "    if (!(sale > 0)) throw new Error(\"a delivered line without a sale price\");\n", ""]], T],
   ["هـ", "the purchase price of any day, not the order's", [[SM,
-    "    domain: [[\"x_day_id.x_date\", \"=\", orderDay], [\"x_cost_price\", \">\", 0]],", "    domain: [[\"x_cost_price\", \">\", 0]],"]], T],
+    // § 41: the simulation day filter follows the date
+    "    domain: [[\"x_day_id.x_date\", \"=\", orderDay], [\"x_day_id.x_utak_simulation\", \"!=\", true], [\"x_cost_price\", \">\", 0]],", "    domain: [[\"x_day_id.x_utak_simulation\", \"!=\", true], [\"x_cost_price\", \">\", 0]],"]], T],
   ["هـ", "yesterday's operating cost, not today's", [[SM,
     "(await dailyOperatingCost(env, day, nowMs)).total", "(await dailyOperatingCost(env, yesterday, nowMs)).total"]], T],
   ["هـ", "a coverage over a zero cost", [[SM,

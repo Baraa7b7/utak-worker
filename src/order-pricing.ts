@@ -87,7 +87,7 @@ export async function orderProfit(env: Env, day: string, lines: PricedLine[], wa
 async function orderProfitRaw(env: Env, day: string, lines: PricedLine[], wastePct: number, vat: VatContext): Promise<number | null> {
   if (!lines.length) return 0;
   const rows = await call<Array<{ x_product_tmpl_id: [number, string] | false; x_packaging_id: [number, string] | false; x_cost_price: number | false; x_supplier_id: [number, string] | false }>>(env, "x_price_day_line", "search_read", {
-    domain: [["x_day_id.x_date", "=", day], ["x_product_tmpl_id", "in", [...new Set(lines.map((l) => l.productId))]], ["x_cost_price", ">", 0]],
+    domain: [["x_day_id.x_date", "=", day], ["x_day_id.x_utak_simulation", "!=", true], ["x_product_tmpl_id", "in", [...new Set(lines.map((l) => l.productId))]], ["x_cost_price", ">", 0]],
     fields: ["x_product_tmpl_id", "x_packaging_id", "x_cost_price", "x_supplier_id"],
     limit: 1000,
   });

@@ -61,6 +61,13 @@ export interface Env {
   SIM_SECRET?: string;
   /** D1 binding for the sim_outbound log. Only bound on the sim worker. */
   SIM_DB?: D1Database;
+  /**
+   * § 41 و — set ONLY by the full-day simulation (scripts/s41-full-day-sim.mts)
+   * on its own in-process env, never in wrangler.toml: with SIMULATION_MODE
+   * it keeps the run's messages out of the real Discuss channels (the
+   * x_wa_message rows are written as always). See isSimRun.
+   */
+  SIM_RUN_ID?: string;
 
   /**
    * PILOT_MODE — sends REAL Meta messages, but only to numbers permitted by
@@ -219,6 +226,15 @@ export function isRecipientAllowed(env: Env, to: string): boolean {
  */
 export function isTestMode(env: Env): boolean {
   return env.SIMULATION_MODE === "true" || env.PILOT_MODE === "true";
+}
+
+/**
+ * § 41 و — a full-day simulation run: SIM_RUN_ID set AND SIMULATION_MODE on
+ * (every send captured to sim_outbound). Only the simulation script's own env
+ * has both; the deployed sim worker (PILOT_MODE) and prod never do.
+ */
+export function isSimRun(env: Env): boolean {
+  return !!env.SIM_RUN_ID && env.SIMULATION_MODE === "true";
 }
 
 export function shouldRealSend(env: Env): boolean {

@@ -12,6 +12,7 @@
 // bookkeeping tripped.
 
 import type { Env } from "./config";
+import { isSimRun } from "./config";
 import { call } from "./odoo";
 
 // KV keys — 1h TTL so we still recover from an accidental partner rename or
@@ -168,6 +169,8 @@ export async function ensureInboxChannel(
   partnerName: string,
   opts: { number?: string; profileName?: string } = {},
 ): Promise<number | null> {
+  // § 41 و — a simulation run posts nothing to the real Discuss channels.
+  if (isSimRun(env)) return null;
   if (!partnerId) return null;
 
   // KV cache

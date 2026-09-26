@@ -182,7 +182,7 @@ async function deliveredProfit(env: Env, orderDay: string, vatRatePct: number | 
     limit: 10000,
   });
   const costs = await call<Array<{ x_product_tmpl_id: M2O; x_packaging_id: M2O; x_cost_price: number | false; x_supplier_id: M2O }>>(env, "x_price_day_line", "search_read", {
-    domain: [["x_day_id.x_date", "=", orderDay], ["x_cost_price", ">", 0]],
+    domain: [["x_day_id.x_date", "=", orderDay], ["x_day_id.x_utak_simulation", "!=", true], ["x_cost_price", ">", 0]],
     fields: ["x_product_tmpl_id", "x_packaging_id", "x_cost_price", "x_supplier_id"],
     limit: 2000,
   });

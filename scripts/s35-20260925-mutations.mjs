@@ -27,7 +27,8 @@ const M = [
   ["plan: a supplier's first price instead of the latest", [[EN,
     "    if (!cur || o.rowId > cur.rowId) best.set(k, o);", "    if (!cur) best.set(k, o);"]], T],
   ["plan: a failed extraction counts", [[EN,
-    "[\"x_price_sar\", \">\", 0], [\"x_extraction_status\", \"!=\", \"failed\"], [\"x_supplier_id\", \"in\", ids]],", "[\"x_price_sar\", \">\", 0], [\"x_supplier_id\", \"in\", ids]],"]], T],
+    // § 41: the simulation filter follows the supplier clause
+    "[\"x_price_sar\", \">\", 0], [\"x_extraction_status\", \"!=\", \"failed\"], [\"x_supplier_id\", \"in\", ids], [\"x_utak_simulation\"", "[\"x_price_sar\", \">\", 0], [\"x_supplier_id\", \"in\", ids], [\"x_utak_simulation\""]], T],
   ["prices: another day's prices read", [[EN,
     "    domain: [[\"x_date\", \"=\", day], [\"x_price_sar\", \">\", 0],", "    domain: [[\"x_price_sar\", \">\", 0],"]], T],
   ["deadline: ORDERING_HOURS_OPEN ignored (07:00)", [[PR,

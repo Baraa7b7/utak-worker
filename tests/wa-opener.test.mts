@@ -53,6 +53,8 @@ const FX = [
   "./fixtures-odoo-fields-20260925-s36.json",
   // STATUS § 39 د — x_utak_simulation on the payment / invoice / order, x_wa_message x_res_model / x_res_id
   "./fixtures-odoo-fields-20260926-s39.json",
+  // STATUS § 41 — x_utak_simulation on the per-day models
+  "./fixtures-odoo-fields-20260926-s41.json",
 ].map(load);
 const REAL: Record<string, string[]> = Object.assign({}, ...FX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FX.map((f) => f._selections));

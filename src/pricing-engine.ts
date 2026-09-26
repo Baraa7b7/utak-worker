@@ -204,7 +204,7 @@ export async function readDayOffers(env: Env, day: string, sources: PriceSources
     ...sources.employees.map((e) => [e.partnerId, e.name] as [number, string]),
   ]);
   const dp = await call<Array<{ id: number; x_supplier_id: M2O; x_product_tmpl_id: M2O; x_packaging_id: M2O; x_price_sar: number; x_extraction_status: string | false }>>(env, "x_daily_price", "search_read", {
-    domain: [["x_date", "=", day], ["x_price_sar", ">", 0], ["x_extraction_status", "!=", "failed"], ["x_supplier_id", "in", ids]],
+    domain: [["x_date", "=", day], ["x_price_sar", ">", 0], ["x_extraction_status", "!=", "failed"], ["x_supplier_id", "in", ids], ["x_utak_simulation", "!=", true]],
     fields: ["id", "x_supplier_id", "x_product_tmpl_id", "x_packaging_id", "x_price_sar", "x_extraction_status"],
     order: "id asc", limit: 2000,
   });

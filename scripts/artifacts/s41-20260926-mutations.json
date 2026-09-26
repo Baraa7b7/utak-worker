@@ -1,128 +1,46 @@
 {
-  "at": "2026-09-26T11:30:37.905Z",
-  "caught": 12,
-  "total": 12,
+  "at": "2026-09-26T11:42:13.998Z",
+  "caught": 4,
+  "total": 4,
   "results": [
     {
-      "part": "هـ",
-      "name": "no «أرسل صورة فاتورة الشراء الضريبية» after «تم الشراء»",
+      "part": "سعر",
+      "name": "the day asked ignored (always today)",
       "caught": true,
       "fails": [
-        "✗ the tapper's reply carries the line (inside his window: he just tapped) — تمام 👍 تم إرسال المسارات لـ 0 سواق (0 توصيلة).",
-        "✗ the tapper's reply carries the line (inside his window: he just tapped)"
+        "✗ 5 × 30 = 150 (the price it was confirmed at), not 5 × 20 (today's purchase price) — {\"x_order_id\":10010,\"x_invoice_number\":\"UTAK-INV-20260927-001\",\"x_invoice_date\":\"2026-09-27\",\"x_subtotal\":100,\"x_tax_amount\":0,\"x_total\":100,\"x_status\":\"issued\",\"x_issued_at\":\"2026-09-27 02:00:00\",\"x_is_simulation\":true,\"id\":10014,\"x_invoice_sent_at\":\"2026-09-27 02:00:00\",\"x_sent_to_customer_at\":\"2026-09-27 02:00:00\",\"x_sent_to_collector_at\":\"2026-09-27 02:00:00\"}",
+        "✗ …and 30 written back on the line — [{\"x_order_id\":10010,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_quantity\":5,\"x_status\":\"pending\",\"id\":10011,\"x_unit_price\":20,\"x_subtotal\":100}]",
+        "✗ after 06:00 with today's list at 33: still 5 × 30 = 150 (the quoted price) — {\"x_order_id\":10011,\"x_invoice_number\":\"UTAK-INV-20260927-001\",\"x_invoice_date\":\"2026-09-27\",\"x_subtotal\":165,\"x_tax_amount\":0,\"x_total\":165,\"x_status\":\"issued\",\"x_issued_at\":\"2026-09-27 05:00:00\",\"x_is_simulation\":true,\"id\":10015,\"x_invoice_sent_at\":\"2026-09-27 05:00:00\",\"x_sent_to_customer_at\":\"2026-09-27 05:00:00\",\"x_sent_to_collector_at\":\"2026-09-27 05:00:00\"}",
+        "✗ its quotation rebuilt today (lines without a written price): the order's day's 30 too, not today's 33 — [{\"name\":\"طماطم\",\"pack\":\"كرتون\",\"qty\":5,\"price\":33,\"total\":165}]"
       ]
     },
     {
-      "part": "هـ",
-      "name": "no 60-minute window opened by «تم الشراء»",
+      "part": "سعر",
+      "name": "the invoice priced at the delivery day",
       "caught": true,
       "fails": [
-        "✗ 30 minutes later: the image on the list (x_tax_invoice, its name, x_tax_invoice_at 00:40 UTC) — {}",
-        "✗ …and he gets «وصلت الفاتورة ✅» — []",
-        "✗ a second file in the hour: kept as an attachment of the list, the first not overwritten — []",
-        "✗ 61 minutes after «تم الشراء»: not attached, no «وصلت» — []"
+        "✗ 5 × 30 = 150 (the price it was confirmed at), not 5 × 20 (today's purchase price) — {\"x_order_id\":10010,\"x_invoice_number\":\"UTAK-INV-20260927-001\",\"x_invoice_date\":\"2026-09-27\",\"x_subtotal\":100,\"x_tax_amount\":0,\"x_total\":100,\"x_status\":\"issued\",\"x_issued_at\":\"2026-09-27 02:00:00\",\"x_is_simulation\":true,\"id\":10014,\"x_invoice_sent_at\":\"2026-09-27 02:00:00\",\"x_sent_to_customer_at\":\"2026-09-27 02:00:00\",\"x_sent_to_collector_at\":\"2026-09-27 02:00:00\"}",
+        "✗ …and 30 written back on the line — [{\"x_order_id\":10010,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_quantity\":5,\"x_status\":\"pending\",\"id\":10011,\"x_unit_price\":20,\"x_subtotal\":100}]",
+        "✗ after 06:00 with today's list at 33: still 5 × 30 = 150 (the quoted price) — {\"x_order_id\":10011,\"x_invoice_number\":\"UTAK-INV-20260927-001\",\"x_invoice_date\":\"2026-09-27\",\"x_subtotal\":165,\"x_tax_amount\":0,\"x_total\":165,\"x_status\":\"issued\",\"x_issued_at\":\"2026-09-27 05:00:00\",\"x_is_simulation\":true,\"id\":10015,\"x_invoice_sent_at\":\"2026-09-27 05:00:00\",\"x_sent_to_customer_at\":\"2026-09-27 05:00:00\",\"x_sent_to_collector_at\":\"2026-09-27 05:00:00\"}",
+        "✗ 10-01 00:10 (an order of 09-29): VAT 19.57, a tax invoice — {\"x_order_id\":10023,\"x_invoice_number\":\"UTAK-INV-20261001-001\",\"x_invoice_date\":\"2026-10-01\",\"x_subtotal\":0,\"x_tax_amount\":0,\"x_total\":0,\"x_status\":\"issued\",\"x_issued_at\":\"2026-09-30 21:10:00\",\"x_is_simulation\":true,\"id\":10027,\"x_invoice_sent_at\":\"2026-09-30 21:10:00\",\"x_sent_to_customer_at\":\"2026-09-30 21:10:00\",\"x_sent_to_collector_at\":\"2026-09-30 21:10:00\"}"
       ]
     },
     {
-      "part": "هـ",
-      "name": "no 60-minute limit",
+      "part": "سعر",
+      "name": "the quotation priced at the day it is built",
       "caught": true,
       "fails": [
-        "✗ 61 minutes after «تم الشراء»: not attached, no «وصلت» — [\"وصلت الفاتورة ✅\"]",
-        "✗ 70 minutes (direct): null, nothing written",
-        "✗ 61 minutes after «تم الشراء»: not attached, no «وصلت»",
-        "✗ 70 minutes (direct): null, nothing written"
+        "✗ its quotation rebuilt today (lines without a written price): the order's day's 30 too, not today's 33 — [{\"name\":\"طماطم\",\"pack\":\"كرتون\",\"qty\":5,\"price\":33,\"total\":165}]",
+        "✗ its quotation rebuilt today (lines without a written price): the order's day's 30 too, not today's 33"
       ]
     },
     {
-      "part": "هـ",
-      "name": "a second file overwrites the first",
+      "part": "سعر",
+      "name": "the stale fallback takes a later day's price",
       "caught": true,
       "fails": [
-        "✗ a second file in the hour: kept as an attachment of the list, the first not overwritten — []",
-        "✗ 61 minutes after «تم الشراء»: not attached, no «وصلت» — []",
-        "✗ a second file in the hour: kept as an attachment of the list, the first not overwritten",
-        "✗ 61 minutes after «تم الشراء»: not attached, no «وصلت»"
-      ]
-    },
-    {
-      "part": "هـ",
-      "name": "no «وصلت الفاتورة ✅»",
-      "caught": true,
-      "fails": [
-        "✗ …and he gets «وصلت الفاتورة ✅» — []",
-        "✗ a second file in the hour: kept as an attachment of the list, the first not overwritten — [{\"name\":\"صفحة-2.pdf\",\"raw\":\"/9j/4AECAwQFBgcI\",\"mimetype\":\"application/pdf\",\"res_model\":\"x_purchase_list\",\"res_id\":10007,\"id\":10018}]",
-        "✗ …and he gets «وصلت الفاتورة ✅»",
-        "✗ a second file in the hour: kept as an attachment of the list, the first not overwritten"
-      ]
-    },
-    {
-      "part": "هـ",
-      "name": "team media not routed to the purchase invoice",
-      "caught": true,
-      "fails": [
-        "✗ 30 minutes later: the image on the list (x_tax_invoice, its name, x_tax_invoice_at 00:40 UTC) — {}",
-        "✗ …and he gets «وصلت الفاتورة ✅» — []",
-        "✗ a second file in the hour: kept as an attachment of the list, the first not overwritten — []",
-        "✗ 61 minutes after «تم الشراء»: not attached, no «وصلت» — []"
-      ]
-    },
-    {
-      "part": "هـ",
-      "name": "the 12:00 line before 12:00",
-      "caught": true,
-      "fails": [
-        "✗ 11:55: not yet",
-        "✗ 12:00: one line naming the list and its day — {\"a\":{\"action\":\"checked\"},\"al\":[\"⚠️ قائمة الشراء #10007 (30 سبتمبر 2026) مؤكدة بلا فاتورة شراء ضريبية مرفقة حتى 12:00. اطلبها من المستودع أو أرفقها في UTAK ← 🛒 المشتريات ← قوائم الشراء.\"]}",
-        "✗ 11:55: not yet",
-        "✗ 12:00: one line naming the list and its day"
-      ]
-    },
-    {
-      "part": "هـ",
-      "name": "the 12:00 line every tick",
-      "caught": true,
-      "fails": [
-        "✗ the same day again (12:05, 18:00): no second line",
-        "✗ the next day: that list is not chased again (confirmed more than 24 h before) — {\"action\":\"none\"}",
-        "✗ the same day again (12:05, 18:00): no second line",
-        "✗ the next day: that list is not chased again (confirmed more than 24 h before)"
-      ]
-    },
-    {
-      "part": "هـ",
-      "name": "a simulation list chased",
-      "caught": true,
-      "fails": [
-        "✗ with the invoice attached (WhatsApp or by hand in Odoo), or a simulation list: no line — {\"r\":{\"action\":\"alerted\",\"lists\":[10016]},\"sim\":10016,\"manual\":10017}",
-        "✗ with the invoice attached (WhatsApp or by hand in Odoo), or a simulation list: no line"
-      ]
-    },
-    {
-      "part": "هـ",
-      "name": "a list with its invoice (by hand) chased",
-      "caught": true,
-      "fails": [
-        "✗ with the invoice attached (WhatsApp or by hand in Odoo), or a simulation list: no line — {\"r\":{\"action\":\"alerted\",\"lists\":[10017]},\"sim\":10016,\"manual\":10017}",
-        "✗ with the invoice attached (WhatsApp or by hand in Odoo), or a simulation list: no line"
-      ]
-    },
-    {
-      "part": "هـ",
-      "name": "every old list chased (no 24-hour window)",
-      "caught": true,
-      "fails": [
-        "✗ the next day: that list is not chased again (confirmed more than 24 h before) — {\"action\":\"alerted\",\"lists\":[10007]}",
-        "✗ the next day: that list is not chased again (confirmed more than 24 h before)"
-      ]
-    },
-    {
-      "part": "هـ",
-      "name": "the */5 tick does not run the 12:00 check",
-      "caught": true,
-      "fails": [
-        "✗ the */5 tick at 12:00 sends it",
-        "✗ the */5 tick at 12:00 sends it"
+        "✗ the stale fallback never takes a later day's price (09-28 for 09-26 → missing) — {\"price\":40,\"source\":\"stale\",\"price_date\":\"2026-09-28\",\"age_days\":0}",
+        "✗ the stale fallback never takes a later day's price (09-28 for 09-26 → missing)"
       ]
     }
   ]

@@ -128,7 +128,8 @@ const LINE_FIELDS = [
 
 async function readDay(env: Env, day: string): Promise<DayRecord | null> {
   const rows = await call<DayRecord[]>(env, PRICE_DAY_MODEL, "search_read", {
-    domain: [["x_date", "=", day]], fields: DAY_FIELDS, order: "id asc", limit: 1,
+    // § 41 — a day marked x_utak_simulation (the full-day simulation) is not the day's record
+    domain: [["x_date", "=", day], ["x_utak_simulation", "!=", true]], fields: DAY_FIELDS, order: "id asc", limit: 1,
   });
   return rows[0] ?? null;
 }

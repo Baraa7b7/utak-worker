@@ -24,6 +24,7 @@
 // kept in KV and retried the same way (the D1 log keeps every send anyway).
 
 import type { Env } from "./config";
+import { isSimRun } from "./config";
 import { waDigits } from "./wa-window";
 import { arabicDate, maskPhone } from "./wa-params";
 import { riyadhDateKey, riyadhMinutes } from "./hours";
@@ -429,7 +430,7 @@ export function riyadhLabel(ms: number): string {
  */
 export async function echoForRow(env: Env, row: RowView, numberHint?: string): Promise<number | null> {
   const partner = row.x_partner_id ? { id: row.x_partner_id[0], name: row.x_partner_id[1] } : null;
-  if (!partner) {
+  if (!partner || isSimRun(env)) {
     await writeRow(env, row.id, { x_echo_status: "none" });
     return null;
   }
@@ -529,7 +530,8 @@ async function writeSentRow(env: Env, rec: SentRecord): Promise<{ rowId: number;
   const sentAt = rec.sentAt ?? Date.now();
   const shown = await outboundText(env, rec.body);
   const partner = await partnerForNumber(env, to);
-  const echo = !rec.noEcho && !!partner;
+  // § 41 و — a simulation run: the row, never a Discuss line
+  const echo = !rec.noEcho && !!partner && !isSimRun(env);
   const tech = {
     purpose: rec.purpose,
     ...(shown.templateName ? { template: shown.templateName } : {}),
@@ -595,6 +597,7 @@ export async function recordSent(env: Env, rec: SentRecord): Promise<number | un
  */
 export async function recordStateChange(env: Env, rowId: number | undefined, to: string, ctx?: ExecutionContext): Promise<void> {
   if (!rowId) return;
+  if (isSimRun(env)) return; // § 41 و — no Discuss line in a simulation run
   try {
     const { call } = await import("./odoo");
     await call(env, "x_wa_message", "write", { ids: [rowId], vals: { x_echo_status: "pending" } });

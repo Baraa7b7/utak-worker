@@ -127,7 +127,7 @@ function isOwnerNumber(env: Env, n: string): boolean {
 // ---------------------------------------------------------------- Odoo rows
 async function readRows(env: Env, day: string, employeeIds: number[]): Promise<Map<number, AttRow>> {
   const rows = await call<AttRow[]>(env, ATT_MODEL, "search_read", {
-    domain: [["x_date", "=", day], ["x_employee_id", "in", employeeIds]],
+    domain: [["x_date", "=", day], ["x_employee_id", "in", employeeIds], ["x_utak_simulation", "!=", true]],
     fields: ROW_FIELDS,
     order: "id asc",
   });

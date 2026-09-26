@@ -23,6 +23,12 @@
 //       صورة فاتورة الشراء الضريبية»; an image / document from him within 60
 //       minutes is attached to the list («وصلت الفاتورة ✅»), after it not; a
 //       confirmed list without it at 12:00 → one line to Baraa that day.
+//   [عزل] the full-day simulation's isolation (found designing و: its days are
+//       real upcoming dates on the tenant shared with prod): a record marked
+//       x_utak_simulation is not the day's price record, not a price, not a
+//       reference, not a supplier ask, not an attendance row, not the day's
+//       purchase list, not one of the day's orders; and a simulation run
+//       (SIM_RUN_ID + SIMULATION_MODE) posts nothing to the Discuss channels.
 //   [سعر] found building [ج]: an order's lines are priced at the ORDER's day
 //       (the published price it was confirmed at), not the day the invoice is
 //       issued (delivery, the next morning, often before 06:00's list).
@@ -37,7 +43,7 @@
 
 import { readFileSync } from "node:fs";
 import {
-  OWNER, closeOwnerWindow, ctx as harnessCtx, employee, graph, heldFor, inbound, openWindow, quiet, reset, rows, seed, sentTo, setRiyadh,
+  OWNER, closeOwnerWindow, ctx as harnessCtx, employee, graph, heldFor, inbound, odooLog, openWindow, quiet, reset, rows, seed, sentTo, setRiyadh,
   signed, table, workSchedule,
 } from "./wa-harness.mts";
 
@@ -688,6 +694,132 @@ console.log("\n[هـ] 12:00: a confirmed list without its purchase tax invoice �
   await quiet(() => worker.scheduled({ cron: "*/5 * * * *", scheduledTime: Date.now() } as any, env2.env, collectingCtx()));
   assert("the */5 tick at 12:00 sends it", sentTo(OWNER).some((b: any) => /بلا فاتورة شراء ضريبية/.test(String(b?.text?.body ?? ""))));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
+}
+
+// ================================================================ [عزل]
+const OD = await import("../src/odoo.ts");
+const ATT = await import("../src/attendance.ts");
+const META = await import("../src/meta.ts");
+console.log("\n[عزل] a simulation day of the same date: the real day gets its own record, prices and lines");
+// The in-memory Odoo answers «order … desc» by reversing insertion order: each
+// simulation row is seeded AFTER the real one, so without its filter it wins.
+{
+  const env = fresh("2026-09-27 04:10", { onAttendance: false }); sources();
+  dp(1, 11, AHMED, 20, "2026-09-27"); po(1, 11, DRIVER, "2026-09-27", { market: 24 });
+  const simDay = seed("x_price_day", { x_date: "2026-09-27", x_state: "published", x_name: "sim", x_utak_simulation: true });
+  seed("x_price_day_line", { x_day_id: simDay, x_product_tmpl_id: 1, x_packaging_id: 11, x_cost_price: 5, x_market_price: 99, x_sale_price: 99, x_supplier_id: AHMED, x_status: "auto", x_excluded: false, x_blocked: false, x_utak_simulation: true });
+  seed("x_daily_price", { x_product_tmpl_id: 1, x_packaging_id: 11, x_supplier_id: AHMED, x_price_sar: 5, x_date: "2026-09-27", x_extraction_status: "extracted", x_utak_simulation: true });
+  const r = await quiet(() => PR.refreshPriceDay(env));
+  const real = rows("x_price_day").filter((d: any) => d.x_date === "2026-09-27" && !d.x_utak_simulation);
+  assert("the engine builds the real day beside the marked one (not «locked» by it)", r.action === "refreshed" && real.length === 1 && r.dayId === real[0].id, JSON.stringify(r));
+  const line = rows("x_price_day_line").find((l: any) => l.x_day_id === real[0].id);
+  assert("…with the real purchase 20 (the simulation row, newer, is not Ahmed's latest), market 24", line?.x_cost_price === 20 && line?.x_market_price === 24, JSON.stringify(line));
+  const ref = await quiet(() => OD.getLastSupplierPrice(env, AHMED, 1, 11));
+  assert("Ahmed's outlier reference: his real 20, not the newer simulation 5", ref?.price === 20, JSON.stringify(ref));
+  seed("x_daily_price", { x_product_tmpl_id: 2, x_packaging_id: 21, x_supplier_id: AHMED, x_price_sar: 40, x_date: "2026-09-27", x_extraction_status: "extracted" });
+  seed("x_daily_price", { x_product_tmpl_id: 2, x_packaging_id: 21, x_supplier_id: AHMED, x_price_sar: 77, x_date: "2026-09-27", x_extraction_status: "extracted", x_utak_simulation: true });
+  const today = await quiet(() => OD.getLatestSalePrice(env, 2, 21, "2026-09-27"));
+  assert("nothing published for cucumber: the day's supplier row is the real 40, not the newer simulation 77", today.price === 40 && today.source === "today", JSON.stringify(today));
+  seed("x_daily_price", { x_product_tmpl_id: 2, x_packaging_id: 21, x_supplier_id: AHMED, x_price_sar: 88, x_date: "2026-09-29", x_extraction_status: "extracted", x_utak_simulation: true });
+  const fb = await quiet(() => OD.getLatestSalePrice(env, 2, 21, "2026-10-05"));
+  assert("the stale fallback: the real 40 of 09-27, not the later simulation 88", fb.price === 40 && fb.source === "stale", JSON.stringify(fb));
+  assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
+}
+{
+  const env = fresh("2026-09-27 10:00"); sources();
+  publishedTomato("2026-09-27", 20, 30);
+  const simDay = seed("x_price_day", { x_date: "2026-09-27", x_state: "published", x_name: "sim", x_utak_simulation: true });
+  seed("x_price_day_line", { x_day_id: simDay, x_product_tmpl_id: 1, x_packaging_id: 11, x_cost_price: 5, x_market_price: 99, x_sale_price: 99, x_supplier_id: AHMED, x_status: "auto", x_excluded: false, x_blocked: false });
+  const prof = await quiet(() => OP.orderProfit(env, "2026-09-27", [{ productId: 1, packagingId: 11, qty: 1, unit: 24 }], 5));
+  assert("the discount guard's purchase of 09-27: the real 20 (24 − 20 − 1 = 3), not the simulation day's 5", prof === 3, String(prof));
+  cost("السيارة والسائق (شامل)", "daily", 500, "2026-09-01");
+  setRiyadh("2026-09-28 21:30");
+  const o = seed("x_daily_order", { x_customer_id: C1, x_state: "delivered", x_order_date: "2026-09-27", x_created_via: "whatsapp" });
+  seed("x_daily_order_line", { x_order_id: o, x_product_tmpl_id: 1, x_packaging_id: 11, x_quantity: 10, x_unit_price: 30, x_status: "delivered" });
+  const f = await quiet(() => SUM.readSummaryFigures(env));
+  assert("21:30 profit of 09-28's deliveries: bought at the real 20 (10 × 9 = 90), not the simulation day's 5", f.coverage.profit === 90, JSON.stringify(f.coverage));
+}
+{
+  const env = fresh("2026-09-27 21:15"); sources(); publishedTomato("2026-09-27");
+  dp(1, 11, AHMED, 20, "2026-09-27");
+  seed("x_daily_price", { x_product_tmpl_id: 1, x_packaging_id: 11, x_supplier_id: AHMED, x_price_sar: 5, x_date: "2026-09-27", x_extraction_status: "extracted", x_utak_simulation: true });
+  const item = { product_id: 1, packaging_id: 11, product_name: "طماطم", packaging_name: "كرتون", total_quantity: 3, order_ids: [1] } as any;
+  const pre = await quiet(() => OD.prefillPurchasePrices(env, [item], "2026-09-27", []));
+  assert("the 21:15 list's prefilled price: the real 20, not the newer simulation 5", JSON.stringify(pre.items).includes("20") && !/:5[,}]/.test(JSON.stringify(pre.items)), JSON.stringify(pre.items));
+  const list = seed("x_purchase_list", { x_date: "2026-09-27", x_status: "done", x_supplier_id: AHMED, x_aggregated_items: JSON.stringify([item]), x_ahmad_confirmed_at: "2026-09-27 00:30:00", x_utak_simulation: false });
+  const { syncSupplierDues } = await import("../src/supplier-pay.ts");
+  await quiet(() => syncSupplierDues(env, list, { force: true }));
+  const dues = rows("x_supplier_due_line");
+  assert("the supplier dues of the list: 3 × the real 20 = 60 (not 3 × 5)", dues.length > 0 && dues.every((d: any) => d.x_unit_price === 20), JSON.stringify(dues.map((d: any) => [d.x_quantity, d.x_unit_price])));
+}
+{
+  // an unordered lookup answers the first row: here the simulation rows come FIRST
+  const env = fresh("2026-09-27 21:15"); sources();
+  const simDay = seed("x_price_day", { x_date: "2026-09-27", x_state: "published", x_name: "sim", x_utak_simulation: true });
+  seed("x_price_day_line", { x_day_id: simDay, x_product_tmpl_id: 1, x_packaging_id: 11, x_cost_price: 5, x_market_price: 99, x_sale_price: 99, x_supplier_id: AHMED, x_status: "auto", x_excluded: false, x_blocked: false });
+  publishedTomato("2026-09-27", 20, 30);
+  const sp = await quiet(() => OD.getLatestSalePrice(env, 1, 11, "2026-09-27"));
+  assert("the published sale price of 09-27: the real 30, not the simulation day's 99", sp.price === 30, JSON.stringify(sp));
+  const item = { product_id: 1, packaging_id: 11, product_name: "طماطم", packaging_name: "كرتون", total_quantity: 3, order_ids: [1] } as any;
+  const simList = seed("x_purchase_list", { x_date: "2026-09-27", x_status: "done", x_aggregated_items: "[]", x_utak_simulation: true });
+  const id = await quiet(() => OD.createPurchaseListRecord(env, [item]));
+  assert("the day's list at 21:15: a new one, not the simulation list of the same date", id !== simList && table("x_purchase_list").get(simList)!.x_aggregated_items === "[]", String(id));
+  seed("x_purchase_list", { x_date: "2026-09-27", x_status: "sent", x_aggregated_items: "[]", x_utak_simulation: true });
+  const open = await quiet(() => OD.getUnconfirmedPurchaseLists(env, "2026-09-26"));
+  assert("the 06:00 follow-up: no simulation list", !open.some((x) => table("x_purchase_list").get(x)?.x_utak_simulation), JSON.stringify(open));
+  assert("today's latest list: the real one", (await quiet(() => OD.getLatestPurchaseListToday(env))) === id);
+}
+{
+  const env = fresh("2026-09-27 20:00");
+  const real = seed("x_daily_order", { x_customer_id: C1, x_state: "waiting_confirmation", x_order_date: "2026-09-27", x_created_via: "whatsapp" });
+  const sim = seed("x_daily_order", { x_customer_id: C1, x_state: "waiting_confirmation", x_order_date: "2026-09-27", x_created_via: "whatsapp", x_utak_simulation: true });
+  const un = await quiet(() => OD.getUnconfirmedOrders(env, "2026-09-27"));
+  assert("the 20:00 reminder / 21:00 close: the real order only", un.some((o) => o.id === real) && !un.some((o) => o.id === sim), JSON.stringify(un));
+  const conf = seed("x_daily_order", { x_customer_id: C1, x_state: "confirmed", x_order_date: "2026-09-27", x_created_via: "whatsapp", x_utak_simulation: true });
+  seed("x_daily_order_line", { x_order_id: conf, x_product_tmpl_id: 1, x_packaging_id: 11, x_quantity: 9, x_status: "pending" });
+  setRiyadh("2026-09-27 21:15");
+  const cl = await quiet(() => OD.getConfirmedLinesForToday(env));
+  assert("the 21:15 list: no line of a simulation order", !cl.some((l: any) => l.order_id === conf), JSON.stringify(cl));
+}
+{
+  const env = fresh("2026-09-27 10:00"); sources();
+  const real = seed("x_supplier_price_request_log", { x_supplier_id: AHMED, x_sent_at: "2026-09-26 23:00:00", x_replied_at: false, x_status: "sent" });
+  seed("x_supplier_price_request_log", { x_supplier_id: AHMED, x_sent_at: "2026-09-30 23:00:00", x_replied_at: false, x_status: "sent", x_utak_simulation: true });
+  assert("Ahmed's pending ask: the real one, not a newer (future-dated) simulation log", (await quiet(() => OD.getSupplierPendingLog(env, AHMED)))?.id === real);
+  assert("…his latest log too", (await quiet(() => OD.getLatestSupplierLog(env, AHMED)))?.id === real);
+  assert("the recent logs (06:00 report): no simulation log", (await quiet(() => OD.getRecentSupplierLogs(env, 24))).every((l) => l.id === real));
+}
+{
+  const env = fresh("2026-09-27 02:00");
+  seed("x_team_attendance", { x_employee_id: OMAR_EMP, x_date: "2026-09-27", x_status: "present", x_tapped_at: "2026-09-26 23:01:00", x_utak_simulation: true });
+  const t = await quiet(() => ATT.runAttendanceTick(env));
+  const omar = t.members.find((m: any) => m.name === "عمر المجهلي");
+  assert("a simulation «بدء الدوام» of the same day: the real one still goes to Omar (not «already tapped»)", !!omar && !String(omar.action).startsWith("tapped"), JSON.stringify(t.members));
+}
+
+console.log("\n[عزل] a simulation run (SIM_RUN_ID + SIMULATION_MODE): the row, never a Discuss line");
+{
+  const env = fresh("2026-09-27 10:00");
+  const partnerCh = seed("discuss.channel", { name: "واتساب · مطعم الوادي" });
+  table("res.partner").get(C1)!.x_wa_channel_id = partnerCh;
+  Object.assign(env, { SIMULATION_MODE: "true", PILOT_MODE: "false", SIM_RUN_ID: "s41-test" });
+  assert("isSimRun: both", CFG.isSimRun(env) && !CFG.isSimRun({ ...env, SIMULATION_MODE: "false" }) && !CFG.isSimRun({ ...env, SIM_RUN_ID: "" }));
+  openWin(env, C1_PHONE);
+  await quiet(() => META.sendText(env, "+" + C1_PHONE, "نص تجربة", { purpose: "bot_reply" }));
+  const row = rows("x_wa_message").find((r: any) => /نص تجربة/.test(String(r.x_body ?? "")));
+  const posts = rows("mail.message").filter((m: any) => m.model === "discuss.channel");
+  const pendingWrites = odooLog.filter((l) => l.model === "x_wa_message" && JSON.stringify(l.body?.vals ?? l.body?.vals_list ?? {}).includes('"x_echo_status":"pending"'));
+  assert("the x_wa_message row is written, echo «none» — never «pending» on the way (the deployed */5 tick would post it)", !!row && row.x_echo_status === "none" && pendingWrites.length === 0, JSON.stringify({ row, pendingWrites: pendingWrites.length }));
+  const { ensureInboxChannel } = await import("../src/wa-inbox.ts");
+  assert("the channel lookup itself answers «none» in a simulation run (even for a partner with a channel)", (await quiet(() => ensureInboxChannel(env, C1, "مطعم الوادي"))) === null);
+  assert("…and nothing posted to a Discuss channel", posts.length === 0, JSON.stringify(posts));
+  const toml = readFileSync(new URL("../wrangler.toml", import.meta.url), "utf8");
+  assert("wrangler.toml sets SIM_RUN_ID for no worker (prod, sim, pilot)", !/SIM_RUN_ID/.test(toml));
+  delete env.SIM_RUN_ID;
+  Object.assign(env, { SIMULATION_MODE: "false", PILOT_MODE: "true" });
+  await quiet(() => META.sendText(env, "+" + C1_PHONE, "نص عادي", { purpose: "bot_reply" }));
+  const row2 = rows("x_wa_message").find((r: any) => /نص عادي/.test(String(r.x_body ?? "")));
+  assert("without it (the deployed sim worker): the Discuss line as always", !!row2 && row2.x_echo_status !== "none", JSON.stringify(row2));
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

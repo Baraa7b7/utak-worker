@@ -19,8 +19,9 @@
 //       day; not in the half hour before 06:00; the 06:00 message keeps
 //       utak_shift_start_v2, utak_update_owner only as its backup.
 //   [8] the receipt: text inside the window, utak_payment_received [amount,
-//       invoice] outside it; the ack is not held; the receipt held + opener
-//       when its template cannot go.
+//       invoice] outside it (§ 39 د: through confirmPaymentToCustomer); the
+//       collection itself sends the customer nothing (the receipt is the one
+//       message); the receipt held + opener when its template cannot go.
 //   [9] the collector's / driver's notes reach Baraa as critical messages with
 //       the customer and the order, and are kept in Odoo.
 //   [10] schema: every Odoo read / write names real fields and selection values.
@@ -50,6 +51,8 @@ const FX = [
   "./fixtures-odoo-fields-20260925-opener.json",
   // STATUS § 36 — x_body_text / x_buttons_text, x_echo_status / x_echo_message_id / x_backfilled
   "./fixtures-odoo-fields-20260925-s36.json",
+  // STATUS § 39 د — x_utak_simulation on the payment / invoice / order, x_wa_message x_res_model / x_res_id
+  "./fixtures-odoo-fields-20260926-s39.json",
 ].map(load);
 const REAL: Record<string, string[]> = Object.assign({}, ...FX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FX.map((f) => f._selections));
@@ -91,7 +94,7 @@ const { sendOwnerAlert, clearTemplateCache, T } = await import("../src/templates
 const { PURPOSES, purposePolicy } = await import("../src/wa-purposes.ts");
 const op = await import("../src/wa-opener.ts");
 const { OPEN_PAYLOAD, OPEN_NOTHING_TEXT, OPENER_TEMPLATE, OPENER_PURPOSE, sendOpenerForHeld, openerDayKey, openerCoolKey, recipientCategory } = op;
-const { sendReceiptToCustomer } = await import("../src/receipt.ts");
+const { confirmPaymentToCustomer } = await import("../src/payment-confirm.ts");
 const { runAttendanceTick, ownerWindowAck, OWNER_OPENER_UPDATE } = await import("../src/attendance.ts");
 const { recordTeamNote, COLLECT_NOTE_PROMPT, TEAM_NOTE_ACK } = await import("../src/team-note.ts");
 const { OPENER_TEMPLATES, OPEN_BUTTON_TEXT } = await import("../scripts/s34-20260925-opener-templates.mjs");
@@ -380,41 +383,46 @@ console.log("\n[7] Baraa: no utak_owner_alert; utak_update_owner once a day; 06:
 }
 
 // ================================================================ 8. the receipt
-console.log("\n[8] the receipt: utak_payment_received outside the window");
+console.log("\n[8] the receipt: utak_payment_received outside the window (§ 39 د: confirmPaymentToCustomer)");
 {
-  const data = {
-    receiptNumber: "UTAK-RCPT-20260926-001", receiptDate: new Date(), customer: { name: "مطعم الوادي", address: "-", phone: "+" + CUST_PHONE },
-    payments: [{ invoiceNumber: "UTAK-INV-20260926-007", invoiceDate: "2026-09-26", amount: 60, method: "نقد" }], totalReceived: 60,
+  /** An order, its invoice and a payment on it (x_payment #…). */
+  const payment = (amount = 60, total = 60) => {
+    const o = order(CUST, "delivered", "2026-09-26");
+    const inv = seed("x_invoice", { x_invoice_number: "UTAK-INV-20260926-007", x_total: total, x_status: "issued", x_order_id: o, x_invoice_date: "2026-09-26" });
+    return seed("x_payment", { x_invoice_id: inv, x_amount: amount, x_method: "cash" });
   };
+  const receipt = { number: "UTAK-RCPT-20260926-001", url: "https://w.test/r.pdf", method: "نقد" };
   const env = fresh("2026-09-26 16:00");
-  const r = await quiet(() => sendReceiptToCustomer(env, CUST_PHONE, data as any, "https://w.test/r.pdf"));
+  const c = await quiet(() => confirmPaymentToCustomer(env, payment(), { receipt }));
   const t = tpl(CUST_PHONE, "utak_payment_received");
-  assert("closed window → utak_payment_received, sent directly", gatewayDecision(r)?.action === "template" && t.length === 1);
+  assert("closed window → utak_payment_received, sent directly", c.action === "sent" && t.length === 1, JSON.stringify(c));
   assert("…[amount, invoice number]", params(t[0]).join("|") === "60|UTAK-INV-20260926-007", JSON.stringify(params(t[0])));
   assert("…nothing held, no opener", heldFor(env, CUST_PHONE).length === 0 && openers().length === 0);
   assert("amount with halalas: «60.5»→«60.50»", (await import("../src/receipt.ts")).receiptAmountLabel(60.5) === "60.50");
 
   const env2 = fresh("2026-09-26 16:00");
   openWindow(env2, CUST_PHONE, 5);
-  await quiet(() => sendReceiptToCustomer(env2, CUST_PHONE, data as any, "https://w.test/r.pdf"));
+  await quiet(() => confirmPaymentToCustomer(env2, payment(), { receipt }));
   assert("open window → the receipt text with its link", txt(CUST_PHONE).some((x) => x.includes("UTAK-RCPT-20260926-001") && x.includes("https://w.test/r.pdf")) && tpl(CUST_PHONE).length === 0);
 
   const env3 = fresh("2026-09-26 16:00");
   for (const x of rows("x_whatsapp_template")) if (x.x_meta_template_id === "utak_payment_received") x.x_category = "MARKETING";
   clearTemplateCache();
-  await quiet(() => sendReceiptToCustomer(env3, CUST_PHONE, data as any, "https://w.test/r.pdf"));
+  await quiet(() => confirmPaymentToCustomer(env3, payment(), { receipt }));
   assert("template re-filed MARKETING → the receipt held + utak_update_customer [account, «إيصال الدفع»]",
     heldFor(env3, CUST_PHONE).length === 1 && params(tpl(CUST_PHONE, "utak_update_customer")[0]).join("|") === `${CUST}|إيصال الدفع`, JSON.stringify(sentTo(CUST_PHONE)));
 
-  // The collection: the ack is not held outside the window (the receipt covers it).
+  // The collection itself sends the customer nothing (§ 39 د): the x_payment it creates fires the receipt,
+  // whose confirmation is the one message (the harness runs no Odoo automation).
   const env4 = fresh("2026-09-26 16:00");
   const o = order(CUST, "delivered", "2026-09-26");
   const inv = seed("x_invoice", { x_invoice_number: "UTAK-INV-20260926-007", x_total: 60, x_status: "issued", x_order_id: o, x_invoice_date: "2026-09-26" });
   openWindow(env4, COLL_PHONE, 5);
   await button(env4, COLL_PHONE, `collect_cash_${inv}`, "نقد 💵");
   assert("collection recorded (x_payment)", rows("x_payment").length === 1);
-  assert("the ack to the customer: not sent, not held — «skipped» with the reason", txt(CUST_PHONE).length === 0 && heldFor(env4, CUST_PHONE).length === 0
-    && rows("x_wa_message").some((r) => r.x_status === "skipped" && String(r.x_meta_error).includes("utak_payment_received")), JSON.stringify(rows("x_wa_message").map((r) => [r.x_status, r.x_meta_error])));
+  assert("the collection sends the customer nothing of its own: no text, nothing held, no «skipped» ack row",
+    sentTo(CUST_PHONE).length === 0 && heldFor(env4, CUST_PHONE).length === 0 && !rows("x_wa_message").some((r) => String(r.x_debug_payload ?? "").includes("customer_payment_ack")),
+    JSON.stringify(rows("x_wa_message").map((r) => [r.x_status, r.x_meta_error])));
   const coll = sentTo(COLL_PHONE).filter((b) => b.type === "interactive");
   assert("the collector's reply carries «ملاحظة 📝» (collect_note_<invoice>)", coll.some((b) => b.interactive?.action?.buttons?.some((x: any) => x.reply?.id === `collect_note_${inv}`)), JSON.stringify(sentTo(COLL_PHONE)));
   const env5 = fresh("2026-09-26 16:00");
@@ -422,7 +430,10 @@ console.log("\n[8] the receipt: utak_payment_received outside the window");
   const inv5 = seed("x_invoice", { x_invoice_number: "UTAK-INV-5", x_total: 60, x_status: "issued", x_order_id: o5, x_invoice_date: "2026-09-26" });
   openWindow(env5, COLL_PHONE, 5); openWindow(env5, CUST_PHONE, 5);
   await button(env5, COLL_PHONE, `collect_cash_${inv5}`, "نقد 💵");
-  assert("inside the customer's window the ack goes as text", txt(CUST_PHONE).some((x) => x.startsWith("تم استلام الدفعة")));
+  assert("inside the customer's window too: no second message from the collection (the receipt is the one)", txt(CUST_PHONE).length === 0, JSON.stringify(txt(CUST_PHONE)));
+  const pid = rows("x_payment")[0]?.id;
+  await quiet(() => confirmPaymentToCustomer(env5, pid, { receipt }));
+  assert("…then the receipt's confirmation: one text", txt(CUST_PHONE).length === 1 && txt(CUST_PHONE)[0].startsWith("✅ استلمنا دفعتك بمبلغ 60 ريال على فاتورة UTAK-INV-5"), JSON.stringify(txt(CUST_PHONE)));
 }
 
 // ================================================================ 9. team notes

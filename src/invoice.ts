@@ -15,7 +15,6 @@ import {
   getCollectorTeamMembers,
   getUnpaidInvoicesWithCustomer,
   writeOrderLineUnitPrice,
-  getOrderCustomerWhatsapp,
   resolvePackagingNames,
   call,
 } from "./odoo";
@@ -604,22 +603,11 @@ export async function recordCollection(
     await updateOrderState(env, invoice.orderId, "closed");
   }
 
-  const customerWa = invoice.orderId
-    ? await getOrderCustomerWhatsapp(env, invoice.orderId)
-    : null;
-  if (customerWa) {
-    try {
-      // STATUS § 34 — inside the window only: outside it the receipt goes as
-      // utak_payment_received (x_payment → receipt), so this line is not held.
-      await sendText(env, customerWa, `تم استلام الدفعة ${amount} ر.س، شكراً لك 🙏`, {
-        purpose: "customer_payment_ack",
-        noHold: true,
-        noHoldReason: "الإيصال يؤكد الدفعة بقالب utak_payment_received",
-      });
-    } catch (e) {
-      console.warn(`[collection] failed to notify customer`, (e as Error).message);
-    }
-  }
+  // STATUS § 39 د (م10) — nothing to the customer from here: the x_payment
+  // just created fires the receipt (Odoo automation #1 → /internal/receipt-
+  // issue, and the */5 net for a lost webhook), whose confirmation is the one
+  // message of this payment (src/payment-confirm.ts). § 34's own «تم استلام
+  // الدفعة» line was a second message inside the window.
 
   // 2026-09-23 — the invoice goes to the customer only now, once, and only
   // when this collection completed the balance. Never throws.

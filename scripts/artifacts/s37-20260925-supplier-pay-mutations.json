@@ -1,5 +1,5 @@
 {
-  "at": "2026-09-26T06:31:03.993Z",
+  "at": "2026-09-26T06:46:07.667Z",
   "caught": 56,
   "total": 56,
   "results": [
@@ -215,7 +215,7 @@
       "name": "Omar's payment created approved",
       "caught": true,
       "fails": [
-        "✗ the photo: a pending cash payment by the member, from WhatsApp, with the receipt — {\"x_supplier_id\":701,\"x_amount\":1500.5,\"x_method\":\"cash\",\"x_channel\":\"whatsapp\",\"x_state\":\"approved\",\"x_recorded_by\":601,\"x_date\":\"2026-09-26\",\"x_source_wamid\":\"wamid.IN0.5477066399318246\",\"x_receipt\":\"/9j/4AEC/9k=\",\"x_receipt_filename\":\"إيصال-2026-09-26.jpg\",\"x_is_simulation\":true,\"id\":10045,\"x_name\":\"SP-2026-0001\"}",
+        "✗ the photo: a pending cash payment by the member, from WhatsApp, with the receipt — {\"x_supplier_id\":701,\"x_amount\":1500.5,\"x_method\":\"cash\",\"x_channel\":\"whatsapp\",\"x_state\":\"approved\",\"x_recorded_by\":601,\"x_date\":\"2026-09-26\",\"x_source_wamid\":\"wamid.IN0.09321193247949777\",\"x_receipt\":\"/9j/4AEC/9k=\",\"x_receipt_filename\":\"إيصال-2026-09-26.jpg\",\"x_is_simulation\":true,\"id\":10045,\"x_name\":\"SP-2026-0001\"}",
         "✗ …Baraa's alert: the supplier, the amount, the reference, the remaining (216.00 before it) and the excess — {\"messaging_product\":\"whatsapp\",\"to\":\"966500000001\",\"type\":\"text\",\"text\":{\"body\":\"💵 دفعة نقدية من أحمد بانتظار اعتمادك\\nالمورد: مورد الخضار\\nالمبلغ: 1500.50 ر.س\\nالمرجع: SP-2026-0001\\nالمتبقي للمورد قبلها: -1284.50 ر.س\\n⚠️ تزيد عن المتبقي بـ 2785.00 ر.س، فإن اعتُمدت تُعلَّم «رصيد دائن».\\nاعتمدها أو ارفضها من UTAK ← 💵 دفع الموردين (دفعات الموردين). ومعها صورة الإيصال.\"}}"
       ]
     },
@@ -223,7 +223,7 @@
       "name": "the receipt not stored",
       "caught": true,
       "fails": [
-        "✗ the photo: a pending cash payment by the member, from WhatsApp, with the receipt — {\"x_supplier_id\":701,\"x_amount\":1500.5,\"x_method\":\"cash\",\"x_channel\":\"whatsapp\",\"x_state\":\"pending\",\"x_recorded_by\":601,\"x_date\":\"2026-09-26\",\"x_source_wamid\":\"wamid.IN0.7087037360339226\",\"x_is_simulation\":true,\"id\":10045,\"x_name\":\"SP-2026-0001\",\"x_receipt\":\"undefined\"}"
+        "✗ the photo: a pending cash payment by the member, from WhatsApp, with the receipt — {\"x_supplier_id\":701,\"x_amount\":1500.5,\"x_method\":\"cash\",\"x_channel\":\"whatsapp\",\"x_state\":\"pending\",\"x_recorded_by\":601,\"x_date\":\"2026-09-26\",\"x_source_wamid\":\"wamid.IN0.32265414479024335\",\"x_is_simulation\":true,\"id\":10045,\"x_name\":\"SP-2026-0001\",\"x_receipt\":\"undefined\"}"
       ]
     },
     {
@@ -240,7 +240,7 @@
         "✗ anything else is refused: words, commas, a currency, a sign, zero, three decimals, too large — [\"1,500\"]",
         "✗ anything but a number is refused with the clear line (4 ×), nothing recorded — [\"⚠️ المبلغ لازم يكون رقماً فقط أكبر من صفر، بلا حروف ولا فواصل، مثل 1500 أو 1500.50. اكتب المبلغ مرة ثانية (أو «إلغاء»).\",\"المبلغ: 1500.00 ر.س لـ مورد الخضار (نقداً).\\nأرسل صورة الإيصال الآن، أو اضغط «تخطي».\",\"أرسل صورة الإيصال، أو اضغط «تخطي» (أو اكتب «إلغاء»).\",\"أرسل صورة الإيصال، أو اضغط «تخطي» (أو اكتب «إلغاء»).\"]",
         "✗ the amount (Arabic digits) → «أرسل صورة الإيصال … أو «تخطي»» with the button — {\"messaging_product\":\"whatsapp\",\"to\":\"966500000601\",\"type\":\"interactive\",\"interactive\":{\"type\":\"button\",\"body\":{\"text\":\"أرسل صورة الإيصال، أو اضغط «تخطي» (أو اكتب «إلغاء»).\"},\"action\":{\"buttons\":[{\"type\":\"reply\",\"reply\":{\"id\":\"sp_skip_receipt\",\"title\":\"تخطي\"}}]}}}",
-        "✗ the photo: a pending cash payment by the member, from WhatsApp, with the receipt — {\"x_supplier_id\":701,\"x_amount\":1500,\"x_method\":\"cash\",\"x_channel\":\"whatsapp\",\"x_state\":\"pending\",\"x_recorded_by\":601,\"x_date\":\"2026-09-26\",\"x_source_wamid\":\"wamid.IN0.01429676978214256\",\"x_receipt\":\"/9j/4AEC/9k=\",\"x_receipt_filename\":\"إيصال-2026-09-26.jpg\",\"x_is_simulation\":true,\"id\":10045,\"x_name\":\"SP-2026-0001\"}"
+        "✗ the photo: a pending cash payment by the member, from WhatsApp, with the receipt — {\"x_supplier_id\":701,\"x_amount\":1500,\"x_method\":\"cash\",\"x_channel\":\"whatsapp\",\"x_state\":\"pending\",\"x_recorded_by\":601,\"x_date\":\"2026-09-26\",\"x_source_wamid\":\"wamid.IN0.5412823718577362\",\"x_receipt\":\"/9j/4AEC/9k=\",\"x_receipt_filename\":\"إيصال-2026-09-26.jpg\",\"x_is_simulation\":true,\"id\":10045,\"x_name\":\"SP-2026-0001\"}"
       ]
     },
     {

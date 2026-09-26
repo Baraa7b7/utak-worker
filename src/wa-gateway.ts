@@ -132,6 +132,12 @@ export interface GatewayRequest {
    */
   noHold?: boolean;
   noHoldReason?: string;
+  /**
+   * § 39 د — the record this message is about, on its x_wa_message row
+   * (x_res_model / x_res_id): sent, held or skipped. The payment confirmation
+   * (src/payment-confirm.ts) finds its own rows by it — one message per payment.
+   */
+  link?: { model: string; id: number };
 }
 
 export type GatewayDecision =
@@ -511,7 +517,7 @@ async function hold(env: Env, req: GatewayRequest, to: string, opt: GwSession, w
     x_status: "held",
     x_debug_payload: payload,
     x_echo_status: "pending",
-  }, { body: text, kind: kindOf(opt.body), manual: req.manual, purpose: req.purpose });
+  }, { body: text, kind: kindOf(opt.body), manual: req.manual, purpose: req.purpose, link: req.link });
   await enqueueHeld(env, to, item, now);
   console.log(`[gateway] held purpose=${req.purpose} to=${maskPhone(to)} until=${new Date(expiresAt).toISOString()} — ${reason}`);
   // § 34 — a critical message: the number's «فتح المحادثة» template, once a day.
@@ -566,7 +572,7 @@ async function upsertRow(
   rowId: number | undefined,
   to: string,
   vals: Record<string, unknown>,
-  create: { body: string; kind: "text" | "template" | "document"; manual?: boolean; purpose: string },
+  create: { body: string; kind: "text" | "template" | "document"; manual?: boolean; purpose: string; link?: { model: string; id: number } },
 ): Promise<number | undefined> {
   try {
     const { call } = await import("./odoo");
@@ -585,6 +591,8 @@ async function upsertRow(
       status: String(vals.x_status ?? "sent"),
       metaError: typeof vals.x_meta_error === "string" ? vals.x_meta_error : undefined,
       debugPayload: typeof vals.x_debug_payload === "string" ? vals.x_debug_payload : undefined,
+      resModel: create.link?.model,
+      resId: create.link?.id,
       extra: typeof vals.x_echo_status === "string" ? { x_echo_status: partner ? vals.x_echo_status : "none" } : undefined,
     });
     return id ?? undefined;
@@ -611,6 +619,7 @@ async function logSkipped(
     kind: b ? kindOf(b) : "template",
     manual: req.manual,
     purpose: req.purpose,
+    link: req.link,
   });
 }
 
@@ -1009,6 +1018,7 @@ async function recordAccepted(env: Env, req: GatewayRequest, to: string, body: R
     wamid: wamid && !wamid.includes(".no_id.") ? wamid : undefined,
     rowId,
     manual: req.manual || purposePolicy(req.purpose)?.kind === "manual",
+    link: req.link,
     ctx: req.ctx,
   });
 }

@@ -3,8 +3,7 @@
 
 import type { Env } from "./config";
 import { call } from "./odoo";
-import { sendText } from "./meta";
-import { T } from "./templates";
+import { payconfText, paymentAmountLabel, type PayConfAction } from "./payment-confirm";
 import {
   BRAND_COLORS,
   computePageMetrics,
@@ -51,49 +50,29 @@ export interface ReceiptPDFData {
   issued?: boolean;
 }
 
-/** The receipt's WhatsApp text (inside the window): number, amount, method, link. */
+/**
+ * The receipt's WhatsApp text inside the window (STATUS § 39 د, م10): the
+ * words of utak_payment_received, then the receipt's number, method and link
+ * (src/payment-confirm.ts payconfText; a partial payment also says what is
+ * left — confirmPaymentToCustomer passes it).
+ */
 export function receiptMessageText(data: ReceiptPDFData, publicUrl: string): string {
-  const method = data.payments[0]?.method || "-";
-  return [
-    `✅ تم استلام دفعتك`,
-    `رقم الإيصال: ${data.receiptNumber}`,
-    `المبلغ: ${data.totalReceived} ر.س`,
-    `طريقة الدفع: ${method}`,
-    ``,
-    `الإيصال: ${publicUrl}`,
-    ``,
-    `شكراً لتعاملكم مع UTAK 🌿`,
-  ].join("\n");
+  return payconfText({
+    amount: data.totalReceived,
+    invoiceNumber: data.payments[0]?.invoiceNumber || data.receiptNumber,
+    receipt: { number: data.receiptNumber, url: publicUrl, method: data.payments[0]?.method || undefined },
+  });
 }
 
 /** utak_payment_received's {{1}}: «50» or «50.50». */
 export function receiptAmountLabel(amount: number): string {
-  const n = Math.round(Number(amount || 0) * 100) / 100;
-  return Number.isInteger(n) ? String(n) : n.toFixed(2);
+  return paymentAmountLabel(amount);
 }
 
-/**
- * STATUS § 34 — the payment receipt to the customer, one gateway request:
- * the text with its link inside the customer's 24h window; outside it the
- * approved UTILITY template utak_payment_received (x_purpose
- * customer_payment_received) = [amount, invoice number], which needs no
- * window. When that template cannot be used the text is held, and — the
- * receipt being critical («مهمة») — utak_update_customer goes once that day.
- */
-export async function sendReceiptToCustomer(
-  env: Env,
-  phone: string,
-  data: ReceiptPDFData,
-  publicUrl: string,
-  ctx?: ExecutionContext,
-): Promise<Response> {
-  const invoiceNumber = data.payments[0]?.invoiceNumber || data.receiptNumber;
-  return sendText(env, phone, receiptMessageText(data, publicUrl), {
-    purpose: "customer_receipt",
-    ctx,
-    fallback: [{ kind: "template", purpose: T.CUSTOMER_PAYMENT_RECEIVED, params: [receiptAmountLabel(data.totalReceived), invoiceNumber] }],
-  });
-}
+// § 34's sendReceiptToCustomer (a raw gateway send under customer_receipt) is
+// gone (§ 39 د): every confirmation of a payment goes through
+// confirmPaymentToCustomer (src/payment-confirm.ts) — customer_payment_received,
+// one per payment, nothing for a simulation, nothing to a held customer.
 
 const RECEIPT_FOOTER =
   "استلمنا منكم المبلغ المذكور أعلاه عن الفواتير المدرجة. شكراً لالتزامكم.";
@@ -328,12 +307,14 @@ export interface ReceiptDispatchResult {
   number: string;
   pdfUrl: string;
   pdfSize: number;
-  messageId: string | null;
+  /** § 39 د — what became of the customer's one confirmation (src/payment-confirm.ts). */
+  confirmation: PayConfAction;
 }
 
 export async function createAndDispatchReceiptForRecord(
   env: Env,
   paymentId: number,
+  ctx?: ExecutionContext,
 ): Promise<ReceiptDispatchResult | null> {
   let data: ReceiptPDFData | null;
   try {
@@ -380,32 +361,24 @@ export async function createAndDispatchReceiptForRecord(
     throw e;
   }
 
-  const customerPhone = data.customer.phone;
-
-  let messageId: string | null = null;
-  if (!customerPhone) {
-    console.warn(`[receipt] ${paymentId} has no customer WhatsApp — skipping send`);
-  } else {
-    try {
-      // STATUS § 34 — the receipt with its link inside the customer's window;
-      // utak_payment_received outside it (sendReceiptToCustomer).
-      const resp = await sendReceiptToCustomer(env, customerPhone, data, uploaded.publicUrl);
-      if (resp?.ok) {
-        try {
-          const j = (await resp.json()) as { messages?: Array<{ id?: string }> };
-          messageId = j?.messages?.[0]?.id ?? null;
-        } catch {
-          /* ignore parse error — Meta returned non-JSON */
-        }
-      }
-    } catch (e) {
-      console.error(
-        "[r-issue] step 4 FAILED:",
-        (e as Error).message,
-        (e as Error).stack,
-      );
-      throw e;
-    }
+  // STATUS § 39 د (م10) — the customer's one confirmation of this payment: the
+  // receipt with its link inside the window, utak_payment_received outside it;
+  // nothing for a simulation or a held customer, never twice.
+  let confirmation: PayConfAction;
+  try {
+    const { confirmPaymentToCustomer } = await import("./payment-confirm");
+    const c = await confirmPaymentToCustomer(env, paymentId, {
+      receipt: { number: data.receiptNumber, url: uploaded.publicUrl, method: data.payments[0]?.method || undefined },
+      ctx,
+    });
+    confirmation = c.action;
+  } catch (e) {
+    console.error(
+      "[r-issue] step 4 FAILED:",
+      (e as Error).message,
+      (e as Error).stack,
+    );
+    throw e;
   }
 
   // Warn-and-continue: a write-back failure must not undo a WhatsApp send
@@ -436,7 +409,7 @@ export async function createAndDispatchReceiptForRecord(
     number: data.receiptNumber,
     pdfUrl: uploaded.publicUrl,
     pdfSize: uploaded.size,
-    messageId,
+    confirmation,
   };
 }
 

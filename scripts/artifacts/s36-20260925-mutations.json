@@ -1,5 +1,5 @@
 {
-  "at": "2026-09-26T06:30:31.591Z",
+  "at": "2026-09-26T06:45:33.603Z",
   "caught": 29,
   "total": 29,
   "results": [
@@ -121,7 +121,7 @@
         "✗ template: row = the text as received, kind template — [\"تم تحديث طلبك رقم {{1}}: {{2}}. شكراً لك\"]",
         "✗ template: its line shows the same text, «قالب» box",
         "✗ receipt (closed window → utak_payment_received): row and line with the template's text",
-        "✗ variables filled in order — تحصيل اليوم {{1}}: {{2}} ريال من {{3}} ({{4}})"
+        "✗ …its row names the payment (x_res_model x_payment, x_res_id) — [null,null]"
       ]
     },
     {

@@ -41,7 +41,8 @@ export const CONTRACT = {
   // 2026-09-25 (STATUS § 34) — utak_payment_received (#56): [amount, invoice number], the
   // receipt outside the customer's window; and «فتح المحادثة» per category (#82–#85):
   // [account number or date, the update in two or three words] + «عرض التحديث».
-  customer_payment_received:  { params: 2, where: "src/receipt.ts (sendReceiptToCustomer)", used: true },
+  // § 39 د (م10): every payment confirmation, one per payment, through confirmPaymentToCustomer
+  customer_payment_received:  { params: 2, where: "src/payment-confirm.ts (confirmPaymentToCustomer, payconfParams)", used: true },
   // the collector's / driver's note to Baraa: text only (held outside his window), no template
   owner_team_note:            { params: null, where: "src/team-note.ts (recordTeamNote, text only)", used: false },
   conv_open_customer:         { params: 2, where: "src/wa-opener.ts (openerParams)", used: true },

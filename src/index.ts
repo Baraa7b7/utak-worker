@@ -186,6 +186,15 @@ export default {
           } catch (e) {
             console.error("[prices tick] failed", (e as Error)?.message);
           }
+          // 2026-09-26 (STATUS § 39 د, م10) — a customer payment whose receipt
+          // webhook was lost: its receipt and its one confirmation now.
+          try {
+            const { runPaymentConfirmTick } = await import("./payment-confirm");
+            const pc = await runPaymentConfirmTick(rawEnv, Date.now(), ctx);
+            if (pc.length) console.log("[payconf tick]", JSON.stringify(pc));
+          } catch (e) {
+            console.error("[payconf tick] failed", (e as Error)?.message);
+          }
           // 2026-09-25 (STATUS § 37) — supplier payments: the dues of recent
           // confirmed purchase lists (a price that arrived later), and a
           // decided payment whose webhook was lost.
@@ -480,7 +489,7 @@ export default {
         (async () => {
           try {
             const { createAndDispatchReceiptForRecord } = await import("./receipt");
-            const result = await createAndDispatchReceiptForRecord(env, pid);
+            const result = await createAndDispatchReceiptForRecord(env, pid, ctx);
             if (!result) {
               console.warn("[r-issue] background pipeline: payment not found for id:", pid);
               return;
@@ -683,24 +692,17 @@ export default {
       }
       if (!uploaded) return json({ paymentId, steps, receiptNumber, pdfUrl });
 
-      // Step 4 — WhatsApp (plain-text fallback, mirrors orchestrator)
-      const customerPhone = built.customer.phone;
-      if (!customerPhone) {
-        steps["4_send_whatsapp"] = "skipped: no phone";
-      } else {
-        try {
-          // STATUS § 34 — text inside the window, utak_payment_received outside it.
-          const { sendReceiptToCustomer } = await import("./receipt");
-          const resp = await sendReceiptToCustomer(env, customerPhone, built, uploaded.publicUrl);
-          if (!resp || !resp.ok) {
-            const errText = resp ? await resp.text().catch(() => "") : "no response";
-            steps["4_send_whatsapp"] = `error: ${resp?.status ?? "?"} ${errText.slice(0, 200)}`;
-          } else {
-            steps["4_send_whatsapp"] = "ok";
-          }
-        } catch (e) {
-          steps["4_send_whatsapp"] = `error: ${(e as Error).message}`;
-        }
+      // Step 4 — WhatsApp: the payment's one confirmation (STATUS § 39 د, م10),
+      // with every guard of the receipt pipeline — a payment already confirmed,
+      // a simulation or a held customer sends nothing here either.
+      try {
+        const { confirmPaymentToCustomer } = await import("./payment-confirm");
+        const c = await confirmPaymentToCustomer(env, paymentId, {
+          receipt: { number: built.receiptNumber, url: uploaded.publicUrl, method: built.payments[0]?.method || undefined },
+        });
+        steps["4_send_whatsapp"] = c.action === "sent" ? "ok" : c.action;
+      } catch (e) {
+        steps["4_send_whatsapp"] = `error: ${(e as Error).message}`;
       }
 
       // Step 5 — Odoo write-back

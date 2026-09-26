@@ -323,29 +323,16 @@
   {
     "mutation": "receipt: no utak_payment_received outside the window",
     "files": [
-      "src/receipt.ts"
+      "src/payment-confirm.ts"
     ],
     "test": "tests/wa-opener.test.mts",
     "caught": true,
     "exit": 1,
     "failed": 3,
     "first": [
-      "closed window → utak_payment_received, sent directly",
+      "closed window → utak_payment_received, sent directly — {\"action\":\"held\",\"paymentId\":10008,\"invoiceNumber\":\"UTAK-INV-",
       "…[amount, invoice number] — []",
       "…nothing held, no opener"
-    ]
-  },
-  {
-    "mutation": "receipt: the payment ack is held outside the window",
-    "files": [
-      "src/invoice.ts"
-    ],
-    "test": "tests/wa-opener.test.mts",
-    "caught": true,
-    "exit": 1,
-    "failed": 1,
-    "first": [
-      "the ack to the customer: not sent, not held — «skipped» with the reason — [[\"received\",null],[\"held\",null],[\"sent\",n"
     ]
   },
   {

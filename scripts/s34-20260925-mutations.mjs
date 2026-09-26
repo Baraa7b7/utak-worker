@@ -79,10 +79,12 @@ const M = [
     "  const ref = category === \"customer\" && partnerId ? String(partnerId) : arabicDate(riyadhDateKey(new Date(now)));",
     "  const ref = arabicDate(riyadhDateKey(new Date(now)));"]], O],
   // ---- the receipt
-  ["receipt: no utak_payment_received outside the window", [["src/receipt.ts",
-    "    fallback: [{ kind: \"template\", purpose: T.CUSTOMER_PAYMENT_RECEIVED, params: [receiptAmountLabel(data.totalReceived), invoiceNumber] }],\n", ""]], O],
-  ["receipt: the payment ack is held outside the window", [["src/invoice.ts",
-    "        noHold: true,\n", ""]], O],
+  // § 39 د (م10): the receipt's send moved to confirmPaymentToCustomer (src/payment-confirm.ts)
+  ["receipt: no utak_payment_received outside the window", [["src/payment-confirm.ts",
+    "    fallback: [{ kind: \"template\", purpose: PAYCONF_PURPOSE, params: payconfParams(amount, invoiceNumber) }],\n", ""]], O],
+  // «receipt: the payment ack is held outside the window» removed (§ 39 د): the collection's own
+  // «تم استلام الدفعة» line is gone on purpose — the receipt is the one message per payment
+  // (scripts/wa-b4-20260926-mutations.mjs «the collection's own … back» mutates that).
   // ---- team notes
   ["team note: without the customer's name", [["src/team-note.ts",
     "      customerName = (await getOrderCustomer(env, orderId))?.name || \"-\";", "      customerName = \"-\";"]], O],

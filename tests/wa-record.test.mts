@@ -44,6 +44,7 @@ const FX = [
   "./fixtures-odoo-fields-20260924.json", "./fixtures-odoo-fields-20260925-review.json", "./fixtures-odoo-fields-20260925-gateway.json",
   "./fixtures-odoo-fields-20260925-team.json", "./fixtures-odoo-fields-20260925-opener.json", "./fixtures-odoo-fields-20260925-prices.json",
   "./fixtures-odoo-fields-20260925-s36.json",
+  "./fixtures-odoo-fields-20260926-s39.json", // § 39 د: x_utak_simulation on the payment, x_wa_message x_res_model / x_res_id
 ].map(load);
 const REAL: Record<string, string[]> = Object.assign({}, ...FX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FX.map((f) => f._selections));
@@ -107,7 +108,7 @@ const { sendViaGateway, gatewayDecision, flushHeld, sweepExpiredHeld } = await i
 const { readWindow } = await import("../src/wa-window.ts");
 const { sendText } = await import("../src/meta.ts");
 const { sendTemplateByPurpose, sendOwnerAlert, clearTemplateCache } = await import("../src/templates.ts");
-const { sendReceiptToCustomer } = await import("../src/receipt.ts");
+const { confirmPaymentToCustomer } = await import("../src/payment-confirm.ts");
 const { recordTeamNote } = await import("../src/team-note.ts");
 const { refreshPriceDay, publishPriceDay } = await import("../src/prices.ts");
 const { handleWaMessageWebhook } = await import("../src/wa-message-send.ts");
@@ -249,13 +250,14 @@ console.log("\n[1] every send path writes an x_wa_message row and a Discuss line
   await quiet(() => sendOwnerAlert(env, "⚠️ تنبيه تشغيلي تجريبي"));
   r = onRecord("⚠️ تنبيه تشغيلي تجريبي", OWNERP, CH_OWNER);
   assert("alert: row and line for Baraa", !!r.row && !!r.msg);
-  const receipt = {
-    receiptNumber: "UTAK-RCPT-20260926-001", receiptDate: new Date(), customer: { name: "مطعم الوادي", address: "-", phone: "+" + CUST_PHONE },
-    payments: [{ invoiceNumber: "UTAK-INV-20260926-007", invoiceDate: TODAY, amount: 60, method: "نقد" }], totalReceived: 60,
-  };
-  await quiet(() => sendReceiptToCustomer(env, "+" + CUST_PHONE, receipt as any, "https://w.test/r.pdf"));
+  // § 39 د — the receipt through confirmPaymentToCustomer: its row is linked to the payment
+  const ro = seed("x_daily_order", { x_customer_id: CUST, x_state: "delivered", x_order_date: TODAY });
+  const rinv = seed("x_invoice", { x_invoice_number: "UTAK-INV-20260926-007", x_total: 60, x_status: "issued", x_order_id: ro, x_invoice_date: TODAY });
+  const rpay = seed("x_payment", { x_invoice_id: rinv, x_amount: 60, x_method: "cash" });
+  await quiet(() => confirmPaymentToCustomer(env, rpay, { receipt: { number: "UTAK-RCPT-20260926-001", url: "https://w.test/r.pdf", method: "نقد" } }));
   r = onRecord("استلمنا دفعتك بمبلغ 60 ريال على فاتورة UTAK-INV-20260926-007. شكراً لك", CUST, CH_CUST);
   assert("receipt (closed window → utak_payment_received): row and line with the template's text", !!r.row && !!r.msg && r.row.x_kind === "template");
+  assert("…its row names the payment (x_res_model x_payment, x_res_id)", r.row?.x_res_model === "x_payment" && r.row?.x_res_id === rpay, JSON.stringify([r.row?.x_res_model, r.row?.x_res_id]));
   const o = seed("x_daily_order", { x_customer_id: CUST, x_state: "confirmed", x_order_date: TODAY });
   seed("x_delivery_stop", { x_order_id: o, x_sequence: 1 });
   await quiet(() => recordTeamNote(env, { kind: "delivery", memberName: "عمر المجهلي", orderId: o, text: "الباب مغلق" }));

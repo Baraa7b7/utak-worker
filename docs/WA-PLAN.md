@@ -86,7 +86,7 @@ node --experimental-strip-types --experimental-loader=./tests/loader.mjs scripts
 | م12 | لا متابعة للسائق (بدء الدوام، ومحطات بلا «تم التسليم») | **3** ✅ | `src/team.ts`، مهمة 18:00 في `src/index.ts` | متوسطة-عالية: لا تسليم = لا فاتورة ولا تحصيل | كود فقط |
 | م8 | «في الطريق» غير موجودة | **3** ✅ | `src/team.ts`، فرع «بدء الدوام» في `src/index.ts` | متوسطة | الغرض `customer_delivery_incoming` مربوط أصلاً، فلا كتابة Odoo |
 | م17 | لا ملخص يومي للمالك | **3** ✅ | `src/team.ts` (نهاية 21:15) | متوسطة | الغرض `owner_summary` مربوط أصلاً |
-| م10 | تأكيد الدفع نص حر يسقط غالباً | 4 | `src/invoice.ts`، `src/receipt.ts`؛ Odoo: قيمة `customer_payment_received` على #56 | متوسطة | `invoice.ts` كان قيد التعديل في جلسة أخرى وقت التخطيط |
+| م10 | تأكيد الدفع نص حر يسقط غالباً | **4** ✅ | `src/invoice.ts`، `src/receipt.ts`، `src/payment-confirm.ts` (جديد)؛ Odoo: قيمة `customer_payment_received` على #56 (من § 34) | متوسطة | `invoice.ts` كان قيد التعديل في جلسة أخرى وقت التخطيط |
 | م13 | الشكوى: كلمات واسعة، وتكرار، ولا تسجيل بعد «عندي ملاحظة» | 5 | `src/complaint.ts`، `src/router.ts` | متوسطة | يحتاج س10 (نص «خلال ساعة») |
 | م14 | معالجة الشكوى لا تُبلغ العميل | 5 | نقطة `/odoo/hook/complaint-resolved`؛ Odoo: قيمة غرض + أتمتة على `x_complaint` | متوسطة | الملف نفسه مع م13؛ أتمتة Odoo مع rollback |
 | م9 | لا إشعار بالصنف الناقص | 6 | نقطة `/odoo/hook/line-shortage`، `src/router.ts`؛ Odoo: قيمة غرض + أتمتة على `x_daily_order_line` | متوسطة | يحتاج س11؛ يمس أسطر الفاتورة، فاختباره بـ mocks فقط |
@@ -139,6 +139,14 @@ node --experimental-strip-types --experimental-loader=./tests/loader.mjs scripts
 - **م17:** ملخص 21:30 لبراء بثلاثة أسطر من Odoo، و«تعذّر» مكان الرقم الناقص (`src/owner-summary.ts`، كرون sim `30 18 * * *`).
 
 **التالي: الدفعة 4** (م10، تأكيد الدفع). § 34 ربط `utak_payment_received` بالإيصال، فتبدأ بفحص ما بقي منها.
+
+### حالة الدفعة 4 — 2026-09-26 ✅
+
+منفّذة على sim، والتفاصيل في [STATUS.md](STATUS.md) § 39 د، والحالة في [WA-SCENARIOS.md](WA-SCENARIOS.md) § 10. الدفعة = م10 وحدها. `utak_payment_received` APPROVED/UTILITY عند Meta، ومربوط منذ § 34، فلا قالب جديد ولا كتابة Odoo.
+- **م10:** رسالة واحدة لكل دفعة عبر `confirmPaymentToCustomer` (`src/payment-confirm.ts`) بالغرض `customer_payment_received`: نص الإيصال داخل النافذة (والمتبقي في الدفع الجزئي)، والقالب [المبلغ، الفاتورة] خارجها. الإيصال و`/admin/test-receipt` وشبكة `*/5` للـ webhook الضائع يمرون به. زر التحصيل لا يرسل للعميل. لا شيء للمحاكاة ولا لشريك ينتظر المراجعة. حارس KV وصفوف `x_wa_message` مربوطة بالدفعة.
+- **ومعها في § 39:** وسم سجلات اختبار سبتمبر (61 سجلاً)، ويوم الراحة والإجازة في م12، وقوائم الطفرات القديمة.
+
+**التالي: الدفعة 5** (م13، م14: الشكوى). تحتاج س10 (نص «خلال ساعة»).
 
 ---
 

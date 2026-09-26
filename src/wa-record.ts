@@ -502,6 +502,8 @@ export interface SentRecord {
   manual?: boolean;
   /** A Discuss reply is already its own line (inbox_reply): no echo. */
   noEcho?: boolean;
+  /** § 39 د — the record the message is about (x_res_model / x_res_id). */
+  link?: { model: string; id: number };
   ctx?: ExecutionContext;
 }
 
@@ -541,6 +543,7 @@ async function writeSentRow(env: Env, rec: SentRecord): Promise<{ rowId: number;
     ...(shown.templateId ? { x_template_id: shown.templateId } : {}),
     ...(shown.kind === "template" ? { x_params: JSON.stringify(shown.params ?? []) } : {}),
     ...(partner ? { x_partner_id: partner.id } : {}),
+    ...(rec.link ? { x_res_model: rec.link.model, x_res_id: rec.link.id } : {}),
   };
   const { call } = await import("./odoo");
   // § 37 أ — Meta's «delivered» / «read» can arrive before this row carries the

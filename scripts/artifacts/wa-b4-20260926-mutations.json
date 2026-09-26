@@ -1,0 +1,238 @@
+{
+  "at": "2026-09-26T06:47:35.359Z",
+  "caught": 28,
+  "total": 28,
+  "results": [
+    {
+      "name": "م10: another purpose than customer_payment_received",
+      "caught": true,
+      "fails": [
+        "✗ new: its x_wa_message row is the gateway's, purpose customer_payment_received, linked to the payment (x_res_model / x_res_id) — [{\"write_date\":\"2026-09-26 13:00:00\",\"x_status\":\"sent\",\"x_meta_message_id\":\"wamid.T1\",\"x_processed_at\":\"2026-09-26 13:00:00\",\"x_echo_status\":\"posted\",\"x_template_id\":10000,\"x_params\":\"[\\\"100\\\",\\\"UTAK-INV-20260926-001\\\"]\",\"x_partner_id\":501,\"x_res_model\":\"x_payment\",\"x_res_id\":10004,\"x_direction\":\"out\",\"x_kind\":\"template\",\"x_body\":\"استلمنا دفعتك بمبلغ 100 ريال على فاتورة UTAK-INV-20260926-001. شكراً لك\",\"x_source\":\"auto\",\"x_debug_payload\":\"{\\\"purpose\\\":\\\"customer_receipt\\\",\\\"template\\\":\\\"utak_payment_received\\\"}\",\"id\":10005,\"x_echo_message_id\":10008}]",
+        "✗ …its row: purpose customer_payment_received, linked",
+        "✗ customer_receipt / customer_payment_ack carry no send any more (their keys stay in wa-purposes) — [\"payment-confirm.ts\"]"
+      ]
+    },
+    {
+      "name": "م10: no utak_payment_received outside the window",
+      "caught": true,
+      "fails": [
+        "✗ new: one utak_payment_received to the customer — {\"action\":\"held\",\"paymentId\":10004,\"invoiceNumber\":\"UTAK-INV-20260926-001\",\"amount\":100,\"remaining\":0}",
+        "✗ …[amount, invoice number], one line each — []",
+        "✗ new: its x_wa_message row is the gateway's, purpose customer_payment_received, linked to the payment (x_res_model / x_res_id) — [{\"write_date\":\"2026-09-26 13:00:00\",\"x_direction\":\"out\",\"x_kind\":\"text\",\"x_status\":\"held\",\"x_processed_at\":\"2026-09-26 13:00:00\",\"x_partner_id\":501,\"x_body\":\"✅ استلمنا دفعتك بمبلغ 100 ريال على فاتورة UTAK-INV-20260926-001. شكراً لك\\nرقم الإيصال: UTAK-R-20260926-041\\nطريقة الدفع: نقد\\nالإيصال: https://w.test/receipt-pdf/UTAK-R-20260926-041/tok.pdf\\nيو تاك 🌿\",\"x_res_model\":\"x_payment\",\"x_res_id\":10004,\"x_debug_payload\":\"{\\\"gateway\\\":\\\"held\\\",\\\"purpose\\\":\\\"customer_payment_received\\\",\\\"reason\\\":\\\"الرقم خارج نافذة 24 ساعة\\\",\\\"expiresAt\\\":\\\"2026-09-26T21:00:00.000Z\\\"}\",\"x_echo_status\":\"posted\",\"x_source\":\"auto\",\"id\":10005,\"x_echo_message_id\":10009}]",
+        "✗ …the row carries the template's full text — ✅ استلمنا دفعتك بمبلغ 100 ريال على فاتورة UTAK-INV-20260926-001. شكراً لك"
+      ]
+    },
+    {
+      "name": "م10: the template first even inside the window",
+      "caught": true,
+      "fails": [
+        "✗ new: one text, no template — [{\"messaging_product\":\"whatsapp\",\"to\":\"966500000501\",\"type\":\"template\",\"template\":{\"name\":\"utak_payment_received\",\"language\":{\"code\":\"ar\"},\"components\":[{\"type\":\"body\",\"parameters\":[{\"type\":\"text\",\"text\":\"100\"},{\"type\":\"text\",\"text\":\"UTAK-INV-20260926-001\"}]}]}}]",
+        "✗ …the template's words first",
+        "✗ …the receipt number, the method and its link",
+        "✗ new: 60 of 100 → «المتبقي على الفاتورة: 40 ريال»"
+      ]
+    },
+    {
+      "name": "م10: the remaining as a third template variable",
+      "caught": true,
+      "fails": [
+        "✗ …[amount, invoice number], one line each — [\"100\",\"UTAK-INV-20260926-001\",\"0\"]",
+        "✗ outside the window, partial: the template, [60, invoice] — no third variable — [\"60\",\"UTAK-INV-20260926-001\",\"40\"]"
+      ]
+    },
+    {
+      "name": "م10: a partial payment does not say what is left",
+      "caught": true,
+      "fails": [
+        "✗ new: 60 of 100 → «المتبقي على الفاتورة: 40 ريال» — ✅ استلمنا دفعتك بمبلغ 60 ريال على فاتورة UTAK-INV-20260926-001. شكراً لك",
+        "✗ …counted up to this payment: confirmed after the second exists, still «40» — ✅ استلمنا دفعتك بمبلغ 60 ريال على فاتورة UTAK-INV-20260926-001. شكراً لك",
+        "✗ …halalas «60.50», and a simulation payment on the invoice is not counted: «39.50» left — ✅ استلمنا دفعتك بمبلغ 60.50 ريال على فاتورة UTAK-INV-20260926-001. شكراً لك"
+      ]
+    },
+    {
+      "name": "م10: the receipt's link left out of the text",
+      "caught": true,
+      "fails": [
+        "✗ …the receipt number, the method and its link — ✅ استلمنا دفعتك بمبلغ 100 ريال على فاتورة UTAK-INV-20260926-001. شكراً لك",
+        "✗ new: the automation's webhook → 202, the PDF, and one confirmation with the receipt's link — {\"status\":202,\"gotenbergCalls\":1,\"t\":[\"✅ استلمنا دفعتك بمبلغ 100 ريال على فاتورة UTAK-INV-20260926-001. شكراً لك\\nرقم الإيصال: UTAK-R-20260926-014\\nطريقة الدفع: نقد\\nيو تاك 🌿\"]}"
+      ]
+    },
+    {
+      "name": "م10: the remaining counts later payments too",
+      "caught": true,
+      "fails": [
+        "✗ …counted up to this payment: confirmed after the second exists, still «40» — ✅ استلمنا دفعتك بمبلغ 60 ريال على فاتورة UTAK-INV-20260926-001. شكراً لك"
+      ]
+    },
+    {
+      "name": "م10: the remaining counts a simulation payment",
+      "caught": true,
+      "fails": [
+        "✗ …halalas «60.50», and a simulation payment on the invoice is not counted: «39.50» left — ✅ استلمنا دفعتك بمبلغ 60.50 ريال على فاتورة UTAK-INV-20260926-001. شكراً لك"
+      ]
+    },
+    {
+      "name": "م10: no KV claim per payment",
+      "caught": true,
+      "fails": [
+        "✗ new: a second call for the same payment → «claimed», nothing sent — {\"action\":\"already\",\"paymentId\":10004,\"invoiceNumber\":\"UTAK-INV-20260926-001\",\"amount\":100,\"remaining\":0}",
+        "✗ …the claim in KV",
+        "✗ new: /admin/test-receipt goes through the same confirmation → «claimed», no message — {\"1_build_data\":\"ok\",\"2_generate_pdf\":\"ok\",\"3_upload_r2\":\"ok: https://w.test/receipt-pdf/UTAK-R-20260926-014/163a8a75cec705a1.pdf\",\"4_send_whatsapp\":\"already\",\"5_writeback\":\"ok\"}"
+      ]
+    },
+    {
+      "name": "م10: no record check",
+      "caught": true,
+      "fails": [
+        "✗ new: KV lost → the linked row stops it («already») — {\"action\":\"sent\",\"paymentId\":10004,\"invoiceNumber\":\"UTAK-INV-20260926-001\",\"amount\":100,\"remaining\":0}",
+        "✗ …KV lost: the held row counts as on record («already»), nothing held twice — {\"action\":\"held\",\"paymentId\":10004,\"invoiceNumber\":\"UTAK-INV-20260926-001\",\"amount\":100,\"remaining\":0}"
+      ]
+    },
+    {
+      "name": "م10: the row not linked to the payment",
+      "caught": true,
+      "fails": [
+        "✗ new: its x_wa_message row is the gateway's, purpose customer_payment_received, linked to the payment (x_res_model / x_res_id) — []",
+        "✗ …the row carries the template's full text",
+        "✗ …its row: purpose customer_payment_received, linked",
+        "✗ new: KV lost → the linked row stops it («already») — {\"action\":\"sent\",\"paymentId\":10004,\"invoiceNumber\":\"UTAK-INV-20260926-001\",\"amount\":100,\"remaining\":0}"
+      ]
+    },
+    {
+      "name": "م10: the gateway drops the link on the sent row",
+      "caught": true,
+      "fails": [
+        "✗ new: its x_wa_message row is the gateway's, purpose customer_payment_received, linked to the payment (x_res_model / x_res_id) — []",
+        "✗ …the row carries the template's full text",
+        "✗ …its row: purpose customer_payment_received, linked",
+        "✗ new: KV lost → the linked row stops it («already») — {\"action\":\"sent\",\"paymentId\":10004,\"invoiceNumber\":\"UTAK-INV-20260926-001\",\"amount\":100,\"remaining\":0}"
+      ]
+    },
+    {
+      "name": "م10: the gateway drops the link on the held row",
+      "caught": true,
+      "fails": [
+        "✗ closed window and no usable template: held (critical) — its held row is linked too — []",
+        "✗ …KV lost: the held row counts as on record («already»), nothing held twice — {\"action\":\"held\",\"paymentId\":10004,\"invoiceNumber\":\"UTAK-INV-20260926-001\",\"amount\":100,\"remaining\":0}"
+      ]
+    },
+    {
+      "name": "م10: a held confirmation not counted as on record",
+      "caught": true,
+      "fails": [
+        "✗ …KV lost: the held row counts as on record («already»), nothing held twice — {\"action\":\"held\",\"paymentId\":10004,\"invoiceNumber\":\"UTAK-INV-20260926-001\",\"amount\":100,\"remaining\":0}"
+      ]
+    },
+    {
+      "name": "م10: a simulation payment confirmed",
+      "caught": true,
+      "fails": [
+        "✗ new: payment marked simulation → «simulation», nothing sent, no claim, no row — {\"action\":\"sent\",\"paymentId\":10004,\"invoiceNumber\":\"UTAK-INV-20260926-001\",\"amount\":100,\"remaining\":100}",
+        "✗ a simulation payment through the webhook: nothing sent"
+      ]
+    },
+    {
+      "name": "م10: a simulation invoice confirmed",
+      "caught": true,
+      "fails": [
+        "✗ new: invoice marked simulation → «simulation», nothing sent, no claim, no row — {\"action\":\"sent\",\"paymentId\":10004,\"invoiceNumber\":\"UTAK-INV-20260926-001\",\"amount\":100,\"remaining\":0}"
+      ]
+    },
+    {
+      "name": "م10: a simulation order confirmed",
+      "caught": true,
+      "fails": [
+        "✗ new: order marked simulation → «simulation», nothing sent, no claim, no row — {\"action\":\"sent\",\"paymentId\":10004,\"invoiceNumber\":\"UTAK-INV-20260926-001\",\"amount\":100,\"remaining\":0}"
+      ]
+    },
+    {
+      "name": "م10: a customer held for the review confirmed",
+      "caught": true,
+      "fails": [
+        "✗ new: held for the review → «held_partner», nothing sent, nothing held — {\"action\":\"sent\",\"paymentId\":10004,\"invoiceNumber\":\"UTAK-INV-20260926-001\",\"amount\":100,\"remaining\":0}"
+      ]
+    },
+    {
+      "name": "م10: the collection's own «تم استلام الدفعة» back",
+      "caught": true,
+      "fails": [
+        "✗ new: nothing to the customer from the collection itself (no «تم استلام الدفعة») — [\"تم استلام الدفعة 100 ر.س\"]",
+        "✗ «تم استلام الدفعة» is sent nowhere — [\"invoice.ts\"]",
+        "✗ customer_receipt / customer_payment_ack carry no send any more (their keys stay in wa-purposes) — [\"invoice.ts\"]"
+      ]
+    },
+    {
+      "name": "م10: the receipt pipeline does not confirm",
+      "caught": true,
+      "fails": [
+        "✗ new: the automation's webhook → 202, the PDF, and one confirmation with the receipt's link — {\"status\":202,\"gotenbergCalls\":1,\"t\":[]}",
+        "✗ new: the webhook fired again → no second message — []",
+        "✗ new: /admin/test-receipt goes through the same confirmation → «claimed», no message — {\"1_build_data\":\"ok\",\"2_generate_pdf\":\"ok\",\"3_upload_r2\":\"ok: https://w.test/receipt-pdf/UTAK-R-20260926-014/163a8a75cec705a1.pdf\",\"4_send_whatsapp\":\"ok\",\"5_writeback\":\"ok\"}",
+        "✗ new: 15 min old, no receipt, no claim → the pipeline now, one confirmation — [{\"paymentId\":10004,\"action\":\"no_phone\"}]"
+      ]
+    },
+    {
+      "name": "م10: /admin/test-receipt bypasses the guards (a raw send)",
+      "caught": true,
+      "fails": [
+        "✗ new: /admin/test-receipt goes through the same confirmation → «claimed», no message — {\"1_build_data\":\"ok\",\"2_generate_pdf\":\"ok\",\"3_upload_r2\":\"ok: https://w.test/receipt-pdf/UTAK-R-20260926-014/163a8a75cec705a1.pdf\",\"4_send_whatsapp\":\"ok\",\"5_writeback\":\"ok\"}",
+        "✗ customer_payment_received is sent only from src/payment-confirm.ts — [\"index.ts\",\"payment-confirm.ts\",\"templates.ts\"]",
+        "✗ the receipt pipeline and /admin/test-receipt call confirmPaymentToCustomer"
+      ]
+    },
+    {
+      "name": "م10 net: not wired in the */5 cron",
+      "caught": true,
+      "fails": [
+        "✗ new: wired in the */5 cron; two payments of one customer the same day both go (one auto-send job per payment) — []"
+      ]
+    },
+    {
+      "name": "م10 net: no minimum age (races the webhook)",
+      "caught": true,
+      "fails": [
+        "✗ new: 15 min old, no receipt, no claim → the pipeline now, one confirmation — [{\"paymentId\":10004,\"action\":\"sent\"},{\"paymentId\":10005,\"action\":\"sent\"}]",
+        "✗ …not the 5-minute-old one (its webhook may still come), not the 25-hour-old one, not a simulation",
+        "✗ next tick: nothing (receipt written back, claim taken) — []"
+      ]
+    },
+    {
+      "name": "م10 net: no maximum age (a day-old confirmation)",
+      "caught": true,
+      "fails": [
+        "✗ new: 15 min old, no receipt, no claim → the pipeline now, one confirmation — [{\"paymentId\":10004,\"action\":\"sent\"},{\"paymentId\":10009,\"action\":\"sent\"}]",
+        "✗ …not the 5-minute-old one (its webhook may still come), not the 25-hour-old one, not a simulation",
+        "✗ next tick: nothing (receipt written back, claim taken) — []"
+      ]
+    },
+    {
+      "name": "م10 net: simulation payments swept",
+      "caught": true,
+      "fails": [
+        "✗ new: 15 min old, no receipt, no claim → the pipeline now, one confirmation — [{\"paymentId\":10004,\"action\":\"sent\"},{\"paymentId\":10013,\"action\":\"simulation\"}]",
+        "✗ …not the 5-minute-old one (its webhook may still come), not the 25-hour-old one, not a simulation"
+      ]
+    },
+    {
+      "name": "م10 net: a receipted payment swept again",
+      "caught": true,
+      "fails": [
+        "✗ a payment already receipted (no claim: held customer): the net leaves it — no PDF again every 5 minutes — [{\"paymentId\":10004,\"action\":\"held_partner\"}]"
+      ]
+    },
+    {
+      "name": "م10 net: a claimed payment re-run",
+      "caught": true,
+      "fails": [
+        "✗ a claim already taken (the webhook ran, its write-back failed): no pipeline, no message — [{\"paymentId\":10004,\"action\":\"claimed\"}]"
+      ]
+    },
+    {
+      "name": "م10 net: one auto-send job for all payments (the second of the day dropped)",
+      "caught": true,
+      "fails": [
+        "✗ new: wired in the */5 cron; two payments of one customer the same day both go (one auto-send job per payment) — [[\"60\",\"UTAK-INV-A\"]]"
+      ]
+    }
+  ]
+}

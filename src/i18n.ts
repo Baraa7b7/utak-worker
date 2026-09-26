@@ -30,6 +30,8 @@ export const UI = {
   // 2026-09-23 — title of an invoice that carries VAT (dated on/after the
   // VAT cutoff). Tax-free invoices keep "فاتورة".
   taxInvoice: T("فاتورة ضريبية", "Tax Invoice"),
+  // § 41 د — a tax invoice to a customer without a VAT number.
+  simplifiedTaxInvoice: T("فاتورة ضريبية مبسطة", "Simplified Tax Invoice"),
   quotation: T("عرض سعر", "Quotation"),
   receipt: T("إيصال دفع", "Payment Receipt"),
   deliveryNote: T("إذن تسليم", "Delivery Note"),
@@ -54,6 +56,11 @@ export const UI = {
   colQty: T("الكمية", "Qty"),
   colPrice: T("السعر", "Price"),
   colTotal: T("الإجمالي", "Total"),
+  // § 41 د — a tax invoice's lines are printed net of VAT.
+  colPriceNet: T("السعر قبل الضريبة", "Price excl. VAT"),
+  colTotalNet: T("المجموع قبل الضريبة", "Amount excl. VAT"),
+  // § 41 د — a quotation from the VAT cutoff.
+  vatInclusiveNote: T("الأسعار شاملة ضريبة القيمة المضافة", "Prices include VAT"),
   colOrderedQty: T("الكمية المطلوبة", "Qty Ordered"),
   colAgreedPrice: T("السعر المتفق", "Agreed Price"),
   colInvoiceNumber: T("رقم الفاتورة", "Invoice #"),

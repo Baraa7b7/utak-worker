@@ -334,6 +334,9 @@ export function isVatApplicable(invoiceDateRiyadh: string, effectiveDate: string
  */
 export const PROFIT_VAT_RATE_PCT = 15;
 
+/** § 41 د — the rate a stored tax invoice is printed with (the issue took Odoo's sale tax, 15 %). */
+export const VAT_RATE_PCT = 15;
+
 /** The rate to take out of a profit on this Riyadh day: 15 from the cutoff, null before it. */
 export function profitVatRate(dayRiyadh: string): number | null {
   return isVatApplicable(dayRiyadh) ? PROFIT_VAT_RATE_PCT : null;

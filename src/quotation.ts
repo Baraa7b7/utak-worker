@@ -2,6 +2,7 @@
 // Uses the shared renderPDFShell for pixel-parity with the invoice.
 
 import type { Env } from "./config";
+import { isVatApplicable } from "./config";
 import { arabicDate } from "./wa-params";
 import {
   call,
@@ -63,6 +64,12 @@ export interface QuotationPDFData {
   discount: number;
   vatAmount: number;
   grandTotal: number;
+  /**
+   * § 41 د — dated from the VAT cutoff (Riyadh): the quotation says «الأسعار
+   * شاملة ضريبة القيمة المضافة» (its prices are the VAT-inclusive ones the
+   * tax invoice will split). Absent before it: the page as it was.
+   */
+  vatInclusive?: boolean;
   // sim-harness (2026-09-13): loud-fail metadata. Never rendered into the
   // PDF — read by the dispatcher to gate sends and alert the owner.
   price_warnings: QuotationPriceWarning[];
@@ -185,7 +192,9 @@ export function renderQuotationHTML(data: QuotationPDFData, company?: CompanyInf
       data.grandTotal,
       lang,
     ),
-    footerNote: lang === "en" ? UI.quotationValidity.en : QUOTATION_FOOTER,
+    footerNote: lang === "en"
+      ? (data.vatInclusive ? `${UI.quotationValidity.en} ${UI.vatInclusiveNote.en}.` : UI.quotationValidity.en)
+      : (data.vatInclusive ? `${QUOTATION_FOOTER}. ${UI.vatInclusiveNote.ar}` : QUOTATION_FOOTER),
     showZatcaQR: false,
     legalFooterBar,
     pageMetrics,
@@ -387,6 +396,7 @@ export async function buildQuotationPDFDataFromOdoo(
   return {
     quotationNumber: number,
     quotationDate,
+    ...(isVatApplicable(new Date(quotationDate.getTime() + 3 * 3600 * 1000).toISOString().slice(0, 10)) ? { vatInclusive: true } : {}),
     customer: {
       name: order.customer_name || "عميل",
       address: order.neighborhood || "الرياض",

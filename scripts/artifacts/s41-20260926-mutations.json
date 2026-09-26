@@ -1,46 +1,113 @@
 {
-  "at": "2026-09-26T11:20:18.155Z",
-  "caught": 4,
-  "total": 4,
+  "at": "2026-09-26T11:26:59.222Z",
+  "caught": 11,
+  "total": 11,
   "results": [
     {
-      "part": "سعر",
-      "name": "the day asked ignored (always today)",
+      "part": "د",
+      "name": "«فاتورة ضريبية» for every tax invoice (no «مبسطة»)",
       "caught": true,
       "fails": [
-        "✗ 5 × 30 = 150 (the price it was confirmed at), not 5 × 20 (today's purchase price) — {\"x_order_id\":10010,\"x_invoice_number\":\"UTAK-INV-20260927-001\",\"x_invoice_date\":\"2026-09-27\",\"x_subtotal\":100,\"x_tax_amount\":0,\"x_total\":100,\"x_status\":\"issued\",\"x_issued_at\":\"2026-09-27 02:00:00\",\"x_is_simulation\":true,\"id\":10014,\"x_invoice_sent_at\":\"2026-09-27 02:00:00\",\"x_sent_to_customer_at\":\"2026-09-27 02:00:00\",\"x_sent_to_collector_at\":\"2026-09-27 02:00:00\"}",
-        "✗ …and 30 written back on the line — [{\"x_order_id\":10010,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_quantity\":5,\"x_status\":\"pending\",\"id\":10011,\"x_unit_price\":20,\"x_subtotal\":100}]",
-        "✗ after 06:00 with today's list at 33: still 5 × 30 = 150 (the quoted price) — {\"x_order_id\":10011,\"x_invoice_number\":\"UTAK-INV-20260927-001\",\"x_invoice_date\":\"2026-09-27\",\"x_subtotal\":165,\"x_tax_amount\":0,\"x_total\":165,\"x_status\":\"issued\",\"x_issued_at\":\"2026-09-27 05:00:00\",\"x_is_simulation\":true,\"id\":10015,\"x_invoice_sent_at\":\"2026-09-27 05:00:00\",\"x_sent_to_customer_at\":\"2026-09-27 05:00:00\",\"x_sent_to_collector_at\":\"2026-09-27 05:00:00\"}",
-        "✗ its quotation rebuilt today (lines without a written price): the order's day's 30 too, not today's 33 — [{\"name\":\"طماطم\",\"pack\":\"كرتون\",\"qty\":5,\"price\":33,\"total\":165}]"
+        "✗ the title «فاتورة ضريبية مبسطة» —  html, body { margin: 0; padding: 0; background: #F7F5F0; } * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } @page { size: A4; margin: 0; background: #F7F5F0; } @media print { html, body { background: #F7F5F0; } .utak-page { box-shadow: none !important; margin: 0 !important; break",
+        "✗ the title «فاتورة ضريبية مبسطة»"
       ]
     },
     {
-      "part": "سعر",
-      "name": "the invoice priced at the delivery day",
+      "part": "د",
+      "name": "«مبسطة» even with the customer's VAT number",
       "caught": true,
       "fails": [
-        "✗ 5 × 30 = 150 (the price it was confirmed at), not 5 × 20 (today's purchase price) — {\"x_order_id\":10010,\"x_invoice_number\":\"UTAK-INV-20260927-001\",\"x_invoice_date\":\"2026-09-27\",\"x_subtotal\":100,\"x_tax_amount\":0,\"x_total\":100,\"x_status\":\"issued\",\"x_issued_at\":\"2026-09-27 02:00:00\",\"x_is_simulation\":true,\"id\":10014,\"x_invoice_sent_at\":\"2026-09-27 02:00:00\",\"x_sent_to_customer_at\":\"2026-09-27 02:00:00\",\"x_sent_to_collector_at\":\"2026-09-27 02:00:00\"}",
-        "✗ …and 30 written back on the line — [{\"x_order_id\":10010,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_quantity\":5,\"x_status\":\"pending\",\"id\":10011,\"x_unit_price\":20,\"x_subtotal\":100}]",
-        "✗ after 06:00 with today's list at 33: still 5 × 30 = 150 (the quoted price) — {\"x_order_id\":10011,\"x_invoice_number\":\"UTAK-INV-20260927-001\",\"x_invoice_date\":\"2026-09-27\",\"x_subtotal\":165,\"x_tax_amount\":0,\"x_total\":165,\"x_status\":\"issued\",\"x_issued_at\":\"2026-09-27 05:00:00\",\"x_is_simulation\":true,\"id\":10015,\"x_invoice_sent_at\":\"2026-09-27 05:00:00\",\"x_sent_to_customer_at\":\"2026-09-27 05:00:00\",\"x_sent_to_collector_at\":\"2026-09-27 05:00:00\"}",
-        "✗ 5 × 30 = 150 (the price it was confirmed at), not 5 × 20 (today's purchase price)"
+        "✗ the kind: a VAT number → «tax», none → «simplified»",
+        "✗ the title «فاتورة ضريبية» (not «مبسطة»)",
+        "✗ the kind: a VAT number → «tax», none → «simplified»",
+        "✗ the title «فاتورة ضريبية» (not «مبسطة»)"
       ]
     },
     {
-      "part": "سعر",
-      "name": "the quotation priced at the day it is built",
+      "part": "د",
+      "name": "the lines printed VAT-inclusive on a tax invoice",
       "caught": true,
       "fails": [
-        "✗ its quotation rebuilt today (lines without a written price): the order's day's 30 too, not today's 33 — [{\"name\":\"طماطم\",\"pack\":\"كرتون\",\"qty\":5,\"price\":33,\"total\":165}]",
-        "✗ its quotation rebuilt today (lines without a written price): the order's day's 30 too, not today's 33"
+        "✗ the line net of VAT: 26.09 a unit, 5, 130.43 (not 30 / 150) — [{\"name\":\"طماطم\",\"pack\":\"كرتون\",\"qty\":5,\"price\":30,\"total\":150}]",
+        "✗ the line net of VAT: 26.09 a unit, 5, 130.43 (not 30 / 150)"
       ]
     },
     {
-      "part": "سعر",
-      "name": "the stale fallback takes a later day's price",
+      "part": "د",
+      "name": "the rounding carried by the total, not the VAT line",
       "caught": true,
       "fails": [
-        "✗ the stale fallback never takes a later day's price (09-28 for 09-26 → missing) — {\"price\":40,\"source\":\"stale\",\"price_date\":\"2026-09-28\",\"age_days\":0}",
-        "✗ the stale fallback never takes a later day's price (09-28 for 09-26 → missing)"
+        "✗ three lines of 10: nets 8.70 ×3 = 26.10, VAT 3.90 (30 × 15 ÷ 115 = 3.91; the halala on the VAT line), total still 30 — {\"lines\":[{\"unitNet\":8.7,\"net\":8.7},{\"unitNet\":8.7,\"net\":8.7},{\"unitNet\":8.7,\"net\":8.7}],\"subtotal\":26.1,\"discount\":0,\"tax\":3.91,\"nominalTax\":3.91,\"adjustment\":0,\"total\":30}",
+        "✗ …net − discount + VAT = total, exactly",
+        "✗ three lines of 10: nets 8.70 ×3 = 26.10, VAT 3.90 (30 × 15 ÷ 115 = 3.91; the halala on the VAT line), total still 30",
+        "✗ …net − discount + VAT = total, exactly"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the issue time from create_date / the build time, not x_issued_at",
+      "caught": true,
+      "fails": [
+        "✗ the issue date AND time printed (2026/10/01 08:40) — 2026/10/01 11:15",
+        "✗ QR: 3 the issue time ISO, Riyadh (2026-10-01T08:40:00 — the moment of «تم التسليم») — 2026-10-01T11:15:00",
+        "✗ the issue date AND time printed (2026/10/01 08:40)",
+        "✗ QR: 3 the issue time ISO, Riyadh (2026-10-01T08:40:00 — the moment of «تم التسليم»)"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "no issue time printed",
+      "caught": true,
+      "fails": [
+        "✗ the issue date AND time printed (2026/10/01 08:40) — 2026/10/01",
+        "✗ the issue date AND time printed (2026/10/01 08:40)"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the seller's VAT number on an invoice before 10-01",
+      "caught": true,
+      "fails": [
+        "✗ 09-30: «فاتورة», no VAT (x_tax_amount 0), no VAT number of the seller, no QR —  html, body { margin: 0; padding: 0; background: #F7F5F0; } * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } @page { size: A4; margin: 0; background: #F7F5F0; } @media print { html,",
+        "✗ 09-30: «فاتورة», no VAT (x_tax_amount 0), no VAT number of the seller, no QR"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "a zero discount row on a tax invoice",
+      "caught": true,
+      "fails": [
+        "✗ no discount row when there is no discount",
+        "✗ no discount row when there is no discount"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "VAT by the order's day, not the issue date",
+      "caught": true,
+      "fails": [
+        "✗ …and VAT by that day: 150 = 130.43 + 19.57 — {\"x_order_id\":10013,\"x_invoice_number\":\"UTAK-INV-20261001-001\",\"x_invoice_date\":\"2026-10-01\",\"x_subtotal\":150,\"x_tax_amount\":0,\"x_total\":150,\"x_status\":\"issued\",\"x_issued_at\":\"2026-09-30 23:30:00\",\"x_is_simulation\":true,\"id\":10017,\"x_invoice_sent_at\":\"2026-09-30 23:30:00\",\"x_sent_to_customer_at\":\"2026-09-30 23:30:00\",\"x_sent_to_collector_at\":\"2026-09-30 23:30:00\"}",
+        "✗ stored: total 150 (5 × 30 at the market price, no discount), VAT 19.57, net 130.43 — {\"x_order_id\":10011,\"x_invoice_number\":\"UTAK-INV-20261001-001\",\"x_invoice_date\":\"2026-10-01\",\"x_subtotal\":150,\"x_tax_amount\":0,\"x_total\":150,\"x_status\":\"issued\",\"x_issued_at\":\"2026-10-01 05:40:00\",\"x_is_simulation\":true,\"id\":10015,\"x_invoice_sent_at\":\"2026-10-01 05:40:00\",\"x_sent_to_customer_at\":\"2026-10-01 05:40:00\",\"x_sent_to_collector_at\":\"2026-10-01 05:40:00\"}",
+        "✗ the title «فاتورة ضريبية مبسطة» —  html, body { margin: 0; padding: 0; background: #F7F5F0; } * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } @page { size: A4; margin: 0; background: #F7F5F0; } @media print { html, body { background: #F7F5F0; } .utak-page { box-shadow: none !important; margin: 0 !important; break",
+        "✗ the seller's name and VAT number printed"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the quotation page without the VAT note from 10-01",
+      "caught": true,
+      "fails": [
+        "✗ 10-01: vatInclusive, and the note on the page",
+        "✗ 10-01: vatInclusive, and the note on the page"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the quotation message without the VAT note from 10-01",
+      "caught": true,
+      "fails": [
+        "✗ 10-01: the quotation message says «الأسعار شاملة ضريبة القيمة المضافة.» — 📄 الكوتيشن رقم UTAK-Q-20261001-002",
+        "✗ 10-01: the quotation message says «الأسعار شاملة ضريبة القيمة المضافة.»"
       ]
     }
   ]

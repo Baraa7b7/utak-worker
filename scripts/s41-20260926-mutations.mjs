@@ -23,6 +23,8 @@ const OD = "src/odoo.ts";
 const OUT = "src/outreach.ts";
 const TSA = "tests/sale-accounting.test.mts";
 const QT = "src/quotation.ts";
+const TXI = "src/tax-invoice.ts";
+const RT = "src/router.ts";
 
 // [part, name, [[file, find, replace], …], test file]
 const M = [
@@ -99,6 +101,29 @@ const M = [
     "      const lookup = await getLatestSalePrice(env, l.product_id, l.packaging_id, order.order_date ?? undefined);", "      const lookup = await getLatestSalePrice(env, l.product_id, l.packaging_id);"]], T],
   ["سعر", "the stale fallback takes a later day's price", [[OD,
     "      [\"x_packaging_id\", \"=\", packagingId],\n      [\"x_date\", \"<=\", today],\n    ],", "      [\"x_packaging_id\", \"=\", packagingId],\n    ],"]], T],
+  // ---------------------------------------------------------------- د the tax invoice from 10-01
+  ["د", "«فاتورة ضريبية» for every tax invoice (no «مبسطة»)", [[INV,
+    "  const title = !isTaxInvoice ? UI.invoice : taxInvoiceKind(data.customer.vat) === \"tax\" ? UI.taxInvoice : UI.simplifiedTaxInvoice;", "  const title = !isTaxInvoice ? UI.invoice : UI.taxInvoice;"]], T],
+  ["د", "«مبسطة» even with the customer's VAT number", [[TXI,
+    "  return typeof customerVat === \"string\" && customerVat.trim() ? \"tax\" : \"simplified\";", "  return \"simplified\";"]], T],
+  ["د", "the lines printed VAT-inclusive on a tax invoice", [[INV,
+    "    items.forEach((it, i) => { it.price = b.lines[i].unitNet; it.total = b.lines[i].net; });", ""]], T],
+  ["د", "the rounding carried by the total, not the VAT line", [[TXI,
+    "  const tax = round2(t - (subtotal - disc));", "  const tax = nominalTax;"]], T],
+  ["د", "the issue time from create_date / the build time, not x_issued_at", [[INV,
+    "  const issuedAt = row?.x_issued_at ? parseOdooUtc(row.x_issued_at) : row?.create_date ? parseOdooUtc(row.create_date) : new Date();", "  const issuedAt = row?.create_date ? parseOdooUtc(row.create_date) : new Date();"]], T],
+  ["د", "no issue time printed", [[INV,
+    "    documentDateStr: lang === \"en\" ? formatDateEn(data.invoiceDate) : issuedStr,", "    documentDateStr: lang === \"en\" ? formatDateEn(data.invoiceDate) : undefined,"]], T],
+  ["د", "the seller's VAT number on an invoice before 10-01", [[INV,
+    "    ? toLegalFooterAr(isTaxInvoice ? company : { ...company, vat: \"\" })", "    ? toLegalFooterAr(company)"]], T],
+  ["د", "a zero discount row on a tax invoice", [[INV,
+    "${isTax && !(discount > 0) ? \"\" : `", "${false ? \"\" : `"]], T],
+  ["د", "VAT by the order's day, not the issue date", [[INV,
+    "    saleTax = await resolveSaleTaxForDate(env, invoiceDateYmd);", "    saleTax = await resolveSaleTaxForDate(env, order.order_date ?? invoiceDateYmd);"]], T],
+  ["د", "the quotation page without the VAT note from 10-01", [[QT,
+    "    ...(isVatApplicable(new Date(quotationDate.getTime() + 3 * 3600 * 1000).toISOString().slice(0, 10)) ? { vatInclusive: true } : {}),", ""]], T],
+  ["د", "the quotation message without the VAT note from 10-01", [[RT,
+    "  return isVatApplicable(riyadhDateKey()) ? \"الأسعار شاملة ضريبة القيمة المضافة.\" : \"\";", "  return \"\";"]], T],
 ];
 
 const want = new Set(process.argv.slice(2));

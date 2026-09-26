@@ -3,6 +3,7 @@
 // { text: "" } means "no reply".
 
 import type { Env } from "./config";
+import { isVatApplicable } from "./config";
 import type { Intent, NormalizedMessage, OdooPartner, SenderType } from "./types";
 import { composeReply, extractOrderItems } from "./claude";
 import {
@@ -46,6 +47,11 @@ import { markStopDelivered, markStopIssue } from "./odoo";
 import { looksLikeComplaint, handleComplaint } from "./complaint";
 import { handleStandingConfirm, handleStandingEdit, handleStandingSkip } from "./standing";
 import { minimumText, orderMinimum } from "./order-pricing";
+
+/** § 41 د — from the VAT cutoff (Riyadh) the quotation message says its prices include VAT. */
+function vatNote(): string {
+  return isVatApplicable(riyadhDateKey()) ? "الأسعار شاملة ضريبة القيمة المضافة." : "";
+}
 
 /** § 40 د — «أقل طلب 150 ريال، أضف أصنافاً ليكتمل», and the order's total now. */
 function belowMinimumText(m: { min: number; total: number }): string {
@@ -319,6 +325,7 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
         urgencyNote,
         ``,
         deliveryLine,
+        vatNote(),
         `📄 الكوتيشن رقم ${q.number} — راجع الأصناف واختر:`,
       ]
         .filter(Boolean)
@@ -438,6 +445,7 @@ async function handleQuotationRequest(env: Env, input: RouterInput): Promise<Rou
       linesText,
       ``,
       deliveryLine,
+      ...(vatNote() ? [vatNote()] : []),
       `الأسعار النهائية عند التسليم. اختر:`,
     ].join("\n"),
     buttons: quotationButtons(orderId),

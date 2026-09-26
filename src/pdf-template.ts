@@ -623,7 +623,7 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
 
     <div style="position: absolute; ${BRAND_WATERMARK_STYLE}">${escapeHTML(BRAND_INFO.nameEn)}</div>
 
-    ${renderHeader(opts.documentTitle, opts.documentNumber, opts.documentDate)}
+    ${renderHeader(opts.documentTitle, opts.documentNumber, opts.documentDate, undefined, opts.documentDateStr !== undefined ? { documentDateStrOverride: opts.documentDateStr } : undefined)}
 
     <div style="height: ${m.gap};"></div>
     <div style="height: 0; border-top: ${BRAND_RULES.header};"></div>

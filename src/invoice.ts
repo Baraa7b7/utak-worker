@@ -41,6 +41,7 @@ import {
   BRAND_TYPE,
   computePageMetrics,
   escapeHTML,
+  formatDateArabic,
   formatMoney,
   renderPDFShell,
   htmlToPDF,
@@ -55,6 +56,8 @@ import type { CompanyInfo } from "./company";
 import { readCompanyInfo } from "./company";
 import { toLegalFooterAr } from "./legal-footer";
 import { parseOdooUtc, resolveZatcaQr, zatcaQrSvg, type ZatcaQr } from "./zatca-qr";
+import { riyadhDateTime, taxInvoiceBreakdown, taxInvoiceKind } from "./tax-invoice";
+import { VAT_RATE_PCT } from "./config";
 import { UI, resolveDocLang, type DocLang } from "./i18n";
 import { formatDateEn, fromPartyFor, itemCellHTML, labelForBillTo, labelForFrom, labelForTerms, taglineFor, thanksLine } from "./doc-shell";
 
@@ -192,9 +195,16 @@ async function issueAndDispatchInvoice(
   }
   const { discountedTotals } = await import("./order-pricing");
   const totals = discountedTotals(split, discount, saleTax?.rate ?? null);
-  const tax = totals.tax;
+  let tax = totals.tax;
   const total = totals.total;
   subtotal = totals.subtotal;
+  if (saleTax) {
+    // § 41 د — the printed breakdown: net lines, VAT = total × 15 ÷ 115, its
+    // rounding carried by the VAT line (never the total, what the customer pays).
+    const b = taxInvoiceBreakdown(pricedLines.map((p) => ({ unit: p.unit, qty: p.qty, gross: p.line_total })), total, discount, saleTax.rate);
+    subtotal = b.subtotal;
+    tax = b.tax;
+  }
 
   // § 41 ج — the number's day is the Riyadh day of issue (it was the UTC day:
   // a delivery between 02:00 and 03:00 Riyadh took yesterday's), and the
@@ -874,6 +884,12 @@ export interface InvoicePDFData {
    * Only issued invoices print the company seal + signature.
    */
   issued?: boolean;
+  /**
+   * § 41 د — the issue (and supply) time: x_invoice.x_issued_at, the moment of
+   * «تم التسليم» (create_date for an older row). A tax invoice prints it with
+   * its date, and its QR carries it.
+   */
+  issuedAt?: Date;
 }
 
 /** Printed QR edge — comfortably scannable by a phone at arm's length. */
@@ -884,6 +900,8 @@ function renderInvoiceBodyHTML(
   items: InvoiceLineItem[],
   m: PageMetrics,
   lang: DocLang = "ar",
+  /** § 41 د — a tax invoice: the price and total columns are net of VAT. */
+  net = false,
 ): string {
   // Byte-parity path: lang="ar" reproduces the exact Part A table.
   const isAr = lang === "ar";
@@ -916,7 +934,8 @@ function renderInvoiceBodyHTML(
     return `<th style="width: ${w}; text-align: ${align}; font-size: ${BRAND_TYPE.th.size}; font-weight: ${BRAND_TYPE.th.weight}; color: ${BRAND_COLORS.inkMuted}; letter-spacing: ${BRAND_TYPE.th.tracking}; padding: ${m.thPad};">${escapeHTML(label)}</th>`;
   };
 
-  const L = (key: "colItem" | "colPackaging" | "colQty" | "colPrice" | "colTotal") => {
+  const L = (k: "colItem" | "colPackaging" | "colQty" | "colPrice" | "colTotal") => {
+    const key = net && k === "colPrice" ? "colPriceNet" : net && k === "colTotal" ? "colTotalNet" : k;
     if (isAr) return UI[key].ar;
     if (isEn) return UI[key].en;
     // bi shows the Arabic column header (primary language is Arabic).
@@ -997,8 +1016,8 @@ export function renderInvoiceTotalsHTML(
     : "";
   return `<div style="position: relative; display: flex; justify-content: ${numbersCol ? "space-between" : "flex-end"};">${numbersCol}
       <div style="width: 40%; display: flex; flex-direction: column; gap: 9px;">
-        ${row(L(isTax ? "subtotalExclVat" : "subtotal"), formatMoney(subtotal, lang))}
-        ${row(L("discount"), formatMoney(discount, lang))}${vatRow}
+        ${row(L(isTax ? "subtotalExclVat" : "subtotal"), formatMoney(subtotal, lang))}${isTax && !(discount > 0) ? "" : `
+        ${row(L("discount"), formatMoney(discount, lang))}`}${vatRow}
         <div style="height: 6px;"></div>
         <div style="height: 0; border-top: 0.5px solid ${BRAND_COLORS.borderStrong};"></div>
         <div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 8px;"><span style="font-size: 12px; font-weight: 500; color: ${BRAND_COLORS.ink};">${escapeHTML(L(isTax ? "grandTotalInclVat" : "grandTotal"))}</span><span style="font-size: ${BRAND_TYPE.grandTotal.size}; font-weight: ${BRAND_TYPE.grandTotal.weight}; color: ${BRAND_COLORS.primary}; direction: ltr;">${formatMoney(grandTotal, lang)}</span></div>
@@ -1028,14 +1047,19 @@ export function renderInvoiceHTML(data: InvoicePDFData, company?: CompanyInfo): 
     address: data.customer.address,
     phone: data.customer.phone,
   };
+  // § 41 د — an invoice dated before the VAT cutoff carries no VAT number
+  // anywhere (the legal strip included); a tax invoice carries the seller's.
   const legalFooterBar: LegalFooterInfo | undefined = company
-    ? toLegalFooterAr(company)
+    ? toLegalFooterAr(isTaxInvoice ? company : { ...company, vat: "" })
     : undefined;
 
   // Byte-parity: without an explicit `lang`, the shell stays on the legacy
   // template. `lang === "ar"` also passes through cleanly since the shell
   // treats undefined and "ar" identically.
-  const title = isTaxInvoice ? UI.taxInvoice : UI.invoice;
+  // § 41 د — «فاتورة ضريبية» with the customer's VAT number, else «… مبسطة».
+  const title = !isTaxInvoice ? UI.invoice : taxInvoiceKind(data.customer.vat) === "tax" ? UI.taxInvoice : UI.simplifiedTaxInvoice;
+  // § 41 د — a tax invoice prints its issue date AND time (Riyadh).
+  const issuedStr = isTaxInvoice && data.issuedAt && lang !== "en" ? `${formatDateArabicPlain(data.invoiceDate)} — ${riyadhDateTime(data.issuedAt)}` : undefined;
   const sealBlock = data.issued && company
     ? renderSealSignatureBlock({ stamp: company.stampImage, signature: company.signatureImage }, { marginTopMm: 0, raiseMm: 6 })
     : "";
@@ -1047,7 +1071,7 @@ export function renderInvoiceHTML(data: InvoicePDFData, company?: CompanyInfo): 
     // FROM slot: only override when lang was requested — preserves the
     // byte-parity Part A output (BRAND_INFO default) for ar mode.
     from: data.lang ? fromPartyFor(lang, company) : undefined,
-    bodyHTML: renderInvoiceBodyHTML(data.items, pageMetrics, lang),
+    bodyHTML: renderInvoiceBodyHTML(data.items, pageMetrics, lang, isTaxInvoice),
     totalsHTML: renderInvoiceTotalsHTML(
       data.subtotal,
       data.discount,
@@ -1074,8 +1098,13 @@ export function renderInvoiceHTML(data: InvoicePDFData, company?: CompanyInfo): 
     fromLabel: data.lang ? labelForFrom(lang) : undefined,
     termsLabel: data.lang ? labelForTerms(lang) : undefined,
     thanksLine: data.lang ? thanksLine(lang, company) : undefined,
-    documentDateStr: lang === "en" ? formatDateEn(data.invoiceDate) : undefined,
+    documentDateStr: lang === "en" ? formatDateEn(data.invoiceDate) : issuedStr,
   });
+}
+
+/** «١ أكتوبر ٢٠٢٦» — formatDateArabic without its numeric date (the time line carries it). */
+function formatDateArabicPlain(d: Date): string {
+  return formatDateArabic(d).split(" — ")[0];
 }
 
 export async function generateInvoicePDF(
@@ -1212,7 +1241,19 @@ export async function buildInvoicePDFDataFromOdoo(
   // 2026-09-23 — VAT comes from the x_invoice row as issued (the split was
   // decided on its Riyadh invoice date). A tax-free invoice (x_tax_amount 0,
   // every invoice before the cutoff) renders exactly as before: no VAT rows.
-  const vatAmount = invoice.tax > 0 ? invoice.tax : 0;
+  // § 41 د — a tax invoice prints its lines net of VAT and the breakdown the
+  // issue stored (net lines, discount, VAT = total − net, the total as paid).
+  let vatAmount = invoice.tax > 0 ? invoice.tax : 0;
+  let netSubtotal = invoice.subtotal;
+  if (vatAmount > 0 && items.length > 0) {
+    const b = taxInvoiceBreakdown(items.map((it) => ({ unit: it.price, qty: it.qty, gross: it.total })), invoice.total, invoiceDiscount(invoice), VAT_RATE_PCT);
+    items.forEach((it, i) => { it.price = b.lines[i].unitNet; it.total = b.lines[i].net; });
+    if (Math.abs(b.tax - invoice.tax) > 0.005 || Math.abs(b.subtotal - invoice.subtotal) > 0.005) {
+      console.warn(`[invoice] ${invoice.number}: printed breakdown ${b.subtotal}/${b.tax} ≠ stored ${invoice.subtotal}/${invoice.tax} — the printed one (net lines add up) is used`);
+    }
+    vatAmount = b.tax;
+    netSubtotal = b.subtotal;
+  }
   let customerVat: string | undefined;
   if (vatAmount > 0) {
     try {
@@ -1230,14 +1271,16 @@ export async function buildInvoicePDFDataFromOdoo(
   // string from the twinned account.move; else encode the same five fields
   // from the x_invoice row (issued at its create_date).
   let zatcaQr: ZatcaQr | undefined;
+  // § 41 ج/د — the issue time: x_issued_at (the moment of «تم التسليم»), else create_date.
+  const [row] = await call<Array<{ create_date: string; x_account_move_id: [number, string] | false; x_issued_at: string | false }>>(
+    env, "x_invoice", "read", { ids: [invoiceId], fields: ["create_date", "x_account_move_id", "x_issued_at"] },
+  );
+  const issuedAt = row?.x_issued_at ? parseOdooUtc(row.x_issued_at) : row?.create_date ? parseOdooUtc(row.create_date) : new Date();
   if (vatAmount > 0) {
-    const [row] = await call<Array<{ create_date: string; x_account_move_id: [number, string] | false }>>(
-      env, "x_invoice", "read", { ids: [invoiceId], fields: ["create_date", "x_account_move_id"] },
-    );
     zatcaQr = await resolveInvoiceZatcaQr(env, {
       invoiceNumber: invoice.number,
       moveId: row?.x_account_move_id ? row.x_account_move_id[0] : null,
-      issuedAtUtc: row?.create_date ? parseOdooUtc(row.create_date) : new Date(),
+      issuedAtUtc: issuedAt,
       total: invoice.total,
       tax: vatAmount,
     });
@@ -1245,6 +1288,7 @@ export async function buildInvoicePDFDataFromOdoo(
 
   return {
     issued: true,
+    issuedAt,
     ...(zatcaQr ? { zatcaQr } : {}),
     invoiceNumber: invoice.number,
     invoiceDate: invoice.date ? new Date(`${invoice.date}T12:00:00Z`) : new Date(),
@@ -1255,7 +1299,7 @@ export async function buildInvoicePDFDataFromOdoo(
       ...(customerVat ? { vat: customerVat } : {}),
     },
     items,
-    subtotal: vatAmount > 0 ? invoice.subtotal : subtotal,
+    subtotal: vatAmount > 0 ? netSubtotal : subtotal,
     // § 40 د — the quantity discount (before VAT) the invoice was issued with:
     // net + VAT − total (0 on every invoice without one).
     discount: invoiceDiscount(invoice),

@@ -12,6 +12,13 @@
 //       and number from that moment's Riyadh day; collections record payments
 //       on it; the rest stays due and م2 reminds it; one invoice per order (KV
 //       claim + x_invoice_sent_at); no invoice for a simulation order.
+//   [د] the tax invoice from 2026-10-01 (by the issue date): «فاتورة ضريبية»
+//       with the customer's VAT number, else «… مبسطة»; the seller's name and
+//       VAT number, the serial number, the issue date and time; each line net
+//       (÷ 1.15); net subtotal, discount, VAT 15 % = total × 15 ÷ 115 (the
+//       rounding on the VAT line), the total as paid; the ZATCA phase-1 QR
+//       decoded field by field. Before 10-01: «فاتورة», no VAT anything. The
+//       quotation from 10-01 says its prices include VAT.
 //   [سعر] found building [ج]: an order's lines are priced at the ORDER's day
 //       (the published price it was confirmed at), not the day the invoice is
 //       issued (delivery, the next morning, often before 06:00's list).
@@ -466,6 +473,125 @@ console.log("\n[سعر] the invoice at 05:00 (before 06:00's list): the order's 
   dp(2, 21, AHMED, 40, "2026-09-28");
   const fut = await quiet(() => getLatestSalePrice(env, 2, 21, "2026-09-26"));
   assert("the stale fallback never takes a later day's price (09-28 for 09-26 → missing)", fut.price === 0 && fut.source === "missing", JSON.stringify(fut));
+  assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
+}
+
+// ================================================================ [د]
+const TX = await import("../src/tax-invoice.ts");
+const ZQ = await import("../src/zatca-qr.ts");
+const SELLER = "شركة يوتاك ذات مسؤولية محدودة", SELLER_VAT = "315022736600003";
+const COMPANY = { nameAr: SELLER, nameEn: "UTAK", address: "الرياض", email: "care@utak.example", phone: "+966 58 004 0467", cr: "7055194869", vat: SELLER_VAT } as any;
+function taxEnv(riyadh: string, orderDay: string): any {
+  const env = deliveryEnv(riyadh, orderDay);
+  seed("account.tax", { id: 77, amount: 15, amount_type: "percent", type_tax_use: "sale", price_include: true, active: true });
+  seed("res.company", { id: 1, name: SELLER, vat: SELLER_VAT, account_sale_tax_id: [77, "15%"] });
+  return env;
+}
+const plain = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+
+console.log("\n[د] the breakdown: VAT = total × 15 ÷ 115, its rounding on the VAT line, the total as paid");
+{
+  const one = TX.taxInvoiceBreakdown([{ unit: 30, qty: 5, gross: 150 }], 150, 0, 15);
+  assert("150: net 130.43, VAT 19.57 (= 150 × 15 ÷ 115), total 150, no adjustment", one.subtotal === 130.43 && one.tax === 19.57 && one.nominalTax === 19.57 && one.adjustment === 0 && one.total === 150, JSON.stringify(one));
+  assert("…the line: 30 ÷ 1.15 = 26.09 a unit, 130.43 the line", one.lines[0].unitNet === 26.09 && one.lines[0].net === 130.43);
+  const three = TX.taxInvoiceBreakdown([{ unit: 10, qty: 1, gross: 10 }, { unit: 10, qty: 1, gross: 10 }, { unit: 10, qty: 1, gross: 10 }], 30, 0, 15);
+  assert("three lines of 10: nets 8.70 ×3 = 26.10, VAT 3.90 (30 × 15 ÷ 115 = 3.91; the halala on the VAT line), total still 30",
+    three.subtotal === 26.1 && three.tax === 3.9 && three.nominalTax === 3.91 && three.adjustment === -0.01 && three.total === 30, JSON.stringify(three));
+  assert("…net − discount + VAT = total, exactly", Math.round((three.subtotal - three.discount + three.tax) * 100) === 3000);
+  const disc = TX.taxInvoiceBreakdown([{ unit: 30, qty: 20, gross: 600 }], 588.01, 10.43, 15);
+  assert("with the 2 % discount (10.43 before VAT): net 521.74 − 10.43 + VAT 76.70 = 588.01 (= 600 − 11.99)",
+    disc.subtotal === 521.74 && disc.discount === 10.43 && disc.tax === 76.7 && disc.nominalTax === 76.7 && Math.round((disc.subtotal - disc.discount + disc.tax) * 100) === 58801, JSON.stringify(disc));
+  assert("the kind: a VAT number → «tax», none → «simplified»", TX.taxInvoiceKind("300000000000003") === "tax" && TX.taxInvoiceKind("") === "simplified" && TX.taxInvoiceKind(undefined) === "simplified");
+  assert("the issue time, Riyadh: 2026-09-30 23:30 UTC → 2026/10/01 02:30", TX.riyadhDateTime(new Date("2026-09-30T23:30:00Z")) === "2026/10/01 02:30");
+}
+
+console.log("\n[د] 10-01, a customer without a VAT number: «فاتورة ضريبية مبسطة», every required field, net lines, the QR");
+{
+  const env = taxEnv("2026-10-01 08:40", "2026-09-30");
+  const o = onTheWay("2026-09-30", 5);
+  await tapAs(env, `delivered_${o}`, DRIVER);
+  const [inv] = invoiceOf(o);
+  assert("stored: total 150 (5 × 30 at the market price, no discount), VAT 19.57, net 130.43", inv.x_total === 150 && inv.x_tax_amount === 19.57 && inv.x_subtotal === 130.43, JSON.stringify(inv));
+  setRiyadh("2026-10-01 11:15");                                // the PDF built later: the issue time is still 08:40
+  const data = (await quiet(() => INV.buildInvoicePDFDataFromOdoo(env, inv.id)))!;
+  const html = INV.renderInvoiceHTML(data, COMPANY);
+  const text = plain(html);
+  assert("the title «فاتورة ضريبية مبسطة»", text.includes("فاتورة ضريبية مبسطة"), text.slice(0, 300));
+  assert("the seller's name and VAT number printed", text.includes(SELLER) && text.includes(SELLER_VAT));
+  assert("the serial number printed (UTAK-INV-20261001-001)", text.includes("UTAK-INV-20261001-001"));
+  assert("the issue date AND time printed (2026/10/01 08:40)", text.includes("2026/10/01 08:40"), (/[0-9]{4}\/[0-9]{2}\/[0-9]{2}[^<]{0,12}/.exec(html) ?? [""])[0]);
+  assert("the line net of VAT: 26.09 a unit, 5, 130.43 (not 30 / 150)", data.items[0].price === 26.09 && data.items[0].qty === 5 && data.items[0].total === 130.43, JSON.stringify(data.items));
+  assert("…under «السعر قبل الضريبة» / «المجموع قبل الضريبة»", text.includes("السعر قبل الضريبة") && text.includes("المجموع قبل الضريبة"));
+  assert("the totals: «الإجمالي قبل الضريبة» 130.43, «ضريبة القيمة المضافة 15%» 19.57, «الإجمالي شامل الضريبة» 150",
+    text.includes("الإجمالي قبل الضريبة") && text.includes("130.43") && text.includes("19.57") && text.includes("الإجمالي شامل الضريبة") && data.grandTotal === 150 && data.vatAmount === 19.57 && data.subtotal === 130.43);
+  assert("no discount row when there is no discount", !text.includes("الخصم"), "");
+  assert("no buyer VAT row (no VAT number)", !text.includes("الرقم الضريبي للعميل") && !/رقم ضريبي للمشتري/.test(text));
+  const qr = ZQ.parseZatcaQr(data.zatcaQr!.base64)!;
+  assert("QR (TLV → Base64) decoded: 1 seller name", qr.sellerName === SELLER, qr.sellerName);
+  assert("QR: 2 the VAT number 315022736600003", qr.vatNumber === SELLER_VAT, qr.vatNumber);
+  assert("QR: 3 the issue time ISO, Riyadh (2026-10-01T08:40:00 — the moment of «تم التسليم»)", qr.timestamp === "2026-10-01T08:40:00", qr.timestamp);
+  assert("QR: 4 the total including VAT 150.00", qr.total === "150.00", qr.total);
+  assert("QR: 5 the VAT 19.57", qr.vatTotal === "19.57", qr.vatTotal);
+  assert("the total including VAT = the market price × the quantity − the discount (30 × 5 − 0)", data.grandTotal === 30 * 5 - data.discount);
+  const msg = String(invoiceSends()[0]?.text?.body ?? "");
+  assert("the WhatsApp text: net, VAT 15 %, total including VAT", /الإجمالي قبل الضريبة: 130.43/.test(msg) && /ضريبة القيمة المضافة 15%: 19.57/.test(msg) && /الإجمالي شامل الضريبة: 150/.test(msg), msg);
+}
+
+console.log("\n[د] a customer with a VAT number: «فاتورة ضريبية» and his number printed");
+{
+  const env = taxEnv("2026-10-01 09:00", "2026-09-30");
+  table("res.partner").get(C1)!.vat = "300000000000003";
+  const o = onTheWay("2026-09-30", 5);
+  await tapAs(env, `delivered_${o}`, DRIVER);
+  const data = (await quiet(() => INV.buildInvoicePDFDataFromOdoo(env, invoiceOf(o)[0].id)))!;
+  const text = plain(INV.renderInvoiceHTML(data, COMPANY));
+  assert("the title «فاتورة ضريبية» (not «مبسطة»)", text.includes("فاتورة ضريبية") && !text.includes("فاتورة ضريبية مبسطة"));
+  assert("the customer's VAT number printed", text.includes("300000000000003"));
+}
+
+console.log("\n[د] by the ISSUE date, not the order's: 09-30 23:50 plain, 10-01 00:10 tax (both orders of 09-29/09-30)");
+{
+  const env = taxEnv("2026-09-30 23:50", "2026-09-29");
+  const o = onTheWay("2026-09-29", 5);
+  await tapAs(env, `delivered_${o}`, DRIVER);
+  const [inv] = invoiceOf(o);
+  const data = (await quiet(() => INV.buildInvoicePDFDataFromOdoo(env, inv.id)))!;
+  const text = plain(INV.renderInvoiceHTML(data, COMPANY));
+  assert("09-30: «فاتورة», no VAT (x_tax_amount 0), no VAT number of the seller, no QR", inv.x_tax_amount === 0 && inv.x_total === 150 && !text.includes("فاتورة ضريبية") && text.includes("فاتورة") && !text.includes(SELLER_VAT) && !data.zatcaQr && !text.includes("ضريبة"), text.slice(0, 200));
+  assert("…its lines as they are (30, 150)", data.items[0].price === 30 && data.items[0].total === 150);
+  setRiyadh("2026-10-01 00:10");
+  const o2 = onTheWay("2026-09-29", 5);
+  await tapAs(env, `delivered_${o2}`, DRIVER);
+  const [inv2] = invoiceOf(o2);
+  assert("10-01 00:10 (an order of 09-29): VAT 19.57, a tax invoice", inv2.x_tax_amount === 19.57 && inv2.x_invoice_date === "2026-10-01", JSON.stringify(inv2));
+}
+
+console.log("\n[د] the quotation from 10-01: «الأسعار شاملة ضريبة القيمة المضافة»; before: the page as it was");
+{
+  const env = taxEnv("2026-10-01 10:00", "2026-10-01");
+  const o = onTheWay("2026-10-01", 5);
+  const q = seed("x_quotation", { x_quotation_number: "UTAK-Q-20261001-001", x_order_id: o, x_origin: "auto", create_date: "2026-10-01 07:00:00" });
+  const qd = (await quiet(() => Q.buildQuotationPDFDataFromOdoo(env, q)))!;
+  assert("10-01: vatInclusive, and the note on the page", qd.vatInclusive === true && plain(Q.renderQuotationHTML(qd)).includes("الأسعار شاملة ضريبة القيمة المضافة"));
+  const q0 = seed("x_quotation", { x_quotation_number: "UTAK-Q-20260930-001", x_order_id: onTheWay("2026-09-30", 5), x_origin: "auto", create_date: "2026-09-30 07:00:00" });
+  publishedTomato("2026-09-30", 20, 30);
+  const qd0 = (await quiet(() => Q.buildQuotationPDFDataFromOdoo(env, q0)))!;
+  assert("09-30: no note, the same page as before (no vatInclusive key)", !("vatInclusive" in qd0) && !plain(Q.renderQuotationHTML(qd0)).includes("شاملة ضريبة"));
+  // the WhatsApp quotation message (the customer's «خلاص» on an open order)
+  table("res.partner").get(C1)!.x_delivery_neighborhood = "العليا";
+  const open = seed("x_daily_order", { x_customer_id: C1, x_state: "draft", x_order_date: "2026-10-01", x_created_via: "whatsapp" });
+  seed("x_daily_order_line", { x_order_id: open, x_product_tmpl_id: 1, x_packaging_id: 11, x_quantity: 6, x_status: "pending" });
+  const say = (text: string) => quiet(() => dispatch(env, {
+    msg: { messageId: `w${Math.random()}`, from: "+" + C1_PHONE, fromRaw: C1_PHONE, profileName: "", text, timestamp: "", type: "text" },
+    intent: "request_quotation", senderType: "customer", partner: partnerOf(C1),
+  }));
+  const r10 = await say("خلاص");
+  assert("10-01: the quotation message says «الأسعار شاملة ضريبة القيمة المضافة.»", /الأسعار شاملة ضريبة القيمة المضافة\./.test(replyOf(r10)), replyOf(r10));
+  setRiyadh("2026-09-30 10:00");
+  const open0 = seed("x_daily_order", { x_customer_id: C1, x_state: "draft", x_order_date: "2026-09-30", x_created_via: "whatsapp" });
+  seed("x_daily_order_line", { x_order_id: open0, x_product_tmpl_id: 1, x_packaging_id: 11, x_quantity: 6, x_status: "pending" });
+  const r09 = await say("خلاص");
+  assert("09-30: no such line", !/شاملة ضريبة/.test(replyOf(r09)) && /الكوتيشن رقم/.test(replyOf(r09)), replyOf(r09));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 

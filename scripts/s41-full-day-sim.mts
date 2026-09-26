@@ -506,13 +506,23 @@ await step("مطعم الواحة يطلب ويؤكد (190)", "09:00", async () 
   check("مؤكد", (await ordersOf(p.id)).find((x) => x.id === c1Order0930)?.x_state === "confirmed");
   check("كوتيشن 09-30 بلا سطر الضريبة", !anyText(msgsTo(C.c1.phone), /شاملة ضريبة/), JSON.stringify(msgsTo(C.c1.phone)));
 });
+let c2Order0930 = 0;
+await step("بقالة الريان تطلب وتؤكد (3 × 61 = 183)", "10:00", async () => {
+  const p = await partnerByPhone(C.c2.phone);
+  await say(C.c2.phone, "افوكادو 3");
+  await say(C.c2.phone, "خلاص");
+  const o = (await ordersOf(p.id)).filter((x) => x.x_order_date === curDay).pop();
+  c2Order0930 = o?.id ?? 0;
+  await tap(C.c2.phone, `confirm_order_${c2Order0930}`, "تأكيد الطلب ✅");
+  check("مؤكد", (await ordersOf(p.id)).find((x) => x.id === c2Order0930)?.x_state === "confirmed");
+});
 let list0930 = 0;
 await step("إقفال 21:00 وقائمة 21:15", "21:15", async () => {
   at(`${curDay} 21:00`); await cron(worker, env, "0 18 * * *");
   at(`${curDay} 21:15`); await cron(worker, env, "15 18 * * *");
   const [l] = await sr<any>("x_purchase_list", [["x_date", "=", curDay], ["x_utak_simulation", "!=", true]], ["id"], { order: "id desc", limit: 1 });
   list0930 = l?.id ?? 0;
-  check("قائمة 09-30", list0930 > 0);
+  check("قائمة 09-30 (رمان وسط 10، افوكادو 3)", list0930 > 0);
 });
 
 // ======================================================================== 10-01
@@ -582,6 +592,14 @@ await step("«تم التسليم» مطعم الواحة ← أول فاتور�
   check("QR: الإجمالي 190.00 والضريبة 24.78", qr?.total === "190.00" && qr?.vatTotal === "24.78");
   check("الإجمالي الشامل = سعر السوق × الكمية − الخصم (19 × 10 − 0)", inv.x_total === 19 * 10);
 });
+let tax1001b: any = null;
+await step("«تم التسليم» بقالة الريان ← فاتورة ضريبية ثانية", "05:50", async () => {
+  await tap(TEAM.omar, `delivered_${c2Order0930}`, "تم التسليم ✅");
+  const inv = await invoiceOfOrder(c2Order0930);
+  tax1001b = inv;
+  invoices.push({ customer: C.c2.name, ...inv });
+  check("183 شامل = 159.13 صافٍ + 23.87 ضريبة، تاريخها 10-01، مرسلة", inv?.x_total === 183 && inv?.x_tax_amount === 23.87 && inv?.x_subtotal === 159.13 && !!inv?.x_invoice_sent_at, JSON.stringify(inv));
+});
 await step("النشر 06:00 (10-01) وفتح الطلبات", "06:00", async () => {
   await tick(); await cron(worker, env, "0 3 * * *");
   check("10-01 منشور", (await dayRecord(curDay))?.x_state === "published");
@@ -630,6 +648,18 @@ await step("تحصيل كامل نقداً (مطعم الواحة، الفاتو
   check("190 نقداً، مدفوعة", pay?.x_amount === 190 && (await invoiceOfOrder(c1Order0930))?.x_status === "paid", JSON.stringify(pay));
   payments.push({ invoice: tax1001.x_invoice_number, amount: pay?.x_amount, method: "cash", at: nowRiyadh() });
 });
+await step("تحصيل جزئي تحويلاً (بقالة الريان، الفاتورة الضريبية) ← الإيصال والمتبقي 83", "13:20", async () => {
+  const r = await INV.recordCollection(env, { invoiceId: tax1001b.id, method: "transfer", amount: 100 });
+  payments.push({ invoice: tax1001b.x_invoice_number, amount: 100, method: "transfer", at: nowRiyadh() });
+  await internal(worker, env, "/internal/receipt-issue", { _model: "x_payment", _id: r.paymentId });
+  check("دفعة 100، والفاتورة باقية «صادرة» (83 متبقٍ)", !!r.paymentId && !r.fullyPaid && (await invoiceOfOrder(c2Order0930))?.x_status === "issued", JSON.stringify(r));
+  check("بقالة الريان: تأكيد الدفعة (نصاً بالمتبقي أو القالب)", msgsTo(C.c2.phone).some((m) => /المتبقي على الفاتورة: 83/.test(m.text) || m.template === "utak_payment_received"), JSON.stringify(msgsTo(C.c2.phone)));
+});
+await step("م12: 11:30 و12:30 بلا محطة باقية ← صمت", "12:40", async () => {
+  at(`${curDay} 11:32`); await driverTick();
+  at(`${curDay} 12:32`); await driverTick();
+  check("لا تذكير لعمر ولا تنبيه لبراء (كل المحطات سُلّمت)", !anyText(msgsTo(TEAM.omar), /باقي 30 دقيقة/) && !anyText(msgsTo(TEAM.owner), /انتهى دوامه/), JSON.stringify(cur().map((m) => [who(m.to), m.text.slice(0, 60)])));
+});
 await step("مخبز الندى: كوتيشن بلا تأكيد ← 20:00 ← 21:00", "17:00", async () => {
   await say(C.c3.phone, "رمان كبير 7");
   await say(C.c3.phone, "خلاص");
@@ -655,9 +685,9 @@ await step("ملخص 21:30 بسطر التغطية", "21:30", async () => {
   summaries[curDay] = m?.text;
   at(`${curDay} 21:30`);
   const f = await SUM.readSummaryFigures(env);
-  check("التوصيلات 1 من 1 (طلب 09-30)، المحصَّل 190", f.deliveries?.delivered === 1 && f.collected === 190, JSON.stringify(f));
-  check("التغطية: ربح (10 × (19 − 15 − 0.75)) ÷ 1.15 = 28.26 من 500 = 6%", f.coverage.profit === 28.26 && f.coverage.cost === 500 && f.coverage.pct === 6, JSON.stringify(f.coverage));
-  check("السطر الرابع في الرسالة", !!m && /تغطية تكاليف اليوم: 6% \(ربح 28.26 من 500.00\)/.test(m.text), m?.text);
+  check("التوصيلات 2 من 2 (طلبا 09-30)، المحصَّل 290 (190 + 100)، المعلَّق 148 (65 + 83)", f.deliveries?.delivered === 2 && f.deliveries?.total === 2 && f.collected === 290 && f.pending === 148, JSON.stringify(f));
+  check("التغطية: ربح (10 × (19 − 15 − 0.75) + 3 × (61 − 50 − 2.5)) ÷ 1.15 = 50.43 من 500 = 10%", f.coverage.profit === 50.43 && f.coverage.cost === 500 && f.coverage.pct === 10, JSON.stringify(f.coverage));
+  check("السطر الرابع في الرسالة", !!m && /تغطية تكاليف اليوم: 10% \(ربح 50.43 من 500.00\)/.test(m.text), m?.text);
 });
 
 // ---------------------------------------------------------------- the purchase lists («تم الشراء») for the accounting table

@@ -4,7 +4,9 @@
 //        his stops still without «تم التسليم» (one message, one line), end + 30
 //        min one alert to Baraa with the order numbers; nothing when no stop is
 //        left; no reminder and one alert with the reason for a driver without a
-//        schedule, absent, or off today; a KV claim before every send;
+//        schedule or absent; off today (day off / time off, § 39 ب): silence
+//        without stops, one «محطات مفتوحة على سائق في راحته/إجازته» alert with
+//        them; a KV claim before every send;
 //   م8   «في الطريق» (utak_out_for_delivery, [order, «السائق الاسم»]): the first
 //        stop when the route goes out (or at the flush after «بدء الدوام»), each
 //        next stop at «تم التسليم» on the one before it, in route order; «مشكلة»
@@ -302,6 +304,69 @@ console.log("\n[م12] no reminder — one alert with the reason — for a driver
   [0, 1, 2].forEach((i) => deliver(f, i));
   await tick(f, `${SAT} 18:02`);
   assert("no schedule and no stop left: no alert", graph.length === 0);
+}
+
+console.log("\n[م12] § 39 ب — off today (his day off, or a time off): silence without stops, one alert with them");
+/** A time off on the driver's own resource (wa-harness employee(): resource_id = employee id + 100000). */
+const timeOff = (f: Fresh, day: string, name = "إجازة سنوية") => seed("resource.calendar.leaves", {
+  name, count_as: "absence", company_id: 1, calendar_id: false, resource_id: f.emp + 100000,
+  date_from: new Date(Date.parse(`${day}T00:00:00+03:00`)).toISOString().replace("T", " ").slice(0, 19),
+  date_to: new Date(Date.parse(`${day}T23:59:00+03:00`)).toISOString().replace("T", " ").slice(0, 19),
+});
+const ALL_DAY = ["02:02", "11:32", "12:32", "17:57", "18:02", "18:07", "21:02", "23:57"];
+{
+  const f = fresh(`${NEXT_FRI} 02:02`, { day: NEXT_FRI });
+  table("x_delivery_route").get(f.route)!.x_dispatched_at = "2026-10-01 19:30:00";
+  [0, 1, 2].forEach((i) => deliver(f, i));
+  for (const t of ALL_DAY) await tick(f, `${NEXT_FRI} ${t}`);
+  assert("new: day off, no stop open → complete silence all day (driver and Baraa)", graph.length === 0, JSON.stringify(graph.map((g) => g?.text?.body)));
+  assert("…and no claim taken", ![...f.env.MSG_DEDUP.store.keys()].some((k: string) => k.includes(`drvf:${NEXT_FRI}`)));
+}
+{
+  const f = fresh(`${NEXT_FRI} 11:32`, { day: NEXT_FRI });
+  table("x_delivery_route").get(f.route)!.x_dispatched_at = "2026-10-01 19:30:00";
+  deliver(f, 0);
+  table("x_delivery_stop").get(f.stops[1])!.x_status = "issue";
+  for (const t of ["11:32", "12:32", "17:57"]) await tick(f, `${NEXT_FRI} ${t}`);
+  assert("day off with stops open: nothing before 18:00", graph.length === 0, JSON.stringify(graph.map((g) => g?.text?.body)));
+  await tick(f, `${NEXT_FRI} 18:02`);
+  const a = alerts();
+  assert("new: day off with stops open → one alert «محطات مفتوحة على سائق في راحته»", a.length === 1 && a[0].startsWith("⚠️ محطات مفتوحة على سائق في راحته: عمر المجهلي"), JSON.stringify(a));
+  assert("…with the order numbers («مشكلة» marked), not the delivered one", (a[0] ?? "").includes(`طلبان بلا «تم التسليم»: #${f.orders[1]} (مشكلة)، #${f.orders[2]}.`) && !(a[0] ?? "").includes(`#${f.orders[0]}`), a[0]);
+  assert("…not the «no schedule» wording (he has one: it says he is off)", !(a[0] ?? "").includes("فلا تذكير له") && (a[0] ?? "").includes("يوم راحته"), a[0]);
+  assert("…nothing to the driver on his day off", texts(DRV_PHONE).length === 0);
+  assert("…its KV claim", f.env.MSG_DEDUP.store.has(`btnlock:v1:drvf:${NEXT_FRI}:e${f.emp}:off`));
+  deliver(f, 2); // the list changes: another text, so only the claim stops a second alert
+  for (const t of ["18:07", "21:02", "23:57"]) await tick(f, `${NEXT_FRI} ${t}`);
+  assert("once a day (even when the stops left change)", alerts().length === 1, JSON.stringify(alerts()));
+}
+{
+  const f = fresh(`${SAT} 02:02`);
+  timeOff(f, SAT);
+  [0, 1, 2].forEach((i) => deliver(f, i));
+  for (const t of ALL_DAY) await tick(f, `${SAT} ${t}`);
+  assert("new: time off, no stop open → complete silence all day", graph.length === 0, JSON.stringify(graph.map((g) => g?.text?.body)));
+}
+{
+  const f = fresh(`${SAT} 11:32`);
+  timeOff(f, SAT, "إجازة سنوية");
+  for (const t of ["11:32", "12:32"]) await tick(f, `${SAT} ${t}`);
+  assert("time off with stops open: no reminder at 11:30, no end-of-shift alert at 12:30", graph.length === 0, JSON.stringify(graph.map((g) => g?.text?.body)));
+  await tick(f, `${SAT} 18:02`);
+  const a = alerts();
+  assert("new: time off with stops open → one alert «محطات مفتوحة على سائق في إجازته» naming the time off",
+    a.length === 1 && a[0].startsWith("⚠️ محطات مفتوحة على سائق في إجازته: عمر المجهلي في إجازة اليوم (إجازة سنوية)"), JSON.stringify(a));
+  assert("…with the order numbers", (a[0] ?? "").includes(`3 طلبات بلا «تم التسليم»: #${f.orders[0]}، #${f.orders[1]}، #${f.orders[2]}.`), a[0]);
+  for (const t of ["18:07", "21:02"]) await tick(f, `${SAT} ${t}`);
+  assert("time off: once a day", alerts().length === 1, JSON.stringify(alerts()));
+}
+{
+  // a driver with no working schedule at all is not «off»: the § 38 wording and claim stay
+  const f = fresh(`${SAT} 18:02`, { schedule: null, status: null });
+  await tick(f, `${SAT} 18:02`);
+  const a = alerts()[0] ?? "";
+  assert("no schedule at all: unchanged — the reason alert, not the off-day one", a.includes("بلا جدول دوام في Odoo") && a.includes("فلا تذكير له بمحطاته") && !a.includes("محطات مفتوحة على سائق"), a);
+  assert("…under its own claim (reason)", f.env.MSG_DEDUP.store.has(`btnlock:v1:drvf:${SAT}:e${f.emp}:reason`) && !f.env.MSG_DEDUP.store.has(`btnlock:v1:drvf:${SAT}:e${f.emp}:off`));
 }
 
 console.log("\n[م12] wired: the sim cron, Riyadh time, sim only");

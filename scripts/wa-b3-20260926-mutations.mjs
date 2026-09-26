@@ -1,4 +1,5 @@
-// Mutation check for the important gaps, batch 3 (STATUS § 38, 2026-09-26):
+// Mutation check for the important gaps, batch 3 (STATUS § 38, 2026-09-26; the
+// off-day guards of م12 added with § 39 ب):
 // each mutation disables ONE guard of م12 / م8 / م17, runs
 // tests/wa-important-b3.test.mts, and must make it fail. The source is
 // restored in `finally` after every run; a pattern that is not found exactly
@@ -48,8 +49,25 @@ const M = [
     "`#${s.orderId}${s.status === \"issue\" ? \" (مشكلة)\" : \"\"}`", "`#${s.orderId}`"]], T],
   ["م12: the names not cut after two", [[DF,
     "  return `${list[0]}، ${list[1]} و ${list.length - 2} أخرى`;", "  return list.join(\"، \");"]], T],
+  // § 39 ب added offDayStep with the same 18:00 gate: the pattern names noShiftStep's next line to stay unique
   ["م12: no 18:00 alert for a driver without a schedule", [[DF,
-    "  if (nowMs < at || nowMs >= at + STEP_GRACE_MIN * MIN) return `${plan.kind}:-`;", "  if (true) return `${plan.kind}:-`;"]], T],
+    "  if (nowMs < at || nowMs >= at + STEP_GRACE_MIN * MIN) return `${plan.kind}:-`;\n  return `${plan.kind}:${await reasonStep(",
+    "  if (true) return `${plan.kind}:-`;\n  return `${plan.kind}:${await reasonStep("]], T],
+  // ---- م12, § 39 ب: off today (day off / time off)
+  ["م12 § 39 ب: off today, no stop left → an alert anyway", [[DF,
+    "  if (stops.length === 0) return `${plan.kind}:no_stops`;\n", ""]], T],
+  ["م12 § 39 ب: the off-day alert without its claim", [[DF,
+    "claimKey(day, m, \"off\"), CLAIM_TTL", "claimKey(day, m, \"off\") + Math.random(), CLAIM_TTL"]], T],
+  ["م12 § 39 ب: the off-day alert before 18:00", [[DF,
+    "  if (nowMs < at || nowMs >= at + STEP_GRACE_MIN * MIN) return `${plan.kind}:-`;\n  const stops",
+    "  if (false) return `${plan.kind}:-`;\n  const stops"]], T],
+  ["م12 § 39 ب: off today handled as «no schedule» (the reason alert)", [[DF,
+    "        else if (day === today && isOffToday(plan)) steps.push(", "        else if (false && day === today && isOffToday(plan)) steps.push("]], T],
+  ["م12 § 39 ب: a time off not «off» (only the weekly day off)", [[DF,
+    "export const isOffToday = (p: DayPlan): boolean => p.kind === \"day_off\" || p.kind === \"leave\";",
+    "export const isOffToday = (p: DayPlan): boolean => p.kind === \"day_off\";"]], T],
+  ["م12 § 39 ب: the off-day alert without the order numbers", [[DF,
+    "بلا «تم التسليم»: ${orderList(stops)}.`;\n}\nexport const ABSENT_REASON", "بلا «تم التسليم».`;\n}\nexport const ABSENT_REASON"]], T],
   ["م12: the cron not wired", [["src/index.ts",
     "          const r = await runDriverFollowupTick(env);\n", "          const r = { at: \"\", drivers: [] as Array<{ name: string; steps: string[] }> };\n"]], T],
   // ---- م8: «في الطريق»

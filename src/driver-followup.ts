@@ -11,10 +11,12 @@
 //     the order numbers and the driver's name;
 //   • no stop left → no message at all;
 //   • a driver without a working schedule (not on attendance, no schedule, no
-//     clock times, no number), absent today, or off today (a day off or a time
-//     off): no reminder, and ONE alert to Baraa that names the reason — at
-//     end − 30 min for the absent driver, at DRIVER_NO_SHIFT_CHECK_AT (18:00)
-//     for the others.
+//     clock times, no number) or absent today: no reminder, and ONE alert to
+//     Baraa that names the reason — at end − 30 min for the absent driver, at
+//     DRIVER_NO_SHIFT_CHECK_AT (18:00) for the others;
+//   • a driver off today (his weekly day off, or a time off — STATUS § 39 ب):
+//     no stop left → complete silence; stops left → ONE alert to Baraa at
+//     18:00, «محطات مفتوحة على سائق في راحته/إجازته», with the order numbers.
 // Every step claims its KV key BEFORE it sends (button-lock's claim + read-
 // back), so a re-run, a retry or two ticks at once never send twice.
 //
@@ -154,17 +156,25 @@ export function ownerReasonText(name: string, reason: string, stops: OpenStop[])
   return `⚠️ ${name} ${reason}، فلا تذكير له بمحطاته. بقي ${countAr(stops.length, ORDERS)} بلا «تم التسليم»: ${orderList(stops)}.`;
 }
 
-/** Why a driver gets no reminder today (the words of Baraa's alert). */
+/** Why a driver without a working schedule gets no reminder today (the words of Baraa's alert). */
 export function noShiftReason(p: DayPlan): string {
   switch (p.kind) {
     case "not_enrolled": return "بلا جدول دوام مفعّل (غير مشمول بالتحضير)";
     case "no_calendar": return "بلا جدول دوام في Odoo";
     case "no_clock_time": return "جدول دوامه بلا ساعات";
     case "no_number": return "بلا رقم واتساب في Odoo";
-    case "day_off": return "في يوم راحته اليوم حسب جدوله";
-    case "leave": return `في إجازة اليوم${p.leave ? ` (${p.leave})` : ""}`;
     default: return "بلا دوام اليوم";
   }
+}
+
+/** A day off or a time off: the driver is off today by his own schedule (not «without a schedule»). */
+export const isOffToday = (p: DayPlan): boolean => p.kind === "day_off" || p.kind === "leave";
+
+/** § 39 ب — Baraa's one alert for stops still open on a driver who is off today. */
+export function ownerOffDayText(name: string, p: DayPlan, stops: OpenStop[]): string {
+  const leave = p.kind === "leave";
+  const why = leave ? `في إجازة اليوم${p.leave ? ` (${p.leave})` : ""}` : "في يوم راحته اليوم حسب جدوله";
+  return `⚠️ محطات مفتوحة على سائق في ${leave ? "إجازته" : "راحته"}: ${name} ${why}، وعليه ${countAr(stops.length, ORDERS)} بلا «تم التسليم»: ${orderList(stops)}.`;
 }
 export const ABSENT_REASON = "سُجّل غائباً اليوم";
 
@@ -193,6 +203,7 @@ export async function runDriverFollowupTick(rawEnv: Env, nowMs: number = Date.no
       const plan = dayPlan(roster, m, day);
       try {
         if (plan.kind === "work") steps.push(`${day}:${await workStep(env, m, day, plan, nowMs)}`);
+        else if (day === today && isOffToday(plan)) steps.push(`${day}:${await offDayStep(env, m, day, plan, nowMs)}`);
         else if (day === today) steps.push(`${day}:${await noShiftStep(env, m, day, plan, nowMs)}`);
       } catch (e) {
         steps.push(`${day}:error: ${(e as Error)?.message}`);
@@ -235,6 +246,22 @@ async function noShiftStep(env: Env, m: RosterMember, day: string, plan: DayPlan
   const at = riyadhDayMinuteMs(day, DRIVER_NO_SHIFT_CHECK_AT);
   if (nowMs < at || nowMs >= at + STEP_GRACE_MIN * MIN) return `${plan.kind}:-`;
   return `${plan.kind}:${await reasonStep(env, m, day, noShiftReason(plan), at)}`;
+}
+
+/**
+ * § 39 ب — a day off or a time off: no stop left → nothing at all (no alert
+ * «he is off», no reason); stops left → one alert to Baraa at 18:00 with the
+ * order numbers, once a day (its own claim).
+ */
+async function offDayStep(env: Env, m: RosterMember, day: string, plan: DayPlan, nowMs: number): Promise<string> {
+  const at = riyadhDayMinuteMs(day, DRIVER_NO_SHIFT_CHECK_AT);
+  if (nowMs < at || nowMs >= at + STEP_GRACE_MIN * MIN) return `${plan.kind}:-`;
+  const stops = await openStopsForDriver(env, m.partnerId, at - ROUTE_LOOKBACK_H * 60 * MIN);
+  if (stops.length === 0) return `${plan.kind}:no_stops`;
+  const claim = await claimButton(env, claimKey(day, m, "off"), CLAIM_TTL);
+  if (!claim.claimed) return `${plan.kind}:claimed`;
+  await sendOwnerAlert(env, ownerOffDayText(m.name, plan, stops));
+  return `${plan.kind}:alert:${stops.length}`;
 }
 
 /** The one alert to Baraa for a driver who gets no reminder today. */

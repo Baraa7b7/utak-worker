@@ -1,7 +1,7 @@
 {
-  "at": "2026-09-26T05:45:28.889Z",
-  "caught": 41,
-  "total": 41,
+  "at": "2026-09-26T06:27:02.087Z",
+  "caught": 47,
+  "total": 47,
   "results": [
     {
       "name": "م12: the reminder without its KV claim (sent on every tick)",
@@ -24,7 +24,8 @@
       "caught": true,
       "fails": [
         "✗ no schedule: once (even when the stops left change) — [\"⚠️ عمر المجهلي بلا جدول دوام في Odoo، فلا تذكير له بمحطاته. بقي 3 طلبات بلا «تم التسليم»: #10001، #10003، #10005.\",\"⚠️ عمر المجهلي بلا جدول دوام في Odoo، فلا تذكير له بمحطاته. بقي طلبان بلا «تم التسليم»: #10003، #10005.\"]",
-        "✗ absent: no second alert at end + 30 (the same claim) — [\"⚠️ عمر المجهلي سُجّل غائباً اليوم، فلا تذكير له بمحطاته. بقي 3 طلبات بلا «تم التسليم»: #10009، #10011، #10013.\",\"⚠️ عمر المجهلي سُجّل غائباً اليوم، فلا تذكير له بمحطاته. بقي طلبان بلا «تم التسليم»: #10011، #10013.\"]"
+        "✗ absent: no second alert at end + 30 (the same claim) — [\"⚠️ عمر المجهلي سُجّل غائباً اليوم، فلا تذكير له بمحطاته. بقي 3 طلبات بلا «تم التسليم»: #10009، #10011، #10013.\",\"⚠️ عمر المجهلي سُجّل غائباً اليوم، فلا تذكير له بمحطاته. بقي طلبان بلا «تم التسليم»: #10011، #10013.\"]",
+        "✗ …under its own claim (reason)"
       ]
     },
     {
@@ -100,7 +101,8 @@
       "name": "م12: «مشكلة» not marked in Baraa's alert",
       "caught": true,
       "fails": [
-        "✗ lists the undelivered orders, «مشكلة» marked — 🚚 عمر المجهلي: انتهى دوامه الساعة 12:00، وبقي طلبان بلا «تم التسليم»: #10011، #10013. لا فاتورة ولا تحصيل لها حتى يُضغط «تم التسليم»."
+        "✗ lists the undelivered orders, «مشكلة» marked — 🚚 عمر المجهلي: انتهى دوامه الساعة 12:00، وبقي طلبان بلا «تم التسليم»: #10011، #10013. لا فاتورة ولا تحصيل لها حتى يُضغط «تم التسليم».",
+        "✗ …with the order numbers («مشكلة» marked), not the delivered one — ⚠️ محطات مفتوحة على سائق في راحته: عمر المجهلي في يوم راحته اليوم حسب جدوله، وعليه طلبان بلا «تم التسليم»: #10011، #10013."
       ]
     },
     {
@@ -117,7 +119,58 @@
         "✗ no schedule: one alert at 18:00 with the reason and the orders — []",
         "✗ no schedule: once (even when the stops left change) — []",
         "✗ not on attendance: the reason says so — []",
-        "✗ day off: one alert at 18:00 naming it — []"
+        "✗ no schedule at all: unchanged — the reason alert, not the off-day one"
+      ]
+    },
+    {
+      "name": "م12 § 39 ب: off today, no stop left → an alert anyway",
+      "caught": true,
+      "fails": [
+        "✗ new: day off, no stop open → complete silence all day (driver and Baraa) — [\"⚠️ محطات مفتوحة على سائق في راحته: عمر المجهلي في يوم راحته اليوم حسب جدوله، وعليه 0 طلبات بلا «تم التسليم»: .\"]",
+        "✗ …and no claim taken",
+        "✗ new: time off, no stop open → complete silence all day — [\"⚠️ محطات مفتوحة على سائق في إجازته: عمر المجهلي في إجازة اليوم (إجازة سنوية)، وعليه 0 طلبات بلا «تم التسليم»: .\"]"
+      ]
+    },
+    {
+      "name": "م12 § 39 ب: the off-day alert without its claim",
+      "caught": true,
+      "fails": [
+        "✗ …its KV claim",
+        "✗ once a day (even when the stops left change) — [\"⚠️ محطات مفتوحة على سائق في راحته: عمر المجهلي في يوم راحته اليوم حسب جدوله، وعليه طلبان بلا «تم التسليم»: #10011 (مشكلة)، #10013.\",\"⚠️ محطات مفتوحة على سائق في راحته: عمر المجهلي في يوم راحته اليوم حسب جدوله، وعليه طلب واحد بلا «تم التسليم»: #10011 (مشكلة).\"]"
+      ]
+    },
+    {
+      "name": "م12 § 39 ب: the off-day alert before 18:00",
+      "caught": true,
+      "fails": [
+        "✗ day off (Friday): no reminder, no end-of-shift alert",
+        "✗ day off with stops open: nothing before 18:00 — [\"⚠️ محطات مفتوحة على سائق في راحته: عمر المجهلي في يوم راحته اليوم حسب جدوله، وعليه طلبان بلا «تم التسليم»: #10011 (مشكلة)، #10013.\"]",
+        "✗ time off with stops open: no reminder at 11:30, no end-of-shift alert at 12:30 — [\"⚠️ محطات مفتوحة على سائق في إجازته: عمر المجهلي في إجازة اليوم (إجازة سنوية)، وعليه 3 طلبات بلا «تم التسليم»: #10009، #10011، #10013.\"]"
+      ]
+    },
+    {
+      "name": "م12 § 39 ب: off today handled as «no schedule» (the reason alert)",
+      "caught": true,
+      "fails": [
+        "✗ day off: one alert at 18:00 naming it — [\"⚠️ عمر المجهلي بلا دوام اليوم، فلا تذكير له بمحطاته. بقي 3 طلبات بلا «تم التسليم»: #10009، #10011، #10013.\"]",
+        "✗ new: day off with stops open → one alert «محطات مفتوحة على سائق في راحته» — [\"⚠️ عمر المجهلي بلا دوام اليوم، فلا تذكير له بمحطاته. بقي طلبان بلا «تم التسليم»: #10011 (مشكلة)، #10013.\"]",
+        "✗ …not the «no schedule» wording (he has one: it says he is off) — ⚠️ عمر المجهلي بلا دوام اليوم، فلا تذكير له بمحطاته. بقي طلبان بلا «تم التسليم»: #10011 (مشكلة)، #10013.",
+        "✗ …its KV claim"
+      ]
+    },
+    {
+      "name": "م12 § 39 ب: a time off not «off» (only the weekly day off)",
+      "caught": true,
+      "fails": [
+        "✗ new: time off with stops open → one alert «محطات مفتوحة على سائق في إجازته» naming the time off — [\"⚠️ عمر المجهلي بلا دوام اليوم، فلا تذكير له بمحطاته. بقي 3 طلبات بلا «تم التسليم»: #10009، #10011، #10013.\"]"
+      ]
+    },
+    {
+      "name": "م12 § 39 ب: the off-day alert without the order numbers",
+      "caught": true,
+      "fails": [
+        "✗ …with the order numbers («مشكلة» marked), not the delivered one — ⚠️ محطات مفتوحة على سائق في راحته: عمر المجهلي في يوم راحته اليوم حسب جدوله، وعليه طلبان بلا «تم التسليم».",
+        "✗ …with the order numbers — ⚠️ محطات مفتوحة على سائق في إجازته: عمر المجهلي في إجازة اليوم (إجازة سنوية)، وعليه 3 طلبات بلا «تم التسليم»."
       ]
     },
     {

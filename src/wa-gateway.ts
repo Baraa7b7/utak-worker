@@ -253,21 +253,27 @@ const candidateCache = new Map<string, { rows: TemplateCandidate[]; at: number }
 /** Test hook — drop cached mappings. */
 export function clearTemplateCache(): void { candidateCache.clear(); }
 
-async function fetchCandidates(env: Env, purpose: string): Promise<TemplateCandidate[] | null> {
+// § 41 و (found by the live simulation): the lookup was a bare fetch, so an
+// Odoo.com HTTP 429 read as "no template mapped" and the send was skipped for
+// good — Omar's 02:00 «بدء الدوام» on 09-30, and with it the day's market
+// prices. It goes through `call` now (429 / 5xx retried), and a read that
+// still fails is "Odoo unreachable" (undefined), not "no mapping" ([]).
+async function fetchCandidates(env: Env, purpose: string): Promise<TemplateCandidate[] | undefined> {
   const cached = candidateCache.get(purpose);
   if (cached && Date.now() - cached.at < MAPPING_TTL_MS) return cached.rows;
-  const res = await fetch(`${env.ODOO_URL}/json/2/x_whatsapp_template/search_read`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${env.ODOO_API_KEY}` },
-    body: JSON.stringify({
+  let rows: TemplateCandidate[];
+  try {
+    const { call } = await import("./odoo");
+    rows = await call<TemplateCandidate[]>(env, "x_whatsapp_template", "search_read", {
       domain: [["x_purpose", "=", purpose]],
       fields: TEMPLATE_CANDIDATE_FIELDS,
       order: "id desc",
       limit: 10,
-    }),
-  });
-  if (!res.ok) return null;
-  const rows = (await res.json()) as TemplateCandidate[];
+    });
+  } catch (e) {
+    console.warn(`[templates] lookup failed for purpose='${purpose}'`, (e as Error)?.message);
+    return undefined;
+  }
   // "No mapping" is not cached: a purpose wired in Odoo is picked up on the next send.
   if (rows.length > 0) candidateCache.set(purpose, { rows, at: Date.now() });
   return rows;
@@ -331,8 +337,9 @@ async function resolveTemplate(env: Env, purpose: string, opt: GwTemplate, to: s
   if (!row) {
     const lookup = opt.purpose ?? purpose;
     const rows = await fetchCandidates(env, lookup);
-    row = rows ? pickTemplate(rows, (name) => paramsFor(opt, name).length) : null;
-    if (!rows || !row) {
+    if (!rows) return { ok: false, why: `تعذّر قراءة قالب الغرض ${lookup} من Odoo` };
+    row = pickTemplate(rows, (name) => paramsFor(opt, name).length);
+    if (!row) {
       console.warn(`[templates] no mapping for purpose='${lookup}'`);
       return { ok: false, why: `لا قالب مربوط بالغرض ${lookup}` };
     }

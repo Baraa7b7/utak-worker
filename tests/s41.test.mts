@@ -32,6 +32,9 @@
 //   [موقع] found by the full-day simulation: while an order waits for its
 //       location, a text with a number in it («رمان وسط 5») is an order line,
 //       never saved as the neighborhood.
+//   [قالب] found by the live run (s41-live-1): the template lookup answered
+//       HTTP 429 → retried like every Odoo read; still failing → «تعذّر قراءة
+//       القالب», never «لا قالب مربوط» (Omar's 02:00 «بدء الدوام» was skipped).
 //   [سعر] found building [ج]: an order's lines are priced at the ORDER's day
 //       (the published price it was confirmed at), not the day the invoice is
 //       issued (delivery, the next morning, often before 06:00's list).
@@ -87,8 +90,12 @@ let extractOut: { prices: unknown[]; unrecognized: string[] } = { prices: [], un
 /** What the fake classifier / order extractor answer ([موقع]). */
 let claudeIntent = "other";
 let claudeOrder: unknown[] = [];
+/** [قالب] / [سوق] — the next N calls to «model/method» answered HTTP 429 by the odoo.com rate limiter. */
+const fail429: Record<string, number> = {};
 globalThis.fetch = (async (input: unknown, init?: any) => {
   const url = typeof input === "string" ? input : (input as any)?.url ?? String(input);
+  const lim = Object.keys(fail429).find((k) => url.endsWith(`/json/2/${k}`) && fail429[k] > 0);
+  if (lim) { fail429[lim]--; return new Response("<html><body><h1>429 Too Many Requests</h1></body></html>", { status: 429 }); }
   if (url.includes("anthropic.com")) {
     const sys = String(JSON.parse(String(init?.body ?? "{}")).system ?? "");
     const out = /classify UTAK WhatsApp messages/.test(sys) ? { intent: claudeIntent, confidence: 0.9 }
@@ -871,6 +878,35 @@ console.log("\n[موقع] a pending location: a text with a number is an order l
   assert("…it is added to the order", rows("x_daily_order_line").some((l: any) => l.x_order_id === o && l.x_product_tmpl_id === 2 && l.x_quantity === 3), JSON.stringify(rows("x_daily_order_line")));
   assert("…and the quotation still waits for the location", env.MSG_DEDUP.store.get(`pending_neighborhood:${C1}`) === String(o));
   claudeIntent = "other"; claudeOrder = [];
+}
+
+// ================================================================ [قالب]
+console.log("\n[قالب] found by the live run: an Odoo 429 on the template lookup is retried, never «no template»");
+const shiftTemplate = () => seed("x_whatsapp_template", {
+  x_purpose: "team_shift_start", x_meta_template_id: "utak_shift_start_v2", x_language: "ar", x_meta_status: "APPROVED", x_param_count: 1, x_category: "UTILITY",
+});
+{
+  const env = fresh("2026-09-27 02:00"); shiftTemplate();
+  fail429["x_whatsapp_template/search_read"] = 2;
+  const t = await quiet(() => ATT.runAttendanceTick(env));
+  const omar = t.members?.find((m: any) => m.name === "عمر المجهلي") ?? (t as any).acted;
+  assert("02:00, the lookup answered 429 twice: Omar's «بدء الدوام» still goes (not no_template)",
+    JSON.stringify(t).includes("start_sent") && !JSON.stringify(t).includes("no_template") && sentTo(DRIVER_PHONE).some((b: any) => b?.type === "template"),
+    JSON.stringify({ t, omar }));
+  assert("…the 429s were used up (retried, not skipped)", fail429["x_whatsapp_template/search_read"] === 0);
+  delete fail429["x_whatsapp_template/search_read"];
+}
+{
+  const env = fresh("2026-09-27 02:00"); shiftTemplate();
+  const { sendViaGateway, gatewayDecision } = await import("../src/wa-gateway.ts");
+  fail429["x_whatsapp_template/search_read"] = 99;
+  const r = await quiet(() => sendViaGateway(env, { to: `+${DRIVER_PHONE}`, purpose: "team_shift_start", content: { kind: "template", purpose: "team_shift_start", params: ["عمر"] } } as any));
+  const d = gatewayDecision(r) as any;
+  assert("Odoo still refusing after the retries: skipped as «تعذّر قراءة القالب من Odoo», not «لا قالب مربوط»",
+    d?.action === "skipped" && /تعذّر قراءة قالب الغرض team_shift_start من Odoo/.test(String(d.reason)) && !/لا قالب مربوط/.test(String(d.reason)), JSON.stringify(d));
+  delete fail429["x_whatsapp_template/search_read"];
+  const r2 = await quiet(() => sendViaGateway(env, { to: `+${DRIVER_PHONE}`, purpose: "team_shift_start", content: { kind: "template", purpose: "team_shift_start", params: ["عمر"] } } as any));
+  assert("…and nothing cached from the failure: the next send finds the template", (gatewayDecision(r2) as any)?.action === "template", JSON.stringify(gatewayDecision(r2)));
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

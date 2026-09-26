@@ -3,7 +3,7 @@
 // `finally` after every run; a pattern that is not found exactly once stops
 // the script.
 //
-//   node scripts/s41-20260926-mutations.mjs [أ|ب|ج|د|هـ|عزل …]     (no argument: every part)
+//   node scripts/s41-20260926-mutations.mjs [أ|ب|ج|د|هـ|عزل|موقع|قالب|حي|سوق …]     (no argument: every part)
 //
 // Out: scripts/artifacts/s41-20260926-mutations.json
 
@@ -209,6 +209,15 @@ const M = [
     "  return t.length >= 2 && t.length <= 60 && !hasDigits(t);", "  return t.length >= 2 && t.length <= 60;"]], T],
   ["موقع", "a text with a number caught by the quotation's location wait", [[IX,
     "      if (msg.type === \"text\" && !hasDigits(msg.text)) {", "      if (msg.type === \"text\") {"]], T],
+  // ---------------------------------------------------------------- قالب / حي / سوق (found by the live run)
+  ["قالب", "the template lookup back to a bare fetch (a 429 = «no template»)", [[GW,
+    "  let rows: TemplateCandidate[];\n  try {\n    const { call } = await import(\"./odoo\");\n    rows = await call<TemplateCandidate[]>(env, \"x_whatsapp_template\", \"search_read\", {\n      domain: [[\"x_purpose\", \"=\", purpose]],\n      fields: TEMPLATE_CANDIDATE_FIELDS,\n      order: \"id desc\",\n      limit: 10,\n    });\n  } catch (e) {\n    console.warn(`[templates] lookup failed for purpose='${purpose}'`, (e as Error)?.message);\n    return undefined;\n  }",
+    "  const res = await fetch(`${env.ODOO_URL}/json/2/x_whatsapp_template/search_read`, {\n    method: \"POST\",\n    headers: { \"Content-Type\": \"application/json\", Authorization: `Bearer ${env.ODOO_API_KEY}` },\n    body: JSON.stringify({ domain: [[\"x_purpose\", \"=\", purpose]], fields: TEMPLATE_CANDIDATE_FIELDS, order: \"id desc\", limit: 10 }),\n  });\n  if (!res.ok) return undefined;\n  const rows = (await res.json()) as TemplateCandidate[];"]], T],
+  ["قالب", "a lookup that failed after the retries read as «no mapping»", [[GW,
+    "    console.warn(`[templates] lookup failed for purpose='${purpose}'`, (e as Error)?.message);\n    return undefined;", "    console.warn(`[templates] lookup failed for purpose='${purpose}'`, (e as Error)?.message);\n    return [];"]], T],
+  ["قالب", "a failed lookup not told apart from «no mapping»", [[GW,
+    "    if (!rows) return { ok: false, why: `تعذّر قراءة قالب الغرض ${lookup} من Odoo` };\n", ""], [GW,
+    "    row = pickTemplate(rows, (name) => paramsFor(opt, name).length);\n    if (!row) {", "    row = rows ? pickTemplate(rows, (name) => paramsFor(opt, name).length) : null;\n    if (!row) {"]], T],
 ];
 
 const want = new Set(process.argv.slice(2));

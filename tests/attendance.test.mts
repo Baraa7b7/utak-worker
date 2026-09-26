@@ -45,8 +45,10 @@ const F5 = load("./fixtures-odoo-fields-20260925-team.json");
 const F6 = load("./fixtures-odoo-fields-20260925-gateway.json");
 // STATUS § 36 — x_wa_message.x_echo_status / x_echo_message_id / x_backfilled, the template text fields.
 const F7 = load("./fixtures-odoo-fields-20260925-s36.json");
-const REAL: Record<string, string[]> = { ...F1, ...F2, ...F3, ...F4, ...F5, ...F6, ...F7 };
-const SELECTIONS: Record<string, string[]> = { ...F1._selections, ...F2._selections, ...F3._selections, ...F4._selections, ...F5._selections, ...F6._selections, ...F7._selections };
+// STATUS § 41 ج — the 18:00 list excludes by x_invoice.x_utak_simulation (the tenant after § 41)
+const F8 = load("./fixtures-odoo-fields-20260926-s41.json");
+const REAL: Record<string, string[]> = { ...F1, ...F2, ...F3, ...F4, ...F5, ...F6, ...F7, ...F8 };
+const SELECTIONS: Record<string, string[]> = { ...F1._selections, ...F2._selections, ...F3._selections, ...F4._selections, ...F5._selections, ...F6._selections, ...F7._selections, ...F8._selections };
 const rejected: string[] = [];
 function known(model: string, name: string): boolean {
   const list = REAL[model];

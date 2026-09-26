@@ -32,7 +32,6 @@ import {
 import {
   createAndDispatchInvoiceForOrder,
   recordCollection,
-  sendInvoiceToCustomerIfPaid,
 } from "../src/invoice.ts";
 
 // ---------- fetch mock ----------
@@ -383,12 +382,11 @@ console.log("\n[8] VAT before / after the cutoff");
   assert("delivered before cutoff: no tax, linked", r2?.moveId === 501 && st2.move.amount_tax === 0 && JSON.stringify(st2.soLines[0].tax_ids) === "[[6,0,[]]]");
 }
 
-// ---------- 9 collection + send ----------
-console.log("\n[9] collection → invoice send after full payment only");
+// ---------- 9 collection (§ 41 ج: the invoice went out at «تم التسليم», collection sends none) ----------
+console.log("\n[9] collection → payments on the invoice, no invoice send (it went at delivery, § 41 ج)");
 {
-  const inv: any = { id: 61, x_invoice_number: "UTAK-INV-T-001", x_total: 60, x_subtotal: 60, x_tax_amount: 0, x_invoice_date: "2026-09-23", x_status: "issued", x_order_id: [77, "O"], x_invoice_sent_at: false, x_account_move_id: false };
+  const inv: any = { id: 61, x_invoice_number: "UTAK-INV-T-001", x_total: 60, x_subtotal: 60, x_tax_amount: 0, x_invoice_date: "2026-09-23", x_status: "issued", x_order_id: [77, "O"], x_invoice_sent_at: "2026-09-23 06:00:00", x_account_move_id: false };
   const payments: any[] = [];
-  let movePaymentState = "not_paid";
   reset();
   responder = (req) => {
     const u = req.url; const b = req.body ?? {};
@@ -399,36 +397,17 @@ console.log("\n[9] collection → invoice send after full payment only");
     if (u.endsWith("/x_daily_order/write")) return true;
     if (u.endsWith("/x_daily_order/read")) return [{ id: 77, x_customer_id: [48, "اختبار"] }];
     if (u.endsWith("/res.partner/read")) return [{ id: 48, phone: false, x_whatsapp_number: false }];
-    if (u.endsWith("/account.move/read")) return [{ id: 501, payment_state: movePaymentState }];
     return true;
   };
-  const sends: number[] = [];
-  const deps = { send: async (_e: any, id: number) => { sends.push(id); } };
-
-  const p1 = await quiet(() => recordCollection(env, { invoiceId: 61, method: "cash", amount: 30 }, deps));
-  assert("partial 30/60: not fully paid, no send", !p1.fullyPaid && p1.send === null && sends.length === 0 && inv.x_status === "issued");
-  assert("partial: x_invoice_sent_at untouched", inv.x_invoice_sent_at === false);
+  const p1 = await quiet(() => recordCollection(env, { invoiceId: 61, method: "cash", amount: 30 }));
+  assert("partial 30/60: not fully paid, still issued", !p1.fullyPaid && inv.x_status === "issued" && p1.paymentId === 800);
   assert("partial: order not closed", !captured.some((c) => c.url.endsWith("/x_daily_order/write")));
-  const p2 = await quiet(() => recordCollection(env, { invoiceId: 61, method: "cash" }, deps));
-  assert("second collection = remaining 30", payments[1]?.x_amount === 30);
-  assert("complete: paid, ONE send, x_invoice_sent_at set", p2.fullyPaid && p2.send === "sent" && sends.length === 1 && inv.x_status === "paid" && !!inv.x_invoice_sent_at);
-  const p3 = await quiet(() => recordCollection(env, { invoiceId: 61, method: "cash", amount: 10 }, deps));
-  assert("extra collection after paid: no payment, no second send", p3.paymentId === null && sends.length === 1 && payments.length === 2);
-  const direct = await quiet(() => sendInvoiceToCustomerIfPaid(env, 61, deps));
-  assert("direct re-call → already_sent", direct === "already_sent" && sends.length === 1);
-
-  inv.x_invoice_sent_at = false;
-  const failing = { send: async () => { throw new Error("meta down"); } };
-  const f = await quiet(() => sendInvoiceToCustomerIfPaid(env, 61, failing));
-  assert("failed send → claim released, owner alerted", f === "failed" && inv.x_invoice_sent_at === false && errors.some((e) => e.includes("تعذّر إرسال الفاتورة")));
-
-  inv.x_account_move_id = [501, "INV/1"];
-  movePaymentState = "partial";
-  const np = await quiet(() => sendInvoiceToCustomerIfPaid(env, 61, deps));
-  assert("x_invoice paid but move partial → not sent", np === "not_paid" && sends.length === 1);
-  movePaymentState = "in_payment";
-  const ip = await quiet(() => sendInvoiceToCustomerIfPaid(env, 61, deps));
-  assert("move in_payment (transfer) → sent", ip === "sent" && sends.length === 2);
+  const p2 = await quiet(() => recordCollection(env, { invoiceId: 61, method: "cash" }));
+  assert("second collection = remaining 30, paid", payments[1]?.x_amount === 30 && p2.fullyPaid && inv.x_status === "paid");
+  const p3 = await quiet(() => recordCollection(env, { invoiceId: 61, method: "cash", amount: 10 }));
+  assert("extra collection after paid: no payment", p3.paymentId === null && payments.length === 2);
+  assert("x_invoice_sent_at untouched by the collections (set at delivery)", inv.x_invoice_sent_at === "2026-09-23 06:00:00");
+  assert("no outcome «send» on a collection any more", !("send" in p1) && !("send" in p2));
   assert("no request reached graph.facebook.com", graphHits === 0, `graphHits=${graphHits}`);
 }
 
@@ -439,8 +418,7 @@ console.log("\n[10] ACCOUNTING_SYNC off");
   const off = { ...env, ACCOUNTING_SYNC: "false" };
   const a = await quiet(() => ensureSaleOrderForDailyOrder(off, 77));
   const b = await quiet(() => invoiceSaleOrderOnDelivery(off, { invoiceId: 1, existingMoveId: null, invoiceNumber: "X", orderId: 77, delivered: delivered([{ id: 11, qty: 1, price: 1 }]), expectedTotal: 1 }));
-  const c = await quiet(() => sendInvoiceToCustomerIfPaid(off, 61));
-  assert("no Odoo call, null / off", a === null && b === null && c === "off" && captured.length === 0);
+  assert("no Odoo call, null", a === null && b === null && captured.length === 0);
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

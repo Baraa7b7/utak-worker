@@ -2536,10 +2536,14 @@ export async function getLatestSalePrice(
 }
 
 // ---- Invoice CRUD ----
-export async function getInvoiceCountToday(env: Env): Promise<number> {
-  const today = new Date().toISOString().slice(0, 10) + " 00:00:00";
+/**
+ * § 41 ج — the invoices already issued on `day` (the Riyadh date of issue,
+ * x_invoice_date), simulation ones left out: the next serial of the day's
+ * numbers. It counted create_date from 00:00 UTC (03:00 Riyadh).
+ */
+export async function getInvoiceCountToday(env: Env, day: string): Promise<number> {
   return await call<number>(env, "x_invoice", "search_count", {
-    domain: [["create_date", ">=", today]],
+    domain: [["x_invoice_date", "=", day], ["x_utak_simulation", "!=", true]],
   });
 }
 
@@ -2556,6 +2560,8 @@ export async function createInvoiceRecord(
     /** § 40 د — the quantity discount before VAT, written only when there is one. */
     discount?: number;
     discountPct?: number;
+    /** § 41 ج — the moment of «تم التسليم»: the supply and issue time (x_issued_at). */
+    issuedAt?: Date;
   },
 ): Promise<number> {
   const today = vals.invoiceDate ?? new Date().toISOString().slice(0, 10);
@@ -2568,6 +2574,7 @@ export async function createInvoiceRecord(
       x_tax_amount: vals.tax,
       x_total: vals.total,
       x_status: "issued",
+      ...(vals.issuedAt ? { x_issued_at: vals.issuedAt.toISOString().replace("T", " ").slice(0, 19) } : {}),
       ...((vals.discount ?? 0) > 0 ? { x_discount: vals.discount, x_discount_pct: vals.discountPct ?? 0 } : {}),
     }],
   });
@@ -2707,10 +2714,11 @@ export async function getUnpaidInvoicesWithCustomer(
   const invs = await call<InvRow[]>(env, "x_invoice", "search_read", {
     // 2026-09-24 — test / simulation invoices never reach the collector: the
     // 18:00 summary carried 15 live-verify invoices (UTAK-ACCT-TEST, UTAK-ACCT,
-    // UTAK-VAT; 555 SAR), all x_is_simulation=true, their moves reversed or
-    // cancelled. On sim (PILOT_MODE) every worker-created invoice is stamped
-    // too, so there the summary only lists unstamped (real) invoices.
-    domain: [["x_status", "in", ["issued", "overdue"]], ["x_is_simulation", "!=", true]],
+    // UTAK-VAT; 555 SAR), their moves reversed or cancelled. § 41 ج — by
+    // x_utak_simulation (§ 38; those 15 and every September test invoice carry
+    // it since § 39), not x_is_simulation, which every invoice of the sim /
+    // pilot worker carries: the list was always empty there.
+    domain: [["x_status", "in", ["issued", "overdue"]], ["x_utak_simulation", "!=", true]],
     fields: ["id", "x_invoice_number", "x_total", "x_order_id"],
     order: "x_invoice_date asc, id asc",
     limit: 200,

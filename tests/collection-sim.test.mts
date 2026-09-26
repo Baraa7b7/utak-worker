@@ -1,6 +1,7 @@
 // The 18:00 collection summary and the inbox bot echo — 2026-09-24.
 //
-//   1. simulation invoices (x_is_simulation) never reach the collector;
+//   1. simulation invoices (x_utak_simulation since § 41 ج; x_is_simulation
+//      before, which every sim / pilot invoice carries) never reach the collector;
 //   2. every utak_collection_summary variable is one line, for any list;
 //   3. free text goes out only inside the 24h window (#131047 otherwise);
 //   4. a failed or unmapped template is recorded / alerted, not swallowed;
@@ -39,7 +40,8 @@ const metaOk = (p: string[]) =>
 
 const invoice = (num: string, total: number, sim: boolean, customer = CUST, status = "issued") =>
   seed("x_invoice", {
-    x_invoice_number: num, x_total: total, x_status: status, x_is_simulation: sim,
+    // § 41 ج — x_utak_simulation decides; x_is_simulation is on every sim / pilot invoice
+    x_invoice_number: num, x_total: total, x_status: status, x_utak_simulation: sim, x_is_simulation: true,
     x_order_id: order(customer, "delivered", "2026-09-24", 1, { x_delivery_neighborhood: "النرجس" }),
   });
 const summaryTo = (digits: string) => sentTo(digits).filter((b) => b?.template?.name === "utak_collection_summary");
@@ -62,7 +64,7 @@ console.log("\n[1] simulation invoices never reach the collection summary");
   const unpaid = await quiet(() => getUnpaidInvoicesWithCustomer(env));
   assert("unpaid list = the two real open invoices only", unpaid.length === 2 && unpaid.every((u) => u.number.startsWith("UTAK-INV-2026092")), JSON.stringify(unpaid));
   const q = odooLog.find((l) => l.model === "x_invoice" && l.method === "search_read");
-  assert("the Odoo domain itself carries x_is_simulation != true", JSON.stringify(q?.body?.domain ?? []).includes('["x_is_simulation","!=",true]'), JSON.stringify(q?.body?.domain));
+  assert("the Odoo domain itself carries x_utak_simulation != true (§ 41 ج), not x_is_simulation", JSON.stringify(q?.body?.domain ?? []).includes('["x_utak_simulation","!=",true]') && !JSON.stringify(q?.body?.domain ?? []).includes("x_is_simulation"), JSON.stringify(q?.body?.domain));
 
   const r = await quiet(() => sendDailyCollectionSummary(env));
   const cs = summaryTo(COLL_PHONE);

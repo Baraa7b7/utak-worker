@@ -37,8 +37,10 @@ const F_REVIEW = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-2026092
 const F_GW = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260925-gateway.json", import.meta.url), "utf8"));
 // STATUS § 36 — x_wa_message.x_echo_status / x_echo_message_id / x_backfilled, the template text fields.
 const F_S36 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260925-s36.json", import.meta.url), "utf8"));
-const REAL: Record<string, string[]> = { ...FIXTURE, ...F_REVIEW, ...F_GW, ...F_S36 };
-const SELECTIONS: Record<string, string[]> = { ...FIXTURE._selections, ...F_REVIEW._selections, ...F_GW._selections, ...F_S36._selections };
+// STATUS § 41 ج — م2 excludes by x_invoice.x_utak_simulation (the tenant after § 41)
+const F_S41 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260926-s41.json", import.meta.url), "utf8"));
+const REAL: Record<string, string[]> = { ...FIXTURE, ...F_REVIEW, ...F_GW, ...F_S36, ...F_S41 };
+const SELECTIONS: Record<string, string[]> = { ...FIXTURE._selections, ...F_REVIEW._selections, ...F_GW._selections, ...F_S36._selections, ...F_S41._selections };
 let optoutFieldExists = true;
 const rejected: string[] = [];
 function known(model: string, name: string): boolean {
@@ -115,7 +117,7 @@ const texts = (digits: string) => sentTo(digits).filter((b) => b?.type === "text
 let ord = 0;
 function invoice(customer: number, total: number, date: string, extra: Record<string, unknown> = {}): number {
   const o = seed("x_daily_order", { x_customer_id: customer, x_state: "delivered", x_order_date: date, x_name: `O${++ord}` });
-  return seed("x_invoice", { x_invoice_number: `UTAK-INV-${ord}`, x_total: total, x_status: "issued", x_invoice_date: date, x_is_simulation: false, x_order_id: o, ...extra });
+  return seed("x_invoice", { x_invoice_number: `UTAK-INV-${ord}`, x_total: total, x_status: "issued", x_invoice_date: date, x_is_simulation: true, x_utak_simulation: false, x_order_id: o, ...extra });
 }
 const say = (env: any, from: string, text: string) => quiet(() => worker.fetch(signed(inbound(from, { type: "text", text: { body: text } })), env, ctx));
 
@@ -142,7 +144,7 @@ console.log("\n[م2] one message per customer with the total still owed");
   seed("x_payment", { x_invoice_id: a, x_amount: 30 });
   invoice(CUST, 50, "2026-09-20", { x_status: "overdue" });
   invoice(CUST, 999, "2026-09-23");                              // 1 day old: not yet
-  invoice(CUST, 777, "2026-09-18", { x_is_simulation: true });   // test invoice
+  invoice(CUST, 777, "2026-09-18", { x_utak_simulation: true });  // test invoice (§ 41 ج: x_utak_simulation decides)
   invoice(CUST, 555, "2026-09-18", { x_status: "paid" });
   invoice(CUST2, 200, "2026-09-19");
   seed("res.partner", { id: 503, name: "شريك مؤرشف", x_whatsapp_number: "+966500000503", customer_rank: 1, active: false });

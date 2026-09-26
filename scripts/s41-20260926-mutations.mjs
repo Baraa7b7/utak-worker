@@ -18,6 +18,10 @@ const EN = "src/pricing-engine.ts";
 const PR = "src/prices.ts";
 const OP = "src/order-pricing.ts";
 const SM = "src/owner-summary.ts";
+const INV = "src/invoice.ts";
+const OD = "src/odoo.ts";
+const OUT = "src/outreach.ts";
+const TSA = "tests/sale-accounting.test.mts";
 
 // [part, name, [[file, find, replace], …], test file]
 const M = [
@@ -56,6 +60,35 @@ const M = [
     "  await sendOwnerAlert(env, \"⚠️ «عدد المحطات اليومية المخطط» فارغ في «⚙️ إعدادات التسعير».\").catch(() => {});\n  // § 41 ب — the daily «عدد المحطات اليومية المخطط فارغ» alert (§ 40 د) was\n"]], T],
   ["ب", "empty planned stops → a discount anyway", [[OP,
     "  if (settings.plannedStops === null) return { ...out, reason: \"«عدد المحطات اليومية المخطط» فارغ\" };\n", ""]], T],
+  // ---------------------------------------------------------------- ج the invoice at «تم التسليم»
+  ["ج", "a simulation order gets an invoice", [[INV,
+    "  if (await isSimulationOrder(env, orderId)) {", "  if (false) {"]], T],
+  ["ج", "no check for the order's existing invoice", [[INV,
+    "  const existing = await findInvoiceForOrder(env, orderId);\n  if (existing) {", "  const existing = await findInvoiceForOrder(env, orderId);\n  if (false) {"]], T],
+  ["ج", "no KV claim while an invoice is issued", [[INV,
+    "claimButton(env, `invoice_issue:${orderId}`, INVOICE_CLAIM_TTL)", "claimButton(env, `invoice_issue:${orderId}:${Math.random()}`, INVOICE_CLAIM_TTL)"]], T],
+  ["ج", "the claim released after an issue (not kept «done»)", [[INV,
+    "    if (issued) await finishButton(env, claim, INVOICE_DONE_TTL);\n    else await releaseButton(env, claim);", "    await releaseButton(env, claim);"]], T],
+  ["ج", "the invoice not sent at «تم التسليم»", [[INV,
+    "  await sendIssuedInvoice(env, invoiceId, invoiceNumber, () => dispatchInvoiceToCustomer(env, {", "  if (false) await sendIssuedInvoice(env, invoiceId, invoiceNumber, () => dispatchInvoiceToCustomer(env, {"]], T],
+  ["ج", "x_invoice_sent_at not checked before the send", [[INV,
+    "    if (inv?.x_invoice_sent_at) {\n      console.log(`[invoice-send] ${invoiceNumber} already sent", "    if (false) {\n      console.log(`[invoice-send] ${invoiceNumber} already sent"]], T],
+  ["ج", "a failed send keeps x_invoice_sent_at (never retried)", [[INV,
+    "    await writeInvoice(env, invoiceId, { x_invoice_sent_at: false }).catch(() => {});\n    const msg = `[invoice-send] ${invoiceNumber}: تعذّر إرسال الفاتورة للعميل عند التسليم", "    const msg = `[invoice-send] ${invoiceNumber}: تعذّر إرسال الفاتورة للعميل عند التسليم"]], T],
+  ["ج", "the supply / issue time not written", [[INV,
+    "    invoiceDate: invoiceDateYmd,\n    issuedAt,", "    invoiceDate: invoiceDateYmd,"]], T],
+  ["ج", "the number's day from UTC (02:30 Riyadh → yesterday)", [[INV,
+    "  const ymd = invoiceDateYmd.replace(/-/g, \"\");", "  const ymd = issuedAt.toISOString().slice(0, 10).replace(/-/g, \"\");"]], T],
+  ["ج", "the invoice date from UTC", [[INV,
+    "  const invoiceDateYmd = todayRiyadhYmd(issuedAt);", "  const invoiceDateYmd = issuedAt.toISOString().slice(0, 10);"]], T],
+  ["ج", "the day's serial counts the simulation invoices", [[OD,
+    "    domain: [[\"x_invoice_date\", \"=\", day], [\"x_utak_simulation\", \"!=\", true]],", "    domain: [[\"x_invoice_date\", \"=\", day]],"]], T],
+  ["ج", "a zero invoice when every line is short", [[INV,
+    "  if (order.lines.length === 0) {\n    if (accountingOn)", "  if (false) {\n    if (accountingOn)"]], TSA],
+  ["ج", "م2 back on x_is_simulation (nothing reminded on sim / pilot)", [[OUT,
+    "      [\"x_utak_simulation\", \"!=\", true],\n    ],", "      [\"x_is_simulation\", \"!=\", true],\n    ],"]], T],
+  ["ج", "the 18:00 list back on x_is_simulation", [[OD,
+    "    domain: [[\"x_status\", \"in\", [\"issued\", \"overdue\"]], [\"x_utak_simulation\", \"!=\", true]],", "    domain: [[\"x_status\", \"in\", [\"issued\", \"overdue\"]], [\"x_is_simulation\", \"!=\", true]],"]], T],
 ];
 
 const want = new Set(process.argv.slice(2));

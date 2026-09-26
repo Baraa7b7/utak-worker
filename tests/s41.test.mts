@@ -7,6 +7,11 @@
 //       discount off before the division; nothing divided before the cutoff.
 //   [ب] the daily «المحطات فارغ» alert is gone; the discount stays off while
 //       «عدد المحطات اليومية المخطط» is empty.
+//   [ج] the invoice at «تم التسليم» (م18): issued and sent at that moment
+//       whatever was collected (all, part, nothing), its supply / issue time
+//       and number from that moment's Riyadh day; collections record payments
+//       on it; the rest stays due and م2 reminds it; one invoice per order (KV
+//       claim + x_invoice_sent_at); no invoice for a simulation order.
 //
 // In-memory Odoo + captured Graph (tests/wa-harness.mts) behind a strict schema
 // gate built from the real field lists (fields_get on the tenant, read-only:
@@ -272,6 +277,159 @@ console.log("\n[ب] «عدد المحطات اليومية المخطط» empty:
   assert("filled (10): the discount comes back (10.43)", d2.applied && d2.amount === 10.43, JSON.stringify(d2));
   const src = ["order-pricing.ts", "prices.ts", "index.ts"].map((f) => readFileSync(new URL(`../src/${f}`, import.meta.url), "utf8")).join("\n");
   assert("no sender of it left in the code (checkPlannedStops, its text)", !/checkPlannedStops|STOPS_ALERT_TEXT|حتى يُعبَّأ/.test(src));
+  assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
+}
+
+// ================================================================ [ج]
+const INV = await import("../src/invoice.ts");
+const { dispatch } = await import("../src/router.ts");
+const OUT = await import("../src/outreach.ts");
+const { ALREADY_DONE_TEXT } = await import("../src/button-lock.ts");
+const { CUST_PHONE: C1_PHONE, COLL, partnerOf, openWindow: openWin } = await import("./wa-harness.mts");
+const tapAs = (env: any, buttonId: string, who: number) =>
+  quiet(() => dispatch(env, {
+    msg: { messageId: `w${Math.random()}`, from: "+x", fromRaw: "x", profileName: "", text: "", timestamp: "", type: "button", buttonId },
+    intent: "other", senderType: "customer", partner: partnerOf(who),
+  }));
+const replyOf = (r: any) => String(r?.text ?? r?.bodyBeforeButtons ?? "");
+/** An order of `day` on its way (in_delivery, a stop), priced by the day's published tomato (30). */
+function onTheWay(day: string, qty = 5, extra: Record<string, unknown> = {}): number {
+  const id = seed("x_daily_order", { x_customer_id: C1, x_state: "in_delivery", x_order_date: day, x_created_via: "whatsapp", x_delivery_neighborhood: "العليا", ...extra });
+  seed("x_daily_order_line", { x_order_id: id, x_product_tmpl_id: 1, x_packaging_id: 11, x_quantity: qty, x_status: "pending" });
+  seed("x_delivery_stop", { x_order_id: id, x_status: "pending" });
+  return id;
+}
+const invoiceOf = (orderId: number) => rows("x_invoice").filter((i: any) => i.x_order_id === orderId);
+/** The customer's invoice message (the text inside the window; a template otherwise). */
+const invoiceSends = () => sentTo(C1_PHONE).filter((b: any) => /فاتورتك رقم/.test(String(b?.text?.body ?? "")) || /invoice/.test(String(b?.template?.name ?? "")));
+/** The order's day and the delivery day both at 30 (the order-day pricing itself is tested in [سعر اليوم]). */
+function deliveryEnv(riyadh: string, day: string): any {
+  const env = fresh(riyadh); sources(); publishedTomato(day, 20, 30);
+  const today = riyadh.slice(0, 10);
+  if (today !== day) publishedTomato(today, 20, 30);
+  openWin(env, C1_PHONE);
+  return env;
+}
+
+console.log("\n[ج] «تم التسليم» with nothing collected: the invoice is issued and sent at that moment");
+{
+  const env = deliveryEnv("2026-09-27 08:40", "2026-09-26");
+  const o = onTheWay("2026-09-26");
+  const r = await tapAs(env, `delivered_${o}`, DRIVER);
+  const [inv] = invoiceOf(o);
+  assert("the driver's reply «تم التسليم ✅»", /تم التسليم ✅/.test(replyOf(r)), replyOf(r));
+  assert("one x_invoice: 5 × 30 = 150, issued, no payment", invoiceOf(o).length === 1 && inv.x_total === 150 && inv.x_status === "issued" && rows("x_payment").length === 0, JSON.stringify(inv));
+  assert("its supply / issue time = the moment of «تم التسليم» (x_issued_at 05:40 UTC = 08:40 Riyadh)", inv.x_issued_at === "2026-09-27 05:40:00", String(inv.x_issued_at));
+  assert("its date = that Riyadh day (09-27), its number UTAK-INV-20260927-001", inv.x_invoice_date === "2026-09-27" && inv.x_invoice_number === "UTAK-INV-20260927-001", `${inv.x_invoice_date} ${inv.x_invoice_number}`);
+  assert("the customer gets it now, once (x_invoice_sent_at + x_sent_to_customer_at set)", invoiceSends().length === 1 && !!inv.x_invoice_sent_at && !!inv.x_sent_to_customer_at, JSON.stringify(sentTo(C1_PHONE).map((b: any) => b?.text?.body ?? b?.template?.name)));
+  assert("…a plain «فاتورة» before 10-01: no VAT line in the message", !/ضريبة/.test(String(invoiceSends()[0]?.text?.body ?? "")), String(invoiceSends()[0]?.text?.body));
+  assert("the collector gets the collection request", sentTo("966500000602").length >= 1 || heldFor(env, "966500000602").length >= 1);
+  setRiyadh("2026-09-30 08:00");
+  const owed = await quiet(() => OUT.owedByCustomer(env));
+  assert("nothing collected: the whole 150 stays due, and م2 (3 days later) reminds it", owed.get(C1)?.amount === 150 && owed.get(C1)?.invoices[0] === inv.x_invoice_number, JSON.stringify([...owed]));
+  assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
+}
+
+console.log("\n[ج] a partial collection after it: a payment on the invoice, the rest due, no second invoice");
+{
+  const env = deliveryEnv("2026-09-27 09:00", "2026-09-26");
+  const o = onTheWay("2026-09-26", 10);
+  await tapAs(env, `delivered_${o}`, DRIVER);
+  const [inv] = invoiceOf(o);
+  const sent0 = invoiceSends().length;
+  const p = await quiet(() => INV.recordCollection(env, { invoiceId: inv.id, method: "transfer", amount: 100 }));
+  assert("the partial 100 of 300: a payment, the invoice still issued, the order not closed", p.paymentId !== null && !p.fullyPaid && table("x_invoice").get(inv.id)!.x_status === "issued" && table("x_daily_order").get(o)!.x_state === "delivered", JSON.stringify(p));
+  assert("no invoice message from the collection (it went at delivery)", invoiceSends().length === sent0 && sent0 === 1);
+  assert("…and no second x_invoice", invoiceOf(o).length === 1);
+  setRiyadh("2026-09-30 08:00");
+  const owed = await quiet(() => OUT.owedByCustomer(env));
+  assert("the rest (200) stays due: م2 reminds 200", owed.get(C1)?.amount === 200, JSON.stringify([...owed]));
+}
+
+console.log("\n[ج] full collection after it: paid, the order closed, still one invoice message");
+{
+  const env = deliveryEnv("2026-09-27 09:00", "2026-09-26");
+  const o = onTheWay("2026-09-26", 4);
+  await tapAs(env, `delivered_${o}`, DRIVER);
+  const [inv] = invoiceOf(o);
+  const t = await tapAs(env, `collect_cash_${inv.id}`, COLL);
+  assert("the collector's tap: «تم تسجيل التحصيل نقد»", /تم تسجيل التحصيل نقد/.test(replyOf(t)), replyOf(t));
+  assert("paid 120, the order closed", table("x_invoice").get(inv.id)!.x_status === "paid" && table("x_daily_order").get(o)!.x_state === "closed" && rows("x_payment").length === 1 && rows("x_payment")[0].x_amount === 120);
+  assert("one invoice message in all (at delivery)", invoiceSends().length === 1);
+  setRiyadh("2026-09-30 08:00");
+  assert("nothing due: م2 has nothing for the customer", !(await quiet(() => OUT.owedByCustomer(env))).has(C1));
+}
+
+console.log("\n[ج] one invoice per order: a second tap, a retry, a claim held, a sent one");
+{
+  const env = deliveryEnv("2026-09-27 09:00", "2026-09-26");
+  const o = onTheWay("2026-09-26");
+  await tapAs(env, `delivered_${o}`, DRIVER);
+  const t2 = await tapAs(env, `delivered_${o}`, DRIVER);
+  assert("a second «تم التسليم»: «تم مسبقاً», still one invoice, one message", replyOf(t2) === ALREADY_DONE_TEXT && invoiceOf(o).length === 1 && invoiceSends().length === 1, replyOf(t2));
+  const again = await quiet(() => INV.createAndDispatchInvoiceForOrder(env, o));
+  assert("the issue called again (a retry): the same x_invoice, nothing created or sent", again?.invoiceId === invoiceOf(o)[0].id && invoiceOf(o).length === 1 && invoiceSends().length === 1);
+  env.MSG_DEDUP.store.delete(`btnlock:v1:invoice_issue:${o}`);
+  const lost = await quiet(() => INV.createAndDispatchInvoiceForOrder(env, o));
+  assert("the KV claim lost (expired, or KV down): the order's x_invoice alone stops a second one", lost?.invoiceId === invoiceOf(o)[0].id && invoiceOf(o).length === 1 && invoiceSends().length === 1);
+  const o2 = onTheWay("2026-09-26");
+  env.MSG_DEDUP.store.set(`btnlock:v1:invoice_issue:${o2}`, "run:1:x");
+  const held = await quiet(() => INV.createAndDispatchInvoiceForOrder(env, o2));
+  assert("another issue of the same order running (its KV claim): no invoice created", held === null && invoiceOf(o2).length === 0);
+  env.MSG_DEDUP.store.delete(`btnlock:v1:invoice_issue:${o2}`);
+  const ok2 = await quiet(() => INV.createAndDispatchInvoiceForOrder(env, o2));
+  assert("…once it is gone: issued (UTAK-INV-20260927-002), and the claim kept «done»", ok2?.number === "UTAK-INV-20260927-002" && String(env.MSG_DEDUP.store.get(`btnlock:v1:invoice_issue:${o2}`)).startsWith("done:"), JSON.stringify(ok2));
+  const inv = invoiceOf(o)[0];
+  const n = invoiceSends().length;
+  const r1 = await quiet(() => INV.sendIssuedInvoice(env, inv.id, inv.x_invoice_number, async () => { throw new Error("must not be called"); }));
+  assert("x_invoice_sent_at set: the send is skipped («already_sent»)", r1 === "already_sent" && invoiceSends().length === n);
+  table("x_invoice").get(inv.id)!.x_invoice_sent_at = false;
+  const r2 = await quiet(() => INV.sendIssuedInvoice(env, inv.id, inv.x_invoice_number, async () => { throw new Error("meta down"); }));
+  const alerts = sentTo(OWNER).map((b: any) => String(b?.text?.body ?? ""));
+  assert("a failed send releases x_invoice_sent_at and alerts Baraa", r2 === "failed" && table("x_invoice").get(inv.id)!.x_invoice_sent_at === false && alerts.some((x) => /تعذّر إرسال الفاتورة للعميل عند التسليم/.test(x)), JSON.stringify(alerts));
+}
+
+console.log("\n[ج] the issue moment's Riyadh day: a delivery at 02:30 (23:30 UTC the day before)");
+{
+  const env = deliveryEnv("2026-10-01 02:30", "2026-09-30");
+  seed("x_invoice", { x_invoice_number: "UTAK-INV-20261001-001", x_invoice_date: "2026-10-01", x_total: 1, x_status: "issued", x_utak_simulation: true });
+  seed("x_invoice", { x_invoice_number: "UTAK-INV-20260930-004", x_invoice_date: "2026-09-30", x_total: 1, x_status: "issued" });
+  seed("account.tax", { id: 77, amount: 15, amount_type: "percent", type_tax_use: "sale", price_include: true, active: true });
+  seed("res.company", { id: 1, name: "شركة يوتاك ذات مسؤولية محدودة", vat: "315022736600003", account_sale_tax_id: [77, "15%"] });
+  const o = onTheWay("2026-09-30");
+  await tapAs(env, `delivered_${o}`, DRIVER);
+  const [inv] = invoiceOf(o);
+  assert("date 10-01 and number UTAK-INV-20261001-001: the Riyadh day (not the UTC 09-30), the serial without the simulation invoice of 10-01",
+    inv.x_invoice_date === "2026-10-01" && inv.x_invoice_number === "UTAK-INV-20261001-001" && inv.x_issued_at === "2026-09-30 23:30:00", `${inv.x_invoice_date} ${inv.x_invoice_number} ${inv.x_issued_at}`);
+  assert("…and VAT by that day: 150 = 130.43 + 19.57", inv.x_total === 150 && inv.x_tax_amount === 19.57 && inv.x_subtotal === 130.43, JSON.stringify(inv));
+}
+
+console.log("\n[ج] a simulation order: no invoice issued or sent");
+{
+  const env = deliveryEnv("2026-09-27 09:00", "2026-09-26");
+  const o = onTheWay("2026-09-26", 5, { x_utak_simulation: true });
+  const r = await tapAs(env, `delivered_${o}`, DRIVER);
+  assert("delivered (the stop and the order), but no x_invoice and no invoice message", /تم التسليم/.test(replyOf(r)) && invoiceOf(o).length === 0 && invoiceSends().length === 0, replyOf(r));
+  const direct = await quiet(() => INV.createAndDispatchInvoiceForOrder(env, o));
+  assert("…and called directly: null", direct === null && invoiceOf(o).length === 0);
+}
+
+console.log("\n[ج] the 18:00 list and م2 by x_utak_simulation: a sim / pilot invoice (x_is_simulation) is chased");
+{
+  const env = deliveryEnv("2026-09-27 09:00", "2026-09-26");
+  const o = onTheWay("2026-09-26");
+  await tapAs(env, `delivered_${o}`, DRIVER);
+  const inv = invoiceOf(o)[0];
+  inv.x_is_simulation = true;                                  // every invoice of the sim / pilot worker
+  const { getUnpaidInvoicesWithCustomer } = await import("../src/odoo.ts");
+  const list = await quiet(() => getUnpaidInvoicesWithCustomer(env));
+  assert("the 18:00 collection list has it", list.some((x) => x.id === inv.id), JSON.stringify(list));
+  inv.x_utak_simulation = true;
+  const list2 = await quiet(() => getUnpaidInvoicesWithCustomer(env));
+  setRiyadh("2026-09-30 08:00");
+  assert("…marked x_utak_simulation: neither the list nor م2", !list2.some((x) => x.id === inv.id) && !(await quiet(() => OUT.owedByCustomer(env))).has(C1));
+  const src = readFileSync(new URL("../src/invoice.ts", import.meta.url), "utf8");
+  assert("the «after full collection» send is gone from the code", !/function sendInvoiceToCustomerIfPaid|deferred until fully collected|sendInvoiceToCustomerIfPaid\(/.test(src));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 

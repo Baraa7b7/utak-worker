@@ -1,26 +1,143 @@
 {
-  "at": "2026-09-26T11:09:54.883Z",
-  "caught": 2,
-  "total": 2,
+  "at": "2026-09-26T11:17:01.998Z",
+  "caught": 14,
+  "total": 14,
   "results": [
     {
-      "part": "ب",
-      "name": "the daily alert back in the prices tick",
+      "part": "ج",
+      "name": "a simulation order gets an invoice",
       "caught": true,
       "fails": [
-        "✗ no «المحطات» alert to Baraa all day — [\"⚠️ «عدد المحطات اليومية المخطط» فارغ في «⚙️ إعدادات التسعير».\",\"⚠️ «عدد المحطات اليومية المخطط» فارغ في «⚙️ إعدادات التسعير».\",\"⚠️ «عدد المحطات اليومية المخطط» فارغ في «⚙️ إعدادات التسعير».\",\"⚠️ «عدد المحطات اليومية المخطط» فارغ في «⚙️ إعدادات التسعير».\",\"⚠️ «عدد المحطات اليومية المخطط» فارغ في «⚙️ إعدادات التسعير».\",\"⚠️ «عدد المحطات اليومية المخطط» فارغ في «⚙️ إعدادات التسعير».\"]",
-        "✗ the next day neither",
-        "✗ no «المحطات» alert to Baraa all day",
-        "✗ the next day neither"
+        "✗ delivered (the stop and the order), but no x_invoice and no invoice message — تم التسليم ✅ — التوصيلة الجاية بانتظارك.",
+        "✗ …and called directly: null",
+        "✗ delivered (the stop and the order), but no x_invoice and no invoice message",
+        "✗ …and called directly: null"
       ]
     },
     {
-      "part": "ب",
-      "name": "empty planned stops → a discount anyway",
+      "part": "ج",
+      "name": "no check for the order's existing invoice",
       "caught": true,
       "fails": [
-        "✗ the discount stays off while the field is empty (600 in the 2 % tier) — {\"gross\":600,\"tierPct\":2,\"pct\":0,\"amount\":0,\"profitBefore\":156.52,\"profitAfter\":146.1,\"minProfit\":null,\"applied\":false,\"reason\":\"ربح الطلب بعد الخصم 146.10 أقل من Infinity (تكلفة اليوم ÷ المحطات)\"}",
-        "✗ the discount stays off while the field is empty (600 in the 2 % tier)"
+        "✗ the KV claim lost (expired, or KV down): the order's x_invoice alone stops a second one",
+        "✗ …once it is gone: issued (UTAK-INV-20260927-002), and the claim kept «done» — {\"invoiceId\":10030,\"number\":\"UTAK-INV-20260927-003\",\"total\":150}",
+        "✗ the KV claim lost (expired, or KV down): the order's x_invoice alone stops a second one",
+        "✗ …once it is gone: issued (UTAK-INV-20260927-002), and the claim kept «done»"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "no KV claim while an invoice is issued",
+      "caught": true,
+      "fails": [
+        "✗ another issue of the same order running (its KV claim): no invoice created",
+        "✗ …once it is gone: issued (UTAK-INV-20260927-002), and the claim kept «done» — {\"invoiceId\":10027,\"number\":\"UTAK-INV-20260927-002\",\"total\":150}",
+        "✗ another issue of the same order running (its KV claim): no invoice created",
+        "✗ …once it is gone: issued (UTAK-INV-20260927-002), and the claim kept «done»"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the claim released after an issue (not kept «done»)",
+      "caught": true,
+      "fails": [
+        "✗ …once it is gone: issued (UTAK-INV-20260927-002), and the claim kept «done» — {\"invoiceId\":10027,\"number\":\"UTAK-INV-20260927-002\",\"total\":150}",
+        "✗ …once it is gone: issued (UTAK-INV-20260927-002), and the claim kept «done»"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the invoice not sent at «تم التسليم»",
+      "caught": true,
+      "fails": [
+        "✗ the customer gets it now, once (x_invoice_sent_at + x_sent_to_customer_at set) — [\"utak_delivered\"]",
+        "✗ no invoice message from the collection (it went at delivery)",
+        "✗ one invoice message in all (at delivery)",
+        "✗ a second «تم التسليم»: «تم مسبقاً», still one invoice, one message — تم هذا الإجراء مسبقاً ✅"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "x_invoice_sent_at not checked before the send",
+      "caught": true,
+      "fails": [
+        "✗ x_invoice_sent_at set: the send is skipped («already_sent»)",
+        "✗ x_invoice_sent_at set: the send is skipped («already_sent»)"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "a failed send keeps x_invoice_sent_at (never retried)",
+      "caught": true,
+      "fails": [
+        "✗ a failed send releases x_invoice_sent_at and alerts Baraa — [\"[invoice-send] UTAK-INV-20260927-001: تعذّر إرسال الفاتورة للعميل عند التسليم — meta down\"]",
+        "✗ a failed send releases x_invoice_sent_at and alerts Baraa"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the supply / issue time not written",
+      "caught": true,
+      "fails": [
+        "✗ its supply / issue time = the moment of «تم التسليم» (x_issued_at 05:40 UTC = 08:40 Riyadh) — undefined",
+        "✗ date 10-01 and number UTAK-INV-20261001-001: the Riyadh day (not the UTC 09-30), the serial without the simulation invoice of 10-01 — 2026-10-01 UTAK-INV-20261001-001 undefined",
+        "✗ its supply / issue time = the moment of «تم التسليم» (x_issued_at 05:40 UTC = 08:40 Riyadh)",
+        "✗ date 10-01 and number UTAK-INV-20261001-001: the Riyadh day (not the UTC 09-30), the serial without the simulation invoice of 10-01"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the number's day from UTC (02:30 Riyadh → yesterday)",
+      "caught": true,
+      "fails": [
+        "✗ date 10-01 and number UTAK-INV-20261001-001: the Riyadh day (not the UTC 09-30), the serial without the simulation invoice of 10-01 — 2026-10-01 UTAK-INV-20260930-001 2026-09-30 23:30:00",
+        "✗ date 10-01 and number UTAK-INV-20261001-001: the Riyadh day (not the UTC 09-30), the serial without the simulation invoice of 10-01"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the invoice date from UTC",
+      "caught": true,
+      "fails": [
+        "✗ date 10-01 and number UTAK-INV-20261001-001: the Riyadh day (not the UTC 09-30), the serial without the simulation invoice of 10-01 — 2026-09-30 UTAK-INV-20260930-002 2026-09-30 23:30:00",
+        "✗ …and VAT by that day: 150 = 130.43 + 19.57 — {\"x_order_id\":10013,\"x_invoice_number\":\"UTAK-INV-20260930-002\",\"x_invoice_date\":\"2026-09-30\",\"x_subtotal\":150,\"x_tax_amount\":0,\"x_total\":150,\"x_status\":\"issued\",\"x_issued_at\":\"2026-09-30 23:30:00\",\"x_is_simulation\":true,\"id\":10017,\"x_invoice_sent_at\":\"2026-09-30 23:30:00\",\"x_sent_to_customer_at\":\"2026-09-30 23:30:00\",\"x_sent_to_collector_at\":\"2026-09-30 23:30:00\"}",
+        "✗ date 10-01 and number UTAK-INV-20261001-001: the Riyadh day (not the UTC 09-30), the serial without the simulation invoice of 10-01",
+        "✗ …and VAT by that day: 150 = 130.43 + 19.57"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the day's serial counts the simulation invoices",
+      "caught": true,
+      "fails": [
+        "✗ date 10-01 and number UTAK-INV-20261001-001: the Riyadh day (not the UTC 09-30), the serial without the simulation invoice of 10-01 — 2026-10-01 UTAK-INV-20261001-002 2026-09-30 23:30:00",
+        "✗ date 10-01 and number UTAK-INV-20261001-001: the Riyadh day (not the UTC 09-30), the serial without the simulation invoice of 10-01"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "a zero invoice when every line is short",
+      "caught": true,
+      "fails": []
+    },
+    {
+      "part": "ج",
+      "name": "م2 back on x_is_simulation (nothing reminded on sim / pilot)",
+      "caught": true,
+      "fails": [
+        "✗ nothing collected: the whole 150 stays due, and م2 (3 days later) reminds it — []",
+        "✗ the rest (200) stays due: م2 reminds 200 — []",
+        "✗ nothing collected: the whole 150 stays due, and م2 (3 days later) reminds it",
+        "✗ the rest (200) stays due: م2 reminds 200"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the 18:00 list back on x_is_simulation",
+      "caught": true,
+      "fails": [
+        "✗ the 18:00 collection list has it — []",
+        "✗ the 18:00 collection list has it"
       ]
     }
   ]

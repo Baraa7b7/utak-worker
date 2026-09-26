@@ -140,12 +140,14 @@ async function readPayRemindState(env: Env, custId: number): Promise<PayRemindSt
 export async function owedByCustomer(env: Env): Promise<Map<number, { amount: number; invoices: string[] }>> {
   type Inv = { id: number; x_invoice_number: string; x_total: number; x_order_id: M2O };
   const invoices = await call<Inv[]>(env, "x_invoice", "search_read", {
-    // Same rule as the 18:00 collection list: simulation / test invoices
-    // (x_is_simulation) are never chased.
+    // Same rule as the 18:00 collection list: simulation / test invoices are
+    // never chased. § 41 ج — by x_utak_simulation (§ 38), not x_is_simulation:
+    // every invoice the sim / pilot worker issues carries x_is_simulation, so
+    // the remaining of an invoice sent at «تم التسليم» was never reminded there.
     domain: [
       ["x_status", "in", ["issued", "overdue"]],
       ["x_invoice_date", "<=", riyadhYmdAgo(PAY_REMIND_MIN_AGE_DAYS)],
-      ["x_is_simulation", "!=", true],
+      ["x_utak_simulation", "!=", true],
     ],
     fields: ["id", "x_invoice_number", "x_total", "x_order_id"],
     limit: 500,

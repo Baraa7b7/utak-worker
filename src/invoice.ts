@@ -32,6 +32,7 @@ import {
   saleLineDescription,
 } from "./sale-accounting";
 import { buttonsContent, sendText, textContent } from "./meta";
+import { claimButton, finishButton, releaseButton } from "./button-lock";
 import { gatewayDecision, sendViaGateway, type GwOption } from "./wa-gateway";
 import { sendOwnerAlert, sendTemplateByPurpose, T } from "./templates";
 import {
@@ -58,8 +59,22 @@ import { UI, resolveDocLang, type DocLang } from "./i18n";
 import { formatDateEn, fromPartyFor, itemCellHTML, labelForBillTo, labelForFrom, labelForTerms, taglineFor, thanksLine } from "./doc-shell";
 
 // --------------------------------------------------------------
-// 5.2 — createAndDispatchInvoiceForOrder (unchanged)
+// 5.2 — createAndDispatchInvoiceForOrder
+//
+// § 41 ج (2026-09-26, م18) — the customer's invoice is issued AND sent at the
+// moment of «تم التسليم» on the stop, whatever was collected (all, part or
+// nothing). Its supply and issue time is that moment (x_issued_at; its date
+// and its number's day are that moment's Riyadh day). Collections after it
+// record payments on it (م10 and the receipt per payment, unchanged); what is
+// left stays due and the payment reminder (م2) sees it. One invoice per order:
+// the order's x_invoice first, then a KV claim held while it is issued; the
+// customer send claims x_invoice_sent_at. An order marked x_utak_simulation
+// gets no invoice. The old «send only after full collection» path
+// (sendInvoiceToCustomerIfPaid, ACCOUNTING_SYNC) is gone.
 // --------------------------------------------------------------
+export const INVOICE_CLAIM_TTL = 10 * 60;
+export const INVOICE_DONE_TTL = 30 * 24 * 60 * 60;
+
 export async function createAndDispatchInvoiceForOrder(
   env: Env,
   orderId: number,
@@ -69,26 +84,49 @@ export async function createAndDispatchInvoiceForOrder(
     console.warn(`[invoice] order ${orderId} not found or empty`);
     return null;
   }
-
-  // 2026-09-23 (ACCOUNTING_SYNC) — sale-order flow. A second «delivered» tap
-  // reuses the order's x_invoice instead of issuing (and sending) a second
-  // one, and an order whose every line is a shortage issues no invoice at
-  // all: the sale order stays open, un-invoiced, and the owner is alerted.
-  const accountingOn = isAccountingSyncEnabled(env);
-  if (accountingOn) {
-    const existing = await findInvoiceForOrder(env, orderId);
-    if (existing) {
-      console.log(`[invoice] order ${orderId} already has x_invoice ${existing.invoiceId} (${existing.number}) — no second invoice`);
-      return existing;
-    }
-    if (order.lines.length === 0) {
-      await ensureSaleOrderForDailyOrder(env, orderId);
-      const msg = `[invoice] الطلب ${orderId}: كل الأصناف ناقصة — لم تصدر فاتورة، وأمر البيع باقٍ بلا فوترة`;
-      console.warn(msg);
-      try { await sendOwnerAlert(env, msg); } catch { /* alert must not block */ }
-      return null;
-    }
+  if (await isSimulationOrder(env, orderId)) {
+    console.log(`[invoice] order ${orderId} is marked x_utak_simulation — no invoice issued or sent`);
+    return null;
   }
+
+  // One invoice per order: a second «تم التسليم» (or a retry) reuses it.
+  const existing = await findInvoiceForOrder(env, orderId);
+  if (existing) {
+    console.log(`[invoice] order ${orderId} already has x_invoice ${existing.invoiceId} (${existing.number}) — no second invoice`);
+    return existing;
+  }
+  const claim = await claimButton(env, `invoice_issue:${orderId}`, INVOICE_CLAIM_TTL);
+  if (!claim.claimed) {
+    console.warn(`[invoice] order ${orderId}: another issue is running (${claim.state.slice(0, 40)}) — no second invoice`);
+    return await findInvoiceForOrder(env, orderId);
+  }
+  let issued: { invoiceId: number; number: string; total: number } | null = null;
+  try {
+    issued = await issueAndDispatchInvoice(env, orderId, order);
+  } finally {
+    if (issued) await finishButton(env, claim, INVOICE_DONE_TTL);
+    else await releaseButton(env, claim);
+  }
+  return issued;
+}
+
+async function issueAndDispatchInvoice(
+  env: Env,
+  orderId: number,
+  order: NonNullable<Awaited<ReturnType<typeof getOrderForInvoicing>>>,
+): Promise<{ invoiceId: number; number: string; total: number } | null> {
+  const accountingOn = isAccountingSyncEnabled(env);
+  // Every line short at delivery: no invoice at all (a zero invoice is never
+  // sent); the sale order (ACCOUNTING_SYNC) stays open, un-invoiced.
+  if (order.lines.length === 0) {
+    if (accountingOn) await ensureSaleOrderForDailyOrder(env, orderId);
+    const msg = `[invoice] الطلب ${orderId}: كل الأصناف ناقصة — لم تصدر فاتورة${accountingOn ? "، وأمر البيع باقٍ بلا فوترة" : ""}`;
+    console.warn(msg);
+    try { await sendOwnerAlert(env, msg); } catch { /* alert must not block */ }
+    return null;
+  }
+  // The moment of «تم التسليم»: the supply and issue time of the invoice.
+  const issuedAt = new Date();
 
   let subtotal = 0;
   const pricedLines: Array<{
@@ -126,7 +164,7 @@ export async function createAndDispatchInvoiceForOrder(
   // net + 15% (per line, then summed). Before it: tax 0, exactly as before.
   // If the cutoff has passed but the Odoo sale tax cannot be resolved we stop
   // here — never issue a post-cutoff invoice silently without VAT.
-  const invoiceDateYmd = todayRiyadhYmd();
+  const invoiceDateYmd = todayRiyadhYmd(issuedAt);
   let saleTax: SaleTax | null;
   try {
     saleTax = await resolveSaleTaxForDate(env, invoiceDateYmd);
@@ -158,9 +196,11 @@ export async function createAndDispatchInvoiceForOrder(
   const total = totals.total;
   subtotal = totals.subtotal;
 
-  const today = new Date();
-  const ymd = today.toISOString().slice(0, 10).replace(/-/g, "");
-  const count = await getInvoiceCountToday(env);
+  // § 41 ج — the number's day is the Riyadh day of issue (it was the UTC day:
+  // a delivery between 02:00 and 03:00 Riyadh took yesterday's), and the
+  // serial counts that day's invoices (simulation ones left out).
+  const ymd = invoiceDateYmd.replace(/-/g, "");
+  const count = await getInvoiceCountToday(env, invoiceDateYmd);
   const seq = String(count + 1).padStart(3, "0");
   const invoiceNumber = `UTAK-INV-${ymd}-${seq}`;
 
@@ -168,6 +208,7 @@ export async function createAndDispatchInvoiceForOrder(
     orderId,
     invoiceNumber,
     invoiceDate: invoiceDateYmd,
+    issuedAt,
     subtotal,
     tax,
     total,
@@ -225,29 +266,19 @@ export async function createAndDispatchInvoiceForOrder(
     console.warn(`[invoice] PDF pipeline failed`, (e as Error).message);
   }
 
-  // 2026-09-23 (ACCOUNTING_SYNC) — the invoice reaches the customer only
-  // once it is fully collected (sendInvoiceToCustomerIfPaid, collection
-  // path). Issue, posting and the archived PDF above stay at delivery.
-  if (accountingOn) {
-    console.log(`[invoice] ${invoiceNumber}: customer WhatsApp deferred until fully collected`);
-  } else {
-    try {
-      await dispatchInvoiceToCustomer(env, {
-        to: order.customer_whatsapp,
-        customerName: order.customer_name,
-        invoiceNumber,
-        invoiceDateYmd,
-        total,
-        subtotal,
-        tax,
-        pdfUrl,
-        lines: pricedLines,
-      });
-      await writeInvoice(env, invoiceId, { x_sent_to_customer_at: nowOdoo() });
-    } catch (e) {
-      console.warn(`[invoice] failed to send to customer`, (e as Error).message);
-    }
-  }
+  // § 41 ج — the invoice reaches the customer now, at «تم التسليم», once
+  // (x_invoice_sent_at claimed before the send, released if it fails).
+  await sendIssuedInvoice(env, invoiceId, invoiceNumber, () => dispatchInvoiceToCustomer(env, {
+    to: order.customer_whatsapp,
+    customerName: order.customer_name,
+    invoiceNumber,
+    invoiceDateYmd,
+    total,
+    subtotal,
+    tax,
+    pdfUrl,
+    lines: pricedLines,
+  }));
 
   const collectors = await getCollectorTeamMembers(env);
   if (collectors.length === 0) {
@@ -313,8 +344,7 @@ export async function createAndDispatchInvoiceForOrder(
 }
 
 // --------------------------------------------------------------
-// Customer invoice WhatsApp — shared by the issue path (ACCOUNTING_SYNC off)
-// and the paid path (ACCOUNTING_SYNC on, sendInvoiceToCustomerIfPaid).
+// Customer invoice WhatsApp — sent once, at «تم التسليم» (§ 41 ج).
 // --------------------------------------------------------------
 interface CustomerInvoiceSend {
   to: string;
@@ -427,69 +457,47 @@ export async function sendInvoiceDocumentToCustomer(env: Env, invoiceId: number)
   });
 }
 
-export type InvoiceSendOutcome = "off" | "already_sent" | "not_paid" | "sent" | "failed";
-
-export interface InvoiceSendDeps {
-  /** Injected by the live verify to count sends; defaults to the real WhatsApp send. */
-  send?: (env: Env, invoiceId: number) => Promise<void>;
-}
+export type InvoiceSendOutcome = "already_sent" | "sent" | "failed";
 
 /**
- * 2026-09-23 (ACCOUNTING_SYNC) — WhatsApp the invoice to the customer once,
- * only after it is fully collected: x_invoice.x_status = paid AND, when it
- * is twinned in accounting, account.move.payment_state paid / in_payment
- * (in_payment = fully paid by transfer, bank statement not matched yet).
- * x_invoice_sent_at is claimed BEFORE the send so a second collection can
- * never send twice; a failed send releases the claim and alerts the owner.
+ * § 41 ج — the one customer send of an issued invoice: x_invoice_sent_at is
+ * claimed BEFORE the send (a second «تم التسليم» or a retry finds it set and
+ * sends nothing); a failed send releases it and alerts the owner. Never throws.
  */
-export async function sendInvoiceToCustomerIfPaid(
-  env: Env,
-  invoiceId: number,
-  deps: InvoiceSendDeps = {},
-): Promise<InvoiceSendOutcome> {
-  if (!isAccountingSyncEnabled(env)) return "off";
-  type Row = {
-    id: number;
-    x_invoice_number: string;
-    x_status: string;
-    x_invoice_sent_at: string | false;
-    x_account_move_id: [number, string] | false;
-  };
-  const [inv] = await call<Row[]>(env, "x_invoice", "read", {
-    ids: [invoiceId],
-    fields: ["id", "x_invoice_number", "x_status", "x_invoice_sent_at", "x_account_move_id"],
-  });
-  if (!inv) return "not_paid";
-  if (inv.x_invoice_sent_at) {
-    console.log(`[invoice-send] ${inv.x_invoice_number} already sent at ${inv.x_invoice_sent_at} — skip`);
-    return "already_sent";
-  }
-  if (inv.x_status !== "paid") return "not_paid";
-  if (inv.x_account_move_id) {
-    const [m] = await call<Array<{ id: number; payment_state: string }>>(env, "account.move", "read", {
-      ids: [inv.x_account_move_id[0]],
-      fields: ["id", "payment_state"],
-    });
-    if (m?.payment_state !== "paid" && m?.payment_state !== "in_payment") {
-      const msg = `[invoice-send] ${inv.x_invoice_number}: محصّلة في x_invoice لكن القيد ${inv.x_account_move_id[0]} حالة سداده ${m?.payment_state ?? "?"} — لم تُرسل الفاتورة للعميل`;
-      console.warn(msg);
-      try { await sendOwnerAlert(env, msg); } catch { /* alert must not block */ }
-      return "not_paid";
-    }
-  }
-
-  await writeInvoice(env, invoiceId, { x_invoice_sent_at: nowOdoo() });
+export async function sendIssuedInvoice(env: Env, invoiceId: number, invoiceNumber: string, send: () => Promise<void>): Promise<InvoiceSendOutcome> {
   try {
-    await (deps.send ?? sendInvoiceDocumentToCustomer)(env, invoiceId);
+    const [inv] = await call<Array<{ id: number; x_invoice_sent_at: string | false }>>(env, "x_invoice", "read", {
+      ids: [invoiceId], fields: ["id", "x_invoice_sent_at"],
+    });
+    if (inv?.x_invoice_sent_at) {
+      console.log(`[invoice-send] ${invoiceNumber} already sent at ${inv.x_invoice_sent_at} — skip`);
+      return "already_sent";
+    }
+    await writeInvoice(env, invoiceId, { x_invoice_sent_at: nowOdoo() });
+  } catch (e) {
+    console.warn(`[invoice-send] ${invoiceNumber}: x_invoice_sent_at claim failed — sending anyway`, (e as Error).message);
+  }
+  try {
+    await send();
     await writeInvoice(env, invoiceId, { x_sent_to_customer_at: nowOdoo() });
-    console.log(`[invoice-send] ${inv.x_invoice_number} sent to customer after full collection`);
     return "sent";
   } catch (e) {
     await writeInvoice(env, invoiceId, { x_invoice_sent_at: false }).catch(() => {});
-    const msg = `[invoice-send] ${inv.x_invoice_number}: تعذّر إرسال الفاتورة للعميل بعد التحصيل — ${(e as Error).message}`;
+    const msg = `[invoice-send] ${invoiceNumber}: تعذّر إرسال الفاتورة للعميل عند التسليم — ${(e as Error).message}`;
     console.error(msg);
     try { await sendOwnerAlert(env, msg); } catch { /* alert must not block */ }
     return "failed";
+  }
+}
+
+/** § 41 ج — the order is a simulation (x_utak_simulation): no invoice. Unreadable → not a simulation (the flag is read, never guessed true). */
+async function isSimulationOrder(env: Env, orderId: number): Promise<boolean> {
+  try {
+    const [o] = await call<Array<{ id: number; x_utak_simulation: boolean }>>(env, "x_daily_order", "read", { ids: [orderId], fields: ["id", "x_utak_simulation"] });
+    return o?.x_utak_simulation === true;
+  } catch (e) {
+    console.warn(`[invoice] order ${orderId}: simulation flag unreadable`, (e as Error).message);
+    return false;
   }
 }
 
@@ -525,28 +533,26 @@ export interface CollectionArgs {
 export interface CollectionOutcome extends CollectionResult {
   paymentId: number | null;
   fullyPaid: boolean;
-  send: InvoiceSendOutcome | null;
 }
 
 /**
  * Record one collection on an x_invoice. The button collects the open
  * balance; an explicit smaller `amount` is a partial collection: x_invoice
- * stays issued, the order stays open, and the invoice is NOT sent. The
- * collection that completes the balance marks it paid, closes the order and
- * (ACCOUNTING_SYNC) triggers the one-time invoice send.
+ * stays issued (the rest due) and the order stays open. The collection that
+ * completes the balance marks it paid and closes the order. § 41 ج: the
+ * invoice itself went to the customer at «تم التسليم» — nothing is sent here.
  */
 export async function recordCollection(
   env: Env,
   a: CollectionArgs,
-  deps: InvoiceSendDeps = {},
 ): Promise<CollectionOutcome> {
   const { invoiceId, method } = a;
   const invoice = await getInvoiceById(env, invoiceId);
   if (!invoice) {
-    return { text: `الفاتورة رقم ${invoiceId} غير موجودة.`, paymentId: null, fullyPaid: false, send: null };
+    return { text: `الفاتورة رقم ${invoiceId} غير موجودة.`, paymentId: null, fullyPaid: false };
   }
   if (invoice.status === "paid") {
-    return { text: `الفاتورة ${invoice.number} تم تحصيلها مسبقاً ✅`, paymentId: null, fullyPaid: true, send: null };
+    return { text: `الفاتورة ${invoice.number} تم تحصيلها مسبقاً ✅`, paymentId: null, fullyPaid: true };
   }
 
   const prior = await call<Array<{ id: number; x_amount: number }>>(env, "x_payment", "search_read", {
@@ -558,7 +564,7 @@ export async function recordCollection(
   const remaining = round2(invoice.total - collected);
   let amount = a.amount ?? remaining;
   if (!(amount > 0) || !(remaining > 0)) {
-    return { text: `لا يوجد مبلغ متبقٍ للتحصيل على الفاتورة ${invoice.number}.`, paymentId: null, fullyPaid: remaining <= 0, send: null };
+    return { text: `لا يوجد مبلغ متبقٍ للتحصيل على الفاتورة ${invoice.number}.`, paymentId: null, fullyPaid: remaining <= 0 };
   }
   if (amount > remaining) amount = remaining;
   amount = round2(amount);
@@ -628,22 +634,14 @@ export async function recordCollection(
   // message of this payment (src/payment-confirm.ts). § 34's own «تم استلام
   // الدفعة» line was a second message inside the window.
 
-  // 2026-09-23 — the invoice goes to the customer only now, once, and only
-  // when this collection completed the balance. Never throws.
-  let send: InvoiceSendOutcome | null = null;
-  if (fullyPaid) {
-    try {
-      send = await sendInvoiceToCustomerIfPaid(env, invoiceId, deps);
-    } catch (e) {
-      console.error(`[collection] invoice send threw`, (e as Error).message);
-    }
-  }
+  // § 41 ج — the invoice itself reached the customer at «تم التسليم» (the
+  // «after full collection» send is gone).
 
   const how = method === "cash" ? "نقد 💵" : "تحويل 🏦";
   const text = fullyPaid
     ? `تم تسجيل التحصيل ${how} — الفاتورة ${invoice.number} ✅`
     : `تم تسجيل تحصيل جزئي ${how} ${amount} ر.س — الفاتورة ${invoice.number} (المتبقي ${round2(remaining - amount)} ر.س)`;
-  return { text, paymentId, fullyPaid, send };
+  return { text, paymentId, fullyPaid };
 }
 
 // --------------------------------------------------------------

@@ -210,6 +210,7 @@ const PRODUCT = (id: number) => CATALOG.find((p) => p.id === id)?.name ?? String
 
 // the report's figures
 const invoices: any[] = [];
+const payments: Array<{ invoice: string; amount: number; method: string; at: string }> = [];
 const summaries: Record<string, unknown> = {};
 const qrs: unknown[] = [];
 
@@ -450,6 +451,7 @@ await step("تحصيل كامل نقداً (مطعم الواحة) ← الإي�
   await tapTpl(TEAM.omar, `collect_cash_${inv.id}`, "نقد 💵");
   const [pay] = await sr<any>("x_payment", [["x_invoice_id", "=", inv.id]], ["id", "x_amount", "x_method"], { order: "id desc", limit: 1 });
   check("دفعة 228 نقداً والفاتورة مدفوعة", pay?.x_amount === 228 && (await invoiceOfOrder(c1Order))?.x_status === "paid", JSON.stringify(pay));
+  payments.push({ invoice: inv.x_invoice_number, amount: pay?.x_amount, method: "cash", at: nowRiyadh() });
   const r = await internal(worker, env, "/internal/receipt-issue", { _model: "x_payment", _id: pay.id });
   await new Promise((res) => setTimeout(res, 50));
   check("الإيصال (أتمتة #1 محاكاة داخل العملية): 202", r.status === 202 || r.status === 200, JSON.stringify(r));
@@ -461,6 +463,7 @@ await step("…تأكيد الدفعة للعميل", "13:31", async () => {
 await step("تحصيل جزئي تحويلاً (بقالة الريان) ← الإيصال والمتبقي", "14:00", async () => {
   const inv = await invoiceOfOrder(c2Order);
   const r = await INV.recordCollection(env, { invoiceId: inv.id, method: "transfer", amount: 100 });
+  payments.push({ invoice: inv.x_invoice_number, amount: 100, method: "transfer", at: nowRiyadh() });
   check("دفعة 100 تحويلاً، والفاتورة باقية «صادرة» (المتبقي 65)", r.paymentId && !r.fullyPaid && (await invoiceOfOrder(c2Order))?.x_status === "issued", JSON.stringify(r));
   await internal(worker, env, "/internal/receipt-issue", { _model: "x_payment", _id: r.paymentId });
   check("بقالة الريان: الإيصال و«المتبقي على الفاتورة: 65»", allTo(C.c2.phone).some((m) => /المتبقي على الفاتورة: 65/.test(m.text)) || allTo(C.c2.phone).some((m) => m.template === "utak_payment_received"), JSON.stringify(allTo(C.c2.phone).slice(-2)));
@@ -625,6 +628,7 @@ await step("تحصيل كامل نقداً (مطعم الواحة، الفاتو
   const [pay] = await sr<any>("x_payment", [["x_invoice_id", "=", tax1001.id]], ["id", "x_amount"], { order: "id desc", limit: 1 });
   await internal(worker, env, "/internal/receipt-issue", { _model: "x_payment", _id: pay?.id });
   check("190 نقداً، مدفوعة", pay?.x_amount === 190 && (await invoiceOfOrder(c1Order0930))?.x_status === "paid", JSON.stringify(pay));
+  payments.push({ invoice: tax1001.x_invoice_number, amount: pay?.x_amount, method: "cash", at: nowRiyadh() });
 });
 await step("مخبز الندى: كوتيشن بلا تأكيد ← 20:00 ← 21:00", "17:00", async () => {
   await say(C.c3.phone, "رمان كبير 7");
@@ -656,12 +660,27 @@ await step("ملخص 21:30 بسطر التغطية", "21:30", async () => {
   check("السطر الرابع في الرسالة", !!m && /تغطية تكاليف اليوم: 6% \(ربح 28.26 من 500.00\)/.test(m.text), m?.text);
 });
 
+// ---------------------------------------------------------------- the purchase lists («تم الشراء») for the accounting table
+const purchaseLists: Array<{ id: number; date: string; billDate: string; total: number; net: number; vat: number; supplierVat: boolean }> = [];
+for (const [id, billDate] of [[list0927, "2026-09-28"], [list0930, "2026-10-01"]] as Array<[number, string]>) {
+  if (!id) continue;
+  const [l] = await call<any[]>(env, "x_purchase_list", "read", { ids: [id], fields: ["id", "x_date", "x_aggregated_items", "x_supplier_id"] });
+  const items = JSON.parse(String(l?.x_aggregated_items || "[]")) as any[];
+  const total = Math.round(items.reduce((a, it) => a + (Number(it.unit_price ?? it.price_sar ?? 0) || 0) * (Number(it.total_quantity ?? it.quantity ?? 0) || 0), 0) * 100) / 100;
+  const sup = m2o(l?.x_supplier_id);
+  const [p] = sup ? await call<any[]>(env, "res.partner", "read", { ids: [sup], fields: ["vat"] }) : [];
+  const supplierVat = typeof p?.vat === "string" && !!p.vat.trim();
+  const vat = billDate >= "2026-10-01" && supplierVat ? Math.round(total * 15 / 115 * 100) / 100 : 0;
+  purchaseLists.push({ id, date: String(l?.x_date), billDate, total, net: Math.round((total - vat) * 100) / 100, vat, supplierVat });
+}
+
 // ---------------------------------------------------------------- the report
 const ok = checks.filter((c) => c.ok).length;
 const report = {
   run: RUN, mode: MODE, at: new Date(realNow()).toISOString(),
   checks: { ok, total: checks.length, failed: checks.filter((c) => !c.ok) },
-  steps, invoices, qrs, summaries,
+  allChecks: checks,
+  steps, invoices, payments, purchaseLists, qrs, summaries,
   network: Object.entries(netLog.reduce((a: Record<string, number>, n) => { a[`${n.host} ${n.method}`] = (a[`${n.host} ${n.method}`] ?? 0) + 1; return a; }, {})),
   capturedCount: captured.length,
   created: created.reduce((a: Record<string, number>, c) => { a[c.model] = (a[c.model] ?? 0) + c.ids.length; return a; }, {}),
@@ -671,4 +690,5 @@ writeFileSync(new URL("captured.json", OUT), JSON.stringify(captured, null, 1));
 writeFileSync(new URL("created.json", OUT), JSON.stringify({ run: RUN, mode: MODE, created, writes }, null, 1));
 console.log(`\n${ok}/${checks.length} checks · ${captured.length} messages captured (none sent) · Odoo creates: ${JSON.stringify(report.created)}`);
 console.log(`out: ${OUT.pathname}`);
+try { (await import("node:child_process")).execFileSync("node", [new URL("./s41-sim-report.mjs", import.meta.url).pathname, RUN], { stdio: "inherit" }); } catch (e) { console.log("report.md failed", (e as Error).message); }
 if (ok !== checks.length) process.exit(1);

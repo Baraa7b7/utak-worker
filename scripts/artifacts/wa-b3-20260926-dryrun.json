@@ -1,0 +1,55 @@
+{
+  "at": "2026-09-26T05:50:06.389Z",
+  "today": "2026-09-26",
+  "m12": [
+    {
+      "employee": 4,
+      "partner": 9,
+      "name": "عمر المجهلي",
+      "plan": "work",
+      "shift": "2:00–12:00",
+      "reminderAt": "11:30",
+      "alertAt": "12:30",
+      "stopsWithoutDelivered": [],
+      "wouldSend": "nothing (no stop left)"
+    }
+  ],
+  "m8": [
+    {
+      "route": 3,
+      "date": "2026-09-11",
+      "status": "dispatched",
+      "driver": "عمر المجهلي",
+      "stops": [
+        {
+          "order": 5,
+          "seq": 10,
+          "status": "pending"
+        }
+      ]
+    }
+  ],
+  "m17": {
+    "figures": {
+      "day": "2026-09-26",
+      "tomorrow": {
+        "count": 0,
+        "total": 0,
+        "unpriced": 0
+      },
+      "deliveries": {
+        "delivered": 0,
+        "total": 0
+      },
+      "collected": 0,
+      "pending": 63,
+      "errors": []
+    },
+    "params": [
+      "0 مؤكدة لـ 27 سبتمبر 2026 بإجمالي 0.00 ريال",
+      "0 مسلَّمة من 0",
+      "المحصَّل اليوم 0.00 والمعلَّق 63.00"
+    ],
+    "text": "📊 ملخص اليوم 26 سبتمبر 2026\nطلبات الغد: 0 مؤكدة لـ 27 سبتمبر 2026 بإجمالي 0.00 ريال\nتوصيلات اليوم: 0 مسلَّمة من 0\nتحصيل اليوم: المحصَّل اليوم 0.00 والمعلَّق 63.00 ريال"
+  }
+}

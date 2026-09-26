@@ -73,7 +73,15 @@ export function simVars(): Record<string, string> {
 }
 
 // ---------------------------------------------------------------- the fake customers (never real numbers)
-export const FAKE_PREFIX = "+96650000410";
+// +9665000041<slot><n>. A live run takes the first slot no partner holds yet
+// (s41-live-1 took 0): a previous run's customers are archived after the
+// marking, and the worker rightly answers nothing to an archived number
+// (s41-live-2 stopped on that). The fake run keeps slot 0.
+export let FAKE_PREFIX = "+96650000410";
+export function setFakeSlot(slot: number): void { FAKE_PREFIX = `+9665000041${slot}`; }
+/** In every inbound wamid: another run's x_message_analysis rows are not «already logged» (s41-live-2). */
+let RUN_TAG = "";
+export function setRunTag(run: string): void { RUN_TAG = run.replace(/[^A-Za-z0-9]/g, "").toUpperCase(); }
 export const TEAM = {
   owner: "+966505154962", omar: "+966545816832", othman: "+966530399474", ahmed: "+966571777704",
 };
@@ -266,7 +274,7 @@ export function newCtx(): Ctx { const tasks: Promise<unknown>[] = []; return { t
 let seq = 0;
 export async function webhook(worker: any, env: any, from: string, msg: Record<string, unknown>, profileName = "x"): Promise<number> {
   const digits = from.replace(/\D/g, "");
-  const payload = { object: "whatsapp_business_account", entry: [{ id: "WABA", changes: [{ field: "messages", value: { messaging_product: "whatsapp", metadata: { phone_number_id: env.META_PHONE_NUMBER_ID }, contacts: [{ wa_id: digits, profile: { name: profileName } }], messages: [{ id: `wamid.S41IN${Date.now()}${++seq}`, from: digits, timestamp: String(Math.floor(Date.now() / 1000)), ...msg }] } }] }] };
+  const payload = { object: "whatsapp_business_account", entry: [{ id: "WABA", changes: [{ field: "messages", value: { messaging_product: "whatsapp", metadata: { phone_number_id: env.META_PHONE_NUMBER_ID }, contacts: [{ wa_id: digits, profile: { name: profileName } }], messages: [{ id: `wamid.S41IN${RUN_TAG}${Date.now()}${++seq}`, from: digits, timestamp: String(Math.floor(Date.now() / 1000)), ...msg }] } }] }] };
   const raw = JSON.stringify(payload);
   const sig = "sha256=" + createHmac("sha256", env.META_APP_SECRET).update(raw).digest("hex");
   const ctx = newCtx();

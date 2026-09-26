@@ -158,7 +158,7 @@ if (step === "verify") {
   const partners = by.get("res.partner") ?? [];
   if (partners.length) {
     const ps = await call<any[]>("res.partner", "read", { ids: partners, fields: ["id", "active", "x_wa_allowed", "x_whatsapp_number"], context: { active_test: false } });
-    check(`the run's partners (${ps.length}) archived, x_wa_allowed off, all fake numbers`, ps.every((p) => p.active === false && p.x_wa_allowed === false && String(p.x_whatsapp_number).startsWith("+96650000410")), JSON.stringify(ps));
+    check(`the run's partners (${ps.length}) archived, x_wa_allowed off, all fake numbers`, ps.every((p) => p.active === false && p.x_wa_allowed === false && /^\+9665000041\d\d$/.test(String(p.x_whatsapp_number))), JSON.stringify(ps));
   }
   for (const [model, nf] of Object.entries(NUMBER_FIELD)) {
     const ids = by.get(model) ?? [];

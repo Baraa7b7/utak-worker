@@ -31,7 +31,7 @@
 // created.json — every record this run created, for the marking — the PDFs).
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import {
-  FAKE_PREFIX, ROOT, TEAM, at, buildEnv, captured, cron, installFetchGuard, installLiveClock, internal, netLog, nowRiyadh, odooStats, realNow,
+  FAKE_PREFIX, ROOT, TEAM, at, buildEnv, captured, cron, installFetchGuard, installLiveClock, internal, netLog, nowRiyadh, odooStats, realNow, setFakeSlot, setRunTag,
   takeCaptured, useHarnessClock, webhook, type Captured, type ClaudeScript,
 } from "./lib/s41-sim-kit.mts";
 
@@ -78,6 +78,22 @@ if (MODE === "fake") {
 }
 const env = buildEnv({ mode: MODE, runId: RUN, outDir: OUT, baseEnv, liveD1 });
 if (MODE === "fake") Object.assign(env, { ODOO_URL: baseEnv.ODOO_URL, ODOO_API_KEY: baseEnv.ODOO_API_KEY });
+setRunTag(RUN);
+if (MODE === "live") {
+  // the first slot of fake numbers no partner (archived included) holds yet
+  const { call: odooRead } = await import("../src/odoo.ts");
+  const oldPrefix = FAKE_PREFIX;
+  let slot = -1;
+  for (let s = 1; s <= 9 && slot < 0; s++) {
+    const pre = `+9665000041${s}`;
+    const n = await odooRead<number>(env, "res.partner", "search_count", { domain: ["|", ["x_whatsapp_number", "=like", `${pre}%`], ["phone", "=like", `${pre}%`]], context: { active_test: false } });
+    if (n === 0) slot = s;
+  }
+  if (slot < 0) throw new Error("no free slot of fake numbers (+9665000041[1-9]x)");
+  setFakeSlot(slot);
+  env.SIM_ALLOWLIST = String(env.SIM_ALLOWLIST).replace(oldPrefix, FAKE_PREFIX);
+  console.log(`fake customers: ${FAKE_PREFIX}1…5 (slot ${slot})`);
+}
 await env.MSG_DEDUP.put("sim:current_run_id", RUN);
 
 // ---------------------------------------------------------------- Odoo creates / writes of THIS run (for the marking)
@@ -169,6 +185,8 @@ async function step(name: string, when: string, fn: () => Promise<string | void>
   try { note = await fn(); } catch (e) { error = (e as Error)?.stack ?? String(e); console.log(`    ✗ ERROR ${(e as Error)?.message}`); checks.push({ day: curDay, step: curStep, name: "step ran without error", ok: false, detail: String((e as Error)?.message) }); }
   stepMsgs = captured.slice(stepStart);
   takeCaptured();
+  // after every step: a run stopped halfway can still be marked (s41-live-2 could not)
+  writeFileSync(new URL("created.json", OUT), JSON.stringify({ run: RUN, mode: MODE, partial: true, created, writes }, null, 1));
   steps.push({ day: curDay, at: when, name, msgs: stepMsgs.map((m) => ({ to: who(m.to), kind: m.type, template: m.template, text: m.text.slice(0, 400) })), ...(note ? { note } : {}), ...(error ? { error } : {}) });
   for (const m of stepMsgs) console.log(`      → ${who(m.to)} [${m.template ?? m.type}] ${m.text.replace(/\n/g, " ⏎ ").slice(0, 150)}`);
 }

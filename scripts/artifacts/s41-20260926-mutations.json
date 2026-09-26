@@ -1,26 +1,214 @@
 {
-  "at": "2026-09-26T12:00:27.481Z",
-  "caught": 2,
-  "total": 2,
+  "at": "2026-09-26T12:01:59.342Z",
+  "caught": 23,
+  "total": 23,
   "results": [
     {
-      "part": "موقع",
-      "name": "a text with a number saved as the neighborhood (confirmed order)",
+      "part": "عزل",
+      "name": "the day's price record: a simulation day counts",
       "caught": true,
       "fails": [
-        "✗ isNeighborhoodText: «العليا» yes; «رمان وسط 5», «ا», 61 characters no",
-        "✗ a confirmed order waiting for its location: «طماطم 5» is NOT saved as the neighborhood — طماطم 5",
-        "✗ …the location still pending",
-        "✗ …and the bot handled it as an order (the closed-hours «سجّله لبكرة» offer) — [{\"messaging_product\":\"whatsapp\",\"to\":\"966500000501\",\"type\":\"text\",\"text\":{\"body\":\"حفظنا الحي: طماطم 5 ✅ لطلبك رقم #10007.\"}}]"
+        "✗ the engine builds the real day beside the marked one (not «locked» by it) — {\"day\":\"2026-09-27\",\"action\":\"locked\",\"dayId\":10009,\"state\":\"published\"}"
       ]
     },
     {
-      "part": "موقع",
-      "name": "a text with a number caught by the quotation's location wait",
+      "part": "عزل",
+      "name": "the published sale price: a simulation day counts",
       "caught": true,
       "fails": [
-        "✗ …it is added to the order — [{\"x_order_id\":10009,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_quantity\":6,\"x_status\":\"pending\",\"id\":10010}]",
-        "✗ …it is added to the order"
+        "✗ the published sale price of 09-27: the real 30, not the simulation day's 99 — {\"price\":99,\"source\":\"today\",\"price_date\":\"2026-09-27\",\"age_days\":0}",
+        "✗ the published sale price of 09-27: the real 30, not the simulation day's 99"
+      ]
+    },
+    {
+      "part": "عزل",
+      "name": "the discount guard's purchase: a simulation day counts",
+      "caught": true,
+      "fails": [
+        "✗ the discount guard's purchase of 09-27: the real 20 (24 − 20 − 1 = 3), not the simulation day's 5 — 18.75",
+        "✗ the discount guard's purchase of 09-27: the real 20 (24 − 20 − 1 = 3), not the simulation day's 5"
+      ]
+    },
+    {
+      "part": "عزل",
+      "name": "the 21:30 profit's purchase: a simulation day counts",
+      "caught": true,
+      "fails": [
+        "✗ 21:30 profit of 09-28's deliveries: bought at the real 20 (10 × 9 = 90), not the simulation day's 5 — {\"profit\":247.5,\"cost\":500,\"pct\":50}",
+        "✗ 21:30 profit of 09-28's deliveries: bought at the real 20 (10 × 9 = 90), not the simulation day's 5"
+      ]
+    },
+    {
+      "part": "عزل",
+      "name": "the engine: a simulation supplier price counts",
+      "caught": true,
+      "fails": [
+        "✗ …with the real purchase 20 (the simulation row, newer, is not Ahmed's latest), market 24 — {\"x_day_id\":10012,\"x_name\":\"طماطم — كرتون\",\"x_sequence\":1,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_supplier_id\":801,\"x_daily_price_id\":10011,\"x_default_price_id\":10011,\"x_source_price\":5,\"x_cost_price\":5,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":380,\"x_market_price\":24,\"x_market_count\":1,\"x_unit_profit\":18.75,\"x_offers\":\"أحمد حسان: شراء 5 · عمر المجهلي: سوق 24\",\"x_status\":\"auto\",\"x_reason\":false,\"x_sale_price\":24,\"x_excluded\":false,\"x_blocked\":false,\"id\":10013}",
+        "✗ …with the real purchase 20 (the simulation row, newer, is not Ahmed's latest), market 24"
+      ]
+    },
+    {
+      "part": "عزل",
+      "name": "the outlier reference: a simulation price counts",
+      "caught": true,
+      "fails": [
+        "✗ Ahmed's outlier reference: his real 20, not the newer simulation 5 — {\"price\":5,\"date\":\"2026-09-27\"}",
+        "✗ Ahmed's outlier reference: his real 20, not the newer simulation 5"
+      ]
+    },
+    {
+      "part": "عزل",
+      "name": "the 21:15 prefill: a simulation price counts",
+      "caught": true,
+      "fails": [
+        "✗ the 21:15 list's prefilled price: the real 20, not the newer simulation 5 — [{\"product_id\":1,\"packaging_id\":11,\"product_name\":\"طماطم\",\"packaging_name\":\"كرتون\",\"total_quantity\":3,\"order_ids\":[1],\"unit_price\":5,\"price_supplier_id\":801}]",
+        "✗ the 21:15 list's prefilled price: the real 20, not the newer simulation 5"
+      ]
+    },
+    {
+      "part": "عزل",
+      "name": "the sale price fallback: a simulation price counts",
+      "caught": true,
+      "fails": [
+        "✗ the stale fallback: the real 40 of 09-27, not the later simulation 88 — {\"price\":88,\"source\":\"stale\",\"price_date\":\"2026-09-29\",\"age_days\":6}",
+        "✗ the stale fallback: the real 40 of 09-27, not the later simulation 88"
+      ]
+    },
+    {
+      "part": "عزل",
+      "name": "the day's supplier price: a simulation row counts",
+      "caught": true,
+      "fails": [
+        "✗ nothing published for cucumber: the day's supplier row is the real 40, not the newer simulation 77 — {\"price\":77,\"source\":\"today\",\"price_date\":\"2026-09-27\",\"age_days\":0}",
+        "✗ nothing published for cucumber: the day's supplier row is the real 40, not the newer simulation 77"
+      ]
+    },
+    {
+      "part": "عزل",
+      "name": "the supplier dues: a simulation price counts",
+      "caught": true,
+      "fails": [
+        "✗ the supplier dues of the list: 3 × the real 20 = 60 (not 3 × 5) — [[3,5]]",
+        "✗ the supplier dues of the list: 3 × the real 20 = 60 (not 3 × 5)"
+      ]
+    },
+    {
+      "part": "عزل",
+      "name": "the pending supplier ask: a simulation log counts",
+      "caught": true,
+      "fails": [
+        "✗ Ahmed's pending ask: the real one, not a newer (future-dated) simulation log",
+        "✗ Ahmed's pending ask: the real one, not a newer (future-dated) simulation log"
+      ]
+    },
+    {
+      "part": "عزل",
+      "name": "the latest supplier log: a simulation log counts",
+      "caught": true,
+      "fails": [
+        "✗ …his latest log too",
+        "✗ …his latest log too"
+      ]
+    },
+    {
+      "part": "عزل",
+      "name": "the recent supplier logs: a simulation log counts",
+      "caught": true,
+      "fails": [
+        "✗ the recent logs (06:00 report): no simulation log",
+        "✗ the recent logs (06:00 report): no simulation log"
+      ]
+    },
+    {
+      "part": "عزل",
+      "name": "attendance: a simulation row counts",
+      "caught": true,
+      "fails": [
+        "✗ a simulation «بدء الدوام» of the same day: the real one still goes to Omar (not «already tapped») — [{\"id\":7601,\"partnerId\":601,\"name\":\"أحمد\",\"to\":\"…0601\",\"shift\":null,\"end\":null,\"roles\":[\"warehouse\"],\"action\":\"not_enrolled\"},{\"id\":7602,\"partnerId\":602,\"name\":\"سالم\",\"to\":\"…0602\",\"shift\":null,\"end\":null,\"roles\":[\"collector\"],\"action\":\"not_enrolled\"},{\"id\":7603,\"partnerId\":603,\"name\":\"عمر المجهلي\",\"to\":\"…0603\",\"shift\":\"02:00\",\"end\":\"12:00\",\"roles\":[\"driver\"],\"action\":\"tapped:present\"}]",
+        "✗ a simulation «بدء الدوام» of the same day: the real one still goes to Omar (not «already tapped»)"
+      ]
+    },
+    {
+      "part": "عزل",
+      "name": "the day's purchase list: a simulation list counts",
+      "caught": true,
+      "fails": [
+        "✗ the day's list at 21:15: a new one, not the simulation list of the same date — 10011",
+        "✗ today's latest list: the real one",
+        "✗ the day's list at 21:15: a new one, not the simulation list of the same date",
+        "✗ today's latest list: the real one"
+      ]
+    },
+    {
+      "part": "عزل",
+      "name": "the 06:00 list follow-up: a simulation list counts",
+      "caught": true,
+      "fails": [
+        "✗ the 06:00 follow-up: no simulation list — [10013]",
+        "✗ the 06:00 follow-up: no simulation list"
+      ]
+    },
+    {
+      "part": "عزل",
+      "name": "today's latest list: a simulation list counts",
+      "caught": true,
+      "fails": [
+        "✗ today's latest list: the real one",
+        "✗ today's latest list: the real one"
+      ]
+    },
+    {
+      "part": "عزل",
+      "name": "the 20:00 / 21:00 unconfirmed orders: a simulation order counts",
+      "caught": true,
+      "fails": [
+        "✗ the 20:00 reminder / 21:00 close: the real order only — [{\"id\":10007,\"state\":\"waiting_confirmation\",\"customerId\":501,\"customerName\":\"مطعم الوادي\",\"lineCount\":0},{\"id\":10008,\"state\":\"waiting_confirmation\",\"customerId\":501,\"customerName\":\"مطعم الوادي\",\"lineCount\":0}]",
+        "✗ the 20:00 reminder / 21:00 close: the real order only"
+      ]
+    },
+    {
+      "part": "عزل",
+      "name": "the 21:15 confirmed lines: a simulation order counts",
+      "caught": true,
+      "fails": [
+        "✗ the 21:15 list: no line of a simulation order — [{\"order_id\":10009,\"customer_id\":501,\"customer_name\":\"مطعم الوادي\",\"neighborhood\":\"\",\"product_id\":1,\"product_name\":\"طماطم\",\"packaging_id\":11,\"packaging_name\":\"كرتون\",\"quantity\":9}]",
+        "✗ the 21:15 list: no line of a simulation order"
+      ]
+    },
+    {
+      "part": "عزل",
+      "name": "a simulation run: its channel exists",
+      "caught": true,
+      "fails": [
+        "✗ the channel lookup itself answers «none» in a simulation run (even for a partner with a channel)",
+        "✗ the channel lookup itself answers «none» in a simulation run (even for a partner with a channel)"
+      ]
+    },
+    {
+      "part": "عزل",
+      "name": "a simulation run: its row «pending» (the deployed tick would post it)",
+      "caught": true,
+      "fails": [
+        "✗ the x_wa_message row is written, echo «none» — never «pending» on the way (the deployed */5 tick would post it) — {\"row\":{\"write_date\":\"2026-09-27 07:00:00\",\"x_status\":\"sent\",\"x_meta_message_id\":\"wamid.SIM.RjJFz_EhDx4rxCQkeLfAkgmALOUTGCrw\",\"x_processed_at\":\"2026-09-27 07:00:00\",\"x_echo_status\":\"none\",\"x_partner_id\":501,\"x_direction\":\"out\",\"x_kind\":\"text\",\"x_body\":\"نص تجربة\",\"x_source\":\"auto\",\"x_debug_payload\":\"{\\\"purpose\\\":\\\"bot_reply\\\"}\",\"id\":10008},\"pendingWrites\":1}",
+        "✗ the x_wa_message row is written, echo «none» — never «pending» on the way (the deployed */5 tick would post it)"
+      ]
+    },
+    {
+      "part": "عزل",
+      "name": "a simulation run: a channel found by name (the review channel) still posted",
+      "caught": true,
+      "fails": [
+        "✗ …and a post to a channel found by name (the review channel «📋 مراجعة الأرقام») is refused",
+        "✗ …and a post to a channel found by name (the review channel «📋 مراجعة الأرقام») is refused"
+      ]
+    },
+    {
+      "part": "عزل",
+      "name": "a simulation run: the 05:00 cron syncs the templates from Meta",
+      "caught": true,
+      "fails": [
+        "✗ the 05:00 cron in a simulation run: no Meta template sync (no x_wa_control read or write) — 2",
+        "✗ the 05:00 cron in a simulation run: no Meta template sync (no x_wa_control read or write)"
       ]
     }
   ]

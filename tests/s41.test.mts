@@ -826,8 +826,14 @@ console.log("\n[عزل] a simulation run (SIM_RUN_ID + SIMULATION_MODE): the row
   assert("…and nothing posted to a Discuss channel", posts.length === 0, JSON.stringify(posts));
   const toml = readFileSync(new URL("../wrangler.toml", import.meta.url), "utf8");
   assert("wrangler.toml sets SIM_RUN_ID for no worker (prod, sim, pilot)", !/SIM_RUN_ID/.test(toml));
+  const w = (await import("../src/index.ts")).default;
+  const ctlBefore = odooLog.filter((l) => l.model === "x_wa_control").length;
+  await quiet(() => w.scheduled({ cron: "0 2 * * *", scheduledTime: Date.now() } as any, env, { waitUntil: () => {}, passThroughOnException: () => {} } as any));
+  assert("the 05:00 cron in a simulation run: no Meta template sync (no x_wa_control read or write)", odooLog.filter((l) => l.model === "x_wa_control").length === ctlBefore, String(odooLog.filter((l) => l.model === "x_wa_control").length - ctlBefore));
   delete env.SIM_RUN_ID;
   Object.assign(env, { SIMULATION_MODE: "false", PILOT_MODE: "true" });
+  await quiet(() => w.scheduled({ cron: "0 2 * * *", scheduledTime: Date.now() } as any, env, { waitUntil: () => {}, passThroughOnException: () => {} } as any));
+  assert("…outside a simulation run it syncs as before (x_wa_control written)", odooLog.filter((l) => l.model === "x_wa_control").length > ctlBefore);
   await quiet(() => META.sendText(env, "+" + C1_PHONE, "نص عادي", { purpose: "bot_reply" }));
   const row2 = rows("x_wa_message").find((r: any) => /نص عادي/.test(String(r.x_body ?? "")));
   assert("without it (the deployed sim worker): the Discuss line as always", !!row2 && row2.x_echo_status !== "none", JSON.stringify(row2));

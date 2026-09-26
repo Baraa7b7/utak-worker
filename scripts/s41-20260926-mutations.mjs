@@ -202,6 +202,8 @@ const M = [
     "  const echo = !rec.noEcho && !!partner && !isSimRun(env);", "  const echo = !rec.noEcho && !!partner;"]], T],
   ["عزل", "a simulation run: a channel found by name (the review channel) still posted", [[WI,
     "  if (isSimRun(env)) return false;\n  try {", "  try {"]], T],
+  ["عزل", "a simulation run: the 05:00 cron syncs the templates from Meta", [[IX,
+    "          if (!isSimRun(env)) try {\n            const { runTemplateSync }", "          if (true) try {\n            const { runTemplateSync }"]], T],
   // ---------------------------------------------------------------- موقع a pending location (found by the simulation)
   ["موقع", "a text with a number saved as the neighborhood (confirmed order)", [[IX,
     "  return t.length >= 2 && t.length <= 60 && !hasDigits(t);", "  return t.length >= 2 && t.length <= 60;"]], T],

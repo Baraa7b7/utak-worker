@@ -67,7 +67,7 @@ import {
   verifySimSecret,
   type InjectInput,
 } from "./sim";
-import { parseAllowlist, runtimeMode } from "./config";
+import { parseAllowlist, runtimeMode, isSimRun } from "./config";
 import {
   classifySignatureFailure,
   handleSignatureFailure,
@@ -97,7 +97,9 @@ export default {
           // Phase 1 (2026-09-17): daily template sync appended to the 05:00
           // Riyadh handler after its existing work, in try/catch so a sync
           // failure never breaks reliability-score scheduling.
-          try {
+          // § 41 و — a simulation run never reads Meta (nor writes the real
+          // x_wa_control status with a refused sync).
+          if (!isSimRun(env)) try {
             const { runTemplateSync } = await import("./wa-template-sync");
             const report = await runTemplateSync(env);
             console.log("[wa-sync 05:00]", JSON.stringify(report));

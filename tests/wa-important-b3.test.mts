@@ -28,6 +28,7 @@
 //
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/wa-important-b3.test.mts
 
+import { cronBlocks } from "./cron-blocks.mts";
 import { readFileSync } from "node:fs";
 import {
   closeOwnerWindow, ctx, employee, graph, heldFor, openWindow, ownerAlerts, quiet, reset, seed, sentTo, setRiyadh, table, workSchedule,
@@ -373,9 +374,10 @@ const ALL_DAY = ["02:02", "11:32", "12:32", "17:57", "18:02", "18:07", "21:02", 
 console.log("\n[م12] wired: the sim cron, Riyadh time, sim only");
 {
   const toml = readFileSync(new URL("../wrangler.toml", import.meta.url), "utf8");
-  const simBlock = toml.split("[env.sim.triggers]")[1].split("[env.sim.vars]")[0];
-  assert("the cron is in [env.sim.triggers]", simBlock.includes(`"${drv.DRIVER_FOLLOWUP_CRON}"`));
-  assert("prod crons stay []", /^\[triggers\]\s*\ncrons = \[\]/m.test(toml));
+  // § 43 — in the active block (sim until the cutover, prod after it), and on one worker only
+  const cb = cronBlocks(toml);
+  assert(`the cron is in the active block (${cb.active})`, cb.activeCrons.includes(drv.DRIVER_FOLLOWUP_CRON));
+  assert("the twelve crons run on exactly one worker, the other has [] (never both)", cb.active !== null, JSON.stringify({ prod: cb.prod.length, sim: cb.sim.length }));
   assert("CRON_JOB names it driver_followup", CRON_JOB[drv.DRIVER_FOLLOWUP_CRON] === "driver_followup");
   const f = fresh(`${SAT} 11:32`);
   await quiet(() => worker.scheduled({ cron: drv.DRIVER_FOLLOWUP_CRON } as any, f.env, ctx));
@@ -629,8 +631,8 @@ console.log("\n[م17] a figure Odoo cannot give: the summary goes with «تعذ�
 console.log("\n[م17] wired: 21:30 on sim");
 {
   const toml = readFileSync(new URL("../wrangler.toml", import.meta.url), "utf8");
-  const simBlock = toml.split("[env.sim.triggers]")[1].split("[env.sim.vars]")[0];
-  assert("\"30 18 * * *\" (21:30 Riyadh) is in [env.sim.triggers]", simBlock.includes(`"${sum.OWNER_SUMMARY_CRON}"`) && sum.OWNER_SUMMARY_CRON === "30 18 * * *");
+  const cb = cronBlocks(toml);
+  assert(`"30 18 * * *" (21:30 Riyadh) is in the active block (${cb.active})`, cb.activeCrons.includes(sum.OWNER_SUMMARY_CRON) && sum.OWNER_SUMMARY_CRON === "30 18 * * *");
   assert("CRON_JOB names it owner_summary", CRON_JOB[sum.OWNER_SUMMARY_CRON] === "owner_summary");
   const env = freshSummary();
   await quiet(() => worker.scheduled({ cron: sum.OWNER_SUMMARY_CRON } as any, env, ctx));

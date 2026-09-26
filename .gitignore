@@ -41,3 +41,6 @@ backups/
 scripts/artifacts/s41-sim/s41-fake-*/
 scripts/artifacts/s41-sim/*/r2/
 scripts/artifacts/s41-sim/*/*.png
+
+# § 43 — prod launch secrets (six values, mode 600). Never committed; deleted after the cutover.
+.env.prod-launch

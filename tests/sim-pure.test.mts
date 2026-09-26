@@ -10,6 +10,7 @@
 //
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/sim-pure.test.mts
 
+import { cronBlocks } from "./cron-blocks.mts";
 import { readFileSync } from "node:fs";
 import {
   COLL, CUST, CUST_PHONE, WH, ctx, graph, odooLog, openWindow, order, partnerOf, quiet, reset, rows, seed, setRiyadh, table,
@@ -47,7 +48,9 @@ console.log("\n[1] wrangler.toml");
   assert("SIM_ALLOWLIST = the four team numbers exactly", entries.length === 4 && entries.every((e) => TEAM[e]) && new Set(entries).size === 4, SIM_ALLOWLIST);
   assert("no prefix entry: every entry is a full +966 number (12 digits)", entries.every((e) => /^\+9665\d{8}$/.test(e)), SIM_ALLOWLIST);
   assert("OWNER_WHATSAPP is in the list", entries.includes(tomlVar(simVars, "OWNER_WHATSAPP") ?? "?"));
-  assert("prod crons stay []", /^\[triggers\]\s*\ncrons = \[\]/m.test(toml));
+  // § 43 — the twelve crons on exactly one worker (sim until the cutover, prod after it), never both
+  const cb = cronBlocks(toml);
+  assert("the twelve crons run on exactly one worker, the other has [] (never both)", cb.active !== null, JSON.stringify({ prod: cb.prod.length, sim: cb.sim.length }));
 }
 
 // ---------------------------------------------------------------- accounting

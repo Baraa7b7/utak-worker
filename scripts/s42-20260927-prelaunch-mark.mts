@@ -33,6 +33,12 @@
 //                       summary (م17) of today zero; Ahmed 0 / 0 / 0; no due left; account.move 48 and
 //                       account.payment 9
 //   rollback [--apply]  the values this script changed, back (nothing deleted)
+//   --rb=<file>         (any step) the rollback file under scripts/artifacts/ — § 43 ب re-marks with
+//                       --rb=s43-20260927-remark-rollback.json, so its rollback holds only its own marks;
+//                       the scan / verify outputs then follow it (<name>-scan.json, <name>-verify.json)
+//   --expect-moves=N --expect-payments=N
+//                       (verify) the account.move / account.payment counts expected unchanged (default 48 / 9;
+//                       scripts/cutover-prod.mts passes the counts it read before its first write)
 //
 // A decided supplier payment is locked by base.automation #25 (utak.sp.lock,
 // x_name among its watched fields): it is switched off for the renames only
@@ -44,8 +50,13 @@ import { call } from "./lib/odoo-cli.mjs";
 
 const step = process.argv[2] ?? "";
 const APPLY = process.argv.includes("--apply");
-const RB = new URL("./artifacts/s42-20260927-prelaunch-mark-rollback.json", import.meta.url);
-const SCAN = new URL("./artifacts/s42-20260927-prelaunch-scan.json", import.meta.url);
+// § 43 ب — a later re-mark keeps its own rollback file: --rb=<name> under scripts/artifacts/
+const RB_ARG = process.argv.find((a) => a.startsWith("--rb="))?.slice(5);
+const RB = new URL(`./artifacts/${RB_ARG ?? "s42-20260927-prelaunch-mark-rollback.json"}`, import.meta.url);
+// with --rb=<x>-rollback.json the scan and verify outputs follow it (<x>-scan.json, <x>-verify.json)
+const OUT_BASE = RB_ARG ? RB_ARG.replace(/-rollback\.json$/, "") : "s42-20260927-prelaunch";
+const SCAN = new URL(`./artifacts/${OUT_BASE}-scan.json`, import.meta.url);
+const VERIFY_OUT = new URL(`./artifacts/${OUT_BASE}-verify.json`, import.meta.url);
 const BACKUPS = new URL("../backups/", import.meta.url);
 const log = (...a: unknown[]) => console.log(...a);
 const SIM = "x_utak_simulation";
@@ -54,7 +65,9 @@ const SP_PREFIX = "SIM37-";
 const SP_SEQUENCE = 21;
 /** base.automation «utak.sp.lock»: a decided payment's watched fields (x_name among them) cannot be written. */
 const SP_LOCK_AUTOMATION = 25;
-const EXPECT_MOVES = 48, EXPECT_PAYMENTS = 9;
+// § 43 — the cutover passes the counts it read before its first write (--expect-moves=N --expect-payments=N)
+const numArg = (k: string, d: number) => { const v = process.argv.find((a) => a.startsWith(`--${k}=`)); return v ? Number(v.slice(k.length + 3)) : d; };
+const EXPECT_MOVES = numArg("expect-moves", 48), EXPECT_PAYMENTS = numArg("expect-payments", 9);
 const AHMED = 30;
 export const MODELS = [
   "x_daily_order", "x_daily_order_line", "x_invoice", "x_payment", "x_delivery_route", "x_delivery_stop",
@@ -236,7 +249,7 @@ if (step === "verify") {
   const acct = await acctCounts();
   check(`account.move ${acct.moves} = ${EXPECT_MOVES}, account.payment ${acct.payments} = ${EXPECT_PAYMENTS} (unchanged)`, acct.moves === EXPECT_MOVES && acct.payments === EXPECT_PAYMENTS);
   log(`verify: ${ok}/${ok + bad}`);
-  writeFileSync(new URL("./artifacts/s42-20260927-prelaunch-verify.json", import.meta.url), JSON.stringify({ at: new Date().toISOString(), ok, total: ok + bad, counts, figures: f, acct }, null, 1) + "\n");
+  writeFileSync(VERIFY_OUT, JSON.stringify({ at: new Date().toISOString(), ok, total: ok + bad, counts, figures: f, acct }, null, 1) + "\n");
   process.exit(bad ? 1 : 0);
 }
 

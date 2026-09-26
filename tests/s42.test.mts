@@ -29,6 +29,7 @@
 //
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/s42.test.mts
 
+import { cronBlocks } from "./cron-blocks.mts";
 import { readFileSync } from "node:fs";
 import {
   COLL, COLL_PHONE, CUST, OWNER, computes, employee, graph, inbound, openWindow, ownerAlerts, quiet, reset, rows, seed, sentTo, setRiyadh, signed, table,
@@ -548,14 +549,11 @@ function prodVars(): Record<string, string> {
   return out;
 }
 const PROD = prodVars();
-const topCrons = (() => {
-  const toml = readFileSync(new URL("../wrangler.toml", import.meta.url), "utf8");
-  const i = toml.indexOf("\n[triggers]\n");
-  return /crons\s*=\s*\[([^\]]*)\]/.exec(toml.slice(i, i + 200))?.[1].trim() ?? "?";
-})();
-assert("wrangler.toml prod: SIMULATION_MODE false, PILOT_MODE false, ACCOUNTING_SYNC true, OWNER_WINDOW_OPEN_AT 06:00, no SIM_ALLOWLIST / SIM_RUN_ID, crons [] until the cutover",
+// § 43 — prod's crons: [] until the cutover (sim runs the twelve), the twelve after it (sim []); never both
+const CB = cronBlocks();
+assert("wrangler.toml prod: SIMULATION_MODE false, PILOT_MODE false, ACCOUNTING_SYNC true, OWNER_WINDOW_OPEN_AT 06:00, no SIM_ALLOWLIST / SIM_RUN_ID, crons [] until the cutover and the twelve after it (sim the other way round)",
   PROD.SIMULATION_MODE === "false" && PROD.PILOT_MODE === "false" && PROD.ACCOUNTING_SYNC === "true" && PROD.OWNER_WINDOW_OPEN_AT === "06:00"
-    && !("SIM_ALLOWLIST" in PROD) && !("SIM_RUN_ID" in PROD) && topCrons === "", JSON.stringify({ PROD, topCrons }));
+    && !("SIM_ALLOWLIST" in PROD) && !("SIM_RUN_ID" in PROD) && CB.active !== null, JSON.stringify({ PROD, prodCrons: CB.prod.length, simCrons: CB.sim.length }));
 const REVIEW_CH = 880, REVIEW_ACTION = 881;
 function prodEnv(pilot = false): any {
   const env = fresh(`${DAY} 10:00`);

@@ -249,9 +249,13 @@ export async function extractSupplierPrices(
             ? Number(r.actual_weight_kg)
             : null,
         notes: r?.notes ? String(r.notes) : null,
+        // § 40 ب — optional; which kind a number is gets decided from the
+        // message itself afterwards (src/price-sources.ts classifyOffer).
+        market_price: Number(r?.market_price) > 0 ? Number(r.market_price) : null,
+        available_qty: Number(r?.available_qty) > 0 ? Number(r.available_qty) : null,
       }))
       .filter(
-        (p) => p.product_id > 0 && p.packaging_id > 0 && p.cost_price > 0,
+        (p) => p.product_id > 0 && p.packaging_id > 0 && (p.cost_price > 0 || (p.market_price ?? 0) > 0),
       );
 
     return {

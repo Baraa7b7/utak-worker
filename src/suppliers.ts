@@ -283,8 +283,12 @@ export async function handleSupplierReply(
     return SUPPLIER_ACK_TEXT;
   }
 
-  // 2026-09-25 (م6) — only prices the message really states (checkExtractedPrices).
-  const check = checkExtractedPrices(extract.prices, products, packagings, messageText);
+  // 2026-09-25 (م6) — only prices the message really states.
+  // § 40 ب — and a number with «سوق» beside it is a market observation, not
+  // his purchase price (checkOfferItems; checkExtractedPrices is the same rule
+  // for the purchase price alone).
+  const { checkOfferItems, saveOffer } = await import("./price-sources");
+  const check = checkOfferItems(extract.prices, products, packagings, messageText, "supplier");
   if (!check.kept.length) {
     if (pendingLog) {
       await updateSupplierLog(env, pendingLog.id, {
@@ -316,14 +320,18 @@ export async function handleSupplierReply(
   const packagingNameById = new Map(packagings.map((k) => [k.id, k.name]));
   const failed: Array<{ product_id: number; product_name: string; reason: string }> = [];
   let created = 0;
-  for (const p of check.kept) {
-    const sale = round2(p.cost_price * opsMul * profitMul);
+  for (const k of check.kept) {
+    const p = { ...k.item, cost_price: k.purchase ?? 0 };
     try {
+      let saved = false;
+      let dailyId: number | null = null;
+      if (k.purchase !== undefined) {
+      const sale = round2(p.cost_price * opsMul * profitMul);
       // 2026-09-25 — an outlier is saved and used, marked for review, and
       // the owner hears of it at once (one alert per price, not batched).
       const last = await getLastSupplierPrice(env, supplier.id, p.product_id, p.packaging_id).catch(() => null);
       const outlier = !!last && isPriceOutlier(last.price, p.cost_price);
-      await createDailyPrice(env, {
+      dailyId = await createDailyPrice(env, {
         supplier_id: supplier.id,
         product_id: p.product_id,
         packaging_id: p.packaging_id,
@@ -334,7 +342,7 @@ export async function handleSupplierReply(
         raw_reply: messageText,
         extraction_status: outlier ? "pending" : "extracted",
       });
-      created++;
+      saved = true;
       if (outlier && last) {
         const pct = Math.round(((p.cost_price - last.price) / last.price) * 100);
         await alertOwner(
@@ -342,6 +350,17 @@ export async function handleSupplierReply(
           `⚠️ سعر شاذ من المورد "${supplier.name}": ${productNameById.get(p.product_id) ?? p.product_id} (${packagingNameById.get(p.packaging_id) ?? p.packaging_id})\nآخر سعر: ${last.price} ريال${last.date ? ` (${last.date})` : ""}\nالسعر الجديد: ${p.cost_price} ريال (${pct > 0 ? "+" : ""}${pct}%)\nحُفظ ويُستخدم، وعُلّم للمراجعة (x_extraction_status = pending). لم يُرفض.`,
         );
       }
+      }
+      // § 40 ب — his market observation («سوق» beside the number) and the
+      // available quantity: an x_price_offer row, with his price row of this item.
+      if (k.market !== undefined || k.qty !== undefined) {
+        await saveOffer(env, {
+          partnerId: supplier.id, productId: p.product_id, packagingId: p.packaging_id,
+          market: k.market, qty: k.qty, dailyPriceId: dailyId, messageId, text: messageText,
+        });
+        saved = true;
+      }
+      if (saved) created++;
     } catch (e) {
       const reason = (e as Error)?.message ?? String(e);
       console.error("[supplier reply] createDailyPrice failed", reason);
@@ -369,7 +388,7 @@ export async function handleSupplierReply(
       env,
       [
         `⚠️ من رد المورد "${supplier.name}" حُفظ ${created} سعراً، واستُبعد ${check.dropped.length} لأنه غير واضح في الرسالة (لم يُحفظ):`,
-        ...check.dropped.map((d) => `• ${productNameById.get(d.item.product_id) ?? `صنف ${d.item.product_id}`} ${d.item.cost_price}: ${d.reason}`),
+        ...check.dropped.map((d) => `• ${productNameById.get(d.item.product_id) ?? `صنف ${d.item.product_id}`} ${[d.item.cost_price, d.item.market_price ?? 0].filter((n) => n > 0).join(" / ")}: ${d.reason}`),
         ``,
         `النص: ${trunc(messageText, 400)}`,
       ].join("\n"),

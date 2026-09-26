@@ -567,6 +567,8 @@ export async function checkPricesDeadline(env: Env, now: number = Date.now()): P
 }
 
 export interface PricesTick {
+  /** § 40 ب — 02:30 «أرسل أسعار السوق اليوم» to the sources that are not suppliers. */
+  marketAsk?: { action: string } | { error: string };
   refresh?: RefreshReport | { error: string };
   deadline?: DeadlineReport | { error: string };
   publish?: PublishReport | { error: string };
@@ -575,6 +577,10 @@ export interface PricesTick {
 /** The every-5-minutes tick: refresh the day (when its prices changed), the deadline, and an approval whose webhook was lost. */
 export async function runPricesTick(env: Env, now: number = Date.now(), ctx?: ExecutionContext): Promise<PricesTick> {
   const out: PricesTick = {};
+  try {
+    const { runMarketAsk } = await import("./price-sources");
+    out.marketAsk = await runMarketAsk(env, now, pricesDeadlineMinutes(env).minutes);
+  } catch (e) { out.marketAsk = { error: (e as Error)?.message ?? String(e) }; }
   try { out.refresh = await refreshPriceDay(env, { now }); } catch (e) { out.refresh = { error: (e as Error)?.message ?? String(e) }; }
   try { out.deadline = await checkPricesDeadline(env, now); } catch (e) { out.deadline = { error: (e as Error)?.message ?? String(e) }; }
   try {

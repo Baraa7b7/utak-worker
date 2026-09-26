@@ -13,6 +13,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 const root = new URL("../", import.meta.url).pathname;
 const T = "tests/pricing-v1.test.mts";
 const OC = "src/operating-cost.ts";
+const PS = "src/price-sources.ts";
 
 // [part, name, [[file, find, replace], …], test file]
 const M = [
@@ -44,6 +45,58 @@ const M = [
     "    plannedStops: stops > 0 ? Math.floor(stops) : null,", "    plannedStops: Math.floor(stops),"]], T],
   ["أ", "the settings of an inactive record", [[OC,
     "    domain: [[\"x_is_active\", \"=\", true], [\"x_active_from\", \"<=\", day],", "    domain: [[\"x_active_from\", \"<=\", day],"]], T],
+  // ---------------------------------------------------------------- ب the sources
+  ["ب", "the extractor's label trusted (no «سوق» / «شراء» rule)", [[PS,
+    "    const kind = k === \"ambiguous\" ? c.label : k === \"other\" ? OTHER[DEFAULT_KIND[role]] : DEFAULT_KIND[role];", "    const kind = c.label;"]], T],
+  ["ب", "«20 سوق 24»: the keyword taken by both numbers", [[PS,
+    "      return !(next !== undefined && NUM.test(next));", "      return true;"]], T],
+  ["ب", "a number not written in the message kept (م6)", [[PS,
+    "    if (k === \"unwritten\") { out.dropped.push(`${c.v}: غير مكتوب في الرسالة`); continue; }", "    if (false) { continue; }"]], T],
+  ["ب", "a quantity not written kept", [[PS,
+    "    if (kindByText(text, q, role) === \"unwritten\") out.dropped.push(`الكمية ${q}: غير مكتوبة`);\n    else out.qty = q;", "    out.qty = q;"]], T],
+  ["ب", "a product outside the catalog kept", [[PS,
+    "    if (!ids.has(it.product_id)) { dropped.push({ item: it, reason: \"صنف لا يورّده\" }); continue; }", ""]], T],
+  ["ب", "Omar's default kind: purchase", [[PS,
+    "const DEFAULT_KIND: Record<SourceRole, PriceKind> = { supplier: \"purchase\", observer: \"market\" };", "const DEFAULT_KIND: Record<SourceRole, PriceKind> = { supplier: \"purchase\", observer: \"purchase\" };"]], T],
+  ["ب", "the market ask sent to a supplier too", [[PS,
+    "...src.partners.filter((p) => !p.supplier && !emp.has(p.partnerId))", "...src.partners.filter((p) => !emp.has(p.partnerId))"]], T],
+  ["ب", "the ask not claimed once a day", [[PS,
+    "claimButton(env, `mask_sent:${day}:p${t.partnerId}`, 26 * 60 * 60)", "claimButton(env, `mask_sent:${day}:p${t.partnerId}:${Math.random()}`, 26 * 60 * 60)"]], T],
+  ["ب", "the ask before 02:30", [[PS,
+    "  if (m < MARKET_ASK_MINUTE) return { action: \"before\" };\n", ""]], T],
+  ["ب", "the ask after the publication time", [[PS,
+    "  if (m >= untilMinute) return { action: \"after\" };\n", ""]], T],
+  ["ب", "outside the window: held by the gateway, not the team queue", [[PS,
+    "content: textContent(text), noHold: true, noHoldReason: \"طابور الفريق حتى «بدء الدوام»\" }", "content: textContent(text) }"]], T],
+  ["ب", "before the tap: sent anyway", [[PS,
+    "        if (h.hold) {\n          if (h.phase === \"before\") {", "        if (false) {\n          if (h.phase === \"before\") {"]], T],
+  ["ب", "a day off: queued anyway", [[PS,
+    "          if (h.phase === \"before\") {", "          if (true) {"]], T],
+  ["ب", "the reply window a day, not 90 minutes", [[PS,
+    "nowMs - m.at <= MARKET_REPLY_WINDOW_MIN * MIN", "nowMs - m.at <= 24 * 60 * MIN"]], T],
+  ["ب", "the held ask's delivering message read as prices", [[PS,
+    "  if (m.at === null) { await writeMarketAskMarker(env, digits, day, nowMs); return false; }", "  if (m.at === null) { await writeMarketAskMarker(env, digits, day, nowMs); return true; }"]], T],
+  ["ب", "the queue flush does not start the window", [["src/team-queue.ts",
+    "        if (r.ok && marketAsk) {", "        if (false) {"]], T],
+  ["ب", "yesterday's queued ask sent", [["src/team-queue.ts",
+    "      if (l.ask_day !== riyadhDateKey()) {", "      if (false) {"]], T],
+  ["ب", "a source without the flag read", [[PS,
+    "  if (!emp && !src.partners.some((p) => p.partnerId === who.partnerId && !p.supplier)) return null;\n", ""]], T],
+  ["ب", "no market outlier", [[PS,
+    "  const mOut = isOutlier(lastM, o.market);", "  const mOut = false;"]], T],
+  ["ب", "a simulation offer as the outlier reference", [[PS,
+    "[f, \">\", 0], [SIM_FIELD, \"!=\", true]],", "[f, \">\", 0]],"]], T],
+  ["ب", "Ahmed's «سوق» number saved as his purchase price", [["src/suppliers.ts",
+    "    const p = { ...k.item, cost_price: k.purchase ?? 0 };", "    const p = { ...k.item, cost_price: k.purchase ?? k.market ?? 0 };"], ["src/suppliers.ts",
+    "      if (k.purchase !== undefined) {", "      if (p.cost_price > 0) {"]], T],
+  ["ب", "Ahmed's market observation not saved", [["src/suppliers.ts",
+    "      if (k.market !== undefined || k.qty !== undefined) {", "      if (false) {"]], T],
+  ["ب", "the team hook not wired in /webhook", [["src/index.ts",
+    ".then((m) => m.tryMarketReply(env,", ".then((m) => null && m.tryMarketReply(env,"]], T],
+  ["ب", "the ask not in the */5 prices tick", [["src/prices.ts",
+    "    out.marketAsk = await runMarketAsk(env, now, pricesDeadlineMinutes(env).minutes);", "    out.marketAsk = { action: \"ran\" }; void runMarketAsk;"]], T],
+  ["ب", "Omar's reply not acknowledged", [[PS,
+    "  return { saved, reply: marketAckText(saved) };", "  return { saved, reply: \"\" };"]], T],
 ];
 
 const want = new Set(process.argv.slice(2));

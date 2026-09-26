@@ -76,6 +76,10 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   supplier_ask: op("طلب الأسعار", true),
   supplier_confirm: op("تأكيد استلام الأسعار"),
   supplier_price_nudge: op("تذكير الأسعار"),
+  // § 40 ب — 02:30 «أرسل أسعار السوق اليوم» to a price source that is not a
+  // supplier (Omar): a team member's waits in the team queue for his tap; a
+  // held one is stale after the 06:00 publication.
+  market_price_ask: op("طلب أسعار السوق", false, { untilMinute: 6 * 60 }),
   // § 37 — the supplier's notice of a payment Baraa approved: critical
   // («مهمة»): text inside his window, utak_supplier_payment_sent (UTILITY)
   // outside it, else held three days with his «فتح المحادثة» when usable.

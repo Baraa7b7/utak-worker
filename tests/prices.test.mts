@@ -44,6 +44,8 @@ const FX = [
   "./fixtures-odoo-fields-20260925-team.json", "./fixtures-odoo-fields-20260925-opener.json", "./fixtures-odoo-fields-20260925-prices.json",
   // STATUS § 36 — x_body_text / x_buttons_text, x_echo_status / x_echo_message_id / x_backfilled
   "./fixtures-odoo-fields-20260925-s36.json",
+  // STATUS § 40 — the tick also runs the 02:30 market ask (hr.employee / res.partner x_price_source)
+  "./fixtures-odoo-fields-20260926-s40.json",
 ].map(load);
 const REAL: Record<string, string[]> = Object.assign({}, ...FX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FX.map((f) => f._selections));
@@ -387,7 +389,7 @@ console.log("\n[4] the tick and the Odoo hook");
   setRiyadh("2026-09-26 04:10");
   const n = graph.length;
   const t4 = await quiet(() => runPricesTick(env2, Date.now()));
-  assert("…once", !t4.publish && graph.length === n);
+  assert("…once", !t4.publish && graph.length === n, JSON.stringify({ t4, g: graph.slice(n) }));
 }
 
 // ================================================================ 5. quotes / invoices

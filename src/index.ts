@@ -180,7 +180,8 @@ export default {
           try {
             const { runPricesTick } = await import("./prices");
             const p = await runPricesTick(env, Date.now(), ctx);
-            const quiet = (p.refresh && "action" in p.refresh && ["no_prices", "unchanged", "locked"].includes(p.refresh.action))
+            const quiet = (!p.marketAsk || ("action" in p.marketAsk && ["before", "after"].includes(p.marketAsk.action)))
+              && (p.refresh && "action" in p.refresh && ["no_prices", "unchanged", "locked"].includes(p.refresh.action))
               && (p.deadline && "action" in p.deadline && ["before", "after_window", "claimed_before"].includes(p.deadline.action)) && !p.publish;
             if (!quiet) console.log("[prices tick]", JSON.stringify(p));
           } catch (e) {
@@ -2357,6 +2358,9 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         const { pendingCollectNoteKey } = await import("./team-note");
         const collectNoteKey = pendingCollectNoteKey(teamMember.id);
         const pendingCollectNote = await env.MSG_DEDUP.get(collectNoteKey);
+        // § 40 ب — a price source's reply within 90 minutes of today's
+        // «أرسل أسعار السوق اليوم»: read as market prices (null → an ordinary message).
+        let marketReply: string | null = null;
         if (pendingListId) {
           const listId = Number(pendingListId);
           await env.MSG_DEDUP.delete(purchaseIssueKey);
@@ -2385,6 +2389,10 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           const { recordTeamNote, TEAM_NOTE_ACK } = await import("./team-note");
           await recordTeamNote(env, { kind: "collection", memberName: teamMember.name, invoiceId, text: msg.text });
           await sendText(env, msg.from, TEAM_NOTE_ACK, { ctx, purpose: "bot_reply" });
+        } else if ((marketReply = await import("./price-sources").then((m) => m.tryMarketReply(env,
+          { partnerId: teamMember.id, employeeId: teamMember.employeeId ?? null, name: teamMember.name }, msg.from, msg.text, msg.messageId))
+          .catch((e) => { console.warn("[market-reply] failed", (e as Error)?.message); return null; }))) {
+          await sendText(env, msg.from, marketReply, { ctx, purpose: "bot_reply" });
         } else if (att.hold) {
           await sendText(env, msg.from, holdText(att), { ctx, purpose: "bot_reply" });
         } else {
@@ -2453,6 +2461,22 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         }
         await markSeen(env, msg.messageId);
         continue;
+      }
+    }
+
+    // § 40 ب — a price source that is a partner (not a supplier, not the
+    // team): its reply within 90 minutes of today's market-price ask.
+    if (msg.type === "text" && msg.text && ingestPartnerId > 0) {
+      try {
+        const { tryMarketReply } = await import("./price-sources");
+        const r = await tryMarketReply(env, { partnerId: ingestPartnerId, name: ingestPartnerName || msg.profileName || "" }, msg.from, msg.text, msg.messageId);
+        if (r) {
+          await sendText(env, msg.from, r, { ctx, purpose: "bot_reply" });
+          await markSeen(env, msg.messageId);
+          continue;
+        }
+      } catch (e) {
+        console.warn("[market-reply] partner check failed", (e as Error)?.message);
       }
     }
 

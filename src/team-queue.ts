@@ -19,7 +19,7 @@ import { sendButtons, sendLocation, sendText } from "./meta";
 // customer gets «في الطريق» (src/out-for-delivery.ts).
 export type TeamQueueItem =
   | { latitude: number; longitude: number; name?: string; address?: string; purpose?: string }
-  | { text: string; buttons?: Array<{ id: string; title: string }>; purpose?: string }
+  | { text: string; buttons?: Array<{ id: string; title: string }>; purpose?: string; ask_day?: string }
   | { route_start: number; driver?: string };
 
 /** Long enough for a task queued at 21:15 to wait for the next day's tap. */
@@ -75,6 +75,13 @@ export async function flushTeamQueue(env: Env, to: string): Promise<number> {
       continue;
     }
     const purpose = typeof l?.purpose === "string" && l.purpose ? l.purpose : "team_task";
+    // § 40 ب — today's «أرسل أسعار السوق اليوم» reaches the member now (its
+    // 90-minute window starts here); an ask of another day is dropped.
+    const marketAsk = purpose === "market_price_ask";
+    if (marketAsk) {
+      const { riyadhDateKey } = await import("./hours");
+      if (l.ask_day !== riyadhDateKey()) { console.log(`[pending_loc] stale market ask (${String(l.ask_day)}) dropped`); continue; }
+    }
     if (typeof l?.text === "string" && l.text) {
       const buttons = Array.isArray(l.buttons) ? (l.buttons as Array<{ id: string; title: string }>) : [];
       try {
@@ -82,6 +89,10 @@ export async function flushTeamQueue(env: Env, to: string): Promise<number> {
           ? await sendButtons(env, to, l.text.slice(0, 1024), buttons, { purpose })
           : await sendText(env, to, l.text, { purpose });
         if (r.ok) sent++;
+        if (r.ok && marketAsk) {
+          const { onQueuedAskFlushed } = await import("./price-sources");
+          await onQueuedAskFlushed(env, to, l.ask_day);
+        }
       } catch (e) {
         console.warn("[pending_loc] send failed", (e as Error)?.message);
       }

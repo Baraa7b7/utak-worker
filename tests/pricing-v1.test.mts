@@ -14,7 +14,10 @@
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/pricing-v1.test.mts
 
 import { readFileSync } from "node:fs";
-import { employee, quiet, reset, seed, setRiyadh, table, workSchedule } from "./wa-harness.mts";
+import {
+  OWNER, closeOwnerWindow, ctx as harnessCtx, employee, graph, heldFor, inbound, openWindow, quiet, reset, rows, seed, sentTo, setRiyadh,
+  signed, table, workSchedule,
+} from "./wa-harness.mts";
 
 let passed = 0, failed = 0;
 const failures: string[] = [];
@@ -45,8 +48,15 @@ function known(model: string, name: string): boolean {
   return list.includes(f);
 }
 const harnessFetch = globalThis.fetch;
+/** What the fake extractor (Claude) answers: {prices, unrecognized}. */
+let extractOut: { prices: unknown[]; unrecognized: string[] } = { prices: [], unrecognized: [] };
+let claudeCalls = 0;
 globalThis.fetch = (async (input: unknown, init?: any) => {
   const url = typeof input === "string" ? input : (input as any)?.url ?? String(input);
+  if (url.includes("anthropic.com")) {
+    claudeCalls++;
+    return new Response(JSON.stringify({ content: [{ type: "text", text: JSON.stringify(extractOut) }] }), { status: 200 });
+  }
   const m = /\/json\/2\/([^/]+)\/([^/?]+)/.exec(url);
   if (m && init?.body && typeof init.body === "string") {
     const b = JSON.parse(init.body);
@@ -73,6 +83,10 @@ const { setOdooRetryHooksForTests } = await import("../src/odoo.ts");
 setOdooRetryHooksForTests({ sleep: async () => {}, alert: async () => {} });
 const { clearTemplateCache } = await import("../src/templates.ts");
 const OC = await import("../src/operating-cost.ts");
+const PS = await import("../src/price-sources.ts");
+const SUP = await import("../src/suppliers.ts");
+const { flushTeamQueue } = await import("../src/team-queue.ts");
+const worker = (await import("../src/index.ts")).default;
 
 // ---------------------------------------------------------------- data
 const DRIVER = 603, DRIVER_PHONE = "966500000603";
@@ -88,6 +102,15 @@ function fresh(riyadh = "2026-10-03 10:00", o: { driver?: boolean; onAttendance?
     const cal = workSchedule(SAT_THU, { name: "UTAK — عمر" });
     employee(DRIVER, [DRIVER_ROLE], { x_utak_attendance: o.onAttendance !== false, resource_calendar_id: cal });
   }
+  extractOut = { prices: [], unrecognized: [] }; claudeCalls = 0;
+  seed("res.users", { id: 2, login: "x", partner_id: 3 });
+  // the active catalog: طماطم (فلين 11) and خيار (جرم 21); بطاطس (31) not for sale today
+  Object.assign(table("product.template").get(1)!, { sale_ok: true, x_is_active_for_sale: true });
+  Object.assign(table("product.template").get(2)!, { sale_ok: true, x_is_active_for_sale: true });
+  seed("product.template", { id: 3, name: "بطاطس", sale_ok: true, x_is_active_for_sale: false });
+  seed("x_product_packaging", { id: 31, x_name: "كرتون", x_product_tmpl_id: 3, x_is_default: true });
+  table("x_product_packaging").get(11)!.x_is_default = true;
+  table("x_product_packaging").get(21)!.x_is_default = true;
   seed("x_pricing_config", {
     id: 1, x_name: "UTAK Default Pricing (Launch)", x_is_active: true, x_active_from: "2026-08-29", x_active_to: false,
     x_operations_margin_percent: 15, x_profit_margin_percent: 20, x_waste_pct: 5, x_min_order_sar: 150, x_planned_stops: 0,
@@ -198,6 +221,211 @@ console.log("\n[أ] the pricing settings (the active x_pricing_config)");
   const s3 = await quiet(() => OC.readPricingSettings(env, "2026-10-03"));
   assert("no active record → null", s3 === null, JSON.stringify(s3));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
+}
+
+// ================================================================ [ب]
+const AHMED = 801, AHMED_PHONE = "966500000801";
+const OMAR_EMP = 7000 + DRIVER;
+const FAHD = 830, FAHD_PHONE = "966500000830";
+/** Ahmed (supplier) and Omar (employee) are the two sources, as on the tenant. */
+function sources(): void {
+  seed("res.partner", { id: AHMED, name: "أحمد حسان", supplier_rank: 5, x_whatsapp_number: "+" + AHMED_PHONE, x_supplied_product_ids: [1, 2], x_price_source: true });
+  table("hr.employee").get(OMAR_EMP)!.x_price_source = true;
+}
+const offers = () => rows("x_price_offer");
+const item = (product: number, packaging: number, cost: number, market: number | null = null, qty: number | null = null) =>
+  ({ product_id: product, packaging_id: packaging, cost_price: cost, market_price: market, available_qty: qty, actual_weight_kg: null, notes: null });
+const askTexts = (digits: string) => sentTo(digits).filter((b) => b?.type === "text" && /أرسل أسعار السوق اليوم/.test(String(b.text?.body ?? "")));
+const queueOf = (env: any, digits: string) => JSON.parse(env.MSG_DEDUP.store.get(`pending_loc:+${digits}`) ?? "[]");
+const omar = { partnerId: DRIVER, name: "عمر المجهلي" };
+
+console.log("\n[ب] «سوق» / «شراء» beside the number: the kind comes from the message itself");
+{
+  const c = PS.classifyOffer;
+  const j = (x: unknown) => JSON.stringify(x);
+  let r = c({ cost_price: 20 }, "طماطم 20", "supplier");
+  assert("supplier «طماطم 20» → purchase 20", r.purchase === 20 && r.market === undefined, j(r));
+  r = c({ cost_price: 20, market_price: 24 }, "طماطم 20 السوق 24", "supplier");
+  assert("supplier «طماطم 20 السوق 24» → purchase 20, market 24", r.purchase === 20 && r.market === 24, j(r));
+  r = c({ cost_price: 24 }, "طماطم سوق 24", "supplier");
+  assert("supplier «طماطم سوق 24» (the extractor said cost) → market 24, no purchase", r.market === 24 && r.purchase === undefined, j(r));
+  r = c({ cost_price: 24 }, "طماطم 24 بالسوق", "supplier");
+  assert("supplier «طماطم 24 بالسوق» → market", r.market === 24 && r.purchase === undefined, j(r));
+  r = c({ cost_price: 20, market_price: 24 }, "طماطم 20 سوق 24", "supplier");
+  assert("«20 سوق 24»: the keyword belongs to 24 → purchase 20, market 24", r.purchase === 20 && r.market === 24, j(r));
+  r = c({ market_price: 24 }, "طماطم 24", "supplier");
+  assert("supplier: labelled market by the extractor but no «سوق» beside it → a purchase price", r.purchase === 24 && r.market === undefined, j(r));
+  r = c({ cost_price: 24 }, "طماطم ٢٤ السوق", "supplier");
+  assert("Arabic-Indic digits: «٢٤ السوق» → market 24", r.market === 24, j(r));
+  r = c({ cost_price: 25 }, "طماطم 20", "supplier");
+  assert("a number not written in the message → nothing (م6)", r.purchase === undefined && r.market === undefined && r.dropped.length === 1, j(r));
+  r = c({ cost_price: 24 }, "طماطم 24", "observer");
+  assert("observer (Omar) «طماطم 24» → market 24", r.market === 24 && r.purchase === undefined, j(r));
+  r = c({ cost_price: 20, market_price: 24 }, "طماطم 24 شراء 20", "observer");
+  assert("observer «طماطم 24 شراء 20» → market 24, purchase 20", r.market === 24 && r.purchase === 20, j(r));
+  r = c({ cost_price: 20 }, "طماطم الشراء 20", "observer");
+  assert("observer «طماطم الشراء 20» → purchase 20 only", r.purchase === 20 && r.market === undefined, j(r));
+  r = c({ cost_price: 24, available_qty: 30 }, "طماطم 24 متوفر 30", "observer");
+  assert("the available quantity written → kept (30)", r.market === 24 && r.qty === 30, j(r));
+  r = c({ cost_price: 24, available_qty: 40 }, "طماطم 24", "observer");
+  assert("a quantity not written → dropped", r.market === 24 && r.qty === undefined && r.dropped.length === 1, j(r));
+  const k = PS.checkOfferItems([item(3, 31, 18), item(1, 11, 24)], [{ id: 1 }], [{ id: 11, product_id: 1 }, { id: 31, product_id: 3 }], "بطاطس 18، طماطم 24", "observer");
+  assert("a product outside the catalog → dropped «صنف لا يورّده», the catalog one kept", k.kept.length === 1 && k.kept[0].product_id === 1
+    && k.dropped.length === 1 && k.dropped[0].reason === "صنف لا يورّده", j(k));
+}
+
+console.log("\n[ب] Ahmed (supplier): the § 26 flow as it is; «سوق» beside a number → a market observation");
+{
+  const env = fresh("2026-10-03 03:10"); sources();
+  const sup = { ...table("res.partner").get(AHMED)!, id: AHMED } as any;
+  extractOut = { prices: [item(1, 11, 20, 24)], unrecognized: [] };
+  await quiet(() => SUP.handleSupplierReply(env, sup, "طماطم 20 السوق 24", "wamid.A1"));
+  const dp = rows("x_daily_price");
+  assert("his purchase price in x_daily_price (20), as § 26", dp.length === 1 && dp[0].x_price_sar === 20 && dp[0].x_supplier_id === AHMED, JSON.stringify(dp));
+  const of = offers();
+  assert("the market observation in x_price_offer (24), with his price row, today (Riyadh)",
+    of.length === 1 && of[0].x_market_price === 24 && of[0].x_purchase_price === 0 && of[0].x_daily_price_id === dp[0].id
+      && of[0].x_source_partner_id === AHMED && of[0].x_date === "2026-10-03" && of[0].x_status === "valid", JSON.stringify(of));
+  extractOut = { prices: [item(2, 21, 30)], unrecognized: [] };
+  await quiet(() => SUP.handleSupplierReply(env, sup, "خيار سوق 30", "wamid.A2"));
+  assert("«خيار سوق 30»: no purchase price saved, one market observation", rows("x_daily_price").length === 1 && offers().length === 2 && offers()[1].x_market_price === 30,
+    JSON.stringify({ dp: rows("x_daily_price").length, of: offers() }));
+  extractOut = { prices: [item(2, 21, 26)], unrecognized: [] };
+  await quiet(() => SUP.handleSupplierReply(env, sup, "خيار 26", "wamid.A3"));
+  assert("«خيار 26» (no «سوق»): his purchase price only, no offer row (§ 26 unchanged)", rows("x_daily_price").length === 2 && offers().length === 2);
+  assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
+}
+
+console.log("\n[ب] Omar: 02:30 «أرسل أسعار السوق اليوم» through the gateway, once a day, never to a supplier");
+{
+  const env = fresh("2026-10-03 02:25", { onAttendance: false }); sources();
+  openWindow(env, DRIVER_PHONE, 30);
+  let r = await quiet(() => PS.runMarketAsk(env, Date.now(), 360));
+  assert("02:25: before the ask", r.action === "before" && askTexts(DRIVER_PHONE).length === 0, JSON.stringify(r));
+  setRiyadh("2026-10-03 02:30");
+  const P = await import("../src/prices.ts");
+  const tick = await quiet(() => P.runPricesTick(env, Date.now()));
+  assert("02:30, in the */5 prices tick: the ask as text inside his window", askTexts(DRIVER_PHONE).length === 1 && (tick.marketAsk as any)?.action === "ran", JSON.stringify(tick.marketAsk));
+  assert("Ahmed (a supplier: asked at 02:00) gets no market ask — not sent, not held, not in the run",
+    askTexts(AHMED_PHONE).length === 0 && heldFor(env, AHMED_PHONE).length === 0 && ((tick.marketAsk as any)?.asks ?? []).every((a: any) => a.name !== "أحمد حسان"),
+    JSON.stringify(tick.marketAsk));
+  setRiyadh("2026-10-03 02:35");
+  r = await quiet(() => PS.runMarketAsk(env, Date.now(), 360));
+  assert("the next tick: no second ask (claimed)", askTexts(DRIVER_PHONE).length === 1 && (r.asks ?? [])[0]?.action === "claimed_before", JSON.stringify(r));
+  const env2 = fresh("2026-10-03 06:00", { onAttendance: false }); sources();
+  openWindow(env2, DRIVER_PHONE, 30);
+  r = await quiet(() => PS.runMarketAsk(env2, Date.now(), 360));
+  assert("from the publication time (06:00): no ask any more", r.action === "after" && askTexts(DRIVER_PHONE).length === 0, JSON.stringify(r));
+}
+{
+  const env = fresh("2026-10-03 02:30", { onAttendance: false });   // Omar not flagged
+  openWindow(env, DRIVER_PHONE, 30);
+  const r = await quiet(() => PS.runMarketAsk(env, Date.now(), 360));
+  assert("an employee without «مصدر أسعار»: no ask", askTexts(DRIVER_PHONE).length === 0 && (r.asks ?? []).length === 0, JSON.stringify(r));
+}
+
+console.log("\n[ب] outside his window → the team queue; the 90 minutes start when the ask reaches him");
+{
+  const env = fresh("2026-10-03 02:30", { onAttendance: false }); sources();
+  await quiet(() => PS.runMarketAsk(env, Date.now(), 360));
+  assert("outside his window: nothing sent, the ask waits in the team queue", askTexts(DRIVER_PHONE).length === 0
+    && queueOf(env, DRIVER_PHONE).some((i: any) => i.purpose === "market_price_ask" && i.ask_day === "2026-10-03"), JSON.stringify(queueOf(env, DRIVER_PHONE)));
+  extractOut = { prices: [item(1, 11, 24)], unrecognized: [] };
+  setRiyadh("2026-10-03 02:50");
+  const early = await quiet(() => PS.tryMarketReply(env, omar, `+${DRIVER_PHONE}`, "طماطم 24", "wamid.O0"));
+  assert("before the ask reached him: a message is not read as prices", early === null && offers().length === 0);
+  setRiyadh("2026-10-03 03:00"); openWindow(env, DRIVER_PHONE, 0);
+  await quiet(() => flushTeamQueue(env, `+${DRIVER_PHONE}`));
+  assert("03:00, the queue flushed (his message / tap): the ask reaches him", askTexts(DRIVER_PHONE).length === 1);
+  setRiyadh("2026-10-03 04:25");
+  const rep = await quiet(() => PS.tryMarketReply(env, omar, `+${DRIVER_PHONE}`, "طماطم 24", "wamid.O1"));
+  assert("his reply 85 minutes after: a market observation (24), and «وصلتنا أسعار السوق (1 صنف)»",
+    rep === PS.marketAckText(1) && offers().length === 1 && offers()[0].x_market_price === 24 && offers()[0].x_purchase_price === 0
+      && offers()[0].x_source_partner_id === DRIVER && offers()[0].x_source_employee_id === OMAR_EMP, JSON.stringify({ rep, of: offers() }));
+  setRiyadh("2026-10-03 04:31");
+  extractOut = { prices: [item(2, 21, 30)], unrecognized: [] };
+  const late = await quiet(() => PS.tryMarketReply(env, omar, `+${DRIVER_PHONE}`, "خيار 30", "wamid.O2"));
+  assert("91 minutes after: not read (an ordinary team message)", late === null && offers().length === 1);
+}
+{
+  const env = fresh("2026-10-03 02:30"); sources();   // on attendance, «بدء الدوام» not tapped yet
+  const r = await quiet(() => PS.runMarketAsk(env, Date.now(), 360));
+  assert("on attendance before his tap: queued for the tap, not sent", (r.asks ?? [])[0]?.action === "queued" && askTexts(DRIVER_PHONE).length === 0
+    && queueOf(env, DRIVER_PHONE).length === 1, JSON.stringify(r));
+  setRiyadh("2026-10-04 02:05"); openWindow(env, DRIVER_PHONE, 0);
+  await quiet(() => flushTeamQueue(env, `+${DRIVER_PHONE}`));
+  assert("flushed the next day: yesterday's ask dropped, not sent", askTexts(DRIVER_PHONE).length === 0);
+}
+{
+  const env = fresh("2026-10-02 02:30"); sources();   // Friday: his day off
+  const r = await quiet(() => PS.runMarketAsk(env, Date.now(), 360));
+  assert("his day off (Friday): no ask, nothing queued", (r.asks ?? [])[0]?.action === "off" && queueOf(env, DRIVER_PHONE).length === 0, JSON.stringify(r));
+}
+
+console.log("\n[ب] through /webhook: Omar's reply read with the same extractor and rules (م6)");
+{
+  const env = fresh("2026-10-03 02:30", { onAttendance: false }); sources();
+  openWindow(env, DRIVER_PHONE, 10);
+  await quiet(() => PS.runMarketAsk(env, Date.now(), 360));
+  setRiyadh("2026-10-03 02:50");
+  extractOut = { prices: [item(1, 11, 20, 24)], unrecognized: [] };
+  await quiet(() => worker.fetch(signed(inbound(DRIVER_PHONE, { type: "text", text: { body: "طماطم 24 شراء 20" } })), env, harnessCtx));
+  const of = offers();
+  assert("«طماطم 24 شراء 20» → one offer: market 24, purchase 20", of.length === 1 && of[0].x_market_price === 24 && of[0].x_purchase_price === 20, JSON.stringify(of));
+  assert("his reply «وصلتنا أسعار السوق (1 صنف)»", sentTo(DRIVER_PHONE).some((b) => b?.type === "text" && String(b.text?.body) === PS.marketAckText(1)));
+  assert("no x_daily_price row from Omar (not a supplier)", rows("x_daily_price").length === 0);
+  extractOut = { prices: [], unrecognized: [] };
+  graph.length = 0;
+  await quiet(() => worker.fetch(signed(inbound(DRIVER_PHONE, { type: "text", text: { body: "تمام يا براء" } })), env, harnessCtx));
+  assert("a message with no price inside the window: an ordinary team message (no offer, no «وصلتنا»)",
+    offers().length === 1 && !sentTo(DRIVER_PHONE).some((b) => /وصلتنا/.test(JSON.stringify(b))) && sentTo(DRIVER_PHONE).some((b) => /مرحبا/.test(JSON.stringify(b))),
+    JSON.stringify(sentTo(DRIVER_PHONE)).slice(0, 300));
+  extractOut = { prices: [item(3, 31, 18)], unrecognized: [] };
+  graph.length = 0;
+  await quiet(() => worker.fetch(signed(inbound(DRIVER_PHONE, { type: "text", text: { body: "بطاطس 18" } })), env, harnessCtx));
+  assert("a product outside the active catalog: not saved, an ordinary message", offers().length === 1 && !sentTo(DRIVER_PHONE).some((b) => /وصلتنا/.test(JSON.stringify(b))));
+  assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
+}
+
+console.log("\n[ب] the status: «شاذ» against the same source's last value; simulation rows never the reference");
+{
+  const env = fresh("2026-10-03 02:30", { onAttendance: false }); sources();
+  seed("x_price_offer", { x_date: "2026-10-02", x_source_partner_id: DRIVER, x_product_tmpl_id: 1, x_packaging_id: 11, x_market_price: 10, x_purchase_price: 0, x_status: "valid", x_utak_simulation: false });
+  openWindow(env, DRIVER_PHONE, 10);
+  await quiet(() => PS.runMarketAsk(env, Date.now(), 360));
+  extractOut = { prices: [item(1, 11, 24)], unrecognized: [] };
+  await quiet(() => PS.tryMarketReply(env, omar, `+${DRIVER_PHONE}`, "طماطم 24", "wamid.O3"));
+  const o = offers().find((x: any) => x.x_date === "2026-10-03");
+  assert("market 10 yesterday → 24 today (×2.4 ≥ 1.5): «شاذ», the market flagged", o?.x_status === "outlier" && o?.x_market_outlier === true && o?.x_purchase_outlier === false, JSON.stringify(o));
+}
+{
+  const env = fresh("2026-10-03 02:30", { onAttendance: false }); sources();
+  seed("x_price_offer", { x_date: "2026-10-02", x_source_partner_id: DRIVER, x_product_tmpl_id: 1, x_packaging_id: 11, x_market_price: 10, x_purchase_price: 0, x_status: "valid", x_utak_simulation: true });
+  openWindow(env, DRIVER_PHONE, 10);
+  await quiet(() => PS.runMarketAsk(env, Date.now(), 360));
+  extractOut = { prices: [item(1, 11, 24)], unrecognized: [] };
+  await quiet(() => PS.tryMarketReply(env, omar, `+${DRIVER_PHONE}`, "طماطم 24", "wamid.O4"));
+  const o = offers().find((x: any) => x.x_date === "2026-10-03");
+  assert("the only earlier value is a simulation row → not the reference: «صالح»", o?.x_status === "valid", JSON.stringify(o));
+}
+
+console.log("\n[ب] a new source = «مصدر أسعار» ticked, no code (a partner who is not a supplier)");
+{
+  const env = fresh("2026-10-03 02:30", { onAttendance: false }); sources();
+  seed("res.partner", { id: FAHD, name: "فهد من السوق", supplier_rank: 0, x_whatsapp_number: "+" + FAHD_PHONE, x_price_source: true });
+  const r = await quiet(() => PS.runMarketAsk(env, Date.now(), 360));
+  const fahd = (r.asks ?? []).find((a) => a.name === "فهد من السوق");
+  assert("his window closed: the ask held by the gateway until he writes", fahd?.action === "held" && heldFor(env, FAHD_PHONE).length === 1, JSON.stringify(r));
+  setRiyadh("2026-10-03 03:00");
+  extractOut = { prices: [item(1, 11, 23)], unrecognized: [] };
+  const first = await quiet(() => PS.tryMarketReply(env, { partnerId: FAHD, name: "فهد من السوق" }, `+${FAHD_PHONE}`, "طماطم 23", "wamid.F1"));
+  assert("his next message delivers it (the flush): that message — even with a price — is not read as prices", first === null && offers().length === 0);
+  const second = await quiet(() => PS.tryMarketReply(env, { partnerId: FAHD, name: "فهد من السوق" }, `+${FAHD_PHONE}`, "طماطم 23", "wamid.F2"));
+  assert("his reply after it: a market observation (23)", second === PS.marketAckText(1) && offers().length === 1 && offers()[0].x_source_partner_id === FAHD && offers()[0].x_market_price === 23, JSON.stringify(offers()));
+  table("res.partner").get(FAHD)!.x_price_source = false;
+  extractOut = { prices: [item(2, 21, 31)], unrecognized: [] };
+  const third = await quiet(() => PS.tryMarketReply(env, { partnerId: FAHD, name: "فهد من السوق" }, `+${FAHD_PHONE}`, "خيار 31", "wamid.F3"));
+  assert("the flag cleared: his messages are not read as prices any more", third === null && offers().length === 1);
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

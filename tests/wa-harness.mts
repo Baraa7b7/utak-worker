@@ -34,6 +34,8 @@ const M2O: Record<string, string> = {
   x_day_id: "x_price_day", x_daily_price_id: "x_daily_price", x_default_price_id: "x_daily_price", x_approved_by: "res.users",
   // 2026-09-25 (STATUS § 37) — «💵 دفع الموردين»
   x_recorded_by: "res.partner", x_decided_by: "res.users", x_purchase_list_id: "x_purchase_list", x_due_id: "x_supplier_due",
+  // 2026-09-26 (STATUS § 40) — the pricing engine v1
+  x_source_partner_id: "res.partner", x_source_employee_id: "hr.employee", x_account_id: "account.account", x_config_id: "x_pricing_config",
 };
 /**
  * 2026-09-25 (STATUS § 35) — a test may mirror a stored compute of the tenant

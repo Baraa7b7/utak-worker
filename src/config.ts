@@ -467,7 +467,7 @@ You will receive:
 Return ONLY a JSON object (no prose, no markdown, no backticks):
 {
   "prices": [
-    {"product_id": <int>, "packaging_id": <int>, "cost_price": <number>, "actual_weight_kg": <number|null>, "notes": "<string|null>"}
+    {"product_id": <int>, "packaging_id": <int>, "cost_price": <number|null>, "market_price": <number|null>, "available_qty": <number|null>, "actual_weight_kg": <number|null>, "notes": "<string|null>"}
   ],
   "unrecognized": ["<raw line the message had but you couldn't map>"]
 }
@@ -475,7 +475,10 @@ Return ONLY a JSON object (no prose, no markdown, no backticks):
 Rules:
 - Match Arabic product names fuzzily (طماطم=بندورة, خيار=قثاء, بطاطس=بطاطا).
 - If packaging is not explicit, pick the product's default packaging (default=true).
-- cost_price is a plain number in SAR (drop "ريال", "ر.س", "sar", commas).
+- cost_price is a plain number in SAR (drop "ريال", "ر.س", "sar", commas): the price the sender gives for the item.
+- market_price: only a price the message itself labels as the market's (the word سوق / السوق / بالسوق next to the number). If that is the item's only price, put it here and cost_price null. Else null.
+- available_qty: only when the message states how much of the item is available (e.g. "متوفر 30 كرتون"). Else null.
+- Copy every number exactly as written; never compute, round or infer a price.
 - actual_weight_kg only if supplier mentioned the actual crate weight (e.g. "الكرتون طلع 9 كيلو") — else null.
 - NEVER invent a product not in the catalog. Put unmappable lines in "unrecognized".
 - If the message is a greeting / question / non-price text, return {"prices": [], "unrecognized": []}.`;

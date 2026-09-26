@@ -1,128 +1,253 @@
 {
-  "at": "2026-09-26T07:43:23.897Z",
-  "caught": 12,
-  "total": 12,
+  "at": "2026-09-26T07:54:36.406Z",
+  "caught": 25,
+  "total": 25,
   "results": [
     {
-      "part": "أ",
-      "name": "a monthly share on the driver's day off",
+      "part": "ب",
+      "name": "the extractor's label trusted (no «سوق» / «شراء» rule)",
       "caught": true,
       "fails": [
-        "✗ monthly on the driver's day off (Friday) → 0 — {\"day\":\"2026-10-02\",\"total\":100,\"items\":[{\"id\":10007,\"name\":\"صيانة\",\"frequency\":\"monthly\",\"amount\":2600,\"perDay\":100}],\"workingDay\":false,\"monthWorkingDays\":26,\"yearWorkingDays\":null,\"driver\":\"عمر المجهلي\"}",
-        "✗ … and on Friday 10-02 = 500 (the daily line only) — {\"day\":\"2026-10-02\",\"total\":700,\"items\":[{\"id\":10007,\"name\":\"تأمين السيارة\",\"frequency\":\"yearly\",\"amount\":31300,\"perDay\":100},{\"id\":10008,\"name\":\"السيارة والسائق (شامل)\",\"frequency\":\"daily\",\"amount\":500,\"perDay\":500},{\"id\":10009,\"name\":\"صيانة\",\"frequency\":\"monthly\",\"amount\":2600,\"perDay\":100}],\"workingDay\":false,\"monthWorkingDays\":26,\"yearWorkingDays\":313,\"driver\":\"عمر المجهلي\"}",
-        "✗ monthly on the driver's day off (Friday) → 0",
-        "✗ … and on Friday 10-02 = 500 (the daily line only)"
+        "✗ supplier «طماطم سوق 24» (the extractor said cost) → market 24, no purchase — {\"dropped\":[],\"purchase\":24}",
+        "✗ supplier «طماطم 24 بالسوق» → market — {\"dropped\":[],\"purchase\":24}",
+        "✗ supplier: labelled market by the extractor but no «سوق» beside it → a purchase price — {\"dropped\":[],\"market\":24}",
+        "✗ Arabic-Indic digits: «٢٤ السوق» → market 24 — {\"dropped\":[],\"purchase\":24}"
       ]
     },
     {
-      "part": "أ",
-      "name": "monthly ÷ 30 calendar days, not the working days",
+      "part": "ب",
+      "name": "«20 سوق 24»: the keyword taken by both numbers",
       "caught": true,
       "fails": [
-        "✗ monthly 2600 on a working day → 100 — {\"day\":\"2026-10-03\",\"total\":86.67,\"items\":[{\"id\":10007,\"name\":\"صيانة\",\"frequency\":\"monthly\",\"amount\":2600,\"perDay\":86.66666666666667}],\"workingDay\":true,\"monthWorkingDays\":26,\"yearWorkingDays\":null,\"driver\":\"عمر المجهلي\"}",
-        "✗ September 2026 has 26 working days too (4 Fridays of 30) — {\"day\":\"2026-09-26\",\"total\":86.67,\"items\":[{\"id\":10007,\"name\":\"صيانة\",\"frequency\":\"monthly\",\"amount\":2600,\"perDay\":86.66666666666667}],\"workingDay\":true,\"monthWorkingDays\":26,\"yearWorkingDays\":null,\"driver\":\"عمر المجهلي\"}",
-        "✗ February 2026: 24 working days → 108.33 — {\"day\":\"2026-02-02\",\"total\":86.67,\"items\":[{\"id\":10007,\"name\":\"صيانة\",\"frequency\":\"monthly\",\"amount\":2600,\"perDay\":86.66666666666667}],\"workingDay\":true,\"monthWorkingDays\":24,\"yearWorkingDays\":null,\"driver\":\"عمر المجهلي\"}",
-        "✗ daily 500 + monthly 2600 + yearly 31300 on Saturday 10-03 = 700 — {\"day\":\"2026-10-03\",\"total\":686.67,\"items\":[{\"id\":10007,\"name\":\"تأمين السيارة\",\"frequency\":\"yearly\",\"amount\":31300,\"perDay\":100},{\"id\":10008,\"name\":\"السيارة والسائق (شامل)\",\"frequency\":\"daily\",\"amount\":500,\"perDay\":500},{\"id\":10009,\"name\":\"صيانة\",\"frequency\":\"monthly\",\"amount\":2600,\"perDay\":86.66666666666667}],\"workingDay\":true,\"monthWorkingDays\":26,\"yearWorkingDays\":313,\"driver\":\"عمر المجهلي\"}"
+        "✗ supplier «طماطم 20 السوق 24» → purchase 20, market 24 — {\"dropped\":[\"20: رقمان لنفس النوع\"],\"market\":24}",
+        "✗ «20 سوق 24»: the keyword belongs to 24 → purchase 20, market 24 — {\"dropped\":[\"20: رقمان لنفس النوع\"],\"market\":24}",
+        "✗ observer «طماطم 24 شراء 20» → market 24, purchase 20 — {\"dropped\":[\"24: رقمان لنفس النوع\"],\"purchase\":20}",
+        "✗ his purchase price in x_daily_price (20), as § 26 — []"
       ]
     },
     {
-      "part": "أ",
-      "name": "yearly ÷ the month's working days",
+      "part": "ب",
+      "name": "a number not written in the message kept (م6)",
       "caught": true,
       "fails": [
-        "✗ 2026 has 313 working days; yearly 31300 → 100 — {\"day\":\"2026-10-03\",\"total\":1203.85,\"items\":[{\"id\":10007,\"name\":\"تأمين السيارة\",\"frequency\":\"yearly\",\"amount\":31300,\"perDay\":1203.8461538461538}],\"workingDay\":true,\"monthWorkingDays\":26,\"yearWorkingDays\":313,\"driver\":\"عمر المجهلي\"}",
-        "✗ daily 500 + monthly 2600 + yearly 31300 on Saturday 10-03 = 700 — {\"day\":\"2026-10-03\",\"total\":1803.85,\"items\":[{\"id\":10007,\"name\":\"تأمين السيارة\",\"frequency\":\"yearly\",\"amount\":31300,\"perDay\":1203.8461538461538},{\"id\":10008,\"name\":\"السيارة والسائق (شامل)\",\"frequency\":\"daily\",\"amount\":500,\"perDay\":500},{\"id\":10009,\"name\":\"صيانة\",\"frequency\":\"monthly\",\"amount\":2600,\"perDay\":100}],\"workingDay\":true,\"monthWorkingDays\":26,\"yearWorkingDays\":313,\"driver\":\"عمر المجهلي\"}",
-        "✗ 2026 has 313 working days; yearly 31300 → 100",
-        "✗ daily 500 + monthly 2600 + yearly 31300 on Saturday 10-03 = 700"
+        "✗ a number not written in the message → nothing (م6) — {\"dropped\":[],\"purchase\":25}",
+        "✗ a number not written in the message → nothing (م6)"
       ]
     },
     {
-      "part": "أ",
-      "name": "«إلى» ignored",
+      "part": "ب",
+      "name": "a quantity not written kept",
       "caught": true,
       "fails": [
-        "✗ «إلى» inclusive: 10-10 = 540, 10-11 = 500 — 540 540",
-        "✗ a monthly line with «من / إلى»: 3000 ÷ 26 inside, nothing outside — 115.38 0 115.38",
-        "✗ «إلى» inclusive: 10-10 = 540, 10-11 = 500",
-        "✗ a monthly line with «من / إلى»: 3000 ÷ 26 inside, nothing outside"
+        "✗ a quantity not written → dropped — {\"dropped\":[],\"market\":24,\"qty\":40}",
+        "✗ a quantity not written → dropped"
       ]
     },
     {
-      "part": "أ",
-      "name": "«من» ignored",
+      "part": "ب",
+      "name": "a product outside the catalog kept",
       "caught": true,
       "fails": [
-        "✗ 2026-09-30: 0 (before «من») — {\"day\":\"2026-09-30\",\"total\":500,\"items\":[{\"id\":10007,\"name\":\"السيارة والسائق (شامل)\",\"frequency\":\"daily\",\"amount\":500,\"perDay\":500}],\"workingDay\":null,\"monthWorkingDays\":null,\"yearWorkingDays\":null,\"driver\":null}",
-        "✗ a monthly line with «من / إلى»: 3000 ÷ 26 inside, nothing outside — 115.38 115.38 0",
-        "✗ 2026-09-30: 0 (before «من»)",
-        "✗ a monthly line with «من / إلى»: 3000 ÷ 26 inside, nothing outside"
+        "✗ a product outside the catalog → dropped «صنف لا يورّده», the catalog one kept — {\"kept\":[{\"dropped\":[],\"market\":18,\"product_id\":3,\"packaging_id\":31,\"item\":{\"product_id\":3,\"packaging_id\":31,\"cost_price\":18,\"market_price\":null,\"available_qty\":null,\"actual_weight_kg\":null,\"notes\":null}},{\"dropped\":[],\"market\":24,\"product_id\":1,\"packaging_id\":11,\"item\":{\"product_id\":1,\"packaging_id\":11,\"cost_price\":24,\"market_price\":null,\"available_qty\":null,\"actual_weight_kg\":null,\"notes\":null}}],\"dropped\":[]}",
+        "✗ a product outside the catalog → dropped «صنف لا يورّده», the catalog one kept"
       ]
     },
     {
-      "part": "أ",
-      "name": "a simulation line counted",
+      "part": "ب",
+      "name": "Omar's default kind: purchase",
       "caught": true,
       "fails": [
-        "✗ a line marked x_utak_simulation is left out (500, not 1499) — {\"day\":\"2026-10-03\",\"total\":1499,\"items\":[{\"id\":10007,\"name\":\"السيارة والسائق (شامل)\",\"frequency\":\"daily\",\"amount\":500,\"perDay\":500},{\"id\":10008,\"name\":\"سطر تجربة\",\"frequency\":\"daily\",\"amount\":999,\"perDay\":999}],\"workingDay\":null,\"monthWorkingDays\":null,\"yearWorkingDays\":null,\"driver\":null}",
-        "✗ a line marked x_utak_simulation is left out (500, not 1499)"
+        "✗ observer (Omar) «طماطم 24» → market 24 — {\"dropped\":[],\"purchase\":24}",
+        "✗ observer «طماطم 24 شراء 20» → market 24, purchase 20 — {\"dropped\":[\"24: رقمان لنفس النوع\"],\"purchase\":20}",
+        "✗ the available quantity written → kept (30) — {\"dropped\":[],\"purchase\":24,\"qty\":30}",
+        "✗ a quantity not written → dropped — {\"dropped\":[\"الكمية 40: غير مكتوبة\"],\"purchase\":24}"
       ]
     },
     {
-      "part": "أ",
-      "name": "no driver schedule → 0 (a guess) instead of «تعذّر»",
+      "part": "ب",
+      "name": "the market ask sent to a supplier too",
       "caught": true,
       "fails": [
-        "✗ a monthly line and no driver schedule → total null with the reason — {\"day\":\"2026-10-03\",\"total\":500,\"items\":[{\"id\":10000,\"name\":\"السيارة والسائق (شامل)\",\"frequency\":\"daily\",\"amount\":500,\"perDay\":500},{\"id\":10001,\"name\":\"صيانة\",\"frequency\":\"monthly\",\"amount\":2600,\"perDay\":0}],\"workingDay\":null,\"monthWorkingDays\":null,\"yearWorkingDays\":null,\"driver\":null}",
-        "✗ only the driver's schedule counts (no driver → null) — {\"day\":\"2026-10-03\",\"total\":0,\"items\":[{\"id\":10006,\"name\":\"صيانة\",\"frequency\":\"monthly\",\"amount\":2600,\"perDay\":0}],\"workingDay\":null,\"monthWorkingDays\":null,\"yearWorkingDays\":null,\"driver\":null}",
-        "✗ a monthly line and no driver schedule → total null with the reason",
-        "✗ only the driver's schedule counts (no driver → null)"
+        "✗ Ahmed (a supplier: asked at 02:00) gets no market ask — not sent, not held, not in the run — {\"action\":\"ran\",\"asks\":[{\"name\":\"عمر المجهلي\",\"action\":\"sent\"},{\"name\":\"أحمد حسان\",\"action\":\"held\"}]}",
+        "✗ Ahmed (a supplier: asked at 02:00) gets no market ask — not sent, not held, not in the run"
       ]
     },
     {
-      "part": "أ",
-      "name": "the unreadable total summed partially",
+      "part": "ب",
+      "name": "the ask not claimed once a day",
       "caught": true,
       "fails": [
-        "✗ a monthly line and no driver schedule → total null with the reason — {\"day\":\"2026-10-03\",\"total\":500,\"items\":[{\"id\":10000,\"name\":\"السيارة والسائق (شامل)\",\"frequency\":\"daily\",\"amount\":500,\"perDay\":500},{\"id\":10001,\"name\":\"صيانة\",\"frequency\":\"monthly\",\"amount\":2600,\"perDay\":null}],\"workingDay\":null,\"monthWorkingDays\":null,\"yearWorkingDays\":null,\"reason\":\"لا جدول دوام للسائق في «الموظفون»\",\"driver\":null}",
-        "✗ only the driver's schedule counts (no driver → null) — {\"day\":\"2026-10-03\",\"total\":0,\"items\":[{\"id\":10006,\"name\":\"صيانة\",\"frequency\":\"monthly\",\"amount\":2600,\"perDay\":null}],\"workingDay\":null,\"monthWorkingDays\":null,\"yearWorkingDays\":null,\"reason\":\"لا جدول دوام للسائق في «الموظفون»\",\"driver\":null}",
-        "✗ a monthly line and no driver schedule → total null with the reason",
-        "✗ only the driver's schedule counts (no driver → null)"
+        "✗ the next tick: no second ask (claimed) — {\"action\":\"ran\",\"asks\":[{\"name\":\"عمر المجهلي\",\"action\":\"sent\"}]}",
+        "✗ the next tick: no second ask (claimed)"
       ]
     },
     {
-      "part": "أ",
-      "name": "any member's schedule, not the driver's",
+      "part": "ب",
+      "name": "the ask before 02:30",
       "caught": true,
       "fails": [
-        "✗ only the driver's schedule counts (no driver → null) — {\"day\":\"2026-10-03\",\"total\":0,\"items\":[{\"id\":10006,\"name\":\"صيانة\",\"frequency\":\"monthly\",\"amount\":2600,\"perDay\":0}],\"workingDay\":false,\"monthWorkingDays\":22,\"yearWorkingDays\":null,\"driver\":\"مستودع\"}",
-        "✗ only the driver's schedule counts (no driver → null)"
+        "✗ 02:25: before the ask — {\"action\":\"ran\",\"asks\":[{\"name\":\"عمر المجهلي\",\"action\":\"sent\"}]}",
+        "✗ 02:25: before the ask"
       ]
     },
     {
-      "part": "أ",
-      "name": "a driver off attendance: his schedule not read",
+      "part": "ب",
+      "name": "the ask after the publication time",
       "caught": true,
       "fails": [
-        "✗ a driver not on attendance: his schedule read directly (100) — {\"day\":\"2026-10-03\",\"total\":0,\"items\":[{\"id\":10007,\"name\":\"صيانة\",\"frequency\":\"monthly\",\"amount\":2600,\"perDay\":0}],\"workingDay\":false,\"monthWorkingDays\":0,\"yearWorkingDays\":null,\"driver\":\"عمر المجهلي\"}",
-        "✗ a driver not on attendance: his schedule read directly (100)"
+        "✗ from the publication time (06:00): no ask any more — {\"action\":\"ran\",\"asks\":[{\"name\":\"عمر المجهلي\",\"action\":\"sent\"}]}",
+        "✗ from the publication time (06:00): no ask any more"
       ]
     },
     {
-      "part": "أ",
-      "name": "planned stops «empty» read as 0 stops",
+      "part": "ب",
+      "name": "outside the window: held by the gateway, not the team queue",
       "caught": true,
       "fails": [
-        "✗ waste 5 %, minimum 150, planned stops empty → null — {\"configId\":1,\"wastePct\":5,\"minOrder\":150,\"plannedStops\":0}",
-        "✗ waste 5 %, minimum 150, planned stops empty → null"
+        "✗ outside his window: nothing sent, the ask waits in the team queue — []",
+        "✗ 03:00, the queue flushed (his message / tap): the ask reaches him",
+        "✗ his reply 85 minutes after: a market observation (24), and «وصلتنا أسعار السوق (1 صنف)» — {\"rep\":null,\"of\":[]}",
+        "✗ 91 minutes after: not read (an ordinary team message)"
       ]
     },
     {
-      "part": "أ",
-      "name": "the settings of an inactive record",
+      "part": "ب",
+      "name": "before the tap: sent anyway",
       "caught": true,
       "fails": [
-        "✗ no active record → null — {\"configId\":1,\"wastePct\":5,\"minOrder\":150,\"plannedStops\":12}",
-        "✗ no active record → null"
+        "✗ his day off (Friday): no ask, nothing queued — {\"action\":\"ran\",\"asks\":[{\"name\":\"عمر المجهلي\",\"action\":\"queued\"}]}",
+        "✗ his day off (Friday): no ask, nothing queued"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "a day off: queued anyway",
+      "caught": true,
+      "fails": [
+        "✗ his day off (Friday): no ask, nothing queued — {\"action\":\"ran\",\"asks\":[{\"name\":\"عمر المجهلي\",\"action\":\"queued\"}]}",
+        "✗ his day off (Friday): no ask, nothing queued"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the reply window a day, not 90 minutes",
+      "caught": true,
+      "fails": [
+        "✗ 91 minutes after: not read (an ordinary team message)",
+        "✗ 91 minutes after: not read (an ordinary team message)"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the held ask's delivering message read as prices",
+      "caught": true,
+      "fails": [
+        "✗ his next message delivers it (the flush): that message — even with a price — is not read as prices",
+        "✗ his reply after it: a market observation (23) — [{\"x_name\":\"2026-10-03 · 1/11\",\"x_date\":\"2026-10-03\",\"x_source_partner_id\":830,\"x_source_employee_id\":false,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_purchase_price\":0,\"x_market_price\":23,\"x_available_qty\":0,\"x_status\":\"valid\",\"x_purchase_outlier\":false,\"x_market_outlier\":false,\"x_daily_price_id\":false,\"x_source_message_id\":\"wamid.F1\",\"x_raw_text\":\"طماطم 23\",\"id\":10011},{\"x_name\":\"2026-10-03 · 1/11\",\"x_date\":\"2026-10-03\",\"x_source_partner_id\":830,\"x_source_employee_id\":false,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_purchase_price\":0,\"x_market_price\":23,\"x_available_qty\":0,\"x_status\":\"valid\",\"x_purchase_outlier\":false,\"x_market_outlier\":false,\"x_daily_price_id\":false,\"x_source_message_id\":\"wamid.F2\",\"x_raw_text\":\"طماطم 23\",\"id\":10012}]",
+        "✗ the flag cleared: his messages are not read as prices any more",
+        "✗ his next message delivers it (the flush): that message — even with a price — is not read as prices"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the queue flush does not start the window",
+      "caught": true,
+      "fails": [
+        "✗ his reply 85 minutes after: a market observation (24), and «وصلتنا أسعار السوق (1 صنف)» — {\"rep\":null,\"of\":[]}",
+        "✗ 91 minutes after: not read (an ordinary team message)",
+        "✗ his reply 85 minutes after: a market observation (24), and «وصلتنا أسعار السوق (1 صنف)»",
+        "✗ 91 minutes after: not read (an ordinary team message)"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "yesterday's queued ask sent",
+      "caught": true,
+      "fails": [
+        "✗ flushed the next day: yesterday's ask dropped, not sent",
+        "✗ flushed the next day: yesterday's ask dropped, not sent"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "a source without the flag read",
+      "caught": true,
+      "fails": [
+        "✗ the flag cleared: his messages are not read as prices any more",
+        "✗ the flag cleared: his messages are not read as prices any more"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "no market outlier",
+      "caught": true,
+      "fails": [
+        "✗ market 10 yesterday → 24 today (×2.4 ≥ 1.5): «شاذ», the market flagged — {\"x_name\":\"2026-10-03 · 1/11\",\"x_date\":\"2026-10-03\",\"x_source_partner_id\":603,\"x_source_employee_id\":7603,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_purchase_price\":0,\"x_market_price\":24,\"x_available_qty\":0,\"x_status\":\"valid\",\"x_purchase_outlier\":false,\"x_market_outlier\":false,\"x_daily_price_id\":false,\"x_source_message_id\":\"wamid.O3\",\"x_raw_text\":\"طماطم 24\",\"id\":10011}",
+        "✗ market 10 yesterday → 24 today (×2.4 ≥ 1.5): «شاذ», the market flagged"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "a simulation offer as the outlier reference",
+      "caught": true,
+      "fails": [
+        "✗ the only earlier value is a simulation row → not the reference: «صالح» — {\"x_name\":\"2026-10-03 · 1/11\",\"x_date\":\"2026-10-03\",\"x_source_partner_id\":603,\"x_source_employee_id\":7603,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_purchase_price\":0,\"x_market_price\":24,\"x_available_qty\":0,\"x_status\":\"outlier\",\"x_purchase_outlier\":false,\"x_market_outlier\":true,\"x_daily_price_id\":false,\"x_source_message_id\":\"wamid.O4\",\"x_raw_text\":\"طماطم 24\",\"id\":10011}",
+        "✗ the only earlier value is a simulation row → not the reference: «صالح»"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "Ahmed's «سوق» number saved as his purchase price",
+      "caught": true,
+      "fails": [
+        "✗ «خيار سوق 30»: no purchase price saved, one market observation — {\"dp\":2,\"of\":[{\"x_name\":\"2026-10-03 · 1/11\",\"x_date\":\"2026-10-03\",\"x_source_partner_id\":801,\"x_source_employee_id\":false,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_purchase_price\":0,\"x_market_price\":24,\"x_available_qty\":0,\"x_status\":\"valid\",\"x_purchase_outlier\":false,\"x_market_outlier\":false,\"x_daily_price_id\":10007,\"x_source_message_id\":\"wamid.A1\",\"x_raw_text\":\"طماطم 20 السوق 24\",\"id\":10008},{\"x_name\":\"2026-10-03 · 2/21\",\"x_date\":\"2026-10-03\",\"x_source_partner_id\":801,\"x_source_employee_id\":false,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_purchase_price\":0,\"x_market_price\":30,\"x_available_qty\":0,\"x_status\":\"valid\",\"x_purchase_outlier\":false,\"x_market_outlier\":false,\"x_daily_price_id\":10014,\"x_source_message_id\":\"wamid.A2\",\"x_raw_text\":\"خيار سوق 30\",\"id\":10015}]}",
+        "✗ «خيار 26» (no «سوق»): his purchase price only, no offer row (§ 26 unchanged)",
+        "✗ «خيار سوق 30»: no purchase price saved, one market observation",
+        "✗ «خيار 26» (no «سوق»): his purchase price only, no offer row (§ 26 unchanged)"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "Ahmed's market observation not saved",
+      "caught": true,
+      "fails": [
+        "✗ the market observation in x_price_offer (24), with his price row, today (Riyadh) — []",
+        "✗ «خيار سوق 30»: no purchase price saved, one market observation — {\"dp\":1,\"of\":[]}",
+        "✗ «خيار 26» (no «سوق»): his purchase price only, no offer row (§ 26 unchanged)",
+        "✗ the market observation in x_price_offer (24), with his price row, today (Riyadh)"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the team hook not wired in /webhook",
+      "caught": true,
+      "fails": [
+        "✗ «طماطم 24 شراء 20» → one offer: market 24, purchase 20 — []",
+        "✗ his reply «وصلتنا أسعار السوق (1 صنف)»",
+        "✗ a message with no price inside the window: an ordinary team message (no offer, no «وصلتنا») — [{\"messaging_product\":\"whatsapp\",\"to\":\"966500000603\",\"type\":\"text\",\"text\":{\"body\":\"مرحبا عمر المجهلي 👋 استخدم الأزرار عشان نأكد الحالة.\"}}]",
+        "✗ a product outside the active catalog: not saved, an ordinary message"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the ask not in the */5 prices tick",
+      "caught": true,
+      "fails": [
+        "✗ 02:30, in the */5 prices tick: the ask as text inside his window — {\"action\":\"ran\"}",
+        "✗ the next tick: no second ask (claimed) — {\"action\":\"ran\",\"asks\":[{\"name\":\"عمر المجهلي\",\"action\":\"sent\"}]}",
+        "✗ 02:30, in the */5 prices tick: the ask as text inside his window",
+        "✗ the next tick: no second ask (claimed)"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "Omar's reply not acknowledged",
+      "caught": true,
+      "fails": [
+        "✗ his reply 85 minutes after: a market observation (24), and «وصلتنا أسعار السوق (1 صنف)» — {\"rep\":\"\",\"of\":[{\"x_name\":\"2026-10-03 · 1/11\",\"x_date\":\"2026-10-03\",\"x_source_partner_id\":603,\"x_source_employee_id\":7603,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_purchase_price\":0,\"x_market_price\":24,\"x_available_qty\":0,\"x_status\":\"valid\",\"x_purchase_outlier\":false,\"x_market_outlier\":false,\"x_daily_price_id\":false,\"x_source_message_id\":\"wamid.O1\",\"x_raw_text\":\"طماطم 24\",\"id\":10011}]}",
+        "✗ his reply «وصلتنا أسعار السوق (1 صنف)»",
+        "✗ his reply after it: a market observation (23) — [{\"x_name\":\"2026-10-03 · 1/11\",\"x_date\":\"2026-10-03\",\"x_source_partner_id\":830,\"x_source_employee_id\":false,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_purchase_price\":0,\"x_market_price\":23,\"x_available_qty\":0,\"x_status\":\"valid\",\"x_purchase_outlier\":false,\"x_market_outlier\":false,\"x_daily_price_id\":false,\"x_source_message_id\":\"wamid.F2\",\"x_raw_text\":\"طماطم 23\",\"id\":10011}]",
+        "✗ his reply 85 minutes after: a market observation (24), and «وصلتنا أسعار السوق (1 صنف)»"
       ]
     }
   ]

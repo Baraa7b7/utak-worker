@@ -99,9 +99,14 @@ export interface ExtractedOrderItem {
 export interface SupplierPriceItem {
   product_id: number;
   packaging_id: number;
+  /** 0 when the item carries only a market price (§ 40 ب). */
   cost_price: number;
   actual_weight_kg: number | null;
   notes: string | null;
+  /** § 40 ب — a second price the message labels as the market's («سوق»), when given. */
+  market_price?: number | null;
+  /** § 40 ب — the quantity the message says is available, when given. */
+  available_qty?: number | null;
 }
 
 export interface SupplierPricesExtract {

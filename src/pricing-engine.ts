@@ -7,7 +7,10 @@
 //   • market price  = the median of the day's market observations from every
 //     source (one is enough; nothing carried over from yesterday);
 //   • sale price    = the market price, exactly (delivery is free, inside it);
-//   • unit profit   = market − purchase − (waste % × purchase).
+//   • unit profit   = market − purchase − (waste % × purchase); from the VAT
+//     cutoff (§ 41 أ, the price day ≥ 2026-10-01) it is net of VAT: ÷ 1.15
+//     when the source that won the purchase is registered («مسجل في الضريبة»,
+//     its purchase VAT is recovered), else sale ÷ 1.15 − purchase − waste.
 // An exception when any of: (1) no purchase price, (2) no market price,
 // (3) unit profit ≤ 0, (4) an outlier (PRICE_OUTLIER_RATIO, § 26) on the
 // purchase price used or on a market observation. Everything else is approved
@@ -75,6 +78,25 @@ export function unitProfit(market: number, purchase: number, wastePct: number): 
   return round2(market - purchase - (wastePct / 100) * purchase);
 }
 
+/**
+ * § 41 أ — the VAT inside the profit. Every price (sale and purchase) is
+ * VAT-inclusive; `vatRatePct` is 15 from the cutoff, null before it (then
+ * this is unitProfit exactly). The waste = waste % × purchase.
+ *   • registered source (its purchase VAT is recovered): (sale − purchase − waste) ÷ 1.15;
+ *   • unregistered source: sale ÷ 1.15 − purchase − waste.
+ * Unrounded: the order and the day sum it before rounding.
+ */
+export function vatProfit(sale: number, purchase: number, wastePct: number, vatRatePct: number | null, registered: boolean): number {
+  const waste = (wastePct / 100) * purchase;
+  if (!vatRatePct) return sale - purchase - waste;
+  const d = 1 + vatRatePct / 100;
+  return registered ? (sale - purchase - waste) / d : sale / d - purchase - waste;
+}
+
+/** The VAT context of a pricing day: the rate (null before the cutoff) and whether a source partner is registered. */
+export interface VatContext { ratePct: number | null; registered: (partnerId: number) => boolean }
+export const NO_VAT: VatContext = { ratePct: null, registered: () => true };
+
 /** For display only: (market − purchase) ÷ purchase × 100 (= the Odoo compute of product.template.x_margin_view). */
 export function displayMarginPct(purchase: number, market: number): number {
   return purchase > 0 && market > 0 ? round2(((market - purchase) / purchase) * 100) : 0;
@@ -105,8 +127,8 @@ export function offersLine(offers: EngineOffer[]): string {
     .map((o) => `${o.sourceName}: ${o.kind === "purchase" ? "شراء" : "سوق"} ${money(o.price)}${o.outlier ? " (شاذ)" : ""}`).join(" · ");
 }
 
-/** The rule, for every item. Pure. */
-export function computePricing(items: EngineItem[], offers: EngineOffer[], wastePct: number): PricingLine[] {
+/** The rule, for every item. Pure. `vat` (§ 41 أ): the unit profit net of VAT from the cutoff. */
+export function computePricing(items: EngineItem[], offers: EngineOffer[], wastePct: number, vat: VatContext = NO_VAT): PricingLine[] {
   const latest = latestPerSource(offers);
   return items.map((it) => {
     const its = latest.filter((o) => o.productId === it.productId && o.packagingId === it.packagingId);
@@ -115,7 +137,8 @@ export function computePricing(items: EngineItem[], offers: EngineOffer[], waste
     const p = purchases[0] ?? null;
     const purchase = p?.price ?? null;
     const market = median(markets.map((o) => o.price));
-    const profit = purchase !== null && market !== null ? unitProfit(market, purchase, wastePct) : null;
+    const profit = purchase !== null && market !== null && p
+      ? round2(vatProfit(market, purchase, wastePct, vat.ratePct, vat.registered(p.partnerId))) : null;
     const outlier = { purchase: !!p?.outlier, market: markets.some((o) => o.outlier) };
     const exceptions: ExceptionCode[] = [];
     if (purchase === null) exceptions.push("no_purchase");

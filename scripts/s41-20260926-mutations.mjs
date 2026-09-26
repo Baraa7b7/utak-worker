@@ -1,0 +1,86 @@
+// Mutation check for § 41 (2026-09-26): each mutation disables ONE guard of a
+// part, runs its test file, and must make it fail. The source is restored in
+// `finally` after every run; a pattern that is not found exactly once stops
+// the script.
+//
+//   node scripts/s41-20260926-mutations.mjs [أ|ب|ج|د|هـ|عزل …]     (no argument: every part)
+//
+// Out: scripts/artifacts/s41-20260926-mutations.json
+
+import { execFileSync } from "node:child_process";
+import { readFileSync, writeFileSync } from "node:fs";
+
+const root = new URL("../", import.meta.url).pathname;
+const T = "tests/s41.test.mts";
+const T40 = "tests/pricing-v1.test.mts";
+const CF = "src/config.ts";
+const EN = "src/pricing-engine.ts";
+const PR = "src/prices.ts";
+const OP = "src/order-pricing.ts";
+const SM = "src/owner-summary.ts";
+
+// [part, name, [[file, find, replace], …], test file]
+const M = [
+  // ---------------------------------------------------------------- أ the VAT inside the profit
+  ["أ", "the engine never takes the VAT out", [[PR,
+    "  const vat = { ratePct: profitVatRate(day), registered:", "  const vat = { ratePct: null, registered:"]], T],
+  ["أ", "the VAT taken out before the cutoff too", [[CF,
+    "  return isVatApplicable(dayRiyadh) ? PROFIT_VAT_RATE_PCT : null;", "  return PROFIT_VAT_RATE_PCT;"]], T],
+  ["أ", "an unregistered source treated as registered", [[EN,
+    "  return registered ? (sale - purchase - waste) / d : sale / d - purchase - waste;", "  return (sale - purchase - waste) / d;"]], T],
+  ["أ", "a registered source treated as unregistered", [[EN,
+    "  return registered ? (sale - purchase - waste) / d : sale / d - purchase - waste;", "  return sale / d - purchase - waste;"]], T],
+  ["أ", "the registration of another source than the purchase's winner", [[EN,
+    "vat.registered(p.partnerId))) : null;", "vat.registered(purchases[purchases.length - 1].partnerId))) : null;"]], T],
+  ["أ", "the fingerprint ignores a change of «مسجل في الضريبة»", [[PR,
+    " vat.ratePct, [...sources.partnerIds].sort((a, b) => a - b).map((pid) => [pid, vat.registered(pid)]),", ""]], T],
+  ["أ", "the discount guard's profit not net of VAT", [[OP,
+    "  let vat: VatContext = NO_VAT;\n  if (rate) {", "  let vat: VatContext = NO_VAT;\n  if (false) {"]], T],
+  ["أ", "the discount guard ignores the line's source", [[OP,
+    "vat.registered(c.source)) * l.qty;", "true) * l.qty;"]], T],
+  ["أ", "the discount not taken off with VAT", [[OP,
+    "    ? round2(raw - (gross - discountedTotals(split, amount, rate).total) / (1 + rate / 100))", "    ? round2(raw)"]], T],
+  ["أ", "the discount taken off after the rounding (not before the division)", [[OP,
+    "    ? round2(raw - (gross - discountedTotals(split, amount, rate).total) / (1 + rate / 100))", "    ? round2(round2(raw) - (gross - discountedTotals(split, amount, rate).total) / (1 + rate / 100))"]], T],
+  ["أ", "the 21:30 profit not net of VAT", [[SM,
+    "deliveredProfit(env, yesterday, profitVatRate(day))", "deliveredProfit(env, yesterday)"]], T],
+  ["أ", "the 21:30 VAT by the order's day, not the invoice's (today)", [[SM,
+    "deliveredProfit(env, yesterday, profitVatRate(day))", "deliveredProfit(env, yesterday, profitVatRate(yesterday))"]], T],
+  ["أ", "the 21:30 profit ignores the line's source", [[SM,
+    "vatProfit(sale, buy.price, waste, vatRatePct, registered(buy.source)) * qty;", "vatProfit(sale, buy.price, waste, vatRatePct, true) * qty;"]], T],
+  ["أ", "the 21:30 discount (VAT-inclusive) not divided", [[SM,
+    "      ? Math.max(0, round2((grossByOrder.get(m2oId(i.x_order_id)) ?? 0) - (Number(i.x_total) || 0))) / (1 + vatRatePct / 100)\n      : d;", "      ? Math.max(0, round2((grossByOrder.get(m2oId(i.x_order_id)) ?? 0) - (Number(i.x_total) || 0)))\n      : d;"]], T40],
+];
+
+const want = new Set(process.argv.slice(2));
+const results = [];
+for (const [part, name, edits, test] of M) {
+  if (want.size && !want.has(part)) continue;
+  const originals = new Map();
+  try {
+    for (const [file, find, replace] of edits) {
+      const path = root + file;
+      if (!originals.has(path)) originals.set(path, readFileSync(path, "utf8"));
+      const cur = readFileSync(path, "utf8");
+      const n = cur.split(find).length - 1;
+      if (n !== 1) throw new Error(`pattern found ${n}× in ${file}: ${find.slice(0, 80)}`);
+      writeFileSync(path, cur.replace(find, replace));
+    }
+    let caught = false, out = "";
+    try {
+      out = execFileSync("node", ["--experimental-strip-types", "--experimental-loader=./tests/loader.mjs", test], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 300_000 });
+    } catch (e) {
+      caught = true;
+      out = String(e.stdout ?? "") + String(e.stderr ?? "");
+    }
+    const fails = (out.match(/^\s+✗ .*/gm) ?? []).map((l) => l.trim()).slice(0, 4);
+    results.push({ part, name, caught, fails });
+    console.log(`${caught ? "✓ caught" : "✗ MISSED"}  [${part}] ${name}${fails.length ? `  — ${fails[0].slice(0, 140)}` : ""}`);
+  } finally {
+    for (const [path, src] of originals) writeFileSync(path, src);
+  }
+}
+const caught = results.filter((r) => r.caught).length;
+writeFileSync(new URL("./artifacts/s41-20260926-mutations.json", import.meta.url), JSON.stringify({ at: new Date().toISOString(), caught, total: results.length, results }, null, 2) + "\n");
+console.log(`\n${caught}/${results.length} caught`);
+if (caught !== results.length) process.exit(1);

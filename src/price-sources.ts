@@ -242,8 +242,16 @@ export async function saveOffer(env: Env, o: OfferWrite, day: string = riyadhDat
 
 // ---------------------------------------------------------------- the sources
 
-export interface EmployeeSource { employeeId: number; partnerId: number; name: string; whatsapp: string }
-export interface PartnerSource { partnerId: number; name: string; whatsapp: string; supplier: boolean }
+/**
+ * § 41 أ — «مسجل في الضريبة» (x_vat_registered, default true) on the partner
+ * and on the employee: a registered source's purchase price carries VAT the
+ * business recovers, so from the cutoff the whole unit profit is divided by
+ * 1.15; an unregistered one's is not (only the sale price is).
+ */
+export const VAT_REGISTERED_FIELD = "x_vat_registered";
+
+export interface EmployeeSource { employeeId: number; partnerId: number; name: string; whatsapp: string; vatRegistered: boolean }
+export interface PartnerSource { partnerId: number; name: string; whatsapp: string; supplier: boolean; vatRegistered: boolean }
 export interface PriceSources {
   employees: EmployeeSource[];
   partners: PartnerSource[];
@@ -251,20 +259,30 @@ export interface PriceSources {
   partnerIds: Set<number>;
 }
 
+/** § 41 أ — the source an offer's partner belongs to is registered for VAT (a partner that is not a source: the field's default, true). */
+export function isSourceVatRegistered(sources: PriceSources, partnerId: number): boolean {
+  const p = sources.partners.find((x) => x.partnerId === partnerId);
+  if (p) return p.vatRegistered;
+  const e = sources.employees.find((x) => x.partnerId === partnerId);
+  if (e) return e.vatRegistered;
+  return true;
+}
+
 export async function loadPriceSources(env: Env): Promise<PriceSources> {
-  const emps = await call<Array<{ id: number; name: string; work_contact_id: [number, string] | number | false; x_utak_whatsapp: string | false }>>(env, "hr.employee", "search_read", {
-    domain: [[SOURCE_FIELD, "=", true]], fields: ["id", "name", "work_contact_id", "x_utak_whatsapp"], order: "id asc", limit: 100,
+  const emps = await call<Array<{ id: number; name: string; work_contact_id: [number, string] | number | false; x_utak_whatsapp: string | false; x_vat_registered: boolean }>>(env, "hr.employee", "search_read", {
+    domain: [[SOURCE_FIELD, "=", true]], fields: ["id", "name", "work_contact_id", "x_utak_whatsapp", VAT_REGISTERED_FIELD], order: "id asc", limit: 100,
   });
-  const parts = await call<Array<{ id: number; name: string; x_whatsapp_number: string | false; supplier_rank: number }>>(env, "res.partner", "search_read", {
-    domain: [[SOURCE_FIELD, "=", true]], fields: ["id", "name", "x_whatsapp_number", "supplier_rank"], order: "id asc", limit: 200,
+  const parts = await call<Array<{ id: number; name: string; x_whatsapp_number: string | false; supplier_rank: number; x_vat_registered: boolean }>>(env, "res.partner", "search_read", {
+    domain: [[SOURCE_FIELD, "=", true]], fields: ["id", "name", "x_whatsapp_number", "supplier_rank", VAT_REGISTERED_FIELD], order: "id asc", limit: 200,
   });
   const employees = emps.map((e) => ({
     employeeId: e.id,
     partnerId: Array.isArray(e.work_contact_id) ? e.work_contact_id[0] : typeof e.work_contact_id === "number" ? e.work_contact_id : 0,
     name: e.name,
     whatsapp: waDigits(String(e.x_utak_whatsapp || "")),
+    vatRegistered: e.x_vat_registered === true,
   }));
-  const partners = parts.map((p) => ({ partnerId: p.id, name: p.name, whatsapp: waDigits(String(p.x_whatsapp_number || "")), supplier: (Number(p.supplier_rank) || 0) > 0 }));
+  const partners = parts.map((p) => ({ partnerId: p.id, name: p.name, whatsapp: waDigits(String(p.x_whatsapp_number || "")), supplier: (Number(p.supplier_rank) || 0) > 0, vatRegistered: p.x_vat_registered === true }));
   return { employees, partners, partnerIds: new Set([...partners.map((p) => p.partnerId), ...employees.map((e) => e.partnerId).filter(Boolean)]) };
 }
 

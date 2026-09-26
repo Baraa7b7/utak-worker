@@ -27,7 +27,7 @@
 // Nothing here writes list_price or standard_price.
 
 import type { Env } from "./config";
-import { ORDERING_HOURS_CLOSE, ORDERING_HOURS_OPEN } from "./config";
+import { ORDERING_HOURS_CLOSE, ORDERING_HOURS_OPEN, profitVatRate } from "./config";
 import { call } from "./odoo";
 import { buttonsContent, textContent } from "./meta";
 import { gatewayDecision, sendViaGateway } from "./wa-gateway";
@@ -40,7 +40,7 @@ import { waDigits } from "./wa-window";
 import {
   computePricing, lineVerdict, readActiveItems, readDayOffers, saleRule, type Decision, type LineStatus,
 } from "./pricing-engine";
-import { loadPriceSources, MARKET_ASK_MINUTE, MARKET_REPLY_WINDOW_MIN } from "./price-sources";
+import { isSourceVatRegistered, loadPriceSources, MARKET_ASK_MINUTE, MARKET_REPLY_WINDOW_MIN } from "./price-sources";
 import { readPricingSettings } from "./operating-cost";
 
 export const PRICE_DAY_MODEL = "x_price_day";
@@ -218,11 +218,13 @@ export async function refreshPriceDay(env: Env, opts: { day?: string; force?: bo
   const settings = await readPricingSettings(env, day);
   if (!settings) throw new Error(`[prices] no active x_pricing_config on ${day}`);
   const items = await readActiveItems(env, offers);
-  const plan = computePricing(items, offers, settings.wastePct);
+  // § 41 أ — from the cutoff the unit profit is net of VAT (by the source that won the purchase)
+  const vat = { ratePct: profitVatRate(day), registered: (pid: number) => isSourceVatRegistered(sources, pid) };
+  const plan = computePricing(items, offers, settings.wastePct, vat);
   const rec = found ?? (await ensureDay(env, day));
   const lines = await readLines(env, rec.id);
   const fp = fnv1a(JSON.stringify([
-    rec.id, rec.x_state, settings.wastePct,
+    rec.id, rec.x_state, settings.wastePct, vat.ratePct, [...sources.partnerIds].sort((a, b) => a - b).map((pid) => [pid, vat.registered(pid)]),
     offers.map((o) => [o.model, o.rowId, o.kind, o.price, o.outlier, o.partnerId]),
     items.map((i) => [i.productId, i.packagingId]),
     lines.filter((l) => l.x_decision || Number(l.x_manual_price) > 0).map((l) => [lineKey(l), l.x_decision || "", Number(l.x_manual_price) || 0]),

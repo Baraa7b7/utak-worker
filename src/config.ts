@@ -326,6 +326,19 @@ export function isVatApplicable(invoiceDateRiyadh: string, effectiveDate: string
   return invoiceDateRiyadh >= effectiveDate;
 }
 
+/**
+ * § 41 أ (2026-09-26) — the VAT rate inside the profit (the unit profit of
+ * the engine, the order's profit in the discount guard, the day's profit in
+ * the 21:30 coverage line): every price is VAT-inclusive from the cutoff, so
+ * 15% of it is not profit. The invoice keeps reading the rate from Odoo.
+ */
+export const PROFIT_VAT_RATE_PCT = 15;
+
+/** The rate to take out of a profit on this Riyadh day: 15 from the cutoff, null before it. */
+export function profitVatRate(dayRiyadh: string): number | null {
+  return isVatApplicable(dayRiyadh) ? PROFIT_VAT_RATE_PCT : null;
+}
+
 // v2: catalog cache in KV, refreshed hourly
 // v2 (2026-09-15) — bump forces a re-query after the x_is_active_for_sale
 // filter joined fetchCatalog's domain. Do not touch without also invalidating

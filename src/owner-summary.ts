@@ -35,6 +35,7 @@
 // the same, short, at the end of {{3}} on the same line (its «ريال» follows).
 
 import type { Env } from "./config";
+import { profitVatRate } from "./config";
 import { call, getLatestSalePrice } from "./odoo";
 import { textContent } from "./meta";
 import { gatewayDecision, sendViaGateway } from "./wa-gateway";
@@ -165,40 +166,62 @@ async function pendingUpTo(env: Env, day: string): Promise<number> {
  * delivered / closed, not simulation): Σ (sale − purchase − waste % ×
  * purchase) × qty − their invoices' discounts. Null when a line has no sale
  * price or no purchase price of its day (never a partial sum).
+ * § 41 أ — `vatRatePct` (15 when the summary day is from the cutoff: the
+ * deliveries are invoiced today, VAT-inclusive): net of VAT, per line by the
+ * source that won its purchase (registered: ÷ 1.15; else sale ÷ 1.15 −
+ * purchase − waste), each invoice's discount (VAT-inclusive: the lines'
+ * total − the invoice's total) taken off before the division.
  */
-async function deliveredProfit(env: Env, orderDay: string): Promise<number> {
+async function deliveredProfit(env: Env, orderDay: string, vatRatePct: number | null = null): Promise<number> {
   const orders = await ordersOf(env, orderDay, [...DELIVERED_STATES]);
   if (orders.length === 0) return 0;
   const ids = orders.map((o) => o.id);
-  const lines = await call<Array<{ x_product_tmpl_id: M2O; x_packaging_id: M2O; x_quantity: number; x_status: string | false; x_unit_price: number | false; x_price_unit_manual: number | false }>>(env, "x_daily_order_line", "search_read", {
+  const lines = await call<Array<{ x_order_id: M2O; x_product_tmpl_id: M2O; x_packaging_id: M2O; x_quantity: number; x_status: string | false; x_unit_price: number | false; x_price_unit_manual: number | false }>>(env, "x_daily_order_line", "search_read", {
     domain: [["x_order_id", "in", ids]],
-    fields: ["x_product_tmpl_id", "x_packaging_id", "x_quantity", "x_status", "x_unit_price", "x_price_unit_manual"],
+    fields: ["x_order_id", "x_product_tmpl_id", "x_packaging_id", "x_quantity", "x_status", "x_unit_price", "x_price_unit_manual"],
     limit: 10000,
   });
-  const costs = await call<Array<{ x_product_tmpl_id: M2O; x_packaging_id: M2O; x_cost_price: number | false }>>(env, "x_price_day_line", "search_read", {
+  const costs = await call<Array<{ x_product_tmpl_id: M2O; x_packaging_id: M2O; x_cost_price: number | false; x_supplier_id: M2O }>>(env, "x_price_day_line", "search_read", {
     domain: [["x_day_id.x_date", "=", orderDay], ["x_cost_price", ">", 0]],
-    fields: ["x_product_tmpl_id", "x_packaging_id", "x_cost_price"],
+    fields: ["x_product_tmpl_id", "x_packaging_id", "x_cost_price", "x_supplier_id"],
     limit: 2000,
   });
-  const cost = new Map(costs.map((c) => [`${m2oId(c.x_product_tmpl_id)}:${m2oId(c.x_packaging_id)}`, Number(c.x_cost_price) || 0]));
+  const cost = new Map(costs.map((c) => [`${m2oId(c.x_product_tmpl_id)}:${m2oId(c.x_packaging_id)}`, { price: Number(c.x_cost_price) || 0, source: m2oId(c.x_supplier_id) }]));
   const waste = (await readPricingSettings(env, orderDay))?.wastePct;
   if (waste === undefined) throw new Error(`no pricing settings on ${orderDay}`);
+  let registered: (pid: number) => boolean = () => true;
+  if (vatRatePct) {
+    const { isSourceVatRegistered, loadPriceSources } = await import("./price-sources");
+    const sources = await loadPriceSources(env);
+    registered = (pid) => isSourceVatRegistered(sources, pid);
+  }
+  const { vatProfit } = await import("./pricing-engine");
   let profit = 0;
+  const grossByOrder = new Map<number, number>();
   for (const l of lines) {
     if (String(l.x_status) === "unavailable") continue; // short at delivery: not sold
     const sale = Number(l.x_price_unit_manual) > 0 ? Number(l.x_price_unit_manual) : Number(l.x_unit_price) || 0;
-    const buy = cost.get(`${m2oId(l.x_product_tmpl_id)}:${m2oId(l.x_packaging_id)}`) ?? 0;
+    const buy = cost.get(`${m2oId(l.x_product_tmpl_id)}:${m2oId(l.x_packaging_id)}`);
     if (!(sale > 0)) throw new Error("a delivered line without a sale price");
-    if (!(buy > 0)) throw new Error("a delivered line without its day's purchase price");
-    profit += (sale - buy - (waste / 100) * buy) * (Number(l.x_quantity) || 0);
+    if (!(buy && buy.price > 0)) throw new Error("a delivered line without its day's purchase price");
+    const qty = Number(l.x_quantity) || 0;
+    profit += vatProfit(sale, buy.price, waste, vatRatePct, registered(buy.source)) * qty;
+    grossByOrder.set(m2oId(l.x_order_id), (grossByOrder.get(m2oId(l.x_order_id)) ?? 0) + round2(sale * qty));
   }
-  const invs = await call<Array<{ id: number; x_subtotal: number | false; x_tax_amount: number | false; x_total: number }>>(env, "x_invoice", "search_read", {
+  const invs = await call<Array<{ id: number; x_order_id: M2O; x_subtotal: number | false; x_tax_amount: number | false; x_total: number }>>(env, "x_invoice", "search_read", {
     domain: [["x_order_id", "in", ids], [SIM_FIELD, "!=", true]],
-    fields: ["id", "x_subtotal", "x_tax_amount", "x_total"],
+    fields: ["id", "x_order_id", "x_subtotal", "x_tax_amount", "x_total"],
     limit: 2000,
   });
   const { invoiceDiscount } = await import("./invoice");
-  for (const i of invs) profit -= invoiceDiscount({ subtotal: Number(i.x_subtotal) || 0, tax: Number(i.x_tax_amount) || 0, total: Number(i.x_total) || 0 });
+  for (const i of invs) {
+    const d = invoiceDiscount({ subtotal: Number(i.x_subtotal) || 0, tax: Number(i.x_tax_amount) || 0, total: Number(i.x_total) || 0 });
+    if (!(d > 0)) continue;
+    // with VAT: the discount as the customer saw it (lines − invoice total), off before ÷ 1.15
+    profit -= vatRatePct
+      ? Math.max(0, round2((grossByOrder.get(m2oId(i.x_order_id)) ?? 0) - (Number(i.x_total) || 0))) / (1 + vatRatePct / 100)
+      : d;
+  }
   return round2(profit);
 }
 
@@ -224,7 +247,8 @@ export async function readSummaryFigures(env: Env, nowMs: number = Date.now()): 
   f.collected = await attempt("collected", () => collectedOn(env, day));
   f.pending = await attempt("pending", () => pendingUpTo(env, day));
   // § 40 هـ — the cost coverage of the day
-  const profit = await attempt("coverage_profit", () => deliveredProfit(env, yesterday));
+  // § 41 أ — the deliveries are invoiced today: VAT out of the profit from the cutoff
+  const profit = await attempt("coverage_profit", () => deliveredProfit(env, yesterday, profitVatRate(day)));
   const cost = await attempt("coverage_cost", async () => (await dailyOperatingCost(env, day, nowMs)).total);
   f.coverage = { profit, cost, pct: profit !== null && cost !== null && cost > 0 ? Math.round((profit / cost) * 100) : null };
   return f;

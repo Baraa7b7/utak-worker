@@ -46,6 +46,7 @@ const FX = [
   "./fixtures-odoo-fields-20260925-s36.json",
   "./fixtures-odoo-fields-20260926-s39.json", // § 39 د: x_utak_simulation on the payment, x_wa_message x_res_model / x_res_id
   "./fixtures-odoo-fields-20260926-s40.json", // § 40: the pricing engine (sources, offers, settings, the day's lines)
+  "./fixtures-odoo-fields-20260926-s41.json", // § 41: «مسجل في الضريبة» on the sources, x_utak_simulation on the per-day models
 ].map(load);
 const REAL: Record<string, string[]> = Object.assign({}, ...FX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FX.map((f) => f._selections));

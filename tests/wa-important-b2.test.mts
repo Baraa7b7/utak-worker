@@ -41,8 +41,10 @@ const F5 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260925-pric
 const F6 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260925-s36.json", import.meta.url), "utf8"));
 // STATUS § 40 — a supplier's reply refreshes the pricing engine (the sources, the offers, the settings).
 const F7 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260926-s40.json", import.meta.url), "utf8"));
-const REAL: Record<string, string[]> = { ...F1, ...F2, ...F3, ...F4, ...F5, ...F6, ...F7 };
-const SELECTIONS: Record<string, string[]> = { ...F1._selections, ...F2._selections, ...F3._selections, ...F4._selections, ...F5._selections, ...F6._selections, ...F7._selections };
+// STATUS § 41 — «مسجل في الضريبة» on the sources, x_utak_simulation on the per-day models.
+const F8 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260926-s41.json", import.meta.url), "utf8"));
+const REAL: Record<string, string[]> = { ...F1, ...F2, ...F3, ...F4, ...F5, ...F6, ...F7, ...F8 };
+const SELECTIONS: Record<string, string[]> = { ...F1._selections, ...F2._selections, ...F3._selections, ...F4._selections, ...F5._selections, ...F6._selections, ...F7._selections, ...F8._selections };
 // added on the tenant by scripts/wa-20260925-supplier-nudge-purpose.mjs (selection #4025)
 SELECTIONS["x_whatsapp_template.x_purpose"] = [...SELECTIONS["x_whatsapp_template.x_purpose"], "supplier_price_nudge"];
 const rejected: string[] = [];

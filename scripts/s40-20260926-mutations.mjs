@@ -188,15 +188,18 @@ const M = [
   ["د", "an inactive tier used", [[OP,
     "    domain: [[\"x_config_id\", \"=\", configId], [\"x_active\", \"=\", true]],", "    domain: [[\"x_config_id\", \"=\", configId]],"]], T],
   ["د", "the discount on the VAT-inclusive total", [[OP,
-    "  const base = rate ? computeInclusiveTotals(a.lines.map((l) => round2(l.unit * l.qty)), rate).subtotal : gross;", "  const base = gross;"]], T],
+    // § 41: the split is computed once (split.subtotal)
+    "  const base = rate ? split.subtotal : gross;", "  const base = gross;"]], T],
   ["د", "no guard (profit after the discount unchecked)", [[OP,
     "  if (after < minProfit) {", "  if (false) {"]], T],
   ["د", "planned stops empty → a discount anyway", [[OP,
     "  if (settings.plannedStops === null) return { ...out, reason: \"«عدد المحطات اليومية المخطط» فارغ\" };\n", ""]], T],
   ["د", "a line without the day's purchase price counted at 0", [[OP,
-    "    if (!(c > 0)) return null;", "    if (!(c > 0)) continue;"]], T],
+    // § 41: the cost row carries the winning source too ({ price, source })
+    "    if (!(c && c.price > 0)) return null;", "    if (!(c && c.price > 0)) continue;"]], T],
   ["د", "the waste left out of the order's profit", [[OP,
-    "    profit += (l.unit - c - (wastePct / 100) * c) * l.qty;", "    profit += (l.unit - c) * l.qty;"]], T],
+    // § 41: the per-line profit is vatProfit (the waste inside it)
+    "    profit += vatProfit(l.unit, c.price, wastePct, vat.ratePct, vat.registered(c.source)) * l.qty;", "    profit += vatProfit(l.unit, c.price, 0, vat.ratePct, vat.registered(c.source)) * l.qty;"]], T],
   ["د", "the day's cost unreadable → a discount anyway", [[OP,
     "  if (cost.total === null) return { ...out, profitBefore: profit, reason: `تكلفة اليوم لا تُقرأ (${cost.reason ?? \"—\"})` };\n", ""]], T],
   ["د", "ACCOUNTING_SYNC on → a discount anyway", [[OP,
@@ -238,17 +241,21 @@ const M = [
     "    out.stops = await checkPlannedStops(env, now, dl);", "    out.stops = { action: \"before\" }; void checkPlannedStops;"]], T],
   // ---------------------------------------------------------------- هـ the coverage line
   ["هـ", "the invoices' discount not taken off the profit", [[SM,
-    "  for (const i of invs) profit -= invoiceDiscount(", "  for (const i of invs) void invoiceDiscount("]], T],
+    // § 41: the discount per invoice (VAT-inclusive from the cutoff)
+    "    if (!(d > 0)) continue;\n    // with VAT", "    if (true) continue;\n    // with VAT"]], T],
   ["هـ", "a line short at delivery counted in the profit", [[SM,
     "    if (String(l.x_status) === \"unavailable\") continue; // short at delivery: not sold\n", ""]], T],
   ["هـ", "the waste left out of the day's profit", [[SM,
-    "    profit += (sale - buy - (waste / 100) * buy) * (Number(l.x_quantity) || 0);", "    profit += (sale - buy) * (Number(l.x_quantity) || 0);"]], T],
+    // § 41: the per-line profit is vatProfit (the waste inside it)
+    "    profit += vatProfit(sale, buy.price, waste, vatRatePct, registered(buy.source)) * qty;", "    profit += vatProfit(sale, buy.price, 0, vatRatePct, registered(buy.source)) * qty;"]], T],
   ["هـ", "a simulation order counted", [[SM,
     "    domain: [[\"x_order_date\", \"=\", day], [\"x_state\", \"in\", states], [SIM_FIELD, \"!=\", true]],", "    domain: [[\"x_order_date\", \"=\", day], [\"x_state\", \"in\", states]],"]], T],
   ["هـ", "today's orders instead of today's deliveries", [[SM,
-    "  const profit = await attempt(\"coverage_profit\", () => deliveredProfit(env, yesterday));", "  const profit = await attempt(\"coverage_profit\", () => deliveredProfit(env, day));"]], T],
+    // § 41: with the VAT rate of the summary day
+    "  const profit = await attempt(\"coverage_profit\", () => deliveredProfit(env, yesterday, profitVatRate(day)));", "  const profit = await attempt(\"coverage_profit\", () => deliveredProfit(env, day, profitVatRate(day)));"]], T],
   ["هـ", "a line without its day's purchase price counted at 0", [[SM,
-    "    if (!(buy > 0)) throw new Error(\"a delivered line without its day's purchase price\");\n", ""]], T],
+    // § 41: the cost row carries the winning source too ({ price, source })
+    "    if (!(buy && buy.price > 0)) throw new Error(\"a delivered line without its day's purchase price\");\n", "    if (!buy) continue;\n"]], T],
   ["هـ", "a line without a sale price counted at 0", [[SM,
     "    if (!(sale > 0)) throw new Error(\"a delivered line without a sale price\");\n", ""]], T],
   ["هـ", "the purchase price of any day, not the order's", [[SM,

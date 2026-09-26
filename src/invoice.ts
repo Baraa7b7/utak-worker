@@ -144,7 +144,7 @@ async function issueAndDispatchInvoice(
       // sim-harness (2026-09-13): getLatestSalePrice now returns a tagged
       // object. Invoice path only needs the numeric price — pipeline
       // semantics preserved.
-      unit = (await getLatestSalePrice(env, l.product_id, l.packaging_id)).price;
+      unit = (await getLatestSalePrice(env, l.product_id, l.packaging_id, order.order_date ?? undefined)).price;
     }
     const line_total = round2(unit * l.quantity);
     subtotal = round2(subtotal + line_total);
@@ -1195,7 +1195,8 @@ export async function buildInvoicePDFDataFromOdoo(
     let unit = l.unit_price ?? 0;
     if (!unit || unit <= 0) {
       // sim-harness (2026-09-13): unpack .price from tagged lookup result.
-      unit = (await getLatestSalePrice(env, l.product_id, l.packaging_id)).price;
+      // § 41 — the order's day's price, as at issue.
+      unit = (await getLatestSalePrice(env, l.product_id, l.packaging_id, order.order_date ?? undefined)).price;
     }
     const total = round2(unit * l.quantity);
     subtotal = round2(subtotal + total);

@@ -22,6 +22,7 @@ const INV = "src/invoice.ts";
 const OD = "src/odoo.ts";
 const OUT = "src/outreach.ts";
 const TSA = "tests/sale-accounting.test.mts";
+const QT = "src/quotation.ts";
 
 // [part, name, [[file, find, replace], …], test file]
 const M = [
@@ -89,6 +90,15 @@ const M = [
     "      [\"x_utak_simulation\", \"!=\", true],\n    ],", "      [\"x_is_simulation\", \"!=\", true],\n    ],"]], T],
   ["ج", "the 18:00 list back on x_is_simulation", [[OD,
     "    domain: [[\"x_status\", \"in\", [\"issued\", \"overdue\"]], [\"x_utak_simulation\", \"!=\", true]],", "    domain: [[\"x_status\", \"in\", [\"issued\", \"overdue\"]], [\"x_is_simulation\", \"!=\", true]],"]], T],
+  // ---------------------------------------------------------------- سعر the order's day's price (found building ج)
+  ["سعر", "the day asked ignored (always today)", [[OD,
+    "  const today = day ?? riyadhToday(); // 2026-09-25", "  const today = riyadhToday(); // 2026-09-25"]], T],
+  ["سعر", "the invoice priced at the delivery day", [[INV,
+    "      unit = (await getLatestSalePrice(env, l.product_id, l.packaging_id, order.order_date ?? undefined)).price;\n    }\n    const line_total", "      unit = (await getLatestSalePrice(env, l.product_id, l.packaging_id)).price;\n    }\n    const line_total"]], T],
+  ["سعر", "the quotation priced at the day it is built", [[QT,
+    "      const lookup = await getLatestSalePrice(env, l.product_id, l.packaging_id, order.order_date ?? undefined);", "      const lookup = await getLatestSalePrice(env, l.product_id, l.packaging_id);"]], T],
+  ["سعر", "the stale fallback takes a later day's price", [[OD,
+    "      [\"x_packaging_id\", \"=\", packagingId],\n      [\"x_date\", \"<=\", today],\n    ],", "      [\"x_packaging_id\", \"=\", packagingId],\n    ],"]], T],
 ];
 
 const want = new Set(process.argv.slice(2));

@@ -311,7 +311,8 @@ export async function buildQuotationPDFDataFromOdoo(
       manualUnit > 0 ? "today" : "today";
     let age_days: number | null = 0;
     if (!unit || unit <= 0) {
-      const lookup = await getLatestSalePrice(env, l.product_id, l.packaging_id);
+      // § 41 — the order's day's price (a quotation rebuilt later keeps it)
+      const lookup = await getLatestSalePrice(env, l.product_id, l.packaging_id, order.order_date ?? undefined);
       unit = lookup.price;
       source = lookup.source;
       age_days = lookup.age_days;

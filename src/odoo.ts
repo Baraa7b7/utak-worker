@@ -2465,8 +2465,17 @@ export async function getLatestSalePrice(
   env: Env,
   productId: number,
   packagingId: number,
+  /**
+   * § 41 — the day whose price counts: the ORDER's day for an order's lines
+   * (the price it was quoted and confirmed at). The invoice is issued at
+   * «تم التسليم», the next morning — often before that day's prices are
+   * published (06:00) — and took the delivery day's: nothing published yet →
+   * that day's supplier row (a purchase price) or the latest price ever.
+   * Default: today (Riyadh).
+   */
+  day?: string,
 ): Promise<SalePriceLookup> {
-  const today = riyadhToday(); // 2026-09-25 — the day x_daily_price.x_date is written in
+  const today = day ?? riyadhToday(); // 2026-09-25 — the day x_daily_price.x_date is written in
   // 2026-09-25 (STATUS § 35) — today's published price (what the customers
   // received in «أسعار اليوم») comes first: the quotation and the invoice
   // follow the list. Nothing published today → as before.
@@ -2510,11 +2519,13 @@ export async function getLatestSalePrice(
       return { price, source: "today", price_date: today, age_days: 0 };
     }
   }
-  // Fallback: most recent price ever (kept — only tagged, not removed).
+  // Fallback: most recent price ever (kept — only tagged, not removed), up to
+  // the day asked (§ 41: a later day's price is not this order's).
   const fallback = await call<Row[]>(env, "x_daily_price", "search_read", {
     domain: [
       ["x_product_tmpl_id", "=", productId],
       ["x_packaging_id", "=", packagingId],
+      ["x_date", "<=", today],
     ],
     fields: ["x_sale_price", "x_price_sar", "x_date"],
     order: "x_date desc, id desc",

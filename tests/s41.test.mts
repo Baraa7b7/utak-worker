@@ -12,6 +12,9 @@
 //       and number from that moment's Riyadh day; collections record payments
 //       on it; the rest stays due and م2 reminds it; one invoice per order (KV
 //       claim + x_invoice_sent_at); no invoice for a simulation order.
+//   [سعر] found building [ج]: an order's lines are priced at the ORDER's day
+//       (the published price it was confirmed at), not the day the invoice is
+//       issued (delivery, the next morning, often before 06:00's list).
 //
 // In-memory Odoo + captured Graph (tests/wa-harness.mts) behind a strict schema
 // gate built from the real field lists (fields_get on the tenant, read-only:
@@ -430,6 +433,39 @@ console.log("\n[ج] the 18:00 list and م2 by x_utak_simulation: a sim / pilot i
   assert("…marked x_utak_simulation: neither the list nor م2", !list2.some((x) => x.id === inv.id) && !(await quiet(() => OUT.owedByCustomer(env))).has(C1));
   const src = readFileSync(new URL("../src/invoice.ts", import.meta.url), "utf8");
   assert("the «after full collection» send is gone from the code", !/function sendInvoiceToCustomerIfPaid|deferred until fully collected|sendInvoiceToCustomerIfPaid\(/.test(src));
+  assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
+}
+
+// ================================================================ [سعر]
+const Q = await import("../src/quotation.ts");
+const { getLatestSalePrice } = await import("../src/odoo.ts");
+console.log("\n[سعر] the invoice at 05:00 (before 06:00's list): the order's day's price, not a purchase price");
+{
+  const env = fresh("2026-09-27 05:00"); sources(); openWin(env, C1_PHONE);
+  publishedTomato("2026-09-26", 20, 30);                       // the order's day: sold at 30
+  dp(1, 11, AHMED, 20, "2026-09-27");                          // 02:00 today: Ahmed's PURCHASE price 20, nothing published yet
+  const o = onTheWay("2026-09-26", 5);
+  await tapAs(env, `delivered_${o}`, DRIVER);
+  const [inv] = invoiceOf(o);
+  assert("5 × 30 = 150 (the price it was confirmed at), not 5 × 20 (today's purchase price)", inv?.x_total === 150, JSON.stringify(inv));
+  const lines = rows("x_daily_order_line").filter((l: any) => l.x_order_id === o);
+  assert("…and 30 written back on the line", lines.every((l: any) => l.x_unit_price === 30), JSON.stringify(lines));
+}
+{
+  const env = fresh("2026-09-27 08:00"); sources(); openWin(env, C1_PHONE);
+  publishedTomato("2026-09-26", 20, 30);
+  publishedTomato("2026-09-27", 22, 33);                       // today's list (06:00): 33
+  const o = onTheWay("2026-09-26", 5);
+  await tapAs(env, `delivered_${o}`, DRIVER);
+  assert("after 06:00 with today's list at 33: still 5 × 30 = 150 (the quoted price)", invoiceOf(o)[0]?.x_total === 150, JSON.stringify(invoiceOf(o)[0]));
+  const o2 = onTheWay("2026-09-26", 5);                        // not invoiced yet: no price written on its lines
+  const q = seed("x_quotation", { x_quotation_number: "UTAK-Q-20260926-001", x_order_id: o2, x_origin: "auto", create_date: "2026-09-26 12:00:00" });
+  const qd = await quiet(() => Q.buildQuotationPDFDataFromOdoo(env, q));
+  assert("its quotation rebuilt today (lines without a written price): the order's day's 30 too, not today's 33", qd?.items[0]?.price === 30 && qd?.subtotal === 150, JSON.stringify(qd?.items));
+  assert("today's own orders still get today's price (33)", (await quiet(() => getLatestSalePrice(env, 1, 11))).price === 33);
+  dp(2, 21, AHMED, 40, "2026-09-28");
+  const fut = await quiet(() => getLatestSalePrice(env, 2, 21, "2026-09-26"));
+  assert("the stale fallback never takes a later day's price (09-28 for 09-26 → missing)", fut.price === 0 && fut.source === "missing", JSON.stringify(fut));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 

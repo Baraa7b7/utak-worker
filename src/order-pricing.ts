@@ -169,7 +169,7 @@ export async function orderMinimum(env: Env, orderId: number, day: string = riya
   if (!order) return { total: 0, min, below: false, unpriced: 0 };
   let total = 0, unpriced = 0;
   for (const l of order.lines) {
-    const unit = (l.price_unit_manual ?? 0) > 0 ? (l.price_unit_manual as number) : (l.unit_price ?? 0) > 0 ? (l.unit_price as number) : (await getLatestSalePrice(env, l.product_id, l.packaging_id)).price;
+    const unit = (l.price_unit_manual ?? 0) > 0 ? (l.price_unit_manual as number) : (l.unit_price ?? 0) > 0 ? (l.unit_price as number) : (await getLatestSalePrice(env, l.product_id, l.packaging_id, order.order_date ?? day)).price;
     if (!(unit > 0)) { unpriced++; continue; }
     total += round2(unit * l.quantity);
   }

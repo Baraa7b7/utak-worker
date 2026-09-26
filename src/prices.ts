@@ -1,48 +1,47 @@
-// Today's prices: build, review, approve, publish — 2026-09-25 (STATUS § 35).
+// Today's prices: build, review, approve, publish — 2026-09-25 (STATUS § 35),
+// the pricing engine v1 since 2026-09-26 (STATUS § 40 ج).
 //
-// Suppliers' prices stay where § 26 keeps them (x_daily_price, one row per
-// supplier / product / packaging / Riyadh day, an outlier marked `pending`).
-// Nothing parallel: one record per Riyadh day, x_price_day «أسعار اليوم», with
-// one line per product and packaging (x_price_day_line):
+// One record per Riyadh day, x_price_day «أسعار اليوم», one line per active
+// product and packaging (x_price_day_line), built and kept current by the
+// worker (src/pricing-engine.ts): the lowest valid purchase price of the day
+// from any source, the median of the day's market observations, the sale price
+// = the market price, the unit profit = market − purchase − waste. A line with
+// no purchase price, no market price, a unit profit ≤ 0 or an outlier is an
+// exception: Baraa gets one message per exception (three buttons: «اعتمد بسعر
+// السوق», «لا تنشر», «عدّل»; one message with the count and the review link
+// above EXCEPTIONS_MANY), from the end of Omar's reply window (04:00) until
+// the publication time. Every other line is approved automatically.
 //
-//   • built and kept current by the worker from the day's prices (every */5
-//     tick when they changed, right after a supplier's reply, and on the
-//     form's «🔄 تحديث»), never from another day's prices;
-//   • the default supplier is the cheapest price that is not an outlier; with
-//     only outliers, the cheapest outlier, and the line blocks the approval
-//     until Baraa edits the price or ticks «اعتماد رغم الشذوذ» (Odoo computes
-//     x_blocked); Baraa may switch the supplier (an Odoo automation takes that
-//     supplier's price of the day);
-//   • the margin comes from the product card (product.template.x_margin_pct);
-//     sale price = purchase × (1 + margin / 100), rounded to two decimals,
-//     half up (computeSalePrice here = the stored compute in Odoo); a line
-//     without margin (0 or empty) is excluded: never published, and Baraa is
-//     told its product's name;
-//   • Baraa approves in Odoo (UTAK ← «💰 أسعار اليوم» ← «اعتماد أسعار اليوم»):
-//     the record locks, and a webhook asks this worker to publish;
-//   • the publication is a critical («مهمة») message to every customer, through
-//     the gateway: text inside the number's window, held outside it (with the
-//     customer's «فتح المحادثة» template when Meta allows it); sale price and
-//     packaging only, cut into parts when long; Baraa gets the same list and
-//     the counts;
-//   • no approval by the ordering-opening time (ORDERING_HOURS_OPEN, 06:00
-//     Riyadh; PRICES_DEADLINE="HH:MM" overrides it): the day is «missed», no
-//     publication, one alert. Yesterday's prices are never re-sent. A late
-//     approval publishes as usual.
+//   • the publication time is § 35's deadline (ORDERING_HOURS_OPEN, 06:00
+//     Riyadh; PRICES_DEADLINE="HH:MM" overrides it): the day is approved by the
+//     worker and published with § 35's mechanism — a critical message to every
+//     customer through the gateway, sale price and packaging only; Baraa gets
+//     the same list and the counts, and one line with the number of exceptions
+//     left without a decision (they are not published — never yesterday's
+//     prices). No line approved at all → «missed», one alert, as in § 35;
+//   • Baraa may still publish earlier from Odoo («نشر المعتمد الآن»), or decide
+//     a line there («قرار براء», «السعر المعدّل»);
+//   • the § 35 margin (sale = purchase × margin) is gone from pricing: the
+//     product card's «هامش الربح %» is a display-only Odoo compute.
 //
 // Nothing here writes list_price or standard_price.
 
 import type { Env } from "./config";
 import { ORDERING_HOURS_CLOSE, ORDERING_HOURS_OPEN } from "./config";
 import { call } from "./odoo";
-import { textContent } from "./meta";
+import { buttonsContent, textContent } from "./meta";
 import { gatewayDecision, sendViaGateway } from "./wa-gateway";
 import { cutoffLabel, sendOwnerAlert, sendOwnerMessage } from "./templates";
 import { claimButton, finishButton, releaseButton } from "./button-lock";
 import { fnv1a } from "./auto-send-guard";
 import { arabicDate, maskPhone } from "./wa-params";
-import { riyadhDateKey, riyadhMinutes } from "./hours";
+import { riyadhDateKey, riyadhDayMinuteMs, riyadhMinutes } from "./hours";
 import { waDigits } from "./wa-window";
+import {
+  computePricing, lineVerdict, readActiveItems, readDayOffers, saleRule, type Decision, type LineStatus,
+} from "./pricing-engine";
+import { loadPriceSources, MARKET_ASK_MINUTE, MARKET_REPLY_WINDOW_MIN } from "./price-sources";
+import { readPricingSettings } from "./operating-cost";
 
 export const PRICE_DAY_MODEL = "x_price_day";
 export const PRICE_LINE_MODEL = "x_price_day_line";
@@ -55,21 +54,9 @@ export const DEADLINE_WINDOW_MIN = 60;
 /** An approved record not published this long after its approval is published by the tick. */
 export const PUBLISH_RETRY_AFTER_MS = 3 * 60_000;
 
-// ---------------------------------------------------------------- the rules
-
-/**
- * purchase × (1 + margin / 100), two decimals, half up — in integers, exactly
- * as the stored compute of x_price_day_line.x_sale_price in Odoo:
- *   c = int(cost * 100 + 0.5); m = int(margin * 100 + 0.5)
- *   sale = ((c * (10000 + m) + 5000) // 10000) / 100
- * No margin (≤ 0) or no price → 0 (the line is not published).
- */
-export function computeSalePrice(cost: number, marginPct: number): number {
-  if (!(Number(cost) > 0) || !(Number(marginPct) > 0)) return 0;
-  const c = Math.floor(Number(cost) * 100 + 0.5);
-  const m = Math.floor(Number(marginPct) * 100 + 0.5);
-  return Math.floor((c * (10000 + m) + 5000) / 10000) / 100;
-}
+// ---------------------------------------------------------------- the publication time
+// § 40 ج — the § 35 margin rule (computeSalePrice, pickDefaultOffer, planLines,
+// offersText) is gone: the engine prices (src/pricing-engine.ts).
 
 function parseHHMM(s: unknown): number | null {
   const m = /^(\d{1,2}):(\d{2})$/.exec(String(s ?? "").trim());
@@ -84,43 +71,6 @@ export function pricesDeadlineMinutes(env: Env): { minutes: number; source: "PRI
   return set === null ? { minutes: ORDERING_HOURS_OPEN * 60, source: "ORDERING_HOURS_OPEN" } : { minutes: set, source: "PRICES_DEADLINE" };
 }
 
-export interface DailyPriceRow {
-  id: number;
-  x_date: string | false;
-  x_supplier_id: [number, string] | false;
-  x_product_tmpl_id: [number, string] | false;
-  x_packaging_id: [number, string] | false;
-  x_price_sar: number | false;
-  x_extraction_status: string | false;
-}
-
-export interface Offer {
-  priceId: number;
-  supplierId: number;
-  supplierName: string;
-  price: number;
-  /** § 26: an outlier is saved `pending`. */
-  outlier: boolean;
-}
-
-export interface LinePlan {
-  key: string;
-  productId: number;
-  productName: string;
-  packagingId: number;
-  packagingName: string;
-  offers: Offer[];
-  chosen: Offer;
-  offersText: string;
-}
-
-/** Cheapest non-outlier; with only outliers, the cheapest outlier. Ties: the earlier price row. */
-export function pickDefaultOffer(offers: Offer[]): Offer {
-  const byPrice = (a: Offer, b: Offer) => a.price - b.price || a.priceId - b.priceId;
-  const normal = offers.filter((o) => !o.outlier).sort(byPrice);
-  return normal[0] ?? [...offers].sort(byPrice)[0];
-}
-
 function shortName(name: string): string {
   const n = String(name ?? "").replace(/^\[[^\]]*\]\s*/, "").trim();
   return n.length > 24 ? `${n.slice(0, 23)}…` : n;
@@ -128,51 +78,6 @@ function shortName(name: string): string {
 function money(x: number): string {
   const n = Math.round(Number(x) * 100) / 100;
   return Number.isInteger(n) ? String(n) : n.toFixed(2);
-}
-
-/** «أحمد حسان 25 · خالد 27 (شاذ)», cheapest first. */
-export function offersText(offers: Offer[]): string {
-  return [...offers].sort((a, b) => a.price - b.price || a.priceId - b.priceId)
-    .map((o) => `${shortName(o.supplierName)} ${money(o.price)}${o.outlier ? " (شاذ)" : ""}`).join(" · ");
-}
-
-/** One line per product and packaging, from the day's rows: each supplier's latest price, and the default. */
-export function planLines(rows: DailyPriceRow[]): LinePlan[] {
-  const latest = new Map<string, DailyPriceRow>();
-  for (const r of rows) {
-    if (!Array.isArray(r.x_product_tmpl_id) || !Array.isArray(r.x_packaging_id) || !Array.isArray(r.x_supplier_id)) continue;
-    if (!(Number(r.x_price_sar) > 0) || r.x_extraction_status === "failed") continue;
-    const k = `${r.x_product_tmpl_id[0]}:${r.x_packaging_id[0]}:${r.x_supplier_id[0]}`;
-    const cur = latest.get(k);
-    if (!cur || r.id > cur.id) latest.set(k, r);
-  }
-  const groups = new Map<string, { row: DailyPriceRow; offers: Offer[] }>();
-  for (const r of latest.values()) {
-    const key = `${(r.x_product_tmpl_id as [number, string])[0]}:${(r.x_packaging_id as [number, string])[0]}`;
-    const g = groups.get(key) ?? { row: r, offers: [] };
-    g.offers.push({
-      priceId: r.id,
-      supplierId: (r.x_supplier_id as [number, string])[0],
-      supplierName: (r.x_supplier_id as [number, string])[1],
-      price: Number(r.x_price_sar),
-      outlier: r.x_extraction_status === "pending",
-    });
-    groups.set(key, g);
-  }
-  const out: LinePlan[] = [];
-  for (const [key, g] of groups) {
-    out.push({
-      key,
-      productId: (g.row.x_product_tmpl_id as [number, string])[0],
-      productName: (g.row.x_product_tmpl_id as [number, string])[1],
-      packagingId: (g.row.x_packaging_id as [number, string])[0],
-      packagingName: (g.row.x_packaging_id as [number, string])[1],
-      offers: g.offers,
-      chosen: pickDefaultOffer(g.offers),
-      offersText: offersText(g.offers),
-    });
-  }
-  return out.sort((a, b) => shortName(a.productName).localeCompare(shortName(b.productName), "ar") || a.packagingId - b.packagingId);
 }
 
 // ---------------------------------------------------------------- Odoo reads
@@ -188,6 +93,7 @@ export interface DayRecord {
 
 export interface DayLine {
   id: number;
+  x_sequence?: number;
   x_product_tmpl_id: [number, string] | false;
   x_packaging_id: [number, string] | false;
   x_supplier_id: [number, string] | false;
@@ -202,12 +108,22 @@ export interface DayLine {
   x_excluded: boolean;
   x_blocked: boolean;
   x_offers: string | false;
+  // § 40 ج — the engine and Baraa's decision
+  x_market_price: number;
+  x_market_count: number;
+  x_unit_profit: number;
+  x_status: LineStatus | false;
+  x_reason: string | false;
+  x_decision: Decision | false;
+  x_manual_price: number;
+  x_decided_at: string | false;
 }
 
-const DAY_FIELDS = ["id", "x_date", "x_state", "x_name", "x_approved_at", "x_published_at"];
+const DAY_FIELDS = ["id", "x_date", "x_state", "x_name", "x_approved_at", "x_approved_by", "x_published_at"];
 const LINE_FIELDS = [
-  "id", "x_product_tmpl_id", "x_packaging_id", "x_supplier_id", "x_daily_price_id", "x_default_price_id",
+  "id", "x_sequence", "x_product_tmpl_id", "x_packaging_id", "x_supplier_id", "x_daily_price_id", "x_default_price_id",
   "x_source_price", "x_cost_price", "x_is_outlier", "x_outlier_ok", "x_margin_pct", "x_sale_price", "x_excluded", "x_blocked", "x_offers",
+  "x_market_price", "x_market_count", "x_unit_profit", "x_status", "x_reason", "x_decision", "x_manual_price", "x_decided_at",
 ];
 
 async function readDay(env: Env, day: string): Promise<DayRecord | null> {
@@ -239,109 +155,144 @@ async function readLines(env: Env, dayId: number): Promise<DayLine[]> {
   });
 }
 
-async function readDayRows(env: Env, day: string): Promise<DailyPriceRow[]> {
-  return call<DailyPriceRow[]>(env, "x_daily_price", "search_read", {
-    domain: [["x_date", "=", day], ["x_price_sar", ">", 0], ["x_supplier_id", "!=", false], ["x_extraction_status", "!=", "failed"]],
-    fields: ["id", "x_date", "x_supplier_id", "x_product_tmpl_id", "x_packaging_id", "x_price_sar", "x_extraction_status"],
-    order: "id asc",
-    limit: 1000,
-  });
-}
-
-async function readMargins(env: Env, productIds: number[]): Promise<Map<number, number>> {
-  const ids = [...new Set(productIds)].filter((x) => x > 0);
-  if (!ids.length) return new Map();
-  const rows = await call<Array<{ id: number; x_margin_pct: number | false }>>(env, "product.template", "search_read", {
-    domain: [["id", "in", ids]], fields: ["id", "x_margin_pct"], context: { active_test: false }, limit: ids.length,
-  });
-  return new Map(rows.map((r) => [r.id, Number(r.x_margin_pct) || 0]));
-}
-
 // ---------------------------------------------------------------- refresh
 
 export interface RefreshReport {
   day: string;
-  action: "no_prices" | "unchanged" | "locked" | "refreshed";
+  action: "no_prices" | "unchanged" | "locked" | "refreshed" | "outside";
   dayId?: number;
   state?: string;
   created?: number;
   updated?: number;
   lines?: number;
+  /** lines not published as things stand (exception or «لم يُنشر») */
   excluded?: number;
+  counts?: Record<LineStatus, number>;
 }
 
 function fpKey(day: string): string {
   return `prices_fp:v1:${day}`;
 }
+const m2oId = (v: [number, string] | false | number | undefined): number => (Array.isArray(v) ? v[0] : typeof v === "number" ? v : 0);
+const lineKey = (l: DayLine) => `${m2oId(l.x_product_tmpl_id)}:${m2oId(l.x_packaging_id)}`;
+/** The supplier ask (02:00): the engine's first minute in the tick. */
+export const ENGINE_FROM_MINUTE = 2 * 60;
+/** Exceptions reach Baraa from the end of Omar's reply window (02:30 + 90 = 04:00), and at least 30 minutes before the publication. */
+export function exceptionsFromMinutes(env: Env): number {
+  return Math.min(MARKET_ASK_MINUTE + MARKET_REPLY_WINDOW_MIN, pricesDeadlineMinutes(env).minutes - 30);
+}
+/** Odoo's value against the one to write: many2one ids, 0 = empty, a float tolerance. */
+function sameValue(cur: unknown, want: unknown): boolean {
+  const n = (x: unknown) => (Array.isArray(x) ? x[0] : x === null || x === undefined || x === "" ? false : x);
+  const a = n(cur), b = n(want);
+  if ((a === false || a === 0) && (b === false || b === 0)) return true;
+  if (typeof a === "number" && typeof b === "number") return Math.abs(a - b) < 0.0001;
+  return a === b;
+}
+function changed(l: DayLine, want: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(want)) if (!sameValue((l as unknown as Record<string, unknown>)[k], v)) out[k] = v;
+  return out;
+}
 
 /**
- * Build or update the day's record from its prices. A line Baraa touched
- * (another supplier, an edited price, «اعتماد رغم الشذوذ») keeps his choice;
- * an untouched line follows the new default. A line without margin takes the
- * product's margin when it gets one. Approved and published days are never
- * touched. Skipped when nothing changed since the last run (unless forced).
+ * Build or update the day's record with the engine (src/pricing-engine.ts)
+ * from the day's offers of the sources: one line per active product and
+ * packaging, its status from the rule and Baraa's decision. A line of a
+ * product that left the active catalog is «لم يُنشر». Approved and published
+ * days are never touched. Skipped when nothing changed since the last run
+ * (unless forced). No record before the exceptions time without an offer.
  */
 export async function refreshPriceDay(env: Env, opts: { day?: string; force?: boolean; now?: number } = {}): Promise<RefreshReport> {
-  const day = opts.day ?? riyadhDateKey(new Date(opts.now ?? Date.now()));
-  const rows = await readDayRows(env, day);
+  const now = opts.now ?? Date.now();
+  const today = riyadhDateKey(new Date(now));
+  const day = opts.day ?? today;
   const found = await readDay(env, day);
-  if (!rows.length && !found) return { day, action: "no_prices" };
+  if (found && (found.x_state === "approved" || found.x_state === "published")) {
+    return { day, action: "locked", dayId: found.id, state: found.x_state };
+  }
+  const sources = await loadPriceSources(env);
+  const offers = await readDayOffers(env, day, sources);
+  const exceptionsDue = day === today && riyadhMinutes(new Date(now)) >= exceptionsFromMinutes(env);
+  if (!found && !offers.length && !exceptionsDue && !opts.force) return { day, action: "no_prices" };
+  const settings = await readPricingSettings(env, day);
+  if (!settings) throw new Error(`[prices] no active x_pricing_config on ${day}`);
+  const items = await readActiveItems(env, offers);
+  const plan = computePricing(items, offers, settings.wastePct);
   const rec = found ?? (await ensureDay(env, day));
-  const plan = planLines(rows);
-  const margins = await readMargins(env, plan.map((p) => p.productId));
+  const lines = await readLines(env, rec.id);
   const fp = fnv1a(JSON.stringify([
-    rec.id, rec.x_state,
-    rows.map((r) => [r.id, r.x_price_sar, r.x_extraction_status]),
-    [...margins.entries()].sort((a, b) => a[0] - b[0]),
+    rec.id, rec.x_state, settings.wastePct,
+    offers.map((o) => [o.model, o.rowId, o.kind, o.price, o.outlier, o.partnerId]),
+    items.map((i) => [i.productId, i.packagingId]),
+    lines.filter((l) => l.x_decision || Number(l.x_manual_price) > 0).map((l) => [lineKey(l), l.x_decision || "", Number(l.x_manual_price) || 0]),
   ]));
   if (!opts.force) {
     try {
       if ((await env.MSG_DEDUP.get(fpKey(day))) === fp) return { day, action: "unchanged", dayId: rec.id, state: rec.x_state };
     } catch { /* recompute */ }
   }
-  if (rec.x_state === "approved" || rec.x_state === "published") {
-    return { day, action: "locked", dayId: rec.id, state: rec.x_state };
-  }
-  const lines = await readLines(env, rec.id);
-  const byKey = new Map(lines.map((l) => [`${Array.isArray(l.x_product_tmpl_id) ? l.x_product_tmpl_id[0] : 0}:${Array.isArray(l.x_packaging_id) ? l.x_packaging_id[0] : 0}`, l]));
+  const byKey = new Map(lines.map((l) => [lineKey(l), l]));
   const creates: Array<Record<string, unknown>> = [];
+  const counts: Record<LineStatus, number> = { auto: 0, exception: 0, manual: 0, unpublished: 0 };
   let updated = 0;
-  let seq = lines.length;
+  let seq = lines.reduce((m, l) => Math.max(m, Number(l.x_sequence) || 0), 0);
   for (const p of plan) {
-    const margin = margins.get(p.productId) ?? 0;
     const l = byKey.get(p.key);
+    const decision = (l?.x_decision || null) as Decision | null;
+    const v = lineVerdict(p, decision, Number(l?.x_manual_price) || 0);
+    counts[v.status]++;
+    const src = p.purchaseOffer;
+    const want: Record<string, unknown> = {
+      x_supplier_id: src?.partnerId || false,
+      x_daily_price_id: src?.model === "dp" ? src.rowId : false,
+      x_default_price_id: src?.model === "dp" ? src.rowId : false,
+      x_source_price: p.purchase ?? 0,
+      x_cost_price: p.purchase ?? 0,
+      x_is_outlier: p.outlier.purchase || p.outlier.market,
+      x_outlier_ok: false,
+      x_margin_pct: p.displayMargin ?? 0,
+      x_market_price: p.market ?? 0,
+      x_market_count: p.marketCount,
+      x_unit_profit: p.unitProfit ?? 0,
+      x_offers: p.offersText || false,
+      x_status: v.status,
+      x_reason: v.reason || false,
+      x_sale_price: v.sale,
+      x_excluded: v.excluded,
+      x_blocked: false,
+    };
     if (!l) {
       creates.push({
         x_day_id: rec.id, x_name: `${shortName(p.productName)} — ${p.packagingName}`, x_sequence: ++seq,
-        x_product_tmpl_id: p.productId, x_packaging_id: p.packagingId,
-        x_supplier_id: p.chosen.supplierId, x_daily_price_id: p.chosen.priceId, x_default_price_id: p.chosen.priceId,
-        x_source_price: p.chosen.price, x_cost_price: p.chosen.price, x_is_outlier: p.chosen.outlier, x_outlier_ok: false,
-        x_margin_pct: margin, x_offers: p.offersText,
+        x_product_tmpl_id: p.productId, x_packaging_id: p.packagingId, ...want,
       });
       continue;
     }
-    const vals: Record<string, unknown> = {};
-    const curPrice = Array.isArray(l.x_daily_price_id) ? l.x_daily_price_id[0] : 0;
-    const defPrice = Array.isArray(l.x_default_price_id) ? l.x_default_price_id[0] : 0;
-    const untouched = curPrice === defPrice && Math.abs((l.x_cost_price || 0) - (l.x_source_price || 0)) < 0.005 && !l.x_outlier_ok;
-    if (untouched && defPrice !== p.chosen.priceId) {
-      Object.assign(vals, {
-        x_supplier_id: p.chosen.supplierId, x_daily_price_id: p.chosen.priceId, x_default_price_id: p.chosen.priceId,
-        x_source_price: p.chosen.price, x_cost_price: p.chosen.price, x_is_outlier: p.chosen.outlier,
-      });
-    }
-    if ((l.x_offers || "") !== p.offersText) vals.x_offers = p.offersText;
-    if (!(Number(l.x_margin_pct) > 0) && margin > 0) vals.x_margin_pct = margin;
+    if (decision && !l.x_decided_at) want.x_decided_at = nowOdoo(now);
+    const vals = changed(l, want);
     if (Object.keys(vals).length) {
       await call(env, PRICE_LINE_MODEL, "write", { ids: [l.id], vals });
       updated++;
     }
   }
+  const planned = new Set(plan.map((p) => p.key));
+  for (const l of lines) {
+    if (planned.has(lineKey(l))) continue;
+    const vals = changed(l, { x_status: "unpublished", x_reason: "ليس في الكتالوج النشط اليوم", x_sale_price: 0, x_excluded: true });
+    if (Object.keys(vals).length) {
+      await call(env, PRICE_LINE_MODEL, "write", { ids: [l.id], vals });
+      updated++;
+    }
+    counts.unpublished++;
+  }
   if (creates.length) await call<number[]>(env, PRICE_LINE_MODEL, "create", { vals_list: creates });
   try { await env.MSG_DEDUP.put(fpKey(day), fp, { expirationTtl: 3 * 24 * 3600 }); } catch { /* next tick recomputes */ }
-  const excluded = plan.filter((p) => !((margins.get(p.productId) ?? 0) > 0)).length;
-  console.log(`[prices] ${day} refreshed: +${creates.length} ~${updated} (${plan.length} lines, ${excluded} without margin)`);
-  return { day, action: "refreshed", dayId: rec.id, state: rec.x_state, created: creates.length, updated, lines: plan.length, excluded };
+  console.log(`[prices] ${day} refreshed: +${creates.length} ~${updated} (${plan.length} lines: ${JSON.stringify(counts)})`);
+  return {
+    day, action: "refreshed", dayId: rec.id, state: rec.x_state, created: creates.length, updated, lines: plan.length,
+    excluded: counts.exception + counts.unpublished, counts,
+  };
 }
 
 // ---------------------------------------------------------------- the message
@@ -429,7 +380,7 @@ export async function priceRecipients(env: Env): Promise<PriceRecipient[]> {
 // ---------------------------------------------------------------- publish
 
 export interface PublishReport {
-  action: "published" | "already" | "not_approved" | "in_progress" | "blocked" | "mismatch" | "not_found" | "unapproved_meanwhile";
+  action: "published" | "already" | "not_approved" | "in_progress" | "blocked" | "mismatch" | "not_found" | "unapproved_meanwhile" | "nothing";
   day?: string;
   dayId?: number;
   items?: number;
@@ -445,6 +396,14 @@ function nowOdoo(ms: number = Date.now()): string {
 }
 function lineName(l: DayLine): string {
   return shortName(Array.isArray(l.x_product_tmpl_id) ? l.x_product_tmpl_id[1] : "?");
+}
+/** § 40 ج — approved automatically or by Baraa, not left out, with a price. */
+function isPublishable(l: DayLine): boolean {
+  return (l.x_status === "auto" || l.x_status === "manual") && !l.x_excluded && Number(l.x_sale_price) > 0;
+}
+/** The worker approves at the deadline without a user; Odoo's button writes x_approved_by. */
+function approvedByHand(day: DayRecord & { x_approved_by?: [number, string] | false }): boolean {
+  return Array.isArray(day.x_approved_by);
 }
 
 /**
@@ -470,14 +429,28 @@ export async function publishPriceDay(env: Env, dayId: number, opts: { ctx?: Exe
       await sendOwnerAlert(penv, `⚠️ أسعار ${day.x_date} لم تُنشر: أسعار شاذة لم تُعالج (${blocked.map(lineName).join("، ")}).`);
       return { action: "blocked", day: day.x_date, dayId, detail: blocked.map(lineName).join("، ") };
     }
-    const publishable = lines.filter((l) => !l.x_excluded && Number(l.x_sale_price) > 0);
-    const mismatch = publishable.filter((l) => Math.abs(Number(l.x_sale_price) - computeSalePrice(l.x_cost_price, l.x_margin_pct)) > 0.005);
+    // § 40 ج — a line goes out only approved (automatically or by Baraa), at
+    // the sale price the rule gives it: the market price, or his.
+    const publishable = lines.filter(isPublishable);
+    const mismatch = publishable.filter((l) => Math.abs(Number(l.x_sale_price) - saleRule(l)) > 0.005);
     if (mismatch.length) {
       await releaseButton(penv, claim);
-      await sendOwnerAlert(penv, `⚠️ أسعار ${day.x_date} لم تُنشر: سعر البيع في Odoo لا يطابق القاعدة (${mismatch.map((l) => `${lineName(l)} ${l.x_sale_price}≠${computeSalePrice(l.x_cost_price, l.x_margin_pct)}`).join("، ")}).`);
+      await sendOwnerAlert(penv, `⚠️ أسعار ${day.x_date} لم تُنشر: سعر البيع في Odoo لا يطابق القاعدة (${mismatch.map((l) => `${lineName(l)} ${l.x_sale_price}≠${saleRule(l)}`).join("، ")}).`);
       return { action: "mismatch", day: day.x_date, dayId };
     }
-    const excluded = lines.filter((l) => l.x_excluded || !(Number(l.x_sale_price) > 0)).map(lineName);
+    if (!publishable.length) {
+      await releaseButton(penv, claim);
+      await sendOwnerAlert(penv, `⚠️ أسعار ${day.x_date} لم تُنشر: لا صنف معتمد (تلقائياً أو منك).`);
+      return { action: "nothing", day: day.x_date, dayId };
+    }
+    // an exception still without Baraa's decision is not published (never an old price)
+    const undecided = lines.filter((l) => l.x_status === "exception");
+    for (const l of undecided) {
+      await call(penv, PRICE_LINE_MODEL, "write", {
+        ids: [l.id], vals: { x_status: "unpublished", x_reason: `استثناء بلا قرار عند النشر: ${l.x_reason || ""}`.trim(), x_sale_price: 0, x_excluded: true },
+      });
+    }
+    const excluded = lines.filter((l) => !publishable.includes(l)).map(lineName);
     const published: PublishedLine[] = publishable.map((l) => ({
       productName: Array.isArray(l.x_product_tmpl_id) ? l.x_product_tmpl_id[1] : "?",
       packagingName: Array.isArray(l.x_packaging_id) ? l.x_packaging_id[1] : "",
@@ -500,18 +473,19 @@ export async function publishPriceDay(env: Env, dayId: number, opts: { ctx?: Exe
     const summary = [
       `📢 نُشرت أسعار ${weekdayAr(day.x_date)} ${arabicDate(day.x_date)}. الأصناف: ${published.length}، والعملاء: ${recipients.length}.`,
       `نصاً ${counts.session} · محفوظة حتى رسالتهم ${counts.held} · محجوبة ${counts.refused}${counts.skipped ? ` · لم تُرسل ${counts.skipped}` : ""}${counts.rejected ? ` · رفضها Meta ${counts.rejected}` : ""}.`,
-      excluded.length ? `لم يُنشر (بلا هامش): ${excluded.join("، ")}.` : "",
+      excluded.length ? `لم يُنشر: ${excluded.join("، ")}.` : "",
       "وهذه نسخة ما وصلهم:",
     ].filter(Boolean).join("\n");
     const copy = buildPriceMessages(day.x_date, published, PRICE_TEXT_LIMIT, summary);
     for (const part of copy) await sendOwnerMessage(penv, part, OWNER_PRICES_PURPOSE);
-    if (excluded.length) {
-      await sendOwnerAlert(penv, `⚠️ أصناف بلا هامش لم تُنشر اليوم: ${excluded.join("، ")}. ضع «هامش الربح %» في بطاقة المنتج (أو في سطر اليوم).`);
+    // § 40 ج — one line: how many exceptions went unpublished for want of a decision
+    if (undecided.length) {
+      await sendOwnerAlert(penv, `⏰ لم يُنشر اليوم ${undecided.length} ${undecided.length === 1 ? "صنف" : "أصناف"}: استثناء بلا قرار حتى النشر. التفاصيل في «💰 أسعار اليوم».`);
     }
     const report = [
-      `نُشر ${nowOdoo(now)} UTC. الأصناف: ${published.length}، والرسائل لكل عميل: ${parts.length}، والعملاء: ${recipients.length}.`,
+      `نُشر ${nowOdoo(now)} UTC${day.x_approved_at && !approvedByHand(day) ? " (اعتماد تلقائي)" : ""}. الأصناف: ${published.length}، والرسائل لكل عميل: ${parts.length}، والعملاء: ${recipients.length}.`,
       `نصاً ${counts.session}، ومحفوظة ${counts.held}، ومحجوبة (القائمة/الحارس) ${counts.refused}، ولم تُرسل ${counts.skipped}، ورفضها Meta ${counts.rejected}.`,
-      excluded.length ? `مستبعد بلا هامش: ${excluded.join("، ")}.` : "لا مستبعد.",
+      excluded.length ? `لم يُنشر: ${excluded.join("، ")}${undecided.length ? ` (بلا قرار: ${undecided.length})` : ""}.` : "لا مستبعد.",
     ].join("\n");
     const [fresh] = await call<DayRecord[]>(penv, PRICE_DAY_MODEL, "read", { ids: [dayId], fields: ["id", "x_state"] });
     if (fresh?.x_state !== "approved") {
@@ -535,12 +509,19 @@ export async function publishPriceDay(env: Env, dayId: number, opts: { ctx?: Exe
 // ---------------------------------------------------------------- the deadline and the tick
 
 export interface DeadlineReport {
-  action: "before" | "after_window" | "claimed_before" | "missed" | "approved" | "published" | "already_missed";
+  action: "before" | "after_window" | "claimed_before" | "missed" | "approved" | "published" | "already_missed" | "auto_published";
   day: string;
   dayId?: number;
+  publish?: PublishReport;
 }
 
-/** At the deadline (within DEADLINE_WINDOW_MIN): a day not approved becomes «missed», with one alert. Never re-sends another day's prices. */
+/**
+ * At the publication time (the § 35 deadline, within DEADLINE_WINDOW_MIN):
+ * the engine's last word, then every line approved automatically or by Baraa
+ * is published (§ 35's mechanism, the worker's approval); an exception left
+ * without a decision is not. No line approved at all → «missed» and one alert.
+ * Never re-sends another day's prices.
+ */
 export async function checkPricesDeadline(env: Env, now: number = Date.now()): Promise<DeadlineReport> {
   const day = riyadhDateKey(new Date(now));
   const dl = pricesDeadlineMinutes(env).minutes;
@@ -553,35 +534,237 @@ export async function checkPricesDeadline(env: Env, now: number = Date.now()): P
   if (rec?.x_state === "published") return { action: "published", day, dayId: rec.id };
   if (rec?.x_state === "approved") return { action: "approved", day, dayId: rec.id };
   if (rec?.x_state === "missed") return { action: "already_missed", day, dayId: rec.id };
-  const target = rec ?? (await ensureDay(env, day, "missed"));
-  if (target.x_state !== "missed") await call(env, PRICE_DAY_MODEL, "write", { ids: [target.id], vals: { x_state: "missed" } });
+  try {
+    await refreshPriceDay(env, { day, now, force: true });
+  } catch (e) {
+    console.warn(`[prices] ${day} last refresh before the publication failed`, (e as Error)?.message);
+  }
+  const target = (await readDay(env, day)) ?? (await ensureDay(env, day, "missed"));
   const lines = await readLines(env, target.id).catch(() => [] as DayLine[]);
-  const hh = `${String(Math.floor(dl / 60)).padStart(2, "0")}:${String(dl % 60).padStart(2, "0")}`;
+  if (target.x_state === "draft" && lines.some(isPublishable)) {
+    await call(env, PRICE_DAY_MODEL, "write", { ids: [target.id], vals: { x_state: "approved", x_approved_at: nowOdoo(now), x_approved_by: false } });
+    await finishButton(env, claim);
+    const publish = await publishPriceDay(env, target.id, { now });
+    return { action: "auto_published", day, dayId: target.id, publish };
+  }
+  if (target.x_state !== "missed") await call(env, PRICE_DAY_MODEL, "write", { ids: [target.id], vals: { x_state: "missed" } });
+  const hh = hhmm(dl);
+  const exc = lines.filter((l) => l.x_status === "exception").length;
+  const skip = lines.filter((l) => l.x_status === "unpublished").length;
+  const anyPrice = lines.some((l) => Number(l.x_cost_price) > 0 || Number(l.x_market_price) > 0);
   await sendOwnerAlert(env, [
-    `⏰ أسعار اليوم (${arabicDate(day)}) لم تُعتمد حتى ${hh}، فلم تُنشر للعملاء.`,
-    lines.length ? `أصناف السجل: ${lines.length} (شاذ لم يُعالج: ${lines.filter((l) => l.x_blocked).length}، وبلا هامش: ${lines.filter((l) => l.x_excluded).length}).` : "لم يصل سعر من الموردين اليوم.",
-    "لا تُعاد أسعار أمس. الاعتماد المتأخر من «💰 أسعار اليوم» ينشر عادي.",
+    `⏰ أسعار اليوم (${arabicDate(day)}) لم تُنشر حتى ${hh}: لا صنف معتمد (تلقائياً أو منك).`,
+    anyPrice ? `الأصناف: ${lines.length} (استثناء بلا قرار: ${exc}، ولم يُنشر: ${skip}).` : "لم يصل سعر من المصادر اليوم.",
+    "لا تُعاد أسعار أمس. قرارك ثم «نشر المعتمد الآن» في «💰 أسعار اليوم» ينشر عادي.",
   ].join("\n"));
   await finishButton(env, claim);
   return { action: "missed", day, dayId: target.id };
+}
+
+function hhmm(min: number): string {
+  return `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
+}
+
+// ---------------------------------------------------------------- the exceptions to Baraa (§ 40 ج)
+
+/** Above this many exceptions: one message with the count and the review screen's link. */
+export const EXCEPTIONS_MANY = 8;
+export const EXCEPTION_PURPOSE = "owner_price_exception";
+/** «عدّل»: the price must come within this many minutes. */
+export const EDIT_REPLY_MIN = 30;
+const EXC_TTL = 26 * 3600;
+const excLock = (day: string, l: DayLine) => `pexc:${day}:${lineKey(l)}`;
+const editKey = (env: Env) => `pexc_edit:v1:${waDigits(String(env.OWNER_WHATSAPP ?? ""))}`;
+const DECISION_LABEL: Record<Decision, string> = { market: "اعتمد بسعر السوق", skip: "لا تنشر", edit: "سعر معدّل" };
+
+/** The review screen of a day (the history action's form, else the model's). */
+export async function reviewUrl(env: Env, dayId: number): Promise<string> {
+  const base = String(env.ODOO_URL || "").replace(/\/+$/, "");
+  let act = 0;
+  try {
+    const hit = await env.MSG_DEDUP.get("prices:review_action:v1");
+    if (hit) act = Number(hit) || 0;
+    else {
+      const [a] = await call<Array<{ id: number }>>(env, "ir.actions.act_window", "search_read", {
+        domain: [["name", "=", "UTAK — سجل أسعار الأيام"]], fields: ["id"], limit: 1,
+      });
+      act = a?.id ?? 0;
+      if (act) await env.MSG_DEDUP.put("prices:review_action:v1", String(act), { expirationTtl: 24 * 3600 });
+    }
+  } catch { /* the model's own link */ }
+  return act ? `${base}/odoo/action-${act}/${dayId}` : `${base}/odoo/x_price_day/${dayId}`;
+}
+
+export function exceptionText(day: string, l: DayLine, deadline: string): string {
+  const pk = Array.isArray(l.x_packaging_id) ? l.x_packaging_id[1] : "";
+  const cost = Number(l.x_cost_price) > 0 ? money(l.x_cost_price) : "—";
+  const market = Number(l.x_market_price) > 0 ? `${money(l.x_market_price)}${Number(l.x_market_count) > 1 ? ` (${l.x_market_count} مشاهدات)` : ""}` : "—";
+  const profit = Number(l.x_cost_price) > 0 && Number(l.x_market_price) > 0 ? ` · ربح الوحدة: ${money(l.x_unit_profit)}` : "";
+  return [
+    `⚠️ استثناء في أسعار اليوم (${arabicDate(day)})`,
+    `${lineName(l)}${pk ? ` (${pk})` : ""}`,
+    `الشراء: ${cost} · السوق: ${market}${profit}`,
+    `السبب: ${l.x_reason || "—"}`,
+    `قرارك قبل ${deadline}، وإلا لا يُنشر اليوم.`,
+  ].join("\n");
+}
+
+/**
+ * From exceptionsFromMinutes until the publication time, on a draft day: one
+ * message per new exception (a KV guard per product, packaging and day), its
+ * buttons «اعتمد بسعر السوق» (only with a market price), «لا تنشر», «عدّل».
+ * More than EXCEPTIONS_MANY exceptions: one message with the count and the
+ * review screen's link instead (once a day).
+ */
+export async function notifyPriceExceptions(env: Env, now: number = Date.now()): Promise<{ action: string; sent?: number; count?: number }> {
+  const day = riyadhDateKey(new Date(now));
+  const m = riyadhMinutes(new Date(now));
+  const dl = pricesDeadlineMinutes(env).minutes;
+  if (m < exceptionsFromMinutes(env) || m >= dl) return { action: "outside" };
+  if (!env.OWNER_WHATSAPP) return { action: "no_owner" };
+  const rec = await readDay(env, day);
+  if (!rec || rec.x_state !== "draft") return { action: "no_draft" };
+  const exc = (await readLines(env, rec.id)).filter((l) => l.x_status === "exception" && !l.x_decision);
+  if (!exc.length) return { action: "none" };
+  const fresh: DayLine[] = [];
+  for (const l of exc) if ((await env.MSG_DEDUP.get(`btnlock:v1:${excLock(day, l)}`)) === null) fresh.push(l);
+  if (!fresh.length) return { action: "notified_before", count: exc.length };
+  const expiresAt = riyadhDayMinuteMs(day, dl);
+  const deadline = hhmm(dl);
+  if (exc.length > EXCEPTIONS_MANY) {
+    for (const l of fresh) await claimButton(env, excLock(day, l), EXC_TTL);
+    const c = await claimButton(env, `pexc_many:${day}`, EXC_TTL);
+    if (!c.claimed) return { action: "many_before", count: exc.length };
+    await sendViaGateway(env, {
+      purpose: EXCEPTION_PURPOSE, to: env.OWNER_WHATSAPP, expiresAt,
+      content: textContent([
+        `⚠️ استثناءات أسعار اليوم (${arabicDate(day)}): ${exc.length} صنفاً تحتاج قرارك قبل ${deadline}، وإلا لا تُنشر اليوم.`,
+        `راجعها في شاشة المراجعة: ${await reviewUrl(env, rec.id)}`,
+      ].join("\n")),
+    });
+    await finishButton(env, c, EXC_TTL);
+    return { action: "many", sent: 1, count: exc.length };
+  }
+  let sent = 0;
+  for (const l of fresh) {
+    const c = await claimButton(env, excLock(day, l), EXC_TTL);
+    if (!c.claimed) continue;
+    const buttons = [
+      ...(Number(l.x_market_price) > 0 ? [{ id: `pexc_m_${l.id}`, title: "اعتمد بسعر السوق" }] : []),
+      { id: `pexc_s_${l.id}`, title: "لا تنشر" },
+      { id: `pexc_e_${l.id}`, title: "عدّل" },
+    ];
+    await sendViaGateway(env, { purpose: EXCEPTION_PURPOSE, to: env.OWNER_WHATSAPP, expiresAt, content: buttonsContent(exceptionText(day, l, deadline), buttons) });
+    await finishButton(env, c, EXC_TTL);
+    sent++;
+  }
+  return { action: "sent", sent, count: exc.length };
+}
+
+/** Baraa's decision on a line, written once (a lock per line). */
+async function decide(env: Env, l: DayLine, vals: Record<string, unknown>, now: number): Promise<boolean> {
+  const lock = await claimButton(env, `pexc_dec:${l.id}`);
+  if (!lock.claimed) return false;
+  try {
+    await call(env, PRICE_LINE_MODEL, "write", { ids: [l.id], vals: { ...vals, x_decided_at: nowOdoo(now) } });
+  } catch (e) {
+    await releaseButton(env, lock);
+    throw e;
+  }
+  await finishButton(env, lock);
+  return true;
+}
+
+/** The line and its day, when a decision may still be taken (draft, or a missed day not yet published). */
+async function decidable(env: Env, lineId: number): Promise<{ l?: DayLine; day?: DayRecord; why?: string }> {
+  const [l] = await call<Array<DayLine & { x_day_id: [number, string] | false }>>(env, PRICE_LINE_MODEL, "read", { ids: [lineId], fields: [...LINE_FIELDS, "x_day_id"] });
+  if (!l) return { why: "ما لقينا هذا الصنف في أسعار اليوم." };
+  const [day] = await call<DayRecord[]>(env, PRICE_DAY_MODEL, "read", { ids: [m2oId(l.x_day_id)], fields: DAY_FIELDS });
+  if (!day || (day.x_state !== "draft" && day.x_state !== "missed")) {
+    return { l, day, why: `فات موعد نشر أسعار ${day ? arabicDate(day.x_date) : "هذا اليوم"}${day?.x_state === "published" ? " (نُشرت)" : ""}، فلا قرار عليها الآن.` };
+  }
+  if (l.x_decision) return { l, day, why: `القرار مسجّل مسبقاً على ${lineName(l)}: ${DECISION_LABEL[l.x_decision as Decision]}.` };
+  return { l, day };
+}
+const missedTail = (day: DayRecord) => day.x_state === "missed" ? " السجل «فات الموعد»: انشر من «💰 أسعار اليوم» ← «نشر المعتمد الآن»." : "";
+
+/** A tap on an exception's buttons (pexc_m_ / pexc_s_ / pexc_e_ + line id). The reply to Baraa. */
+export async function handlePriceExceptionButton(env: Env, payload: string, now: number = Date.now()): Promise<string> {
+  const mm = /^pexc_([mse])_(\d+)$/.exec(String(payload ?? ""));
+  if (!mm) return "";
+  const { l, day, why } = await decidable(env, Number(mm[2]));
+  if (why || !l || !day) return why ?? "";
+  const name = lineName(l);
+  if (mm[1] === "e") {
+    await env.MSG_DEDUP.put(editKey(env), JSON.stringify({ lineId: l.id, at: now }), { expirationTtl: EDIT_REPLY_MIN * 60 });
+    return `✏️ أرسل سعر البيع لـ ${name} رقماً واحداً خلال ${EDIT_REPLY_MIN} دقيقة.`;
+  }
+  if (mm[1] === "m") {
+    const market = Math.round((Number(l.x_market_price) || 0) * 100) / 100;
+    if (!(market > 0)) return `لا سعر سوق لـ ${name} اليوم: اختر «لا تنشر» أو «عدّل».`;
+    const ok = await decide(env, l, { x_decision: "market", x_manual_price: market, x_status: "manual", x_reason: "براء: اعتمد بسعر السوق", x_sale_price: market, x_excluded: false }, now);
+    return ok ? `✅ ${name}: يُنشر بسعر السوق ${money(market)} ر.س.${missedTail(day)}` : `القرار مسجّل مسبقاً على ${name}.`;
+  }
+  const ok = await decide(env, l, { x_decision: "skip", x_status: "unpublished", x_reason: "براء: لا تنشر", x_sale_price: 0, x_excluded: true }, now);
+  return ok ? `✅ ${name}: لا يُنشر اليوم.` : `القرار مسجّل مسبقاً على ${name}.`;
+}
+
+/**
+ * Baraa's text within EDIT_REPLY_MIN of «عدّل»: exactly one positive number
+ * written in it becomes the line's approved sale price. Null = no «عدّل»
+ * waiting (the text is not about prices).
+ */
+export async function handlePriceEditReply(env: Env, text: string, now: number = Date.now()): Promise<string | null> {
+  let pend: { lineId: number; at: number } | null = null;
+  try {
+    const raw = await env.MSG_DEDUP.get(editKey(env));
+    pend = raw ? JSON.parse(raw) : null;
+  } catch { pend = null; }
+  if (!pend) return null;
+  if (now - pend.at > EDIT_REPLY_MIN * 60_000 || now < pend.at) {
+    await env.MSG_DEDUP.delete(editKey(env)).catch(() => {});
+    return null;
+  }
+  const { numbersInText } = await import("./suppliers");
+  const nums = numbersInText(text).filter((n) => n > 0);
+  if (nums.length !== 1) return `أرسل سعر البيع رقماً موجباً واحداً (مثلاً 24.5) خلال ${EDIT_REPLY_MIN} دقيقة من «عدّل».`;
+  const { l, day, why } = await decidable(env, pend.lineId);
+  await env.MSG_DEDUP.delete(editKey(env)).catch(() => {});
+  if (why || !l || !day) return why ?? null;
+  const price = Math.round(nums[0] * 100) / 100;
+  const ok = await decide(env, l, { x_decision: "edit", x_manual_price: price, x_status: "manual", x_reason: "براء: سعر معدّل", x_sale_price: price, x_excluded: false }, now);
+  return ok ? `✅ ${lineName(l)}: يُنشر بـ ${money(price)} ر.س.${missedTail(day)}` : `القرار مسجّل مسبقاً على ${lineName(l)}.`;
 }
 
 export interface PricesTick {
   /** § 40 ب — 02:30 «أرسل أسعار السوق اليوم» to the sources that are not suppliers. */
   marketAsk?: { action: string } | { error: string };
   refresh?: RefreshReport | { error: string };
+  /** § 40 ج — the exceptions to Baraa. */
+  exceptions?: { action: string } | { error: string };
   deadline?: DeadlineReport | { error: string };
   publish?: PublishReport | { error: string };
 }
 
-/** The every-5-minutes tick: refresh the day (when its prices changed), the deadline, and an approval whose webhook was lost. */
+/**
+ * The every-5-minutes tick: the market ask, the engine (from the supplier ask
+ * to the end of the publication window), the exceptions to Baraa, the
+ * publication time, and an approval whose webhook was lost.
+ */
 export async function runPricesTick(env: Env, now: number = Date.now(), ctx?: ExecutionContext): Promise<PricesTick> {
   const out: PricesTick = {};
+  const dl = pricesDeadlineMinutes(env).minutes;
+  const m = riyadhMinutes(new Date(now));
   try {
     const { runMarketAsk } = await import("./price-sources");
-    out.marketAsk = await runMarketAsk(env, now, pricesDeadlineMinutes(env).minutes);
+    out.marketAsk = await runMarketAsk(env, now, dl);
   } catch (e) { out.marketAsk = { error: (e as Error)?.message ?? String(e) }; }
-  try { out.refresh = await refreshPriceDay(env, { now }); } catch (e) { out.refresh = { error: (e as Error)?.message ?? String(e) }; }
+  try {
+    out.refresh = m >= ENGINE_FROM_MINUTE && m < dl + DEADLINE_WINDOW_MIN
+      ? await refreshPriceDay(env, { now })
+      : { day: riyadhDateKey(new Date(now)), action: "outside" };
+  } catch (e) { out.refresh = { error: (e as Error)?.message ?? String(e) }; }
+  try { out.exceptions = await notifyPriceExceptions(env, now); } catch (e) { out.exceptions = { error: (e as Error)?.message ?? String(e) }; }
   try { out.deadline = await checkPricesDeadline(env, now); } catch (e) { out.deadline = { error: (e as Error)?.message ?? String(e) }; }
   try {
     const rec = await readDay(env, riyadhDateKey(new Date(now)));

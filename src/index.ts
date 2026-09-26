@@ -181,7 +181,8 @@ export default {
             const { runPricesTick } = await import("./prices");
             const p = await runPricesTick(env, Date.now(), ctx);
             const quiet = (!p.marketAsk || ("action" in p.marketAsk && ["before", "after"].includes(p.marketAsk.action)))
-              && (p.refresh && "action" in p.refresh && ["no_prices", "unchanged", "locked"].includes(p.refresh.action))
+              && (!p.exceptions || ("action" in p.exceptions && ["outside", "no_draft", "none", "notified_before", "many_before"].includes(p.exceptions.action)))
+              && (p.refresh && "action" in p.refresh && ["no_prices", "unchanged", "locked", "outside"].includes(p.refresh.action))
               && (p.deadline && "action" in p.deadline && ["before", "after_window", "claimed_before"].includes(p.deadline.action)) && !p.publish;
             if (!quiet) console.log("[prices tick]", JSON.stringify(p));
           } catch (e) {
@@ -2458,6 +2459,22 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         if ((msg.type === "interactive" || msg.type === "button") && msg.buttonId === "shift_start") {
           const { ownerWindowAck } = await import("./attendance");
           await sendText(env, msg.from, ownerWindowAck(), { ctx, purpose: "owner_alert" });
+        } else if ((msg.type === "interactive" || msg.type === "button") && /^pexc_[mse]_\d+$/.test(msg.buttonId ?? "")) {
+          // § 40 ج — his decision on a price exception: «اعتمد بسعر السوق» / «لا تنشر» / «عدّل».
+          const { handlePriceExceptionButton } = await import("./prices");
+          const r = await handlePriceExceptionButton(env, msg.buttonId!).catch((e) => {
+            console.warn("[prices] exception button failed", (e as Error)?.message);
+            return "تعذّر تسجيل القرار الآن. جرّب بعد قليل، أو قرّر من «💰 أسعار اليوم».";
+          });
+          if (r) await sendText(env, msg.from, r, { ctx, purpose: "owner_alert" });
+        } else if (msg.type === "text" && msg.text) {
+          // § 40 ج — the price after «عدّل» (within 30 minutes); any other text: nothing, as before.
+          const { handlePriceEditReply } = await import("./prices");
+          const r = await handlePriceEditReply(env, msg.text).catch((e) => {
+            console.warn("[prices] edit reply failed", (e as Error)?.message);
+            return null;
+          });
+          if (r) await sendText(env, msg.from, r, { ctx, purpose: "owner_alert" });
         }
         await markSeen(env, msg.messageId);
         continue;

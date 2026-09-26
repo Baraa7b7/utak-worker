@@ -115,6 +115,11 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // § 35 — Baraa's copy of the published list, with the counts.
   owner_prices: crit(op("نسخة أسعار اليوم", false, { hours: 36 }), "أسعار اليوم"),
   owner_summary: op("ملخص المالك", false, { hours: 36 }),
+  // § 40 ج — a price exception for his decision (buttons), or the count with
+  // the review link; held for his next tap, stale at the publication time (the
+  // request's expiresAt). Not critical: § 34's list is Baraa's, and his opener
+  // (utak_update_owner) is MARKETING anyway.
+  owner_price_exception: op("استثناء أسعار اليوم", false, { untilMinute: 6 * 60 }),
   owner_window: op("نافذة المالك 06:00"),
   // ---- § 34: «فتح المحادثة» — one UTILITY template per recipient category,
   // sent when a critical message is held (src/wa-opener.ts). Template only:

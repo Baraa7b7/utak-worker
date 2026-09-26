@@ -1,19 +1,21 @@
-// «أسعار اليوم» — build, review, approve, publish (STATUS § 35).
+// «أسعار اليوم» — build, review, approve, publish (STATUS § 35), with the
+// pricing engine v1 since STATUS § 40 ج (the engine's own rules and the
+// exceptions: tests/pricing-v1.test.mts).
 //
-//   [0] the rules: sale price = purchase × (1 + margin/100), half up to two
-//       decimals (= the Odoo compute); the default supplier; the outlier; the
-//       deadline (ORDERING_HOURS_OPEN, PRICES_DEADLINE); the message (sale
-//       price and packaging only, cut into parts).
-//   [1] refresh: the day's record from the day's prices only; the default;
-//       an outlier-only line blocks; margin from the product, none → excluded;
-//       unchanged → skipped; Baraa's choices kept; a later cheaper price moves
-//       an untouched line; approved / published never touched.
+//   [0] the rules kept from § 35: the deadline (ORDERING_HOURS_OPEN,
+//       PRICES_DEADLINE); the message (sale price and packaging only, cut into
+//       parts).
+//   [1] refresh: the day's record from the day's offers only (a supplier's
+//       latest price, a failed extraction out); purchase / market / sale /
+//       profit / status on the line; unchanged → skipped; Baraa's decision kept;
+//       approved / published never touched.
 //   [2] publish: only an approved day, once; customers by the gateway (text
 //       inside the window, held + opener outside); opted-out / held / team /
-//       Baraa not recipients; Baraa's copy with the counts; excluded names;
-//       blocked / mismatched → nothing sent.
-//   [3] the deadline: «missed» + one alert; no record → one created missed;
-//       yesterday's prices never re-sent; a late approval publishes.
+//       Baraa not recipients; Baraa's copy with the counts, «لم يُنشر», one line
+//       with the undecided exceptions; blocked / mismatched → nothing sent.
+//   [3] the publication time: approved and published by the worker; nothing
+//       approved → «missed» + one alert; no record → one created; yesterday's
+//       prices never re-sent; a late decision and approval publishes.
 //   [4] the tick and the Odoo hook (401 / 400 / 202, publish, refresh), a lost
 //       webhook retried.
 //   [5] quotes and invoices: today's published price first, else as before.
@@ -26,7 +28,7 @@
 
 import { readdirSync, readFileSync } from "node:fs";
 import {
-  CUST, CUST_PHONE, CUST2, CUST2_PHONE, COLL_PHONE, OWNER, closeOwnerWindow, computes, graph, heldFor, odooLog, openWindow,
+  CUST, CUST_PHONE, CUST2, CUST2_PHONE, COLL_PHONE, OWNER, graph, heldFor, odooLog, openWindow,
   quiet, reset, rows, seed, sentTo, setRiyadh, table,
 } from "./wa-harness.mts";
 
@@ -44,7 +46,7 @@ const FX = [
   "./fixtures-odoo-fields-20260925-team.json", "./fixtures-odoo-fields-20260925-opener.json", "./fixtures-odoo-fields-20260925-prices.json",
   // STATUS § 36 — x_body_text / x_buttons_text, x_echo_status / x_echo_message_id / x_backfilled
   "./fixtures-odoo-fields-20260925-s36.json",
-  // STATUS § 40 — the tick also runs the 02:30 market ask (hr.employee / res.partner x_price_source)
+  // STATUS § 40 — the engine's fields, the sources, the offers, the settings (the tenant after § 40)
   "./fixtures-odoo-fields-20260926-s40.json",
 ].map(load);
 const REAL: Record<string, string[]> = Object.assign({}, ...FX);
@@ -81,25 +83,14 @@ globalThis.fetch = (async (input: unknown, init?: any) => {
   return harnessFetch(input as any, init);
 }) as typeof fetch;
 
-// The tenant's stored computes (scripts/s35-20260925-odoo.mjs), mirrored.
-computes["x_price_day_line"] = (r) => {
-  const cost = Number(r.x_cost_price || 0), m = Number(r.x_margin_pct || 0);
-  r.x_sale_price = cost > 0 && m > 0 ? Math.floor((Math.floor(cost * 100 + 0.5) * (10000 + Math.floor(m * 100 + 0.5)) + 5000) / 10000) / 100 : 0;
-  r.x_excluded = !(m > 0);
-  const edited = Math.abs(cost - Number(r.x_source_price || 0)) >= 0.005;
-  r.x_blocked = !!(r.x_is_outlier && !r.x_outlier_ok && !edited && m > 0);
-};
-
 const P = await import("../src/prices.ts");
-const {
-  computeSalePrice, pickDefaultOffer, planLines, offersText, pricesDeadlineMinutes, buildPriceMessages, refreshPriceDay,
-  publishPriceDay, checkPricesDeadline, runPricesTick, priceRecipients,
-} = P;
+const { pricesDeadlineMinutes, buildPriceMessages, refreshPriceDay, publishPriceDay, checkPricesDeadline, runPricesTick, priceRecipients } = P;
 const { clearTemplateCache } = await import("../src/templates.ts");
 const { getLatestSalePrice } = await import("../src/odoo.ts");
 const worker = (await import("../src/index.ts")).default;
 
 const SUP_A = 801, SUP_B = 802;
+const OBS = 820;   // a price source that is not a supplier (market observations)
 const OPT = 811, OPT_PHONE = "966500000811";
 const HELD = 812, HELD_PHONE = "966500000812";
 const PERS = 813, PERS_PHONE = "966500000813";
@@ -112,16 +103,22 @@ function fresh(riyadh = "2026-09-26 04:00", opts: { openerUsable?: boolean } = {
   env.ODOO_HOOK_TOKEN = "HOOK";
   seed("res.partner", { id: 42, name: "UTAK بوت" });
   seed("res.users", { id: 2, login: "x", partner_id: 3 });
-  seed("res.partner", { id: SUP_A, name: "أحمد حسان", supplier_rank: 5, x_whatsapp_number: "+966500000801" });
-  seed("res.partner", { id: SUP_B, name: "خالد", supplier_rank: 1, x_whatsapp_number: "+966500000802" });
+  // § 40 ب — the sources: two suppliers and an observer, «مصدر أسعار» ticked
+  seed("res.partner", { id: SUP_A, name: "أحمد حسان", supplier_rank: 5, x_whatsapp_number: "+966500000801", x_price_source: true });
+  seed("res.partner", { id: SUP_B, name: "خالد", supplier_rank: 1, x_whatsapp_number: "+966500000802", x_price_source: true });
+  seed("res.partner", { id: OBS, name: "عمر", supplier_rank: 0, x_whatsapp_number: "+966500000820", x_price_source: true });
   seed("res.partner", { id: OPT, name: "موقوف", customer_rank: 1, x_whatsapp_number: "+" + OPT_PHONE, x_wa_marketing_optout: true });
   seed("res.partner", { id: HELD, name: "ينتظر المراجعة", customer_rank: 1, x_whatsapp_number: "+" + HELD_PHONE, x_contact_class: "unreviewed", x_review_pending: true, x_ai_intent: "vendor_pitch" });
   seed("res.partner", { id: PERS, name: "شخصي", customer_rank: 1, x_whatsapp_number: "+" + PERS_PHONE, x_contact_class: "personal" });
   seed("res.partner", { id: OWNERP, name: "Bara.a - U TAK", customer_rank: 1, x_whatsapp_number: "+" + OWNER });
   // a team member who is also a customer (as Othman on the tenant): never a price recipient
   table("res.partner").get(602)!.customer_rank = 1;
-  table("product.template").get(1)!.x_margin_pct = 20;
-  table("product.template").get(2)!.x_margin_pct = 0;
+  // the active catalog, and the settings (waste 5 %)
+  Object.assign(table("product.template").get(1)!, { sale_ok: true, x_is_active_for_sale: true });
+  Object.assign(table("product.template").get(2)!, { sale_ok: true, x_is_active_for_sale: true });
+  table("x_product_packaging").get(11)!.x_is_default = true;
+  table("x_product_packaging").get(21)!.x_is_default = true;
+  seed("x_pricing_config", { id: 1, x_name: "cfg", x_is_active: true, x_active_from: "2026-08-29", x_active_to: false, x_waste_pct: 5, x_min_order_sar: 150, x_planned_stops: 0 });
   if (opts.openerUsable) {
     seed("x_whatsapp_template", { x_purpose: "conv_open_customer", x_meta_template_id: "utak_update_customer", x_language: "ar", x_meta_status: "APPROVED", x_param_count: 2, x_category: "UTILITY" });
   } else {
@@ -130,20 +127,24 @@ function fresh(riyadh = "2026-09-26 04:00", opts: { openerUsable?: boolean } = {
   }
   return env;
 }
+/** A supplier's purchase price (x_daily_price, § 26). */
 function price(product: number, packaging: number, supplier: number, p: number, date = TODAY, status = "extracted"): number {
   return seed("x_daily_price", { x_product_tmpl_id: product, x_packaging_id: packaging, x_supplier_id: supplier, x_price_sar: p, x_date: date, x_extraction_status: status });
+}
+/** A market observation (x_price_offer, § 40 ب). */
+function market(product: number, packaging: number, p: number, source = OBS, date = TODAY): number {
+  return seed("x_price_offer", { x_product_tmpl_id: product, x_packaging_id: packaging, x_source_partner_id: source, x_market_price: p, x_purchase_price: 0, x_date: date, x_status: "valid", x_utak_simulation: false });
 }
 const dayRec = (d = TODAY) => rows("x_price_day").find((r) => r.x_date === d);
 const linesOf = (id: number) => rows("x_price_day_line").filter((l) => l.x_day_id === id);
 const lineOf = (id: number, product: number) => linesOf(id).find((l) => l.x_product_tmpl_id === product)!;
 const txt = (to: string) => sentTo(to).filter((b) => b.type === "text").map((b) => String(b.text?.body ?? ""));
-/** The Odoo «اعتماد أسعار اليوم» code action, mirrored (the real one: scripts/s35-20260925-odoo.mjs CODE.approve). */
+/** The Odoo «نشر المعتمد الآن» code action, mirrored (the real one: scripts/s40-20260926-engine.mjs APPROVE_CODE). */
 function approveInOdoo(id: number): string | null {
   const d = table("x_price_day").get(id)!;
   if (!["draft", "missed"].includes(String(d.x_state))) return "not draft";
   const ls = linesOf(id);
-  if (ls.some((l) => l.x_blocked)) return "blocked";
-  if (!ls.some((l) => !l.x_excluded && Number(l.x_sale_price) > 0)) return "nothing publishable";
+  if (!ls.some((l) => ["auto", "manual"].includes(String(l.x_status)) && !l.x_excluded && Number(l.x_sale_price) > 0)) return "nothing publishable";
   Object.assign(d, { x_state: "approved", x_approved_by: 2, x_approved_at: new Date().toISOString().replace("T", " ").slice(0, 19) });
   return null;
 }
@@ -159,33 +160,8 @@ async function hook(env: any, op: string, id: number, token = "HOOK"): Promise<R
 }
 
 // ================================================================ 0. rules
-console.log("\n[0] the rules");
+console.log("\n[0] the rules kept from § 35 (the margin rule is gone: § 40 ج)");
 {
-  const cases: Array<[number, number, number]> = [[10, 15, 11.5], [25, 20, 30], [13.5, 12.5, 15.19], [0.6, 33.33, 0.8], [44, 17.5, 51.7], [10.15, 10, 11.17], [99.99, 1, 100.99], [45, 0, 0], [0, 20, 0], [20, -5, 0]];
-  const got = cases.map(([c, m]) => computeSalePrice(c, m));
-  assert("sale = purchase × (1 + margin/100), half up to two decimals (13.5 × 1.125 = 15.1875 → 15.19)", got.every((v, i) => v === cases[i][2]), JSON.stringify(got));
-  assert("no margin (0, negative) or no price → 0 (not published)", computeSalePrice(45, 0) === 0 && computeSalePrice(0, 20) === 0 && computeSalePrice(20, -5) === 0);
-  let same = true;
-  for (let i = 0; i < 2000; i++) {
-    const c = Math.round(Math.random() * 20000) / 100, m = Math.round(Math.random() * 6000) / 100;
-    const r: any = { x_cost_price: c, x_margin_pct: m, x_source_price: c };
-    computes["x_price_day_line"](r);
-    if (r.x_sale_price !== computeSalePrice(c, m)) { same = false; break; }
-  }
-  assert("the worker's rule = the Odoo compute (mirror) on 2000 random cases", same);
-  const o = (priceId: number, p: number, outlier = false, supplierId = priceId) => ({ priceId, supplierId, supplierName: `م${supplierId}`, price: p, outlier });
-  assert("default: the cheapest non-outlier (even if an outlier is cheaper)", pickDefaultOffer([o(1, 30), o(2, 12, true), o(3, 25)]).priceId === 3);
-  assert("only outliers → the cheapest outlier", pickDefaultOffer([o(1, 60, true), o(2, 55, true)]).priceId === 2);
-  assert("a tie → the earlier price row", pickDefaultOffer([o(7, 25), o(4, 25)]).priceId === 4);
-  const plan = planLines([
-    { id: 1, x_date: TODAY, x_supplier_id: [SUP_A, "أحمد حسان"], x_product_tmpl_id: [1, "طماطم"], x_packaging_id: [11, "كرتون"], x_price_sar: 30, x_extraction_status: "extracted" },
-    { id: 2, x_date: TODAY, x_supplier_id: [SUP_A, "أحمد حسان"], x_product_tmpl_id: [1, "طماطم"], x_packaging_id: [11, "كرتون"], x_price_sar: 26, x_extraction_status: "extracted" },
-    { id: 3, x_date: TODAY, x_supplier_id: [SUP_B, "خالد"], x_product_tmpl_id: [1, "طماطم"], x_packaging_id: [11, "كرتون"], x_price_sar: 27, x_extraction_status: "pending" },
-    { id: 4, x_date: TODAY, x_supplier_id: [SUP_B, "خالد"], x_product_tmpl_id: [2, "خيار"], x_packaging_id: [21, "جرم"], x_price_sar: 15, x_extraction_status: "failed" },
-  ]);
-  assert("one line per product+packaging, each supplier's latest price; a failed extraction ignored", plan.length === 1 && plan[0].offers.length === 2 && plan[0].chosen.priceId === 2, JSON.stringify(plan));
-  assert("the offers text, cheapest first, outlier marked", plan[0].offersText === "أحمد حسان 26 · خالد 27 (شاذ)", plan[0].offersText);
-  assert("offersText strips a [tag] and money shows halalas only when needed", offersText([o(1, 25.5, false, 9)]).endsWith(" 25.50"));
   assert("deadline = ORDERING_HOURS_OPEN (06:00)", JSON.stringify(pricesDeadlineMinutes({} as any)) === JSON.stringify({ minutes: 360, source: "ORDERING_HOURS_OPEN" }));
   assert("PRICES_DEADLINE=07:00 overrides; invalid → 06:00", pricesDeadlineMinutes({ PRICES_DEADLINE: "07:00" } as any).minutes === 420 && pricesDeadlineMinutes({ PRICES_DEADLINE: "7am" } as any).minutes === 360);
   const msg = buildPriceMessages(TODAY, [{ productName: "[UTAK-VEG-001] طماطم", packagingName: "كرتون", salePrice: 30 }, { productName: "خيار", packagingName: "جرم", salePrice: 15.5 }]);
@@ -198,65 +174,37 @@ console.log("\n[0] the rules");
 }
 
 // ================================================================ 1. refresh
-console.log("\n[1] refresh: the day's record from the day's prices");
+console.log("\n[1] refresh: the day's record from the day's offers (the engine)");
 {
   const env = fresh("2026-09-26 03:00");
   price(1, 11, SUP_A, 99, YESTERDAY);
-  assert("no prices today (yesterday's exist) → nothing built", (await quiet(() => refreshPriceDay(env))).action === "no_prices" && !dayRec());
-  const a = price(1, 11, SUP_A, 30);
+  market(1, 11, 120, OBS, YESTERDAY);
+  assert("no offer today (yesterday's exist) → nothing built", (await quiet(() => refreshPriceDay(env))).action === "no_prices" && !dayRec());
+  price(1, 11, SUP_A, 30);
   const b = price(1, 11, SUP_B, 25);
+  price(1, 11, SUP_B, 10, TODAY, "failed");
+  market(1, 11, 32);
   price(2, 21, SUP_A, 14);
   const r1 = await quiet(() => refreshPriceDay(env));
   const d = dayRec()!;
   assert("today's record created (draft), one line per product+packaging", r1.action === "refreshed" && d.x_state === "draft" && linesOf(d.id).length === 2, JSON.stringify(r1));
   const t = lineOf(d.id, 1), c = lineOf(d.id, 2);
-  assert("tomato: the cheapest (خالد 25), margin 20% from the product → 30", t.x_supplier_id === SUP_B && t.x_daily_price_id === b && t.x_cost_price === 25 && t.x_margin_pct === 20 && t.x_sale_price === 30 && !t.x_excluded, JSON.stringify(t));
-  assert("cucumber: no margin on the product → excluded (not published)", c.x_margin_pct === 0 && c.x_excluded === true && c.x_sale_price === 0);
-  assert("the offers shown on the line", t.x_offers === "خالد 25 · أحمد حسان 30", String(t.x_offers));
+  assert("tomato: the lowest purchase (خالد 25, not the failed 10), market 32 → sale 32, profit 5.75, auto",
+    t.x_supplier_id === SUP_B && t.x_daily_price_id === b && t.x_cost_price === 25 && t.x_market_price === 32 && t.x_sale_price === 32
+      && t.x_unit_profit === 5.75 && t.x_status === "auto" && !t.x_excluded, JSON.stringify(t));
+  assert("cucumber: no market price → an exception, not published", c.x_status === "exception" && c.x_excluded === true && c.x_sale_price === 0 && /لا سعر سوق/.test(String(c.x_reason)), JSON.stringify(c));
+  assert("the offers shown on the line", t.x_offers === "خالد: شراء 25 · أحمد حسان: شراء 30 · عمر: سوق 32", String(t.x_offers));
   assert("run again with nothing new → unchanged", (await quiet(() => refreshPriceDay(env))).action === "unchanged");
-  // Baraa's choices stay; an untouched line follows a new cheaper price
-  Object.assign(lineOf(d.id, 2), { x_margin_pct: 10 }); computes["x_price_day_line"](lineOf(d.id, 2));
-  Object.assign(t, { x_cost_price: 24 }); computes["x_price_day_line"](t);
   price(1, 11, SUP_A, 22);
-  const r2 = await quiet(() => refreshPriceDay(env));
-  assert("an edited purchase price is kept when a cheaper price arrives", lineOf(d.id, 1).x_cost_price === 24 && lineOf(d.id, 1).x_daily_price_id === b, JSON.stringify(lineOf(d.id, 1)));
-  assert("…and the offers text follows the new price", String(lineOf(d.id, 1).x_offers).startsWith("أحمد حسان 22"), JSON.stringify(r2));
-  assert("a margin Baraa put on the line is kept", lineOf(d.id, 2).x_margin_pct === 10);
-  // untouched line: new cheaper default
-  const env2 = fresh("2026-09-26 03:00");
-  price(1, 11, SUP_A, 30);
-  await quiet(() => refreshPriceDay(env2));
-  const n = price(1, 11, SUP_B, 26);
-  await quiet(() => refreshPriceDay(env2));
-  const t2 = lineOf(dayRec()!.id, 1);
-  assert("an untouched line moves to the new cheapest", t2.x_daily_price_id === n && t2.x_cost_price === 26 && t2.x_sale_price === 31.2, JSON.stringify(t2));
-  // margin set later on the product
-  table("product.template").get(2)!.x_margin_pct = 0;
-  price(2, 21, SUP_A, 14);
-  await quiet(() => refreshPriceDay(env2));
-  table("product.template").get(2)!.x_margin_pct = 12.5;
-  await quiet(() => refreshPriceDay(env2));
-  assert("a product given a margin later → its excluded line takes it", lineOf(dayRec()!.id, 2).x_margin_pct === 12.5 && lineOf(dayRec()!.id, 2).x_sale_price === 15.75 && !lineOf(dayRec()!.id, 2).x_excluded);
-  // outlier-only
-  const env3 = fresh("2026-09-26 03:00");
-  price(1, 11, SUP_A, 60, TODAY, "pending");
-  await quiet(() => refreshPriceDay(env3));
-  const o3 = lineOf(dayRec()!.id, 1);
-  assert("a product whose only price is an outlier: outlier, and it blocks the approval", o3.x_is_outlier === true && o3.x_blocked === true);
-  assert("…the approval (Odoo) refuses", approveInOdoo(dayRec()!.id) === "blocked");
-  Object.assign(o3, { x_outlier_ok: true }); computes["x_price_day_line"](o3);
-  assert("«اعتماد رغم الشذوذ» → not blocked", o3.x_blocked === false);
-  Object.assign(o3, { x_outlier_ok: false, x_cost_price: 32 }); computes["x_price_day_line"](o3);
-  assert("an edited price → not blocked", o3.x_blocked === false);
-  // outlier + normal: default is the normal one
-  const env4 = fresh("2026-09-26 03:00");
-  price(1, 11, SUP_A, 12, TODAY, "pending");
-  const nb = price(1, 11, SUP_B, 25);
-  await quiet(() => refreshPriceDay(env4));
-  assert("an outlier cheaper than a normal price: the normal one is the default, nothing blocks", lineOf(dayRec()!.id, 1).x_daily_price_id === nb && !lineOf(dayRec()!.id, 1).x_blocked);
+  await quiet(() => refreshPriceDay(env));
+  assert("a supplier's later price replaces his earlier one (أحمد 30 → 22): the new lowest", lineOf(d.id, 1).x_cost_price === 22 && String(lineOf(d.id, 1).x_offers).startsWith("أحمد حسان: شراء 22"), JSON.stringify(lineOf(d.id, 1)));
+  Object.assign(lineOf(d.id, 2), { x_decision: "skip" });
+  await quiet(() => refreshPriceDay(env));
+  assert("Baraa's decision on a line is kept by the next refresh («لا تنشر»)", lineOf(d.id, 2).x_status === "unpublished" && lineOf(d.id, 2).x_reason === "براء: لا تنشر" && !!lineOf(d.id, 2).x_decided_at, JSON.stringify(lineOf(d.id, 2)));
   // locked
   const env5 = fresh("2026-09-26 03:00");
   price(1, 11, SUP_A, 30);
+  market(1, 11, 33);
   await quiet(() => refreshPriceDay(env5));
   approveInOdoo(dayRec()!.id);
   price(1, 11, SUP_B, 20);
@@ -269,28 +217,30 @@ console.log("\n[2] publish: only approved, once, through the gateway");
 {
   const env = fresh("2026-09-26 05:30", { openerUsable: true });
   price(1, 11, SUP_A, 25);
+  market(1, 11, 30);
   price(2, 21, SUP_B, 14);
   await quiet(() => refreshPriceDay(env));
   const id = dayRec()!.id;
   assert("a draft is not published", (await quiet(() => publishPriceDay(env, id))).action === "not_approved" && graph.length === 0);
   openWindow(env, CUST_PHONE, 30);
-  assert("approve (Odoo) — cucumber excluded (no margin) does not block", approveInOdoo(id) === null && dayRec()!.x_state === "approved");
+  assert("approve (Odoo) — the cucumber exception does not block", approveInOdoo(id) === null && dayRec()!.x_state === "approved");
   const before = graph.length;
   const r = await quiet(() => publishPriceDay(env, id));
   assert("published: 1 item, recipients = the two plain customers", r.action === "published" && r.items === 1 && r.recipients === 2, JSON.stringify(r));
   const c1 = txt(CUST_PHONE);
-  assert("inside the window: the list as text", c1.length === 1 && c1[0].includes("• طماطم (كرتون): 30 ر.س"), JSON.stringify(c1));
-  assert("…no purchase price, no supplier, no margin in it", !/25|أحمد|خالد|هامش|%/.test(c1[0].replace("2026", "").replace("26 سبتمبر", "")), c1[0]);
-  assert("…and not the excluded cucumber", !c1[0].includes("خيار"));
+  assert("inside the window: the list as text, at the market price", c1.length === 1 && c1[0].includes("• طماطم (كرتون): 30 ر.س"), JSON.stringify(c1));
+  assert("…no purchase price, no source, no margin in it", !/25|أحمد|خالد|عمر|هامش|%/.test(c1[0].replace("2026", "").replace("26 سبتمبر", "")), c1[0]);
+  assert("…and not the cucumber exception", !c1[0].includes("خيار"));
   assert("outside the window: held for the day, + utak_update_customer [account, «أسعار اليوم»]",
     heldFor(env, CUST2_PHONE).some((i) => i.purpose === "customer_prices") && sentTo(CUST2_PHONE).some((b) => b.template?.name === "utak_update_customer" && b.template.components[0].parameters.map((p: any) => p.text).join("|") === `${CUST2}|أسعار اليوم`),
     JSON.stringify(sentTo(CUST2_PHONE)));
   const nobody = [OPT_PHONE, HELD_PHONE, PERS_PHONE, COLL_PHONE];
   assert("opted out / review-held / «شخصي» / team: nothing at all", nobody.every((p) => sentTo(p).length === 0 && heldFor(env, p).length === 0));
   const own = txt(OWNER);
-  assert("Baraa: the counts, the excluded names, and the same list", own.some((t) => t.startsWith("📢 نُشرت أسعار السبت 26 سبتمبر 2026. الأصناف: 1، والعملاء: 2.") && t.includes("نصاً 1 · محفوظة حتى رسالتهم 1") && t.includes("لم يُنشر (بلا هامش): خيار") && t.includes("• طماطم (كرتون): 30 ر.س")), JSON.stringify(own));
-  assert("…and an alert naming the products without margin", own.some((t) => t.startsWith("⚠️ أصناف بلا هامش لم تُنشر اليوم: خيار")));
-  assert("the record: published, with its time and report", dayRec()!.x_state === "published" && !!dayRec()!.x_published_at && String(dayRec()!.x_publish_report).includes("مستبعد بلا هامش: خيار"));
+  assert("Baraa: the counts, «لم يُنشر», and the same list", own.some((t) => t.startsWith("📢 نُشرت أسعار السبت 26 سبتمبر 2026. الأصناف: 1، والعملاء: 2.") && t.includes("نصاً 1 · محفوظة حتى رسالتهم 1") && t.includes("لم يُنشر: خيار") && t.includes("• طماطم (كرتون): 30 ر.س")), JSON.stringify(own));
+  assert("…and one line with the number of exceptions left without a decision", own.filter((t) => t.startsWith("⏰ لم يُنشر اليوم 1 صنف: استثناء بلا قرار")).length === 1, JSON.stringify(own));
+  assert("the cucumber line: «لم يُنشر» with the reason", lineOf(id, 2).x_status === "unpublished" && String(lineOf(id, 2).x_reason).startsWith("استثناء بلا قرار عند النشر"), JSON.stringify(lineOf(id, 2)));
+  assert("the record: published, with its time and report", dayRec()!.x_state === "published" && !!dayRec()!.x_published_at && String(dayRec()!.x_publish_report).includes("لم يُنشر: خيار"));
   const n = graph.length;
   assert("publishing again → «already», nothing sent", (await quiet(() => publishPriceDay(env, id))).action === "already" && graph.length === n);
   assert("the customers' sends came from this publication only", graph.length - before >= 3);
@@ -298,6 +248,7 @@ console.log("\n[2] publish: only approved, once, through the gateway");
   // the opener as at Meta today (MARKETING): held, no opener
   const env2 = fresh("2026-09-26 05:30");
   price(1, 11, SUP_A, 25);
+  market(1, 11, 30);
   await quiet(() => refreshPriceDay(env2));
   approveInOdoo(dayRec()!.id);
   await quiet(() => publishPriceDay(env2, dayRec()!.id));
@@ -305,16 +256,19 @@ console.log("\n[2] publish: only approved, once, through the gateway");
 
   // blocked / mismatch → nothing sent
   const env3 = fresh("2026-09-26 05:30");
-  price(1, 11, SUP_A, 60, TODAY, "pending");
+  price(1, 11, SUP_A, 25);
+  market(1, 11, 30);
   await quiet(() => refreshPriceDay(env3));
-  Object.assign(table("x_price_day").get(dayRec()!.id)!, { x_state: "approved" });
+  approveInOdoo(dayRec()!.id);
+  lineOf(dayRec()!.id, 1).x_blocked = true; // marked by hand in Odoo
   const r3 = await quiet(() => publishPriceDay(env3, dayRec()!.id));
-  assert("an approved day with an unhandled outlier (approved outside the button) → blocked, no customer send", r3.action === "blocked" && sentTo(CUST_PHONE).length === 0 && sentTo(CUST2_PHONE).length === 0);
+  assert("an approved day with a line marked «يمنع الاعتماد» → blocked, no customer send", r3.action === "blocked" && sentTo(CUST_PHONE).length === 0 && sentTo(CUST2_PHONE).length === 0);
   const env4 = fresh("2026-09-26 05:30");
   price(1, 11, SUP_A, 25);
+  market(1, 11, 30);
   await quiet(() => refreshPriceDay(env4));
   approveInOdoo(dayRec()!.id);
-  lineOf(dayRec()!.id, 1).x_sale_price = 99; // Odoo's value no longer the rule
+  lineOf(dayRec()!.id, 1).x_sale_price = 99; // Odoo's value no longer the rule (market 30)
   const r4 = await quiet(() => publishPriceDay(env4, dayRec()!.id));
   assert("a stored sale price that is not the rule → not published", r4.action === "mismatch" && sentTo(CUST_PHONE).length === 0);
 
@@ -324,36 +278,50 @@ console.log("\n[2] publish: only approved, once, through the gateway");
   assert("recipients: customers with a number, minus opted-out, review-held, personal, team, Baraa", rc.map((x) => x.id).sort().join() === [CUST, CUST2].sort().join(), JSON.stringify(rc));
 }
 
-// ================================================================ 3. the deadline
-console.log("\n[3] no approval by the ordering-opening time (06:00)");
+// ================================================================ 3. the publication time
+console.log("\n[3] the publication time (06:00): approved and published by the worker");
 {
   const env = fresh("2026-09-26 05:55");
   price(1, 11, SUP_A, 25);
+  market(1, 11, 30);
+  price(2, 21, SUP_A, 14);
   await quiet(() => refreshPriceDay(env));
   assert("05:55 → before", (await quiet(() => checkPricesDeadline(env))).action === "before");
   setRiyadh("2026-09-26 06:00");
   const r = await quiet(() => checkPricesDeadline(env));
-  assert("06:00 with a draft → «missed»", r.action === "missed" && dayRec()!.x_state === "missed");
-  assert("…one alert to Baraa, no send to any customer", txt(OWNER).filter((t) => t.startsWith("⏰ أسعار اليوم")).length === 1 && sentTo(CUST_PHONE).length === 0 && sentTo(CUST2_PHONE).length === 0,
-    JSON.stringify(txt(OWNER)));
+  assert("06:00: the auto line published, the day «منشورة», without Baraa", r.action === "auto_published" && (r.publish as any)?.action === "published" && dayRec()!.x_state === "published"
+    && heldFor(env, CUST_PHONE).length === 1 && String(dayRec()!.x_publish_report).includes("اعتماد تلقائي"), JSON.stringify(r));
+  assert("…the undecided cucumber not published, one line to Baraa", txt(OWNER).filter((t) => t.startsWith("⏰ لم يُنشر اليوم 1 صنف")).length === 1 && lineOf(dayRec()!.id, 2).x_status === "unpublished");
   setRiyadh("2026-09-26 06:05");
-  assert("the next tick → once only", (await quiet(() => checkPricesDeadline(env))).action === "claimed_before" && txt(OWNER).filter((t) => t.startsWith("⏰")).length === 1);
-  // a late approval publishes as usual
+  assert("the next tick → once only", (await quiet(() => checkPricesDeadline(env))).action === "claimed_before");
+
+  // nothing approved: «missed», one alert; a late decision + approval publishes
+  const envM = fresh("2026-09-26 05:30");
+  price(1, 11, SUP_A, 25);
+  await quiet(() => refreshPriceDay(envM));
+  setRiyadh("2026-09-26 06:00");
+  const rm = await quiet(() => checkPricesDeadline(envM));
+  assert("06:00 with exceptions only → «missed», one alert, no customer send", rm.action === "missed" && dayRec()!.x_state === "missed"
+    && txt(OWNER).filter((t) => t.startsWith("⏰ أسعار اليوم")).length === 1 && sentTo(CUST_PHONE).length === 0 && heldFor(envM, CUST_PHONE).length === 0, JSON.stringify(txt(OWNER)));
   setRiyadh("2026-09-26 07:30");
-  assert("late approval (from «missed») is allowed", approveInOdoo(dayRec()!.id) === null);
-  const lp = await quiet(() => publishPriceDay(env, dayRec()!.id));
-  assert("…and publishes", lp.action === "published" && heldFor(env, CUST_PHONE).length === 1);
+  Object.assign(lineOf(dayRec()!.id, 1), { x_decision: "edit", x_manual_price: 29 });
+  await quiet(() => refreshPriceDay(envM, { force: true }));
+  assert("a late decision (سعر معدّل 29) then approval (from «missed») is allowed", approveInOdoo(dayRec()!.id) === null);
+  const lp = await quiet(() => publishPriceDay(envM, dayRec()!.id));
+  assert("…and publishes at his price", lp.action === "published" && heldFor(envM, CUST_PHONE).length === 1 && String(heldFor(envM, CUST_PHONE)[0]?.body?.text?.body ?? JSON.stringify(heldFor(envM, CUST_PHONE)[0])).includes("29"),
+    JSON.stringify(heldFor(envM, CUST_PHONE)[0]).slice(0, 200));
 
   // nothing today, yesterday published: missed, nothing re-sent
   const env2 = fresh("2026-09-26 06:00");
   const y = seed("x_price_day", { x_date: YESTERDAY, x_state: "published", x_name: "أمس" });
-  seed("x_price_day_line", { x_day_id: y, x_product_tmpl_id: 1, x_packaging_id: 11, x_cost_price: 20, x_margin_pct: 20, x_sale_price: 24, x_excluded: false, x_blocked: false });
+  seed("x_price_day_line", { x_day_id: y, x_product_tmpl_id: 1, x_packaging_id: 11, x_cost_price: 20, x_market_price: 24, x_sale_price: 24, x_status: "auto", x_excluded: false, x_blocked: false });
   const r2 = await quiet(() => checkPricesDeadline(env2));
-  assert("no prices today (yesterday published) → today's record created «missed», no line", r2.action === "missed" && dayRec()!.x_state === "missed" && linesOf(dayRec()!.id).length === 0);
+  assert("no offer today (yesterday published) → today's record «missed», every line an exception", r2.action === "missed" && dayRec()!.x_state === "missed"
+    && linesOf(dayRec()!.id).length === 2 && linesOf(dayRec()!.id).every((l) => l.x_status === "exception"));
   assert("…yesterday's prices are not re-sent to anyone", sentTo(CUST_PHONE).length === 0 && sentTo(CUST2_PHONE).length === 0 && heldFor(env2, CUST_PHONE).length === 0);
-  assert("…Baraa told no supplier price came", txt(OWNER).some((t) => t.includes("لم يصل سعر من الموردين اليوم") && t.includes("لا تُعاد أسعار أمس")));
+  assert("…Baraa told no price came", txt(OWNER).some((t) => t.includes("لم يصل سعر من المصادر اليوم") && t.includes("لا تُعاد أسعار أمس")), JSON.stringify(txt(OWNER)));
   const env3 = fresh("2026-09-26 09:00");
-  assert("09:00 (a worker down at 06:00) → no late «missed» alert", (await quiet(() => checkPricesDeadline(env3))).action === "after_window" && !dayRec());
+  assert("09:00 (a worker down at 06:00) → no late alert", (await quiet(() => checkPricesDeadline(env3))).action === "after_window" && !dayRec());
   const env4 = fresh("2026-09-26 06:00");
   const pub = seed("x_price_day", { x_date: TODAY, x_state: "published", x_name: "اليوم" });
   assert("an already published day at the deadline → untouched", (await quiet(() => checkPricesDeadline(env4))).action === "published" && table("x_price_day").get(pub)!.x_state === "published");
@@ -364,8 +332,9 @@ console.log("\n[4] the tick and the Odoo hook");
 {
   const env = fresh("2026-09-26 04:00");
   price(1, 11, SUP_A, 25);
+  market(1, 11, 30);
   const t1 = await quiet(() => runPricesTick(env, Date.now()));
-  assert("the tick builds the day from the prices", (t1.refresh as any)?.action === "refreshed" && !!dayRec());
+  assert("the tick builds the day from the offers", (t1.refresh as any)?.action === "refreshed" && !!dayRec());
   const id = dayRec()!.id;
   assert("hook: no token → 401", (await hook(env, "approved", id, "bad")).status === 401);
   assert("hook: unknown op → 400", (await hook(env, "delete", id)).status === 400);
@@ -378,6 +347,7 @@ console.log("\n[4] the tick and the Odoo hook");
   // a lost webhook: the tick publishes an approval older than 3 minutes
   const env2 = fresh("2026-09-26 04:00");
   price(1, 11, SUP_A, 25);
+  market(1, 11, 30);
   await quiet(() => refreshPriceDay(env2));
   approveInOdoo(dayRec()!.id);
   setRiyadh("2026-09-26 04:01");
@@ -397,13 +367,14 @@ console.log("\n[5] quotations and invoices: today's published price first");
 {
   const env = fresh("2026-09-26 08:00");
   price(1, 11, SUP_A, 25);
+  market(1, 11, 30);
   table("x_daily_price").get(rows("x_daily_price")[0].id)!.x_sale_price = 34.5; // § 26's own computed price
   await quiet(() => refreshPriceDay(env));
   assert("not published yet → as before (the supplier row's sale price)", (await quiet(() => getLatestSalePrice(env, 1, 11))).price === 34.5);
   approveInOdoo(dayRec()!.id);
   await quiet(() => publishPriceDay(env, dayRec()!.id));
   const p = await quiet(() => getLatestSalePrice(env, 1, 11));
-  assert("published → the published price (30), source today", p.price === 30 && p.source === "today", JSON.stringify(p));
+  assert("published → the published price (30, the market), source today", p.price === 30 && p.source === "today", JSON.stringify(p));
   const other = await quiet(() => getLatestSalePrice(env, 2, 21));
   assert("a product not in today's list → as before (here: no price at all)", other.source === "missing" && other.price === 0, JSON.stringify(other));
 }

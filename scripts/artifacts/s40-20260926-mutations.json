@@ -1,253 +1,381 @@
 {
-  "at": "2026-09-26T07:54:36.406Z",
-  "caught": 25,
-  "total": 25,
+  "at": "2026-09-26T08:12:41.731Z",
+  "caught": 38,
+  "total": 38,
   "results": [
     {
-      "part": "ب",
-      "name": "the extractor's label trusted (no «سوق» / «شراء» rule)",
+      "part": "ج",
+      "name": "purchase = the highest, not the lowest",
       "caught": true,
       "fails": [
-        "✗ supplier «طماطم سوق 24» (the extractor said cost) → market 24, no purchase — {\"dropped\":[],\"purchase\":24}",
-        "✗ supplier «طماطم 24 بالسوق» → market — {\"dropped\":[],\"purchase\":24}",
-        "✗ supplier: labelled market by the extractor but no «سوق» beside it → a purchase price — {\"dropped\":[],\"market\":24}",
-        "✗ Arabic-Indic digits: «٢٤ السوق» → market 24 — {\"dropped\":[],\"purchase\":24}"
+        "✗ purchase = the lowest of any source (Omar's «شراء» 20 under Ahmed's 22) — {\"productId\":1,\"productName\":\"طماطم\",\"packagingId\":11,\"packagingName\":\"كرتون\",\"key\":\"1:11\",\"purchase\":22,\"purchaseOffer\":{\"kind\":\"purchase\",\"price\":22,\"outlier\":false,\"partnerId\":801,\"sourceName\":\"أحمد حسان\",\"productId\":1,\"packagingId\":11,\"model\":\"dp\",\"rowId\":5},\"market\":26,\"marketCount\":3,\"outlier\":{\"purchase\":false,\"market\":false},\"sale\":26,\"unitProfit\":2.9,\"displayMargin\":18.18,\"exceptions\":[],\"reason\":\"\",\"offersText\":\"عمر: شراء 20 · أحمد حسان: شراء 22 · م: سوق 24 · م: سوق 26 · م: سوق 30\"}",
+        "✗ unit profit = 26 − 20 − 5 % × 20 = 5 — {\"productId\":1,\"productName\":\"طماطم\",\"packagingId\":11,\"packagingName\":\"كرتون\",\"key\":\"1:11\",\"purchase\":22,\"purchaseOffer\":{\"kind\":\"purchase\",\"price\":22,\"outlier\":false,\"partnerId\":801,\"sourceName\":\"أحمد حسان\",\"productId\":1,\"packagingId\":11,\"model\":\"dp\",\"rowId\":5},\"market\":26,\"marketCount\":3,\"outlier\":{\"purchase\":false,\"market\":false},\"sale\":26,\"unitProfit\":2.9,\"displayMargin\":18.18,\"exceptions\":[],\"reason\":\"\",\"offersText\":\"عمر: شراء 20 · أحمد حسان: شراء 22 · م: سوق 24 · م: سوق 26 · م: سوق 30\"}",
+        "✗ an outlier purchase NOT used (a higher one) → no exception — {\"productId\":1,\"productName\":\"طماطم\",\"packagingId\":11,\"packagingName\":\"كرتون\",\"key\":\"1:11\",\"purchase\":60,\"purchaseOffer\":{\"kind\":\"purchase\",\"price\":60,\"outlier\":true,\"partnerId\":2,\"sourceName\":\"م\",\"productId\":1,\"packagingId\":11,\"model\":\"po\",\"rowId\":1},\"market\":24,\"marketCount\":1,\"outlier\":{\"purchase\":true,\"market\":false},\"sale\":24,\"unitProfit\":-39,\"displayMargin\":-60,\"exceptions\":[\"no_profit\",\"outlier\"],\"reason\":\"ربح الوحدة ≤ 0 (-39)، سعر شاذ: الشراء\",\"offersText\":\"م: شراء 20 · م: شراء 60 (شاذ) · م: سوق 24\"}",
+        "✗ purchase = the lowest of any source (Omar's «شراء» 20 under Ahmed's 22)"
       ]
     },
     {
-      "part": "ب",
-      "name": "«20 سوق 24»: the keyword taken by both numbers",
+      "part": "ج",
+      "name": "market = the mean, not the median",
       "caught": true,
       "fails": [
-        "✗ supplier «طماطم 20 السوق 24» → purchase 20, market 24 — {\"dropped\":[\"20: رقمان لنفس النوع\"],\"market\":24}",
-        "✗ «20 سوق 24»: the keyword belongs to 24 → purchase 20, market 24 — {\"dropped\":[\"20: رقمان لنفس النوع\"],\"market\":24}",
-        "✗ observer «طماطم 24 شراء 20» → market 24, purchase 20 — {\"dropped\":[\"24: رقمان لنفس النوع\"],\"purchase\":20}",
-        "✗ his purchase price in x_daily_price (20), as § 26 — []"
+        "✗ median: odd count → the middle (22, 24, 30 → 24)",
+        "✗ market = the median of three sources (24, 26, 30 → 26), 3 observations",
+        "✗ sale = the market price exactly (26)",
+        "✗ unit profit = 26 − 20 − 5 % × 20 = 5 — {\"productId\":1,\"productName\":\"طماطم\",\"packagingId\":11,\"packagingName\":\"كرتون\",\"key\":\"1:11\",\"purchase\":20,\"purchaseOffer\":{\"kind\":\"purchase\",\"price\":20,\"outlier\":false,\"partnerId\":603,\"sourceName\":\"عمر\",\"productId\":1,\"packagingId\":11,\"model\":\"po\",\"rowId\":3},\"market\":26.67,\"marketCount\":3,\"outlier\":{\"purchase\":false,\"market\":false},\"sale\":26.67,\"unitProfit\":5.67,\"displayMargin\":33.35,\"exceptions\":[],\"reason\":\"\",\"offersText\":\"عمر: شراء 20 · أحمد حسان: شراء 22 · م: سوق 24 · م: سوق 26 · م: سوق 30\"}"
       ]
     },
     {
-      "part": "ب",
-      "name": "a number not written in the message kept (م6)",
+      "part": "ج",
+      "name": "an even count: the upper middle, not the mean of the two",
       "caught": true,
       "fails": [
-        "✗ a number not written in the message → nothing (م6) — {\"dropped\":[],\"purchase\":25}",
-        "✗ a number not written in the message → nothing (م6)"
+        "✗ median: even count → the mean of the two middle ones (22, 25 → 23.5)",
+        "✗ median: even count → the mean of the two middle ones (22, 25 → 23.5)"
       ]
     },
     {
-      "part": "ب",
-      "name": "a quantity not written kept",
+      "part": "ج",
+      "name": "sale = the purchase price",
       "caught": true,
       "fails": [
-        "✗ a quantity not written → dropped — {\"dropped\":[],\"market\":24,\"qty\":40}",
-        "✗ a quantity not written → dropped"
+        "✗ tomato: purchase 20 (the unflagged supplier's 15 ignored), market 24 (not the simulation 99, not yesterday's 40), sale 24, auto — {\"x_day_id\":10012,\"x_name\":\"طماطم — كرتون\",\"x_sequence\":1,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_supplier_id\":801,\"x_daily_price_id\":10007,\"x_default_price_id\":10007,\"x_source_price\":20,\"x_cost_price\":20,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":20,\"x_market_price\":24,\"x_market_count\":1,\"x_unit_profit\":3,\"x_offers\":\"أحمد حسان: شراء 20 · عمر المجهلي: سوق 24\",\"x_status\":\"auto\",\"x_reason\":false,\"x_sale_price\":20,\"x_excluded\":false,\"x_blocked\":false,\"id\":10013}",
+        "✗ 06:00: approved by the worker and published (no Baraa in it) — {\"action\":\"auto_published\",\"day\":\"2026-10-03\",\"dayId\":10011,\"publish\":{\"action\":\"mismatch\",\"day\":\"2026-10-03\",\"dayId\":10011}}",
+        "✗ the customers' list: tomato at 24 only (the undecided cucumber left out) — []",
+        "✗ the cucumber: «لم يُنشر» (استثناء بلا قرار)"
       ]
     },
     {
-      "part": "ب",
-      "name": "a product outside the catalog kept",
+      "part": "ج",
+      "name": "the waste ignored in the unit profit",
       "caught": true,
       "fails": [
-        "✗ a product outside the catalog → dropped «صنف لا يورّده», the catalog one kept — {\"kept\":[{\"dropped\":[],\"market\":18,\"product_id\":3,\"packaging_id\":31,\"item\":{\"product_id\":3,\"packaging_id\":31,\"cost_price\":18,\"market_price\":null,\"available_qty\":null,\"actual_weight_kg\":null,\"notes\":null}},{\"dropped\":[],\"market\":24,\"product_id\":1,\"packaging_id\":11,\"item\":{\"product_id\":1,\"packaging_id\":11,\"cost_price\":24,\"market_price\":null,\"available_qty\":null,\"actual_weight_kg\":null,\"notes\":null}}],\"dropped\":[]}",
-        "✗ a product outside the catalog → dropped «صنف لا يورّده», the catalog one kept"
+        "✗ unit profit = 26 − 20 − 5 % × 20 = 5 — {\"productId\":1,\"productName\":\"طماطم\",\"packagingId\":11,\"packagingName\":\"كرتون\",\"key\":\"1:11\",\"purchase\":20,\"purchaseOffer\":{\"kind\":\"purchase\",\"price\":20,\"outlier\":false,\"partnerId\":603,\"sourceName\":\"عمر\",\"productId\":1,\"packagingId\":11,\"model\":\"po\",\"rowId\":3},\"market\":26,\"marketCount\":3,\"outlier\":{\"purchase\":false,\"market\":false},\"sale\":26,\"unitProfit\":6,\"displayMargin\":30,\"exceptions\":[],\"reason\":\"\",\"offersText\":\"عمر: شراء 20 · أحمد حسان: شراء 22 · م: سوق 24 · م: سوق 26 · م: سوق 30\"}",
+        "✗ (3) 21 − 20 − 1 = 0 → «ربح الوحدة ≤ 0 (0)» — {\"productId\":1,\"productName\":\"طماطم\",\"packagingId\":11,\"packagingName\":\"كرتون\",\"key\":\"1:11\",\"purchase\":20,\"purchaseOffer\":{\"kind\":\"purchase\",\"price\":20,\"outlier\":false,\"partnerId\":1,\"sourceName\":\"م\",\"productId\":1,\"packagingId\":11,\"model\":\"dp\",\"rowId\":1},\"market\":21,\"marketCount\":1,\"outlier\":{\"purchase\":false,\"market\":false},\"sale\":21,\"unitProfit\":1,\"displayMargin\":5,\"exceptions\":[],\"reason\":\"\",\"offersText\":\"م: شراء 20 · م: سوق 21\"}",
+        "✗ …21.05 − 20 − 1 = 0.05 > 0 → automatic — {\"productId\":1,\"productName\":\"طماطم\",\"packagingId\":11,\"packagingName\":\"كرتون\",\"key\":\"1:11\",\"purchase\":20,\"purchaseOffer\":{\"kind\":\"purchase\",\"price\":20,\"outlier\":false,\"partnerId\":1,\"sourceName\":\"م\",\"productId\":1,\"packagingId\":11,\"model\":\"dp\",\"rowId\":1},\"market\":21.05,\"marketCount\":1,\"outlier\":{\"purchase\":false,\"market\":false},\"sale\":21.05,\"unitProfit\":1.05,\"displayMargin\":5.25,\"exceptions\":[],\"reason\":\"\",\"offersText\":\"م: شراء 20 · م: سوق 21.05\"}",
+        "✗ tomato: purchase 20 (the unflagged supplier's 15 ignored), market 24 (not the simulation 99, not yesterday's 40), sale 24, auto — {\"x_day_id\":10012,\"x_name\":\"طماطم — كرتون\",\"x_sequence\":1,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_supplier_id\":801,\"x_daily_price_id\":10007,\"x_default_price_id\":10007,\"x_source_price\":20,\"x_cost_price\":20,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":20,\"x_market_price\":24,\"x_market_count\":1,\"x_unit_profit\":4,\"x_offers\":\"أحمد حسان: شراء 20 · عمر المجهلي: سوق 24\",\"x_status\":\"auto\",\"x_reason\":false,\"x_sale_price\":24,\"x_excluded\":false,\"x_blocked\":false,\"id\":10013}"
       ]
     },
     {
-      "part": "ب",
-      "name": "Omar's default kind: purchase",
+      "part": "ج",
+      "name": "(1) no purchase price is not an exception",
       "caught": true,
       "fails": [
-        "✗ observer (Omar) «طماطم 24» → market 24 — {\"dropped\":[],\"purchase\":24}",
-        "✗ observer «طماطم 24 شراء 20» → market 24, purchase 20 — {\"dropped\":[\"24: رقمان لنفس النوع\"],\"purchase\":20}",
-        "✗ the available quantity written → kept (30) — {\"dropped\":[],\"purchase\":24,\"qty\":30}",
-        "✗ a quantity not written → dropped — {\"dropped\":[\"الكمية 40: غير مكتوبة\"],\"purchase\":24}"
+        "✗ (1) no purchase price → «لا سعر شراء» — {\"productId\":1,\"productName\":\"طماطم\",\"packagingId\":11,\"packagingName\":\"كرتون\",\"key\":\"1:11\",\"purchase\":null,\"purchaseOffer\":null,\"market\":24,\"marketCount\":1,\"outlier\":{\"purchase\":false,\"market\":false},\"sale\":24,\"unitProfit\":null,\"displayMargin\":null,\"exceptions\":[],\"reason\":\"\",\"offersText\":\"م: سوق 24\"}",
+        "✗ nothing at all → both reasons — لا سعر سوق",
+        "✗ cucumber (no offer at all): its default packaging, an exception — {\"x_day_id\":10012,\"x_name\":\"خيار — جرم\",\"x_sequence\":2,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_supplier_id\":false,\"x_daily_price_id\":false,\"x_default_price_id\":false,\"x_source_price\":0,\"x_cost_price\":0,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":false,\"x_status\":\"exception\",\"x_reason\":\"لا سعر سوق\",\"x_sale_price\":0,\"x_excluded\":true,\"x_blocked\":false,\"id\":10014}",
+        "✗ (1) no purchase price → «لا سعر شراء»"
       ]
     },
     {
-      "part": "ب",
-      "name": "the market ask sent to a supplier too",
+      "part": "ج",
+      "name": "(2) no market price is not an exception",
       "caught": true,
       "fails": [
-        "✗ Ahmed (a supplier: asked at 02:00) gets no market ask — not sent, not held, not in the run — {\"action\":\"ran\",\"asks\":[{\"name\":\"عمر المجهلي\",\"action\":\"sent\"},{\"name\":\"أحمد حسان\",\"action\":\"held\"}]}",
-        "✗ Ahmed (a supplier: asked at 02:00) gets no market ask — not sent, not held, not in the run"
+        "✗ (2) no market price → «لا سعر سوق» — {\"productId\":1,\"productName\":\"طماطم\",\"packagingId\":11,\"packagingName\":\"كرتون\",\"key\":\"1:11\",\"purchase\":20,\"purchaseOffer\":{\"kind\":\"purchase\",\"price\":20,\"outlier\":false,\"partnerId\":1,\"sourceName\":\"م\",\"productId\":1,\"packagingId\":11,\"model\":\"dp\",\"rowId\":1},\"market\":null,\"marketCount\":0,\"outlier\":{\"purchase\":false,\"market\":false},\"sale\":null,\"unitProfit\":null,\"displayMargin\":null,\"exceptions\":[],\"reason\":\"\",\"offersText\":\"م: شراء 20\"}",
+        "✗ nothing at all → both reasons — لا سعر شراء",
+        "✗ cucumber (no offer at all): its default packaging, an exception — {\"x_day_id\":10012,\"x_name\":\"خيار — جرم\",\"x_sequence\":2,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_supplier_id\":false,\"x_daily_price_id\":false,\"x_default_price_id\":false,\"x_source_price\":0,\"x_cost_price\":0,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":false,\"x_status\":\"exception\",\"x_reason\":\"لا سعر شراء\",\"x_sale_price\":0,\"x_excluded\":true,\"x_blocked\":false,\"id\":10014}",
+        "✗ 04:00: one message per exception (2) — {\"action\":\"sent\",\"sent\":1,\"count\":1}"
       ]
     },
     {
-      "part": "ب",
-      "name": "the ask not claimed once a day",
+      "part": "ج",
+      "name": "(3) a unit profit of 0 passes (< instead of ≤)",
       "caught": true,
       "fails": [
-        "✗ the next tick: no second ask (claimed) — {\"action\":\"ran\",\"asks\":[{\"name\":\"عمر المجهلي\",\"action\":\"sent\"}]}",
-        "✗ the next tick: no second ask (claimed)"
+        "✗ (3) 21 − 20 − 1 = 0 → «ربح الوحدة ≤ 0 (0)» — {\"productId\":1,\"productName\":\"طماطم\",\"packagingId\":11,\"packagingName\":\"كرتون\",\"key\":\"1:11\",\"purchase\":20,\"purchaseOffer\":{\"kind\":\"purchase\",\"price\":20,\"outlier\":false,\"partnerId\":1,\"sourceName\":\"م\",\"productId\":1,\"packagingId\":11,\"model\":\"dp\",\"rowId\":1},\"market\":21,\"marketCount\":1,\"outlier\":{\"purchase\":false,\"market\":false},\"sale\":21,\"unitProfit\":0,\"displayMargin\":5,\"exceptions\":[],\"reason\":\"\",\"offersText\":\"م: شراء 20 · م: سوق 21\"}",
+        "✗ (3) 21 − 20 − 1 = 0 → «ربح الوحدة ≤ 0 (0)»"
       ]
     },
     {
-      "part": "ب",
-      "name": "the ask before 02:30",
+      "part": "ج",
+      "name": "(4) an outlier purchase price passes",
       "caught": true,
       "fails": [
-        "✗ 02:25: before the ask — {\"action\":\"ran\",\"asks\":[{\"name\":\"عمر المجهلي\",\"action\":\"sent\"}]}",
-        "✗ 02:25: before the ask"
+        "✗ (4) the purchase price used is an outlier → «سعر شاذ: الشراء» — {\"productId\":1,\"productName\":\"طماطم\",\"packagingId\":11,\"packagingName\":\"كرتون\",\"key\":\"1:11\",\"purchase\":12,\"purchaseOffer\":{\"kind\":\"purchase\",\"price\":12,\"outlier\":true,\"partnerId\":1,\"sourceName\":\"م\",\"productId\":1,\"packagingId\":11,\"model\":\"dp\",\"rowId\":1},\"market\":24,\"marketCount\":1,\"outlier\":{\"purchase\":false,\"market\":false},\"sale\":24,\"unitProfit\":11.4,\"displayMargin\":100,\"exceptions\":[],\"reason\":\"\",\"offersText\":\"م: شراء 12 (شاذ) · م: سوق 24\"}",
+        "✗ (4) the purchase price used is an outlier → «سعر شاذ: الشراء»"
       ]
     },
     {
-      "part": "ب",
-      "name": "the ask after the publication time",
+      "part": "ج",
+      "name": "(4) an outlier market observation passes",
       "caught": true,
       "fails": [
-        "✗ from the publication time (06:00): no ask any more — {\"action\":\"ran\",\"asks\":[{\"name\":\"عمر المجهلي\",\"action\":\"sent\"}]}",
-        "✗ from the publication time (06:00): no ask any more"
+        "✗ (4) a market observation is an outlier → «سعر شاذ: السوق» — {\"productId\":1,\"productName\":\"طماطم\",\"packagingId\":11,\"packagingName\":\"كرتون\",\"key\":\"1:11\",\"purchase\":20,\"purchaseOffer\":{\"kind\":\"purchase\",\"price\":20,\"outlier\":false,\"partnerId\":1,\"sourceName\":\"م\",\"productId\":1,\"packagingId\":11,\"model\":\"dp\",\"rowId\":1},\"market\":24.5,\"marketCount\":2,\"outlier\":{\"purchase\":false,\"market\":false},\"sale\":24.5,\"unitProfit\":3.5,\"displayMargin\":22.5,\"exceptions\":[],\"reason\":\"\",\"offersText\":\"م: شراء 20 · م: سوق 24 (شاذ) · م: سوق 25\"}",
+        "✗ (4) a market observation is an outlier → «سعر شاذ: السوق»"
       ]
     },
     {
-      "part": "ب",
-      "name": "outside the window: held by the gateway, not the team queue",
+      "part": "ج",
+      "name": "a source's earlier row counts over its latest",
       "caught": true,
       "fails": [
-        "✗ outside his window: nothing sent, the ask waits in the team queue — []",
-        "✗ 03:00, the queue flushed (his message / tap): the ask reaches him",
-        "✗ his reply 85 minutes after: a market observation (24), and «وصلتنا أسعار السوق (1 صنف)» — {\"rep\":null,\"of\":[]}",
-        "✗ 91 minutes after: not read (an ordinary team message)"
+        "✗ a source counts once: its latest row of the day (28 over 20) — {\"productId\":1,\"productName\":\"طماطم\",\"packagingId\":11,\"packagingName\":\"كرتون\",\"key\":\"1:11\",\"purchase\":21,\"purchaseOffer\":{\"kind\":\"purchase\",\"price\":21,\"outlier\":false,\"partnerId\":801,\"sourceName\":\"م\",\"productId\":1,\"packagingId\":11,\"model\":\"dp\",\"rowId\":1},\"market\":20,\"marketCount\":1,\"outlier\":{\"purchase\":false,\"market\":false},\"sale\":20,\"unitProfit\":-2.05,\"displayMargin\":-4.76,\"exceptions\":[\"no_profit\"],\"reason\":\"ربح الوحدة ≤ 0 (-2.05)\",\"offersText\":\"م: شراء 21 · م: سوق 20\"}",
+        "✗ a source counts once: its latest row of the day (28 over 20)"
       ]
     },
     {
-      "part": "ب",
-      "name": "before the tap: sent anyway",
+      "part": "ج",
+      "name": "a supplier without «مصدر أسعار» counted",
       "caught": true,
       "fails": [
-        "✗ his day off (Friday): no ask, nothing queued — {\"action\":\"ran\",\"asks\":[{\"name\":\"عمر المجهلي\",\"action\":\"queued\"}]}",
-        "✗ his day off (Friday): no ask, nothing queued"
+        "✗ tomato: purchase 20 (the unflagged supplier's 15 ignored), market 24 (not the simulation 99, not yesterday's 40), sale 24, auto — {\"x_day_id\":10012,\"x_name\":\"طماطم — كرتون\",\"x_sequence\":1,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_supplier_id\":850,\"x_daily_price_id\":10008,\"x_default_price_id\":10008,\"x_source_price\":15,\"x_cost_price\":15,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":60,\"x_market_price\":24,\"x_market_count\":1,\"x_unit_profit\":8.25,\"x_offers\":\"مورد غير معلَّم: شراء 15 · أحمد حسان: شراء 20 · عمر المجهلي: سوق 24\",\"x_status\":\"auto\",\"x_reason\":false,\"x_sale_price\":24,\"x_excluded\":false,\"x_blocked\":false,\"id\":10013}",
+        "✗ tomato: purchase 20 (the unflagged supplier's 15 ignored), market 24 (not the simulation 99, not yesterday's 40), sale 24, auto"
       ]
     },
     {
-      "part": "ب",
-      "name": "a day off: queued anyway",
+      "part": "ج",
+      "name": "a simulation offer counted",
       "caught": true,
       "fails": [
-        "✗ his day off (Friday): no ask, nothing queued — {\"action\":\"ran\",\"asks\":[{\"name\":\"عمر المجهلي\",\"action\":\"queued\"}]}",
-        "✗ his day off (Friday): no ask, nothing queued"
+        "✗ tomato: purchase 20 (the unflagged supplier's 15 ignored), market 24 (not the simulation 99, not yesterday's 40), sale 24, auto — {\"x_day_id\":10012,\"x_name\":\"طماطم — كرتون\",\"x_sequence\":1,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_supplier_id\":603,\"x_daily_price_id\":false,\"x_default_price_id\":false,\"x_source_price\":1,\"x_cost_price\":1,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":9800,\"x_market_price\":99,\"x_market_count\":1,\"x_unit_profit\":97.95,\"x_offers\":\"عمر المجهلي: شراء 1 · أحمد حسان: شراء 20 · عمر المجهلي: سوق 99\",\"x_status\":\"auto\",\"x_reason\":false,\"x_sale_price\":99,\"x_excluded\":false,\"x_blocked\":false,\"id\":10013}",
+        "✗ tomato: purchase 20 (the unflagged supplier's 15 ignored), market 24 (not the simulation 99, not yesterday's 40), sale 24, auto"
       ]
     },
     {
-      "part": "ب",
-      "name": "the reply window a day, not 90 minutes",
+      "part": "ج",
+      "name": "yesterday's observations carried over",
       "caught": true,
       "fails": [
-        "✗ 91 minutes after: not read (an ordinary team message)",
-        "✗ 91 minutes after: not read (an ordinary team message)"
+        "✗ tomato: purchase 20 (the unflagged supplier's 15 ignored), market 24 (not the simulation 99, not yesterday's 40), sale 24, auto — {\"x_day_id\":10012,\"x_name\":\"طماطم — كرتون\",\"x_sequence\":1,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_supplier_id\":801,\"x_daily_price_id\":10007,\"x_default_price_id\":10007,\"x_source_price\":20,\"x_cost_price\":20,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":100,\"x_market_price\":40,\"x_market_count\":1,\"x_unit_profit\":19,\"x_offers\":\"أحمد حسان: شراء 20 · عمر المجهلي: سوق 40\",\"x_status\":\"auto\",\"x_reason\":false,\"x_sale_price\":40,\"x_excluded\":false,\"x_blocked\":false,\"id\":10013}",
+        "✗ tomato: purchase 20 (the unflagged supplier's 15 ignored), market 24 (not the simulation 99, not yesterday's 40), sale 24, auto"
       ]
     },
     {
-      "part": "ب",
-      "name": "the held ask's delivering message read as prices",
+      "part": "ج",
+      "name": "an active product nobody priced gets no line",
       "caught": true,
       "fails": [
-        "✗ his next message delivers it (the flush): that message — even with a price — is not read as prices",
-        "✗ his reply after it: a market observation (23) — [{\"x_name\":\"2026-10-03 · 1/11\",\"x_date\":\"2026-10-03\",\"x_source_partner_id\":830,\"x_source_employee_id\":false,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_purchase_price\":0,\"x_market_price\":23,\"x_available_qty\":0,\"x_status\":\"valid\",\"x_purchase_outlier\":false,\"x_market_outlier\":false,\"x_daily_price_id\":false,\"x_source_message_id\":\"wamid.F1\",\"x_raw_text\":\"طماطم 23\",\"id\":10011},{\"x_name\":\"2026-10-03 · 1/11\",\"x_date\":\"2026-10-03\",\"x_source_partner_id\":830,\"x_source_employee_id\":false,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_purchase_price\":0,\"x_market_price\":23,\"x_available_qty\":0,\"x_status\":\"valid\",\"x_purchase_outlier\":false,\"x_market_outlier\":false,\"x_daily_price_id\":false,\"x_source_message_id\":\"wamid.F2\",\"x_raw_text\":\"طماطم 23\",\"id\":10012}]",
-        "✗ the flag cleared: his messages are not read as prices any more",
-        "✗ his next message delivers it (the flush): that message — even with a price — is not read as prices"
+        "✗ the record built, one line per active product (tomato priced, cucumber not) — {\"day\":\"2026-10-03\",\"action\":\"refreshed\",\"dayId\":10012,\"state\":\"draft\",\"created\":1,\"updated\":0,\"lines\":1,\"excluded\":0,\"counts\":{\"auto\":1,\"exception\":0,\"manual\":0,\"unpublished\":0}}"
       ]
     },
     {
-      "part": "ب",
-      "name": "the queue flush does not start the window",
+      "part": "ج",
+      "name": "Baraa's decision ignored by the refresh",
       "caught": true,
       "fails": [
-        "✗ his reply 85 minutes after: a market observation (24), and «وصلتنا أسعار السوق (1 صنف)» — {\"rep\":null,\"of\":[]}",
-        "✗ 91 minutes after: not read (an ordinary team message)",
-        "✗ his reply 85 minutes after: a market observation (24), and «وصلتنا أسعار السوق (1 صنف)»",
-        "✗ 91 minutes after: not read (an ordinary team message)"
+        "✗ the next refresh keeps his decision (manual, 20.50)",
+        "✗ …and the next refresh keeps it («لم يُنشر») — {\"x_day_id\":10008,\"x_name\":\"خيار — جرم\",\"x_sequence\":2,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_supplier_id\":801,\"x_daily_price_id\":10007,\"x_default_price_id\":10007,\"x_source_price\":30,\"x_cost_price\":30,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 30\",\"x_status\":\"exception\",\"x_reason\":\"لا سعر سوق\",\"x_sale_price\":0,\"x_excluded\":true,\"x_blocked\":false,\"id\":10010,\"x_decision\":\"skip\",\"x_decided_at\":\"2026-10-03 01:31:00\"}",
+        "✗ the next refresh keeps his decision (manual, 20.50)",
+        "✗ …and the next refresh keeps it («لم يُنشر»)"
       ]
     },
     {
-      "part": "ب",
-      "name": "yesterday's queued ask sent",
+      "part": "ج",
+      "name": "«لا تنشر» not honoured",
       "caught": true,
       "fails": [
-        "✗ flushed the next day: yesterday's ask dropped, not sent",
-        "✗ flushed the next day: yesterday's ask dropped, not sent"
+        "✗ …and the next refresh keeps it («لم يُنشر») — {\"x_day_id\":10008,\"x_name\":\"خيار — جرم\",\"x_sequence\":2,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_supplier_id\":801,\"x_daily_price_id\":10007,\"x_default_price_id\":10007,\"x_source_price\":30,\"x_cost_price\":30,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 30\",\"x_status\":\"exception\",\"x_reason\":\"لا سعر سوق\",\"x_sale_price\":0,\"x_excluded\":true,\"x_blocked\":false,\"id\":10010,\"x_decision\":\"skip\",\"x_decided_at\":\"2026-10-03 01:31:00\"}",
+        "✗ …and the next refresh keeps it («لم يُنشر»)"
       ]
     },
     {
-      "part": "ب",
-      "name": "a source without the flag read",
+      "part": "ج",
+      "name": "exceptions sent before 04:00",
       "caught": true,
       "fails": [
-        "✗ the flag cleared: his messages are not read as prices any more",
-        "✗ the flag cleared: his messages are not read as prices any more"
+        "✗ 03:55: nothing yet (Omar's window runs to 04:00)",
+        "✗ 04:00: one message per exception (2) — {\"action\":\"notified_before\",\"count\":2}",
+        "✗ 03:55: nothing yet (Omar's window runs to 04:00)",
+        "✗ 04:00: one message per exception (2)"
       ]
     },
     {
-      "part": "ب",
-      "name": "no market outlier",
+      "part": "ج",
+      "name": "exceptions sent after the publication time",
       "caught": true,
       "fails": [
-        "✗ market 10 yesterday → 24 today (×2.4 ≥ 1.5): «شاذ», the market flagged — {\"x_name\":\"2026-10-03 · 1/11\",\"x_date\":\"2026-10-03\",\"x_source_partner_id\":603,\"x_source_employee_id\":7603,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_purchase_price\":0,\"x_market_price\":24,\"x_available_qty\":0,\"x_status\":\"valid\",\"x_purchase_outlier\":false,\"x_market_outlier\":false,\"x_daily_price_id\":false,\"x_source_message_id\":\"wamid.O3\",\"x_raw_text\":\"طماطم 24\",\"id\":10011}",
-        "✗ market 10 yesterday → 24 today (×2.4 ≥ 1.5): «شاذ», the market flagged"
+        "✗ from the publication time: no exception message",
+        "✗ from the publication time: no exception message"
       ]
     },
     {
-      "part": "ب",
-      "name": "a simulation offer as the outlier reference",
+      "part": "ج",
+      "name": "no KV guard per product and day",
       "caught": true,
       "fails": [
-        "✗ the only earlier value is a simulation row → not the reference: «صالح» — {\"x_name\":\"2026-10-03 · 1/11\",\"x_date\":\"2026-10-03\",\"x_source_partner_id\":603,\"x_source_employee_id\":7603,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_purchase_price\":0,\"x_market_price\":24,\"x_available_qty\":0,\"x_status\":\"outlier\",\"x_purchase_outlier\":false,\"x_market_outlier\":true,\"x_daily_price_id\":false,\"x_source_message_id\":\"wamid.O4\",\"x_raw_text\":\"طماطم 24\",\"id\":10011}",
-        "✗ the only earlier value is a simulation row → not the reference: «صالح»"
+        "✗ the next tick: no second message (KV guard per product and day) — {\"action\":\"sent\",\"sent\":2,\"count\":2}",
+        "✗ the next tick: no second message (KV guard per product and day)"
       ]
     },
     {
-      "part": "ب",
-      "name": "Ahmed's «سوق» number saved as his purchase price",
+      "part": "ج",
+      "name": "more than 8: a message per exception",
       "caught": true,
       "fails": [
-        "✗ «خيار سوق 30»: no purchase price saved, one market observation — {\"dp\":2,\"of\":[{\"x_name\":\"2026-10-03 · 1/11\",\"x_date\":\"2026-10-03\",\"x_source_partner_id\":801,\"x_source_employee_id\":false,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_purchase_price\":0,\"x_market_price\":24,\"x_available_qty\":0,\"x_status\":\"valid\",\"x_purchase_outlier\":false,\"x_market_outlier\":false,\"x_daily_price_id\":10007,\"x_source_message_id\":\"wamid.A1\",\"x_raw_text\":\"طماطم 20 السوق 24\",\"id\":10008},{\"x_name\":\"2026-10-03 · 2/21\",\"x_date\":\"2026-10-03\",\"x_source_partner_id\":801,\"x_source_employee_id\":false,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_purchase_price\":0,\"x_market_price\":30,\"x_available_qty\":0,\"x_status\":\"valid\",\"x_purchase_outlier\":false,\"x_market_outlier\":false,\"x_daily_price_id\":10014,\"x_source_message_id\":\"wamid.A2\",\"x_raw_text\":\"خيار سوق 30\",\"id\":10015}]}",
-        "✗ «خيار 26» (no «سوق»): his purchase price only, no offer row (§ 26 unchanged)",
-        "✗ «خيار سوق 30»: no purchase price saved, one market observation",
-        "✗ «خيار 26» (no «سوق»): his purchase price only, no offer row (§ 26 unchanged)"
+        "✗ more than 8 exceptions (11): ONE message with the count and the review link, no per-item messages — {\"n\":{\"action\":\"sent\",\"sent\":11,\"count\":11},\"t\":[]}",
+        "✗ …a later exception on the same day: no second message — {\"action\":\"sent\",\"sent\":1,\"count\":12}",
+        "✗ more than 8 exceptions (11): ONE message with the count and the review link, no per-item messages",
+        "✗ …a later exception on the same day: no second message"
       ]
     },
     {
-      "part": "ب",
-      "name": "Ahmed's market observation not saved",
+      "part": "ج",
+      "name": "the threshold at 7",
       "caught": true,
       "fails": [
-        "✗ the market observation in x_price_offer (24), with his price row, today (Riyadh) — []",
-        "✗ «خيار سوق 30»: no purchase price saved, one market observation — {\"dp\":1,\"of\":[]}",
-        "✗ «خيار 26» (no «سوق»): his purchase price only, no offer row (§ 26 unchanged)",
-        "✗ the market observation in x_price_offer (24), with his price row, today (Riyadh)"
+        "✗ exactly 8 exceptions: one message each (8), no count message — {\"action\":\"many\",\"sent\":1,\"count\":8}",
+        "✗ exactly 8 exceptions: one message each (8), no count message"
       ]
     },
     {
-      "part": "ب",
-      "name": "the team hook not wired in /webhook",
+      "part": "ج",
+      "name": "the count message without the review link",
       "caught": true,
       "fails": [
-        "✗ «طماطم 24 شراء 20» → one offer: market 24, purchase 20 — []",
-        "✗ his reply «وصلتنا أسعار السوق (1 صنف)»",
-        "✗ a message with no price inside the window: an ordinary team message (no offer, no «وصلتنا») — [{\"messaging_product\":\"whatsapp\",\"to\":\"966500000603\",\"type\":\"text\",\"text\":{\"body\":\"مرحبا عمر المجهلي 👋 استخدم الأزرار عشان نأكد الحالة.\"}}]",
-        "✗ a product outside the active catalog: not saved, an ordinary message"
+        "✗ more than 8 exceptions (11): ONE message with the count and the review link, no per-item messages — {\"n\":{\"action\":\"many\",\"sent\":1,\"count\":11},\"t\":[\"⚠️ استثناءات أسعار اليوم (3 أكتوبر 2026): 11 صنفاً تحتاج قرارك قبل 06:00، وإلا لا تُنشر اليوم.\"]}",
+        "✗ more than 8 exceptions (11): ONE message with the count and the review link, no per-item messages"
       ]
     },
     {
-      "part": "ب",
-      "name": "the ask not in the */5 prices tick",
+      "part": "ج",
+      "name": "«اعتمد بسعر السوق» offered without a market price",
       "caught": true,
       "fails": [
-        "✗ 02:30, in the */5 prices tick: the ask as text inside his window — {\"action\":\"ran\"}",
-        "✗ the next tick: no second ask (claimed) — {\"action\":\"ran\",\"asks\":[{\"name\":\"عمر المجهلي\",\"action\":\"sent\"}]}",
-        "✗ 02:30, in the */5 prices tick: the ask as text inside his window",
-        "✗ the next tick: no second ask (claimed)"
+        "✗ without a market price: «لا تنشر» / «عدّل» only — [\"pexc_m_10012\",\"pexc_s_10012\",\"pexc_e_10012\"]",
+        "✗ without a market price: «لا تنشر» / «عدّل» only"
       ]
     },
     {
-      "part": "ب",
-      "name": "Omar's reply not acknowledged",
+      "part": "ج",
+      "name": "«اعتمد بسعر السوق» taken without a market price",
       "caught": true,
       "fails": [
-        "✗ his reply 85 minutes after: a market observation (24), and «وصلتنا أسعار السوق (1 صنف)» — {\"rep\":\"\",\"of\":[{\"x_name\":\"2026-10-03 · 1/11\",\"x_date\":\"2026-10-03\",\"x_source_partner_id\":603,\"x_source_employee_id\":7603,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_purchase_price\":0,\"x_market_price\":24,\"x_available_qty\":0,\"x_status\":\"valid\",\"x_purchase_outlier\":false,\"x_market_outlier\":false,\"x_daily_price_id\":false,\"x_source_message_id\":\"wamid.O1\",\"x_raw_text\":\"طماطم 24\",\"id\":10011}]}",
-        "✗ his reply «وصلتنا أسعار السوق (1 صنف)»",
-        "✗ his reply after it: a market observation (23) — [{\"x_name\":\"2026-10-03 · 1/11\",\"x_date\":\"2026-10-03\",\"x_source_partner_id\":830,\"x_source_employee_id\":false,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_purchase_price\":0,\"x_market_price\":23,\"x_available_qty\":0,\"x_status\":\"valid\",\"x_purchase_outlier\":false,\"x_market_outlier\":false,\"x_daily_price_id\":false,\"x_source_message_id\":\"wamid.F2\",\"x_raw_text\":\"طماطم 23\",\"id\":10011}]",
-        "✗ his reply 85 minutes after: a market observation (24), and «وصلتنا أسعار السوق (1 صنف)»"
+        "✗ «اعتمد بسعر السوق» without a market price → refused, nothing written — ✅ خيار: يُنشر بسعر السوق 0 ر.س.",
+        "✗ «عدّل» → asks for the number, nothing written yet — القرار مسجّل مسبقاً على خيار: اعتمد بسعر السوق.",
+        "✗ a reply without a number → asked again, nothing written — null",
+        "✗ two numbers → asked again — null"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "no lock: a second decision overwrites the first",
+      "caught": true,
+      "fails": [
+        "✗ a second button on the same line → «القرار مسجّل مسبقاً», unchanged — ✅ طماطم: لا يُنشر اليوم.",
+        "✗ the next refresh keeps his decision (manual, 20.50)",
+        "✗ a second button on the same line → «القرار مسجّل مسبقاً», unchanged",
+        "✗ the next refresh keeps his decision (manual, 20.50)"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "«عدّل»: a price after 30 minutes taken",
+      "caught": true,
+      "fails": [
+        "✗ «عدّل» then a number after 30 minutes → not taken (null), nothing written",
+        "✗ «لا تنشر» → «لم يُنشر» with his reason — القرار مسجّل مسبقاً على خيار: سعر معدّل.",
+        "✗ …and the next refresh keeps it («لم يُنشر») — {\"x_day_id\":10008,\"x_name\":\"خيار — جرم\",\"x_sequence\":2,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_supplier_id\":801,\"x_daily_price_id\":10007,\"x_default_price_id\":10007,\"x_source_price\":30,\"x_cost_price\":30,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 30\",\"x_status\":\"manual\",\"x_reason\":\"براء: سعر معدّل\",\"x_sale_price\":35,\"x_excluded\":false,\"x_blocked\":false,\"id\":10010,\"x_decision\":\"edit\",\"x_manual_price\":35,\"x_decided_at\":\"2026-10-03 01:31:00\"}",
+        "✗ «عدّل» then a number after 30 minutes → not taken (null), nothing written"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "«عدّل»: two numbers → the first taken",
+      "caught": true,
+      "fails": [
+        "✗ two numbers → asked again — ✅ خيار: يُنشر بـ 35 ر.س.",
+        "✗ «٣٥٫٥ ريال» within 30 minutes → the approved sale price 35.50 — {\"e4\":null,\"c4\":{\"x_day_id\":10010,\"x_name\":\"خيار — جرم\",\"x_sequence\":2,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_supplier_id\":801,\"x_daily_price_id\":10009,\"x_default_price_id\":10009,\"x_source_price\":30,\"x_cost_price\":30,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 30\",\"x_status\":\"manual\",\"x_reason\":\"براء: سعر معدّل\",\"x_sale_price\":35,\"x_excluded\":false,\"x_blocked\":false,\"id\":10012,\"x_decision\":\"edit\",\"x_manual_price\":35,\"x_decided_at\":\"2026-10-03 01:10:00\"}}",
+        "✗ …and «عدّل» is used up: the next text is not a price",
+        "✗ two numbers → asked again"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "a decision after the publication taken",
+      "caught": true,
+      "fails": [
+        "✗ a tap after the publication → «فات موعد النشر», nothing written — ✅ خيار: لا يُنشر اليوم.",
+        "✗ a tap after the publication → «فات موعد النشر», nothing written"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "an exception without a decision published",
+      "caught": true,
+      "fails": [
+        "✗ the customers' list: tomato at 24 only (the undecided cucumber left out) — [{\"id\":\"dc8c2f08\",\"purpose\":\"customer_prices\",\"body\":{\"type\":\"text\",\"text\":{\"body\":\"🌿 أسعار يو تاك اليوم — السبت 3 أكتوبر 2026\\n\\n• طماطم (كرتون): 24 ر.س\\n• خيار (جرم): 0 ر.س\\n\\nالأسعار لطلبات اليوم. اطلب من هنا قبل الساعة 9:00 مساءً 🌿\"}},\"createdAt\":1790996400000,\"expiresAt\":1791061200000,\"import",
+        "✗ the customers' list: tomato at 24 only (the undecided cucumber left out)"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "no line to Baraa with the undecided count",
+      "caught": true,
+      "fails": [
+        "✗ Baraa: one line with the count of the undecided — [\"⚠️ استثناء في أسعار اليوم (3 أكتوبر 2026)\\nخيار (جرم)\\nالشراء: 30 · السوق: —\\nالسبب: لا سعر سوق\\nقرارك قبل 06:00، وإلا لا يُنشر اليوم.\",\"📢 نُشرت أسعار السبت 3 أكتوبر 2026. الأصناف: 1، والعملاء: 3.\\nنصاً 0 · محفوظة حتى رسالتهم 3 · محجوبة 0.\\nلم يُنشر: خيار.\\nوهذه نسخة ما وصلهم:\\n\\n🌿 أسعار يو تاك اليوم — السبت 3 أكتوبر 2026\\n\\n• طماطم (كرتون): 24 ر.س\\n\\nالأسعار لطلبات اليوم. اطلب من هنا قبل الساعة 9:00 مساءً 🌿\"]",
+        "✗ Baraa: one line with the count of the undecided"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the publication time waits for Baraa (no automatic approval)",
+      "caught": true,
+      "fails": [
+        "✗ 06:00: approved by the worker and published (no Baraa in it) — {\"action\":\"missed\",\"day\":\"2026-10-03\",\"dayId\":10011}",
+        "✗ the customers' list: tomato at 24 only (the undecided cucumber left out) — []",
+        "✗ the cucumber: «لم يُنشر» (استثناء بلا قرار)",
+        "✗ Baraa: one line with the count of the undecided — [\"⚠️ استثناء في أسعار اليوم (3 أكتوبر 2026)\\nخيار (جرم)\\nالشراء: 30 · السوق: —\\nالسبب: لا سعر سوق\\nقرارك قبل 06:00، وإلا لا يُنشر اليوم.\",\"⏰ أسعار اليوم (3 أكتوبر 2026) لم تُنشر حتى 06:00: لا صنف معتمد (تلقائياً أو منك).\\nالأصناف: 2 (استثناء بلا قرار: 1، ولم يُنشر: 0).\\nلا تُعاد أسعار أمس. قرارك ثم «نشر المعتمد الآن» في «💰 أسعار اليوم» ينشر عادي.\"]"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "no last refresh at the publication time",
+      "caught": true,
+      "fails": [
+        "✗ an observation of 05:58 counts at 06:00 (the engine's last word): cucumber published at 36 — {\"action\":\"auto_published\",\"day\":\"2026-10-03\",\"dayId\":10010,\"publish\":{\"action\":\"published\",\"day\":\"2026-10-03\",\"dayId\":10010,\"items\":1,\"parts\":1,\"excluded\":[\"خيار\"],\"recipients\":3,\"counts\":{\"session\":0,\"held\":3,\"refused\":0,\"skipped\":0,\"rejected\":0,\"template\":0}}}",
+        "✗ an observation of 05:58 counts at 06:00 (the engine's last word): cucumber published at 36"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the tick runs the engine all day",
+      "caught": true,
+      "fails": [
+        "✗ 01:30: the tick does not run the engine (before the 02:00 ask) — {\"day\":\"2026-10-03\",\"action\":\"refreshed\",\"dayId\":10008,\"state\":\"draft\",\"created\":2,\"updated\":0,\"lines\":2,\"excluded\":2,\"counts\":{\"auto\":0,\"exception\":2,\"manual\":0,\"unpublished\":0}}",
+        "✗ 12:00: nor after the publication window — {\"day\":\"2026-10-03\",\"action\":\"unchanged\",\"dayId\":10008,\"state\":\"draft\"}",
+        "✗ 01:30: the tick does not run the engine (before the 02:00 ask)",
+        "✗ 12:00: nor after the publication window"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the publication's sale rule: the purchase price",
+      "caught": true,
+      "fails": [
+        "✗ 06:00: approved by the worker and published (no Baraa in it) — {\"action\":\"auto_published\",\"day\":\"2026-10-03\",\"dayId\":10011,\"publish\":{\"action\":\"mismatch\",\"day\":\"2026-10-03\",\"dayId\":10011}}",
+        "✗ the customers' list: tomato at 24 only (the undecided cucumber left out) — []",
+        "✗ the cucumber: «لم يُنشر» (استثناء بلا قرار)",
+        "✗ Baraa: one line with the count of the undecided — [\"⚠️ استثناء في أسعار اليوم (3 أكتوبر 2026)\\nخيار (جرم)\\nالشراء: 30 · السوق: —\\nالسبب: لا سعر سوق\\nقرارك قبل 06:00، وإلا لا يُنشر اليوم.\",\"⚠️ أسعار 2026-10-03 لم تُنشر: سعر البيع في Odoo لا يطابق القاعدة (طماطم 24≠20).\"]"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the display margin ÷ the market price",
+      "caught": true,
+      "fails": [
+        "✗ the product card's display margin: (26 − 20) ÷ 20 = 30 %",
+        "✗ the product card's display margin: (26 − 20) ÷ 20 = 30 %"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "Baraa's tap not wired in /webhook",
+      "caught": true,
+      "fails": [
+        "✗ through /webhook: his tap on «عدّل» → the question, as text — []",
+        "✗ …his «23» → the line approved at 23, and the confirmation — []",
+        "✗ through /webhook: his tap on «عدّل» → the question, as text",
+        "✗ …his «23» → the line approved at 23, and the confirmation"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "his «عدّل» reply not wired in /webhook",
+      "caught": true,
+      "fails": [
+        "✗ …his «23» → the line approved at 23, and the confirmation — [\"✏️ أرسل سعر البيع لـ طماطم رقماً واحداً خلال 30 دقيقة.\"]",
+        "✗ …his «23» → the line approved at 23, and the confirmation"
       ]
     }
   ]

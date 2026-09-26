@@ -45,6 +45,7 @@ const FX = [
   "./fixtures-odoo-fields-20260925-team.json", "./fixtures-odoo-fields-20260925-opener.json", "./fixtures-odoo-fields-20260925-prices.json",
   "./fixtures-odoo-fields-20260925-s36.json",
   "./fixtures-odoo-fields-20260926-s39.json", // § 39 د: x_utak_simulation on the payment, x_wa_message x_res_model / x_res_id
+  "./fixtures-odoo-fields-20260926-s40.json", // § 40: the pricing engine (sources, offers, settings, the day's lines)
 ].map(load);
 const REAL: Record<string, string[]> = Object.assign({}, ...FX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FX.map((f) => f._selections));
@@ -227,12 +228,15 @@ console.log("\n[1] every send path writes an x_wa_message row and a Discuss line
   assert("template: row = the text as received, kind template", r.row?.x_kind === "template" && r.row?.x_status === "sent", JSON.stringify(waRows().map((x) => x.x_body)));
   assert("template: its line shows the same text, «قالب» box", !!r.msg && String(r.msg.body).includes("🤖 آلي · قالب"));
 
-  // d) + e) + f) the price publication, Baraa's copy, the no-margin alert
+  // d) + e) + f) the price publication, Baraa's copy, the undecided-exceptions line (§ 40 ج: the engine)
   env = fresh("2026-09-26 05:30");
-  table("product.template").get(1)!.x_margin_pct = 20;
-  table("product.template").get(2)!.x_margin_pct = 0;
+  table("res.partner").get(SUP)!.x_price_source = true;
+  Object.assign(table("product.template").get(1)!, { sale_ok: true, x_is_active_for_sale: true });
+  Object.assign(table("product.template").get(2)!, { sale_ok: true, x_is_active_for_sale: true });
+  seed("x_pricing_config", { x_name: "cfg", x_is_active: true, x_active_from: "2026-08-29", x_active_to: false, x_waste_pct: 5 });
   seed("x_daily_price", { x_product_tmpl_id: 1, x_packaging_id: 11, x_supplier_id: SUP, x_price_sar: 25, x_date: TODAY, x_extraction_status: "extracted" });
   seed("x_daily_price", { x_product_tmpl_id: 2, x_packaging_id: 21, x_supplier_id: SUP, x_price_sar: 14, x_date: TODAY, x_extraction_status: "extracted" });
+  seed("x_price_offer", { x_product_tmpl_id: 1, x_packaging_id: 11, x_source_partner_id: SUP, x_market_price: 30, x_purchase_price: 0, x_date: TODAY, x_status: "valid", x_utak_simulation: false });
   await quiet(() => refreshPriceDay(env));
   const day = rows("x_price_day").find((d) => d.x_date === TODAY)!;
   Object.assign(day, { x_state: "approved", x_approved_by: 2 });
@@ -242,8 +246,8 @@ console.log("\n[1] every send path writes an x_wa_message row and a Discuss line
   assert("publication: the customer's list has its row and line", pub.action === "published" && !!r.row && !!r.msg, JSON.stringify(pub));
   r = onRecord("📢 نُشرت أسعار", OWNERP, CH_OWNER);
   assert("Baraa's copy: row on his partner, line in «واتساب · Bara.a - U TAK»", !!r.row && !!r.msg, JSON.stringify(waRows().filter((x) => x.x_partner_id === OWNERP).map((x) => x.x_body)));
-  r = onRecord("⚠️ أصناف بلا هامش لم تُنشر اليوم", OWNERP, CH_OWNER);
-  assert("the alert (no margin): row and line in his channel", !!r.row && !!r.msg);
+  r = onRecord("⏰ لم يُنشر اليوم 1 صنف", OWNERP, CH_OWNER);
+  assert("the line (an exception left without a decision): row and line in his channel", !!r.row && !!r.msg);
 
   // f) an alert, g) the receipt, h) the team note
   env = fresh("2026-09-26 16:00");

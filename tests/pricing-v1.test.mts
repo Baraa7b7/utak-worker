@@ -428,6 +428,258 @@ console.log("\n[ب] a new source = «مصدر أسعار» ticked, no code (a pa
   assert("the flag cleared: his messages are not read as prices any more", third === null && offers().length === 1);
 }
 
+// ================================================================ [ج]
+const PR = await import("../src/prices.ts");
+const EN = await import("../src/pricing-engine.ts");
+const DAY = "2026-10-03";
+/** A supplier's purchase price (x_daily_price, § 26). */
+const dp = (product: number, packaging: number, supplier: number, p: number, o: { status?: string; date?: string } = {}) =>
+  seed("x_daily_price", { x_product_tmpl_id: product, x_packaging_id: packaging, x_supplier_id: supplier, x_price_sar: p, x_date: o.date ?? DAY, x_extraction_status: o.status ?? "extracted" });
+/** A source's offer (x_price_offer, § 40 ب). */
+const po = (product: number, packaging: number, partner: number, o: { purchase?: number; market?: number; sim?: boolean; date?: string; mOut?: boolean; pOut?: boolean } = {}) =>
+  seed("x_price_offer", {
+    x_product_tmpl_id: product, x_packaging_id: packaging, x_source_partner_id: partner, x_date: o.date ?? DAY,
+    x_purchase_price: o.purchase ?? 0, x_market_price: o.market ?? 0, x_purchase_outlier: !!o.pOut, x_market_outlier: !!o.mOut,
+    x_status: o.pOut || o.mOut ? "outlier" : "valid", x_utak_simulation: !!o.sim,
+  });
+const dayOf = (d = DAY) => rows("x_price_day").find((r: any) => r.x_date === d);
+const lineFor = (product: number, d = DAY) => rows("x_price_day_line").find((l: any) => l.x_day_id === dayOf(d)?.id && l.x_product_tmpl_id === product);
+const ownerTexts = () => sentTo(OWNER).map((b: any) => String(b?.text?.body ?? b?.interactive?.body?.text ?? ""));
+const excMsgs = () => sentTo(OWNER).filter((b: any) => b?.type === "interactive" && /استثناء في أسعار اليوم/.test(String(b.interactive?.body?.text)));
+const btnIds = (b: any) => (b?.interactive?.action?.buttons ?? []).map((x: any) => x.reply.id);
+const offer = (o: Partial<import("../src/pricing-engine.ts").EngineOffer>) =>
+  ({ kind: "market", price: 0, outlier: false, partnerId: 1, sourceName: "م", productId: 1, packagingId: 11, model: "po", rowId: 1, ...o }) as any;
+const ITEM = { productId: 1, productName: "طماطم", packagingId: 11, packagingName: "كرتون" };
+
+console.log("\n[ج] the rule: lowest purchase, median market, sale = market, unit profit");
+{
+  assert("median: one observation is enough (24)", EN.median([24]) === 24);
+  assert("median: odd count → the middle (22, 24, 30 → 24)", EN.median([30, 22, 24]) === 24);
+  assert("median: even count → the mean of the two middle ones (22, 25 → 23.5)", EN.median([25, 22]) === 23.5);
+  assert("median: none → null", EN.median([]) === null);
+  const [l] = EN.computePricing([ITEM], [
+    offer({ kind: "purchase", price: 22, partnerId: AHMED, sourceName: "أحمد حسان", model: "dp", rowId: 5 }),
+    offer({ kind: "purchase", price: 20, partnerId: DRIVER, sourceName: "عمر", rowId: 3 }),
+    offer({ kind: "market", price: 26, partnerId: DRIVER, rowId: 3 }),
+    offer({ kind: "market", price: 24, partnerId: AHMED, rowId: 4 }),
+    offer({ kind: "market", price: 30, partnerId: FAHD, rowId: 6 }),
+  ], 5);
+  assert("purchase = the lowest of any source (Omar's «شراء» 20 under Ahmed's 22)", l.purchase === 20 && l.purchaseOffer?.partnerId === DRIVER, JSON.stringify(l));
+  assert("market = the median of three sources (24, 26, 30 → 26), 3 observations", l.market === 26 && l.marketCount === 3);
+  assert("sale = the market price exactly (26)", l.sale === 26);
+  assert("unit profit = 26 − 20 − 5 % × 20 = 5", l.unitProfit === 5 && l.exceptions.length === 0, JSON.stringify(l));
+  const [x] = EN.computePricing([ITEM], [
+    offer({ kind: "market", price: 20, rowId: 1 }), offer({ kind: "market", price: 28, rowId: 2 }),
+    offer({ kind: "purchase", price: 21, partnerId: AHMED, model: "dp", rowId: 1 }),
+  ], 5);
+  assert("a source counts once: its latest row of the day (28 over 20)", x.market === 28 && x.marketCount === 1, JSON.stringify(x));
+  assert("the product card's display margin: (26 − 20) ÷ 20 = 30 %", EN.displayMarginPct(20, 26) === 30 && EN.displayMarginPct(0, 26) === 0);
+}
+
+console.log("\n[ج] each exception: no purchase, no market, profit ≤ 0, an outlier (purchase or market)");
+{
+  const run = (offers: any[]) => EN.computePricing([ITEM], offers, 5)[0];
+  const a = run([offer({ kind: "market", price: 24 })]);
+  assert("(1) no purchase price → «لا سعر شراء»", a.exceptions.join() === "no_purchase" && a.reason === "لا سعر شراء", JSON.stringify(a));
+  const b = run([offer({ kind: "purchase", price: 20, model: "dp" })]);
+  assert("(2) no market price → «لا سعر سوق»", b.exceptions.join() === "no_market" && b.sale === null, JSON.stringify(b));
+  const c = run([offer({ kind: "purchase", price: 20, model: "dp" }), offer({ kind: "market", price: 21 })]);
+  assert("(3) 21 − 20 − 1 = 0 → «ربح الوحدة ≤ 0 (0)»", c.exceptions.join() === "no_profit" && c.unitProfit === 0 && c.reason === "ربح الوحدة ≤ 0 (0)", JSON.stringify(c));
+  const c2 = run([offer({ kind: "purchase", price: 20, model: "dp" }), offer({ kind: "market", price: 21.05 })]);
+  assert("…21.05 − 20 − 1 = 0.05 > 0 → automatic", c2.exceptions.length === 0 && c2.unitProfit === 0.05, JSON.stringify(c2));
+  const d = run([offer({ kind: "purchase", price: 12, model: "dp", outlier: true }), offer({ kind: "market", price: 24 })]);
+  assert("(4) the purchase price used is an outlier → «سعر شاذ: الشراء»", d.exceptions.join() === "outlier" && d.reason === "سعر شاذ: الشراء", JSON.stringify(d));
+  const e = run([offer({ kind: "purchase", price: 20, model: "dp" }), offer({ kind: "market", price: 24, outlier: true }), offer({ kind: "market", price: 25, partnerId: 2 })]);
+  assert("(4) a market observation is an outlier → «سعر شاذ: السوق»", e.exceptions.join() === "outlier" && e.reason === "سعر شاذ: السوق", JSON.stringify(e));
+  const f = run([offer({ kind: "purchase", price: 20, model: "dp" }), offer({ kind: "purchase", price: 60, partnerId: 2, outlier: true }), offer({ kind: "market", price: 24 })]);
+  assert("an outlier purchase NOT used (a higher one) → no exception", f.exceptions.length === 0 && f.purchase === 20, JSON.stringify(f));
+  const g = run([]);
+  assert("nothing at all → both reasons", g.reason === "لا سعر شراء، لا سعر سوق", g.reason);
+}
+
+console.log("\n[ج] the engine on the day: sources only, simulation out, nothing from yesterday, every active product");
+{
+  const env = fresh("2026-10-03 04:10", { onAttendance: false }); sources();
+  seed("res.partner", { id: 850, name: "مورد غير معلَّم", supplier_rank: 1, x_whatsapp_number: "+966500000850" });
+  dp(1, 11, AHMED, 20);
+  dp(1, 11, 850, 15);                          // a supplier without «مصدر أسعار»
+  po(1, 11, DRIVER, { market: 24 });
+  po(1, 11, DRIVER, { market: 99, sim: true, purchase: 1 }); // simulation
+  po(1, 11, DRIVER, { market: 40, date: "2026-10-02" });    // yesterday
+  const r = await quiet(() => PR.refreshPriceDay(env));
+  const t = lineFor(1)!, c = lineFor(2)!;
+  assert("the record built, one line per active product (tomato priced, cucumber not)", r.action === "refreshed" && rows("x_price_day_line").length === 2, JSON.stringify(r));
+  assert("tomato: purchase 20 (the unflagged supplier's 15 ignored), market 24 (not the simulation 99, not yesterday's 40), sale 24, auto",
+    t.x_cost_price === 20 && t.x_market_price === 24 && t.x_market_count === 1 && t.x_sale_price === 24 && t.x_unit_profit === 3 && t.x_status === "auto" && !t.x_excluded, JSON.stringify(t));
+  assert("cucumber (no offer at all): its default packaging, an exception", c.x_packaging_id === 21 && c.x_status === "exception" && c.x_reason === "لا سعر شراء، لا سعر سوق", JSON.stringify(c));
+  assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
+}
+
+console.log("\n[ج] the exceptions to Baraa: from 04:00, one message per exception with its buttons, once");
+{
+  const env = fresh("2026-10-03 03:55", { onAttendance: false }); sources();
+  dp(1, 11, AHMED, 20); po(1, 11, DRIVER, { market: 20.5 });  // tomato: profit ≤ 0, a market price
+  dp(2, 21, AHMED, 30);                                       // cucumber: no market price
+  await quiet(() => PR.refreshPriceDay(env));
+  const early = await quiet(() => PR.notifyPriceExceptions(env));
+  assert("03:55: nothing yet (Omar's window runs to 04:00)", early.action === "outside" && excMsgs().length === 0);
+  setRiyadh("2026-10-03 04:00");
+  const n1 = await quiet(() => PR.notifyPriceExceptions(env));
+  const msgs = excMsgs();
+  assert("04:00: one message per exception (2)", n1.action === "sent" && n1.sent === 2 && msgs.length === 2, JSON.stringify(n1));
+  const tomatoMsg = msgs.find((b: any) => String(b.interactive.body.text).includes("طماطم"));
+  const cucMsg = msgs.find((b: any) => String(b.interactive.body.text).includes("خيار"));
+  const tl = lineFor(1)!, cl = lineFor(2)!;
+  assert("with a market price: «اعتمد بسعر السوق» / «لا تنشر» / «عدّل»", JSON.stringify(btnIds(tomatoMsg)) === JSON.stringify([`pexc_m_${tl.id}`, `pexc_s_${tl.id}`, `pexc_e_${tl.id}`]), JSON.stringify(btnIds(tomatoMsg)));
+  assert("without a market price: «لا تنشر» / «عدّل» only", JSON.stringify(btnIds(cucMsg)) === JSON.stringify([`pexc_s_${cl.id}`, `pexc_e_${cl.id}`]), JSON.stringify(btnIds(cucMsg)));
+  assert("the message: product, purchase, market, profit, reason, the deadline",
+    /طماطم \(كرتون\)/.test(tomatoMsg.interactive.body.text) && /الشراء: 20 · السوق: 20.50 · ربح الوحدة: -0.50/.test(tomatoMsg.interactive.body.text)
+      && /السبب: ربح الوحدة ≤ 0 \(-0.50\)/.test(tomatoMsg.interactive.body.text) && /قرارك قبل 06:00/.test(tomatoMsg.interactive.body.text), tomatoMsg.interactive.body.text);
+  setRiyadh("2026-10-03 04:05");
+  const n2 = await quiet(() => PR.notifyPriceExceptions(env));
+  assert("the next tick: no second message (KV guard per product and day)", n2.action === "notified_before" && excMsgs().length === 2, JSON.stringify(n2));
+  setRiyadh("2026-10-03 06:00");
+  assert("from the publication time: no exception message", (await quiet(() => PR.notifyPriceExceptions(env))).action === "outside");
+}
+{
+  const env = fresh("2026-10-03 04:00", { onAttendance: false }); sources();
+  for (let i = 0; i < 9; i++) {
+    const pid = 100 + i;
+    seed("product.template", { id: pid, name: `صنف ${i + 1}`, sale_ok: true, x_is_active_for_sale: true });
+    seed("x_product_packaging", { id: 1000 + i, x_name: "كرتون", x_product_tmpl_id: pid, x_is_default: true });
+  }
+  await quiet(() => PR.refreshPriceDay(env));   // 11 active products, no offer → 11 exceptions
+  const n = await quiet(() => PR.notifyPriceExceptions(env));
+  const t = ownerTexts().filter((x) => x.startsWith("⚠️ استثناءات أسعار اليوم"));
+  assert("more than 8 exceptions (11): ONE message with the count and the review link, no per-item messages",
+    n.action === "many" && n.count === 11 && t.length === 1 && /11 صنفاً/.test(t[0]) && /\/odoo\/(action-\d+|x_price_day)\/\d+/.test(t[0]) && excMsgs().length === 0, JSON.stringify({ n, t }));
+  setRiyadh("2026-10-03 04:05");
+  seed("product.template", { id: 120, name: "صنف جديد", sale_ok: true, x_is_active_for_sale: true });
+  seed("x_product_packaging", { id: 1020, x_name: "كرتون", x_product_tmpl_id: 120, x_is_default: true });
+  await quiet(() => PR.refreshPriceDay(env));
+  const n2 = await quiet(() => PR.notifyPriceExceptions(env));
+  assert("…a later exception on the same day: no second message", ownerTexts().filter((x) => x.startsWith("⚠️ استثناءات أسعار اليوم")).length === 1 && excMsgs().length === 0, JSON.stringify(n2));
+}
+{
+  const env = fresh("2026-10-03 04:00", { onAttendance: false }); sources();
+  for (let i = 0; i < 6; i++) {
+    seed("product.template", { id: 100 + i, name: `صنف ${i + 1}`, sale_ok: true, x_is_active_for_sale: true });
+    seed("x_product_packaging", { id: 1000 + i, x_name: "كرتون", x_product_tmpl_id: 100 + i, x_is_default: true });
+  }
+  await quiet(() => PR.refreshPriceDay(env));   // exactly 8
+  const n = await quiet(() => PR.notifyPriceExceptions(env));
+  assert("exactly 8 exceptions: one message each (8), no count message", n.action === "sent" && excMsgs().length === 8 && !ownerTexts().some((x) => x.startsWith("⚠️ استثناءات أسعار اليوم")), JSON.stringify(n));
+}
+
+console.log("\n[ج] Baraa's buttons, «عدّل» within 30 minutes, the lock");
+{
+  const env = fresh("2026-10-03 04:00", { onAttendance: false }); sources();
+  dp(1, 11, AHMED, 20); po(1, 11, DRIVER, { market: 20.5 });  // tomato: an exception with a market price
+  dp(2, 21, AHMED, 30);                                       // cucumber: no market
+  await quiet(() => PR.refreshPriceDay(env));
+  await quiet(() => PR.notifyPriceExceptions(env));
+  const tl = lineFor(1)!, cl = lineFor(2)!;
+  const r1 = await quiet(() => PR.handlePriceExceptionButton(env, `pexc_m_${cl.id}`));
+  assert("«اعتمد بسعر السوق» without a market price → refused, nothing written", /لا سعر سوق/.test(r1) && !lineFor(2)!.x_decision, r1);
+  const r2 = await quiet(() => PR.handlePriceExceptionButton(env, `pexc_m_${tl.id}`));
+  const t2 = lineFor(1)!;
+  assert("«اعتمد بسعر السوق» → approved by hand at the market price (20.50)", /يُنشر بسعر السوق 20.50/.test(r2) && t2.x_decision === "market" && t2.x_status === "manual" && t2.x_sale_price === 20.5 && !t2.x_excluded && !!t2.x_decided_at, JSON.stringify({ r2, t2 }));
+  const r3 = await quiet(() => PR.handlePriceExceptionButton(env, `pexc_s_${tl.id}`));
+  assert("a second button on the same line → «القرار مسجّل مسبقاً», unchanged", /القرار مسجّل مسبقاً/.test(r3) && lineFor(1)!.x_decision === "market", r3);
+  await quiet(() => PR.refreshPriceDay(env, { force: true }));
+  assert("the next refresh keeps his decision (manual, 20.50)", lineFor(1)!.x_status === "manual" && lineFor(1)!.x_sale_price === 20.5);
+  // «عدّل»
+  const e1 = await quiet(() => PR.handlePriceExceptionButton(env, `pexc_e_${cl.id}`));
+  assert("«عدّل» → asks for the number, nothing written yet", /أرسل سعر البيع لـ خيار رقماً واحداً خلال 30 دقيقة/.test(e1) && !lineFor(2)!.x_decision, e1);
+  setRiyadh("2026-10-03 04:10");
+  const e2 = await quiet(() => PR.handlePriceEditReply(env, "خليه تمام"));
+  assert("a reply without a number → asked again, nothing written", /رقماً موجباً واحداً/.test(String(e2)) && !lineFor(2)!.x_decision, String(e2));
+  const e3 = await quiet(() => PR.handlePriceEditReply(env, "35 أو 36"));
+  assert("two numbers → asked again", /رقماً موجباً واحداً/.test(String(e3)) && !lineFor(2)!.x_decision, String(e3));
+  const e4 = await quiet(() => PR.handlePriceEditReply(env, "٣٥٫٥ ريال"));
+  const c4 = lineFor(2)!;
+  assert("«٣٥٫٥ ريال» within 30 minutes → the approved sale price 35.50", /يُنشر بـ 35.50/.test(String(e4)) && c4.x_decision === "edit" && c4.x_manual_price === 35.5 && c4.x_status === "manual" && c4.x_sale_price === 35.5, JSON.stringify({ e4, c4 }));
+  assert("…and «عدّل» is used up: the next text is not a price", (await quiet(() => PR.handlePriceEditReply(env, "40"))) === null && lineFor(2)!.x_manual_price === 35.5);
+}
+{
+  const env = fresh("2026-10-03 04:00", { onAttendance: false }); sources();
+  dp(2, 21, AHMED, 30);
+  await quiet(() => PR.refreshPriceDay(env));
+  const cl = lineFor(2)!;
+  await quiet(() => PR.handlePriceExceptionButton(env, `pexc_e_${cl.id}`));
+  setRiyadh("2026-10-03 04:31");
+  assert("«عدّل» then a number after 30 minutes → not taken (null), nothing written", (await quiet(() => PR.handlePriceEditReply(env, "35"))) === null && !lineFor(2)!.x_decision);
+  const s1 = await quiet(() => PR.handlePriceExceptionButton(env, `pexc_s_${cl.id}`));
+  assert("«لا تنشر» → «لم يُنشر» with his reason", /لا يُنشر اليوم/.test(s1) && lineFor(2)!.x_status === "unpublished" && lineFor(2)!.x_reason === "براء: لا تنشر" && lineFor(2)!.x_excluded === true, s1);
+  await quiet(() => PR.refreshPriceDay(env, { force: true }));
+  assert("…and the next refresh keeps it («لم يُنشر»)", lineFor(2)!.x_status === "unpublished" && lineFor(2)!.x_reason === "براء: لا تنشر", JSON.stringify(lineFor(2)));
+}
+{
+  const env = fresh("2026-10-03 04:00", { onAttendance: false }); sources();
+  dp(1, 11, AHMED, 20); po(1, 11, DRIVER, { market: 20.5 });
+  await quiet(() => PR.refreshPriceDay(env));
+  await quiet(() => PR.notifyPriceExceptions(env));
+  const tl = lineFor(1)!;
+  graph.length = 0;
+  await quiet(() => worker.fetch(signed(inbound(OWNER, { type: "interactive", interactive: { type: "button_reply", button_reply: { id: `pexc_e_${tl.id}`, title: "عدّل" } } })), env, harnessCtx));
+  assert("through /webhook: his tap on «عدّل» → the question, as text", ownerTexts().some((t) => /أرسل سعر البيع لـ طماطم/.test(t)), JSON.stringify(ownerTexts()));
+  await quiet(() => worker.fetch(signed(inbound(OWNER, { type: "text", text: { body: "23" } })), env, harnessCtx));
+  assert("…his «23» → the line approved at 23, and the confirmation", lineFor(1)!.x_status === "manual" && lineFor(1)!.x_sale_price === 23 && ownerTexts().some((t) => /طماطم: يُنشر بـ 23/.test(t)), JSON.stringify(ownerTexts()));
+  graph.length = 0;
+  await quiet(() => worker.fetch(signed(inbound(OWNER, { type: "text", text: { body: "مرحبا" } })), env, harnessCtx));
+  assert("…any other text of his: nothing (the owner guard as before)", sentTo(OWNER).length === 0);
+}
+
+console.log("\n[ج] the publication time: automatic lines published, an exception without a decision not");
+{
+  const env = fresh("2026-10-03 04:00", { onAttendance: false }); sources();
+  seed("res.partner", { id: 891, name: "مطعم الوادي 2", customer_rank: 1, x_whatsapp_number: "+966500000891" });
+  dp(1, 11, AHMED, 20); po(1, 11, DRIVER, { market: 24 });   // tomato: automatic at 24
+  dp(2, 21, AHMED, 30);                                       // cucumber: an exception, no decision
+  await quiet(() => PR.runPricesTick(env, Date.now()));
+  assert("04:00 tick: the record built, the exception sent to Baraa", !!dayOf() && excMsgs().length === 1);
+  setRiyadh("2026-10-03 05:55");
+  await quiet(() => PR.runPricesTick(env, Date.now()));
+  assert("05:55: nothing published yet (no wait for Baraa, but the time is 06:00)", dayOf()!.x_state === "draft");
+  setRiyadh("2026-10-03 06:00");
+  const t = await quiet(() => PR.runPricesTick(env, Date.now()));
+  const d = dayOf()!;
+  assert("06:00: approved by the worker and published (no Baraa in it)", (t.deadline as any)?.action === "auto_published" && d.x_state === "published" && !d.x_approved_by, JSON.stringify(t.deadline));
+  const list = heldFor(env, "966500000891");
+  assert("the customers' list: tomato at 24 only (the undecided cucumber left out)", list.length === 1 && /• طماطم \(كرتون\): 24 ر.س/.test(JSON.stringify(list[0])) && !/خيار/.test(JSON.stringify(list[0])), JSON.stringify(list).slice(0, 300));
+  assert("the cucumber: «لم يُنشر» (استثناء بلا قرار)", lineFor(2)!.x_status === "unpublished" && /استثناء بلا قرار/.test(String(lineFor(2)!.x_reason)));
+  assert("Baraa: one line with the count of the undecided", ownerTexts().filter((x) => x.startsWith("⏰ لم يُنشر اليوم 1 صنف")).length === 1, JSON.stringify(ownerTexts()));
+  const late = await quiet(() => PR.handlePriceExceptionButton(env, `pexc_s_${lineFor(2)!.id}`));
+  assert("a tap after the publication → «فات موعد النشر», nothing written", /فات موعد نشر/.test(late) && !lineFor(2)!.x_decision, late);
+  const p = await quiet(() => (import("../src/odoo.ts")).then((m) => m.getLatestSalePrice(env, 1, 11)));
+  assert("the quotation / invoice price: today's published 24", p.price === 24 && p.source === "today", JSON.stringify(p));
+  assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
+}
+
+console.log("\n[ج] the publication time takes the last offers; the tick runs the engine only in its window");
+{
+  const env = fresh("2026-10-03 05:55", { onAttendance: false }); sources();
+  seed("res.partner", { id: 891, name: "مطعم الوادي 2", customer_rank: 1, x_whatsapp_number: "+966500000891" });
+  dp(1, 11, AHMED, 20); po(1, 11, DRIVER, { market: 24 });
+  dp(2, 21, AHMED, 30);
+  await quiet(() => PR.refreshPriceDay(env));
+  setRiyadh("2026-10-03 05:58");
+  po(2, 21, DRIVER, { market: 36 });                          // arrives after the last tick
+  setRiyadh("2026-10-03 06:00");
+  const r = await quiet(() => PR.checkPricesDeadline(env));
+  assert("an observation of 05:58 counts at 06:00 (the engine's last word): cucumber published at 36",
+    r.action === "auto_published" && lineFor(2)!.x_status === "auto" && /• خيار \(جرم\): 36 ر.س/.test(JSON.stringify(heldFor(env, "966500000891"))), JSON.stringify(r));
+}
+{
+  const env = fresh("2026-10-03 01:30", { onAttendance: false }); sources();
+  dp(1, 11, AHMED, 20);
+  const a = await quiet(() => PR.runPricesTick(env, Date.now()));
+  assert("01:30: the tick does not run the engine (before the 02:00 ask)", (a.refresh as any)?.action === "outside" && !dayOf(), JSON.stringify(a.refresh));
+  setRiyadh("2026-10-03 12:00");
+  const b = await quiet(() => PR.runPricesTick(env, Date.now()));
+  assert("12:00: nor after the publication window", (b.refresh as any)?.action === "outside" && !dayOf(), JSON.stringify(b.refresh));
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) {
   console.log(failures.map((f) => `  ✗ ${f}`).join("\n"));

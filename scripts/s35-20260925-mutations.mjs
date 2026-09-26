@@ -13,31 +13,31 @@ import { readFileSync, writeFileSync } from "node:fs";
 const root = new URL("../", import.meta.url).pathname;
 const T = "tests/prices.test.mts";
 const PR = "src/prices.ts";
+// § 40 ج (2026-09-26): the pricing engine v1 (src/pricing-engine.ts) builds the day now.
+const EN = "src/pricing-engine.ts";
 
 // [name, [[file, find, replace], …], test file]
 const M = [
   // ---- the rules
-  ["rounding: half down instead of half up", [[PR,
-    "  return Math.floor((c * (10000 + m) + 5000) / 10000) / 100;", "  return Math.floor((c * (10000 + m)) / 10000) / 100;"]], T],
-  ["rule: the margin ignored (sale = purchase)", [[PR,
-    "  return Math.floor((c * (10000 + m) + 5000) / 10000) / 100;", "  return c / 100 + 0 * m;"]], T],
-  ["default: the cheapest, outliers included", [[PR,
-    "  const normal = offers.filter((o) => !o.outlier).sort(byPrice);", "  const normal = [...offers].sort(byPrice);"]], T],
-  ["plan: a supplier's first price instead of the latest", [[PR,
-    "    if (!cur || r.id > cur.id) latest.set(k, r);", "    if (!cur) latest.set(k, r);"]], T],
-  ["plan: a failed extraction counts", [[PR,
-    "    if (!(Number(r.x_price_sar) > 0) || r.x_extraction_status === \"failed\") continue;", "    if (!(Number(r.x_price_sar) > 0)) continue;"]], T],
-  ["prices: another day's prices read", [[PR,
+  // § 40 ج — removed: «rounding: half down instead of half up», «rule: the margin
+  // ignored (sale = purchase)» and «default: the cheapest, outliers included»
+  // mutated computeSalePrice / pickDefaultOffer, deleted on purpose with the
+  // margin rule (sale = the market price now; the rounding, the lowest purchase
+  // and the outliers are mutated by scripts/s40-20260926-mutations.mjs).
+  ["plan: a supplier's first price instead of the latest", [[EN,
+    "    if (!cur || o.rowId > cur.rowId) best.set(k, o);", "    if (!cur) best.set(k, o);"]], T],
+  ["plan: a failed extraction counts", [[EN,
+    "[\"x_price_sar\", \">\", 0], [\"x_extraction_status\", \"!=\", \"failed\"], [\"x_supplier_id\", \"in\", ids]],", "[\"x_price_sar\", \">\", 0], [\"x_supplier_id\", \"in\", ids]],"]], T],
+  ["prices: another day's prices read", [[EN,
     "    domain: [[\"x_date\", \"=\", day], [\"x_price_sar\", \">\", 0],", "    domain: [[\"x_price_sar\", \">\", 0],"]], T],
   ["deadline: ORDERING_HOURS_OPEN ignored (07:00)", [[PR,
     "  return set === null ? { minutes: ORDERING_HOURS_OPEN * 60, source: \"ORDERING_HOURS_OPEN\" }", "  return set === null ? { minutes: 7 * 60, source: \"ORDERING_HOURS_OPEN\" }"]], T],
   // ---- refresh
-  ["refresh: Baraa's edits overwritten (every line follows the default)", [[PR,
-    "    if (untouched && defPrice !== p.chosen.priceId) {", "    if (defPrice !== p.chosen.priceId) {"]], T],
-  ["refresh: a margin added later not taken", [[PR,
-    "    if (!(Number(l.x_margin_pct) > 0) && margin > 0) vals.x_margin_pct = margin;\n", ""]], T],
+  ["refresh: Baraa's decision overwritten (every line follows the rule)", [[PR,
+    "    const decision = (l?.x_decision || null) as Decision | null;", "    const decision = null as Decision | null;"]], T],
+  // § 40 ج — removed: «refresh: a margin added later not taken» (no margin in pricing any more).
   ["refresh: an approved day is rebuilt", [[PR,
-    "  if (rec.x_state === \"approved\" || rec.x_state === \"published\") {\n    return { day, action: \"locked\"", "  if (false) {\n    return { day, action: \"locked\""]], T],
+    "  if (found && (found.x_state === \"approved\" || found.x_state === \"published\")) {", "  if (false) {"]], T],
   ["refresh: no fingerprint (every tick rewrites)", [[PR,
     "      if ((await env.MSG_DEDUP.get(fpKey(day))) === fp) return", "      if (false) return"]], T],
   // ---- publish
@@ -47,7 +47,7 @@ const M = [
     "  if (day.x_state === \"published\") return { action: \"already\"", "  if (false) return { action: \"already\""],
     [PR, "  if (!claim.claimed) return { action: \"in_progress\"", "  if (false) return { action: \"in_progress\""]], T],
   ["publish: an excluded line published", [[PR,
-    "    const publishable = lines.filter((l) => !l.x_excluded && Number(l.x_sale_price) > 0);", "    const publishable = lines.filter((l) => Number(l.x_cost_price) > 0);"]], T],
+    "    const publishable = lines.filter(isPublishable);", "    const publishable = lines.filter((l) => Number(l.x_cost_price) > 0);"]], T],
   ["publish: the purchase price shown instead of the sale price", [[PR,
     "      salePrice: Number(l.x_sale_price),", "      salePrice: Number(l.x_cost_price),"]], T],
   ["publish: an unhandled outlier published", [[PR,
@@ -56,8 +56,9 @@ const M = [
     "    if (mismatch.length) {", "    if (false) {"]], T],
   ["publish: no copy / counts for Baraa", [[PR,
     "    for (const part of copy) await sendOwnerMessage(penv, part, OWNER_PRICES_PURPOSE);\n", ""]], T],
-  ["publish: no alert naming the products without margin", [[PR,
-    "      await sendOwnerAlert(penv, `⚠️ أصناف بلا هامش لم تُنشر اليوم:", "      if (0) await sendOwnerAlert(penv, `⚠️ أصناف بلا هامش لم تُنشر اليوم:"]], T],
+  // § 40 ج — the «بلا هامش» alert became the one line with the undecided exceptions.
+  ["publish: no line with the undecided exceptions", [[PR,
+    "    if (undecided.length) {\n      await sendOwnerAlert(", "    if (false) {\n      await sendOwnerAlert("]], T],
   ["publish: never cut into parts", [[PR,
     "    if (size + it.length + 1 > room && chunks[chunks.length - 1].length) { chunks.push([]); size = 0; }", ""]], T],
   ["publish: not critical (no opener when held)", [["src/wa-purposes.ts",

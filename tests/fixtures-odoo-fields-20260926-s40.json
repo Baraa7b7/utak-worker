@@ -1,5 +1,5 @@
 {
- "_source": "fields_get on utakfresh.odoo.com, 2026-09-26T07:47Z (read-only), § 40 (pricing engine v1): every field of each model, and the selection values.",
+ "_source": "fields_get on utakfresh.odoo.com, 2026-09-26T08:06Z (read-only), § 40 (pricing engine v1): every field of each model, and the selection values.",
  "_selections": {
   "x_operating_cost.x_cost_type": [
    "fixed",
@@ -25,6 +25,17 @@
    "approved",
    "published",
    "missed"
+  ],
+  "x_price_day_line.x_decision": [
+   "market",
+   "skip",
+   "edit"
+  ],
+  "x_price_day_line.x_status": [
+   "auto",
+   "exception",
+   "manual",
+   "unpublished"
   ],
   "x_product_packaging.x_type": [
    "carton",
@@ -1825,19 +1836,27 @@
   "x_cost_price",
   "x_daily_price_id",
   "x_day_id",
+  "x_decided_at",
+  "x_decision",
   "x_default_price_id",
   "x_excluded",
   "x_is_outlier",
+  "x_manual_price",
   "x_margin_pct",
+  "x_market_count",
+  "x_market_price",
   "x_name",
   "x_offers",
   "x_outlier_ok",
   "x_packaging_id",
   "x_product_tmpl_id",
+  "x_reason",
   "x_sale_price",
   "x_sequence",
   "x_source_price",
-  "x_supplier_id"
+  "x_status",
+  "x_supplier_id",
+  "x_unit_profit"
  ],
  "x_product_packaging": [
   "create_date",
@@ -2004,6 +2023,7 @@
   "x_alternative_product_ids",
   "x_is_active_for_sale",
   "x_margin_pct",
+  "x_margin_view",
   "x_name_en",
   "x_packaging_ids",
   "x_packaging_notes",

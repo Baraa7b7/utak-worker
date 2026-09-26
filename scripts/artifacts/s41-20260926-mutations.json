@@ -1,7 +1,7 @@
 {
-  "at": "2026-09-26T12:08:53.369Z",
-  "caught": 82,
-  "total": 82,
+  "at": "2026-09-26T16:18:17.140Z",
+  "caught": 90,
+  "total": 90,
   "results": [
     {
       "part": "أ",
@@ -761,7 +761,7 @@
       "name": "a simulation run: its row «pending» (the deployed tick would post it)",
       "caught": true,
       "fails": [
-        "✗ the x_wa_message row is written, echo «none» — never «pending» on the way (the deployed */5 tick would post it) — {\"row\":{\"write_date\":\"2026-09-27 07:00:00\",\"x_status\":\"sent\",\"x_meta_message_id\":\"wamid.SIM.2miVX1S_p2zD-Xm3qI4GteppRevHy3d8\",\"x_processed_at\":\"2026-09-27 07:00:00\",\"x_echo_status\":\"none\",\"x_partner_id\":501,\"x_direction\":\"out\",\"x_kind\":\"text\",\"x_body\":\"نص تجربة\",\"x_source\":\"auto\",\"x_debug_payload\":\"{\\\"purpose\\\":\\\"bot_reply\\\"}\",\"id\":10008},\"pendingWrites\":1}",
+        "✗ the x_wa_message row is written, echo «none» — never «pending» on the way (the deployed */5 tick would post it) — {\"row\":{\"write_date\":\"2026-09-27 07:00:00\",\"x_status\":\"sent\",\"x_meta_message_id\":\"wamid.SIM.KQwI41PtnuDXYWGVf-ws66m1di-6Hif6\",\"x_processed_at\":\"2026-09-27 07:00:00\",\"x_echo_status\":\"none\",\"x_partner_id\":501,\"x_direction\":\"out\",\"x_kind\":\"text\",\"x_body\":\"نص تجربة\",\"x_source\":\"auto\",\"x_debug_payload\":\"{\\\"purpose\\\":\\\"bot_reply\\\"}\",\"id\":10008},\"pendingWrites\":1}",
         "✗ the x_wa_message row is written, echo «none» — never «pending» on the way (the deployed */5 tick would post it)"
       ]
     },
@@ -801,6 +801,84 @@
       "fails": [
         "✗ …it is added to the order — [{\"x_order_id\":10009,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_quantity\":6,\"x_status\":\"pending\",\"id\":10010}]",
         "✗ …it is added to the order"
+      ]
+    },
+    {
+      "part": "قالب",
+      "name": "the template lookup back to a bare fetch (a 429 = «no template»)",
+      "caught": true,
+      "fails": [
+        "✗ 02:00, the lookup answered 429 twice: Omar's «بدء الدوام» still goes (not no_template) — {\"t\":{\"day\":\"2026-09-27\",\"at\":\"02:00\",\"owner\":{\"at\":\"06:00\",\"source\":\"default\",\"action\":\"before\"},\"members\":[{\"id\":7601,\"partnerId\":601,\"name\":\"أحمد\",\"to\":\"…0601\",\"shift\":null,\"end\":null,\"roles\":[\"warehouse\"],\"action\":\"not_enrolled\"},{\"id\":7602,\"partnerId\":602,\"name\":\"سالم\",\"to\":\"…0602\",\"shift\":null,\"end\":null,\"roles\":[\"collector\"],\"action\":\"not_enrolled\"},{\"id\":7603,\"partnerId\":603,\"name\":\"عمر المجهلي\",\"to\":\"…0603\",\"shift\":\"02:00\",\"end\":\"12:00\",\"roles\":[\"driver\"],\"action\":\"no_template\"}]},\"omar\":{\"id\":7603,\"partnerId\":603,\"name\":\"عمر المجهلي\",\"to\":\"…0603\",\"shift\":\"02:00\",\"end\":\"12:00\",\"roles\":[\"driver\"],\"action\":\"no_template\"}}",
+        "✗ …the 429s were used up (retried, not skipped)",
+        "✗ 02:00, the lookup answered 429 twice: Omar's «بدء الدوام» still goes (not no_template)",
+        "✗ …the 429s were used up (retried, not skipped)"
+      ]
+    },
+    {
+      "part": "قالب",
+      "name": "a lookup that failed after the retries read as «no mapping»",
+      "caught": true,
+      "fails": [
+        "✗ Odoo still refusing after the retries: skipped as «تعذّر قراءة القالب من Odoo», not «لا قالب مربوط» — {\"action\":\"skipped\",\"reason\":\"لا قالب مربوط بالغرض team_shift_start\"}",
+        "✗ Odoo still refusing after the retries: skipped as «تعذّر قراءة القالب من Odoo», not «لا قالب مربوط»"
+      ]
+    },
+    {
+      "part": "قالب",
+      "name": "a failed lookup not told apart from «no mapping»",
+      "caught": true,
+      "fails": [
+        "✗ Odoo still refusing after the retries: skipped as «تعذّر قراءة القالب من Odoo», not «لا قالب مربوط» — {\"action\":\"skipped\",\"reason\":\"لا قالب مربوط بالغرض team_shift_start\"}",
+        "✗ Odoo still refusing after the retries: skipped as «تعذّر قراءة القالب من Odoo», not «لا قالب مربوط»"
+      ]
+    },
+    {
+      "part": "حي",
+      "name": "«خلاص» (a quotation word) a neighborhood",
+      "caught": true,
+      "fails": [
+        "✗ isNeighborhoodText: «خلاص», «خلاص جهزه», «تم», «تمام 👍», «السلام عليكم» no; «الملز», «حي النرجس» yes",
+        "✗ «خلاص» while the quotation waits for the location: not saved as the neighborhood (partner, order) — خلاص",
+        "✗ …the location is asked again, the quotation still waits for it — [{\"messaging_product\":\"whatsapp\",\"to\":\"966500000501\",\"type\":\"text\",\"text\":{\"body\":\"حفظنا الحي: خلاص ✅\\nلو تقدر ترسل موقعك من قوقل مابس (📎 → موقع → موقعي الحالي) بيوصلك السائق أدق مرة جاية 🌿\"}},{\"messaging_product\":\"whatsapp\",\"to\":\"966500000501\",\"type\":\"interactive\",\"interactive\":{\"type\":\"button\",\"body\":{\"text\":\"📄 الكوتيشن رقم UTAK-Q-20260927-001\\n• طماطم كرتون × 6\\n\\n📍 التوصيل إلى: خلاص\\nالأسعار النهائية عند التسليم. اختر:\"},\"action\":{\"buttons\":[{\"type\":\"reply\",\"reply\":{\"id\":\"confirm_order_10009\",\"title\":\"تأكيد الطلب ✅\"}},{\"type\":\"reply\",\"reply\":{\"id\":\"edit_order_10009\",\"title\":\"تعديل ✏️\"}},{\"type\":\"reply\",\"reply\":{\"id\":\"cancel_order_10009\",\"title\":\"إلغاء ❌\"}}]}}}]",
+        "✗ then «الملز»: saved, the pending cleared"
+      ]
+    },
+    {
+      "part": "حي",
+      "name": "a reply word («تم») a neighborhood",
+      "caught": true,
+      "fails": [
+        "✗ isNeighborhoodText: «خلاص», «خلاص جهزه», «تم», «تمام 👍», «السلام عليكم» no; «الملز», «حي النرجس» yes",
+        "✗ isNeighborhoodText: «خلاص», «خلاص جهزه», «تم», «تمام 👍», «السلام عليكم» no; «الملز», «حي النرجس» yes"
+      ]
+    },
+    {
+      "part": "سوق",
+      "name": "a refused offer not named («وصلتنا» only)",
+      "caught": true,
+      "fails": [
+        "✗ one of two offers refused (429 after the retries): «وصلتنا (1 صنف)» and «ما انحفظ: <the item>» — {\"rep\":\"وصلتنا أسعار السوق (1 صنف) 🌿 الله يعطيك العافية.\",\"offers\":[{\"x_name\":\"2026-09-27 · 2/21\",\"x_date\":\"2026-09-27\",\"x_source_partner_id\":603,\"x_source_employee_id\":7603,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_purchase_price\":0,\"x_market_price\":30,\"x_available_qty\":0,\"x_status\":\"valid\",\"x_purchase_outlier\":false,\"x_market_outlier\":false,\"x_daily_price_id\":false,\"x_source_message_id\":\"wamid.S1\",\"x_raw_text\":\"طماطم 24\\nخيار 30\",\"id\":10010}]}",
+        "✗ one of two offers refused (429 after the retries): «وصلتنا (1 صنف)» and «ما انحفظ: <the item>»"
+      ]
+    },
+    {
+      "part": "سوق",
+      "name": "a refused offer not collected",
+      "caught": true,
+      "fails": [
+        "✗ one of two offers refused (429 after the retries): «وصلتنا (1 صنف)» and «ما انحفظ: <the item>» — {\"rep\":\"وصلتنا أسعار السوق (1 صنف) 🌿 الله يعطيك العافية.\",\"offers\":[{\"x_name\":\"2026-09-27 · 2/21\",\"x_date\":\"2026-09-27\",\"x_source_partner_id\":603,\"x_source_employee_id\":7603,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_purchase_price\":0,\"x_market_price\":30,\"x_available_qty\":0,\"x_status\":\"valid\",\"x_purchase_outlier\":false,\"x_market_outlier\":false,\"x_daily_price_id\":false,\"x_source_message_id\":\"wamid.S1\",\"x_raw_text\":\"طماطم 24\\nخيار 30\",\"id\":10010}]}",
+        "✗ none saved: «ما انحفظت أسعارك … أرسلها مرة ثانية» (was: no reply, the message an ordinary one) — null",
+        "✗ one of two offers refused (429 after the retries): «وصلتنا (1 صنف)» and «ما انحفظ: <the item>»",
+        "✗ none saved: «ما انحفظت أسعارك … أرسلها مرة ثانية» (was: no reply, the message an ordinary one)"
+      ]
+    },
+    {
+      "part": "سوق",
+      "name": "none saved: no reply (the message an ordinary one)",
+      "caught": true,
+      "fails": [
+        "✗ none saved: «ما انحفظت أسعارك … أرسلها مرة ثانية» (was: no reply, the message an ordinary one) — null",
+        "✗ none saved: «ما انحفظت أسعارك … أرسلها مرة ثانية» (was: no reply, the message an ordinary one)"
       ]
     }
   ]

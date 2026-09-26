@@ -25,6 +25,8 @@ const TSA = "tests/sale-accounting.test.mts";
 const QT = "src/quotation.ts";
 const TXI = "src/tax-invoice.ts";
 const RT = "src/router.ts";
+const PIV = "src/purchase-invoice.ts";
+const IX = "src/index.ts";
 
 // [part, name, [[file, find, replace], …], test file]
 const M = [
@@ -124,6 +126,32 @@ const M = [
     "    ...(isVatApplicable(new Date(quotationDate.getTime() + 3 * 3600 * 1000).toISOString().slice(0, 10)) ? { vatInclusive: true } : {}),", ""]], T],
   ["د", "the quotation message without the VAT note from 10-01", [[RT,
     "  return isVatApplicable(riyadhDateKey()) ? \"الأسعار شاملة ضريبة القيمة المضافة.\" : \"\";", "  return \"\";"]], T],
+  // ---------------------------------------------------------------- هـ the purchase tax invoice
+  ["هـ", "no «أرسل صورة فاتورة الشراء الضريبية» after «تم الشراء»", [[RT,
+    "(${ordersMoved} توصيلة).\\n${PINV_ASK_TEXT}`;", "(${ordersMoved} توصيلة).`;"]], T],
+  ["هـ", "no 60-minute window opened by «تم الشراء»", [[RT,
+    "      if (partner?.id) await openPurchaseInvoiceWindow(env, partner.id, listId);\n", ""]], T],
+  ["هـ", "no 60-minute limit", [[PIV,
+    "  if (nowMs - p.at > PINV_WINDOW_MIN * MIN) {", "  if (false) {"]], T],
+  ["هـ", "a second file overwrites the first", [[PIV,
+    "  if (!list.x_tax_invoice_filename && !list.x_tax_invoice_at) {", "  if (true) {"]], T],
+  ["هـ", "no «وصلت الفاتورة ✅»", [[PIV,
+    "  return PINV_ACK_TEXT;\n}", "  return null;\n}"]], T],
+  ["هـ", "team media not routed to the purchase invoice", [[IX,
+    "            const ack = await handlePurchaseInvoiceMedia(env, teamMatch.id, msg.media!);", "            const ack = null as string | null; void handlePurchaseInvoiceMedia;"]], T],
+  ["هـ", "the 12:00 line before 12:00", [[PIV,
+    "  if (riyadhMinutes(new Date(nowMs)) < PINV_ALERT_MINUTE) return { action: \"before\" };\n", ""]], T],
+  ["هـ", "the 12:00 line every tick", [[PIV,
+    "claimButton(env, `pinv_alert:${day}`, 26 * 3600)", "claimButton(env, `pinv_alert:${day}:${Math.random()}`, 26 * 3600)"],
+    [PIV, "  try { if (await env.MSG_DEDUP.get(doneKey)) return { action: \"checked\" }; } catch { /* read Odoo */ }", "  try { if (false) return { action: \"checked\" }; } catch { /* read Odoo */ }"]], T],
+  ["هـ", "a simulation list chased", [[PIV,
+    "      [SIM_FIELD, \"!=\", true],\n      [\"x_tax_invoice_filename\", \"=\", false],", "      [\"x_tax_invoice_filename\", \"=\", false],"]], T],
+  ["هـ", "a list with its invoice (by hand) chased", [[PIV,
+    "      [\"x_tax_invoice_filename\", \"=\", false],\n", ""]], T],
+  ["هـ", "every old list chased (no 24-hour window)", [[PIV,
+    "      [\"x_ahmad_confirmed_at\", \">=\", toOdooUtc(noon - DAY_MS)],\n", ""]], T],
+  ["هـ", "the */5 tick does not run the 12:00 check", [[IX,
+    "            const pi = await checkPurchaseInvoices(withAutoSendJob(rawEnv, PINV_JOB), Date.now());", "            const pi = { action: \"skip\" }; void checkPurchaseInvoices; void withAutoSendJob; void PINV_JOB;"]], T],
 ];
 
 const want = new Set(process.argv.slice(2));

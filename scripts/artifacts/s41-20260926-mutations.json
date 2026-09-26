@@ -1,113 +1,128 @@
 {
-  "at": "2026-09-26T11:26:59.222Z",
-  "caught": 11,
-  "total": 11,
+  "at": "2026-09-26T11:30:37.905Z",
+  "caught": 12,
+  "total": 12,
   "results": [
     {
-      "part": "د",
-      "name": "«فاتورة ضريبية» for every tax invoice (no «مبسطة»)",
+      "part": "هـ",
+      "name": "no «أرسل صورة فاتورة الشراء الضريبية» after «تم الشراء»",
       "caught": true,
       "fails": [
-        "✗ the title «فاتورة ضريبية مبسطة» —  html, body { margin: 0; padding: 0; background: #F7F5F0; } * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } @page { size: A4; margin: 0; background: #F7F5F0; } @media print { html, body { background: #F7F5F0; } .utak-page { box-shadow: none !important; margin: 0 !important; break",
-        "✗ the title «فاتورة ضريبية مبسطة»"
+        "✗ the tapper's reply carries the line (inside his window: he just tapped) — تمام 👍 تم إرسال المسارات لـ 0 سواق (0 توصيلة).",
+        "✗ the tapper's reply carries the line (inside his window: he just tapped)"
       ]
     },
     {
-      "part": "د",
-      "name": "«مبسطة» even with the customer's VAT number",
+      "part": "هـ",
+      "name": "no 60-minute window opened by «تم الشراء»",
       "caught": true,
       "fails": [
-        "✗ the kind: a VAT number → «tax», none → «simplified»",
-        "✗ the title «فاتورة ضريبية» (not «مبسطة»)",
-        "✗ the kind: a VAT number → «tax», none → «simplified»",
-        "✗ the title «فاتورة ضريبية» (not «مبسطة»)"
+        "✗ 30 minutes later: the image on the list (x_tax_invoice, its name, x_tax_invoice_at 00:40 UTC) — {}",
+        "✗ …and he gets «وصلت الفاتورة ✅» — []",
+        "✗ a second file in the hour: kept as an attachment of the list, the first not overwritten — []",
+        "✗ 61 minutes after «تم الشراء»: not attached, no «وصلت» — []"
       ]
     },
     {
-      "part": "د",
-      "name": "the lines printed VAT-inclusive on a tax invoice",
+      "part": "هـ",
+      "name": "no 60-minute limit",
       "caught": true,
       "fails": [
-        "✗ the line net of VAT: 26.09 a unit, 5, 130.43 (not 30 / 150) — [{\"name\":\"طماطم\",\"pack\":\"كرتون\",\"qty\":5,\"price\":30,\"total\":150}]",
-        "✗ the line net of VAT: 26.09 a unit, 5, 130.43 (not 30 / 150)"
+        "✗ 61 minutes after «تم الشراء»: not attached, no «وصلت» — [\"وصلت الفاتورة ✅\"]",
+        "✗ 70 minutes (direct): null, nothing written",
+        "✗ 61 minutes after «تم الشراء»: not attached, no «وصلت»",
+        "✗ 70 minutes (direct): null, nothing written"
       ]
     },
     {
-      "part": "د",
-      "name": "the rounding carried by the total, not the VAT line",
+      "part": "هـ",
+      "name": "a second file overwrites the first",
       "caught": true,
       "fails": [
-        "✗ three lines of 10: nets 8.70 ×3 = 26.10, VAT 3.90 (30 × 15 ÷ 115 = 3.91; the halala on the VAT line), total still 30 — {\"lines\":[{\"unitNet\":8.7,\"net\":8.7},{\"unitNet\":8.7,\"net\":8.7},{\"unitNet\":8.7,\"net\":8.7}],\"subtotal\":26.1,\"discount\":0,\"tax\":3.91,\"nominalTax\":3.91,\"adjustment\":0,\"total\":30}",
-        "✗ …net − discount + VAT = total, exactly",
-        "✗ three lines of 10: nets 8.70 ×3 = 26.10, VAT 3.90 (30 × 15 ÷ 115 = 3.91; the halala on the VAT line), total still 30",
-        "✗ …net − discount + VAT = total, exactly"
+        "✗ a second file in the hour: kept as an attachment of the list, the first not overwritten — []",
+        "✗ 61 minutes after «تم الشراء»: not attached, no «وصلت» — []",
+        "✗ a second file in the hour: kept as an attachment of the list, the first not overwritten",
+        "✗ 61 minutes after «تم الشراء»: not attached, no «وصلت»"
       ]
     },
     {
-      "part": "د",
-      "name": "the issue time from create_date / the build time, not x_issued_at",
+      "part": "هـ",
+      "name": "no «وصلت الفاتورة ✅»",
       "caught": true,
       "fails": [
-        "✗ the issue date AND time printed (2026/10/01 08:40) — 2026/10/01 11:15",
-        "✗ QR: 3 the issue time ISO, Riyadh (2026-10-01T08:40:00 — the moment of «تم التسليم») — 2026-10-01T11:15:00",
-        "✗ the issue date AND time printed (2026/10/01 08:40)",
-        "✗ QR: 3 the issue time ISO, Riyadh (2026-10-01T08:40:00 — the moment of «تم التسليم»)"
+        "✗ …and he gets «وصلت الفاتورة ✅» — []",
+        "✗ a second file in the hour: kept as an attachment of the list, the first not overwritten — [{\"name\":\"صفحة-2.pdf\",\"raw\":\"/9j/4AECAwQFBgcI\",\"mimetype\":\"application/pdf\",\"res_model\":\"x_purchase_list\",\"res_id\":10007,\"id\":10018}]",
+        "✗ …and he gets «وصلت الفاتورة ✅»",
+        "✗ a second file in the hour: kept as an attachment of the list, the first not overwritten"
       ]
     },
     {
-      "part": "د",
-      "name": "no issue time printed",
+      "part": "هـ",
+      "name": "team media not routed to the purchase invoice",
       "caught": true,
       "fails": [
-        "✗ the issue date AND time printed (2026/10/01 08:40) — 2026/10/01",
-        "✗ the issue date AND time printed (2026/10/01 08:40)"
+        "✗ 30 minutes later: the image on the list (x_tax_invoice, its name, x_tax_invoice_at 00:40 UTC) — {}",
+        "✗ …and he gets «وصلت الفاتورة ✅» — []",
+        "✗ a second file in the hour: kept as an attachment of the list, the first not overwritten — []",
+        "✗ 61 minutes after «تم الشراء»: not attached, no «وصلت» — []"
       ]
     },
     {
-      "part": "د",
-      "name": "the seller's VAT number on an invoice before 10-01",
+      "part": "هـ",
+      "name": "the 12:00 line before 12:00",
       "caught": true,
       "fails": [
-        "✗ 09-30: «فاتورة», no VAT (x_tax_amount 0), no VAT number of the seller, no QR —  html, body { margin: 0; padding: 0; background: #F7F5F0; } * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } @page { size: A4; margin: 0; background: #F7F5F0; } @media print { html,",
-        "✗ 09-30: «فاتورة», no VAT (x_tax_amount 0), no VAT number of the seller, no QR"
+        "✗ 11:55: not yet",
+        "✗ 12:00: one line naming the list and its day — {\"a\":{\"action\":\"checked\"},\"al\":[\"⚠️ قائمة الشراء #10007 (30 سبتمبر 2026) مؤكدة بلا فاتورة شراء ضريبية مرفقة حتى 12:00. اطلبها من المستودع أو أرفقها في UTAK ← 🛒 المشتريات ← قوائم الشراء.\"]}",
+        "✗ 11:55: not yet",
+        "✗ 12:00: one line naming the list and its day"
       ]
     },
     {
-      "part": "د",
-      "name": "a zero discount row on a tax invoice",
+      "part": "هـ",
+      "name": "the 12:00 line every tick",
       "caught": true,
       "fails": [
-        "✗ no discount row when there is no discount",
-        "✗ no discount row when there is no discount"
+        "✗ the same day again (12:05, 18:00): no second line",
+        "✗ the next day: that list is not chased again (confirmed more than 24 h before) — {\"action\":\"none\"}",
+        "✗ the same day again (12:05, 18:00): no second line",
+        "✗ the next day: that list is not chased again (confirmed more than 24 h before)"
       ]
     },
     {
-      "part": "د",
-      "name": "VAT by the order's day, not the issue date",
+      "part": "هـ",
+      "name": "a simulation list chased",
       "caught": true,
       "fails": [
-        "✗ …and VAT by that day: 150 = 130.43 + 19.57 — {\"x_order_id\":10013,\"x_invoice_number\":\"UTAK-INV-20261001-001\",\"x_invoice_date\":\"2026-10-01\",\"x_subtotal\":150,\"x_tax_amount\":0,\"x_total\":150,\"x_status\":\"issued\",\"x_issued_at\":\"2026-09-30 23:30:00\",\"x_is_simulation\":true,\"id\":10017,\"x_invoice_sent_at\":\"2026-09-30 23:30:00\",\"x_sent_to_customer_at\":\"2026-09-30 23:30:00\",\"x_sent_to_collector_at\":\"2026-09-30 23:30:00\"}",
-        "✗ stored: total 150 (5 × 30 at the market price, no discount), VAT 19.57, net 130.43 — {\"x_order_id\":10011,\"x_invoice_number\":\"UTAK-INV-20261001-001\",\"x_invoice_date\":\"2026-10-01\",\"x_subtotal\":150,\"x_tax_amount\":0,\"x_total\":150,\"x_status\":\"issued\",\"x_issued_at\":\"2026-10-01 05:40:00\",\"x_is_simulation\":true,\"id\":10015,\"x_invoice_sent_at\":\"2026-10-01 05:40:00\",\"x_sent_to_customer_at\":\"2026-10-01 05:40:00\",\"x_sent_to_collector_at\":\"2026-10-01 05:40:00\"}",
-        "✗ the title «فاتورة ضريبية مبسطة» —  html, body { margin: 0; padding: 0; background: #F7F5F0; } * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } @page { size: A4; margin: 0; background: #F7F5F0; } @media print { html, body { background: #F7F5F0; } .utak-page { box-shadow: none !important; margin: 0 !important; break",
-        "✗ the seller's name and VAT number printed"
+        "✗ with the invoice attached (WhatsApp or by hand in Odoo), or a simulation list: no line — {\"r\":{\"action\":\"alerted\",\"lists\":[10016]},\"sim\":10016,\"manual\":10017}",
+        "✗ with the invoice attached (WhatsApp or by hand in Odoo), or a simulation list: no line"
       ]
     },
     {
-      "part": "د",
-      "name": "the quotation page without the VAT note from 10-01",
+      "part": "هـ",
+      "name": "a list with its invoice (by hand) chased",
       "caught": true,
       "fails": [
-        "✗ 10-01: vatInclusive, and the note on the page",
-        "✗ 10-01: vatInclusive, and the note on the page"
+        "✗ with the invoice attached (WhatsApp or by hand in Odoo), or a simulation list: no line — {\"r\":{\"action\":\"alerted\",\"lists\":[10017]},\"sim\":10016,\"manual\":10017}",
+        "✗ with the invoice attached (WhatsApp or by hand in Odoo), or a simulation list: no line"
       ]
     },
     {
-      "part": "د",
-      "name": "the quotation message without the VAT note from 10-01",
+      "part": "هـ",
+      "name": "every old list chased (no 24-hour window)",
       "caught": true,
       "fails": [
-        "✗ 10-01: the quotation message says «الأسعار شاملة ضريبة القيمة المضافة.» — 📄 الكوتيشن رقم UTAK-Q-20261001-002",
-        "✗ 10-01: the quotation message says «الأسعار شاملة ضريبة القيمة المضافة.»"
+        "✗ the next day: that list is not chased again (confirmed more than 24 h before) — {\"action\":\"alerted\",\"lists\":[10007]}",
+        "✗ the next day: that list is not chased again (confirmed more than 24 h before)"
+      ]
+    },
+    {
+      "part": "هـ",
+      "name": "the */5 tick does not run the 12:00 check",
+      "caught": true,
+      "fails": [
+        "✗ the */5 tick at 12:00 sends it",
+        "✗ the */5 tick at 12:00 sends it"
       ]
     }
   ]

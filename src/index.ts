@@ -197,6 +197,16 @@ export default {
           } catch (e) {
             console.error("[payconf tick] failed", (e as Error)?.message);
           }
+          // § 41 هـ — 12:00: a confirmed purchase list still without its
+          // purchase tax invoice → one line to Baraa that day.
+          try {
+            const { checkPurchaseInvoices, PINV_JOB } = await import("./purchase-invoice");
+            const { withAutoSendJob } = await import("./auto-send-guard");
+            const pi = await checkPurchaseInvoices(withAutoSendJob(rawEnv, PINV_JOB), Date.now());
+            if (pi.action === "alerted") console.log("[pinv tick]", JSON.stringify(pi));
+          } catch (e) {
+            console.error("[pinv tick] failed", (e as Error)?.message);
+          }
           // 2026-09-25 (STATUS § 37) — supplier payments: the dues of recent
           // confirmed purchase lists (a price that arrived later), and a
           // decided payment whose webhook was lost.
@@ -2255,6 +2265,12 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           const { handlePayMedia } = await import("./supplier-pay");
           const reply = await handlePayMedia(env, teamMatch, msg.media!, msg.messageId);
           if (reply) await sendFlowReply(env, msg.from, reply, ctx);
+          else {
+            // § 41 هـ — within 60 minutes of his «تم الشراء»: the purchase tax invoice
+            const { handlePurchaseInvoiceMedia } = await import("./purchase-invoice");
+            const ack = await handlePurchaseInvoiceMedia(env, teamMatch.id, msg.media!);
+            if (ack) await sendText(env, msg.from, ack, { ctx, purpose: "bot_reply" });
+          }
         } catch (e) {
           console.warn("[supplier-pay] receipt media failed", (e as Error)?.message);
         }

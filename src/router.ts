@@ -606,7 +606,10 @@ async function handleButton(
       if (list?.status === "done") return "القائمة مؤكدة من قبل ✅ والمسارات أُرسلت.";
       const { routesDispatched, ordersMoved } = await warehouseConfirmedPurchase(env, listId);
       if (partner?.id) await env.MSG_DEDUP.delete(`pending_purchase_issue:${partner.id}`).catch(() => {});
-      return `تمام 👍 تم إرسال المسارات لـ ${routesDispatched} سواق (${ordersMoved} توصيلة).`;
+      // § 41 هـ — the purchase tax invoice: his next 60 minutes of images / documents go to this list.
+      const { openPurchaseInvoiceWindow, PINV_ASK_TEXT } = await import("./purchase-invoice");
+      if (partner?.id) await openPurchaseInvoiceWindow(env, partner.id, listId);
+      return `تمام 👍 تم إرسال المسارات لـ ${routesDispatched} سواق (${ordersMoved} توصيلة).\n${PINV_ASK_TEXT}`;
     });
     // STATUS § 37 — the warehouse just bought: «💵 دفعت لمورد» under the reply.
     const { startButton } = await import("./supplier-pay");

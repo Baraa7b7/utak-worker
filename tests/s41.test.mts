@@ -19,6 +19,10 @@
 //       rounding on the VAT line), the total as paid; the ZATCA phase-1 QR
 //       decoded field by field. Before 10-01: «فاتورة», no VAT anything. The
 //       quotation from 10-01 says its prices include VAT.
+//   [هـ] the purchase tax invoice: after «تم الشراء» the tapper gets «📸 أرسل
+//       صورة فاتورة الشراء الضريبية»; an image / document from him within 60
+//       minutes is attached to the list («وصلت الفاتورة ✅»), after it not; a
+//       confirmed list without it at 12:00 → one line to Baraa that day.
 //   [سعر] found building [ج]: an order's lines are priced at the ORDER's day
 //       (the published price it was confirmed at), not the day the invoice is
 //       issued (delivery, the next morning, often before 06:00's list).
@@ -68,6 +72,7 @@ function known(model: string, name: string): boolean {
   return list.includes(f);
 }
 const harnessFetch = globalThis.fetch;
+const MEDIA_BYTES = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4, 5, 6, 7, 8]);
 /** What the fake extractor (Claude) answers: {prices, unrecognized}. */
 let extractOut: { prices: unknown[]; unrecognized: string[] } = { prices: [], unrecognized: [] };
 globalThis.fetch = (async (input: unknown, init?: any) => {
@@ -75,6 +80,10 @@ globalThis.fetch = (async (input: unknown, init?: any) => {
   if (url.includes("anthropic.com")) {
     return new Response(JSON.stringify({ content: [{ type: "text", text: JSON.stringify(extractOut) }] }), { status: 200 });
   }
+  // § 41 هـ — the purchase tax invoice photo at Meta (GET the media, then its bytes)
+  const mm = /graph\.facebook\.com\/[^/]+\/(PINV_[A-Z0-9]+)$/.exec(url);
+  if (mm) return new Response(JSON.stringify({ url: `https://media.test/${mm[1]}`, mime_type: mm[1].endsWith("PDF") ? "application/pdf" : "image/jpeg", file_size: MEDIA_BYTES.length }), { status: 200 });
+  if (url.startsWith("https://media.test/PINV_")) return new Response(MEDIA_BYTES, { status: 200 });
   const m = /\/json\/2\/([^/]+)\/([^/?]+)/.exec(url);
   if (m && init?.body && typeof init.body === "string") {
     const b = JSON.parse(init.body);
@@ -592,6 +601,92 @@ console.log("\n[د] the quotation from 10-01: «الأسعار شاملة ضري
   seed("x_daily_order_line", { x_order_id: open0, x_product_tmpl_id: 1, x_packaging_id: 11, x_quantity: 6, x_status: "pending" });
   const r09 = await say("خلاص");
   assert("09-30: no such line", !/شاملة ضريبة/.test(replyOf(r09)) && /الكوتيشن رقم/.test(replyOf(r09)), replyOf(r09));
+  assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
+}
+
+// ================================================================ [هـ]
+const PI = await import("../src/purchase-invoice.ts");
+const worker = (await import("../src/index.ts")).default;
+const { WH, WH_PHONE, signed: signedReq, inbound: inboundMsg } = await import("./wa-harness.mts");
+function collectingCtx(): any { const tasks: Promise<unknown>[] = []; return { tasks, waitUntil: (p: Promise<unknown>) => { tasks.push(p); }, passThroughOnException: () => {} }; }
+async function say(env: any, from: string, m: Record<string, unknown>): Promise<void> {
+  const c = collectingCtx();
+  await quiet(async () => { await worker.fetch(signedReq(inboundMsg(from, m)), env, c); await Promise.all(c.tasks); });
+}
+const whTexts = () => sentTo(WH_PHONE).map((b: any) => String(b?.text?.body ?? b?.interactive?.body?.text ?? ""));
+function listEnv(riyadh: string, listDate: string): { env: any; list: number } {
+  const env = fresh(riyadh); openWin(env, WH_PHONE);
+  const list = seed("x_purchase_list", { x_status: "sent", x_date: listDate, x_aggregated_items: "[]", x_utak_simulation: false });
+  return { env, list };
+}
+
+console.log("\n[هـ] «تم الشراء» → «📸 أرسل صورة فاتورة الشراء الضريبية»; an image within 60 minutes → attached, «وصلت الفاتورة ✅»");
+{
+  const { env, list } = listEnv("2026-10-01 03:10", "2026-09-30");
+  const r = await tapAs(env, `purchase_done_${list}`, WH);
+  assert("the tapper's reply carries the line (inside his window: he just tapped)", replyOf(r).includes(PI.PINV_ASK_TEXT), replyOf(r));
+  setRiyadh("2026-10-01 03:40");
+  await say(env, WH_PHONE, { type: "image", image: { id: "PINV_A1", mime_type: "image/jpeg" } });
+  const l = table("x_purchase_list").get(list)!;
+  assert("30 minutes later: the image on the list (x_tax_invoice, its name, x_tax_invoice_at 00:40 UTC)",
+    typeof l.x_tax_invoice === "string" && l.x_tax_invoice.length > 0 && /\.jpg$/.test(String(l.x_tax_invoice_filename)) && l.x_tax_invoice_at === "2026-10-01 00:40:00", JSON.stringify({ n: l.x_tax_invoice_filename, at: l.x_tax_invoice_at }));
+  assert("…and he gets «وصلت الفاتورة ✅»", whTexts().includes(PI.PINV_ACK_TEXT), JSON.stringify(whTexts()));
+  setRiyadh("2026-10-01 03:55");
+  await say(env, WH_PHONE, { type: "document", document: { id: "PINV_A2PDF", mime_type: "application/pdf", filename: "صفحة-2.pdf" } });
+  const att = rows("ir.attachment").filter((a: any) => a.res_model === "x_purchase_list" && a.res_id === list);
+  assert("a second file in the hour: kept as an attachment of the list, the first not overwritten",
+    att.length === 1 && att[0].name === "صفحة-2.pdf" && table("x_purchase_list").get(list)!.x_tax_invoice_filename === l.x_tax_invoice_filename && whTexts().filter((x) => x === PI.PINV_ACK_TEXT).length === 2, JSON.stringify(att));
+  setRiyadh("2026-10-01 04:11");
+  const n = whTexts().length;
+  await say(env, WH_PHONE, { type: "image", image: { id: "PINV_A3", mime_type: "image/jpeg" } });
+  assert("61 minutes after «تم الشراء»: not attached, no «وصلت»", rows("ir.attachment").filter((a: any) => a.res_model === "x_purchase_list").length === 1 && whTexts().length === n, JSON.stringify(whTexts().slice(n)));
+  assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
+}
+{
+  const { env, list } = listEnv("2026-10-01 03:10", "2026-09-30");
+  await tapAs(env, `purchase_done_${list}`, WH);
+  setRiyadh("2026-10-01 04:20");
+  const direct = await quiet(() => PI.handlePurchaseInvoiceMedia(env, WH, { id: "PINV_B1" }));
+  assert("70 minutes (direct): null, nothing written", direct === null && !table("x_purchase_list").get(list)!.x_tax_invoice);
+  const other = await quiet(() => PI.handlePurchaseInvoiceMedia(env, DRIVER, { id: "PINV_B2" }));
+  assert("another member who did not tap «تم الشراء»: null", other === null);
+}
+
+console.log("\n[هـ] 12:00: a confirmed list without its purchase tax invoice → one line to Baraa that day");
+{
+  const { env, list } = listEnv("2026-10-01 03:10", "2026-09-30");
+  await tapAs(env, `purchase_done_${list}`, WH);
+  const alerts = () => sentTo(OWNER).map((b: any) => String(b?.text?.body ?? "")).filter((x) => /بلا فاتورة شراء ضريبية/.test(x));
+  setRiyadh("2026-10-01 11:55");
+  assert("11:55: not yet", (await quiet(() => PI.checkPurchaseInvoices(env))).action === "before" && alerts().length === 0);
+  setRiyadh("2026-10-01 12:00");
+  const a = await quiet(() => PI.checkPurchaseInvoices(env));
+  assert("12:00: one line naming the list and its day", a.action === "alerted" && alerts().length === 1 && alerts()[0].includes(`#${list}`) && alerts()[0].includes("30 سبتمبر 2026"), JSON.stringify({ a, al: alerts() }));
+  setRiyadh("2026-10-01 12:05");
+  await quiet(() => PI.checkPurchaseInvoices(env));
+  setRiyadh("2026-10-01 18:00");
+  await quiet(() => PI.checkPurchaseInvoices(env));
+  assert("the same day again (12:05, 18:00): no second line", alerts().length === 1);
+  setRiyadh("2026-10-02 12:00");
+  const next = await quiet(() => PI.checkPurchaseInvoices(env));
+  assert("the next day: that list is not chased again (confirmed more than 24 h before)", next.action === "none" && alerts().length === 1, JSON.stringify(next));
+}
+{
+  const { env, list } = listEnv("2026-10-01 03:10", "2026-09-30");
+  await tapAs(env, `purchase_done_${list}`, WH);
+  setRiyadh("2026-10-01 03:30");
+  await say(env, WH_PHONE, { type: "image", image: { id: "PINV_C1", mime_type: "image/jpeg" } });
+  const sim = seed("x_purchase_list", { x_status: "done", x_date: "2026-09-30", x_aggregated_items: "[]", x_ahmad_confirmed_at: "2026-10-01 00:20:00", x_utak_simulation: true });
+  const manual = seed("x_purchase_list", { x_status: "done", x_date: "2026-09-30", x_aggregated_items: "[]", x_ahmad_confirmed_at: "2026-10-01 00:25:00", x_tax_invoice_filename: "يدوي.pdf", x_utak_simulation: false });
+  setRiyadh("2026-10-01 12:00");
+  const r = await quiet(() => PI.checkPurchaseInvoices(env));
+  assert("with the invoice attached (WhatsApp or by hand in Odoo), or a simulation list: no line", r.action === "none" && !sentTo(OWNER).some((b: any) => /بلا فاتورة شراء ضريبية/.test(String(b?.text?.body ?? ""))), JSON.stringify({ r, sim, manual }));
+  // the tick itself runs it
+  const env2 = listEnv("2026-10-01 03:10", "2026-09-30");
+  await tapAs(env2.env, `purchase_done_${env2.list}`, WH);
+  setRiyadh("2026-10-01 12:00");
+  await quiet(() => worker.scheduled({ cron: "*/5 * * * *", scheduledTime: Date.now() } as any, env2.env, collectingCtx()));
+  assert("the */5 tick at 12:00 sends it", sentTo(OWNER).some((b: any) => /بلا فاتورة شراء ضريبية/.test(String(b?.text?.body ?? ""))));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 

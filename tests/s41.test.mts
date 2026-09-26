@@ -29,6 +29,9 @@
 //       reference, not a supplier ask, not an attendance row, not the day's
 //       purchase list, not one of the day's orders; and a simulation run
 //       (SIM_RUN_ID + SIMULATION_MODE) posts nothing to the Discuss channels.
+//   [موقع] found by the full-day simulation: while an order waits for its
+//       location, a text with a number in it («رمان وسط 5») is an order line,
+//       never saved as the neighborhood.
 //   [سعر] found building [ج]: an order's lines are priced at the ORDER's day
 //       (the published price it was confirmed at), not the day the invoice is
 //       issued (delivery, the next morning, often before 06:00's list).
@@ -81,10 +84,16 @@ const harnessFetch = globalThis.fetch;
 const MEDIA_BYTES = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4, 5, 6, 7, 8]);
 /** What the fake extractor (Claude) answers: {prices, unrecognized}. */
 let extractOut: { prices: unknown[]; unrecognized: string[] } = { prices: [], unrecognized: [] };
+/** What the fake classifier / order extractor answer ([موقع]). */
+let claudeIntent = "other";
+let claudeOrder: unknown[] = [];
 globalThis.fetch = (async (input: unknown, init?: any) => {
   const url = typeof input === "string" ? input : (input as any)?.url ?? String(input);
   if (url.includes("anthropic.com")) {
-    return new Response(JSON.stringify({ content: [{ type: "text", text: JSON.stringify(extractOut) }] }), { status: 200 });
+    const sys = String(JSON.parse(String(init?.body ?? "{}")).system ?? "");
+    const out = /classify UTAK WhatsApp messages/.test(sys) ? { intent: claudeIntent, confidence: 0.9 }
+      : /extract structured order items/.test(sys) ? claudeOrder : extractOut;
+    return new Response(JSON.stringify({ content: [{ type: "text", text: JSON.stringify(out) }] }), { status: 200 });
   }
   // § 41 هـ — the purchase tax invoice photo at Meta (GET the media, then its bytes)
   const mm = /graph\.facebook\.com\/[^/]+\/(PINV_[A-Z0-9]+)$/.exec(url);
@@ -822,6 +831,40 @@ console.log("\n[عزل] a simulation run (SIM_RUN_ID + SIMULATION_MODE): the row
   await quiet(() => META.sendText(env, "+" + C1_PHONE, "نص عادي", { purpose: "bot_reply" }));
   const row2 = rows("x_wa_message").find((r: any) => /نص عادي/.test(String(r.x_body ?? "")));
   assert("without it (the deployed sim worker): the Discuss line as always", !!row2 && row2.x_echo_status !== "none", JSON.stringify(row2));
+}
+
+// ================================================================ [موقع]
+const IX = await import("../src/index.ts");
+console.log("\n[موقع] a pending location: a text with a number is an order line, not the neighborhood");
+{
+  assert("hasDigits: «رمان وسط 5», «رمان ٥» yes; «العليا» no", IX.hasDigits("رمان وسط 5") && IX.hasDigits("رمان ٥") && !IX.hasDigits("العليا"));
+  assert("isNeighborhoodText: «العليا» yes; «رمان وسط 5», «ا», 61 characters no", IX.isNeighborhoodText("العليا") && !IX.isNeighborhoodText("رمان وسط 5") && !IX.isNeighborhoodText("ا") && !IX.isNeighborhoodText("ع".repeat(61)));
+  const env = fresh("2026-09-27 21:08"); openWin(env, C1_PHONE);
+  const o = seed("x_daily_order", { x_customer_id: C1, x_state: "confirmed", x_order_date: "2026-09-27", x_created_via: "whatsapp" });
+  env.MSG_DEDUP.store.set(`pending_neighborhood:${C1}`, `loc:${o}`);
+  claudeIntent = "place_order"; claudeOrder = [{ product_id: 1, packaging_id: 11, quantity: 5, product_name_raw: "طماطم" }];
+  await say(env, C1_PHONE, { type: "text", text: { body: "طماطم 5" } });
+  const p = table("res.partner").get(C1)!;
+  assert("a confirmed order waiting for its location: «طماطم 5» is NOT saved as the neighborhood", p.x_delivery_neighborhood !== "طماطم 5" && table("x_daily_order").get(o)!.x_delivery_neighborhood !== "طماطم 5", String(p.x_delivery_neighborhood));
+  assert("…the location still pending", env.MSG_DEDUP.store.get(`pending_neighborhood:${C1}`) === `loc:${o}`);
+  assert("…and the bot handled it as an order (the closed-hours «سجّله لبكرة» offer)", sentTo(C1_PHONE).some((b: any) => /سجّله لبكرة|طلبات بكرة/.test(JSON.stringify(b))), JSON.stringify(sentTo(C1_PHONE).slice(-2)));
+  claudeIntent = "other";
+  await say(env, C1_PHONE, { type: "text", text: { body: "العليا" } });
+  assert("then «العليا»: saved as the neighborhood, the pending cleared", table("res.partner").get(C1)!.x_delivery_neighborhood === "العليا" && !env.MSG_DEDUP.store.get(`pending_neighborhood:${C1}`));
+}
+{
+  const env = fresh("2026-09-27 10:00"); openWin(env, C1_PHONE); publishedTomato("2026-09-27");
+  const { ORDERING_OPEN_KEY } = await import("../src/config.ts");
+  env.MSG_DEDUP.store.set(ORDERING_OPEN_KEY("2026-09-27"), "true");   // opened at 06:00 (the 06:00 cron)
+  const o = seed("x_daily_order", { x_customer_id: C1, x_state: "draft", x_order_date: "2026-09-27", x_created_via: "whatsapp" });
+  seed("x_daily_order_line", { x_order_id: o, x_product_tmpl_id: 1, x_packaging_id: 11, x_quantity: 6, x_status: "pending" });
+  env.MSG_DEDUP.store.set(`pending_neighborhood:${C1}`, String(o));
+  claudeIntent = "add_to_order"; claudeOrder = [{ product_id: 2, packaging_id: 21, quantity: 3, product_name_raw: "خيار" }];
+  await say(env, C1_PHONE, { type: "text", text: { body: "خيار 3" } });
+  assert("a quotation waiting for the location: «خيار 3» is not the neighborhood", table("res.partner").get(C1)!.x_delivery_neighborhood !== "خيار 3");
+  assert("…it is added to the order", rows("x_daily_order_line").some((l: any) => l.x_order_id === o && l.x_product_tmpl_id === 2 && l.x_quantity === 3), JSON.stringify(rows("x_daily_order_line")));
+  assert("…and the quotation still waits for the location", env.MSG_DEDUP.store.get(`pending_neighborhood:${C1}`) === String(o));
+  claudeIntent = "other"; claudeOrder = [];
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

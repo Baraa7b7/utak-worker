@@ -2638,7 +2638,10 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         continue;
       }
       const neigh = msg.text.trim();
-      if (neigh.length >= 2 && neigh.length <= 60) {
+      // § 41 و (found by the full-day simulation) — a text with a number in it
+      // is an order («رمان وسط 5»), never a neighborhood: it goes on to the
+      // bot below and the location stays pending (it was saved as the district).
+      if (isNeighborhoodText(neigh)) {
         await savePartnerNeighborhood(env, partner.id, neigh);
         await setOrderNeighborhood(env, orderId, neigh);
         await env.MSG_DEDUP.delete(pendingKey);
@@ -2667,9 +2670,11 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         continue;
       }
 
-      if (msg.type === "text") {
+      if (msg.type === "text" && !hasDigits(msg.text)) {
+        // § 41 و — a text with a number is an order line (it goes on to the bot
+        // and the quotation still waits for the location), not a neighborhood.
         const neigh = msg.text.trim();
-        if (neigh.length >= 2 && neigh.length <= 60) {
+        if (isNeighborhoodText(neigh)) {
           await savePartnerNeighborhood(env, partner.id, neigh);
           await setOrderNeighborhood(env, orderId, neigh);
           await env.MSG_DEDUP.delete(pendingKey);
@@ -2859,4 +2864,14 @@ export async function handleCustomerMedia(
     `${msg.type === "audio" ? "🎤" : "📎"} ${kind} من عميل: ${who} (${msg.from})${caption}. رددنا عليه بأنها وصلت وسيتابعها الفريق؛ افتح محادثته في Discuss.`,
   );
   return true;
+}
+
+/** § 41 و — Latin or Arabic-Indic digits: a quantity, so an order line, not a place. */
+export function hasDigits(text: string): boolean {
+  return /[0-9\u0660-\u0669\u06F0-\u06F9]/.test(String(text ?? ""));
+}
+/** § 41 و — a text that can be a neighborhood name: 2–60 characters, no number. */
+export function isNeighborhoodText(text: string): boolean {
+  const t = String(text ?? "").trim();
+  return t.length >= 2 && t.length <= 60 && !hasDigits(t);
 }

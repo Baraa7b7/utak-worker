@@ -202,6 +202,11 @@ const M = [
     "  const echo = !rec.noEcho && !!partner && !isSimRun(env);", "  const echo = !rec.noEcho && !!partner;"]], T],
   ["عزل", "a simulation run: a channel found by name (the review channel) still posted", [[WI,
     "  if (isSimRun(env)) return false;\n  try {", "  try {"]], T],
+  // ---------------------------------------------------------------- موقع a pending location (found by the simulation)
+  ["موقع", "a text with a number saved as the neighborhood (confirmed order)", [[IX,
+    "  return t.length >= 2 && t.length <= 60 && !hasDigits(t);", "  return t.length >= 2 && t.length <= 60;"]], T],
+  ["موقع", "a text with a number caught by the quotation's location wait", [[IX,
+    "      if (msg.type === \"text\" && !hasDigits(msg.text)) {", "      if (msg.type === \"text\") {"]], T],
 ];
 
 const want = new Set(process.argv.slice(2));

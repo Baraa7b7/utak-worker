@@ -213,6 +213,9 @@ const nameOf = (phone: string) => Object.values(C).find((c) => c.phone === phone
 const say = (from: string, text: string) => webhook(worker, env, from, { type: "text", text: { body: text } }, nameOf(from));
 const tap = (from: string, id: string, title = "x") => webhook(worker, env, from, { type: "interactive", interactive: { type: "button_reply", button_reply: { id, title } } }, nameOf(from));
 const tapTpl = (from: string, payload: string, text = "x") => webhook(worker, env, from, { type: "button", button: { payload, text } }, nameOf(from));
+/** § 42 ب — the choice under «نقد» / «تحويل»: the latest «المبلغ كامل» / «مبلغ آخر» button sent to `to`. */
+const lastChoice = (to: string, which: "full" | "other"): string =>
+  allTo(to).flatMap((m) => buttonIds(m)).filter((id) => id.startsWith(`collect_${which}_`)).at(-1) ?? "";
 const shareLocation = (from: string, name: string) => webhook(worker, env, from, { type: "location", location: { latitude: 24.71, longitude: 46.67, name } }, nameOf(from));
 const photo = (from: string, id: string) => webhook(worker, env, from, { type: "image", image: { id, mime_type: "image/jpeg" } }, nameOf(from));
 const tick = () => cron(worker, env, "*/5 * * * *");
@@ -475,6 +478,8 @@ await step("«تم التسليم» بقالة الريان", "13:10", async () 
 await step("تحصيل كامل نقداً (مطعم الواحة) ← الإيصال", "13:30", async () => {
   const inv = await invoiceOfOrder(c1Order);
   await tapTpl(TEAM.omar, `collect_cash_${inv.id}`, "نقد 💵");
+  check("§ 42 ب: «نقد» يسأل «المبلغ كامل» / «مبلغ آخر» ولا يسجّل شيئاً", !!lastChoice(TEAM.omar, "full") && (await sr<any>("x_payment", [["x_invoice_id", "=", inv.id]], ["id"])).length === 0);
+  await tap(TEAM.omar, lastChoice(TEAM.omar, "full"), "المبلغ كامل");
   const [pay] = await sr<any>("x_payment", [["x_invoice_id", "=", inv.id]], ["id", "x_amount", "x_method"], { order: "id desc", limit: 1 });
   check("دفعة 228 نقداً والفاتورة مدفوعة", pay?.x_amount === 228 && (await invoiceOfOrder(c1Order))?.x_status === "paid", JSON.stringify(pay));
   payments.push({ invoice: inv.x_invoice_number, amount: pay?.x_amount, method: "cash", at: nowRiyadh() });
@@ -488,7 +493,12 @@ await step("…تأكيد الدفعة للعميل", "13:31", async () => {
 });
 await step("تحصيل جزئي تحويلاً (بقالة الريان) ← الإيصال والمتبقي", "14:00", async () => {
   const inv = await invoiceOfOrder(c2Order);
-  const r = await INV.recordCollection(env, { invoiceId: inv.id, method: "transfer", amount: 100 });
+  // § 42 ب — from WhatsApp now: «تحويل» ← «مبلغ آخر» ← «100»
+  await tapTpl(TEAM.omar, `collect_transfer_${inv.id}`, "تحويل 🏦");
+  await tap(TEAM.omar, lastChoice(TEAM.omar, "other"), "مبلغ آخر");
+  await say(TEAM.omar, "١٠٠");
+  const [p100] = await sr<any>("x_payment", [["x_invoice_id", "=", inv.id]], ["id", "x_amount"], { order: "id desc", limit: 1 });
+  const r = { paymentId: p100?.id ?? null, fullyPaid: (await invoiceOfOrder(c2Order))?.x_status === "paid", amount: p100?.x_amount };
   payments.push({ invoice: inv.x_invoice_number, amount: 100, method: "transfer", at: nowRiyadh() });
   check("دفعة 100 تحويلاً، والفاتورة باقية «صادرة» (المتبقي 65)", r.paymentId && !r.fullyPaid && (await invoiceOfOrder(c2Order))?.x_status === "issued", JSON.stringify(r));
   await internal(worker, env, "/internal/receipt-issue", { _model: "x_payment", _id: r.paymentId });
@@ -669,13 +679,19 @@ await step("12:00: قائمة 09-30 مؤكدة بلا فاتورة شراء ← 
 });
 await step("تحصيل كامل نقداً (مطعم الواحة، الفاتورة الضريبية)", "13:00", async () => {
   await tapTpl(TEAM.omar, `collect_cash_${tax1001.id}`, "نقد 💵");
+  await tap(TEAM.omar, lastChoice(TEAM.omar, "full"), "المبلغ كامل");
   const [pay] = await sr<any>("x_payment", [["x_invoice_id", "=", tax1001.id]], ["id", "x_amount"], { order: "id desc", limit: 1 });
   await internal(worker, env, "/internal/receipt-issue", { _model: "x_payment", _id: pay?.id });
   check("190 نقداً، مدفوعة", pay?.x_amount === 190 && (await invoiceOfOrder(c1Order0930))?.x_status === "paid", JSON.stringify(pay));
   payments.push({ invoice: tax1001.x_invoice_number, amount: pay?.x_amount, method: "cash", at: nowRiyadh() });
 });
 await step("تحصيل جزئي تحويلاً (بقالة الريان، الفاتورة الضريبية) ← الإيصال والمتبقي 83", "13:20", async () => {
-  const r = await INV.recordCollection(env, { invoiceId: tax1001b.id, method: "transfer", amount: 100 });
+  // § 42 ب — «تحويل» ← «مبلغ آخر» ← «100»
+  await tapTpl(TEAM.omar, `collect_transfer_${tax1001b.id}`, "تحويل 🏦");
+  await tap(TEAM.omar, lastChoice(TEAM.omar, "other"), "مبلغ آخر");
+  await say(TEAM.omar, "100");
+  const [p100] = await sr<any>("x_payment", [["x_invoice_id", "=", tax1001b.id]], ["id", "x_amount"], { order: "id desc", limit: 1 });
+  const r = { paymentId: p100?.id ?? null, fullyPaid: (await invoiceOfOrder(c2Order0930))?.x_status === "paid", amount: p100?.x_amount };
   payments.push({ invoice: tax1001b.x_invoice_number, amount: 100, method: "transfer", at: nowRiyadh() });
   await internal(worker, env, "/internal/receipt-issue", { _model: "x_payment", _id: r.paymentId });
   check("دفعة 100، والفاتورة باقية «صادرة» (83 متبقٍ)", !!r.paymentId && !r.fullyPaid && (await invoiceOfOrder(c2Order0930))?.x_status === "issued", JSON.stringify(r));

@@ -273,9 +273,12 @@ console.log("\n[م10] the collection button sends the customer nothing of its ow
   const env = fresh();
   const inv = invoice(100);
   openWindow(env, COLL_PHONE, 5); openWindow(env, CUST_PHONE, 5);
-  const tapCollect = () => quiet(() => worker.fetch(signed(inbound(COLL_PHONE, { type: "interactive", interactive: { type: "button_reply", button_reply: { id: `collect_cash_${inv}`, title: "نقد 💵" } } })), env, harnessCtx));
-  await tapCollect();
-  await tapCollect();
+  const tapId = (id: string) => quiet(() => worker.fetch(signed(inbound(COLL_PHONE, { type: "interactive", interactive: { type: "button_reply", button_reply: { id, title: "x" } } })), env, harnessCtx));
+  // § 42 ب — «نقد» asks «المبلغ كامل» / «مبلغ آخر»; «المبلغ كامل» records (twice tapped: once)
+  await tapId(`collect_cash_${inv}`);
+  const full = sentTo(COLL_PHONE).map((b) => String(b.interactive?.action?.buttons?.[0]?.reply?.id ?? "")).filter((id) => id.startsWith("collect_full_")).at(-1)!;
+  await tapId(full);
+  await tapId(full);
   assert("one payment for two taps (ح8)", rows("x_payment").length === 1, String(rows("x_payment").length));
   assert("new: nothing to the customer from the collection itself (no «تم استلام الدفعة»)", sentTo(CUST_PHONE).length === 0, JSON.stringify(texts(CUST_PHONE)));
 }

@@ -15,6 +15,10 @@ const T = "tests/s42.test.mts";
 const SP = "src/supplier-pay.ts";
 const CM = "src/cash-market.ts";
 const GW = "src/wa-gateway.ts";
+const RT = "src/router.ts";
+const CP = "src/collect-pay.ts";
+const INV = "src/invoice.ts";
+const IX = "src/index.ts";
 
 // [part, name, [[file, find, replace], …], test file]
 export const M = [
@@ -50,6 +54,58 @@ export const M = [
   ["أ", "the gateway matches the exact digits only (0500… vs 966500…)", [[CM,
     "  return nums.some((n) => n === d || (n.length >= 9 && d.length >= 9 && n.slice(-9) === d.slice(-9)));",
     "  return nums.some((n) => n === d);"]], T],
+  // ---------------------------------------------------------------- ب the partial collection from WhatsApp
+  ["ب", "«نقد» records the whole balance at once (§ 41)", [[RT,
+    "      reply = await askCollection(env, Number(mCollect[2]), mCollect[1] as \"cash\" | \"transfer\", collectorOf(partner));",
+    "      reply = { text: (await (await import(\"./invoice\")).recordCollection(env, { invoiceId: Number(mCollect[2]), method: mCollect[1] as \"cash\" | \"transfer\" })).text };"]], T],
+  ["ب", "«نقد» / «تحويل» without the short lock (a double tap: two prompts)", [[RT,
+    "withButtonLock(env, `collect_ask:${mCollect[2]}`, async () => {", "withButtonLock(env, `collect_ask:${mCollect[2]}:${Math.random()}`, async () => {"]], T],
+  ["ب", "«المبلغ كامل» without its lock (two taps at once: two payments)", [[CP,
+    "  const text = await withButtonLock(env, cpRecLock(invoiceId, promptNonce), async () => {",
+    "  const text = await withButtonLock(env, cpRecLock(invoiceId, promptNonce) + Math.random(), async () => {"]], T],
+  ["ب", "the recording lock per invoice, not per prompt (the rest never collected)", [[CP,
+    "export const cpRecLock = (invoiceId: number, nonce: string): string => `collect_rec:${invoiceId}:${nonce}`;",
+    "export const cpRecLock = (invoiceId: number, nonce: string): string => `collect_rec:${invoiceId}`;"]], T],
+  ["ب", "an amount without its lock (two texts at once: two payments)", [[CP,
+    "  const claim = await claimButton(env, cpRecLock(ptr.invoiceId, ptr.nonce));",
+    "  const claim = await claimButton(env, cpRecLock(ptr.invoiceId, ptr.nonce) + Math.random());"]], T],
+  ["ب", "more than the balance cut down to it and recorded", [[INV,
+    "  if (amount > remaining + 0.005 && a.exact) {", "  if (false) {"]], T],
+  ["ب", "two numbers: the first one taken", [[CP,
+    "  if (values.length > 1) return { kind: \"many\" };\n", ""]], T],
+  ["ب", "Arabic-Indic digits not read", [[CP,
+    "    .replace(/[٠-٩۰-۹]/g, (d) => DIGITS[d] ?? d)\n", ""]], T],
+  ["ب", "zero or a signed number taken as an amount", [[CP,
+    "  if (!(v > 0) || dec > 2 || v > CP_MAX_AMOUNT) return { kind: \"none\" };", "  if (dec > 2 || v > CP_MAX_AMOUNT) return { kind: \"none\" };"]], T],
+  ["ب", "the 30 minutes not enforced (an amount after them recorded)", [[CP,
+    "  if (now - ptr.at > CP_WAIT_MIN * MIN) { await clearAmountPointer(env, who.id); return null; }\n", ""]], T],
+  ["ب", "the pointer kept after the recording (his next number «تم مسبقاً»)", [[CP,
+    "  if (ptr && ptr.invoiceId === invoiceId) await clearAmountPointer(env, partnerId);\n", ""]], T],
+  ["ب", "«مبلغ آخر» leaves an open supplier-payment flow first in line", [[CP,
+    "`pending_collect_note:${who.id}`, flowKey(who.id)]", "`pending_collect_note:${who.id}`]"]], T],
+  ["ب", "the amount text never read (index.ts)", [[IX,
+    "      } else if (msg.type === \"text\" && (collectReply = await import(\"./collect-pay\")",
+    "      } else if (false && msg.type === \"text\" && (collectReply = await import(\"./collect-pay\")"]], T],
+  ["ب", "a stale prompt's «مبلغ آخر» after its recording goes on", [[CP,
+    "  if (await lockTaken(env, cpRecLock(invoiceId, promptNonce))) return { text: ALREADY_DONE_TEXT };\n", ""]], T],
+  ["ب", "the reminder before the 30 minutes", [[CP,
+    "        if (now - st.at < CP_WAIT_MIN * MIN) { out.push({ invoiceId, action: \"waiting\" }); continue; }\n", ""]], T],
+  ["ب", "the reminder never marked (so Baraa's alert never comes)", [[CP,
+    "        await writePending(env, { ...st, remindedAt: now });", "        await writePending(env, { ...st });"]], T],
+  ["ب", "Baraa's alert timed from the reminder, not from his last step", [[CP,
+    "      if (now - Math.max(st.at, st.remindedAt) < CP_WAIT_MIN * MIN)", "      if (now - st.remindedAt < CP_WAIT_MIN * MIN)"]], T],
+  ["ب", "Baraa's alert not once (no mark, no claim, a job per tick)", [[CP,
+    "      if (claim.claimed) {\n        const { withAutoSendJob } = await import(\"./auto-send-guard\");\n        await sendOwnerAlert(withAutoSendJob(env, `collect_alert:${invoiceId}:${st.nonce}`), ownerAlertText(st, remaining));",
+    "      if (true) {\n        const { withAutoSendJob } = await import(\"./auto-send-guard\");\n        await sendOwnerAlert(withAutoSendJob(env, `collect_alert:${invoiceId}:${now}`), ownerAlertText(st, remaining) + ` ${now}`);"], [CP,
+    "      await writePending(env, { ...st, alertedAt: now });\n      await dropIndex(env, invoiceId);\n", ""]], T],
+  ["ب", "a paid invoice still reminded", [[CP,
+    "      if (!inv || inv.status === \"paid\" || !(remaining > 0.005)) {", "      if (!inv) {"]], T],
+  ["ب", "the */5 cron without the collection tick", [[IX,
+    "            const cp = await runCollectPayTick(env, Date.now());", "            const cp: Array<{ action: string }> = []; void runCollectPayTick;"]], T],
+  ["ب", "a partial's account.payment at the whole balance", [[INV,
+    "        invoiceNumber: invoice.number,\n        amount,\n        method,", "        invoiceNumber: invoice.number,\n        amount: remaining,\n        method,"]], T],
+  ["ب", "the full button's title past Meta's 20 characters (cut by Meta's cap)", [[CP,
+    "].find((t) => t.length <= 20)!;", "][0];"]], T],
 ];
 
 if (import.meta.url === `file://${process.argv[1]}`) {

@@ -210,6 +210,15 @@ export default {
           } catch (e) {
             console.error("[pinv tick] failed", (e as Error)?.message);
           }
+          // § 42 ب — a collection left without «المبلغ كامل» / an amount: the
+          // collector's one reminder at 30 minutes, Baraa's one alert 30 after it.
+          try {
+            const { runCollectPayTick } = await import("./collect-pay");
+            const cp = await runCollectPayTick(env, Date.now());
+            if (cp.some((r) => r.action !== "waiting")) console.log("[collect-pay tick]", JSON.stringify(cp));
+          } catch (e) {
+            console.error("[collect-pay tick] failed", (e as Error)?.message);
+          }
           // 2026-09-25 (STATUS § 37) — supplier payments: the dues of recent
           // confirmed purchase lists (a price that arrived later), and a
           // decided payment whose webhook was lost.
@@ -2345,6 +2354,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       const att = await attendanceHold(env, teamMember.id);
       if (!att.hold) await flushTeamQueue(env, msg.from);
 
+      let collectReply: RouterReply | null = null;
       if (isButton && msg.buttonId!.startsWith("sp_")) {
         // STATUS § 37 — «💵 دفعت لمورد»: the supplier, then «تخطي» the receipt.
         const { handlePayButton } = await import("./supplier-pay");
@@ -2368,6 +2378,14 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           return { text: "تعذّر تسجيل الدفعة الآن. جرّب بعد قليل، أو أرسلها لبراء نصاً." };
         });
         if (reply) await sendFlowReply(env, msg.from, reply, ctx);
+      } else if (msg.type === "text" && (collectReply = await import("./collect-pay").then((m) => m.collectAmountReply(env,
+        { id: teamMember.id, name: teamMember.name, whatsapp: String(teamMember.x_whatsapp_number || msg.from) }, msg.text))
+        .catch((e) => {
+          console.warn("[collect-pay] amount failed", (e as Error)?.message);
+          return { text: "تعذّر تسجيل التحصيل الآن. جرّب بعد قليل، أو أرسله لبراء نصاً." } as RouterReply;
+        }))) {
+        // § 42 ب — the amount after «مبلغ آخر» (30 minutes): recorded, refused over the balance, or asked again.
+        await sendReply(env, msg.from, collectReply, ctx);
       } else if (msg.type === "text") {
         const pendingKey = `pending_issue:${teamMember.id}`;
         const pendingOrderId = await env.MSG_DEDUP.get(pendingKey);

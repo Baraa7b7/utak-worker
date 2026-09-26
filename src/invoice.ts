@@ -518,6 +518,11 @@ export interface CollectionResult {
   text: string;
 }
 
+/**
+ * The full balance at once. § 42 ب: not the «نقد» / «تحويل» tap any more (it
+ * asks «المبلغ كامل» / «مبلغ آخر» first, src/collect-pay.ts); kept for the
+ * scripts that record a collection directly.
+ */
 export async function handleCollectionButton(
   env: Env,
   buttonId: string,
@@ -535,14 +540,21 @@ export async function handleCollectionButton(
 export interface CollectionArgs {
   invoiceId: number;
   method: "cash" | "transfer";
-  /** Defaults to the open balance (the button always collects in full). */
+  /** Defaults to the open balance («المبلغ كامل»). */
   amount?: number;
   collectedBy?: number | null;
+  /**
+   * § 42 ب — the amount the collector typed («مبلغ آخر»): more than the open
+   * balance is refused (overLimit, nothing recorded) instead of cut down to it.
+   */
+  exact?: boolean;
 }
 
 export interface CollectionOutcome extends CollectionResult {
   paymentId: number | null;
   fullyPaid: boolean;
+  /** § 42 ب — the typed amount was more than the open balance (exact): nothing recorded. */
+  overLimit?: { remaining: number };
 }
 
 /**
@@ -575,6 +587,9 @@ export async function recordCollection(
   let amount = a.amount ?? remaining;
   if (!(amount > 0) || !(remaining > 0)) {
     return { text: `لا يوجد مبلغ متبقٍ للتحصيل على الفاتورة ${invoice.number}.`, paymentId: null, fullyPaid: remaining <= 0 };
+  }
+  if (amount > remaining + 0.005 && a.exact) {
+    return { text: `المتبقي ${remaining} ر.س فقط على الفاتورة ${invoice.number}.`, paymentId: null, fullyPaid: false, overLimit: { remaining } };
   }
   if (amount > remaining) amount = remaining;
   amount = round2(amount);

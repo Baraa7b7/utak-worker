@@ -420,7 +420,11 @@ console.log("\n[8] the receipt: utak_payment_received outside the window (§ 39 
   const o = order(CUST, "delivered", "2026-09-26");
   const inv = seed("x_invoice", { x_invoice_number: "UTAK-INV-20260926-007", x_total: 60, x_status: "issued", x_order_id: o, x_invoice_date: "2026-09-26" });
   openWindow(env4, COLL_PHONE, 5);
+  // § 42 ب — «نقد» asks «المبلغ كامل» / «مبلغ آخر»; «المبلغ كامل» records
+  const fullOf = (to: string) => sentTo(to).filter((b) => b.type === "interactive")
+    .map((b) => String(b.interactive?.action?.buttons?.[0]?.reply?.id ?? "")).filter((id) => id.startsWith("collect_full_")).at(-1)!;
   await button(env4, COLL_PHONE, `collect_cash_${inv}`, "نقد 💵");
+  await button(env4, COLL_PHONE, fullOf(COLL_PHONE), "المبلغ كامل");
   assert("collection recorded (x_payment)", rows("x_payment").length === 1);
   assert("the collection sends the customer nothing of its own: no text, nothing held, no «skipped» ack row",
     sentTo(CUST_PHONE).length === 0 && heldFor(env4, CUST_PHONE).length === 0 && !rows("x_wa_message").some((r) => String(r.x_debug_payload ?? "").includes("customer_payment_ack")),
@@ -432,6 +436,7 @@ console.log("\n[8] the receipt: utak_payment_received outside the window (§ 39 
   const inv5 = seed("x_invoice", { x_invoice_number: "UTAK-INV-5", x_total: 60, x_status: "issued", x_order_id: o5, x_invoice_date: "2026-09-26" });
   openWindow(env5, COLL_PHONE, 5); openWindow(env5, CUST_PHONE, 5);
   await button(env5, COLL_PHONE, `collect_cash_${inv5}`, "نقد 💵");
+  await button(env5, COLL_PHONE, fullOf(COLL_PHONE), "المبلغ كامل");
   assert("inside the customer's window too: no second message from the collection (the receipt is the one)", txt(CUST_PHONE).length === 0, JSON.stringify(txt(CUST_PHONE)));
   const pid = rows("x_payment")[0]?.id;
   await quiet(() => confirmPaymentToCustomer(env5, pid, { receipt }));

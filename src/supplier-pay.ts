@@ -885,7 +885,7 @@ export async function handlePayButton(env: Env, member: TeamMember, buttonId: st
     if (!suppliers.length) { await clearFlow(env, member.id); return { text: SP_TEXT.noSuppliers }; }
     await writeFlow(env, member.id, { step: "supplier", at: now });
     // a text now is the amount, not an earlier «مشكلة» / «ملاحظة»
-    for (const k of [`pending_issue:${member.id}`, `pending_purchase_issue:${member.id}`, `pending_collect_note:${member.id}`]) {
+    for (const k of [`pending_issue:${member.id}`, `pending_purchase_issue:${member.id}`, `pending_collect_note:${member.id}`, `cpay_amount:v1:${member.id}`]) {
       await env.MSG_DEDUP.delete(k).catch(() => {});
     }
     return supplierPicker(suppliers) as FlowReply;

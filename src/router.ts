@@ -58,6 +58,11 @@ function belowMinimumText(m: { min: number; total: number }): string {
   return `${minimumText(m.min)}\nمجموع طلبك الآن: ${Number.isInteger(m.total) ? m.total : m.total.toFixed(2)} ريال.`;
 }
 
+/** § 42 ب — the collector who tapped (his Work Contact and number). */
+function collectorOf(partner: OdooPartner | null): { id: number; name: string; whatsapp: string } {
+  return { id: partner?.id ?? 0, name: partner?.name ?? "", whatsapp: String(partner?.x_whatsapp_number ?? "") };
+}
+
 export interface RouterInput {
   msg: NormalizedMessage;
   intent: Intent;
@@ -550,24 +555,35 @@ async function handleButton(
     return { text: await handleStandingSkip(env, sid) };
   }
 
-  // ---- v5: collector confirmed cash/transfer ----
-  // ح8: cash and transfer share one lock per invoice — the button always
-  // collects the full balance, so a second tap of either is a duplicate.
+  // ---- v5: collector tapped cash/transfer ----
+  // § 42 ب — nothing is recorded on this tap: the open balance and two
+  // buttons, «المبلغ كامل» / «مبلغ آخر» (src/collect-pay.ts). ح8: cash and
+  // transfer share one short lock per invoice (a double tap gets one prompt);
+  // a later tap is a new prompt (the rest of a partial collection).
   const mCollect = /^collect_(cash|transfer)_(\d+)$/.exec(buttonId);
   if (mCollect) {
-    const { handleCollectionButton } = await import("./invoice");
-    let collected = false;
-    const text = await withButtonLock(env, `collect:${mCollect[2]}`, async () => {
-      const result = await handleCollectionButton(env, buttonId, partner?.id ?? null);
-      collected = !!result;
-      return result?.text ?? "";
-    });
-    // STATUS § 34 — a note on this collection reaches Baraa with the customer and the order.
-    if (text && collected) {
-      const { collectNoteButton } = await import("./team-note");
-      return { bodyBeforeButtons: text, buttons: [collectNoteButton(Number(mCollect[2]))] };
+    const { askCollection, CP_TAP_LOCK_TTL } = await import("./collect-pay");
+    let reply: RouterReply = {};
+    const lockText = await withButtonLock(env, `collect_ask:${mCollect[2]}`, async () => {
+      reply = await askCollection(env, Number(mCollect[2]), mCollect[1] as "cash" | "transfer", collectorOf(partner));
+      return reply.text ?? reply.bodyBeforeButtons ?? "";
+    }, CP_TAP_LOCK_TTL);
+    return lockText === ALREADY_DONE_TEXT ? { text: ALREADY_DONE_TEXT } : reply;
+  }
+  // § 42 ب — «المبلغ كامل» records the open balance; «مبلغ آخر» waits for the amount.
+  {
+    const { COLLECT_CHOICE_RE, collectFull, collectOther } = await import("./collect-pay");
+    const mChoice = COLLECT_CHOICE_RE.exec(buttonId);
+    if (mChoice) {
+      const [, which, method, inv, nonce] = mChoice;
+      await logMessageAnalysis(env, {
+        customerId: partner?.id ?? null, text: buttonId,
+        intent: `collect_${which}`, actionTaken: `button:collect_${which}:${inv}`,
+      });
+      return which === "full"
+        ? await collectFull(env, Number(inv), method as "cash" | "transfer", nonce, collectorOf(partner))
+        : await collectOther(env, Number(inv), method as "cash" | "transfer", nonce, collectorOf(partner));
     }
-    if (text) return { text };
   }
 
   // ---- STATUS § 34: the collector's note («ملاحظة 📝») ----
@@ -585,6 +601,7 @@ async function handleButton(
         await env.MSG_DEDUP.put(pendingCollectNoteKey(partner.id), mNote[1], { expirationTtl: PENDING_NOTE_TTL });
         await env.MSG_DEDUP.delete(`pending_issue:${partner.id}`).catch(() => {});
         await env.MSG_DEDUP.delete(`pending_purchase_issue:${partner.id}`).catch(() => {});
+        await import("./collect-pay").then((m) => m.clearAmountPointer(env, partner.id));
       }
       return { text: COLLECT_NOTE_PROMPT };
     }
@@ -630,6 +647,7 @@ async function handleButton(
       await env.MSG_DEDUP.put(`pending_purchase_issue:${partner.id}`, String(listId), { expirationTtl: 3 * 60 * 60 });
       await env.MSG_DEDUP.delete(`pending_issue:${partner.id}`).catch(() => {});
       await env.MSG_DEDUP.delete(`pending_collect_note:${partner.id}`).catch(() => {});
+      await import("./collect-pay").then((m) => m.clearAmountPointer(env, partner.id));
     }
     try {
       await appendPurchaseListNote(env, listId, `${partner?.name ?? "المستودع"}: ضغط «مشكلة» — بانتظار التفاصيل`);
@@ -711,6 +729,7 @@ async function handleButton(
       );
       await env.MSG_DEDUP.delete(`pending_purchase_issue:${partner.id}`).catch(() => {});
       await env.MSG_DEDUP.delete(`pending_collect_note:${partner.id}`).catch(() => {});
+      await import("./collect-pay").then((m) => m.clearAmountPointer(env, partner.id));
     }
     return { text: `تمام، اكتب لي وش المشكلة بالضبط (رسالة واحدة) وأنا أسجّلها لبراء.` };
   }

@@ -275,11 +275,17 @@ console.log("\n[ح8] money / state buttons: second tap = «تم مسبقاً»")
   const env = reset(); setRiyadh("2026-09-24 15:00");
   const o = order(CUST, "delivered", "2026-09-24");
   const inv = seed("x_invoice", { x_invoice_number: "INV-9", x_total: 150, x_status: "issued", x_order_id: o, x_customer_id: CUST });
+  // § 42 ب — «نقد» / «تحويل» asks «المبلغ كامل» / «مبلغ آخر» first; the payment is the choice's.
   const [a, b] = await Promise.all([tap(env, `collect_cash_${inv}`, COLL), tap(env, `collect_transfer_${inv}`, COLL)]);
-  assert("concurrent cash+transfer taps: one payment", rows("x_payment").length === 1, String(rows("x_payment").length));
+  const prompts = [a, b].filter((r: any) => r?.buttons?.length === 2);
+  assert("concurrent cash+transfer taps: one prompt, nothing recorded yet", prompts.length === 1 && rows("x_payment").length === 0, String(rows("x_payment").length));
   assert("the other tap answered «تم مسبقاً»", [replyText(a), replyText(b)].includes(ALREADY_DONE_TEXT));
+  const full = (prompts[0] as any).buttons[0].id;
+  const [f1, f2] = await Promise.all([tap(env, full, COLL), tap(env, full, COLL)]);
+  assert("«المبلغ كامل» tapped twice at once: one payment, the other «تم مسبقاً»", rows("x_payment").length === 1 && [replyText(f1), replyText(f2)].includes(ALREADY_DONE_TEXT), String(rows("x_payment").length));
   const c = await tap(env, `collect_cash_${inv}`, COLL);
-  assert("a later tap: still one payment, «تم مسبقاً»", rows("x_payment").length === 1 && replyText(c) === ALREADY_DONE_TEXT);
+  const c2 = await tap(env, full, COLL);
+  assert("a later tap (of «نقد» or «المبلغ كامل»): still one payment, «مسبقاً»", rows("x_payment").length === 1 && /مسبقاً/.test(replyText(c)) && replyText(c2) === ALREADY_DONE_TEXT);
   // delivered
   const d = order(CUST2, "in_delivery", "2026-09-24");
   seed("x_delivery_stop", { x_order_id: d, x_status: "pending" });

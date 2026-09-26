@@ -120,7 +120,9 @@ const FLOWS: Flow[] = [
       const o = order(CUST, "delivered", "2026-10-02");
       const move = seed("account.move", { name: "INV/2026/10/0001", state: "posted", move_type: "out_invoice", amount_total: 60, amount_residual: 60, commercial_partner_id: [CUST, "مطعم الوادي"], payment_state: "not_paid" });
       const inv = seed("x_invoice", { x_invoice_number: "UTAK-INV-1", x_total: 60, x_status: "issued", x_order_id: o, x_customer_id: CUST, x_account_move_id: move });
-      return tap(env, `collect_cash_${inv}`, COLL);
+      // § 42 ب — «نقد» asks first; «المبلغ كامل» records
+      const prompt: any = await tap(env, `collect_cash_${inv}`, COLL);
+      return tap(env, prompt.buttons[0].id, COLL);
     },
   },
   {

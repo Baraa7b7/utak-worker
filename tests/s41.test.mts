@@ -397,7 +397,9 @@ console.log("\n[ج] full collection after it: paid, the order closed, still one 
   const o = onTheWay("2026-09-26", 4);
   await tapAs(env, `delivered_${o}`, DRIVER);
   const [inv] = invoiceOf(o);
-  const t = await tapAs(env, `collect_cash_${inv.id}`, COLL);
+  // § 42 ب — «نقد» asks «المبلغ كامل» / «مبلغ آخر»; «المبلغ كامل» records
+  const ask: any = await tapAs(env, `collect_cash_${inv.id}`, COLL);
+  const t = await tapAs(env, ask.buttons[0].id, COLL);
   assert("the collector's tap: «تم تسجيل التحصيل نقد»", /تم تسجيل التحصيل نقد/.test(replyOf(t)), replyOf(t));
   assert("paid 120, the order closed", table("x_invoice").get(inv.id)!.x_status === "paid" && table("x_daily_order").get(o)!.x_state === "closed" && rows("x_payment").length === 1 && rows("x_payment")[0].x_amount === 120);
   assert("one invoice message in all (at delivery)", invoiceSends().length === 1);

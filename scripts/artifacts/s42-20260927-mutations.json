@@ -1,7 +1,7 @@
 {
-  "at": "2026-09-26T21:03:09.531Z",
-  "caught": 11,
-  "total": 11,
+  "at": "2026-09-26T21:15:10.110Z",
+  "caught": 33,
+  "total": 33,
   "results": [
     {
       "part": "أ",
@@ -107,6 +107,207 @@
         "✗ the gateway refuses it for any purpose (notice, manual, bot reply), any spelling of the number — [{\"action\":\"session\"},{\"action\":\"refused\",\"reason\":\"CashMarketSupplier: «مشتريات السوق النقدية» لا يُرسل له شيء (purpose=wa_message_manual)\"},{\"action\":\"session\"}]",
         "✗ …a payment settled after the number was added: still «لا إشعار», nothing to it (only Baraa's «رصيد دائن» alert: 74 paid of 64) — {\"action\":\"approved\",\"id\":10027,\"ref\":\"SP-2026-0002\",\"remaining\":\"-10.00\",\"overpaid\":true,\"notice\":\"لا إشعار للمورد (مشتريات السوق النقدية بلا رقم)\"}",
         "✗ isCashMarketNumber: its number yes, Ahmed's no, empty no"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "«نقد» records the whole balance at once (§ 41)",
+      "caught": true,
+      "fails": [
+        "✗ «نقد»: nothing recorded, the reply in his conversation with «كامل (190 ر.س)» and «مبلغ آخر» — {\"c1\":{\"full\":\"\",\"fullTitle\":\"\",\"other\":\"\",\"otherTitle\":\"\"},\"body1\":\"\"}",
+        "✗ …both buttons carry the same prompt (nonce), and the state waits in KV",
+        "✗ «المبلغ كامل» tapped twice at once: ONE payment of 190 cash, paid, the order closed — [{\"x_invoice_id\":10001,\"x_amount\":190,\"x_method\":\"cash\",\"x_collected_at\":\"2026-09-27 10:00:00\",\"x_is_simulation\":true,\"id\":10003}]",
+        "✗ …«تم تسجيل التحصيل نقد 💵» with «ملاحظة 📝», and «تم مسبقاً» for the other tap — [\"تم تسجيل التحصيل نقد 💵 — الفاتورة UTAK-INV-20260927-000 ✅\",\"تم هذا الإجراء مسبقاً ✅\"]"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "«نقد» / «تحويل» without the short lock (a double tap: two prompts)",
+      "caught": true,
+      "fails": [
+        "✗ «تحويل» on it within the minute (a double tap): «تم مسبقاً», no second prompt"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "«المبلغ كامل» without its lock (two taps at once: two payments)",
+      "caught": true,
+      "fails": [
+        "✗ a later tap of either button of that prompt: «تم مسبقاً», still one payment — [\"الفاتورة UTAK-INV-20260927-000 تم تحصيلها مسبقاً ✅\",\"الفاتورة UTAK-INV-20260927-000 تم تحصيلها مسبقاً ✅\"]",
+        "✗ the first prompt's «المبلغ كامل» (its partial recorded): «تم مسبقاً», nothing more"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the recording lock per invoice, not per prompt (the rest never collected)",
+      "caught": true,
+      "fails": [
+        "✗ …recorded 90: two payments (100 + 90 = 190), paid, closed",
+        "✗ the first prompt's «المبلغ كامل» (its partial recorded): «تم مسبقاً», nothing more",
+        "✗ recordCollection exact: more than the balance → refused (overLimit), nothing recorded — {\"text\":\"المتبقي 50 ر.س فقط على الفاتورة UTAK-INV-20260927-008.\",\"paymentId\":null,\"fullyPaid\":false,\"overLimit\":{\"remaining\":50}}",
+        "✗ the rest by «المبلغ كامل» → a second account.payment of 90 (cash); 100 + 90 = 190 = the invoice, paid — [{\"amount\":100,\"state\":\"paid\",\"partner_id\":[501,\"مطعم الوادي\"],\"move_id\":[10013,\"PAY\"],\"journal_id\":8,\"id\":10016}]"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "an amount without its lock (two texts at once: two payments)",
+      "caught": true,
+      "fails": [
+        "✗ the first prompt's «المبلغ كامل» (its partial recorded): «تم مسبقاً», nothing more"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "more than the balance cut down to it and recorded",
+      "caught": true,
+      "fails": [
+        "✗ more than the balance (٢٥٠): «المتبقي 190 ر.س فقط» and asked again, nothing recorded — تم تسجيل التحصيل تحويل 🏦 — الفاتورة UTAK-INV-20260927-000 ✅",
+        "✗ «١٠٠» (Arabic-Indic), sent twice at once: ONE payment of 100 by transfer, the invoice still issued, the order open — [{\"x_invoice_id\":10001,\"x_amount\":190,\"x_method\":\"transfer\",\"x_collected_at\":\"2026-09-27 10:00:00\",\"x_collected_by\":602,\"x_is_simulation\":true,\"id\":10012}]",
+        "✗ …his reply: «تم تسجيل تحصيل جزئي تحويل 🏦 100 ر.س … (المتبقي 90 ر.س)» with «ملاحظة 📝» — [\"تم تسجيل التحصيل تحويل 🏦 — الفاتورة UTAK-INV-20260927-000 ✅\",\"مرحبا سالم 👋 استخدم الأزرار عشان نأكد الحالة.\",\"مرحبا سالم 👋 استخدم الأزرار عشان نأكد الحالة.\"]",
+        "✗ the rest stays due: م2 reminds 90 on the invoice — []"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "two numbers: the first one taken",
+      "caught": true,
+      "fails": [
+        "✗ two different numbers: «many» (never guessed)",
+        "✗ two numbers: asked again (never guessed)",
+        "✗ more than the balance (٢٥٠): «المتبقي 190 ر.س فقط» and asked again, nothing recorded — مرحبا سالم 👋 استخدم الأزرار عشان نأكد الحالة."
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "Arabic-Indic digits not read",
+      "caught": true,
+      "fails": [
+        "✗ an amount: one positive number, Western or Arabic-Indic digits, «٫» or «.», a thousands comma — [[\"100\",{\"kind\":\"ok\",\"value\":100}],[\"١٠٠\",{\"kind\":\"none\"}],[\"۱۰۰\",{\"kind\":\"none\"}],[\"استلمت 75.5 ريال\",{\"kind\":\"ok\",\"value\":75.5}],[\"٧٥٫٥\",{\"kind\":\"none\"}],[\"1,500\",{\"kind\":\"ok\",\"value\":1500}],[\"  90 \",{\"kind\":\"ok\",\"value\":90}],[\"100.50\",{\"kind\":\"ok\",\"value\":100.5}]]",
+        "✗ two different numbers: «many» (never guessed)",
+        "✗ more than the balance (٢٥٠): «المتبقي 190 ر.س فقط» and asked again, nothing recorded — ⚠️ اكتب المبلغ المستلم رقماً واحداً أكبر من صفر، مثل 100 أو 100.50 (المتبقي 190 ر.س).",
+        "✗ «١٠٠» (Arabic-Indic), sent twice at once: ONE payment of 100 by transfer, the invoice still issued, the order open — []"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "zero or a signed number taken as an amount",
+      "caught": true,
+      "fails": [
+        "✗ not an amount: no number, zero, a sign, three decimals, too large — [[\"\",{\"kind\":\"none\"}],[\"خلاص\",{\"kind\":\"none\"}],[\"0\",{\"kind\":\"ok\",\"value\":0}],[\"0.00\",{\"kind\":\"ok\",\"value\":0}],[\"-50\",{\"kind\":\"ok\",\"value\":-1}],[\"12.345\",{\"kind\":\"none\"}],[\"9999999\",{\"kind\":\"none\"}]]"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the 30 minutes not enforced (an amount after them recorded)",
+      "caught": true,
+      "fails": [
+        "✗ «60» 31 minutes after «مبلغ آخر»: not recorded — [{\"x_invoice_id\":10001,\"x_amount\":60,\"x_method\":\"cash\",\"x_collected_at\":\"2026-09-27 07:31:00\",\"x_collected_by\":602,\"x_is_simulation\":true,\"id\":10008}]"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the pointer kept after the recording (his next number «تم مسبقاً»)",
+      "caught": true,
+      "fails": [
+        "✗ «40» recorded, then «30» a minute later: an ordinary message (not «تم مسبقاً», not a payment) — تم هذا الإجراء مسبقاً ✅"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "«مبلغ آخر» leaves an open supplier-payment flow first in line",
+      "caught": true,
+      "fails": [
+        "✗ an open «💵 دفعت لمورد» then «مبلغ آخر» then «70»: a collection of 70, no supplier payment — {\"x\":[],\"sp\":[]}"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the amount text never read (index.ts)",
+      "caught": true,
+      "fails": [
+        "✗ a text without a number: asked again, nothing recorded — مرحبا سالم 👋 استخدم الأزرار عشان نأكد الحالة.",
+        "✗ two numbers: asked again (never guessed)",
+        "✗ more than the balance (٢٥٠): «المتبقي 190 ر.س فقط» and asked again, nothing recorded — مرحبا سالم 👋 استخدم الأزرار عشان نأكد الحالة.",
+        "✗ «١٠٠» (Arabic-Indic), sent twice at once: ONE payment of 100 by transfer, the invoice still issued, the order open — []"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "a stale prompt's «مبلغ آخر» after its recording goes on",
+      "caught": true,
+      "fails": [
+        "✗ a later tap of either button of that prompt: «تم مسبقاً», still one payment — [\"تم هذا الإجراء مسبقاً ✅\",\"الفاتورة UTAK-INV-20260927-000 تم تحصيلها مسبقاً ✅\"]"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the reminder before the 30 minutes",
+      "caught": true,
+      "fails": [
+        "✗ 20 minutes: waiting, nothing sent",
+        "✗ …no second reminder, no alert yet",
+        "✗ 31 minutes after the reminder: ONE alert to Baraa with the invoice number and the customer's name, nothing recorded — {\"messaging_product\":\"whatsapp\",\"to\":\"966500000001\",\"type\":\"text\",\"text\":{\"body\":\"⚠️ تحصيل لم يكتمل: الفاتورة UTAK-INV-20260927-000 — العميل مطعم الوادي\\nضغط سالم «نقد 💵» الساعة 10:00، ولم يحدد المبلغ بعد التذكير، فلم يُسجَّل شيء.\\nالمتبقي: 190 ر.س.\"}}"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the reminder never marked (so Baraa's alert never comes)",
+      "caught": true,
+      "fails": [
+        "✗ 31 minutes after the reminder: ONE alert to Baraa with the invoice number and the customer's name, nothing recorded",
+        "✗ …never a second alert (the invoice leaves the list)",
+        "✗ …the alert at 11:21, 31 minutes after his last step, once"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "Baraa's alert timed from the reminder, not from his last step",
+      "caught": true,
+      "fails": [
+        "✗ «مبلغ آخر» at 10:50 (after the 10:31 reminder): no alert at 11:02"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "Baraa's alert not once (no mark, no claim, a job per tick)",
+      "caught": true,
+      "fails": [
+        "✗ …never a second alert (the invoice leaves the list)"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "a paid invoice still reminded",
+      "caught": true,
+      "fails": [
+        "✗ paid from Odoo before the 30 minutes: settled, no reminder, no alert"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the */5 cron without the collection tick",
+      "caught": true,
+      "fails": [
+        "✗ 31 minutes (the */5 cron): ONE reminder to Omar with the same two buttons, nothing recorded — []",
+        "✗ 31 minutes after the reminder: ONE alert to Baraa with the invoice number and the customer's name, nothing recorded"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "a partial's account.payment at the whole balance",
+      "caught": true,
+      "fails": [
+        "✗ the partial 100 → ONE account.payment of 100 (the wizard at 100, bank), linked on the x_payment — {\"ap1\":[{\"amount\":190,\"state\":\"paid\",\"partner_id\":[501,\"مطعم الوادي\"],\"move_id\":[10013,\"PAY\"],\"journal_id\":8,\"id\":10016}],\"reg\":[{\"journal_id\":8,\"amount\":190,\"payment_date\":\"2026-09-27\",\"id\":10012}]}",
+        "✗ the rest by «المبلغ كامل» → a second account.payment of 90 (cash); 100 + 90 = 190 = the invoice, paid — [{\"amount\":190,\"state\":\"paid\",\"partner_id\":[501,\"مطعم الوادي\"],\"move_id\":[10013,\"PAY\"],\"journal_id\":8,\"id\":10016},{\"amount\":90,\"state\":\"paid\",\"partner_id\":[501,\"مطعم الوادي\"],\"move_id\":[10024,\"PAY\"],\"journal_id\":7,\"id\":10027}]"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the full button's title past Meta's 20 characters (cut by Meta's cap)",
+      "caught": true,
+      "fails": [
+        "✗ the full button fits Meta's 20 characters: «المبلغ كامل (90 ر.س)», «كامل (190 ر.س)», «كامل (12345.5 ر.س)» — [\"المبلغ كامل (90 ر.س)\",\"المبلغ كامل (190 ر.س)\",\"المبلغ كامل (12345.50 ر.س)\",\"المبلغ كامل (1000000 ر.س)\"]",
+        "✗ «نقد»: nothing recorded, the reply in his conversation with «كامل (190 ر.س)» and «مبلغ آخر» — {\"c1\":{\"full\":\"collect_full_cash_10001_dj9fds04\",\"fullTitle\":\"المبلغ كامل (190 ر.س\",\"other\":\"collect_other_cash_10001_dj9fds04\",\"otherTitle\":\"مبلغ آخر\"},\"body1\":\"💰 تحصيل الفاتورة UTAK-INV-20260927-000\\nالعميل: مطعم الوادي\\nالمتبقي: 190 ر.س (نقد 💵)\\nكم استلمت؟ «المبلغ كامل» يسجّل 190 ر.س، و«مبلغ آخر» تكتب المبلغ.\"}"
       ]
     }
   ]

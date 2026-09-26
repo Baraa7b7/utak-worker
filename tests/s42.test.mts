@@ -6,6 +6,17 @@
 //       lands under Ahmed; a winner that is a supplier, a simulation day and a
 //       missing partner; its payments through Omar's steps and Baraa's
 //       approval with no notice; the gateway never sends it anything.
+//   [ب] the partial collection from WhatsApp: «نقد» / «تحويل» (session or
+//       template) records nothing and asks «المبلغ كامل (X ر.س)» / «مبلغ آخر»;
+//       «المبلغ كامل» records the open balance; «مبلغ آخر» takes his first
+//       text within 30 minutes with one positive number (Western or
+//       Arabic-Indic digits), refuses more than the balance («المتبقي X ر.س
+//       فقط») and asks again; the rest stays due (م2) and a later «نقد» is a
+//       new prompt; every step locked (a double tap, two amounts at once:
+//       one payment); no choice for 30 minutes → one reminder, nothing 30
+//       after it → one alert to Baraa with the invoice and the customer;
+//       ACCOUNTING_SYNC=true → one account.payment per payment at its own
+//       amount, their sum never over the invoice.
 //   [س] schema: every Odoo request names real fields and values (§ 42 fixture).
 //
 // In-memory Odoo + captured Graph (tests/wa-harness.mts). No network, no send.
@@ -14,7 +25,7 @@
 
 import { readFileSync } from "node:fs";
 import {
-  COLL, COLL_PHONE, OWNER, computes, employee, graph, inbound, openWindow, ownerAlerts, quiet, reset, rows, seed, sentTo, setRiyadh, signed, table,
+  COLL, COLL_PHONE, CUST, OWNER, computes, employee, graph, inbound, openWindow, ownerAlerts, quiet, reset, rows, seed, sentTo, setRiyadh, signed, table,
 } from "./wa-harness.mts";
 
 let passed = 0, failed = 0;
@@ -45,9 +56,26 @@ function known(model: string, name: string): boolean {
   return list.includes(f);
 }
 const harnessFetch = globalThis.fetch;
+const round2 = (n: number) => Math.round(n * 100) / 100;
 globalThis.fetch = (async (input: unknown, init?: any) => {
   const url = typeof input === "string" ? input : (input as any)?.url ?? String(input);
   const m = /\/json\/2\/([^/]+)\/([^/?]+)/.exec(url);
+  // § 42 ب — Odoo's payment wizard, as the tenant runs it: the payment, its
+  // posted entry (cash / bank debit, receivable credit) and the invoice's
+  // residual and payment state after it.
+  if (m && m[1] === "account.payment.register" && m[2] === "action_create_payments") {
+    const b = JSON.parse(init.body);
+    const wiz = table("account.payment.register").get(b.ids[0]) as any;
+    const invMove = table("account.move").get(b.context.active_ids[0]) as any;
+    const amount = Number(wiz.amount);
+    const moveId = seed("account.move", { state: "posted", move_type: "entry" });
+    seed("account.move.line", { move_id: moveId, account_id: [1001, "101001"], debit: amount, credit: 0 });
+    seed("account.move.line", { move_id: moveId, account_id: [1002, "102011"], debit: 0, credit: amount });
+    invMove.amount_residual = round2(invMove.amount_residual - amount);
+    invMove.payment_state = invMove.amount_residual <= 0.005 ? "paid" : "partial";
+    const pid = seed("account.payment", { amount, state: "paid", partner_id: invMove.commercial_partner_id, move_id: [moveId, "PAY"], journal_id: wiz.journal_id });
+    return new Response(JSON.stringify({ res_model: "account.payment", res_id: pid }), { status: 200 });
+  }
   if (m && init?.body) {
     const b = JSON.parse(init.body);
     const writes: Array<Record<string, unknown>> = [b.vals ?? {}, ...((b.vals_list ?? []) as Array<Record<string, unknown>>)];
@@ -74,6 +102,10 @@ const CM = await import("../src/cash-market.ts");
 const { sendViaGateway, gatewayDecision } = await import("../src/wa-gateway.ts");
 const { textContent } = await import("../src/meta.ts");
 const { clearTemplateCache } = await import("../src/templates.ts");
+const CP = await import("../src/collect-pay.ts");
+const INV = await import("../src/invoice.ts");
+const OUT = await import("../src/outreach.ts");
+const { ALREADY_DONE_TEXT } = await import("../src/button-lock.ts");
 const worker = (await import("../src/index.ts")).default;
 
 // ---------------------------------------------------------------- data
@@ -264,6 +296,222 @@ console.log("\n[أ] «مشتريات السوق النقدية»: the market-won
   assert("…a payment settled after the number was added: still «لا إشعار», nothing to it (only Baraa's «رصيد دائن» alert: 74 paid of 64)",
     s2.notice === CASH_MARKET_NOTICE && s2.overpaid === true && graph.slice(g2).every((b) => b?.to === OWNER) && sentTo("966500000104").length === 0, JSON.stringify(s2));
   assert("isCashMarketNumber: its number yes, Ahmed's no, empty no", await CM.isCashMarketNumber(ENV, "+966500000104") && !(await CM.isCashMarketNumber(ENV, AHMED_PHONE)) && !(await CM.isCashMarketNumber(ENV, "")));
+}
+
+
+// ================================================================ ب. the partial collection
+console.log("\n[ب] the partial collection from WhatsApp: «المبلغ كامل» / «مبلغ آخر», locks, 30 minutes, the reminder, Baraa's alert");
+const tplTap = (from: string, payload: string, text = "نقد 💵") => say(from, { type: "button", button: { payload, text } });
+const choiceIds = (to: string) => {
+  const b = sentTo(to).filter((x) => x.type === "interactive").at(-1)?.interactive?.action?.buttons ?? [];
+  return { full: String(b[0]?.reply?.id ?? ""), fullTitle: String(b[0]?.reply?.title ?? ""), other: String(b[1]?.reply?.id ?? ""), otherTitle: String(b[1]?.reply?.title ?? "") };
+};
+const xpay = () => rows("x_payment") as any[];
+const lastText = (to: string) => texts(to).at(-1) ?? "";
+function invoice(total = 190, extra: Record<string, unknown> = {}): { order: number; inv: number } {
+  const order = seed("x_daily_order", { x_customer_id: CUST, x_state: "delivered", x_order_date: DAY, x_created_via: "whatsapp" });
+  const inv = seed("x_invoice", { x_invoice_number: `UTAK-INV-20260927-00${order % 10}`, x_total: total, x_subtotal: total, x_tax_amount: 0, x_status: "issued", x_order_id: order, x_invoice_date: DAY, ...extra });
+  return { order, inv };
+}
+/** The harness KV keeps every key: the 60-second lock of a «نقد» tap has passed. */
+const minuteLater = (inv: number) => ENV.MSG_DEDUP.store.delete(`btnlock:v1:collect_ask:${inv}`);
+const tickAt = async (hm: string) => { setRiyadh(`${DAY} ${hm}`); return quiet(() => CP.runCollectPayTick(ENV, Date.now())); };
+{
+  // --- the pure rules
+  const P = CP.parseCollectedAmount;
+  const ok: Array<[string, number]> = [["100", 100], ["١٠٠", 100], ["۱۰۰", 100], ["استلمت 75.5 ريال", 75.5], ["٧٥٫٥", 75.5], ["1,500", 1500], ["  90 ", 90], ["100.50", 100.5]];
+  assert("an amount: one positive number, Western or Arabic-Indic digits, «٫» or «.», a thousands comma",
+    ok.every(([t, v]) => { const r = P(t); return r.kind === "ok" && r.value === v; }), JSON.stringify(ok.map(([t]) => [t, P(t)])));
+  const none = ["", "خلاص", "0", "0.00", "-50", "12.345", "9999999"];
+  assert("not an amount: no number, zero, a sign, three decimals, too large", none.every((t) => P(t).kind === "none"), JSON.stringify(none.map((t) => [t, P(t)])));
+  assert("two different numbers: «many» (never guessed)", P("100 و 90").kind === "many" && P("١٠٠ من ١٩٠").kind === "many" && P("100 ... 100.00").kind === "ok");
+  assert("the full button fits Meta's 20 characters: «المبلغ كامل (90 ر.س)», «كامل (190 ر.س)», «كامل (12345.5 ر.س)»",
+    CP.fullTitle(90) === "المبلغ كامل (90 ر.س)" && CP.fullTitle(190) === "كامل (190 ر.س)" && CP.fullTitle(12345.5) === "كامل (12345.50 ر.س)"
+      && [90, 190, 1234.56, 99999.99, 1e6].every((x) => CP.fullTitle(x).length <= 20), JSON.stringify([90, 190, 12345.5, 1e6].map(CP.fullTitle)));
+
+  // --- «نقد» (session) → the prompt; «المبلغ كامل» → the open balance, once
+  ENV = fresh(`${DAY} 13:00`);
+  openWindow(ENV, COLL_PHONE, 2);
+  const a = invoice(190);
+  await tap(COLL_PHONE, `collect_cash_${a.inv}`, "نقد 💵");
+  const c1 = choiceIds(COLL_PHONE);
+  const body1 = String(sentTo(COLL_PHONE).at(-1)?.interactive?.body?.text ?? "");
+  assert("«نقد»: nothing recorded, the reply in his conversation with «كامل (190 ر.س)» and «مبلغ آخر»",
+    xpay().length === 0 && c1.full.startsWith(`collect_full_cash_${a.inv}_`) && c1.other.startsWith(`collect_other_cash_${a.inv}_`) && c1.fullTitle === "كامل (190 ر.س)" && c1.otherTitle === "مبلغ آخر"
+      && body1.includes("المتبقي: 190 ر.س") && body1.includes("مطعم الوادي"), JSON.stringify({ c1, body1 }));
+  await tap(COLL_PHONE, `collect_transfer_${a.inv}`, "تحويل 🏦");
+  assert("«تحويل» on it within the minute (a double tap): «تم مسبقاً», no second prompt", lastText(COLL_PHONE) === ALREADY_DONE_TEXT && choiceIds(COLL_PHONE).full === c1.full);
+  const sameNonce = c1.full.split("_").at(-1) === c1.other.split("_").at(-1);
+  assert("…both buttons carry the same prompt (nonce), and the state waits in KV", sameNonce && !!(await CP.readPending(ENV, a.inv)) && (await CP.readIndex(ENV)).includes(a.inv));
+  await Promise.all([tap(COLL_PHONE, c1.full, "كامل"), tap(COLL_PHONE, c1.full, "كامل")]);
+  assert("«المبلغ كامل» tapped twice at once: ONE payment of 190 cash, paid, the order closed",
+    xpay().length === 1 && xpay()[0].x_amount === 190 && xpay()[0].x_method === "cash" && xpay()[0].x_collected_by === COLL
+      && table("x_invoice").get(a.inv)!.x_status === "paid" && table("x_daily_order").get(a.order)!.x_state === "closed", JSON.stringify(xpay()));
+  const recReply = sentTo(COLL_PHONE).filter((b) => String(b.interactive?.body?.text ?? b.text?.body ?? "").includes("تم تسجيل التحصيل"));
+  assert("…«تم تسجيل التحصيل نقد 💵» with «ملاحظة 📝», and «تم مسبقاً» for the other tap",
+    recReply.length === 1 && recReply[0].interactive?.action?.buttons?.[0]?.reply?.id === `collect_note_${a.inv}` && texts(COLL_PHONE).includes(ALREADY_DONE_TEXT), JSON.stringify(texts(COLL_PHONE).slice(-3)));
+  assert("…the prompt's state and the index are cleared", !(await CP.readPending(ENV, a.inv)) && !(await CP.readIndex(ENV)).includes(a.inv));
+  await tap(COLL_PHONE, c1.full, "كامل");
+  await tap(COLL_PHONE, c1.other, "مبلغ آخر");
+  assert("a later tap of either button of that prompt: «تم مسبقاً», still one payment", xpay().length === 1 && texts(COLL_PHONE).slice(-2).every((t) => t === ALREADY_DONE_TEXT), JSON.stringify(texts(COLL_PHONE).slice(-2)));
+
+  // --- «تحويل» from the template → «مبلغ آخر» → the amount
+  ENV = fresh(`${DAY} 13:00`);
+  openWindow(ENV, COLL_PHONE, 2);
+  const b = invoice(190);
+  await tplTap(COLL_PHONE, `collect_transfer_${b.inv}`, "تحويل 🏦");
+  const c2 = choiceIds(COLL_PHONE);
+  assert("«تحويل» from the template's quick reply: the same prompt, nothing recorded", c2.full.startsWith(`collect_full_transfer_${b.inv}_`) && xpay().length === 0, JSON.stringify(c2));
+  await tap(COLL_PHONE, c2.other, "مبلغ آخر");
+  assert("«مبلغ آخر»: «اكتب المبلغ المستلم رقماً فقط (المتبقي 190 ر.س)», nothing recorded", lastText(COLL_PHONE) === CP.askAmountText(190) && xpay().length === 0, lastText(COLL_PHONE));
+  await write(COLL_PHONE, "استلمت الحين");
+  assert("a text without a number: asked again, nothing recorded", lastText(COLL_PHONE) === CP.badAmountText(190) && xpay().length === 0, lastText(COLL_PHONE));
+  await write(COLL_PHONE, "100 و 90");
+  assert("two numbers: asked again (never guessed)", lastText(COLL_PHONE) === CP.badAmountText(190) && xpay().length === 0);
+  await write(COLL_PHONE, "٢٥٠");
+  assert("more than the balance (٢٥٠): «المتبقي 190 ر.س فقط» and asked again, nothing recorded", lastText(COLL_PHONE) === CP.overAmountText(190) && xpay().length === 0, lastText(COLL_PHONE));
+  await Promise.all([write(COLL_PHONE, "١٠٠"), write(COLL_PHONE, "١٠٠")]);
+  assert("«١٠٠» (Arabic-Indic), sent twice at once: ONE payment of 100 by transfer, the invoice still issued, the order open",
+    xpay().length === 1 && xpay()[0].x_amount === 100 && xpay()[0].x_method === "transfer" && table("x_invoice").get(b.inv)!.x_status === "issued" && table("x_daily_order").get(b.order)!.x_state === "delivered", JSON.stringify(xpay()));
+  assert("…his reply: «تم تسجيل تحصيل جزئي تحويل 🏦 100 ر.س … (المتبقي 90 ر.س)» with «ملاحظة 📝»",
+    texts(COLL_PHONE).some((t) => t.includes("تحصيل جزئي") && t.includes("100 ر.س") && t.includes("المتبقي 90 ر.س")), JSON.stringify(texts(COLL_PHONE).slice(-3)));
+  const n0 = xpay().length;
+  await write(COLL_PHONE, "50");
+  assert("a number after it is an ordinary message (the pointer is cleared): no payment, not «تم مسبقاً»", xpay().length === n0 && lastText(COLL_PHONE) !== ALREADY_DONE_TEXT && !(await CP.readPending(ENV, b.inv)), lastText(COLL_PHONE));
+  setRiyadh("2026-09-30 08:00");
+  const owed = await quiet(() => OUT.owedByCustomer(ENV));
+  assert("the rest stays due: م2 reminds 90 on the invoice", owed.get(CUST)?.amount === 90, JSON.stringify([...owed]));
+  setRiyadh(`${DAY} 14:00`);
+  minuteLater(b.inv);
+  await tap(COLL_PHONE, `collect_cash_${b.inv}`, "نقد 💵");
+  const c3 = choiceIds(COLL_PHONE);
+  assert("a later «نقد» on it: a new prompt on the rest, «المبلغ كامل (90 ر.س)»", c3.fullTitle === "المبلغ كامل (90 ر.س)" && c3.full !== c2.full, JSON.stringify(c3));
+  await tap(COLL_PHONE, c3.full, "كامل");
+  assert("…recorded 90: two payments (100 + 90 = 190), paid, closed", xpay().length === 2 && round2(xpay().reduce((t, p) => t + p.x_amount, 0)) === 190 && table("x_invoice").get(b.inv)!.x_status === "paid" && table("x_daily_order").get(b.order)!.x_state === "closed");
+  await tap(COLL_PHONE, c2.full, "كامل");
+  assert("the first prompt's «المبلغ كامل» (its partial recorded): «تم مسبقاً», nothing more", xpay().length === 2 && lastText(COLL_PHONE) === ALREADY_DONE_TEXT);
+  const direct = await quiet(() => INV.recordCollection(ENV, { invoiceId: invoice(50).inv, method: "cash", amount: 80, exact: true }));
+  assert("recordCollection exact: more than the balance → refused (overLimit), nothing recorded", direct.paymentId === null && direct.overLimit?.remaining === 50 && xpay().length === 2, JSON.stringify(direct));
+
+  // --- the 30 minutes: an amount after them is an ordinary message
+  ENV = fresh(`${DAY} 10:00`);
+  openWindow(ENV, COLL_PHONE, 2);
+  const c = invoice(120);
+  await tap(COLL_PHONE, `collect_cash_${c.inv}`);
+  await tap(COLL_PHONE, choiceIds(COLL_PHONE).other, "مبلغ آخر");
+  setRiyadh(`${DAY} 10:31`);
+  await write(COLL_PHONE, "60");
+  assert("«60» 31 minutes after «مبلغ آخر»: not recorded", xpay().length === 0, JSON.stringify(xpay()));
+
+  // --- one amount, then another number: the second is an ordinary message
+  ENV = fresh(`${DAY} 10:00`);
+  openWindow(ENV, COLL_PHONE, 2);
+  const k = invoice(120);
+  await tap(COLL_PHONE, `collect_cash_${k.inv}`);
+  await tap(COLL_PHONE, choiceIds(COLL_PHONE).other, "مبلغ آخر");
+  await write(COLL_PHONE, "40");
+  await write(COLL_PHONE, "30");
+  assert("«40» recorded, then «30» a minute later: an ordinary message (not «تم مسبقاً», not a payment)",
+    xpay().length === 1 && xpay()[0].x_amount === 40 && lastText(COLL_PHONE) !== ALREADY_DONE_TEXT && lastText(COLL_PHONE).includes("استخدم الأزرار"), lastText(COLL_PHONE));
+
+  // --- «مبلغ آخر» takes over an open supplier-payment flow (the latest tap wins)
+  ENV = fresh(`${DAY} 10:00`);
+  openWindow(ENV, COLL_PHONE, 2);
+  dailyPrice(AHMED, 3, 31, 20); priceDay({}, [[3, 31, AHMED, 20]]); confirmedList();
+  const d = invoice(120);
+  await tap(COLL_PHONE, SP_START);
+  await tap(COLL_PHONE, `sp_sup_${AHMED}`);
+  assert("(the supplier-payment flow is open: it asks Ahmed's amount)", lastText(COLL_PHONE) === SP_TEXT.askAmount("أحمد حسان"), lastText(COLL_PHONE));
+  await tap(COLL_PHONE, `collect_cash_${d.inv}`);
+  await tap(COLL_PHONE, choiceIds(COLL_PHONE).other, "مبلغ آخر");
+  await write(COLL_PHONE, "70");
+  assert("an open «💵 دفعت لمورد» then «مبلغ آخر» then «70»: a collection of 70, no supplier payment", xpay().length === 1 && xpay()[0].x_amount === 70 && payments().length === 0, JSON.stringify({ x: xpay(), sp: payments() }));
+
+  // --- no choice: one reminder at 30, one alert to Baraa 30 after it
+  ENV = fresh(`${DAY} 10:00`);
+  openWindow(ENV, COLL_PHONE, 2);
+  const e = invoice(190);
+  await tap(COLL_PHONE, `collect_cash_${e.inv}`);
+  const promptIds = choiceIds(COLL_PHONE);
+  const sentBefore = sentTo(COLL_PHONE).length;
+  const t1 = await tickAt("10:20");
+  assert("20 minutes: waiting, nothing sent", t1.some((r) => r.invoiceId === e.inv && r.action === "waiting") && sentTo(COLL_PHONE).length === sentBefore);
+  setRiyadh(`${DAY} 10:31`);
+  await quiet(() => worker.scheduled({ cron: "*/5 * * * *", scheduledTime: Date.now() } as any, ENV, collectingCtx()));
+  const rem = sentTo(COLL_PHONE).slice(sentBefore).filter((m) => String(m.interactive?.body?.text ?? "").includes("⏰ تذكير"));
+  assert("31 minutes (the */5 cron): ONE reminder to Omar with the same two buttons, nothing recorded",
+    rem.length === 1 && rem[0].interactive.action.buttons[0].reply.id === promptIds.full && rem[0].interactive.action.buttons[1].reply.id === promptIds.other
+      && String(rem[0].interactive.body.text).includes(table("x_invoice").get(e.inv)!.x_invoice_number as string) && xpay().length === 0, JSON.stringify(sentTo(COLL_PHONE).slice(sentBefore)));
+  const alertsBefore = ownerAlerts().length;
+  await tickAt("10:45");
+  await tickAt("10:58");
+  assert("…no second reminder, no alert yet", sentTo(COLL_PHONE).slice(sentBefore).filter((m) => String(m.interactive?.body?.text ?? "").includes("⏰ تذكير")).length === 1 && ownerAlerts().length === alertsBefore);
+  const t3 = await tickAt("11:02");
+  const al = ownerAlerts().slice(alertsBefore);
+  assert("31 minutes after the reminder: ONE alert to Baraa with the invoice number and the customer's name, nothing recorded",
+    t3.some((r) => r.action === "alerted") && al.length === 1 && al[0].includes(table("x_invoice").get(e.inv)!.x_invoice_number as string) && al[0].includes("مطعم الوادي") && al[0].includes("لم يُسجَّل") && xpay().length === 0, al.join(" | "));
+  await tickAt("11:40"); await tickAt("12:40");
+  assert("…never a second alert (the invoice leaves the list)", ownerAlerts().length === alertsBefore + 1 && !(await CP.readIndex(ENV)).includes(e.inv));
+  await tap(COLL_PHONE, promptIds.full, "كامل");
+  assert("his late «المبلغ كامل» still records it (190)", xpay().length === 1 && xpay()[0].x_amount === 190);
+
+  // --- a step after the reminder moves Baraa's alert: 30 minutes after his last step
+  ENV = fresh(`${DAY} 10:00`);
+  openWindow(ENV, COLL_PHONE, 2);
+  const f = invoice(190);
+  await tap(COLL_PHONE, `collect_cash_${f.inv}`);
+  const fIds = choiceIds(COLL_PHONE);
+  await tickAt("10:31");
+  setRiyadh(`${DAY} 10:50`);
+  await tap(COLL_PHONE, fIds.other, "مبلغ آخر");
+  const fa = ownerAlerts().length;
+  await tickAt("11:02");
+  assert("«مبلغ آخر» at 10:50 (after the 10:31 reminder): no alert at 11:02", ownerAlerts().length === fa);
+  await tickAt("11:21");
+  assert("…the alert at 11:21, 31 minutes after his last step, once", ownerAlerts().length === fa + 1 && ownerAlerts().at(-1)!.includes("تحصيل لم يكتمل"));
+
+  // --- paid meanwhile (Baraa, in Odoo): no reminder
+  ENV = fresh(`${DAY} 10:00`);
+  openWindow(ENV, COLL_PHONE, 2);
+  const g = invoice(80);
+  await tap(COLL_PHONE, `collect_cash_${g.inv}`);
+  seed("x_payment", { x_invoice_id: g.inv, x_amount: 80, x_method: "transfer" });
+  table("x_invoice").get(g.inv)!.x_status = "paid";
+  const gs = sentTo(COLL_PHONE).length;
+  const tg = await tickAt("10:35");
+  assert("paid from Odoo before the 30 minutes: settled, no reminder, no alert", tg.some((r) => r.invoiceId === g.inv && r.action === "settled") && sentTo(COLL_PHONE).length === gs && !(await CP.readIndex(ENV)).includes(g.inv));
+
+  // --- ACCOUNTING_SYNC=true: one account.payment per payment at its own amount, their sum ≤ the invoice
+  ENV = fresh(`${DAY} 13:00`);
+  ENV.ACCOUNTING_SYNC = "true";
+  openWindow(ENV, COLL_PHONE, 2);
+  seed("account.journal", { id: 7, code: "CSHD" }); seed("account.journal", { id: 8, code: "BNK1" });
+  seed("account.account", { id: 1001, code: "101001", account_type: "asset_cash" });
+  seed("account.account", { id: 1002, code: "102011", account_type: "asset_receivable" });
+  const move = seed("account.move", { name: "INV/2026/00001", state: "posted", move_type: "out_invoice", amount_total: 190, amount_residual: 190, payment_state: "not_paid", commercial_partner_id: [CUST, "مطعم الوادي"], partner_id: [CUST, "مطعم الوادي"] });
+  const h = invoice(190, { x_account_move_id: move });
+  await tap(COLL_PHONE, `collect_transfer_${h.inv}`);
+  await tap(COLL_PHONE, choiceIds(COLL_PHONE).other, "مبلغ آخر");
+  await write(COLL_PHONE, "٢٠٠");
+  assert("with accounting: more than the balance creates nothing (no wizard, no payment)", rows("account.payment.register").length === 0 && xpay().length === 0);
+  await write(COLL_PHONE, "100");
+  const ap1 = rows("account.payment") as any[];
+  assert("the partial 100 → ONE account.payment of 100 (the wizard at 100, bank), linked on the x_payment",
+    ap1.length === 1 && ap1[0].amount === 100 && (rows("account.payment.register") as any[])[0]?.amount === 100 && (rows("account.payment.register") as any[])[0]?.journal_id === 8
+      && xpay()[0].x_account_payment_id === ap1[0].id && (table("account.move").get(move) as any).payment_state === "partial", JSON.stringify({ ap1, reg: rows("account.payment.register") }));
+  minuteLater(h.inv);
+  await tap(COLL_PHONE, `collect_cash_${h.inv}`);
+  await tap(COLL_PHONE, choiceIds(COLL_PHONE).full, "كامل");
+  const ap2 = rows("account.payment") as any[];
+  const sum = round2(ap2.reduce((t, p) => t + p.amount, 0));
+  assert("the rest by «المبلغ كامل» → a second account.payment of 90 (cash); 100 + 90 = 190 = the invoice, paid",
+    ap2.length === 2 && ap2[1].amount === 90 && sum === 190 && (table("account.move").get(move) as any).payment_state === "paid" && table("x_invoice").get(h.inv)!.x_status === "paid", JSON.stringify(ap2));
+  minuteLater(h.inv);
+  await tap(COLL_PHONE, `collect_cash_${h.inv}`);
+  await write(COLL_PHONE, "10");
+  assert("after it: «نقد» again finds it paid — no third payment, the sum never over the invoice", rows("account.payment").length === 2 && xpay().length === 2 && round2(xpay().reduce((t, p) => t + p.x_amount, 0)) <= 190
+    && texts(COLL_PHONE).some((t) => t.includes("تم تحصيلها مسبقاً")));
+  assert("no accounting alert to Baraa (every guard passed)", !ownerAlerts().some((x) => x.includes("[accounting]")), ownerAlerts().filter((x) => x.includes("accounting")).join(" | "));
 }
 
 // ================================================================ س. schema

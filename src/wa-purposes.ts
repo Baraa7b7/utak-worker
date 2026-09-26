@@ -96,6 +96,9 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // § 38 (م12) — end of shift − 30 min: the stops still without «تم التسليم» (held no longer than the shift).
   driver_stops_left: op("تذكير المحطات الباقية"),
   collection_request: op("طلب التحصيل", true, { hours: 36 }),
+  // § 42 ب — «نقد» / «تحويل» with no choice (or no amount) for 30 minutes: one
+  // reminder to the collector with «المبلغ كامل» / «مبلغ آخر» again.
+  collection_amount_remind: op("تذكير مبلغ التحصيل", false, { hours: 2 }),
   collection_summary: op("ملخص التحصيل", true),
   collection_nothing: op("لا تحصيل اليوم"),
   pay_claim_notice: op("تحويل عميل للتحقق"),

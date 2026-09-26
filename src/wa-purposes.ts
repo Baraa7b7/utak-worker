@@ -89,6 +89,8 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   driver_stop_location: op("موقع توصيلة"),
   driver_delivery_note: op("إذن التسليم"),
   driver_collection: op("تحصيل السائق"),
+  // § 38 (م12) — end of shift − 30 min: the stops still without «تم التسليم» (held no longer than the shift).
+  driver_stops_left: op("تذكير المحطات الباقية"),
   collection_request: op("طلب التحصيل", true, { hours: 36 }),
   collection_summary: op("ملخص التحصيل", true),
   collection_nothing: op("لا تحصيل اليوم"),

@@ -73,7 +73,7 @@ preview_id = "b423e1498d624696ac10ed101c621742"
 #      هنا حرفياً (بنفس التعليقات).
 #   4) `wrangler deploy` (بدون --env) لإعادة تفعيل جدولة prod.
 #
-# المواعيد المحفوظة للاستعادة (بنسخ ولصق حرفياً — لا تعدّل بدون سبب؛ صارت تسعة في 2026-09-24، وعشرة في 2026-09-25):
+# المواعيد المحفوظة للاستعادة (بنسخ ولصق حرفياً — لا تعدّل بدون سبب؛ صارت تسعة في 2026-09-24، وعشرة في 2026-09-25، وأحد عشر في 2026-09-26):
 #   "0 23 * * *",   # 02:00 Riyadh — v3: ask all active suppliers for daily prices
 #   "0 2 * * *",    # 05:00 Riyadh — v3: recompute supplier reliability scores
 #   "0 3 * * *",    # 06:00 Riyadh — v3: open ordering flag + missing-supplier alert
@@ -83,7 +83,8 @@ preview_id = "b423e1498d624696ac10ed101c621742"
 #   "0 15 * * *",   # 18:00 Riyadh — v5: daily collection summary
 #   "0 14 * * *",   # 17:00 Riyadh — v6.1: standing-order reminders
 #   "0 5 * * *",    # 08:00 Riyadh — v7: daily outreach (feedback, pay_remind, inactive)
-#   "*/5 * * * *"   # every 5 min — 2026-09-25 (STATUS § 29): team attendance («بدء الدوام»)
+#   "*/5 * * * *",  # every 5 min — 2026-09-25 (STATUS § 29): team attendance («بدء الدوام»)
+#   "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"   # every 5 min — 2026-09-26 (STATUS § 38, م12): driver's end-of-shift follow-up
 # ------------------------------------------------------------
 [triggers]
 crons = []
@@ -138,7 +139,8 @@ crons = [
   "0 15 * * *",   # 18:00 Riyadh — v5: daily collection summary
   "0 14 * * *",   # 17:00 Riyadh — v6.1: standing-order reminders
   "0 5 * * *",    # 08:00 Riyadh — v7: daily outreach (feedback, pay_remind, inactive)
-  "*/5 * * * *"   # every 5 min — 2026-09-25 (STATUS § 29): team attendance — «بدء الدوام» at each shift time, +30 reminder, +60 absent, Baraa's window template at OWNER_WINDOW_OPEN_AT
+  "*/5 * * * *",  # every 5 min — 2026-09-25 (STATUS § 29): team attendance — «بدء الدوام» at each shift time, +30 reminder, +60 absent, Baraa's window template at OWNER_WINDOW_OPEN_AT
+  "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"   # every 5 min, 2 min after attendance — 2026-09-26 (STATUS § 38, م12): driver's end of shift from his schedule — end −30 stops left, end +30 Baraa's alert
 ]
 
 [env.sim.vars]

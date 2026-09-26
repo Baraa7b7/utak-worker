@@ -200,6 +200,16 @@ export default {
           }
           break;
         }
+        // 2026-09-26 (STATUS § 38, م12) — the driver's end of shift, from his
+        // working schedule: end − 30 his stops without «تم التسليم», end + 30
+        // Baraa's alert (and the reason when there is no reminder).
+        case "2,7,12,17,22,27,32,37,42,47,52,57 * * * *": {
+          const { runDriverFollowupTick } = await import("./driver-followup");
+          const r = await runDriverFollowupTick(env);
+          const acted = r.drivers.flatMap((d) => d.steps.filter((s) => !/:(-|[a-z_]+:-)$/.test(s)).map((s) => `${d.name}:${s}`));
+          if (acted.length) console.log(`[driver-followup ${r.at}]`, JSON.stringify(acted));
+          break;
+        }
         default: console.warn(`[scheduled] unhandled cron: ${cron}`);
       }
     } catch (e) {
@@ -1884,9 +1894,13 @@ async function runSimJob(rawEnv: Env, job: string): Promise<unknown> {
       const { runAttendanceTick } = await import("./attendance");
       return runAttendanceTick(env);
     }
+    case "driver_followup": {
+      const { runDriverFollowupTick } = await import("./driver-followup");
+      return runDriverFollowupTick(env);
+    }
     default:
       throw new Error(
-        `unknown job '${job}'. valid: ask_suppliers | reliability_scores | supplier_nudge | open_ordering | purchase_followup | cutoff_reminder | close_unconfirmed | aggregate_purchase | supplier_noprice_alert | collection_summary | standing_reminders | daily_outreach | team_attendance`,
+        `unknown job '${job}'. valid: ask_suppliers | reliability_scores | supplier_nudge | open_ordering | purchase_followup | cutoff_reminder | close_unconfirmed | aggregate_purchase | supplier_noprice_alert | collection_summary | standing_reminders | daily_outreach | team_attendance | driver_followup`,
       );
   }
 }

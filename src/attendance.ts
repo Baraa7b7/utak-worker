@@ -141,6 +141,10 @@ async function readRows(env: Env, day: string, employeeIds: number[]): Promise<M
 async function findRow(env: Env, employeeId: number, day: string): Promise<AttRow | null> {
   return (await readRows(env, day, [employeeId])).get(employeeId) ?? null;
 }
+/** STATUS § 38 (م12) — the member's status on `day` (null: no row, or not decided yet). Throws on Odoo trouble. */
+export async function attendanceStatus(env: Env, employeeId: number, day: string): Promise<AttStatus | null> {
+  return (await findRow(env, employeeId, day))?.x_status || null;
+}
 async function writeRow(env: Env, id: number, vals: Record<string, unknown>): Promise<void> {
   await call(env, ATT_MODEL, "write", { ids: [id], vals });
 }

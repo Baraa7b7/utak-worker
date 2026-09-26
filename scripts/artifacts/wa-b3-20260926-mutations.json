@@ -1,0 +1,131 @@
+{
+  "at": "2026-09-26T05:35:13.890Z",
+  "caught": 16,
+  "total": 16,
+  "results": [
+    {
+      "name": "م12: the reminder without its KV claim (sent on every tick)",
+      "caught": true,
+      "fails": [
+        "✗ the claim is in KV",
+        "✗ a claim taken before (a re-run after a restart) sends nothing"
+      ]
+    },
+    {
+      "name": "م12: Baraa's end-of-shift alert without its claim",
+      "caught": true,
+      "fails": [
+        "✗ once a day: no second alert (even when the stops left change) — [\"🚚 عمر المجهلي: انتهى دوامه الساعة 12:00، وبقي طلبان بلا «تم التسليم»: #10011 (مشكلة)، #10013. لا فاتورة ولا تحصيل لها حتى يُضغط «تم التسليم».\",\"🚚 عمر المجهلي: انتهى دوامه الساعة 12:00، وبقي طلب واحد بلا «تم التسليم»: #10011 (مشكلة). لا فاتورة ولا تحصيل لها حتى يُضغط «تم التسليم».\"]",
+        "✗ a claim taken before (a re-run after a restart) sends nothing"
+      ]
+    },
+    {
+      "name": "م12: the reason alert without its claim",
+      "caught": true,
+      "fails": [
+        "✗ no schedule: once (even when the stops left change) — [\"⚠️ عمر المجهلي بلا جدول دوام في Odoo، فلا تذكير له بمحطاته. بقي 3 طلبات بلا «تم التسليم»: #10001، #10003، #10005.\",\"⚠️ عمر المجهلي بلا جدول دوام في Odoo، فلا تذكير له بمحطاته. بقي طلبان بلا «تم التسليم»: #10003، #10005.\"]",
+        "✗ absent: no second alert at end + 30 (the same claim) — [\"⚠️ عمر المجهلي سُجّل غائباً اليوم، فلا تذكير له بمحطاته. بقي 3 طلبات بلا «تم التسليم»: #10009، #10011، #10013.\",\"⚠️ عمر المجهلي سُجّل غائباً اليوم، فلا تذكير له بمحطاته. بقي طلبان بلا «تم التسليم»: #10011، #10013.\"]"
+      ]
+    },
+    {
+      "name": "م12: delivered stops counted",
+      "caught": true,
+      "fails": [
+        "✗ a stop marked delivered is not counted even if its order still reads in_delivery — ⏰ باقي 30 دقيقة على نهاية دوامك (12:00)، وعندك 3 محطات بلا «تم التسليم»: مطعم الوادي، بقالة النخيل و 1 أخرى. اضغط «تم التسليم» على كل توصيلة توصّلها، أو «فيه مشكلة» لو فيه عائق."
+      ]
+    },
+    {
+      "name": "م12: cancelled / delivered orders counted",
+      "caught": true,
+      "fails": [
+        "✗ cancelled, simulation (x_utak_simulation) and >72 h-old stops are left out — 🚚 عمر المجهلي: انتهى دوامه الساعة 12:00، وبقي طلبان بلا «تم التسليم»: #10009، #10013. لا فاتورة ولا تحصيل لها حتى يُضغط «تم التسليم»."
+      ]
+    },
+    {
+      "name": "م12: simulation orders counted",
+      "caught": true,
+      "fails": [
+        "✗ cancelled, simulation (x_utak_simulation) and >72 h-old stops are left out — 🚚 عمر المجهلي: انتهى دوامه الساعة 12:00، وبقي طلبان بلا «تم التسليم»: #10011، #10013. لا فاتورة ولا تحصيل لها حتى يُضغط «تم التسليم».",
+        "✗ only simulation stops left = no message — [\"⏰ باقي 30 دقيقة على نهاية دوامك (12:00)، وعندك محطة واحدة بلا «تم التسليم»: مخبز السنبلة. اضغط «تم التسليم» على كل توصيلة توصّلها، أو «فيه مشكلة» لو فيه عائق.\",\"🚚 عمر المجهلي: انتهى دوامه الساعة 12:00، وبقي طلب واحد بلا «تم التسليم»: #10013. لا فاتورة ولا تحصيل لها حتى يُضغط «تم التسليم».\"]"
+      ]
+    },
+    {
+      "name": "م12: every old route counted (no 72 h window)",
+      "caught": true,
+      "fails": [
+        "✗ cancelled, simulation (x_utak_simulation) and >72 h-old stops are left out — 🚚 عمر المجهلي: انتهى دوامه الساعة 12:00، وبقي طلبان بلا «تم التسليم»: #10013، #10016. لا فاتورة ولا تحصيل لها حتى يُضغط «تم التسليم»."
+      ]
+    },
+    {
+      "name": "م12: an absent driver still reminded",
+      "caught": true,
+      "fails": [
+        "✗ absent: no reminder to the driver",
+        "✗ absent: one alert at end − 30 with «سُجّل غائباً اليوم» and the orders — []"
+      ]
+    },
+    {
+      "name": "م12: the reminder after the end of the shift",
+      "caught": true,
+      "fails": [
+        "✗ nothing to the driver after his shift",
+        "✗ at the end of the shift the reminder is no longer sent"
+      ]
+    },
+    {
+      "name": "م12: fixed hours instead of the schedule (12:00)",
+      "caught": true,
+      "fails": [
+        "✗ a 06–16 schedule: nothing at 11:30 / 12:30",
+        "✗ its reminder at 15:30 — [\"⏰ باقي 30 دقيقة على نهاية دوامك (12:00)، وعندك 3 محطات بلا «تم التسليم»: مطعم الوادي، بقالة النخيل و 1 أخرى. اضغط «تم التسليم» على كل توصيلة توصّلها، أو «فيه مشكلة» لو فيه عائق.\"]",
+        "✗ its alert at 16:30 — [\"🚚 عمر المجهلي: انتهى دوامه الساعة 12:00، وبقي 3 طلبات بلا «تم التسليم»: #10004، #10006، #10008. لا فاتورة ولا تحصيل لها حتى يُضغط «تم التسليم».\"]"
+      ]
+    },
+    {
+      "name": "م12: messages with no stop left",
+      "caught": true,
+      "fails": [
+        "✗ no stop left = no message at all (driver or Baraa) — [\"⏰ باقي 30 دقيقة على نهاية دوامك (12:00)، وعندك 0 محطات بلا «تم التسليم»: -. اضغط «تم التسليم» على كل توصيلة توصّلها، أو «فيه مشكلة» لو فيه عائق.\",\"🚚 عمر المجهلي: انتهى دوامه الساعة 12:00، وبقي 0 طلبات بلا «تم التسليم»: . لا فاتورة ولا تحصيل لها حتى يُضغط «تم التسليم».\"]",
+        "✗ only simulation stops left = no message — [\"⏰ باقي 30 دقيقة على نهاية دوامك (12:00)، وعندك 0 محطات بلا «تم التسليم»: -. اضغط «تم التسليم» على كل توصيلة توصّلها، أو «فيه مشكلة» لو فيه عائق.\",\"🚚 عمر المجهلي: انتهى دوامه الساعة 12:00، وبقي 0 طلبات بلا «تم التسليم»: . لا فاتورة ولا تحصيل لها حتى يُضغط «تم التسليم».\"]"
+      ]
+    },
+    {
+      "name": "م12: the held reminder outlives the shift",
+      "caught": true,
+      "fails": [
+        "✗ driver's window closed: the reminder is held, valid only until the end of the shift (12:00) — [{\"id\":\"6b4f5b2c\",\"purpose\":\"driver_stops_left\",\"body\":{\"type\":\"text\",\"text\":{\"body\":\"⏰ باقي 30 دقيقة على نهاية دوامك (12:00)، وعندك 3 محطات بلا «تم التسليم»: مطعم الوادي، بقالة النخيل و 1 أخرى. اضغط «تم التسليم» على كل توصيلة توصّلها، أو «فيه مشكلة» لو فيه عائق.\"}},\"createdAt\":1790411520000,\"expiresAt\":1790456400000,\"important\":false,\"rowId\":10015,\"attempts\":0}]"
+      ]
+    },
+    {
+      "name": "م12: «مشكلة» not marked in Baraa's alert",
+      "caught": true,
+      "fails": [
+        "✗ lists the undelivered orders, «مشكلة» marked — 🚚 عمر المجهلي: انتهى دوامه الساعة 12:00، وبقي طلبان بلا «تم التسليم»: #10011، #10013. لا فاتورة ولا تحصيل لها حتى يُضغط «تم التسليم»."
+      ]
+    },
+    {
+      "name": "م12: the names not cut after two",
+      "caught": true,
+      "fails": [
+        "✗ one line: two names then «و 1 أخرى» — ⏰ باقي 30 دقيقة على نهاية دوامك (12:00)، وعندك 3 محطات بلا «تم التسليم»: مطعم الوادي، بقالة النخيل، مخبز السنبلة. اضغط «تم التسليم» على كل توصيلة توصّلها، أو «فيه مشكلة» لو فيه عائق."
+      ]
+    },
+    {
+      "name": "م12: no 18:00 alert for a driver without a schedule",
+      "caught": true,
+      "fails": [
+        "✗ no schedule: one alert at 18:00 with the reason and the orders — []",
+        "✗ no schedule: once (even when the stops left change) — []",
+        "✗ not on attendance: the reason says so — []",
+        "✗ day off: one alert at 18:00 naming it — []"
+      ]
+    },
+    {
+      "name": "م12: the cron not wired",
+      "caught": true,
+      "fails": [
+        "✗ scheduled() on that cron runs the follow-up — []"
+      ]
+    }
+  ]
+}

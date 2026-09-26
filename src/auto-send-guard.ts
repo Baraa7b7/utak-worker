@@ -47,6 +47,9 @@ export const CRON_JOB: Readonly<Record<string, string>> = {
   // owner_window), so the start and the reminder of the same template on the
   // same day are two different keys.
   "*/5 * * * *": "team_attendance",
+  // 2026-09-26 (STATUS § 38, م12) — the driver's end-of-shift follow-up, every
+  // 5 minutes two minutes after the attendance tick (src/driver-followup.ts). sim only.
+  "2,7,12,17,22,27,32,37,42,47,52,57 * * * *": "driver_followup",
 };
 
 /** Shallow copy of env that marks every send inside the job as automated. */

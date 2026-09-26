@@ -11,6 +11,11 @@
 //        stops the sequence, «تم التسليم» on it resumes; cancelled / delivered
 //        skipped; nothing for a simulation order; the opted-out customer still
 //        gets it; one message per order (KV claim + the x_wa_message record);
+//   م17  Baraa's summary at 21:30 (utak_v2_summary, three one-line variables):
+//        tomorrow's confirmed orders (count + total), today's deliveries
+//        (delivered of all), today's collection (collected + pending); Odoo
+//        only, simulation left out, the Riyadh day; text inside his window,
+//        the template outside; once a day; a figure Odoo cannot give → «تعذّر».
 //
 // In-memory Odoo + captured Graph (tests/wa-harness.mts) behind a strict schema
 // gate built from the real field lists (fields_get on the tenant, the last one
@@ -56,11 +61,14 @@ function known(model: string, name: string): boolean {
   return list.includes(f);
 }
 const harnessFetch = globalThis.fetch;
+/** م17 — a test makes one Odoo read fail (HTTP 500) to see «تعذّر» in its place. */
+let failWhen: ((model: string, method: string, body: any) => boolean) | null = null;
 globalThis.fetch = (async (input: unknown, init?: any) => {
   const url = typeof input === "string" ? input : (input as any)?.url ?? String(input);
   const m = /\/json\/2\/([^/]+)\/([^/?]+)/.exec(url);
   if (m && init?.body) {
     const b = JSON.parse(init.body);
+    if (failWhen?.(m[1], m[2], b)) return new Response(JSON.stringify({ name: "odoo.exceptions.Error", message: "boom" }), { status: 500 });
     const writes: Array<Record<string, unknown>> = [b.vals ?? {}, ...((b.vals_list ?? []) as Array<Record<string, unknown>>)];
     const names = [
       ...((b.domain ?? []) as unknown[]).filter(Array.isArray).map((t: any) => String(t[0])),
@@ -88,6 +96,7 @@ const ofd = await import("../src/out-for-delivery.ts");
 const { dispatch } = await import("../src/router.ts");
 const { sendDriverRoute } = await import("../src/team.ts");
 const { flushTeamQueue } = await import("../src/team-queue.ts");
+const sum = await import("../src/owner-summary.ts");
 const { CRON_JOB } = await import("../src/auto-send-guard.ts");
 const worker = (await import("../src/index.ts")).default;
 
@@ -444,6 +453,121 @@ const drvMember = { id: DRV, name: "عمر المجهلي", x_whatsapp_number: "
   assert("…its marker closes the queued route", q.length > 0 && q[q.length - 1].route_start === f.route, JSON.stringify(q.slice(-1)));
   await quiet(() => flushTeamQueue(f.env, `+${DRV_PHONE}`));
   assert("the flush after the tap: the first stop's customer gets it", ofdCounts() === "100", ofdCounts());
+}
+
+// ================================================================ م17
+/** reset() + the summary template, and a day of orders, invoices and payments (Saturday 09-26, 21:30). */
+function freshSummary(riyadh = `${SAT} 21:30`) {
+  const env = reset(); clearTemplateCache(); setRiyadh(riyadh); failWhen = null;
+  seed("x_whatsapp_template", { x_purpose: "owner_summary", x_meta_template_id: "utak_v2_summary", x_language: "ar", x_meta_status: "APPROVED", x_param_count: 3, x_category: "UTILITY" });
+  seed("product.template", { id: 3, name: "بصل" });
+  seed("x_product_packaging", { id: 31, x_name: "كيس", x_product_tmpl_id: 3 });
+  seed("x_daily_price", { x_product_tmpl_id: 2, x_packaging_id: 21, x_date: SAT, x_sale_price: 12, x_price_sar: 9 });
+  const o = (state: string, date: string, extra: Record<string, unknown> = {}) =>
+    seed("x_daily_order", { x_customer_id: CUST, x_state: state, x_order_date: date, x_created_via: "whatsapp", ...extra });
+  const line = (order: number, product: number, pack: number, qty: number, extra: Record<string, unknown> = {}) =>
+    seed("x_daily_order_line", { x_order_id: order, x_product_tmpl_id: product, x_packaging_id: pack, x_quantity: qty, x_status: "pending", ...extra });
+  // tomorrow's (today's ordering day): 2 confirmed = 3 × 10 (manual) + 2 × 12 (today's price) = 54
+  const t1 = o("confirmed", SAT); line(t1, 1, 11, 3, { x_price_unit_manual: 10 });
+  const t2 = o("in_purchase", SAT); line(t2, 2, 21, 2); line(t2, 1, 11, 5, { x_status: "unavailable" });
+  o("cancelled", SAT); o("draft", SAT); line(o("in_purchase", SAT, { x_utak_simulation: true }), 1, 11, 100, { x_price_unit_manual: 10 });
+  // today's deliveries (yesterday's ordering day): 2 delivered of 3; cancelled and simulation left out
+  o("delivered", FRI); o("closed", FRI); o("in_delivery", FRI); o("cancelled", FRI); o("delivered", FRI, { x_utak_simulation: true });
+  // invoices: A 200 (paid 100 today), B 80 (nothing paid), a simulation one, a future-dated test one, a paid one
+  const orderA = o("delivered", "2026-09-24"), orderSim = o("delivered", "2026-09-24", { x_utak_simulation: true });
+  const invA = seed("x_invoice", { x_order_id: orderA, x_invoice_number: "INV-A", x_invoice_date: FRI, x_total: 200, x_status: "issued" });
+  seed("x_invoice", { x_order_id: orderA, x_invoice_number: "INV-B", x_invoice_date: SAT, x_total: 80, x_status: "overdue" });
+  const invSim = seed("x_invoice", { x_order_id: orderSim, x_invoice_number: "INV-S", x_invoice_date: SAT, x_total: 500, x_status: "issued" });
+  seed("x_invoice", { x_order_id: orderA, x_invoice_number: "INV-F", x_invoice_date: "2026-10-05", x_total: 115, x_status: "issued" });
+  const invPaid = seed("x_invoice", { x_order_id: orderA, x_invoice_number: "INV-P", x_invoice_date: SAT, x_total: 70, x_status: "paid" });
+  // payments: today (Riyadh) 100 cash + 50 transfer; left out: a simulation payment, one on the simulation
+  // invoice, one yesterday (Riyadh; the same UTC day), one after midnight Riyadh (still 09-26 in UTC)
+  seed("x_payment", { x_invoice_id: invA, x_amount: 100, x_method: "cash", x_collected_at: "2026-09-25 22:30:00" }); // 01:30 Riyadh 09-26
+  seed("x_payment", { x_invoice_id: invPaid, x_amount: 50, x_method: "transfer", x_collected_at: "2026-09-26 12:00:00" });
+  seed("x_payment", { x_invoice_id: invPaid, x_amount: 20, x_method: "cash", x_collected_at: "2026-09-25 20:59:00" }); // 23:59 Riyadh 09-25
+  seed("x_payment", { x_invoice_id: invA, x_amount: 30, x_method: "cash", x_collected_at: "2026-09-26 10:00:00", x_utak_simulation: true });
+  seed("x_payment", { x_invoice_id: invSim, x_amount: 40, x_method: "cash", x_collected_at: "2026-09-26 10:00:00" });
+  seed("x_payment", { x_invoice_id: invA, x_amount: 60, x_method: "cash", x_collected_at: "2026-09-26 21:30:00" }); // 00:30 Riyadh 09-27
+  return env;
+}
+const OWNER_DIGITS = "966500000001";
+const ownerMsgs = () => sentTo(OWNER_DIGITS);
+
+console.log("\n[م17] 21:30: tomorrow's orders, today's deliveries, today's collection — from Odoo, the Riyadh day");
+{
+  const env = freshSummary();
+  const f = await quiet(() => sum.readSummaryFigures(env));
+  assert("tomorrow: 2 confirmed (cancelled, draft, simulation out)", f.tomorrow?.count === 2, JSON.stringify(f.tomorrow));
+  assert("tomorrow's total: 54.00 (manual price, today's price; the unavailable line out)", f.tomorrow?.total === 54, JSON.stringify(f.tomorrow));
+  assert("today's deliveries: 2 delivered of 3", f.deliveries?.delivered === 2 && f.deliveries?.total === 3, JSON.stringify(f.deliveries));
+  assert("collected today (Riyadh day): 150.00 — simulation, the simulation invoice and other days out", f.collected === 150, String(f.collected));
+  // A: 200 − (100 + 60) = 40 (the 30 is simulation; a payment of another day still pays it); B: 80 → 120.
+  // The simulation invoice, the future-dated one and the paid one are out.
+  assert("pending: 120.00 — open invoices up to today, less their real payments", f.pending === 120, String(f.pending));
+  const p = sum.summaryParams(f);
+  assert("{{1}}", p[0] === "2 مؤكدة لـ 27 سبتمبر 2026 بإجمالي 54.00 ريال", p[0]);
+  assert("{{2}}", p[1] === "2 مسلَّمة من 3", p[1]);
+  assert("{{3}}", p[2] === "المحصَّل اليوم 150.00 والمعلَّق 120.00", p[2]);
+  assert("each variable is one line", p.every((x) => !/[\n\t]/.test(x)));
+}
+{
+  const env = freshSummary();
+  const r = await quiet(() => sum.sendOwnerSummary(env));
+  const m = ownerMsgs();
+  assert("new: inside Baraa's window → the text", r.action === "session" && m.length === 1 && m[0].type === "text", `${r.action} ${JSON.stringify(m)}`);
+  const t = String(m[0]?.text?.body ?? "");
+  assert("…the three lines", t.includes("طلبات الغد: 2 مؤكدة") && t.includes("توصيلات اليوم: 2 مسلَّمة من 3") && t.includes("تحصيل اليوم: المحصَّل اليوم 150.00 والمعلَّق 120.00 ريال"), t);
+  // another collection meanwhile: a different text, so only the day's claim can stop a second summary
+  seed("x_payment", { x_invoice_id: [...table("x_invoice").values()].find((i) => i.x_invoice_number === "INV-B")!.id, x_amount: 80, x_method: "cash", x_collected_at: "2026-09-26 18:40:00" });
+  const again = await quiet(() => sum.sendOwnerSummary(env));
+  assert("once a day: a second run sends nothing (even with new figures)", again.action === "sent_before" && ownerMsgs().length === 1, again.action);
+  assert("the claim is in KV", env.MSG_DEDUP.store.has(`btnlock:v1:owner_summary:${SAT}`));
+}
+{
+  const env = freshSummary();
+  closeOwnerWindow(env);
+  const r = await quiet(() => sum.sendOwnerSummary(env));
+  const m = ownerMsgs();
+  assert("outside his window → utak_v2_summary", r.action === "template" && m.length === 1 && m[0].template?.name === "utak_v2_summary", `${r.action} ${JSON.stringify(m)}`);
+  assert("…with its three variables", tplParams(m[0]).join(" | ") === "2 مؤكدة لـ 27 سبتمبر 2026 بإجمالي 54.00 ريال | 2 مسلَّمة من 3 | المحصَّل اليوم 150.00 والمعلَّق 120.00", JSON.stringify(tplParams(m[0])));
+}
+
+console.log("\n[م17] a figure Odoo cannot give: the summary goes with «تعذّر» in its place, never a guess");
+{
+  const env = freshSummary();
+  seed("x_daily_order_line", { x_order_id: [...table("x_daily_order").values()].find((o) => o.x_order_date === SAT && o.x_state === "confirmed")!.id, x_product_tmpl_id: 3, x_packaging_id: 31, x_quantity: 4, x_status: "pending" });
+  const f = await quiet(() => sum.readSummaryFigures(env));
+  const p = sum.summaryParams(f);
+  assert("a line with no price: the total is «تعذّر» (no partial sum), the count stays", p[0] === "2 مؤكدة لـ 27 سبتمبر 2026، والإجمالي تعذّر (1 سطر بلا سعر)" && !/54/.test(p[0]), p[0]);
+}
+{
+  const env = freshSummary();
+  failWhen = (model, method, b) => model === "x_payment" && method === "search_read" && JSON.stringify(b.domain ?? []).includes("x_collected_at");
+  const r = await quiet(() => sum.sendOwnerSummary(env));
+  failWhen = null;
+  const t = String(ownerMsgs()[0]?.text?.body ?? "");
+  assert("collected unreadable: still sent, «المحصَّل اليوم تعذّر», the pending figure kept", r.action === "session" && t.includes("المحصَّل اليوم تعذّر والمعلَّق 120.00"), `${r.action} ${t}`);
+  assert("…and the other two lines as they are", t.includes("54.00") && t.includes("2 مسلَّمة من 3"), t);
+}
+{
+  const env = freshSummary();
+  closeOwnerWindow(env);
+  failWhen = (model) => model === "x_daily_order";
+  const r = await quiet(() => sum.sendOwnerSummary(env));
+  failWhen = null;
+  const p = tplParams(ownerMsgs()[0]);
+  assert("orders unreadable (template): {{1}} and {{2}} are «تعذّر»", r.action === "template" && p[0] === "تعذّر" && p[1] === "تعذّر", JSON.stringify(p));
+}
+
+console.log("\n[م17] wired: 21:30 on sim");
+{
+  const toml = readFileSync(new URL("../wrangler.toml", import.meta.url), "utf8");
+  const simBlock = toml.split("[env.sim.triggers]")[1].split("[env.sim.vars]")[0];
+  assert("\"30 18 * * *\" (21:30 Riyadh) is in [env.sim.triggers]", simBlock.includes(`"${sum.OWNER_SUMMARY_CRON}"`) && sum.OWNER_SUMMARY_CRON === "30 18 * * *");
+  assert("CRON_JOB names it owner_summary", CRON_JOB[sum.OWNER_SUMMARY_CRON] === "owner_summary");
+  const env = freshSummary();
+  await quiet(() => worker.scheduled({ cron: sum.OWNER_SUMMARY_CRON } as any, env, ctx));
+  assert("scheduled() on that cron sends the summary", ownerMsgs().length === 1 && String(ownerMsgs()[0]?.text?.body).startsWith("📊 ملخص اليوم 26 سبتمبر 2026"), JSON.stringify(ownerMsgs()));
 }
 
 // ================================================================ schema gate

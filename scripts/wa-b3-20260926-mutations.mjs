@@ -15,6 +15,7 @@ const root = new URL("../", import.meta.url).pathname;
 const T = "tests/wa-important-b3.test.mts";
 const DF = "src/driver-followup.ts";
 const OFD = "src/out-for-delivery.ts";
+const OS = "src/owner-summary.ts";
 
 // [name, [[file, find, replace], …], test file]
 const M = [
@@ -77,6 +78,34 @@ const M = [
     "    content: { kind: \"template\", purpose: OFD_PURPOSE, params: ofdParams(orderId, driverName) },\n    fallback: [textContent(ofdText(orderId, driverName))],"]], T],
   ["م8: {{2}} is the bare name (not «السائق …»)", [[OFD,
     "  return n ? `السائق ${n}` : \"السائق\";", "  return n || \"السائق\";"]], T],
+  // ---- م17: Baraa's summary
+  ["م17: no daily claim (sent on every run)", [[OS,
+    "claimButton(env, `owner_summary:${day}`, CLAIM_TTL)", "claimButton(env, `owner_summary:${day}:${Math.random()}`, CLAIM_TTL)"]], T],
+  ["م17: simulation orders counted", [[OS,
+    "    domain: [[\"x_order_date\", \"=\", day], [\"x_state\", \"in\", states], [SIM_FIELD, \"!=\", true]],", "    domain: [[\"x_order_date\", \"=\", day], [\"x_state\", \"in\", states]],"]], T],
+  ["م17: a simulation payment counted as collected", [[OS,
+    "      [\"x_method\", \"in\", [\"cash\", \"transfer\"]], [SIM_FIELD, \"!=\", true],", "      [\"x_method\", \"in\", [\"cash\", \"transfer\"]],"]], T],
+  ["م17: a payment on a simulation invoice / order counted", [[OS,
+    "  return new Set(invs.filter((i) => i[SIM_FIELD] === true || simOrders.has(m2oId(i.x_order_id))).map((i) => i.id));", "  return new Set(invs.filter((i) => i[SIM_FIELD] === true).map((i) => i.id));"]], T],
+  ["م17: the UTC day instead of Riyadh's", [[OS,
+    "  const from = riyadhDayMinuteMs(day, 0);", "  const from = Date.parse(`${day}T00:00:00Z`);"]], T],
+  ["م17: a partial total when a line has no price", [[OS,
+    "total: t && t.unpriced === 0 ? t.total : null", "total: t ? t.total : null"]], T],
+  ["م17: unavailable lines counted in the total", [[OS,
+    "    if (l.x_status === \"unavailable\") continue;\n", ""]], T],
+  ["م17: one unreadable figure stops the summary", [[OS,
+    "    try { return await fn(); } catch (e) {", "    try { return await fn(); } finally { void 0; } { const e = null as unknown;"]], T],
+  ["م17: the template even inside his window", [[OS,
+    "    content: textContent(summaryText(figures)),\n    fallback: [{ kind: \"template\", purpose: T.OWNER_SUMMARY, params: summaryParams(figures) }],",
+    "    content: { kind: \"template\", purpose: T.OWNER_SUMMARY, params: summaryParams(figures) },\n    fallback: [textContent(summaryText(figures))],"]], T],
+  ["م17: pending ignores the payments", [[OS,
+    "Math.max(0, round2((Number(i.x_total) || 0) - (paid.get(i.id) ?? 0)))", "Math.max(0, round2(Number(i.x_total) || 0))"]], T],
+  ["م17: pending takes future-dated invoices", [[OS,
+    "[\"x_status\", \"in\", [\"issued\", \"overdue\"]], [\"x_invoice_date\", \"<=\", day], [SIM_FIELD, \"!=\", true]]", "[\"x_status\", \"in\", [\"issued\", \"overdue\"]], [SIM_FIELD, \"!=\", true]]"]], T],
+  ["م17: «closed» not counted as delivered", [[OS,
+    "const DELIVERED_STATES = new Set([\"delivered\", \"closed\"]);", "const DELIVERED_STATES = new Set([\"delivered\"]);"]], T],
+  ["م17: the 21:30 cron not wired", [["src/index.ts",
+    "          const r = await sendOwnerSummary(env);\n", "          const r = { day: \"\", action: \"-\", figures: undefined as undefined | { errors: string[] } };\n"]], T],
 ];
 
 const results = [];

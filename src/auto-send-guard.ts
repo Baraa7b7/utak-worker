@@ -50,6 +50,8 @@ export const CRON_JOB: Readonly<Record<string, string>> = {
   // 2026-09-26 (STATUS § 38, م12) — the driver's end-of-shift follow-up, every
   // 5 minutes two minutes after the attendance tick (src/driver-followup.ts). sim only.
   "2,7,12,17,22,27,32,37,42,47,52,57 * * * *": "driver_followup",
+  // 2026-09-26 (STATUS § 38, م17) — Baraa's daily summary, 21:30 Riyadh (src/owner-summary.ts). sim only.
+  "30 18 * * *": "owner_summary",
 };
 
 /** Shallow copy of env that marks every send inside the job as automated. */

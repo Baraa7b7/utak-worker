@@ -210,6 +210,14 @@ export default {
           if (acted.length) console.log(`[driver-followup ${r.at}]`, JSON.stringify(acted));
           break;
         }
+        // 2026-09-26 (STATUS § 38, م17) — 21:30 Riyadh, after the 21:00 close and
+        // the 21:15 purchase list: Baraa's summary of the day (once a day).
+        case "30 18 * * *": {
+          const { sendOwnerSummary } = await import("./owner-summary");
+          const r = await sendOwnerSummary(env);
+          console.log(`[owner-summary ${r.day}] ${r.action}${r.figures?.errors.length ? ` errors=${JSON.stringify(r.figures.errors)}` : ""}`);
+          break;
+        }
         default: console.warn(`[scheduled] unhandled cron: ${cron}`);
       }
     } catch (e) {
@@ -1898,9 +1906,13 @@ async function runSimJob(rawEnv: Env, job: string): Promise<unknown> {
       const { runDriverFollowupTick } = await import("./driver-followup");
       return runDriverFollowupTick(env);
     }
+    case "owner_summary": {
+      const { sendOwnerSummary } = await import("./owner-summary");
+      return sendOwnerSummary(env);
+    }
     default:
       throw new Error(
-        `unknown job '${job}'. valid: ask_suppliers | reliability_scores | supplier_nudge | open_ordering | purchase_followup | cutoff_reminder | close_unconfirmed | aggregate_purchase | supplier_noprice_alert | collection_summary | standing_reminders | daily_outreach | team_attendance | driver_followup`,
+        `unknown job '${job}'. valid: ask_suppliers | reliability_scores | supplier_nudge | open_ordering | purchase_followup | cutoff_reminder | close_unconfirmed | aggregate_purchase | supplier_noprice_alert | collection_summary | standing_reminders | daily_outreach | team_attendance | driver_followup | owner_summary`,
       );
   }
 }

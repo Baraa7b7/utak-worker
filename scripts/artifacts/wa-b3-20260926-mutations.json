@@ -1,7 +1,7 @@
 {
-  "at": "2026-09-26T05:40:24.267Z",
-  "caught": 28,
-  "total": 28,
+  "at": "2026-09-26T05:45:28.889Z",
+  "caught": 41,
+  "total": 41,
   "results": [
     {
       "name": "م12: the reminder without its KV claim (sent on every tick)",
@@ -217,6 +217,123 @@
       "fails": [
         "✗ its two variables: the order number, «السائق عمر المجهلي» (one line each) — [\"10009\",\"عمر المجهلي\"]",
         "✗ inside the customer's window: the text, not the template — {\"messaging_product\":\"whatsapp\",\"to\":\"966500000501\",\"type\":\"text\",\"text\":{\"body\":\"🚚 طلبك رقم #10009 في الطريق إليك الآن مع عمر المجهلي. يو تاك\"}}"
+      ]
+    },
+    {
+      "name": "م17: no daily claim (sent on every run)",
+      "caught": true,
+      "fails": [
+        "✗ once a day: a second run sends nothing (even with new figures) — session",
+        "✗ the claim is in KV"
+      ]
+    },
+    {
+      "name": "م17: simulation orders counted",
+      "caught": true,
+      "fails": [
+        "✗ tomorrow: 2 confirmed (cancelled, draft, simulation out) — {\"count\":3,\"total\":1054,\"unpriced\":0}",
+        "✗ tomorrow's total: 54.00 (manual price, today's price; the unavailable line out) — {\"count\":3,\"total\":1054,\"unpriced\":0}",
+        "✗ today's deliveries: 2 delivered of 3 — {\"delivered\":3,\"total\":4}",
+        "✗ {{1}} — 3 مؤكدة لـ 27 سبتمبر 2026 بإجمالي 1054.00 ريال"
+      ]
+    },
+    {
+      "name": "م17: a simulation payment counted as collected",
+      "caught": true,
+      "fails": [
+        "✗ collected today (Riyadh day): 150.00 — simulation, the simulation invoice and other days out — 180",
+        "✗ {{3}} — المحصَّل اليوم 180.00 والمعلَّق 120.00",
+        "✗ …the three lines — 📊 ملخص اليوم 26 سبتمبر 2026",
+        "✗ …with its three variables — [\"2 مؤكدة لـ 27 سبتمبر 2026 بإجمالي 54.00 ريال\",\"2 مسلَّمة من 3\",\"المحصَّل اليوم 180.00 والمعلَّق 120.00\"]"
+      ]
+    },
+    {
+      "name": "م17: a payment on a simulation invoice / order counted",
+      "caught": true,
+      "fails": [
+        "✗ collected today (Riyadh day): 150.00 — simulation, the simulation invoice and other days out — 190",
+        "✗ pending: 120.00 — open invoices up to today, less their real payments — 580",
+        "✗ {{3}} — المحصَّل اليوم 190.00 والمعلَّق 580.00",
+        "✗ …the three lines — 📊 ملخص اليوم 26 سبتمبر 2026"
+      ]
+    },
+    {
+      "name": "م17: the UTC day instead of Riyadh's",
+      "caught": true,
+      "fails": [
+        "✗ collected today (Riyadh day): 150.00 — simulation, the simulation invoice and other days out — 110",
+        "✗ {{3}} — المحصَّل اليوم 110.00 والمعلَّق 120.00",
+        "✗ …the three lines — 📊 ملخص اليوم 26 سبتمبر 2026",
+        "✗ …with its three variables — [\"2 مؤكدة لـ 27 سبتمبر 2026 بإجمالي 54.00 ريال\",\"2 مسلَّمة من 3\",\"المحصَّل اليوم 110.00 والمعلَّق 120.00\"]"
+      ]
+    },
+    {
+      "name": "م17: a partial total when a line has no price",
+      "caught": true,
+      "fails": [
+        "✗ a line with no price: the total is «تعذّر» (no partial sum), the count stays — 2 مؤكدة لـ 27 سبتمبر 2026 بإجمالي 54.00 ريال"
+      ]
+    },
+    {
+      "name": "م17: unavailable lines counted in the total",
+      "caught": true,
+      "fails": [
+        "✗ tomorrow's total: 54.00 (manual price, today's price; the unavailable line out) — {\"count\":2,\"total\":null,\"unpriced\":1}",
+        "✗ {{1}} — 2 مؤكدة لـ 27 سبتمبر 2026، والإجمالي تعذّر (1 سطر بلا سعر)",
+        "✗ …with its three variables — [\"2 مؤكدة لـ 27 سبتمبر 2026، والإجمالي تعذّر (1 سطر بلا سعر)\",\"2 مسلَّمة من 3\",\"المحصَّل اليوم 150.00 والمعلَّق 120.00\"]",
+        "✗ a line with no price: the total is «تعذّر» (no partial sum), the count stays — 2 مؤكدة لـ 27 سبتمبر 2026، والإجمالي تعذّر (2 سطر بلا سعر)"
+      ]
+    },
+    {
+      "name": "م17: one unreadable figure stops the summary",
+      "caught": true,
+      "fails": []
+    },
+    {
+      "name": "م17: the template even inside his window",
+      "caught": true,
+      "fails": [
+        "✗ new: inside Baraa's window → the text — template [{\"messaging_product\":\"whatsapp\",\"to\":\"966500000001\",\"type\":\"template\",\"template\":{\"name\":\"utak_v2_summary\",\"language\":{\"code\":\"ar\"},\"components\":[{\"type\":\"body\",\"parameters\":[{\"type\":\"text\",\"text\":\"2 مؤكدة لـ 27 سبتمبر 2026 بإجمالي 54.00 ريال\"},{\"type\":\"text\",\"text\":\"2 مسلَّمة من 3\"},{\"type\":\"text\",\"text\":\"المحصَّل اليوم 150.00 والمعلَّق 120.00\"}]}]}}]",
+        "✗ …the three lines",
+        "✗ collected unreadable: still sent, «المحصَّل اليوم تعذّر», the pending figure kept — template",
+        "✗ …and the other two lines as they are"
+      ]
+    },
+    {
+      "name": "م17: pending ignores the payments",
+      "caught": true,
+      "fails": [
+        "✗ pending: 120.00 — open invoices up to today, less their real payments — 280",
+        "✗ {{3}} — المحصَّل اليوم 150.00 والمعلَّق 280.00",
+        "✗ …the three lines — 📊 ملخص اليوم 26 سبتمبر 2026",
+        "✗ …with its three variables — [\"2 مؤكدة لـ 27 سبتمبر 2026 بإجمالي 54.00 ريال\",\"2 مسلَّمة من 3\",\"المحصَّل اليوم 150.00 والمعلَّق 280.00\"]"
+      ]
+    },
+    {
+      "name": "م17: pending takes future-dated invoices",
+      "caught": true,
+      "fails": [
+        "✗ pending: 120.00 — open invoices up to today, less their real payments — 235",
+        "✗ {{3}} — المحصَّل اليوم 150.00 والمعلَّق 235.00",
+        "✗ …the three lines — 📊 ملخص اليوم 26 سبتمبر 2026",
+        "✗ …with its three variables — [\"2 مؤكدة لـ 27 سبتمبر 2026 بإجمالي 54.00 ريال\",\"2 مسلَّمة من 3\",\"المحصَّل اليوم 150.00 والمعلَّق 235.00\"]"
+      ]
+    },
+    {
+      "name": "م17: «closed» not counted as delivered",
+      "caught": true,
+      "fails": [
+        "✗ today's deliveries: 2 delivered of 3 — {\"delivered\":1,\"total\":3}",
+        "✗ {{2}} — 1 مسلَّمة من 3",
+        "✗ …the three lines — 📊 ملخص اليوم 26 سبتمبر 2026",
+        "✗ …with its three variables — [\"2 مؤكدة لـ 27 سبتمبر 2026 بإجمالي 54.00 ريال\",\"1 مسلَّمة من 3\",\"المحصَّل اليوم 150.00 والمعلَّق 120.00\"]"
+      ]
+    },
+    {
+      "name": "م17: the 21:30 cron not wired",
+      "caught": true,
+      "fails": [
+        "✗ scheduled() on that cron sends the summary — []"
       ]
     }
   ]

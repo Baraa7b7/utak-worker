@@ -318,6 +318,18 @@ console.log("\n[ب] Omar: 02:30 «أرسل أسعار السوق اليوم» th
   assert("from the publication time (06:00): no ask any more", r.action === "after" && askTexts(DRIVER_PHONE).length === 0, JSON.stringify(r));
 }
 {
+  // the live cron's env: its sends carry the job «team_attendance»; an earlier text to Omar in that job today
+  const env = fresh("2026-10-03 02:30", { onAttendance: false }); sources();
+  openWindow(env, DRIVER_PHONE, 30);
+  const cronEnv = { ...env, AUTO_SEND_JOB: "team_attendance" };
+  const { sendText } = await import("../src/meta.ts");
+  await quiet(() => sendText(cronEnv, `+${DRIVER_PHONE}`, "نص آلي سابق اليوم", { purpose: "team_task" }));
+  const P = await import("../src/prices.ts");
+  await quiet(() => P.runPricesTick(cronEnv, Date.now()));
+  assert("in the */5 cron's own env: the ask goes (its own auto-send job, not a «duplicate» of another text)", askTexts(DRIVER_PHONE).length === 1,
+    JSON.stringify(sentTo(DRIVER_PHONE).map((b) => b.text?.body)));
+}
+{
   const env = fresh("2026-10-03 02:30", { onAttendance: false });   // Omar not flagged
   openWindow(env, DRIVER_PHONE, 30);
   const r = await quiet(() => PS.runMarketAsk(env, Date.now(), 360));
@@ -942,6 +954,14 @@ console.log("\n[هـ] 21:30: today's profit ÷ today's operating cost — inside
   cost("صيانة", "monthly", 2600, "2026-01-01");               // Saturday: 100 of it today (Friday, yesterday: 0)
   const f = await quiet(() => SUM.readSummaryFigures(env));
   assert("today's cost (Saturday 10-03: 500 + 2600 ÷ 26 = 600), not yesterday's (Friday: 500) → 28%", f.coverage.cost === 600 && f.coverage.pct === 28, JSON.stringify(f.coverage));
+}
+
+{
+  const env = summaryEnv();
+  const o = delivered([[1, 11, 2, 30]]);
+  seed("x_daily_order_line", { x_order_id: o, x_product_tmpl_id: 2, x_packaging_id: 21, x_quantity: 3, x_unit_price: false, x_status: "unavailable" });
+  const f = await quiet(() => SUM.readSummaryFigures(env));
+  assert("a line short at delivery («unavailable») is not in the profit: 169.57 + 2 × 9 = 187.57", f.coverage.profit === 187.57, JSON.stringify(f.coverage));
 }
 
 console.log("\n[هـ] a figure that cannot be read: «تعذّر», never a guess");

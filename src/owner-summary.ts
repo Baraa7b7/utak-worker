@@ -185,7 +185,7 @@ async function deliveredProfit(env: Env, orderDay: string): Promise<number> {
   if (waste === undefined) throw new Error(`no pricing settings on ${orderDay}`);
   let profit = 0;
   for (const l of lines) {
-    if (l.x_status === "unavailable") continue;
+    if (String(l.x_status) === "unavailable") continue; // short at delivery: not sold
     const sale = Number(l.x_price_unit_manual) > 0 ? Number(l.x_price_unit_manual) : Number(l.x_unit_price) || 0;
     const buy = cost.get(`${m2oId(l.x_product_tmpl_id)}:${m2oId(l.x_packaging_id)}`) ?? 0;
     if (!(sale > 0)) throw new Error("a delivered line without a sale price");

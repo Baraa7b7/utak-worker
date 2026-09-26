@@ -1,5 +1,5 @@
 {
-  "at": "2026-09-26T06:45:33.603Z",
+  "at": "2026-09-26T08:29:45.603Z",
   "caught": 29,
   "total": 29,
   "results": [
@@ -18,7 +18,7 @@
       "caught": true,
       "fails": [
         "✗ Baraa's copy: row on his partner, line in «واتساب · Bara.a - U TAK» — []",
-        "✗ the alert (no margin): row and line in his channel",
+        "✗ the line (an exception left without a decision): row and line in his channel",
         "✗ alert: row and line for Baraa",
         "✗ team note to Baraa: row and line"
       ]

@@ -98,7 +98,9 @@ const M = [
   ["ب", "the team hook not wired in /webhook", [["src/index.ts",
     ".then((m) => m.tryMarketReply(env,", ".then((m) => null && m.tryMarketReply(env,"]], T],
   ["ب", "the ask not in the */5 prices tick", [["src/prices.ts",
-    "    out.marketAsk = await runMarketAsk(env, now, pricesDeadlineMinutes(env).minutes);", "    out.marketAsk = { action: \"ran\" }; void runMarketAsk;"]], T],
+    "    out.marketAsk = await runMarketAsk(env, now, dl);", "    out.marketAsk = { action: \"ran\" }; void runMarketAsk;"]], T],
+  ["ب", "the ask under the cron's job (a «duplicate» of another text that day)", [[PS,
+    "  const jenv = withAutoSendJob(env, MARKET_ASK_PURPOSE);", "  const jenv = env; void withAutoSendJob;"]], T],
   ["ب", "Omar's reply not acknowledged", [[PS,
     "  return { saved, reply: marketAckText(saved) };", "  return { saved, reply: \"\" };"]], T],
   // ---------------------------------------------------------------- ج the engine
@@ -237,6 +239,8 @@ const M = [
   // ---------------------------------------------------------------- هـ the coverage line
   ["هـ", "the invoices' discount not taken off the profit", [[SM,
     "  for (const i of invs) profit -= invoiceDiscount(", "  for (const i of invs) void invoiceDiscount("]], T],
+  ["هـ", "a line short at delivery counted in the profit", [[SM,
+    "    if (String(l.x_status) === \"unavailable\") continue; // short at delivery: not sold\n", ""]], T],
   ["هـ", "the waste left out of the day's profit", [[SM,
     "    profit += (sale - buy - (waste / 100) * buy) * (Number(l.x_quantity) || 0);", "    profit += (sale - buy) * (Number(l.x_quantity) || 0);"]], T],
   ["هـ", "a simulation order counted", [[SM,

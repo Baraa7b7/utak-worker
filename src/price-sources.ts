@@ -291,6 +291,10 @@ export async function runMarketAsk(env: Env, nowMs: number, untilMinute: number)
   if (m < MARKET_ASK_MINUTE) return { action: "before" };
   if (m >= untilMinute) return { action: "after" };
   const day = riyadhDateKey(new Date(nowMs));
+  // its own auto-send job: the */5 cron's name would key it with every other
+  // text to the same number that day (day, number, message type, job).
+  const { withAutoSendJob } = await import("./auto-send-guard");
+  const jenv = withAutoSendJob(env, MARKET_ASK_PURPOSE);
   const src = await loadPriceSources(env);
   const emp = new Set(src.employees.map((e) => e.partnerId));
   const targets: Array<{ partnerId: number; employeeId: number | null; name: string; whatsapp: string }> = [
@@ -315,7 +319,7 @@ export async function runMarketAsk(env: Env, nowMs: number, untilMinute: number)
             action = "queued";
           } else action = "off";
         } else {
-          const d = gatewayDecision(await sendViaGateway(env, { purpose: MARKET_ASK_PURPOSE, to: `+${t.whatsapp}`, content: textContent(text), noHold: true, noHoldReason: "طابور الفريق حتى «بدء الدوام»" }));
+          const d = gatewayDecision(await sendViaGateway(jenv, { purpose: MARKET_ASK_PURPOSE, to: `+${t.whatsapp}`, content: textContent(text), noHold: true, noHoldReason: "طابور الفريق حتى «بدء الدوام»" }));
           if (d?.action === "session") { await writeMarketAskMarker(env, t.whatsapp, day, nowMs); action = "sent"; }
           else if (d?.action === "skipped") {
             const { enqueueTeamItems } = await import("./team-queue");
@@ -324,7 +328,7 @@ export async function runMarketAsk(env: Env, nowMs: number, untilMinute: number)
           }
         }
       } else {
-        const d = gatewayDecision(await sendViaGateway(env, { purpose: MARKET_ASK_PURPOSE, to: `+${t.whatsapp}`, content: textContent(text) }));
+        const d = gatewayDecision(await sendViaGateway(jenv, { purpose: MARKET_ASK_PURPOSE, to: `+${t.whatsapp}`, content: textContent(text) }));
         if (d?.action === "session") { await writeMarketAskMarker(env, t.whatsapp, day, nowMs); action = "sent"; }
         else if (d?.action === "held") { await writeMarketAskMarker(env, t.whatsapp, day, null); action = "held"; }
       }

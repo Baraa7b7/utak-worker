@@ -72,8 +72,9 @@ const M = [
     "      fallback: [openerOption(\"owner\", [arabicDate(day), OWNER_OPENER_UPDATE])],", ""]], O],
   ["owner: the 06:00 backup does not count as the day's opener", [["src/attendance.ts",
     "    await markOpenerSentToday(env, owner, d.template, nowMs);\n", ""]], O],
+  // § 40 ج — the list gained owner_price_exception after owner_prices.
   ["owner guard: owner_team_note blocked", [[GW,
-    "\"owner_team_note\", \"owner_prices\"]", "\"owner_prices\"]"]], O],
+    "\"owner_team_note\", \"owner_prices\", \"owner_price_exception\"]", "\"owner_prices\", \"owner_price_exception\"]"]], O],
   // ---- params
   ["params: a customer's {{1}} is the date, not the account number", [[OP,
     "  const ref = category === \"customer\" && partnerId ? String(partnerId) : arabicDate(riyadhDateKey(new Date(now)));",

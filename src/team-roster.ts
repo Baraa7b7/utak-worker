@@ -118,6 +118,24 @@ async function roleCodes(env: Env): Promise<Map<number, TeamRole>> {
   return map;
 }
 
+/** A resource.calendar.attendance row (LINE_FIELDS) as the roster keeps it. */
+export function toCalendarLine(l: Record<string, unknown>): CalendarLine {
+  return {
+    calendarId: m2oId(l.calendar_id as M2O) ?? 0,
+    type: l.calendar_type === "variable" ? "variable" : "fixed",
+    dayofweek: String(l.dayofweek ?? ""),
+    hourFrom: Number(l.hour_from) || 0,
+    hourTo: Number(l.hour_to) || 0,
+    durationBased: l.duration_based === true || (!Number(l.hour_from) && !Number(l.hour_to)),
+    date: typeof l.date === "string" ? l.date : null,
+    recurrency: l.recurrency === true,
+    recurrencyType: l.recurrency_type === "days" ? "days" : "weeks",
+    interval: Number(l.recurrency_interval) || 0,
+    until: typeof l.recurrency_until === "string" ? l.recurrency_until : null,
+    excluded: Array.isArray(l.recurrency_excluded_occurences) ? (l.recurrency_excluded_occurences as unknown[]).map(String) : [],
+  };
+}
+
 /** Reads Odoo (no cache). Throws on Odoo trouble. */
 export async function fetchRoster(env: Env, nowMs: number = Date.now()): Promise<Roster> {
   const roles = await roleCodes(env);
@@ -157,20 +175,7 @@ export async function fetchRoster(env: Env, nowMs: number = Date.now()): Promise
     const rawLines = await call<Array<Record<string, unknown>>>(env, "resource.calendar.attendance", "search_read", {
       domain: [["calendar_id", "in", calIds]], fields: [...LINE_FIELDS], limit: 500,
     });
-    lines = rawLines.map((l) => ({
-      calendarId: m2oId(l.calendar_id as M2O) ?? 0,
-      type: l.calendar_type === "variable" ? "variable" : "fixed",
-      dayofweek: String(l.dayofweek ?? ""),
-      hourFrom: Number(l.hour_from) || 0,
-      hourTo: Number(l.hour_to) || 0,
-      durationBased: l.duration_based === true || (!Number(l.hour_from) && !Number(l.hour_to)),
-      date: typeof l.date === "string" ? l.date : null,
-      recurrency: l.recurrency === true,
-      recurrencyType: l.recurrency_type === "days" ? "days" : "weeks",
-      interval: Number(l.recurrency_interval) || 0,
-      until: typeof l.recurrency_until === "string" ? l.recurrency_until : null,
-      excluded: Array.isArray(l.recurrency_excluded_occurences) ? (l.recurrency_excluded_occurences as unknown[]).map(String) : [],
-    }));
+    lines = rawLines.map(toCalendarLine);
     const today = riyadhDateKey(new Date(nowMs));
     const from = toOdooUtc(riyadhDayMinuteMs(today, 0) - DAY_MS);
     const to = toOdooUtc(riyadhDayMinuteMs(today, 0) + (LEAVE_WINDOW_DAYS + 1) * DAY_MS);

@@ -1,0 +1,129 @@
+{
+  "at": "2026-09-26T07:43:23.897Z",
+  "caught": 12,
+  "total": 12,
+  "results": [
+    {
+      "part": "أ",
+      "name": "a monthly share on the driver's day off",
+      "caught": true,
+      "fails": [
+        "✗ monthly on the driver's day off (Friday) → 0 — {\"day\":\"2026-10-02\",\"total\":100,\"items\":[{\"id\":10007,\"name\":\"صيانة\",\"frequency\":\"monthly\",\"amount\":2600,\"perDay\":100}],\"workingDay\":false,\"monthWorkingDays\":26,\"yearWorkingDays\":null,\"driver\":\"عمر المجهلي\"}",
+        "✗ … and on Friday 10-02 = 500 (the daily line only) — {\"day\":\"2026-10-02\",\"total\":700,\"items\":[{\"id\":10007,\"name\":\"تأمين السيارة\",\"frequency\":\"yearly\",\"amount\":31300,\"perDay\":100},{\"id\":10008,\"name\":\"السيارة والسائق (شامل)\",\"frequency\":\"daily\",\"amount\":500,\"perDay\":500},{\"id\":10009,\"name\":\"صيانة\",\"frequency\":\"monthly\",\"amount\":2600,\"perDay\":100}],\"workingDay\":false,\"monthWorkingDays\":26,\"yearWorkingDays\":313,\"driver\":\"عمر المجهلي\"}",
+        "✗ monthly on the driver's day off (Friday) → 0",
+        "✗ … and on Friday 10-02 = 500 (the daily line only)"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "monthly ÷ 30 calendar days, not the working days",
+      "caught": true,
+      "fails": [
+        "✗ monthly 2600 on a working day → 100 — {\"day\":\"2026-10-03\",\"total\":86.67,\"items\":[{\"id\":10007,\"name\":\"صيانة\",\"frequency\":\"monthly\",\"amount\":2600,\"perDay\":86.66666666666667}],\"workingDay\":true,\"monthWorkingDays\":26,\"yearWorkingDays\":null,\"driver\":\"عمر المجهلي\"}",
+        "✗ September 2026 has 26 working days too (4 Fridays of 30) — {\"day\":\"2026-09-26\",\"total\":86.67,\"items\":[{\"id\":10007,\"name\":\"صيانة\",\"frequency\":\"monthly\",\"amount\":2600,\"perDay\":86.66666666666667}],\"workingDay\":true,\"monthWorkingDays\":26,\"yearWorkingDays\":null,\"driver\":\"عمر المجهلي\"}",
+        "✗ February 2026: 24 working days → 108.33 — {\"day\":\"2026-02-02\",\"total\":86.67,\"items\":[{\"id\":10007,\"name\":\"صيانة\",\"frequency\":\"monthly\",\"amount\":2600,\"perDay\":86.66666666666667}],\"workingDay\":true,\"monthWorkingDays\":24,\"yearWorkingDays\":null,\"driver\":\"عمر المجهلي\"}",
+        "✗ daily 500 + monthly 2600 + yearly 31300 on Saturday 10-03 = 700 — {\"day\":\"2026-10-03\",\"total\":686.67,\"items\":[{\"id\":10007,\"name\":\"تأمين السيارة\",\"frequency\":\"yearly\",\"amount\":31300,\"perDay\":100},{\"id\":10008,\"name\":\"السيارة والسائق (شامل)\",\"frequency\":\"daily\",\"amount\":500,\"perDay\":500},{\"id\":10009,\"name\":\"صيانة\",\"frequency\":\"monthly\",\"amount\":2600,\"perDay\":86.66666666666667}],\"workingDay\":true,\"monthWorkingDays\":26,\"yearWorkingDays\":313,\"driver\":\"عمر المجهلي\"}"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "yearly ÷ the month's working days",
+      "caught": true,
+      "fails": [
+        "✗ 2026 has 313 working days; yearly 31300 → 100 — {\"day\":\"2026-10-03\",\"total\":1203.85,\"items\":[{\"id\":10007,\"name\":\"تأمين السيارة\",\"frequency\":\"yearly\",\"amount\":31300,\"perDay\":1203.8461538461538}],\"workingDay\":true,\"monthWorkingDays\":26,\"yearWorkingDays\":313,\"driver\":\"عمر المجهلي\"}",
+        "✗ daily 500 + monthly 2600 + yearly 31300 on Saturday 10-03 = 700 — {\"day\":\"2026-10-03\",\"total\":1803.85,\"items\":[{\"id\":10007,\"name\":\"تأمين السيارة\",\"frequency\":\"yearly\",\"amount\":31300,\"perDay\":1203.8461538461538},{\"id\":10008,\"name\":\"السيارة والسائق (شامل)\",\"frequency\":\"daily\",\"amount\":500,\"perDay\":500},{\"id\":10009,\"name\":\"صيانة\",\"frequency\":\"monthly\",\"amount\":2600,\"perDay\":100}],\"workingDay\":true,\"monthWorkingDays\":26,\"yearWorkingDays\":313,\"driver\":\"عمر المجهلي\"}",
+        "✗ 2026 has 313 working days; yearly 31300 → 100",
+        "✗ daily 500 + monthly 2600 + yearly 31300 on Saturday 10-03 = 700"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "«إلى» ignored",
+      "caught": true,
+      "fails": [
+        "✗ «إلى» inclusive: 10-10 = 540, 10-11 = 500 — 540 540",
+        "✗ a monthly line with «من / إلى»: 3000 ÷ 26 inside, nothing outside — 115.38 0 115.38",
+        "✗ «إلى» inclusive: 10-10 = 540, 10-11 = 500",
+        "✗ a monthly line with «من / إلى»: 3000 ÷ 26 inside, nothing outside"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "«من» ignored",
+      "caught": true,
+      "fails": [
+        "✗ 2026-09-30: 0 (before «من») — {\"day\":\"2026-09-30\",\"total\":500,\"items\":[{\"id\":10007,\"name\":\"السيارة والسائق (شامل)\",\"frequency\":\"daily\",\"amount\":500,\"perDay\":500}],\"workingDay\":null,\"monthWorkingDays\":null,\"yearWorkingDays\":null,\"driver\":null}",
+        "✗ a monthly line with «من / إلى»: 3000 ÷ 26 inside, nothing outside — 115.38 115.38 0",
+        "✗ 2026-09-30: 0 (before «من»)",
+        "✗ a monthly line with «من / إلى»: 3000 ÷ 26 inside, nothing outside"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "a simulation line counted",
+      "caught": true,
+      "fails": [
+        "✗ a line marked x_utak_simulation is left out (500, not 1499) — {\"day\":\"2026-10-03\",\"total\":1499,\"items\":[{\"id\":10007,\"name\":\"السيارة والسائق (شامل)\",\"frequency\":\"daily\",\"amount\":500,\"perDay\":500},{\"id\":10008,\"name\":\"سطر تجربة\",\"frequency\":\"daily\",\"amount\":999,\"perDay\":999}],\"workingDay\":null,\"monthWorkingDays\":null,\"yearWorkingDays\":null,\"driver\":null}",
+        "✗ a line marked x_utak_simulation is left out (500, not 1499)"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "no driver schedule → 0 (a guess) instead of «تعذّر»",
+      "caught": true,
+      "fails": [
+        "✗ a monthly line and no driver schedule → total null with the reason — {\"day\":\"2026-10-03\",\"total\":500,\"items\":[{\"id\":10000,\"name\":\"السيارة والسائق (شامل)\",\"frequency\":\"daily\",\"amount\":500,\"perDay\":500},{\"id\":10001,\"name\":\"صيانة\",\"frequency\":\"monthly\",\"amount\":2600,\"perDay\":0}],\"workingDay\":null,\"monthWorkingDays\":null,\"yearWorkingDays\":null,\"driver\":null}",
+        "✗ only the driver's schedule counts (no driver → null) — {\"day\":\"2026-10-03\",\"total\":0,\"items\":[{\"id\":10006,\"name\":\"صيانة\",\"frequency\":\"monthly\",\"amount\":2600,\"perDay\":0}],\"workingDay\":null,\"monthWorkingDays\":null,\"yearWorkingDays\":null,\"driver\":null}",
+        "✗ a monthly line and no driver schedule → total null with the reason",
+        "✗ only the driver's schedule counts (no driver → null)"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the unreadable total summed partially",
+      "caught": true,
+      "fails": [
+        "✗ a monthly line and no driver schedule → total null with the reason — {\"day\":\"2026-10-03\",\"total\":500,\"items\":[{\"id\":10000,\"name\":\"السيارة والسائق (شامل)\",\"frequency\":\"daily\",\"amount\":500,\"perDay\":500},{\"id\":10001,\"name\":\"صيانة\",\"frequency\":\"monthly\",\"amount\":2600,\"perDay\":null}],\"workingDay\":null,\"monthWorkingDays\":null,\"yearWorkingDays\":null,\"reason\":\"لا جدول دوام للسائق في «الموظفون»\",\"driver\":null}",
+        "✗ only the driver's schedule counts (no driver → null) — {\"day\":\"2026-10-03\",\"total\":0,\"items\":[{\"id\":10006,\"name\":\"صيانة\",\"frequency\":\"monthly\",\"amount\":2600,\"perDay\":null}],\"workingDay\":null,\"monthWorkingDays\":null,\"yearWorkingDays\":null,\"reason\":\"لا جدول دوام للسائق في «الموظفون»\",\"driver\":null}",
+        "✗ a monthly line and no driver schedule → total null with the reason",
+        "✗ only the driver's schedule counts (no driver → null)"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "any member's schedule, not the driver's",
+      "caught": true,
+      "fails": [
+        "✗ only the driver's schedule counts (no driver → null) — {\"day\":\"2026-10-03\",\"total\":0,\"items\":[{\"id\":10006,\"name\":\"صيانة\",\"frequency\":\"monthly\",\"amount\":2600,\"perDay\":0}],\"workingDay\":false,\"monthWorkingDays\":22,\"yearWorkingDays\":null,\"driver\":\"مستودع\"}",
+        "✗ only the driver's schedule counts (no driver → null)"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "a driver off attendance: his schedule not read",
+      "caught": true,
+      "fails": [
+        "✗ a driver not on attendance: his schedule read directly (100) — {\"day\":\"2026-10-03\",\"total\":0,\"items\":[{\"id\":10007,\"name\":\"صيانة\",\"frequency\":\"monthly\",\"amount\":2600,\"perDay\":0}],\"workingDay\":false,\"monthWorkingDays\":0,\"yearWorkingDays\":null,\"driver\":\"عمر المجهلي\"}",
+        "✗ a driver not on attendance: his schedule read directly (100)"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "planned stops «empty» read as 0 stops",
+      "caught": true,
+      "fails": [
+        "✗ waste 5 %, minimum 150, planned stops empty → null — {\"configId\":1,\"wastePct\":5,\"minOrder\":150,\"plannedStops\":0}",
+        "✗ waste 5 %, minimum 150, planned stops empty → null"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the settings of an inactive record",
+      "caught": true,
+      "fails": [
+        "✗ no active record → null — {\"configId\":1,\"wastePct\":5,\"minOrder\":150,\"plannedStops\":12}",
+        "✗ no active record → null"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "script": "scripts/s40-20260926-costs.mjs",
+  "createdAt": "2026-09-26T07:40:10.498Z",
+  "created": {
+    "costModel": 6213,
+    "fields": [
+      20566,
+      20568,
+      20570,
+      20572,
+      20574,
+      20576,
+      20578,
+      20580
+    ],
+    "cfgFields": [
+      20582,
+      20584,
+      20586
+    ],
+    "views": {
+      "costList": 2852,
+      "costForm": 2853,
+      "costSearch": 2854,
+      "settingsForm": 2855
+    },
+    "windows": {
+      "costs": 1026
+    },
+    "actions": {
+      "openSettings": 1027
+    },
+    "menus": {
+      "costs": 577,
+      "settings": 578
+    },
+    "firstCost": 1
+  },
+  "before": {
+    "settings": {
+      "id": 1,
+      "vals": {
+        "x_waste_pct": 0,
+        "x_min_order_sar": 0,
+        "x_planned_stops": 0
+      }
+    }
+  }
+}

@@ -182,6 +182,7 @@ export default {
             const p = await runPricesTick(env, Date.now(), ctx);
             const quiet = (!p.marketAsk || ("action" in p.marketAsk && ["before", "after"].includes(p.marketAsk.action)))
               && (!p.exceptions || ("action" in p.exceptions && ["outside", "no_draft", "none", "notified_before", "many_before"].includes(p.exceptions.action)))
+              && (!p.stops || ("action" in p.stops && ["before", "checked", "set", "no_discount", "no_settings", "alerted_before"].includes(p.stops.action)))
               && (p.refresh && "action" in p.refresh && ["no_prices", "unchanged", "locked", "outside"].includes(p.refresh.action))
               && (p.deadline && "action" in p.deadline && ["before", "after_window", "claimed_before"].includes(p.deadline.action)) && !p.publish;
             if (!quiet) console.log("[prices tick]", JSON.stringify(p));
@@ -2585,10 +2586,17 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         const { getOrderBrief } = await import("./odoo");
         const o = await getOrderBrief(env, Number(promptOrder));
         if (o && (o.state === "draft" || o.state === "waiting_confirmation")) {
-          await sendButtons(env, msg.from, `طلبك رقم #${o.id} بانتظار تأكيدك، ويُلغى تلقائياً الساعة 9:00 مساءً لو ما تأكد 👇`, [
-            { id: `confirm_order_${o.id}`, title: "تأكيد الطلب ✅" },
-            { id: `cancel_order_${o.id}`, title: "إلغاء ❌" },
-          ], { ctx, purpose: "bot_reply" });
+          // § 40 د — below the minimum order: no confirm button.
+          const { minimumText, orderMinimum } = await import("./order-pricing");
+          const minimum = await orderMinimum(env, o.id).catch(() => null);
+          if (minimum?.below) {
+            await sendText(env, msg.from, `طلبك رقم #${o.id}: ${minimumText(minimum.min)} قبل الساعة 9:00 مساءً، وإلا يُلغى تلقائياً.`, { ctx, purpose: "bot_reply" });
+          } else {
+            await sendButtons(env, msg.from, `طلبك رقم #${o.id} بانتظار تأكيدك، ويُلغى تلقائياً الساعة 9:00 مساءً لو ما تأكد 👇`, [
+              { id: `confirm_order_${o.id}`, title: "تأكيد الطلب ✅" },
+              { id: `cancel_order_${o.id}`, title: "إلغاء ❌" },
+            ], { ctx, purpose: "bot_reply" });
+          }
           await markSeen(env, msg.messageId);
           continue;
         }

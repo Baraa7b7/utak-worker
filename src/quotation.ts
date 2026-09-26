@@ -353,6 +353,36 @@ export async function buildQuotationPDFDataFromOdoo(
   const missing_products = price_warnings
     .filter((w) => w.source === "missing")
     .map((w) => w.product);
+  // § 40 د — the quantity discount, before VAT, on the order's day (the
+  // invoice computes it the same way): shown as its own line; the total is
+  // what the invoice will ask (VAT-inclusive prices: the discount's VAT goes
+  // with it). A quotation with a missing price gets none (it is not sent).
+  let discount = 0;
+  let grandTotal = subtotal;
+  if (!has_blocking_issue && items.length) {
+    try {
+      const { orderDiscount, discountedTotals } = await import("./order-pricing");
+      const day = order.order_date ?? new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10);
+      let rate: number | null = null;
+      const d = await orderDiscount(env, {
+        day,
+        lines: order.lines.map((l, i) => ({ productId: l.product_id, packagingId: l.packaging_id, qty: l.quantity, unit: items[i].price })),
+        vatRate: async () => {
+          const { resolveSaleTaxForDate } = await import("./accounting");
+          rate = (await resolveSaleTaxForDate(env, day))?.rate ?? null;
+          return rate;
+        },
+      });
+      if (d.applied) {
+        const { computeInclusiveTotals } = await import("./accounting");
+        const t = discountedTotals(computeInclusiveTotals(items.map((it) => it.total), rate), d.amount, rate);
+        grandTotal = t.total;
+        discount = round2(subtotal - grandTotal);
+      }
+    } catch (e) {
+      console.warn(`[quotation] ${quotationId}: discount check failed — none shown`, (e as Error).message);
+    }
+  }
   return {
     quotationNumber: number,
     quotationDate,
@@ -363,9 +393,9 @@ export async function buildQuotationPDFDataFromOdoo(
     },
     items,
     subtotal,
-    discount: 0,
+    discount,
     vatAmount: 0,
-    grandTotal: subtotal,
+    grandTotal,
     price_warnings,
     has_blocking_issue,
     is_manual: isManual,

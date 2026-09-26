@@ -1,0 +1,30 @@
+{
+  "script": "scripts/s40-20260926-tiers.mjs",
+  "createdAt": "2026-09-26T08:17:44.132Z",
+  "created": {
+    "tierModel": 6255,
+    "fields": [
+      20659,
+      20661,
+      20663,
+      20665,
+      20667,
+      20669
+    ],
+    "tierIds": 20671,
+    "invoiceFields": [
+      20673,
+      20675
+    ],
+    "defaultActive": 26,
+    "tiers": [
+      1,
+      2,
+      3
+    ]
+  },
+  "before": {
+    "settingsFormId": 2855,
+    "settingsForm": "<form string=\"إعدادات التسعير\" create=\"0\" delete=\"0\">\n  <sheet>\n    <div class=\"oe_title\"><h1>⚙️ إعدادات التسعير</h1></div>\n    <group>\n      <group string=\"التسعير اليومي\">\n        <field name=\"x_waste_pct\"/>\n        <field name=\"x_min_order_sar\"/>\n        <field name=\"x_planned_stops\"/>\n      </group>\n      <group string=\"السجل\">\n        <field name=\"x_name\" readonly=\"1\"/>\n        <field name=\"x_active_from\" readonly=\"1\"/>\n      </group>\n    </group>\n    <div class=\"text-muted\">سعر البيع = سعر السوق لليوم. الاستثناءات (بلا شراء، بلا سوق، ربح ≤ 0، سعر شاذ) تصل براء، وغيرها يُعتمد ويُنشر تلقائياً في موعد النشر. «عدد المحطات» فارغ = لا خصم كمية.</div>\n  </sheet>\n</form>"
+  }
+}

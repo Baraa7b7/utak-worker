@@ -16,6 +16,7 @@ const OC = "src/operating-cost.ts";
 const PS = "src/price-sources.ts";
 const EN = "src/pricing-engine.ts";
 const PR = "src/prices.ts";
+const OP = "src/order-pricing.ts";
 
 // [part, name, [[file, find, replace], …], test file]
 const M = [
@@ -178,6 +179,60 @@ const M = [
     "/^pexc_[mse]_\\d+$/.test(msg.buttonId ?? \"\")", "false"]], T],
   ["ج", "his «عدّل» reply not wired in /webhook", [["src/index.ts",
     "          const r = await handlePriceEditReply(env, msg.text).catch((e) => {", "          const r = await Promise.resolve(null).catch((e) => { void handlePriceEditReply;"]], T],
+  // ---------------------------------------------------------------- د the tiers and the minimum
+  ["د", "a tier's «إلى» exclusive (1,000 → no tier)", [[OP,
+    "(t.to === null || a <= t.to + 0.0001)", "(t.to === null || a < t.to)"]], T],
+  ["د", "an inactive tier used", [[OP,
+    "    domain: [[\"x_config_id\", \"=\", configId], [\"x_active\", \"=\", true]],", "    domain: [[\"x_config_id\", \"=\", configId]],"]], T],
+  ["د", "the discount on the VAT-inclusive total", [[OP,
+    "  const base = rate ? computeInclusiveTotals(a.lines.map((l) => round2(l.unit * l.qty)), rate).subtotal : gross;", "  const base = gross;"]], T],
+  ["د", "no guard (profit after the discount unchecked)", [[OP,
+    "  if (after < minProfit) {", "  if (false) {"]], T],
+  ["د", "planned stops empty → a discount anyway", [[OP,
+    "  if (settings.plannedStops === null) return { ...out, reason: \"«عدد المحطات اليومية المخطط» فارغ\" };\n", ""]], T],
+  ["د", "a line without the day's purchase price counted at 0", [[OP,
+    "    if (!(c > 0)) return null;", "    if (!(c > 0)) continue;"]], T],
+  ["د", "the waste left out of the order's profit", [[OP,
+    "    profit += (l.unit - c - (wastePct / 100) * c) * l.qty;", "    profit += (l.unit - c) * l.qty;"]], T],
+  ["د", "the day's cost unreadable → a discount anyway", [[OP,
+    "  if (cost.total === null) return { ...out, profitBefore: profit, reason: `تكلفة اليوم لا تُقرأ (${cost.reason ?? \"—\"})` };\n", ""]], T],
+  ["د", "ACCOUNTING_SYNC on → a discount anyway", [[OP,
+    "  if (isAccountingSyncEnabled(env)) return { ...out, reason: \"الخصم غير مربوط بأمر البيع بعد (ACCOUNTING_SYNC)\" };\n", ""]], T],
+  ["د", "the VAT on the net before the discount", [[OP,
+    "  const tax = ratePct ? round2((net * ratePct) / 100) : 0;", "  const tax = ratePct ? round2((split.subtotal * ratePct) / 100) : 0;"]], T],
+  ["د", "the invoice ignores the discount", [["src/invoice.ts",
+    "    if (d.applied) { discount = d.amount; discountPct = d.pct; }", "    if (false) { discount = d.amount; discountPct = d.pct; }"]], T],
+  ["د", "the invoice record without x_discount", [["src/odoo.ts",
+    "      ...((vals.discount ?? 0) > 0 ? { x_discount: vals.discount, x_discount_pct: vals.discountPct ?? 0 } : {}),", ""]], T],
+  ["د", "the invoice PDF without the discount line", [["src/invoice.ts",
+    "    discount: invoiceDiscount(invoice),", "    discount: 0,"]], T],
+  ["د", "the customer's invoice text without the discount", [["src/invoice.ts",
+    "  const discountLine = discount > 0 ? [`خصم الكمية: ${discount} ر.س`] : [];", "  const discountLine: string[] = [];"]], T],
+  ["د", "the quotation without the discount", [["src/quotation.ts",
+    "      if (d.applied) {\n        const { computeInclusiveTotals } = await import(\"./accounting\");", "      if (false) {\n        const { computeInclusiveTotals } = await import(\"./accounting\");"]], T],
+  ["د", "no minimum at all", [[OP,
+    "  return { total, min, below: unpriced === 0 && order.lines.length > 0 && total < min, unpriced };", "  return { total, min, below: false, unpriced };"]], T],
+  ["د", "the minimum itself refused (≤ instead of <)", [[OP,
+    "order.lines.length > 0 && total < min, unpriced };", "order.lines.length > 0 && total <= min, unpriced };"]], T],
+  ["د", "the quotation request ignores the minimum", [["src/router.ts",
+    "  if (minimum?.below) return { text: belowMinimumText(minimum) };\n", ""]], T],
+  ["د", "the inline «خلاص» ignores the minimum", [["src/router.ts",
+    "    if (minimum?.below) {\n      return {\n        text: [(created", "    if (false) {\n      return {\n        text: [(created"]], T],
+  ["د", "«تأكيد الطلب» confirms below the minimum", [["src/router.ts",
+    "    if (minimum?.below) {\n      if (o.state === \"waiting_confirmation\") await updateOrderState(env, orderId, \"draft\");", "    if (false) {\n      if (o.state === \"waiting_confirmation\") await updateOrderState(env, orderId, \"draft\");"]], T],
+  ["د", "a refused confirmation leaves the order waiting (not open)", [["src/router.ts",
+    "      if (o.state === \"waiting_confirmation\") await updateOrderState(env, orderId, \"draft\");\n", ""]], T],
+  ["د", "ح3's reminder offers the button below the minimum", [["src/team.ts",
+    "      if (minimum?.below) {\n        const why", "      if (false) {\n        const why"]], T],
+  ["د", "the reply to ح3's template offers the button below the minimum", [["src/index.ts",
+    "          if (minimum?.below) {\n            await sendText(env, msg.from, `طلبك رقم", "          if (false) {\n            await sendText(env, msg.from, `طلبك رقم"]], T],
+  ["د", "the stops alert although they are filled", [[OP,
+    "  if (!settings || settings.plannedStops !== null || !tiers.some((t) => t.pct > 0)) {", "  if (!settings || !tiers.some((t) => t.pct > 0)) {"]], T],
+  ["د", "the stops alert every tick", [[OP,
+    "  const claim = await claimButton(env, `pricing_stops:${day}`, 26 * 3600);", "  const claim = await claimButton(env, `pricing_stops:${day}:${Math.random()}`, 26 * 3600);"],
+    [OP, "    if (await env.MSG_DEDUP.get(doneKey)) return { action: \"checked\" };", "    if (false) return { action: \"checked\" };"]], T],
+  ["د", "the stops alert not in the prices tick", [[PR,
+    "    out.stops = await checkPlannedStops(env, now, dl);", "    out.stops = { action: \"before\" }; void checkPlannedStops;"]], T],
 ];
 
 const want = new Set(process.argv.slice(2));

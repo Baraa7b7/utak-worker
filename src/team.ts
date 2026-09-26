@@ -109,6 +109,17 @@ export async function sendCutoffReminders(env: Env): Promise<{ reminded: number;
   let reminded = 0, failed = 0;
   for (const o of orders) {
     try {
+      // § 40 د — an order below the minimum: no confirm button (it could not be
+      // confirmed); the reminder says what is missing, and 21:00 cancels it as any other (ح3).
+      const { minimumText, orderMinimum } = await import("./order-pricing");
+      const minimum = await orderMinimum(env, o.id).catch(() => null);
+      if (minimum?.below) {
+        const why = `${minimumText(minimum.min)} قبل الساعة ${cutoffLabel()}، وإلا يُلغى تلقائياً`;
+        const how = await notifyOrderCustomer(env, o, { text: `⏰ طلبك رقم #${o.id}: ${why}.` }, why);
+        if (how === "session" || how === "template") reminded++;
+        else if (how !== "held" && how !== "queued" && how !== "none") failed++;
+        continue;
+      }
       const how = await notifyOrderCustomer(
         env,
         o,

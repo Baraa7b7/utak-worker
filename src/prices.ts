@@ -742,6 +742,8 @@ export interface PricesTick {
   refresh?: RefreshReport | { error: string };
   /** § 40 ج — the exceptions to Baraa. */
   exceptions?: { action: string } | { error: string };
+  /** § 40 د — the daily alert while «عدد المحطات اليومية المخطط» is empty. */
+  stops?: { action: string } | { error: string };
   deadline?: DeadlineReport | { error: string };
   publish?: PublishReport | { error: string };
 }
@@ -766,6 +768,10 @@ export async function runPricesTick(env: Env, now: number = Date.now(), ctx?: Ex
   } catch (e) { out.refresh = { error: (e as Error)?.message ?? String(e) }; }
   try { out.exceptions = await notifyPriceExceptions(env, now); } catch (e) { out.exceptions = { error: (e as Error)?.message ?? String(e) }; }
   try { out.deadline = await checkPricesDeadline(env, now); } catch (e) { out.deadline = { error: (e as Error)?.message ?? String(e) }; }
+  try {
+    const { checkPlannedStops } = await import("./order-pricing");
+    out.stops = await checkPlannedStops(env, now, dl);
+  } catch (e) { out.stops = { error: (e as Error)?.message ?? String(e) }; }
   try {
     const rec = await readDay(env, riyadhDateKey(new Date(now)));
     const approvedAt = typeof rec?.x_approved_at === "string" ? Date.parse(rec.x_approved_at.replace(" ", "T") + "Z") : 0;

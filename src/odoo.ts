@@ -2360,6 +2360,8 @@ export async function getOrderForInvoicing(
   customer_name: string;
   customer_whatsapp: string;
   neighborhood: string;
+  /** § 40 د — x_order_date, the order's (Riyadh) day: its prices, its purchase costs, its discount. */
+  order_date: string | null;
   lines: Array<{
     id: number;
     product_id: number;
@@ -2380,10 +2382,11 @@ export async function getOrderForInvoicing(
     x_customer_id: [number, string] | false;
     x_delivery_neighborhood: string | false;
     x_line_ids: number[];
+    x_order_date: string | false;
   };
   const orders = await call<OrderRow[]>(env, "x_daily_order", "read", {
     ids: [orderId],
-    fields: ["id", "x_customer_id", "x_delivery_neighborhood", "x_line_ids"],
+    fields: ["id", "x_customer_id", "x_delivery_neighborhood", "x_line_ids", "x_order_date"],
   });
   const order = orders[0];
   if (!order || !order.x_customer_id) return null;
@@ -2430,6 +2433,7 @@ export async function getOrderForInvoicing(
     customer_name: partner?.name ?? "عميل",
     customer_whatsapp: wa || "",
     neighborhood: order.x_delivery_neighborhood || "",
+    order_date: typeof order.x_order_date === "string" && order.x_order_date ? order.x_order_date : null,
     lines: usable.map((l) => ({
       id: l.id,
       product_id: l.x_product_tmpl_id ? l.x_product_tmpl_id[0] : 0,
@@ -2549,6 +2553,9 @@ export async function createInvoiceRecord(
     subtotal: number;
     tax: number;
     total: number;
+    /** § 40 د — the quantity discount before VAT, written only when there is one. */
+    discount?: number;
+    discountPct?: number;
   },
 ): Promise<number> {
   const today = vals.invoiceDate ?? new Date().toISOString().slice(0, 10);
@@ -2561,6 +2568,7 @@ export async function createInvoiceRecord(
       x_tax_amount: vals.tax,
       x_total: vals.total,
       x_status: "issued",
+      ...((vals.discount ?? 0) > 0 ? { x_discount: vals.discount, x_discount_pct: vals.discountPct ?? 0 } : {}),
     }],
   });
   return ids[0];

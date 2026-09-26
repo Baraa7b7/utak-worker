@@ -680,6 +680,215 @@ console.log("\n[ج] the publication time takes the last offers; the tick runs th
   assert("12:00: nor after the publication window", (b.refresh as any)?.action === "outside" && !dayOf(), JSON.stringify(b.refresh));
 }
 
+// ================================================================ [د]
+const OP = await import("../src/order-pricing.ts");
+const Q = await import("../src/quotation.ts");
+const INV = await import("../src/invoice.ts");
+const { dispatch } = await import("../src/router.ts");
+const TEAM = await import("../src/team.ts");
+const { CUST: C1, CUST_PHONE: C1_PHONE } = await import("./wa-harness.mts");
+/** The three tiers of the tenant, and the planned stops. */
+function tiers(stops: number = 10): void {
+  seed("x_pricing_tier", { x_config_id: 1, x_sequence: 1, x_amount_from: 0, x_amount_to: 499.99, x_discount_pct: 0, x_active: true });
+  seed("x_pricing_tier", { x_config_id: 1, x_sequence: 2, x_amount_from: 500, x_amount_to: 1000, x_discount_pct: 2, x_active: true });
+  seed("x_pricing_tier", { x_config_id: 1, x_sequence: 3, x_amount_from: 1000.01, x_amount_to: 0, x_discount_pct: 3, x_active: true });
+  table("x_pricing_config").get(1)!.x_planned_stops = stops;
+}
+/** The company's sale tax (15 %, price-included), as on the tenant from 2026-10-01. */
+function vat(): void {
+  seed("account.tax", { id: 77, amount: 15, amount_type: "percent", type_tax_use: "sale", price_include: true, active: true });
+  seed("res.company", { id: 1, name: "UTAK Company", vat: "300000000000003", account_sale_tax_id: [77, "15%"] });
+}
+/** Today's published line: tomato bought at 20, sold at 30 (the engine's day). */
+function publishedTomato(day = DAY, cost = 20, sale = 30): void {
+  const d = seed("x_price_day", { x_date: day, x_state: "published", x_name: `أسعار ${day}` });
+  seed("x_price_day_line", { x_day_id: d, x_product_tmpl_id: 1, x_packaging_id: 11, x_cost_price: cost, x_market_price: sale, x_sale_price: sale, x_status: "auto", x_excluded: false, x_blocked: false });
+}
+/** An order of the customer for `day` with its lines [product, packaging, qty]. */
+function orderOf(day: string, lines: Array<[number, number, number]>, state = "waiting_confirmation"): number {
+  const id = seed("x_daily_order", { x_customer_id: C1, x_state: state, x_order_date: day, x_created_via: "whatsapp", x_delivery_neighborhood: "العليا" });
+  for (const [p, k, q] of lines) seed("x_daily_order_line", { x_order_id: id, x_product_tmpl_id: p, x_packaging_id: k, x_quantity: q, x_status: "pending" });
+  return id;
+}
+const line = (qty: number, unit = 30, product = 1, packaging = 11) => ({ productId: product, packagingId: packaging, qty, unit });
+const noVat = async () => null;
+
+console.log("\n[د] the tiers: 0–499.99 → 0 %, 500–1,000 → 2 %, above 1,000 → 3 %");
+{
+  const T3 = [{ id: 1, from: 0, to: 499.99, pct: 0 }, { id: 2, from: 500, to: 1000, pct: 2 }, { id: 3, from: 1000.01, to: null, pct: 3 }];
+  const pct = (a: number) => OP.tierFor(a, T3)?.pct;
+  assert("0 → 0 %, 499.99 → 0 %", pct(0) === 0 && pct(499.99) === 0);
+  assert("500 → 2 %, 1,000 → 2 %", pct(500) === 2 && pct(1000) === 2);
+  assert("1,000.01 → 3 %, 5,000 → 3 % (no ceiling)", pct(1000.01) === 3 && pct(5000) === 3);
+  const env = fresh("2026-10-03 10:00"); tiers();
+  const rows3 = await quiet(() => OP.readTiers(env, 1));
+  assert("read from «⚙️ إعدادات التسعير» (active ones)", rows3.length === 3 && rows3[2].to === null, JSON.stringify(rows3));
+  table("x_pricing_tier").get(rows("x_pricing_tier")[1].id)!.x_active = false;
+  assert("an inactive tier is left out", (await quiet(() => OP.readTiers(env, 1))).length === 2);
+}
+
+console.log("\n[د] the discount: before VAT, and the guard (profit after it ≥ daily cost ÷ planned stops)");
+{
+  const env = fresh("2026-09-30 10:00"); tiers(10); publishedTomato("2026-09-30");
+  cost("السيارة والسائق (شامل)", "daily", 500, "2026-09-01");
+  const d = await quiet(() => OP.orderDiscount(env, { day: "2026-09-30", lines: [line(20)], vatRate: noVat }));
+  assert("600 before the VAT cutoff: 2 % of 600 = 12, applied (profit 180 − 12 = 168 ≥ 500 ÷ 10)", d.applied && d.pct === 2 && d.amount === 12 && d.profitBefore === 180 && d.profitAfter === 168 && d.minProfit === 50, JSON.stringify(d));
+  const d0 = await quiet(() => OP.orderDiscount(env, { day: "2026-09-30", lines: [line(16)], vatRate: noVat }));
+  assert("480 (tier 0 %): no discount", !d0.applied && d0.amount === 0 && d0.tierPct === 0, JSON.stringify(d0));
+  const d3 = await quiet(() => OP.orderDiscount(env, { day: "2026-09-30", lines: [line(40)], vatRate: noVat }));
+  assert("1,200 → 3 % = 36", d3.applied && d3.pct === 3 && d3.amount === 36, JSON.stringify(d3));
+  table("x_pricing_config").get(1)!.x_planned_stops = 1;
+  const g = await quiet(() => OP.orderDiscount(env, { day: "2026-09-30", lines: [line(20)], vatRate: noVat }));
+  assert("the guard: 1 planned stop → the order must keep 500; 168 < 500 → no discount, with the reason",
+    !g.applied && g.amount === 0 && g.minProfit === 500 && /أقل من 500/.test(g.reason), JSON.stringify(g));
+  table("x_pricing_config").get(1)!.x_planned_stops = 0;
+  const e = await quiet(() => OP.orderDiscount(env, { day: "2026-09-30", lines: [line(20)], vatRate: noVat }));
+  assert("planned stops empty → no discount at all", !e.applied && /فارغ/.test(e.reason), JSON.stringify(e));
+  table("x_pricing_config").get(1)!.x_planned_stops = 10;
+  const m = await quiet(() => OP.orderDiscount(env, { day: "2026-09-30", lines: [line(20), line(1, 50, 2, 21)], vatRate: noVat }));
+  assert("a line without the day's purchase price → no discount (never a guess)", !m.applied && /سعر شراء/.test(m.reason), JSON.stringify(m));
+  cost("صيانة", "monthly", 2600, "2026-09-01");
+  table("hr.employee").get(OMAR_EMP)!.resource_calendar_id = false;
+  const c = await quiet(() => OP.orderDiscount(env, { day: "2026-09-30", lines: [line(20)], vatRate: noVat }));
+  assert("the day's cost unreadable (a monthly line, no driver schedule) → no discount", !c.applied && /تكلفة اليوم لا تُقرأ/.test(c.reason), JSON.stringify(c));
+}
+{
+  const env = fresh("2026-10-03 10:00"); tiers(10); publishedTomato();
+  cost("السيارة والسائق (شامل)", "daily", 500, "2026-10-01");
+  const d = await quiet(() => OP.orderDiscount(env, { day: DAY, lines: [line(20)], vatRate: async () => 15 }));
+  assert("from 10-01 (VAT 15 % in the price): 2 % of the net 521.74 = 10.43", d.applied && d.amount === 10.43, JSON.stringify(d));
+  const t = OP.discountedTotals({ subtotal: 521.74, tax: 78.26, total: 600, lines: [] }, 10.43, 15);
+  assert("the totals: net 521.74, discount 10.43, VAT on 511.31 = 76.70, total 588.01", t.subtotal === 521.74 && t.discount === 10.43 && t.tax === 76.7 && t.total === 588.01, JSON.stringify(t));
+  const n = OP.discountedTotals({ subtotal: 600, tax: 0, total: 600, lines: [] }, 12, null);
+  assert("before the cutoff: 600 − 12 = 588, no VAT", n.total === 588 && n.tax === 0);
+}
+
+{
+  const env = fresh("2026-09-30 10:00"); tiers(10); publishedTomato("2026-09-30");
+  cost("السيارة والسائق (شامل)", "daily", 500, "2026-09-01");
+  env.ACCOUNTING_SYNC = "true";
+  const a = await quiet(() => OP.orderDiscount(env, { day: "2026-09-30", lines: [line(20)], vatRate: noVat }));
+  assert("ACCOUNTING_SYNC on: no discount (the sale order has no discount line yet)", !a.applied && /ACCOUNTING_SYNC/.test(a.reason), JSON.stringify(a));
+}
+
+console.log("\n[د] the quotation and the invoice: a discount line, the tax invoice template as it is");
+{
+  const env = fresh("2026-10-03 10:00"); tiers(10); publishedTomato(); vat();
+  cost("السيارة والسائق (شامل)", "daily", 500, "2026-10-01");
+  const o = orderOf(DAY, [[1, 11, 20]]);
+  const q = seed("x_quotation", { x_quotation_number: "UTAK-Q-20261003-001", x_order_id: o, x_origin: "auto", create_date: "2026-10-03 07:00:00" });
+  const qd = await quiet(() => Q.buildQuotationPDFDataFromOdoo(env, q));
+  assert("the quotation: 600, a discount line 12 (10.43 + its VAT), total 588.01 — the invoice's total", qd?.subtotal === 600 && qd?.discount === 11.99 && qd?.grandTotal === 588.01, JSON.stringify({ s: qd?.subtotal, d: qd?.discount, t: qd?.grandTotal }));
+  const html = Q.renderQuotationHTML(qd!);
+  assert("…rendered: the «الخصم» row carries it", /11\.99/.test(html));
+  Object.assign(table("x_daily_order").get(o)!, { x_state: "delivered" });
+  const r = await quiet(() => INV.createAndDispatchInvoiceForOrder(env, o));
+  const inv = table("x_invoice").get(r!.invoiceId)!;
+  assert("the invoice: net 521.74, VAT 76.70, total 588.01, x_discount 10.43 (2 %)", inv.x_subtotal === 521.74 && inv.x_tax_amount === 76.7 && inv.x_total === 588.01 && inv.x_discount === 10.43 && inv.x_discount_pct === 2, JSON.stringify(inv));
+  const pdf = await quiet(() => INV.buildInvoicePDFDataFromOdoo(env, r!.invoiceId));
+  assert("…its PDF data: the discount 10.43 before the VAT row (the § 23 tax invoice layout)", pdf?.discount === 10.43 && pdf?.vatAmount === 76.7 && pdf?.grandTotal === 588.01 && pdf?.subtotal === 521.74, JSON.stringify({ d: pdf?.discount, v: pdf?.vatAmount, t: pdf?.grandTotal }));
+  const held = JSON.stringify(heldFor(env, C1_PHONE));
+  assert("…the customer's text: «خصم الكمية: 10.43 ر.س» between the net and the VAT", /الإجمالي قبل الضريبة: 521.74 ر.س\\nخصم الكمية: 10.43 ر.س\\nضريبة القيمة المضافة 15%: 76.7 ر.س/.test(held), held.slice(0, 400));
+  assert("an invoice without a discount: 0 on its PDF (subtotal + VAT = total)", INV.invoiceDiscount({ subtotal: 521.74, tax: 78.26, total: 600 }) === 0);
+  assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
+}
+{
+  const env = fresh("2026-10-03 10:00"); tiers(0); publishedTomato(); vat();
+  cost("السيارة والسائق (شامل)", "daily", 500, "2026-10-01");
+  const o = orderOf(DAY, [[1, 11, 20]], "delivered");
+  const r = await quiet(() => INV.createAndDispatchInvoiceForOrder(env, o));
+  const inv = table("x_invoice").get(r!.invoiceId)!;
+  assert("planned stops empty: the invoice without discount (600 = 521.74 + 78.26), no x_discount written", inv.x_total === 600 && inv.x_tax_amount === 78.26 && inv.x_discount === undefined, JSON.stringify(inv));
+}
+
+console.log("\n[د] the minimum order (150, before the discount): no confirm button below it, the order stays open");
+{
+  const env = fresh("2026-10-03 10:00"); publishedTomato();
+  table("res.partner").get(C1)!.x_delivery_neighborhood = "العليا";   // no location question first
+  const o = orderOf(DAY, [[1, 11, 4]], "draft");          // 4 × 30 = 120
+  const partner = { id: C1, name: "مطعم الوادي", x_whatsapp_number: "+" + C1_PHONE } as any;
+  const m = await quiet(() => OP.orderMinimum(env, o));
+  assert("120 < 150 → below", m.below && m.total === 120 && m.min === 150, JSON.stringify(m));
+  const r1 = await quiet(() => dispatch(env, { msg: { from: "+" + C1_PHONE, messageId: "w1", type: "text", text: "خلاص", timestamp: "0" } as any, intent: "request_quotation", senderType: "customer", partner }));
+  assert("«خلاص» → «أقل طلب 150 ريال، أضف أصنافاً ليكتمل», no buttons, no quotation", String(r1.text).startsWith("أقل طلب 150 ريال، أضف أصنافاً ليكتمل") && !r1.buttons
+    && rows("x_quotation").length === 0 && table("x_daily_order").get(o)!.x_state === "draft", JSON.stringify(r1));
+  Object.assign(table("x_daily_order").get(o)!, { x_state: "waiting_confirmation" });
+  const r2 = await quiet(() => dispatch(env, { msg: { from: "+" + C1_PHONE, messageId: "w2", type: "interactive", buttonId: `confirm_order_${o}`, timestamp: "0" } as any, intent: "other", senderType: "customer", partner }));
+  assert("an old «تأكيد الطلب» tap below it → not confirmed, the same text; the order back to draft (open)", /أقل طلب 150 ريال/.test(String(r2.text)) && table("x_daily_order").get(o)!.x_state === "draft", JSON.stringify(r2));
+  seed("x_daily_order_line", { x_order_id: o, x_product_tmpl_id: 1, x_packaging_id: 11, x_quantity: 1, x_status: "pending" });   // 150
+  const r3 = await quiet(() => dispatch(env, { msg: { from: "+" + C1_PHONE, messageId: "w3", type: "text", text: "خلاص", timestamp: "0" } as any, intent: "request_quotation", senderType: "customer", partner }));
+  assert("completed to 150 → the quotation with its confirm button", (r3.buttons ?? []).some((b: any) => b.id === `confirm_order_${o}`) && rows("x_quotation").length === 1, JSON.stringify(r3));
+  env.MSG_DEDUP.store.delete(`btnlock:v1:order:${o}:confirm_order`);   // ح8's 90-second tap lock has expired (the harness KV keeps keys)
+  const r4 = await quiet(() => dispatch(env, { msg: { from: "+" + C1_PHONE, messageId: "w4", type: "interactive", buttonId: `confirm_order_${o}`, timestamp: "0" } as any, intent: "other", senderType: "customer", partner }));
+  assert("…and «تأكيد الطلب» confirms it", /تم التأكيد/.test(String(r4.text)) && table("x_daily_order").get(o)!.x_state === "confirmed", JSON.stringify(r4));
+}
+{
+  const env = fresh("2026-10-03 10:00"); publishedTomato();
+  const partner = { id: C1, name: "مطعم الوادي", x_whatsapp_number: "+" + C1_PHONE } as any;
+  const o = orderOf(DAY, [[1, 11, 2]], "cancelled");      // 60, cancelled
+  const r = await quiet(() => dispatch(env, { msg: { from: "+" + C1_PHONE, messageId: "w5", type: "interactive", buttonId: `confirm_order_${o}`, timestamp: "0" } as any, intent: "other", senderType: "customer", partner }));
+  assert("ح4 first: a cancelled order below the minimum gets ح4's answer, not the minimum", /ملغى/.test(String(r.text)) && !/أقل طلب/.test(String(r.text)), JSON.stringify(r));
+  table("x_pricing_config").get(1)!.x_min_order_sar = 0;
+  const o2 = orderOf(DAY, [[1, 11, 1]], "waiting_confirmation");
+  const r2 = await quiet(() => dispatch(env, { msg: { from: "+" + C1_PHONE, messageId: "w6", type: "interactive", buttonId: `confirm_order_${o2}`, timestamp: "0" } as any, intent: "other", senderType: "customer", partner }));
+  assert("no minimum set (0) → 30 confirms", table("x_daily_order").get(o2)!.x_state === "confirmed", JSON.stringify(r2));
+}
+{
+  const env = fresh("2026-10-03 20:00"); publishedTomato();
+  openWindow(env, C1_PHONE, 30);
+  const small = orderOf(DAY, [[1, 11, 4]], "waiting_confirmation");   // 120
+  await quiet(() => TEAM.sendCutoffReminders(env));
+  const msgs = sentTo(C1_PHONE);
+  assert("ح3 20:00, an order below the minimum: the reminder says so, without a confirm button",
+    msgs.length === 1 && msgs[0].type === "text" && /طلبك رقم #\d+: أقل طلب 150 ريال، أضف أصنافاً ليكتمل قبل الساعة 9:00 مساءً/.test(msgs[0].text.body), JSON.stringify(msgs));
+  table("x_daily_order").get(small)!.x_state = "cancelled";
+  const big = orderOf(DAY, [[1, 11, 6]], "waiting_confirmation");     // 180
+  graph.length = 0;
+  await quiet(() => TEAM.sendCutoffReminders(env));
+  assert("…an order at or above it: ح3's reminder with «تأكيد الطلب» as before", sentTo(C1_PHONE).some((b: any) => b.type === "interactive" && (b.interactive?.action?.buttons ?? []).some((x: any) => x.reply.id === `confirm_order_${big}`)));
+}
+{
+  const env = fresh("2026-10-03 20:30"); publishedTomato();
+  const o = orderOf(DAY, [[1, 11, 4]], "waiting_confirmation");
+  env.MSG_DEDUP.store.set(`cutoff_prompt:${C1}`, String(o));
+  await quiet(() => worker.fetch(signed(inbound(C1_PHONE, { type: "text", text: { body: "تمام" } })), env, harnessCtx));
+  assert("the reply to ح3's template below the minimum: the text, no confirm button", sentTo(C1_PHONE).some((b: any) => b.type === "text" && /أقل طلب 150 ريال/.test(b.text.body))
+    && !sentTo(C1_PHONE).some((b: any) => b.type === "interactive"), JSON.stringify(sentTo(C1_PHONE)).slice(0, 300));
+}
+
+{
+  const env = fresh("2026-10-03 10:00"); publishedTomato();
+  table("res.partner").get(C1)!.x_delivery_neighborhood = "العليا";
+  env.MSG_DEDUP.store.set(`ordering_open_${DAY}`, "true");
+  extractOut = [{ product_id: 1, product_name_raw: "طماطم", packaging_id: 11, quantity: 4 }] as any;
+  const partner = { id: C1, name: "مطعم الوادي", x_whatsapp_number: "+" + C1_PHONE } as any;
+  const r = await quiet(() => dispatch(env, { msg: { from: "+" + C1_PHONE, messageId: "w7", type: "text", text: "طماطم كرتون 4 خلاص", timestamp: "0" } as any, intent: "place_order", senderType: "customer", partner }));
+  const o = rows("x_daily_order").find((x: any) => x.x_customer_id === C1 && x.x_order_date === DAY);
+  assert("«طماطم كرتون 4 خلاص» (120): the items recorded, «أقل طلب 150 …», no quotation, no button, the order open",
+    /أضفنا لطلبك|بديت لك طلب جديد/.test(String(r.text)) && /أقل طلب 150 ريال، أضف أصنافاً ليكتمل/.test(String(r.text)) && !r.buttons
+      && rows("x_quotation").length === 0 && o?.x_state === "draft", JSON.stringify(r));
+}
+
+console.log("\n[د] planned stops empty: one alert a day to Baraa while a tier gives a discount");
+{
+  const env = fresh("2026-10-03 05:55"); tiers(0);
+  const stopsAlerts = () => ownerTexts().filter((x) => x === OP.STOPS_ALERT_TEXT).length;
+  assert("05:55: not yet", (await quiet(() => OP.checkPlannedStops(env, Date.now(), 360))).action === "before" && stopsAlerts() === 0);
+  setRiyadh("2026-10-03 06:00");
+  const P6 = await quiet(() => PR.runPricesTick(env, Date.now()));
+  assert("06:00 (the prices tick): one alert", (P6.stops as any)?.action === "alerted" && stopsAlerts() === 1, JSON.stringify(P6.stops));
+  setRiyadh("2026-10-03 06:05");
+  await quiet(() => OP.checkPlannedStops(env, Date.now(), 360));
+  assert("the same day again: no second alert", stopsAlerts() === 1);
+  setRiyadh("2026-10-04 06:00");
+  await quiet(() => OP.checkPlannedStops(env, Date.now(), 360));
+  assert("the next day, still empty: one more", stopsAlerts() === 2);
+  const env2 = fresh("2026-10-03 06:00"); tiers(12);
+  assert("stops filled (12): no alert", (await quiet(() => OP.checkPlannedStops(env2, Date.now(), 360))).action === "set" && stopsAlerts() === 0);
+  const env3 = fresh("2026-10-03 06:00");
+  assert("no tier gives a discount: no alert", (await quiet(() => OP.checkPlannedStops(env3, Date.now(), 360))).action === "no_discount" && stopsAlerts() === 0);
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) {
   console.log(failures.map((f) => `  ✗ ${f}`).join("\n"));

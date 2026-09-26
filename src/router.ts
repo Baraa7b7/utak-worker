@@ -45,6 +45,12 @@ import {
 import { markStopDelivered, markStopIssue } from "./odoo";
 import { looksLikeComplaint, handleComplaint } from "./complaint";
 import { handleStandingConfirm, handleStandingEdit, handleStandingSkip } from "./standing";
+import { minimumText, orderMinimum } from "./order-pricing";
+
+/** § 40 د — «أقل طلب 150 ريال، أضف أصنافاً ليكتمل», and the order's total now. */
+function belowMinimumText(m: { min: number; total: number }): string {
+  return `${minimumText(m.min)}\nمجموع طلبك الآن: ${Number.isInteger(m.total) ? m.total : m.total.toFixed(2)} ريال.`;
+}
 
 export interface RouterInput {
   msg: NormalizedMessage;
@@ -261,6 +267,14 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
 
   // If customer also said "خلاص/جهزه" in same message, go straight to quotation
   if (quotationInline) {
+    // § 40 د — below the minimum order: no quotation, no confirm button; the order stays open.
+    const minimum = await orderMinimum(env, orderId).catch(() => null);
+    if (minimum?.below) {
+      return {
+        text: [(created ? "بديت لك طلب جديد ✅" : "أضفنا لطلبك ✅"), addedSummary, unavailableWarn, urgencyNote, ``, belowMinimumText(minimum)]
+          .filter(Boolean).join("\n"),
+      };
+    }
     // v4.2: precise location preferred; saved neighborhood text is acceptable
     // fallback. Missing both → park the flow and ask for a location share.
     const loc = await getPartnerLocation(env, partner.id);
@@ -379,6 +393,9 @@ async function handleQuotationRequest(env: Env, input: RouterInput): Promise<Rou
   if (!summary || summary.lines.length === 0) {
     return { text: "طلبك فاضي — أضف أصناف أول ثم أجهز الكوتيشن." };
   }
+  // § 40 د — below the minimum order: no quotation, no confirm button; the order stays open.
+  const minimum = await orderMinimum(env, orderId).catch(() => null);
+  if (minimum?.below) return { text: belowMinimumText(minimum) };
 
   // v4.2: precise location preferred; saved neighborhood text is acceptable
   // fallback. Missing both → park the flow and ask for a location share.
@@ -747,6 +764,13 @@ async function confirmOrderButton(env: Env, orderId: number, partner: OdooPartne
   const unconfirmed = o.state === "draft" || o.state === "waiting_confirmation";
   const open = isWithinOrderingWindow();
   if (unconfirmed && open && o.date === riyadhDateKey()) {
+    // § 40 د — after the state guards (ح4): below the minimum it is not
+    // confirmed; the order stays open (draft) to be completed.
+    const minimum = await orderMinimum(env, orderId).catch(() => null);
+    if (minimum?.below) {
+      if (o.state === "waiting_confirmation") await updateOrderState(env, orderId, "draft");
+      return { text: belowMinimumText(minimum) };
+    }
     await updateOrderState(env, orderId, "confirmed");
     // 2026-09-23 (ACCOUNTING_SYNC) — confirmed order → confirmed sale.order.
     // Never throws; the customer reply does not depend on it.

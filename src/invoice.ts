@@ -137,9 +137,26 @@ export async function createAndDispatchInvoiceForOrder(
     throw e;
   }
   const split = computeInclusiveTotals(pricedLines.map((p) => p.line_total), saleTax?.rate ?? null);
-  const tax = split.tax;
-  const total = split.total;
-  subtotal = split.subtotal;
+  // § 40 د — the quantity discount, before VAT, from the delivered lines on
+  // the order's day (the quotation computed it the same way). Never blocks.
+  let discount = 0, discountPct = 0;
+  try {
+    const { orderDiscount } = await import("./order-pricing");
+    const d = await orderDiscount(env, {
+      day: order.order_date ?? invoiceDateYmd,
+      lines: order.lines.map((l, i) => ({ productId: l.product_id, packagingId: l.packaging_id, qty: l.quantity, unit: pricedLines[i].unit })),
+      vatRate: async () => saleTax?.rate ?? null,
+    });
+    if (d.applied) { discount = d.amount; discountPct = d.pct; }
+    else if (d.tierPct > 0) console.log(`[invoice] order ${orderId}: no discount — ${d.reason}`);
+  } catch (e) {
+    console.warn(`[invoice] order ${orderId}: discount check failed — none applied`, (e as Error).message);
+  }
+  const { discountedTotals } = await import("./order-pricing");
+  const totals = discountedTotals(split, discount, saleTax?.rate ?? null);
+  const tax = totals.tax;
+  const total = totals.total;
+  subtotal = totals.subtotal;
 
   const today = new Date();
   const ymd = today.toISOString().slice(0, 10).replace(/-/g, "");
@@ -154,6 +171,8 @@ export async function createAndDispatchInvoiceForOrder(
     subtotal,
     tax,
     total,
+    discount,
+    discountPct,
   });
 
   // Parallel accounting write. Gated on ACCOUNTING_SYNC and swallows every
@@ -762,9 +781,12 @@ function buildCustomerInvoiceText(
     .map((l) => `• ${l.product} ${l.packaging} × ${l.qty} = ${l.line_total} ر.س`)
     .join("\n");
   // Tax-free (pre-cutoff) invoices keep the exact pre-VAT wording.
+  // § 40 د — the quantity discount (before VAT), when the invoice has one.
+  const discount = invoiceDiscount({ subtotal, tax, total });
+  const discountLine = discount > 0 ? [`خصم الكمية: ${discount} ر.س`] : [];
   const totals = tax > 0
-    ? [`الإجمالي قبل الضريبة: ${subtotal} ر.س`, `ضريبة القيمة المضافة 15%: ${tax} ر.س`, `الإجمالي شامل الضريبة: ${total} ر.س`]
-    : [`المجموع: ${subtotal} ر.س`, `الإجمالي: ${total} ر.س`];
+    ? [`الإجمالي قبل الضريبة: ${subtotal} ر.س`, ...discountLine, `ضريبة القيمة المضافة 15%: ${tax} ر.س`, `الإجمالي شامل الضريبة: ${total} ر.س`]
+    : [`المجموع: ${subtotal} ر.س`, ...discountLine, `الإجمالي: ${total} ر.س`];
   return [
     `🧾 فاتورتك رقم ${number}`, ``, linesText, ``,
     ...totals, ``,
@@ -1235,10 +1257,18 @@ export async function buildInvoicePDFDataFromOdoo(
     },
     items,
     subtotal: vatAmount > 0 ? invoice.subtotal : subtotal,
-    discount: 0,
+    // § 40 د — the quantity discount (before VAT) the invoice was issued with:
+    // net + VAT − total (0 on every invoice without one).
+    discount: invoiceDiscount(invoice),
     vatAmount,
     grandTotal: invoice.total,
   };
+}
+
+/** The discount an x_invoice was issued with, from its stored totals: subtotal + VAT − total (≥ 0). */
+export function invoiceDiscount(inv: { subtotal: number; tax: number; total: number }): number {
+  const d = round2(Number(inv.subtotal) + Number(inv.tax) - Number(inv.total));
+  return d >= 0.01 ? d : 0;
 }
 
 // --------------------------------------------------------------

@@ -366,7 +366,7 @@
   {
     "mutation": "team note: «ملاحظة 📝» not offered after a collection",
     "files": [
-      "src/router.ts"
+      "src/collect-pay.ts"
     ],
     "test": "tests/wa-opener.test.mts",
     "caught": true,

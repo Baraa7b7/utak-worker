@@ -1,5 +1,5 @@
 {
-  "at": "2026-09-26T16:18:17.140Z",
+  "at": "2026-09-26T21:32:32.620Z",
   "caught": 90,
   "total": 90,
   "results": [
@@ -761,7 +761,7 @@
       "name": "a simulation run: its row «pending» (the deployed tick would post it)",
       "caught": true,
       "fails": [
-        "✗ the x_wa_message row is written, echo «none» — never «pending» on the way (the deployed */5 tick would post it) — {\"row\":{\"write_date\":\"2026-09-27 07:00:00\",\"x_status\":\"sent\",\"x_meta_message_id\":\"wamid.SIM.KQwI41PtnuDXYWGVf-ws66m1di-6Hif6\",\"x_processed_at\":\"2026-09-27 07:00:00\",\"x_echo_status\":\"none\",\"x_partner_id\":501,\"x_direction\":\"out\",\"x_kind\":\"text\",\"x_body\":\"نص تجربة\",\"x_source\":\"auto\",\"x_debug_payload\":\"{\\\"purpose\\\":\\\"bot_reply\\\"}\",\"id\":10008},\"pendingWrites\":1}",
+        "✗ the x_wa_message row is written, echo «none» — never «pending» on the way (the deployed */5 tick would post it) — {\"row\":{\"write_date\":\"2026-09-27 07:00:00\",\"x_status\":\"sent\",\"x_meta_message_id\":\"wamid.SIM.XUVyKiI4wG_T0V15JthIEIX8UF3Bmb6p\",\"x_processed_at\":\"2026-09-27 07:00:00\",\"x_echo_status\":\"none\",\"x_partner_id\":501,\"x_direction\":\"out\",\"x_kind\":\"text\",\"x_body\":\"نص تجربة\",\"x_source\":\"auto\",\"x_debug_payload\":\"{\\\"purpose\\\":\\\"bot_reply\\\"}\",\"id\":10008},\"pendingWrites\":1}",
         "✗ the x_wa_message row is written, echo «none» — never «pending» on the way (the deployed */5 tick would post it)"
       ]
     },

@@ -1,7 +1,7 @@
 {
-  "at": "2026-09-26T21:15:10.110Z",
-  "caught": 33,
-  "total": 33,
+  "at": "2026-09-26T21:32:48.711Z",
+  "caught": 38,
+  "total": 38,
   "results": [
     {
       "part": "أ",
@@ -307,7 +307,60 @@
       "caught": true,
       "fails": [
         "✗ the full button fits Meta's 20 characters: «المبلغ كامل (90 ر.س)», «كامل (190 ر.س)», «كامل (12345.5 ر.س)» — [\"المبلغ كامل (90 ر.س)\",\"المبلغ كامل (190 ر.س)\",\"المبلغ كامل (12345.50 ر.س)\",\"المبلغ كامل (1000000 ر.س)\"]",
-        "✗ «نقد»: nothing recorded, the reply in his conversation with «كامل (190 ر.س)» and «مبلغ آخر» — {\"c1\":{\"full\":\"collect_full_cash_10001_dj9fds04\",\"fullTitle\":\"المبلغ كامل (190 ر.س\",\"other\":\"collect_other_cash_10001_dj9fds04\",\"otherTitle\":\"مبلغ آخر\"},\"body1\":\"💰 تحصيل الفاتورة UTAK-INV-20260927-000\\nالعميل: مطعم الوادي\\nالمتبقي: 190 ر.س (نقد 💵)\\nكم استلمت؟ «المبلغ كامل» يسجّل 190 ر.س، و«مبلغ آخر» تكتب المبلغ.\"}"
+        "✗ «نقد»: nothing recorded, the reply in his conversation with «كامل (190 ر.س)» and «مبلغ آخر» — {\"c1\":{\"full\":\"collect_full_cash_10001_eg6u32ox\",\"fullTitle\":\"المبلغ كامل (190 ر.س\",\"other\":\"collect_other_cash_10001_eg6u32ox\",\"otherTitle\":\"مبلغ آخر\"},\"body1\":\"💰 تحصيل الفاتورة UTAK-INV-20260927-000\\nالعميل: مطعم الوادي\\nالمتبقي: 190 ر.س (نقد 💵)\\nكم استلمت؟ «المبلغ كامل» يسجّل 190 ر.س، و«مبلغ آخر» تكتب المبلغ.\"}"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "prod run as the pilot (PILOT_MODE true)",
+      "caught": true,
+      "fails": [
+        "✗ wrangler.toml prod: SIMULATION_MODE false, PILOT_MODE false, ACCOUNTING_SYNC true, OWNER_WINDOW_OPEN_AT 06:00, no SIM_ALLOWLIST / SIM_RUN_ID, crons [] until the cutover — {\"PROD\":{\"WORKER_ORIGIN\":\"https://utak-worker.utak-business.workers.dev\",\"META_PHONE_NUMBER_ID\":\"1351691708016803\",\"META_WABA_ID\":\"2144001136512196\",\"META_GRAPH_VERSION\":\"v22.0\",\"ODOO_URL\":\"https://utakfresh.odoo.com\",\"ODOO_DB\":\"utakfresh\",\"ODOO_LOGIN\":\"admin@utakfresh.com\",\"CLAUDE_MODEL_CLASSIFY\":\"claude-haiku-4-5-20251001\",\"CLAUDE_MODEL_REPLY\":\"claude-sonnet-5\",\"OWNER_WHATSAPP\":\"+966505154962\",\"SIMULATION_MODE\":\"false\",\"PILOT_MODE\":\"true\",\"ACCOUNTING_SYNC\":\"true\",\"OWNER_WINDOW_OPEN_AT\":\"06:00\"},\"topCrons\":\"\"}",
+        "✗ runtime «prod», no misconfig; not test mode (no x_is_simulation stamp); accounting on; any number allowed — {\"mode\":\"pilot\",\"misconfig\":\"PILOT_MODE=true requires non-empty SIM_ALLOWLIST — refusing to send to open recipients\"}",
+        "✗ …one message in «📋 مراجعة الأرقام» and ONE alert to Baraa — {\"reviewAlerts\":[],\"posts\":1}",
+        "✗ …and it is answered, not refused (no SIM_ALLOWLIST, no x_wa_allowed needed) — {\"toNew\":[],\"refused\":0}"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "prod without the accounting (ACCOUNTING_SYNC false)",
+      "caught": true,
+      "fails": [
+        "✗ wrangler.toml prod: SIMULATION_MODE false, PILOT_MODE false, ACCOUNTING_SYNC true, OWNER_WINDOW_OPEN_AT 06:00, no SIM_ALLOWLIST / SIM_RUN_ID, crons [] until the cutover — {\"PROD\":{\"WORKER_ORIGIN\":\"https://utak-worker.utak-business.workers.dev\",\"META_PHONE_NUMBER_ID\":\"1351691708016803\",\"META_WABA_ID\":\"2144001136512196\",\"META_GRAPH_VERSION\":\"v22.0\",\"ODOO_URL\":\"https://utakfresh.odoo.com\",\"ODOO_DB\":\"utakfresh\",\"ODOO_LOGIN\":\"admin@utakfresh.com\",\"CLAUDE_MODEL_CLASSIFY\":\"claude-haiku-4-5-20251001\",\"CLAUDE_MODEL_REPLY\":\"claude-sonnet-5\",\"OWNER_WHATSAPP\":\"+966505154962\",\"SIMULATION_MODE\":\"false\",\"PILOT_MODE\":\"false\",\"ACCOUNTING_SYNC\":\"false\",\"OWNER_WINDOW_OPEN_AT\":\"06:00\"},\"topCrons\":\"\"}",
+        "✗ runtime «prod», no misconfig; not test mode (no x_is_simulation stamp); accounting on; any number allowed — {\"mode\":\"prod\",\"misconfig\":null}"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "prod capturing instead of sending (SIMULATION_MODE true)",
+      "caught": true,
+      "fails": [
+        "✗ wrangler.toml prod: SIMULATION_MODE false, PILOT_MODE false, ACCOUNTING_SYNC true, OWNER_WINDOW_OPEN_AT 06:00, no SIM_ALLOWLIST / SIM_RUN_ID, crons [] until the cutover — {\"PROD\":{\"WORKER_ORIGIN\":\"https://utak-worker.utak-business.workers.dev\",\"META_PHONE_NUMBER_ID\":\"1351691708016803\",\"META_WABA_ID\":\"2144001136512196\",\"META_GRAPH_VERSION\":\"v22.0\",\"ODOO_URL\":\"https://utakfresh.odoo.com\",\"ODOO_DB\":\"utakfresh\",\"ODOO_LOGIN\":\"admin@utakfresh.com\",\"CLAUDE_MODEL_CLASSIFY\":\"claude-haiku-4-5-20251001\",\"CLAUDE_MODEL_REPLY\":\"claude-sonnet-5\",\"OWNER_WHATSAPP\":\"+966505154962\",\"SIMULATION_MODE\":\"true\",\"PILOT_MODE\":\"false\",\"ACCOUNTING_SYNC\":\"true\",\"OWNER_WINDOW_OPEN_AT\":\"06:00\"},\"topCrons\":\"\"}",
+        "✗ runtime «prod», no misconfig; not test mode (no x_is_simulation stamp); accounting on; any number allowed — {\"mode\":\"sim\",\"misconfig\":\"SIMULATION_MODE=true requires non-empty SIM_ALLOWLIST — refusing to send to open recipients\"}",
+        "✗ …one message in «📋 مراجعة الأرقام» and ONE alert to Baraa — {\"reviewAlerts\":[],\"posts\":1}",
+        "✗ …and it is answered, not refused (no SIM_ALLOWLIST, no x_wa_allowed needed) — {\"toNew\":[],\"refused\":0}"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "a SIM_ALLOWLIST left on prod (the team only)",
+      "caught": true,
+      "fails": [
+        "✗ wrangler.toml prod: SIMULATION_MODE false, PILOT_MODE false, ACCOUNTING_SYNC true, OWNER_WINDOW_OPEN_AT 06:00, no SIM_ALLOWLIST / SIM_RUN_ID, crons [] until the cutover — {\"PROD\":{\"WORKER_ORIGIN\":\"https://utak-worker.utak-business.workers.dev\",\"META_PHONE_NUMBER_ID\":\"1351691708016803\",\"META_WABA_ID\":\"2144001136512196\",\"META_GRAPH_VERSION\":\"v22.0\",\"ODOO_URL\":\"https://utakfresh.odoo.com\",\"ODOO_DB\":\"utakfresh\",\"ODOO_LOGIN\":\"admin@utakfresh.com\",\"CLAUDE_MODEL_CLASSIFY\":\"claude-haiku-4-5-20251001\",\"CLAUDE_MODEL_REPLY\":\"claude-sonnet-5\",\"OWNER_WHATSAPP\":\"+966505154962\",\"SIMULATION_MODE\":\"false\",\"PILOT_MODE\":\"false\",\"ACCOUNTING_SYNC\":\"true\",\"OWNER_WINDOW_OPEN_AT\":\"06:00\",\"SIM_ALLOWLIST\":\"+966505154962,+966571777704\"},\"topCrons\":\"\"}",
+        "✗ runtime «prod», no misconfig; not test mode (no x_is_simulation stamp); accounting on; any number allowed — {\"mode\":\"prod\",\"misconfig\":null}",
+        "✗ …one message in «📋 مراجعة الأرقام» and ONE alert to Baraa — {\"reviewAlerts\":[],\"posts\":1}",
+        "✗ …and it is answered, not refused (no SIM_ALLOWLIST, no x_wa_allowed needed) — {\"toNew\":[],\"refused\":0}"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "an unset allowlist read as «nobody» (every number refused)",
+      "caught": true,
+      "fails": [
+        "✗ runtime «prod», no misconfig; not test mode (no x_is_simulation stamp); accounting on; any number allowed — {\"mode\":\"prod\",\"misconfig\":null}",
+        "✗ …one message in «📋 مراجعة الأرقام» and ONE alert to Baraa — {\"reviewAlerts\":[],\"posts\":1}",
+        "✗ …and it is answered, not refused (no SIM_ALLOWLIST, no x_wa_allowed needed) — {\"toNew\":[],\"refused\":0}",
+        "✗ a classified customer with x_wa_allowed off: the full reply («أهلاً بقالة قديمة، حياك الله»), no review, no alert — []"
       ]
     }
   ]

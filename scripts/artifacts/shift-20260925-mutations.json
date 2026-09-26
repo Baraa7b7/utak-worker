@@ -5,7 +5,7 @@
     "test": "tests/team-shifts.test.mts",
     "caught": true,
     "exit": 1,
-    "failed": 6,
+    "failed": 7,
     "first": [
       "nothing before 02:00 (no 01:45 window template, the § 31 rule) — 01:45 براء: utak_shift_start_v2 [براء] / 02:00 عمر:",
       "06:00: Baraa's window template [براء] and عثمان's [عثمان عبدالوهاب], once each — [\"06:00 عثمان: utak_shift_start_v2 ",
@@ -133,7 +133,7 @@
     "test": "tests/team-shifts.test.mts",
     "caught": true,
     "exit": 1,
-    "failed": 7,
+    "failed": 9,
     "first": [
       "02:30 عمر: the reminder (same template), and one alert to Baraa «عمر المجهلي لم يسجّل حضوره: دوامه 02:00» — []",
       "06:30 عثمان: the reminder, and one alert «عثمان عبدالوهاب لم يسجّل حضوره: دوامه 06:00» — []",
@@ -153,14 +153,15 @@
   },
   {
     "mutation": "owner alerts never as text inside his window",
-    "file": "src/templates.ts",
+    "file": "src/wa-gateway.ts",
     "test": "tests/team-shifts.test.mts",
     "caught": true,
     "exit": 1,
-    "failed": 2,
+    "failed": 13,
     "first": [
-      "Saturday 02:30 and 03:00: two alerts, both as session text (inside the window, no marketing template) — [\"تنبيه(قالب",
-      "Saturday 06:30 and 07:00 (عثمان): text as well — [\"تنبيه(قالب): ⏰ عثمان عبدالوهاب لم يسجّل حضوره: دوامه \",\"تنبيه(قال"
+      "02:30 عمر: the reminder (same template), and one alert to Baraa «عمر المجهلي لم يسجّل حضوره: دوامه 02:00» — [\"02:30 ",
+      "03:00: one alert «عمر المجهلي سُجّل غائباً … (02:00)», nothing to عمر — []",
+      "06:30 عثمان: the reminder, and one alert «عثمان عبدالوهاب لم يسجّل حضوره: دوامه 06:00» — [\"06:30 عثمان: utak_shift_s"
     ]
   }
 ]

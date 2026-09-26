@@ -4393,3 +4393,48 @@
 - **الاختبارات:** [tests/wa-important-b3.test.mts](../tests/wa-important-b3.test.mts) `[م12] § 39 ب`، 16 فحصاً جديداً فصار الملف **108**: راحة بلا محطات (صمت طوال اليوم وبلا مفتاح)، وراحة بمحطات (لا شيء قبل 18:00، وتنبيه واحد بالنص وأرقام الطلبات و«مشكلة»، وبلا رسالة للسائق، والحارس، ومرة واحدة)، وإجازة بلا محطات، وإجازة بمحطات (لا تذكير 11:30 ولا تنبيه 12:30، والنص باسم الإجازة، ومرة واحدة)، و«بلا جدول» بنصه وحارسه القديمين.
 - **الطفرات:** [scripts/wa-b3-20260926-mutations.mjs](../scripts/wa-b3-20260926-mutations.mjs) **47/47**: ست جديدة (تنبيه بلا محطات، وبلا الحارس، وقبل 18:00، ومسار «بلا جدول» بدل الراحة، والإجازة ليست راحة، وبلا أرقام الطلبات). ونمط «no 18:00 alert for a driver without a schedule» صار يسمّي السطر التالي له، لأن بوابة 18:00 صارت في دالتين.
 - `tsc` نظيف، و`npm test` **2833 ✓ و0 ✗**.
+
+### ج) قوائم الطفرات القديمة
+
+- **الأنماط الـ 15 غير المطابقة (كما في § 38):** att 5، وrev 6، وshift 1، وteam 3. لكل نمط: متى اختفى من الكود (`git log -S`)، وأين صار حارسه.
+- **حُدِّث ليطابق الكود ويطفّر الحارس نفسه (8):**
+
+| السكربت | الطفرة | أين صار الحارس | الـ commit الذي نقله |
+|---|---|---|---|
+| att | «no time … treated as 00:00» | عضو بلا وقت = بلا جدول دوام: `if (!m.calendarId) return { kind: "no_calendar" }` في [team-roster.ts](../src/team-roster.ts) (كان `x_shift_start` = 0.0) | `b4a9bd4` (§ 31) |
+| att | «gate: never holds» | الحجز «before» في `attendanceHold` (صار النمط 3× بعد إضافة «after» و«off») | `b4a9bd4` |
+| att | «start: today's Odoo row ignored» | `rows.get(m.employeeId)` (الصفوف بالموظف) | `b4a9bd4` |
+| att | «owner guard without owner_window» | قائمة `OWNER_ALLOWED_PURPOSES` انتقلت من `meta.ts` إلى [wa-gateway.ts](../src/wa-gateway.ts) | `b02e80d` (§ 33) |
+| att | «06:00 list follow-up not held» | `holdForTask(… "purchase_list_remind" …)` في `followUpUnconfirmedPurchaseLists` | `b4a9bd4` |
+| rev | «archived: ingest routes it as new» | `route = created.archived ? "archived" : created.quiet ? "quiet" : "new"` | `b4a9bd4` |
+| rev | «archived: customer path guard» | `if (partner.archived \|\| partner.quiet)`: الطفرة تُسقط `archived` وحده | `b4a9bd4` |
+| shift | «owner alerts never as text inside his window» | `sendOwnerAlert` يسلّم النص للبوابة، وقرار النافذة فيها (`if (win.open) return dispatchToMeta…`): الطفرة تطفئه لـ `owner_alert` وحده | `b02e80d` (§ 33) |
+
+- **حُذف لأن حارسه حُذف عمداً (7)، في `1acc78b` (§ 32: نافذة براء وقت ثابت `OWNER_WINDOW_OPEN_AT` بدل «أبكر دوام − 15» من § 31):**
+  - rev: «window: always the fallback» (مرتان: review وattendance)، و«window: no 15-minute lead»، و«window: Baraa's own time counts».
+  - team: «window: an employee on time off counts»، و«window: no 15-minute lead»، و«window: Baraa's own schedule counts».
+  - القاعدة التي حلّت محلها تطفّرها [shift-20260925-mutations.mjs](../scripts/shift-20260925-mutations.mjs) («the § 31 rule back» وأخواتها). وفي مكان كل نمط محذوف تعليق بالسبب والـ commit.
+- **سكربت rev يتوقف عند أول نمط لا يطابق:** لم يُغيَّر. السكربتات الـ 11 كلها تتوقف بالطريقة نفسها (`throw` عند عدّ ≠ 1)، فالشرط «إن كان هذا نمط السكربتات الأخرى» لم يتحقق. وبعد التحديث لا نمط غير مطابق.
+- **طفرة gw غير الملتقطة** («category: MARKETING for owner alerts (team-shifts dawn)»):
+  - **الحارس:** `categoryAllowed` في [wa-purposes.ts](../src/wa-purposes.ts): قالب MARKETING لا يحمل غرضاً تشغيلياً.
+  - **لماذا فاتت:** منذ § 34 لا خيار قالب لتنبيه براء أصلاً (`sendOwnerMessage` نص فقط)، فلا يمر اختبار team-shifts بالحارس.
+  - **الاختبار الجديد** في [tests/team-shifts.test.mts](../tests/team-shifts.test.mts) [2](د): فجراً ونافذة براء مقفلة، و`utak_owner_alert` (MARKETING) مربوط بـ `owner_alert`، ومُرسِل يطلب التنبيه **بالقالب**، كما كان الكود قبل § 33. يُرفض ولا يخرج القالب، وتنبيه الفجر نفسه محفوظ لضغطته. فحصان، فصار الملف 44.
+- **لا تغيير في `src/`، ولم يُكشف خلل حقيقي.**
+- **التشغيل (كل السكربتات، بعد التحديث):**
+
+| السكربت | الملتقط |
+|---|---|
+| att | 18/18 |
+| gw | 28/28 (كانت 27/28) |
+| rev | 28/28 (32 قبل حذف 4) |
+| s34 | 28/28 |
+| s35 | 30/30 |
+| s36 | 29/29 |
+| s37-status | 15/15 |
+| s37-supplier-pay | 56/56 |
+| shift | 13/13 |
+| team | 38/38 (41 قبل حذف 3) |
+| wa-b3 | 47/47 (مع طفرات (ب)) |
+| **المجموع** | **330/330**، و339 نمطاً كلها تطابق مرة واحدة |
+
+- `tsc` نظيف، و`npm test` **2835 ✓ و0 ✗**.

@@ -7,19 +7,19 @@
     "failed": 4,
     "first": [
       "before 05:00: nothing to anyone — [\"966500000801\",\"966500000803\"]",
-      "Odoo row: date, shift 05:00 (02:00 UTC), sent at, no tap, no status — {\"x_name\":\"عمر المجهلي · 2026-09-26\"",
+      "Odoo row: employee (and the old partner link), date, shift 05:00 (02:00 UTC), sent at, no tap, no status —",
       "خالد (07:30) not yet"
     ]
   },
   {
-    "mutation": "no time (0.0) treated as 00:00",
-    "file": "src/attendance.ts",
+    "mutation": "no time (no working schedule) treated as 00:00",
+    "file": "src/team-roster.ts",
     "caught": true,
     "exit": 1,
     "failed": 5,
     "first": [
       "before 05:00: nothing to anyone — [\"966500000802\",\"966500000001\"]",
-      "no time (0.0) → nothing, reported «no_time» — [{\"id\":601,\"name\":\"أحمد\",\"to\":\"…0601\",\"shift\":null,\"roles\":[",
+      "no working schedule → nothing, reported «no_calendar» — [{\"id\":7601,\"partnerId\":601,\"name\":\"أحمد\",\"to\":\"…0",
       "the whole day: the no-time member never gets it"
     ]
   },
@@ -31,7 +31,7 @@
     "failed": 8,
     "first": [
       "route before the tap: nothing to عمر (no template, no location, no text) — [{\"messaging_product\":\"whatsapp",
-      "…queued in order: list, location, stop 1 buttons, map link, stop 2 buttons — []",
+      "…queued in order: list, location, stop 1 buttons, map link, stop 2 buttons, route_start — []",
       "06:00 follow-up: no reminder to عمر; owner told he waits for «بدء الدوام»"
     ]
   },
@@ -75,8 +75,8 @@
     "exit": 1,
     "failed": 2,
     "first": [
-      "tap at 05:20: «late», no owner alert before +60 — {\"x_name\":\"عمر المجهلي · 2026-09-26\",\"x_partner_id\":801,",
-      "tap at 05:59: «late», no owner alert before +60 — {\"x_name\":\"عمر المجهلي · 2026-09-26\",\"x_partner_id\":801,"
+      "tap at 05:20: «late», no owner alert before +60 — {\"x_name\":\"عمر المجهلي · 2026-09-26\",\"x_employee_id\":780",
+      "tap at 05:59: «late», no owner alert before +60 — {\"x_name\":\"عمر المجهلي · 2026-09-26\",\"x_employee_id\":780"
     ]
   },
   {
@@ -86,8 +86,8 @@
     "exit": 1,
     "failed": 2,
     "first": [
-      "never on the roster (even with a role and 05:00): no row, no alert about him",
-      "his tap: one line «✅ تم. تنبيهات …», nothing recorded — ✅ تم. تنبيهات يو تاك توصلك هنا نصاً حتى 06:10 بكرة"
+      "never on the roster (even an employee with a role and 05:00): no row, no alert about him",
+      "his tap: one line «✅ تم. تنبيهات …», nothing recorded — ✅ تم. تنبيهات يو تاك توصلك هنا نصاً حتى 06:02 بكرة"
     ]
   },
   {
@@ -133,19 +133,19 @@
     "first": [
       "71h late: no reply — [\"مرحبا سالم السواق 👋 استخدم الأزرار عشان نأكد الحالة.\",\"مرحبا سالم السواق 👋 استخدم",
       "…a «⏳ … متأخرة 71 ساعة» note in his channel — []",
-      "supplier, 75h late: no Claude call, no price row, nothing sent — claude=1 prices=0 sent=1"
+      "supplier, 75h late: no Claude call, no price row, nothing sent — claude=1 prices=0 sent=0"
     ]
   },
   {
     "mutation": "owner guard without owner_window",
-    "file": "src/meta.ts",
+    "file": "src/wa-gateway.ts",
     "caught": true,
     "exit": 1,
-    "failed": 5,
+    "failed": 7,
     "first": [
       "06:00: utak_shift_start_v2 to Baraa [«براء»], payload shift_start",
       "once a day: no second one",
-      "next day 06:00: again, once"
+      "next day 05:55: not yet"
     ]
   },
   {
@@ -156,7 +156,7 @@
     "failed": 4,
     "first": [
       "route before the tap: nothing to عمر (no template, no location, no text) — [{\"messaging_product\":\"whatsapp",
-      "…queued in order: list, location, stop 1 buttons, map link, stop 2 buttons — []",
+      "…queued in order: list, location, stop 1 buttons, map link, stop 2 buttons, route_start — []",
       "a text before the tap: told when his shift starts, still no task, queue untouched — [\"📍 #2 — بقالة النخيل"
     ]
   },

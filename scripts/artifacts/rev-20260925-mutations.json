@@ -5,7 +5,7 @@
     "test": "tests/review.test.mts",
     "caught": true,
     "exit": 1,
-    "failed": 49,
+    "failed": 48,
     "first": [
       "purchase: created «غير مراجَع», intent written, reason written — {\"name\":\"اسم-purchase\",\"phone\":\"+966500000701\",\"x_w",
       "purchase: one Claude screening call for one text — 0",
@@ -248,7 +248,7 @@
     "failed": 2,
     "first": [
       "no welcome, no reply",
-      "not screened, nothing entered review, no owner alert"
+      "classified once (the text), nothing written, nothing entered review, no owner alert — 0"
     ]
   },
   {
@@ -257,7 +257,7 @@
     "test": "tests/review.test.mts",
     "caught": true,
     "exit": 1,
-    "failed": 5,
+    "failed": 6,
     "first": [
       "no new partner — 1",
       "no welcome, no reply",
@@ -340,56 +340,6 @@
     "failed": 1,
     "first": [
       "Baraa, team, supplier, order on the number, archived, already classified: untouched, each by its own rule — [{\"id\":1"
-    ]
-  },
-  {
-    "mutation": "window: always the fallback",
-    "file": "src/attendance.ts",
-    "test": "tests/review.test.mts",
-    "caught": true,
-    "exit": 1,
-    "failed": 5,
-    "first": [
-      "05:00 and 07:30 → 04:45",
-      "only 07:30 → 07:15",
-      "Baraa's own time never counts (03:00 on his number)"
-    ]
-  },
-  {
-    "mutation": "window: no 15-minute lead",
-    "file": "src/attendance.ts",
-    "test": "tests/review.test.mts",
-    "caught": true,
-    "exit": 1,
-    "failed": 5,
-    "first": [
-      "05:00 and 07:30 → 04:45",
-      "only 07:30 → 07:15",
-      "Baraa's own time never counts (03:00 on his number)"
-    ]
-  },
-  {
-    "mutation": "window: Baraa's own time counts",
-    "file": "src/attendance.ts",
-    "test": "tests/review.test.mts",
-    "caught": true,
-    "exit": 1,
-    "failed": 1,
-    "first": [
-      "Baraa's own time never counts (03:00 on his number)"
-    ]
-  },
-  {
-    "mutation": "window: always the fallback (attendance tests)",
-    "file": "src/attendance.ts",
-    "test": "tests/attendance.test.mts",
-    "caught": true,
-    "exit": 1,
-    "failed": 3,
-    "first": [
-      "04:45 (عمر 05:00 − 15): utak_shift_start_v2 to Baraa [«براء»], payload shift_start",
-      "next day 04:45: again, once",
-      "Baraa ×2 at 04:45: once"
     ]
   }
 ]

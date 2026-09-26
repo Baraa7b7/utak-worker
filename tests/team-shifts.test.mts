@@ -219,6 +219,22 @@ console.log("\n[2] the dawn alerts reach Baraa as text inside the window his 06:
     after.length === 3 && after[0].includes("لم يسجّل حضوره") && after[1].includes("سُجّل غائباً") && after[2].startsWith("✅ تم"), JSON.stringify(after));
   assert("…and his queue is empty", heldFor(ENV, OWNER).length === 0);
   assert("schema gate: nothing rejected", rejected.length === 0, rejected.join(" / "));
+  // (d) STATUS § 39 ج — the guard under all of this: a MARKETING template never carries an operational
+  //     purpose (src/wa-purposes.ts categoryAllowed). Since § 34 sendOwnerAlert has no template option, so
+  //     it is asked here directly: utak_owner_alert (MARKETING at Meta) bound to owner_alert, his window
+  //     closed at dawn, and a caller that asks for the owner alert BY TEMPLATE (as the code before § 33 did).
+  ENV = fresh(`${SAT1} 01:55`);
+  closeOwnerWindow(ENV);
+  seed("x_whatsapp_template", { x_purpose: "owner_alert", x_meta_template_id: "utak_owner_alert", x_language: "ar", x_meta_status: "APPROVED", x_param_count: 1, x_category: "MARKETING" });
+  const { sendTemplateByPurpose } = await import("../src/templates.ts");
+  for (const a of ["01:55", "02:00"]) await tick(`${SAT1} ${a}`);
+  setRiyadh(`${SAT1} 02:30`);
+  const byTemplate = await quiet(() => sendTemplateByPurpose(ENV, "+" + OWNER, "owner_alert", ["⏰ عمر المجهلي لم يسجّل حضوره"]));
+  await tick(`${SAT1} 02:30`);
+  assert("dawn, window closed: the owner alert asked BY TEMPLATE is refused (MARKETING for an operational purpose)",
+    !byTemplate?.ok && !graph.some((b) => b?.template?.name === "utak_owner_alert"), JSON.stringify({ status: byTemplate?.status, sent: graph.map(describe) }));
+  assert("…and the dawn alert itself is held for his tap, not sent as the MARKETING template",
+    sentTo(OWNER).length === 0 && heldFor(ENV, OWNER).some((w: any) => String(w.body?.text?.body).includes("لم يسجّل حضوره")), JSON.stringify(heldFor(ENV, OWNER)));
 }
 
 // ================================================================ 3. Friday 02/10 (and Thursday 01/10 after 12:00)

@@ -42,9 +42,11 @@ const M = [
     `  if (since >= REMIND_AFTER_MIN * MIN) return row.x_reminder_sent ? "reminded" : sendReminder(env, m, day, min, row);`, `  if (since >= REMIND_AFTER_MIN * MIN) return "reminded";`, S],
   ["«متأخر» after +15 → «حاضر»", "src/attendance.ts",
     `  return tapMs - shiftMs > LATE_AFTER_MIN * MIN ? "late" : "present";`, `  return "present";`, S],
-  ["owner alerts never as text inside his window", "src/templates.ts",
-    `  if (await ownerInsideWindow(env)) {\n    try {\n      const r = await sendText(env, owner, original, { purpose: "owner_alert" });`,
-    `  if (false && await ownerInsideWindow(env)) {\n    try {\n      const r = await sendText(env, owner, original, { purpose: "owner_alert" });`, S],
+  // b02e80d (§ 33): sendOwnerAlert hands the text to the gateway, whose window decision sends it inside his
+  // window (and holds it outside) — the pattern turns that decision off for owner_alert alone (§ 39 ج)
+  ["owner alerts never as text inside his window", "src/wa-gateway.ts",
+    `    if (win.open) return dispatchToMeta(env, req, to, opt.body);`,
+    `    if (win.open && req.purpose !== "owner_alert") return dispatchToMeta(env, req, to, opt.body);`, S],
 ];
 
 const results = [];

@@ -34,19 +34,21 @@ const M = [
   ["outreach (rating / pay / reactivation) not gated", "src/outreach.ts", `  return rows.filter((r) => !isCustomerAutomationHeld(r));`, `  return rows;`, REVIEW],
   ["standing reminder not gated", "src/standing.ts", `    if (held.has(s.x_customer_id[0])) {`, `    if (false) {`, REVIEW],
   ["20:00 / 21:00 notices not gated", "src/team.ts", `  if ((await heldPartnerIds(env, [cust.id])).has(cust.id)) return "held";`, ``, REVIEW],
-  ["archived: ingest routes it as new", "src/wa-inbox.ts", `route = created.archived ? "archived" : "new";`, `route = "new";`, REVIEW],
+  // b4a9bd4 (§ 31) added the «quiet» route («شخصي») after it (§ 39 ج)
+  ["archived: ingest routes it as new", "src/wa-inbox.ts", `route = created.archived ? "archived" : created.quiet ? "quiet" : "new";`, `route = created.quiet ? "quiet" : "new";`, REVIEW],
   ["archived: no lookup (a new partner is created)", "src/odoo.ts", `  if (archived) return { ...archived, archived: true };`, ``, REVIEW],
-  ["archived: customer path guard (after a failed ingest)", "src/index.ts", `    if (partner.archived) {`, `    if (false) {`, REVIEW],
+  // b4a9bd4 (§ 31): the same guard also stops «شخصي» (partner.quiet), which stays (§ 39 ج)
+  ["archived: customer path guard (after a failed ingest)", "src/index.ts", `    if (partner.archived || partner.quiet) {`, `    if (partner.quiet) {`, REVIEW],
   ["button «عميل» keeps the flag", "scripts/lib/review-buttons.mjs", `    vals = {'x_contact_class': 'customer', 'x_review_pending': False}`, `    vals = {'x_contact_class': 'customer'}`, REVIEW],
   ["button «مورد» without supplier_rank", "scripts/lib/review-buttons.mjs", `        vals['supplier_rank'] = 1`, `        pass_ = 1`, REVIEW],
   ["button «أرشفة» deletes", "scripts/lib/review-buttons.mjs", `records.write({'x_review_pending': False, 'active': False})`, `records.unlink()`, REVIEW],
   ["button «فريق» sets «عميل»", "scripts/lib/review-buttons.mjs", `records.write({'x_contact_class': 'team', 'x_review_pending': False})`, `records.write({'x_contact_class': 'customer', 'x_review_pending': False})`, REVIEW],
   ["backfill: a supplier classified", "scripts/lib/review-backfill-core.mjs", `if ((p.supplier_rank ?? 0) > 0) {`, `if (false) {`, REVIEW],
   ["backfill: an order on the number ignored", "scripts/lib/review-backfill-core.mjs", `if (orderNumbers.has(num)) {`, `if (false) {`, REVIEW],
-  ["window: always the fallback", "src/attendance.ts", `  if (!shifts.length) return { minutes: ownerWindowMinutes(env)`, `  if (true) return { minutes: ownerWindowMinutes(env)`, REVIEW],
-  ["window: no 15-minute lead", "src/attendance.ts", `export const OWNER_WINDOW_LEAD_MIN = 15;`, `export const OWNER_WINDOW_LEAD_MIN = 0;`, REVIEW],
-  ["window: Baraa's own time counts", "src/attendance.ts", `    .filter((m) => !isOwnerNumber(env, m.whatsapp) && m.whatsapp)`, `    .filter((m) => m.whatsapp)`, REVIEW],
-  ["window: always the fallback (attendance tests)", "src/attendance.ts", `  if (!shifts.length) return { minutes: ownerWindowMinutes(env)`, `  if (true) return { minutes: ownerWindowMinutes(env)`, ATT],
+  // 2026-09-26 (STATUS § 39 ج): four «window: …» mutations removed — «always the fallback» (×2, review and
+  // attendance tests), «no 15-minute lead» and «Baraa's own time counts». Their guards (Baraa's window at the
+  // earliest shift − 15 min, the fallback when nobody works, his own time left out) were deleted on purpose in
+  // 1acc78b (STATUS § 32: a fixed OWNER_WINDOW_OPEN_AT); scripts/shift-20260925-mutations.mjs mutates that rule.
 ];
 
 const results = [];

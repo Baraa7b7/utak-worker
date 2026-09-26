@@ -5,7 +5,7 @@
     "test": "tests/team-hr.test.mts",
     "caught": true,
     "exit": 1,
-    "failed": 6,
+    "failed": 5,
     "first": [
       "Friday (no schedule line): no template, no row, no absence all day, reported «day_off» — [{\"id\":7601,\"partnerId\":601",
       "Saturday (no schedule line): no template, no row, no absence all day, reported «day_off» — [{\"id\":7601,\"partnerId\":6",
@@ -18,7 +18,7 @@
     "test": "tests/team-hr.test.mts",
     "caught": true,
     "exit": 1,
-    "failed": 5,
+    "failed": 4,
     "first": [
       "عمر's time off: no template, no row, no absence; reported «leave» — [{\"id\":7601,\"partnerId\":601,\"name\":\"أحمد\",\"to\":\"",
       "…and عمر is back the next day",
@@ -88,10 +88,9 @@
     "test": "tests/team-hr.test.mts",
     "caught": true,
     "exit": 1,
-    "failed": 2,
+    "failed": 1,
     "first": [
-      "the default hours-only schedule sends nothing, even with attendance on (reported «no_clock_time») — [{\"id\":7601,\"par",
-      "Baraa's window falls back to 06:00"
+      "the default hours-only schedule sends nothing, even with attendance on (reported «no_clock_time») — [{\"id\":7601,\"par"
     ]
   },
   {
@@ -157,7 +156,7 @@
     "test": "tests/team-hr.test.mts",
     "caught": true,
     "exit": 1,
-    "failed": 12,
+    "failed": 10,
     "first": [
       "the break (12:00) is inside the shift; 17:00 is after it — [{\"hold\":true,\"onAttendance\":true,\"shift\":\"07:00\",\"sent\":",
       "in the shift (10:00): the route goes out now",
@@ -173,7 +172,7 @@
     "failed": 2,
     "first": [
       "driver's neighborhoods come from the employee («أحياء التوصيل»)",
-      "an order in النرجس → the driver of النرجس, العليا → عمر (neighborhoods from hr.employee) — [[801,[10025]],[833,[1002"
+      "an order in النرجس → the driver of النرجس, العليا → عمر (neighborhoods from hr.employee) — [[801,[10029]],[833,[1003"
     ]
   },
   {
@@ -271,8 +270,8 @@
     "failed": 3,
     "first": [
       "a second route the same evening: queued, no second alert",
-      "each of the four «بعد دوامه» alerts went as the approved template, none as a free-text fallback — [\"template\",\"templ",
-      "no alert repeats on Monday for Sunday's tasks — 6"
+      "each of the four «بعد دوامه» alerts went as text inside his window, none as utak_owner_alert — [\"text\",\"text\",\"text\"",
+      "no alert repeats on Monday for Sunday's tasks — 7"
     ]
   },
   {
@@ -297,7 +296,7 @@
     "first": [
       "18:00 summary after the shift: not sent to عمر nor خالد (his ended 14:30); a collector not on attendance still gets ",
       "…one alert per collector: «مهمة لـعمر المجهلي … ملخص التحصيل» and «مهمة لـخالد …»",
-      "each of the four «بعد دوامه» alerts went as the approved template, none as a free-text fallback — [\"template\",\"templ"
+      "each of the four «بعد دوامه» alerts went as text inside his window, none as utak_owner_alert — [\"text\",\"text\"]"
     ]
   },
   {
@@ -306,9 +305,10 @@
     "test": "tests/team-hr.test.mts",
     "caught": true,
     "exit": 1,
-    "failed": 1,
+    "failed": 2,
     "first": [
-      "payment claim after the shift: the note is queued for عمر (not sent), one «بعد دوامه» alert — {\"alerted\":true,\"colle"
+      "payment claim after the shift: the note is queued for عمر (not sent), one «بعد دوامه» alert — {\"alerted\":true,\"colle",
+      "…خالد's note waits for his next shift too"
     ]
   },
   {
@@ -320,8 +320,8 @@
     "failed": 3,
     "first": [
       "21:15 purchase list after the shift: no template to عمر, one alert «قائمة الشراء»",
-      "each of the four «بعد دوامه» alerts went as the approved template, none as a free-text fallback — [\"template\",\"templ",
-      "no alert repeats on Monday for Sunday's tasks — 4"
+      "each of the four «بعد دوامه» alerts went as text inside his window, none as utak_owner_alert — [\"text\",\"text\",\"text\"",
+      "no alert repeats on Monday for Sunday's tasks — 5"
     ]
   },
   {
@@ -347,41 +347,6 @@
     ]
   },
   {
-    "mutation": "window: an employee on time off counts",
-    "file": "src/attendance.ts",
-    "test": "tests/team-hr.test.mts",
-    "caught": true,
-    "exit": 1,
-    "failed": 1,
-    "first": [
-      "خالد on time off → عمر 07:00 − 15 = 06:45"
-    ]
-  },
-  {
-    "mutation": "window: no 15-minute lead",
-    "file": "src/attendance.ts",
-    "test": "tests/team-hr.test.mts",
-    "caught": true,
-    "exit": 1,
-    "failed": 3,
-    "first": [
-      "Sunday: عمر 07:00, خالد 06:30 → 06:15, once",
-      "خالد on time off → عمر 07:00 − 15 = 06:45",
-      "Baraa as an employee with a role and an earlier schedule does not count"
-    ]
-  },
-  {
-    "mutation": "window: Baraa's own schedule counts",
-    "file": "src/attendance.ts",
-    "test": "tests/review.test.mts",
-    "caught": true,
-    "exit": 1,
-    "failed": 1,
-    "first": [
-      "Baraa's own time never counts (03:00 on his number)"
-    ]
-  },
-  {
     "mutation": "window: Baraa's own employee record on the roster",
     "file": "src/attendance.ts",
     "test": "tests/attendance.test.mts",
@@ -390,7 +355,7 @@
     "failed": 2,
     "first": [
       "never on the roster (even an employee with a role and 05:00): no row, no alert about him",
-      "his tap: one line «✅ تم. تنبيهات …», nothing recorded — ✅ تم. تنبيهات يو تاك توصلك هنا نصاً حتى 04:55 بكرة."
+      "his tap: one line «✅ تم. تنبيهات …», nothing recorded — ✅ تم. تنبيهات يو تاك توصلك هنا نصاً حتى 06:02 بكرة."
     ]
   },
   {
@@ -476,7 +441,7 @@
     "exit": 1,
     "failed": 3,
     "first": [
-      "…no owner alert at all — [{\"messaging_product\":\"whatsapp\",\"to\":\"966500000001\",\"type\":\"template\",\"template\":{\"name\":\"",
+      "…no owner alert at all — [{\"messaging_product\":\"whatsapp\",\"to\":\"966500000001\",\"type\":\"text\",\"text\":{\"body\":\"رقم جديد",
       "«شخصي» without a customer rank: no new partner, nothing sent, no alert",
       "control: a stranger outside the allowlist raises «رقم جديد راسل»"
     ]

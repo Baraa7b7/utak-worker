@@ -219,10 +219,13 @@
       "src/wa-purposes.ts"
     ],
     "test": "tests/team-shifts.test.mts",
-    "caught": false,
-    "exit": 0,
-    "failed": 0,
-    "first": []
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "dawn, window closed: the owner alert asked BY TEMPLATE is refused (MARKETING for an operational purpose) — {\"status\"",
+      "…and the dawn alert itself is held for his tap, not sent as the MARKETING template — [{\"id\":\"791f7af0\",\"purpose\":\"ow"
+    ]
   },
   {
     "mutation": "opt-out (§ 23) ignored for a MARKETING template",

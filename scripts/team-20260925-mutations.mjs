@@ -69,12 +69,10 @@ const M = [
     `            if (!tap.afterEnd) await deliverTasksOnTap(env, teamMember, msg.from);`, `            await deliverTasksOnTap(env, teamMember, msg.from);`, T],
   ["a tap on a day off releases the tasks", "src/index.ts",
     `          } else if (tap.kind === "not_started" || tap.kind === "off_today") {`, `          } else if (tap.kind === "not_started") {`, T],
-  // Baraa's window
-  ["window: an employee on time off counts", "src/attendance.ts",
-    `  const plan = ownerWindowPlan(env, plans.filter((p) => p.plan.kind === "work").map(`, `  const plan = ownerWindowPlan(env, plans.filter((p) => p.plan.kind === "work" || p.plan.kind === "leave").map(`, T],
-  ["window: no 15-minute lead", "src/attendance.ts", `export const OWNER_WINDOW_LEAD_MIN = 15;`, `export const OWNER_WINDOW_LEAD_MIN = 0;`, T],
-  ["window: Baraa's own schedule counts", "src/attendance.ts",
-    `    .filter((m) => m.whatsapp && !isOwnerNumber(env, m.whatsapp))`, `    .filter((m) => m.whatsapp)`, R],
+  // Baraa's window — 2026-09-26 (STATUS § 39 ج): three mutations removed («an employee on time off counts»,
+  // «no 15-minute lead», «Baraa's own schedule counts»). Their guards belonged to the § 31 rule (the earliest
+  // shift − 15 min), deleted on purpose in 1acc78b (STATUS § 32: a fixed OWNER_WINDOW_OPEN_AT, whoever works);
+  // scripts/shift-20260925-mutations.mjs mutates that rule. «Baraa's own employee record on the roster» stays.
   ["window: Baraa's own employee record on the roster", "src/attendance.ts",
     `  const team = (roster?.members ?? []).filter((m) => !isOwnerNumber(env, m.whatsapp));`, `  const team = roster?.members ?? [];`, A],
   // «Customer» roles

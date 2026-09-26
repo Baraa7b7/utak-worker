@@ -13,20 +13,26 @@ import { readFileSync, writeFileSync } from "node:fs";
 const root = new URL("../", import.meta.url).pathname;
 const M = [
   ["time: sends before the shift", "src/attendance.ts", `if (since < 0) return "before_shift";`, `if (since < -12 * 60 * MIN) return "before_shift";`],
-  ["no time (0.0) treated as 00:00", "src/attendance.ts", `v <= 0 || v >= 24`, `v < 0 || v >= 24`],
-  ["gate: never holds", "src/attendance.ts", `return { hold: true, onAttendance: true,`, `return { hold: false, onAttendance: true,`],
+  // b4a9bd4 (§ 31): the time comes from the working schedule, not x_shift_start — a member without a
+  // time is a member without a schedule; § 39 ج brought the pattern up to date
+  ["no time (no working schedule) treated as 00:00", "src/team-roster.ts", `  if (!m.calendarId) return { kind: "no_calendar", day };`, `  if (!m.calendarId) return { kind: "work", day, startMin: 0, endMin: 8 * 60 };`],
+  // b4a9bd4 (§ 31) added the «after» / «off» holds: the pattern names the «before the tap» one (§ 39 ج)
+  ["gate: never holds", "src/attendance.ts", `return { hold: true, onAttendance: true, shift, sent: !!row?.x_sent_at, phase: "before",`, `return { hold: false, onAttendance: true, shift, sent: !!row?.x_sent_at, phase: "before",`],
   ["reminder: Odoo flag ignored", "src/attendance.ts", `return row.x_reminder_sent ? "reminded" : sendReminder(`, `return sendReminder(`],
   ["reminder: KV claim ignored", "src/attendance.ts", `if (!claim.claimed) return "remind_claimed";`, `if (false) return "remind_claimed";`],
   ["absent at +90 instead of +60", "src/attendance.ts", `export const ABSENT_AFTER_MIN = 60;`, `export const ABSENT_AFTER_MIN = 90;`],
   ["late only after +60", "src/attendance.ts", `return tapMs - shiftMs > LATE_AFTER_MIN * MIN ? "late" : "present";`, `return tapMs - shiftMs > ABSENT_AFTER_MIN * MIN ? "late" : "present";`],
   ["Baraa on the roster", "src/attendance.ts", `.filter((m) => !isOwnerNumber(env, m.whatsapp));`, `;`],
-  ["start: today's Odoo row ignored", "src/attendance.ts", `rows.get(m.id) ?? null, nowMs)`, `null, nowMs)`],
+  // b4a9bd4 (§ 31): the rows are keyed by the employee (§ 39 ج)
+  ["start: today's Odoo row ignored", "src/attendance.ts", `rows.get(m.employeeId) ?? null, nowMs)`, `null, nowMs)`],
   ["start: KV claim ignored", "src/attendance.ts", `if (!claim.claimed) return "start_claimed";`, `if (false) return "start_claimed";`],
   ["tap after absent: no owner alert", "src/attendance.ts", `if (afterAbsent) {`, `if (false) {`],
   ["late inbound acted on", "src/index.ts", `if (lateH !== null) {`, `if (false && lateH !== null) {`],
-  ["owner guard without owner_window", "src/meta.ts", `  "owner_window",\n]);`, `]);`],
+  // b02e80d (§ 33): the owner guard's list moved from src/meta.ts into the gateway (§ 39 ج)
+  ["owner guard without owner_window", "src/wa-gateway.ts", `"owner_summary", "owner_window", "conv_open_owner"`, `"owner_summary", "conv_open_owner"`],
   ["route not queued before the tap", "src/team.ts", `  if (att.hold) {\n    const q: TeamQueueItem[]`, `  if (false) {\n    const q: TeamQueueItem[]`],
-  ["06:00 list follow-up not held", "src/team.ts", `for (const wh of warehouse) if ((await attendanceHold(env, wh.id)).hold) held.add(wh.id);`, ``],
+  // b4a9bd4 (§ 31): the hold is holdForTask (also after the shift / on a day off) (§ 39 ج)
+  ["06:00 list follow-up not held", "src/team.ts", `    if ((await holdForTask(env, wh.id, { kind: "purchase_list_remind", label:`, `    if (false && (await holdForTask(env, wh.id, { kind: "purchase_list_remind", label:`],
   ["18:00 summary not held", "src/invoice.ts", `if ((await attendanceHold(env, c.id)).hold) {`, `if (false) {`, true],
   ["a text before the tap releases tasks", "src/index.ts", `} else if (att.hold) {`, `} else if (false) {`],
   ["queue flushed on any text before the tap", "src/index.ts", `if (!att.hold) await flushTeamQueue(env, msg.from);`, `await flushTeamQueue(env, msg.from);`],

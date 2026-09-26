@@ -1,0 +1,66 @@
+{
+  "before": {
+    "state": "pending"
+  },
+  "approve": {
+    "ok": true
+  },
+  "settled": {
+    "action": "approved",
+    "id": 1,
+    "ref": "SP-2026-0001",
+    "remaining": "18.00",
+    "overpaid": false,
+    "notice": "نصاً 07:11",
+    "member": "نصاً 07:11"
+  },
+  "lock": {
+    "ok": false,
+    "error": "odoo odoo.exceptions.UserError: دفعة المورد معتمدة أو مرفوضة ومقفلة، فلا تُعدَّل: SP-2026-0001"
+  },
+  "after": {
+    "id": 1,
+    "x_name": "SP-2026-0001",
+    "x_supplier_id": [
+      30,
+      "أحمد حسان"
+    ],
+    "x_date": "2026-09-26",
+    "x_amount": 150,
+    "x_method": "cash",
+    "x_recorded_by": [
+      9,
+      "عمر المجهلي"
+    ],
+    "x_channel": "whatsapp",
+    "x_state": "approved",
+    "x_note": false,
+    "x_reject_reason": false,
+    "x_decided_by": [
+      2,
+      "albaraa abdulwahab"
+    ],
+    "x_decided_at": "2026-09-26 04:11:26",
+    "x_overpaid": false,
+    "x_remaining_after": 18,
+    "x_supplier_notice": "نصاً 07:11",
+    "x_settled_at": "2026-09-26 04:11:26",
+    "x_trial_tag": "🧪 تجربة § 37",
+    "x_source_wamid": false
+  },
+  "intercepted": [
+    {
+      "at": "2026-09-26T04:11:30.752Z",
+      "wamid": "wamid.S37SIM.1790395890752.1",
+      "body": {
+        "messaging_product": "whatsapp",
+        "to": "966545816832",
+        "type": "text",
+        "text": {
+          "body": "🧪 تجربة § 37 — ✅ اعتمد براء دفعتك SP-2026-0001: أحمد حسان بمبلغ 150.00 ر.س."
+        }
+      },
+      "rowId": 199
+    }
+  ]
+}

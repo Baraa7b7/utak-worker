@@ -37,7 +37,7 @@
     "previous_category": null,
     "rejected_reason": "NONE"
   },
-  "statusAt": "2026-09-25T20:00:59.896Z",
+  "statusAt": "2026-09-26T04:24:31.609Z",
   "history": [
     {
       "at": "2026-09-25T19:42:16.383Z"
@@ -52,6 +52,14 @@
     },
     {
       "at": "2026-09-25T20:00:59.896Z",
+      "id": "1824898421860833",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": "NONE"
+    },
+    {
+      "at": "2026-09-26T04:24:31.609Z",
       "id": "1824898421860833",
       "status": "APPROVED",
       "category": "UTILITY",

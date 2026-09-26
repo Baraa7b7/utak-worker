@@ -1,0 +1,380 @@
+{
+  "at": "2026-09-26T04:24:10.635Z",
+  "payments": [
+    {
+      "id": 1,
+      "x_name": "SP-2026-0001",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_date": "2026-09-26",
+      "x_amount": 150,
+      "x_method": "cash",
+      "x_recorded_by": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_channel": "whatsapp",
+      "x_state": "approved",
+      "x_note": false,
+      "x_reject_reason": false,
+      "x_decided_by": [
+        2,
+        "albaraa abdulwahab"
+      ],
+      "x_decided_at": "2026-09-26 04:11:26",
+      "x_overpaid": false,
+      "x_remaining_after": 18,
+      "x_supplier_notice": "نصاً 07:11",
+      "x_settled_at": "2026-09-26 04:11:26",
+      "x_trial_tag": "🧪 تجربة § 37",
+      "x_source_wamid": false
+    },
+    {
+      "id": 2,
+      "x_name": "SP-2026-0002",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_date": "2026-09-26",
+      "x_amount": 40,
+      "x_method": "cash",
+      "x_recorded_by": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_channel": "whatsapp",
+      "x_state": "rejected",
+      "x_note": false,
+      "x_reject_reason": "🧪 تجربة § 37: رفض تجريبي — المبلغ لا يطابق الإيصال",
+      "x_decided_by": [
+        2,
+        "albaraa abdulwahab"
+      ],
+      "x_decided_at": "2026-09-26 04:23:58",
+      "x_overpaid": false,
+      "x_remaining_after": 0,
+      "x_supplier_notice": "لا إشعار للمورد (مرفوضة)",
+      "x_settled_at": "2026-09-26 04:23:58",
+      "x_trial_tag": "🧪 تجربة § 37",
+      "x_source_wamid": false
+    },
+    {
+      "id": 3,
+      "x_name": "SP-2026-0003",
+      "x_supplier_id": [
+        7,
+        "براء - اختبار"
+      ],
+      "x_date": "2026-09-26",
+      "x_amount": 50,
+      "x_method": "transfer",
+      "x_recorded_by": [
+        3,
+        "albaraa abdulwahab"
+      ],
+      "x_channel": "odoo",
+      "x_state": "approved",
+      "x_note": "🧪 تجربة § 37: دفعة تحويل تجريبية من براء (ليست تحويلاً حقيقياً).",
+      "x_reject_reason": false,
+      "x_decided_by": [
+        2,
+        "albaraa abdulwahab"
+      ],
+      "x_decided_at": "2026-09-26 04:23:45",
+      "x_overpaid": true,
+      "x_remaining_after": -50,
+      "x_supplier_notice": "محجوب: AllowlistBlocked: to=966500000099 not permitted by SIM_ALLOWLIST (4 entries) and no partner with x_wa_allowed=true",
+      "x_settled_at": "2026-09-26 04:23:45",
+      "x_trial_tag": "🧪 تجربة § 37",
+      "x_source_wamid": false
+    }
+  ],
+  "dues": [
+    {
+      "id": 1,
+      "x_name": "أحمد حسان — 2026-09-25 — قائمة #7",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_amount": 168,
+      "x_unpriced_count": 1,
+      "x_line_ids": [
+        1,
+        2,
+        3
+      ]
+    }
+  ],
+  "lines": [
+    {
+      "id": 1,
+      "x_product_tmpl_id": [
+        71,
+        "[UTAK-VEG-001] طماطم"
+      ],
+      "x_packaging_id": [
+        1,
+        "فلين · 5 كيلو"
+      ],
+      "x_quantity": 3,
+      "x_unit_price": 26,
+      "x_subtotal": 78,
+      "x_no_price": false,
+      "x_note": false
+    },
+    {
+      "id": 2,
+      "x_product_tmpl_id": [
+        72,
+        "[UTAK-VEG-002] خيار"
+      ],
+      "x_packaging_id": [
+        3,
+        "جرم · 8 كيلو"
+      ],
+      "x_quantity": 2,
+      "x_unit_price": 45,
+      "x_subtotal": 90,
+      "x_no_price": false,
+      "x_note": false
+    },
+    {
+      "id": 3,
+      "x_product_tmpl_id": [
+        73,
+        "[UTAK-VEG-003] بطاطس"
+      ],
+      "x_packaging_id": [
+        6,
+        "كرتون · 10 كيلو"
+      ],
+      "x_quantity": 1,
+      "x_unit_price": 0,
+      "x_subtotal": 0,
+      "x_no_price": true,
+      "x_note": "بلا سعر: لا سعر من هذا المورد لهذا الصنف في ذلك اليوم"
+    }
+  ],
+  "ahmedComputes": {
+    "id": 30,
+    "x_sp_due_total": 168,
+    "x_sp_paid_total": 150,
+    "x_sp_remaining": 18
+  },
+  "workerBalance": {
+    "due": "168.00",
+    "paid": "150.00",
+    "remaining": "18.00"
+  },
+  "baraa": {
+    "rows": [
+      {
+        "id": 195,
+        "x_status": "read",
+        "x_body": "🧪 تجربة § 37 — ⚠️ مستحقات الموردين — قائمة الشراء #7 (25 سبتمبر 2026): أسطر «بلا سعر» لم تُحسب في المستحق:\n• أحمد حسان: بطاطس (كرتون · 10 كيلو) × 1\nأدخل سعر المورد لذلك اليوم في «الأسعار اليومية»، وتُحسب تلقائياً (أو «🔄 إعادة حساب المستحقات» في 💵 دفع الموردين).",
+        "x_meta_error": false,
+        "x_meta_message_id": "wamid.HBgMOTY2NTA1MTU0OTYyFQIAERgSMzQ4MzVFNEQwRkExNDgxMjcwAA==",
+        "x_echo_status": "posted",
+        "x_echo_message_id": 2646
+      },
+      {
+        "id": 196,
+        "x_status": "read",
+        "x_body": "🧪 تجربة § 37 — 💵 دفعة نقدية من عمر المجهلي بانتظار اعتمادك\nالمورد: أحمد حسان\nالمبلغ: 150.00 ر.س\nالمرجع: SP-2026-0001\nالمتبقي للمورد قبلها: 168.00 ر.س\nاعتمدها أو ارفضها من UTAK ← 💵 دفع الموردين (دفعات الموردين).",
+        "x_meta_error": false,
+        "x_meta_message_id": "wamid.HBgMOTY2NTA1MTU0OTYyFQIAERgSNjJGOEVDODIwQUJFOUQwMjFEAA==",
+        "x_echo_status": "posted",
+        "x_echo_message_id": 2647
+      },
+      {
+        "id": 197,
+        "x_status": "read",
+        "x_body": "🧪 تجربة § 37 — 💵 دفعة نقدية من عمر المجهلي بانتظار اعتمادك\nالمورد: أحمد حسان\nالمبلغ: 40.00 ر.س\nالمرجع: SP-2026-0002\nالمتبقي للمورد قبلها: 168.00 ر.س\nاعتمدها أو ارفضها من UTAK ← 💵 دفع الموردين (دفعات الموردين).",
+        "x_meta_error": false,
+        "x_meta_message_id": "wamid.HBgMOTY2NTA1MTU0OTYyFQIAERgSMDhBNTc5RDQ4QkFDM0QxOTcwAA==",
+        "x_echo_status": "posted",
+        "x_echo_message_id": 2648
+      },
+      {
+        "id": 200,
+        "x_status": "delivered",
+        "x_body": "🧪 تجربة § 37 — ⚠️ «رصيد دائن» لدى المورد براء - اختبار\nالدفعة SP-2026-0003 بمبلغ 50.00 ر.س جعلت المدفوع المعتمد 50.00 ر.س أكبر من المستحق 0.00 ر.س بـ 50.00 ر.س.",
+        "x_meta_error": false,
+        "x_meta_message_id": "wamid.HBgMOTY2NTA1MTU0OTYyFQIAERgSOURENjJBMkVERkEwMEQzQzFFAA==",
+        "x_echo_status": "posted",
+        "x_echo_message_id": 2652
+      }
+    ],
+    "lines": [
+      {
+        "id": 2646,
+        "author": "UTAK بوت",
+        "date": "2026-09-26 04:11:01",
+        "parent": null,
+        "text": "🤖 آلي\n🧪 تجربة § 37 — ⚠️ مستحقات الموردين — قائمة الشراء #7 (25 سبتمبر 2026): أسطر «بلا سعر» لم تُحسب في المستحق:\n• أحمد حسان: بطاطس (كرتون · 10 كيلو) × 1\nأدخل سعر المورد لذلك اليوم في «الأسعار اليومية»، وتُحسب تلقائياً (أو «🔄 إعادة حساب المستحقات» في 💵 دفع الموردين)."
+      },
+      {
+        "id": 2647,
+        "author": "UTAK بوت",
+        "date": "2026-09-26 04:11:14",
+        "parent": null,
+        "text": "🤖 آلي\n🧪 تجربة § 37 — 💵 دفعة نقدية من عمر المجهلي بانتظار اعتمادك\nالمورد: أحمد حسان\nالمبلغ: 150.00 ر.س\nالمرجع: SP-2026-0001\nالمتبقي للمورد قبلها: 168.00 ر.س\nاعتمدها أو ارفضها من UTAK ← 💵 دفع الموردين (دفعات الموردين)."
+      },
+      {
+        "id": 2648,
+        "author": "UTAK بوت",
+        "date": "2026-09-26 04:11:19",
+        "parent": null,
+        "text": "🤖 آلي\n🧪 تجربة § 37 — 💵 دفعة نقدية من عمر المجهلي بانتظار اعتمادك\nالمورد: أحمد حسان\nالمبلغ: 40.00 ر.س\nالمرجع: SP-2026-0002\nالمتبقي للمورد قبلها: 168.00 ر.س\nاعتمدها أو ارفضها من UTAK ← 💵 دفع الموردين (دفعات الموردين)."
+      },
+      {
+        "id": 2652,
+        "author": "UTAK بوت",
+        "date": "2026-09-26 04:23:49",
+        "parent": null,
+        "text": "🤖 آلي\n🧪 تجربة § 37 — ⚠️ «رصيد دائن» لدى المورد براء - اختبار\nالدفعة SP-2026-0003 بمبلغ 50.00 ر.س جعلت المدفوع المعتمد 50.00 ر.س أكبر من المستحق 0.00 ر.س بـ 50.00 ر.س."
+      }
+    ]
+  },
+  "ahmed": {
+    "rows": [
+      {
+        "id": 198,
+        "x_status": "read",
+        "x_body": "🧪 تجربة § 37 — تم تسجيل دفعة لك من يو تاك بمبلغ 150.00 ر.س بتاريخ 26 سبتمبر 2026، رقم المرجع SP-2026-0001. الرصيد المتبقي لك: 18.00 ر.س.",
+        "x_meta_error": false,
+        "x_meta_message_id": "wamid.HBgMOTY2NTcxNzc3NzA0FQIAERgSOTIyMEE3NDFDRjQwMkMwOThEAA==",
+        "x_echo_status": "posted",
+        "x_echo_message_id": 2649
+      }
+    ],
+    "lines": [
+      {
+        "id": 2649,
+        "author": "UTAK بوت",
+        "date": "2026-09-26 04:11:30",
+        "parent": null,
+        "text": "🤖 آلي\n🧪 تجربة § 37 — تم تسجيل دفعة لك من يو تاك بمبلغ 150.00 ر.س بتاريخ 26 سبتمبر 2026، رقم المرجع SP-2026-0001. الرصيد المتبقي لك: 18.00 ر.س."
+      }
+    ]
+  },
+  "omar": {
+    "rows": [
+      {
+        "id": 199,
+        "x_status": "skipped",
+        "x_body": "🧪 تجربة § 37 — ✅ اعتمد براء دفعتك SP-2026-0001: أحمد حسان بمبلغ 150.00 ر.س.",
+        "x_meta_error": "🧪 تجربة § 37: رد لعمر أُنشئ في التجربة ولم يُرسل (الإرسال الحي لبراء وأحمد فقط).",
+        "x_meta_message_id": "wamid.S37SIM.1790395890752.1",
+        "x_echo_status": "posted",
+        "x_echo_message_id": 2650
+      },
+      {
+        "id": 201,
+        "x_status": "skipped",
+        "x_body": "🧪 تجربة § 37 — ❌ رفض براء دفعتك SP-2026-0002: أحمد حسان بمبلغ 40.00 ر.س.\nالسبب: 🧪 تجربة § 37: رفض تجريبي — المبلغ لا يطابق الإيصال",
+        "x_meta_error": "🧪 تجربة § 37: رد لعمر أُنشئ في التجربة ولم يُرسل (الإرسال الحي لبراء وأحمد فقط).",
+        "x_meta_message_id": "wamid.S37SIM.1790396639453.1",
+        "x_echo_status": "posted",
+        "x_echo_message_id": 2653
+      }
+    ],
+    "lines": [
+      {
+        "id": 2650,
+        "author": "UTAK بوت",
+        "date": "2026-09-26 04:11:32",
+        "parent": null,
+        "text": "🤖 آلي\n🧪 تجربة § 37 — ✅ اعتمد براء دفعتك SP-2026-0001: أحمد حسان بمبلغ 150.00 ر.س."
+      },
+      {
+        "id": 2651,
+        "author": "UTAK بوت",
+        "date": "2026-09-26 04:11:34",
+        "parent": [
+          2650,
+          false
+        ],
+        "text": "⏭️ لم تُرسل: 🧪 تجربة § 37: رد لعمر أُنشئ في التجربة ولم يُرسل (الإرسال الحي لبراء وأحمد فقط)."
+      },
+      {
+        "id": 2653,
+        "author": "UTAK بوت",
+        "date": "2026-09-26 04:24:01",
+        "parent": null,
+        "text": "🤖 آلي\n🧪 تجربة § 37 — ❌ رفض براء دفعتك SP-2026-0002: أحمد حسان بمبلغ 40.00 ر.س.\nالسبب: 🧪 تجربة § 37: رفض تجريبي — المبلغ لا يطابق الإيصال"
+      },
+      {
+        "id": 2654,
+        "author": "UTAK بوت",
+        "date": "2026-09-26 04:24:03",
+        "parent": [
+          2653,
+          false
+        ],
+        "text": "⏭️ لم تُرسل: 🧪 تجربة § 37: رد لعمر أُنشئ في التجربة ولم يُرسل (الإرسال الحي لبراء وأحمد فقط)."
+      }
+    ]
+  },
+  "d1": [
+    {
+      "id": 129,
+      "ts_ms": 1790395859102,
+      "to_number": "966505154962",
+      "msg_type": "text",
+      "template_name": null,
+      "body_text": "🧪 تجربة § 37 — ⚠️ مستحقات الموردين — قائمة الشراء #7 (25 سبتمبر 2026): أسطر «بلا سعر» لم تُحسب في المستحق:\n• أحمد حسان: بطاطس (كرتون · 10 كيلو) × 1\nأدخل سعر المورد لذلك اليوم في «الأسعار اليومية»، وتُحسب تلقائياً (أو «🔄 إعادة حساب المستحقات» في 💵 دفع الموردين).",
+      "wamid": "wamid.HBgMOTY2NTA1MTU0OTYyFQIAERgSMzQ4MzVFNEQwRkExNDgxMjcwAA=="
+    },
+    {
+      "id": 130,
+      "ts_ms": 1790395872556,
+      "to_number": "966505154962",
+      "msg_type": "text",
+      "template_name": null,
+      "body_text": "🧪 تجربة § 37 — 💵 دفعة نقدية من عمر المجهلي بانتظار اعتمادك\nالمورد: أحمد حسان\nالمبلغ: 150.00 ر.س\nالمرجع: SP-2026-0001\nالمتبقي للمورد قبلها: 168.00 ر.س\nاعتمدها أو ارفضها من UTAK ← 💵 دفع الموردين (دفعات الموردين).",
+      "wamid": "wamid.HBgMOTY2NTA1MTU0OTYyFQIAERgSNjJGOEVDODIwQUJFOUQwMjFEAA=="
+    },
+    {
+      "id": 131,
+      "ts_ms": 1790395878259,
+      "to_number": "966505154962",
+      "msg_type": "text",
+      "template_name": null,
+      "body_text": "🧪 تجربة § 37 — 💵 دفعة نقدية من عمر المجهلي بانتظار اعتمادك\nالمورد: أحمد حسان\nالمبلغ: 40.00 ر.س\nالمرجع: SP-2026-0002\nالمتبقي للمورد قبلها: 168.00 ر.س\nاعتمدها أو ارفضها من UTAK ← 💵 دفع الموردين (دفعات الموردين).",
+      "wamid": "wamid.HBgMOTY2NTA1MTU0OTYyFQIAERgSMDhBNTc5RDQ4QkFDM0QxOTcwAA=="
+    },
+    {
+      "id": 132,
+      "ts_ms": 1790395888080,
+      "to_number": "966571777704",
+      "msg_type": "text",
+      "template_name": null,
+      "body_text": "🧪 تجربة § 37 — تم تسجيل دفعة لك من يو تاك بمبلغ 150.00 ر.س بتاريخ 26 سبتمبر 2026، رقم المرجع SP-2026-0001. الرصيد المتبقي لك: 18.00 ر.س.",
+      "wamid": "wamid.HBgMOTY2NTcxNzc3NzA0FQIAERgSOTIyMEE3NDFDRjQwMkMwOThEAA=="
+    },
+    {
+      "id": 133,
+      "ts_ms": 1790396627891,
+      "to_number": "966505154962",
+      "msg_type": "text",
+      "template_name": null,
+      "body_text": "🧪 تجربة § 37 — ⚠️ «رصيد دائن» لدى المورد براء - اختبار\nالدفعة SP-2026-0003 بمبلغ 50.00 ر.س جعلت المدفوع المعتمد 50.00 ر.س أكبر من المستحق 0.00 ر.س بـ 50.00 ر.س.",
+      "wamid": "wamid.HBgMOTY2NTA1MTU0OTYyFQIAERgSOURENjJBMkVERkEwMEQzQzFFAA=="
+    }
+  ],
+  "accountingBefore": {
+    "moves": 48,
+    "posted": 43,
+    "payments": 9
+  },
+  "accountingAfter": {
+    "moves": 48,
+    "posted": 43,
+    "payments": 9
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "listId": 7,
+  "dues": {
+    "action": "synced",
+    "listId": 7,
+    "day": "2026-09-25",
+    "dues": [
+      {
+        "supplierId": 30,
+        "amount": "168.00",
+        "unpriced": 1
+      }
+    ],
+    "unpriced": 1,
+    "noSupplier": 0,
+    "alerted": true
+  },
+  "accountingBefore": {
+    "moves": 48,
+    "posted": 43,
+    "payments": 9
+  }
+}

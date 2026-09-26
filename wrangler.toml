@@ -22,6 +22,28 @@ CLAUDE_MODEL_REPLY    = "claude-sonnet-5"
 # v3: Baraa's phone for supplier failure alerts + missing-supplier morning summary
 OWNER_WHATSAPP = "+966505154962"
 
+# 2026-09-27 (STATUS § 42 د) — the launch combination, from the code
+# (src/config.ts runtimeMode / isRecipientAllowed / isTestMode, and
+# src/screening.ts): every number is accepted, an unclassified one goes to
+# «📋 مراجعة الأرقام» with one alert to Baraa, a classified customer is served.
+#   SIMULATION_MODE "false" — real sends to Meta (fetchMeta / the gateway).
+#   PILOT_MODE      "false" — not the pilot: no x_is_simulation stamp on new
+#                   rows, and no allowlist required. "true" would refuse every
+#                   number outside SIM_ALLOWLIST (and demand one).
+#   SIM_ALLOWLIST   unset   — isRecipientAllowed: unset = every recipient;
+#                   x_wa_allowed is then never consulted (the 31 numbers of
+#                   § 27 stay off and do not need it).
+#   (the full-day simulation's run id is never set in this file, § 41 و)
+#   ACCOUNTING_SYNC "true"  — locked decision (Baraa): sale.order / invoice /
+#                   account.payment / purchase bills on the shared tenant.
+#   OWNER_WINDOW_OPEN_AT "06:00" — Baraa's daily «بدء الدوام», as on sim.
+# tests/s42.test.mts [د] proves it: a new number → review + Baraa's alert (not
+# refused), a classified customer → the full reply, PILOT_MODE=true → refused.
+SIMULATION_MODE      = "false"
+PILOT_MODE           = "false"
+ACCOUNTING_SYNC      = "true"
+OWNER_WINDOW_OPEN_AT = "06:00"
+
 # ------------------------------------------------------------
 # KV: message dedup, 24h TTL
 # Create with:  wrangler kv namespace create MSG_DEDUP
@@ -96,6 +118,21 @@ crons = []
 [[r2_buckets]]
 binding     = "INVOICES_BUCKET"
 bucket_name = "utak-invoices"
+
+# ------------------------------------------------------------
+# D1 (2026-09-27, STATUS § 42 د) — prod's own database, nothing shared with
+# sim's utak-worker-sim-db. The binding keeps the code's name SIM_DB (src/wa-
+# status.ts wa_status_log — «الحالة لا تنزل», § 37 أ; sim_outbound is written
+# only under SIMULATION_MODE=true). Created with `wrangler d1 create
+# utak-worker-db`; every schema/*.sql applied once, in order:
+#   npx wrangler d1 execute utak-worker-db --file=./schema/sim_outbound.sql --remote
+#   npx wrangler d1 execute utak-worker-db --file=./schema/wa_status_log.sql --remote
+#   npx wrangler d1 execute utak-worker-db --file=./schema/is_simulation.sql --remote
+# ------------------------------------------------------------
+[[d1_databases]]
+binding       = "SIM_DB"
+database_name = "utak-worker-db"
+database_id   = "25c09c09-7ffe-44cc-a30c-24dbcbde08af"
 
 # ============================================================
 # [env.sim] — isolated simulation deployment.

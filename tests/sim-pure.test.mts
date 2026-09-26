@@ -40,7 +40,8 @@ const SIM_ALLOWLIST = tomlVar(simVars, "SIM_ALLOWLIST") ?? "";
 console.log("\n[1] wrangler.toml");
 {
   assert(`env.sim ACCOUNTING_SYNC = "false"`, SIM_ACCOUNTING === "false", String(SIM_ACCOUNTING));
-  assert("prod [vars] has no ACCOUNTING_SYNC (untouched)", tomlVar(topVars, "ACCOUNTING_SYNC") === undefined);
+  // § 42 د (2026-09-27) — Baraa's locked decision for the launch: ACCOUNTING_SYNC true on prod (was «untouched» since § 27)
+  assert(`prod [vars] ACCOUNTING_SYNC = "true" (§ 42, locked decision)`, tomlVar(topVars, "ACCOUNTING_SYNC") === "true", String(tomlVar(topVars, "ACCOUNTING_SYNC")));
   assert("pilot has no ACCOUNTING_SYNC (untouched)", tomlVar(pilotVars, "ACCOUNTING_SYNC") === undefined);
   const entries = SIM_ALLOWLIST.split(",").map((s) => s.trim()).filter(Boolean);
   assert("SIM_ALLOWLIST = the four team numbers exactly", entries.length === 4 && entries.every((e) => TEAM[e]) && new Set(entries).size === 4, SIM_ALLOWLIST);

@@ -91,8 +91,9 @@ const M = [
     "      customerName = (await getOrderCustomer(env, orderId))?.name || \"-\";", "      customerName = \"-\";"]], O],
   ["team note: the collection note is not kept on the payment", [["src/team-note.ts",
     "        await call(env, \"x_payment\", \"write\", { ids: [pay.id], vals: { x_notes: next.slice(-4000) } });", "        void next;"]], O],
-  ["team note: «ملاحظة 📝» not offered after a collection", [["src/router.ts",
-    "    if (text && collected) {", "    if (false) {"]], O],
+  // § 42 ب — the reply after a collection moved from the router to src/collect-pay.ts (recordedReply)
+  ["team note: «ملاحظة 📝» not offered after a collection", [["src/collect-pay.ts",
+    "  if (!paymentId) return { text };\n  // STATUS § 34", "  return { text };\n  // STATUS § 34"]], O],
 ];
 
 const results = [];

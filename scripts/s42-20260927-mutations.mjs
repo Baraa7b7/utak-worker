@@ -19,9 +19,11 @@ const RT = "src/router.ts";
 const CP = "src/collect-pay.ts";
 const INV = "src/invoice.ts";
 const IX = "src/index.ts";
+const WT = "wrangler.toml";
+const CF = "src/config.ts";
 
 // [part, name, [[file, find, replace], …], test file]
-export const M = [
+const M = [
   // ---------------------------------------------------------------- أ «مشتريات السوق النقدية»
   ["أ", "the market winner ignored (Omar's lines back under Ahmed)", [[SP,
     "    const won = market?.winners.get(winnerKey(it.product_id, it.packaging_id));",
@@ -106,39 +108,48 @@ export const M = [
     "        invoiceNumber: invoice.number,\n        amount,\n        method,", "        invoiceNumber: invoice.number,\n        amount: remaining,\n        method,"]], T],
   ["ب", "the full button's title past Meta's 20 characters (cut by Meta's cap)", [[CP,
     "].find((t) => t.length <= 20)!;", "][0];"]], T],
+  // ---------------------------------------------------------------- د prod's variables
+  ["د", "prod run as the pilot (PILOT_MODE true)", [[WT,
+    "PILOT_MODE           = \"false\"", "PILOT_MODE           = \"true\""]], T],
+  ["د", "prod without the accounting (ACCOUNTING_SYNC false)", [[WT,
+    "ACCOUNTING_SYNC      = \"true\"", "ACCOUNTING_SYNC      = \"false\""]], T],
+  ["د", "prod capturing instead of sending (SIMULATION_MODE true)", [[WT,
+    "SIMULATION_MODE      = \"false\"", "SIMULATION_MODE      = \"true\""]], T],
+  ["د", "a SIM_ALLOWLIST left on prod (the team only)", [[WT,
+    "OWNER_WINDOW_OPEN_AT = \"06:00\"\n", "OWNER_WINDOW_OPEN_AT = \"06:00\"\nSIM_ALLOWLIST        = \"+966505154962,+966571777704\"\n"]], T],
+  ["د", "an unset allowlist read as «nobody» (every number refused)", [[CF,
+    "  if (list.length === 0) return true; // unset = production behavior", "  if (list.length === 0) return false; // unset = production behavior"]], T],
 ];
 
-if (import.meta.url === `file://${process.argv[1]}`) {
-  const want = new Set(process.argv.slice(2));
-  const results = [];
-  for (const [part, name, edits, test] of M) {
-    if (want.size && !want.has(part)) continue;
-    const originals = new Map();
-    try {
-      for (const [file, find, replace] of edits) {
-        const path = root + file;
-        if (!originals.has(path)) originals.set(path, readFileSync(path, "utf8"));
-        const cur = readFileSync(path, "utf8");
-        const n = cur.split(find).length - 1;
-        if (n !== 1) throw new Error(`pattern found ${n}× in ${file}: ${find.slice(0, 80)}`);
-        writeFileSync(path, cur.replace(find, replace));
-      }
-      let caught = false, out = "";
-      try {
-        out = execFileSync("node", ["--experimental-strip-types", "--experimental-loader=./tests/loader.mjs", test], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 300_000 });
-      } catch (e) {
-        caught = true;
-        out = String(e.stdout ?? "") + String(e.stderr ?? "");
-      }
-      const fails = (out.match(/^\s+✗ .*/gm) ?? []).map((l) => l.trim()).slice(0, 4);
-      results.push({ part, name, caught, fails });
-      console.log(`${caught ? "✓ caught" : "✗ MISSED"}  [${part}] ${name}${fails.length ? `  — ${fails[0].slice(0, 140)}` : ""}`);
-    } finally {
-      for (const [path, src] of originals) writeFileSync(path, src);
+const want = new Set(process.argv.slice(2));
+const results = [];
+for (const [part, name, edits, test] of M) {
+  if (want.size && !want.has(part)) continue;
+  const originals = new Map();
+  try {
+    for (const [file, find, replace] of edits) {
+      const path = root + file;
+      if (!originals.has(path)) originals.set(path, readFileSync(path, "utf8"));
+      const cur = readFileSync(path, "utf8");
+      const n = cur.split(find).length - 1;
+      if (n !== 1) throw new Error(`pattern found ${n}× in ${file}: ${find.slice(0, 80)}`);
+      writeFileSync(path, cur.replace(find, replace));
     }
+    let caught = false, out = "";
+    try {
+      out = execFileSync("node", ["--experimental-strip-types", "--experimental-loader=./tests/loader.mjs", test], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 300_000 });
+    } catch (e) {
+      caught = true;
+      out = String(e.stdout ?? "") + String(e.stderr ?? "");
+    }
+    const fails = (out.match(/^\s+✗ .*/gm) ?? []).map((l) => l.trim()).slice(0, 4);
+    results.push({ part, name, caught, fails });
+    console.log(`${caught ? "✓ caught" : "✗ MISSED"}  [${part}] ${name}${fails.length ? `  — ${fails[0].slice(0, 140)}` : ""}`);
+  } finally {
+    for (const [path, src] of originals) writeFileSync(path, src);
   }
-  const caught = results.filter((r) => r.caught).length;
-  writeFileSync(new URL("./artifacts/s42-20260927-mutations.json", import.meta.url), JSON.stringify({ at: new Date().toISOString(), caught, total: results.length, results }, null, 2) + "\n");
-  console.log(`\n${caught}/${results.length} caught`);
-  if (caught !== results.length) process.exit(1);
 }
+const caught = results.filter((r) => r.caught).length;
+writeFileSync(new URL("./artifacts/s42-20260927-mutations.json", import.meta.url), JSON.stringify({ at: new Date().toISOString(), caught, total: results.length, results }, null, 2) + "\n");
+console.log(`\n${caught}/${results.length} caught`);
+if (caught !== results.length) process.exit(1);

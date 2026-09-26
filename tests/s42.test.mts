@@ -17,6 +17,12 @@
 //       after it → one alert to Baraa with the invoice and the customer;
 //       ACCOUNTING_SYNC=true → one account.payment per payment at its own
 //       amount, their sum never over the invoice.
+//   [د] prod's variables, read from wrangler.toml itself: SIMULATION_MODE and
+//       PILOT_MODE false, ACCOUNTING_SYNC true, no SIM_ALLOWLIST / SIM_RUN_ID →
+//       runtime «prod», nothing stamped simulation; a new number → «غير
+//       مراجَع», «📋 مراجعة الأرقام» and Baraa's alert, and it is answered (not
+//       refused); a classified customer (x_wa_allowed off, as the 31 of § 27)
+//       → the full reply; the same new number under PILOT_MODE=true → refused.
 //   [س] schema: every Odoo request names real fields and values (§ 42 fixture).
 //
 // In-memory Odoo + captured Graph (tests/wa-harness.mts). No network, no send.
@@ -55,6 +61,8 @@ function known(model: string, name: string): boolean {
   if ((model === "res.partner" || model === "product.template") && !f.startsWith("x_")) return true;
   return list.includes(f);
 }
+let SCREEN: unknown = { intent: "unclear", reason: "سبب" };
+let CLASSIFY = "other";
 const harnessFetch = globalThis.fetch;
 const round2 = (n: number) => Math.round(n * 100) / 100;
 globalThis.fetch = (async (input: unknown, init?: any) => {
@@ -63,6 +71,15 @@ globalThis.fetch = (async (input: unknown, init?: any) => {
   // § 42 ب — Odoo's payment wizard, as the tenant runs it: the payment, its
   // posted entry (cash / bank debit, receivable credit) and the invoice's
   // residual and payment state after it.
+  // § 42 د — Claude, by its system prompt (the screening, the classifier, a reply)
+  if (url.includes("anthropic.com")) {
+    const b = JSON.parse(init.body);
+    const sys = String(b.system ?? "");
+    const text = sys.startsWith("You screen") ? JSON.stringify(SCREEN)
+      : sys.startsWith("You classify") ? JSON.stringify({ intent: CLASSIFY, confidence: 0.9 })
+      : sys.includes("extract structured order items") ? "[]" : "أهلاً وسهلاً، كيف نخدمك؟";
+    return new Response(JSON.stringify({ content: [{ type: "text", text }] }), { status: 200 });
+  }
   if (m && m[1] === "account.payment.register" && m[2] === "action_create_payments") {
     const b = JSON.parse(init.body);
     const wiz = table("account.payment.register").get(b.ids[0]) as any;
@@ -512,6 +529,80 @@ const tickAt = async (hm: string) => { setRiyadh(`${DAY} ${hm}`); return quiet((
   assert("after it: «نقد» again finds it paid — no third payment, the sum never over the invoice", rows("account.payment").length === 2 && xpay().length === 2 && round2(xpay().reduce((t, p) => t + p.x_amount, 0)) <= 190
     && texts(COLL_PHONE).some((t) => t.includes("تم تحصيلها مسبقاً")));
   assert("no accounting alert to Baraa (every guard passed)", !ownerAlerts().some((x) => x.includes("[accounting]")), ownerAlerts().filter((x) => x.includes("accounting")).join(" | "));
+}
+
+
+// ================================================================ د. prod's variables
+console.log("\n[د] prod's variables (wrangler.toml): every number accepted, an unclassified one to review, a classified customer served");
+const CFG = await import("../src/config.ts");
+/** The top-level [vars] of wrangler.toml — prod's own, not a copy. */
+function prodVars(): Record<string, string> {
+  const toml = readFileSync(new URL("../wrangler.toml", import.meta.url), "utf8");
+  const start = toml.indexOf("\n[vars]\n");
+  const end = toml.indexOf("\n[", start + 7);
+  const out: Record<string, string> = {};
+  for (const line of toml.slice(start + 7, end).split("\n")) {
+    const mm = /^([A-Z_]+)\s*=\s*"([^"]*)"/.exec(line.trim());
+    if (mm) out[mm[1]] = mm[2];
+  }
+  return out;
+}
+const PROD = prodVars();
+const topCrons = (() => {
+  const toml = readFileSync(new URL("../wrangler.toml", import.meta.url), "utf8");
+  const i = toml.indexOf("\n[triggers]\n");
+  return /crons\s*=\s*\[([^\]]*)\]/.exec(toml.slice(i, i + 200))?.[1].trim() ?? "?";
+})();
+assert("wrangler.toml prod: SIMULATION_MODE false, PILOT_MODE false, ACCOUNTING_SYNC true, OWNER_WINDOW_OPEN_AT 06:00, no SIM_ALLOWLIST / SIM_RUN_ID, crons [] until the cutover",
+  PROD.SIMULATION_MODE === "false" && PROD.PILOT_MODE === "false" && PROD.ACCOUNTING_SYNC === "true" && PROD.OWNER_WINDOW_OPEN_AT === "06:00"
+    && !("SIM_ALLOWLIST" in PROD) && !("SIM_RUN_ID" in PROD) && topCrons === "", JSON.stringify({ PROD, topCrons }));
+const REVIEW_CH = 880, REVIEW_ACTION = 881;
+function prodEnv(pilot = false): any {
+  const env = fresh(`${DAY} 10:00`);
+  delete env.SIM_ALLOWLIST; delete env.PILOT_MODE; delete env.SIMULATION_MODE;
+  // the mode variables of prod; the endpoints and Baraa's number stay the harness's
+  for (const k of ["SIMULATION_MODE", "PILOT_MODE", "ACCOUNTING_SYNC", "OWNER_WINDOW_OPEN_AT", "SIM_ALLOWLIST", "SIM_RUN_ID"]) if (k in PROD) env[k] = PROD[k];
+  if (pilot) Object.assign(env, { PILOT_MODE: "true", SIM_ALLOWLIST: "+966505154962,+966571777704,+966530399474,+966545816832" });
+  seed("discuss.channel", { id: REVIEW_CH, name: "📋 مراجعة الأرقام", channel_type: "channel" });
+  seed("ir.actions.act_window", { id: REVIEW_ACTION, name: "UTAK — مراجعة الأرقام" });
+  seed("x_whatsapp_template", { id: 960, x_purpose: "customer_welcome", x_meta_template_id: "utak_welcome", x_language: "ar", x_meta_status: "APPROVED", x_param_count: 2, x_category: "UTILITY" });
+  return env;
+}
+{
+  ENV = prodEnv();
+  const rm = CFG.runtimeMode(ENV);
+  assert("runtime «prod», no misconfig; not test mode (no x_is_simulation stamp); accounting on; any number allowed",
+    rm.mode === "prod" && rm.misconfig === null && !CFG.isTestMode(ENV) && (await import("../src/accounting.ts")).isAccountingSyncEnabled(ENV)
+      && CFG.isRecipientAllowed(ENV, "+966512345678") && CFG.isRecipientAllowed(ENV, "+201001234567"), JSON.stringify(rm));
+  // a new number
+  const NEW = "966512345678";
+  SCREEN = { intent: "unclear", reason: "تحية بلا طلب" }; CLASSIFY = "other";
+  const alerts0 = ownerAlerts().length;
+  await say(NEW, { type: "text", text: { body: "السلام عليكم، مين معي؟" } });
+  const [np] = (rows("res.partner") as any[]).filter((r) => r.x_whatsapp_number === "+" + NEW);
+  assert("a new number: created «غير مراجَع», pending review (نية «غير واضح»)", np?.x_contact_class === "unreviewed" && np?.x_review_pending === true && np?.x_ai_intent === "unclear", JSON.stringify(np));
+  const reviewAlerts = ownerAlerts().slice(alerts0).filter((x) => x.includes("رقم جديد ينتظر المراجعة"));
+  const posts = (await import("./wa-harness.mts")).odooLog.filter((l) => l.model === "discuss.channel" && l.method === "message_post" && l.body?.ids?.[0] === REVIEW_CH);
+  assert("…one message in «📋 مراجعة الأرقام» and ONE alert to Baraa", reviewAlerts.length === 1 && posts.length === 1, JSON.stringify({ reviewAlerts, posts: posts.length }));
+  const toNew = sentTo(NEW);
+  const refused = (rows("x_wa_message") as any[]).filter((r) => String(r.x_meta_error ?? r.x_debug_payload ?? "").includes("AllowlistBlocked"));
+  assert("…and it is answered, not refused (no SIM_ALLOWLIST, no x_wa_allowed needed)", toNew.length >= 1 && refused.length === 0, JSON.stringify({ toNew: toNew.map((b) => b.type), refused: refused.length }));
+  assert("…nothing stamped x_is_simulation (the partner, its messages)", !np?.x_is_simulation && !(rows("x_wa_message") as any[]).some((r) => r.x_is_simulation), JSON.stringify(np));
+  // a classified customer (x_wa_allowed off, as the 31 of § 27)
+  const OLD = "966512340031";
+  seed("res.partner", { id: 531, name: "بقالة قديمة", x_whatsapp_number: "+" + OLD, customer_rank: 1, x_contact_class: "customer", x_wa_allowed: false });
+  CLASSIFY = "greeting";
+  const alerts1 = ownerAlerts().length;
+  await say(OLD, { type: "text", text: { body: "مرحبا" } });
+  const toOld = sentTo(OLD).map((b) => String(b.text?.body ?? b.interactive?.body?.text ?? b.template?.name ?? ""));
+  assert("a classified customer with x_wa_allowed off: the full reply («أهلاً بقالة قديمة، حياك الله»), no review, no alert",
+    toOld.some((t) => t.includes("أهلاً بقالة قديمة")) && ownerAlerts().length === alerts1 && (table("res.partner").get(531) as any).x_review_pending !== true, JSON.stringify(toOld));
+  // the contrast: the pilot combination refuses the same new number
+  ENV = prodEnv(true);
+  SCREEN = { intent: "unclear", reason: "تحية بلا طلب" }; CLASSIFY = "other";
+  await say(NEW, { type: "text", text: { body: "السلام عليكم، مين معي؟" } });
+  assert("PILOT_MODE=true with the team allowlist (sim's): the same new number gets nothing (refused by the allowlist)",
+    sentTo(NEW).length === 0 && CFG.runtimeMode(ENV).mode === "pilot" && CFG.isTestMode(ENV), JSON.stringify(sentTo(NEW)));
 }
 
 // ================================================================ س. schema

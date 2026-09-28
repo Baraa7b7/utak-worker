@@ -58,7 +58,7 @@ export async function handleStandingConfirm(
   env: Env,
   standingId: number,
   now: Date = new Date(),
-): Promise<{ text?: string; bodyBeforeButtons?: string; buttons?: Array<{ id: string; title: string }> }> {
+): Promise<{ text?: string; bodyBeforeButtons?: string; buttons?: Array<{ id: string; title: string }>; confirmedOrderId?: number; confirmedCustomerId?: number }> {
   const all = await getActiveStandingOrders(env);
   const stan = all.find(x => x.id === standingId);
   if (!stan) return { text: "الطلب المعتاد مو موجود." };
@@ -93,7 +93,8 @@ export async function handleStandingConfirm(
   // 2026-09-23 (ACCOUNTING_SYNC) — confirmed order → confirmed sale.order.
   const { ensureSaleOrderForDailyOrder } = await import("./sale-accounting");
   await ensureSaleOrderForDailyOrder(env, orderId);
-  return { text: `تم ✅ طلبك المعتاد رقم #${orderId} تحت التجهيز.` };
+  // § 44 د — confirmed: the VAT question may follow (router)
+  return { text: `تم ✅ طلبك المعتاد رقم #${orderId} تحت التجهيز.`, confirmedOrderId: orderId, confirmedCustomerId: customerId };
 }
 
 /** "أبغى أعدّل" → instructions for now (deep NL parser deferred). */

@@ -76,6 +76,7 @@ const FIX = [
   "fixtures-odoo-fields-20260926-s39.json",
   "fixtures-odoo-fields-20260926-s40.json",
   "fixtures-odoo-fields-20260926-s41.json",       // § 41: every model the parts read or write (last: it wins)
+  "fixtures-odoo-fields-20260928-s44.json", // § 44: x_vat_status / x_legal_name / x_vat_ask_count on res.partner (the invoice reads them), the purchase side (last: it wins)
 ].map((f) => JSON.parse(readFileSync(new URL(`./${f}`, import.meta.url), "utf8")));
 const REAL: Record<string, string[]> = Object.assign({}, ...FIX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FIX.map((f) => f._selections ?? {}));

@@ -33,6 +33,8 @@ export interface LateReply {
   text?: string;
   bodyBeforeButtons?: string;
   buttons?: Array<{ id: string; title: string }>;
+  /** § 44 د — the order «سجّله لبكرة» created, confirmed (the VAT question may follow). */
+  confirmedOrderId?: number;
 }
 
 function addDays(ymd: string, n: number): string {
@@ -103,6 +105,7 @@ export async function handleLateYes(
     if (done) return { text: `${ALREADY_DONE_TEXT} طلبك مسجّل برقم #${done}.` };
     return { text: "انتهت مهلة هذا الطلب. أرسل الأصناف من جديد ونسجّلها لك 🌿" };
   }
+  let confirmedOrderId: number | undefined;
   const text = await withButtonLock(env, `late_yes:${pid}:${pending.at}`, async () => {
     const odoo = await import("./odoo");
     const date = nextOrderingDate(now);
@@ -125,6 +128,7 @@ export async function handleLateYes(
       neighborhood: neigh || undefined,
     });
     if (loc) await odoo.setOrderLocation(env, orderId, loc.latitude, loc.longitude, loc.neighborhood);
+    confirmedOrderId = orderId;
     await env.MSG_DEDUP.delete(lateKey(pid));
     await env.MSG_DEDUP.put(lateDoneKey(pid), String(orderId), { expirationTtl: LATE_TTL });
     // 2026-09-23 (ACCOUNTING_SYNC) — confirmed order → confirmed sale.order. Never throws.
@@ -142,7 +146,7 @@ export async function handleLateYes(
     }
     return lines.join("\n");
   });
-  return { text };
+  return confirmedOrderId ? { text, confirmedOrderId } : { text };
 }
 
 /** «لا شكراً». */

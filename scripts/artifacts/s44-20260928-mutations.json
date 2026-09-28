@@ -1,88 +1,280 @@
 {
-  "at": "2026-09-28T06:11:26.432Z",
-  "caught": 9,
-  "total": 9,
+  "at": "2026-09-28T06:33:29.759Z",
+  "caught": 29,
+  "total": 29,
   "results": [
     {
-      "part": "ب",
-      "name": "the exclusion drops nothing (every x_is_simulation record marked)",
+      "part": "د",
+      "name": "asked though «مسجّل» / «غير مسجّل»",
       "caught": true,
       "fails": [
-        "✗ [ب] x_daily_order: the real customer's record (x_is_simulation) is not selected, and is listed as excluded — {\"hasIs\":true,\"hasSim\":true,\"ids\":[10000,10001,10002],\"excluded\":[],\"unmarkedNoRule\":null}",
-        "✗ [ب] x_daily_order_line: the real customer's record (x_is_simulation) is not selected, and is listed as excluded — {\"hasIs\":true,\"hasSim\":true,\"ids\":[10003,10004],\"excluded\":[],\"unmarkedNoRule\":null}",
-        "✗ [ب] x_invoice: the real customer's record (x_is_simulation) is not selected, and is listed as excluded — {\"hasIs\":true,\"hasSim\":true,\"ids\":[10005,10006],\"excluded\":[],\"unmarkedNoRule\":null}",
-        "✗ [ب] x_payment: the real customer's record (x_is_simulation) is not selected, and is listed as excluded — {\"hasIs\":true,\"hasSim\":true,\"ids\":[10007,10008],\"excluded\":[],\"unmarkedNoRule\":null}"
+        "✗ [د] the next confirmed order: no question",
+        "✗ [د] «غير مسجّل»: confirmed, no question — [\"تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿\",\"لإصدار فاتورتك الضريبية: هل منشأتك مسجلة في ضريبة القيمة المضافة؟\"]"
       ]
     },
     {
-      "part": "ب",
-      "name": "selectForMark ignores the links",
+      "part": "د",
+      "name": "asked though Baraa typed a number on the card",
       "caught": true,
       "fails": [
-        "✗ [ب] x_daily_order: the real customer's record (x_is_simulation) is not selected, and is listed as excluded — {\"hasIs\":true,\"hasSim\":true,\"ids\":[10000,10001,10002],\"excluded\":[],\"unmarkedNoRule\":null}",
-        "✗ [ب] x_daily_order_line: the real customer's record (x_is_simulation) is not selected, and is listed as excluded — {\"hasIs\":true,\"hasSim\":true,\"ids\":[10003,10004],\"excluded\":[],\"unmarkedNoRule\":null}",
-        "✗ [ب] x_invoice: the real customer's record (x_is_simulation) is not selected, and is listed as excluded — {\"hasIs\":true,\"hasSim\":true,\"ids\":[10005,10006],\"excluded\":[],\"unmarkedNoRule\":null}",
-        "✗ [ب] x_payment: the real customer's record (x_is_simulation) is not selected, and is listed as excluded — {\"hasIs\":true,\"hasSim\":true,\"ids\":[10007,10008],\"excluded\":[],\"unmarkedNoRule\":null}"
+        "✗ [د] a VAT number Baraa typed (status «غير معروف»): confirmed, no question — [\"تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿\",\"لإصدار فاتورتك الضريبية: هل منشأتك مسجلة في ضريبة القيمة المضافة؟\"]"
       ]
     },
     {
-      "part": "ب",
-      "name": "the route carrying his stop not protected",
+      "part": "د",
+      "name": "no limit of three asks",
       "caught": true,
       "fails": [
-        "✗ [ب] linked: the route carrying his stop, the purchase list of his live order's day, its due and due line",
-        "✗ [ب] x_delivery_route: the real customer's record (x_is_simulation) is not selected, and is listed as excluded — {\"hasIs\":true,\"hasSim\":true,\"ids\":[10009,10010],\"excluded\":[],\"unmarkedNoRule\":null}"
+        "✗ [د] three asks already: confirmed, no question — [\"تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿\",\"لإصدار فاتورتك الضريبية: هل منشأتك مسجلة في ضريبة القيمة المضافة؟\"]",
+        "✗ [د] a fourth confirmed order: no question (three asks)"
       ]
     },
     {
-      "part": "ب",
-      "name": "a cancelled order protects its day's purchase list",
+      "part": "د",
+      "name": "the ask counter not incremented",
       "caught": true,
       "fails": [
-        "✗ [ب] NOT linked: the simulation partner's records, and the list of a day with only his cancelled order",
-        "✗ [ب] the day with only his cancelled order: its list is still selected"
+        "✗ [د] asked once: x_vat_ask_count 1, still «غير معروف»",
+        "✗ [د] his next confirmed order: no question («مسجّل») — [\"تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿\"]",
+        "✗ [د] the second confirmation 20 minutes later: confirmed, no second question, x_vat_ask_count still 1 — [\"تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿\",\"لإصدار فاتورتك الضريبية: هل منشأتك مسجلة في ضريبة القيمة المضافة؟\",\"تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿\"]",
+        "✗ [د] the next confirmed order: no question"
       ]
     },
     {
-      "part": "ب",
-      "name": "the dues' lines not protected",
+      "part": "د",
+      "name": "a second question while one is open",
       "caught": true,
       "fails": [
-        "✗ [ب] linked: the route carrying his stop, the purchase list of his live order's day, its due and due line",
-        "✗ [ب] x_supplier_due_line: the real customer's record (x_is_simulation) is not selected, and is listed as excluded — {\"hasIs\":true,\"hasSim\":true,\"ids\":[10018,10019],\"excluded\":[],\"unmarkedNoRule\":null}"
+        "✗ [د] the second confirmation 20 minutes later: confirmed, no second question, x_vat_ask_count still 1 — [\"تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿\",\"لإصدار فاتورتك الضريبية: هل منشأتك مسجلة في ضريبة القيمة المضافة؟\",\"تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿\",\"لإصدار فاتورتك الضريبية: هل منشأتك مسجلة في ضريبة القيمة المضافة؟\"]",
+        "✗ [د] the same number twice at the same instant: one «اكتب اسم المنشأة», the other nothing (the step's lock), the flow at the name step — [null,null]",
+        "✗ [د] …the next text is the name (the lock does not block the next step) — أهلاً وسهلاً"
       ]
     },
     {
-      "part": "ب",
-      "name": "the payment read through a wrong path",
+      "part": "د",
+      "name": "any 15 digits taken as a VAT number (not 3…3)",
       "caught": true,
       "fails": [
-        "✗ [ب] linked: the real customer's orders (live and cancelled), line, invoice, payment, stop",
-        "✗ [ب] x_payment: the real customer's record (x_is_simulation) is not selected, and is listed as excluded — {\"hasIs\":true,\"hasSim\":true,\"ids\":[10007,10008],\"excluded\":[],\"unmarkedNoRule\":null}"
+        "✗ [د] «210123456700003» → refused",
+        "✗ [د] «310123456700004» → refused"
       ]
     },
     {
-      "part": "ب",
-      "name": "«بيت التمور» (#105) left out of the list",
+      "part": "د",
+      "name": "Arabic-Indic digits not read",
       "caught": true,
       "fails": [
-        "✗ [ب] the list is #31 and #105 — [31]"
+        "✗ [د] Arabic-Indic digits with spaces «٣١٠ ١٢٣ ٤٥٦٧ ٠٠٠٠٣» → 310123456700003",
+        "✗ [د] Persian digits and the direction marks WhatsApp copies → accepted",
+        "✗ [د] Arabic-Indic digits with spaces → accepted, «اكتب اسم المنشأة كما في السجل التجاري» — ⚠️ الرقم الضريبي 15 رقماً يبدأ بـ3 وينتهي بـ3. اكتبه مرة ثانية.",
+        "✗ [د] the name → «اكتب العنوان…» — ⚠️ الرقم الضريبي 15 رقماً يبدأ بـ3 وينتهي بـ3. اكتبه مرة ثانية."
       ]
     },
     {
-      "part": "ب",
-      "name": "the mark script selects without the links",
+      "part": "د",
+      "name": "the spaces not removed",
       "caught": true,
       "fails": [
-        "✗ [ب] the pre-launch mark script selects through selectForMark with the real customers' links"
+        "✗ [د] Arabic-Indic digits with spaces «٣١٠ ١٢٣ ٤٥٦٧ ٠٠٠٠٣» → 310123456700003",
+        "✗ [د] Arabic-Indic digits with spaces → accepted, «اكتب اسم المنشأة كما في السجل التجاري» — ⚠️ الرقم الضريبي 15 رقماً يبدأ بـ3 وينتهي بـ3. اكتبه مرة ثانية.",
+        "✗ [د] the name → «اكتب العنوان…» — ⚠️ الرقم الضريبي 15 رقماً يبدأ بـ3 وينتهي بـ3. اكتبه مرة ثانية.",
+        "✗ [د] the address → «تم حفظ بياناتك الضريبية ✅» — ⚠️ الرقم الضريبي 15 رقماً يبدأ بـ3 وينتهي بـ3. اكتبه مرة ثانية."
       ]
     },
     {
-      "part": "ب",
-      "name": "the mark script's write guard removed",
+      "part": "د",
+      "name": "the number saved before the third answer (a partial save)",
       "caught": true,
       "fails": [
-        "✗ [ب] the mark script refuses to write a real customer's record, and verify checks its own marks"
+        "✗ [د] …nothing saved yet (no vat, still «غير معروف»)",
+        "✗ [د] …still nothing saved",
+        "✗ [د] …exactly one write touched the number, the name or the address — [{\"vat\":\"310123456700003\"},{\"vat\":\"310123456700003\",\"x_legal_name\":\"مؤسسة الوادي للتموين\",\"street\":\"الملز، شارع الستين 12\",\"x_vat_status\":\"registered\"}]",
+        "✗ [د] (ask 1) nothing saved: no vat, «غير معروف»"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "«لا» saves nothing",
+      "caught": true,
+      "fails": [
+        "✗ [د] «لا» → «غير مسجّل» and the reply — تمام ✅ سجّلنا أن منشأتك غير مسجلة في ضريبة القيمة المضافة، وتصلك فاتورة ضريبية مبسطة. ما نسألك مرة ثانية.",
+        "✗ [د] the next confirmed order: no question",
+        "✗ [د] «لا» typed instead of tapped → the same — تمام ✅ سجّلنا أن منشأتك غير مسجلة في ضريبة القيمة المضافة، وتصلك فاتورة ضريبية مبسطة. ما نسألك مرة ثانية."
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the third answer does not set «مسجّل»",
+      "caught": true,
+      "fails": [
+        "✗ [د] saved in ONE write: vat, x_legal_name, street, «مسجّل» — {\"id\":501,\"name\":\"مطعم الوادي\",\"x_whatsapp_number\":\"+966500000501\",\"customer_rank\":1,\"x_contact_class\":\"customer\",\"x_vat_status\":\"unknown\",\"x_vat_ask_count\":1,\"x_wa_channel_id\":10012,\"vat\":\"310123456700003\",\"x_legal_name\":\"مؤسسة الوادي للتموين\",\"street\":\"الملز، شارع الستين 12\"}",
+        "✗ [د] then saved «مسجّل»"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "a step answered after its 60 minutes",
+      "caught": true,
+      "fails": [
+        "✗ [د] (ask 1) the name 61 minutes after its prompt: not taken (an ordinary message; the bot answers it) — اكتب العنوان: الحي والشارع، أو العنوان الوطني المختصر",
+        "✗ [د] (ask 1) the tick ends it: «expired», no alert (first ask) — [{\"partnerId\":501,\"action\":\"waiting\"}]",
+        "✗ [د] ask 2: the question, x_vat_ask_count 2 — تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿 / 1",
+        "✗ [د] ask 3: the question, x_vat_ask_count 3 — لإصدار فاتورتك الضريبية: هل منشأتك مسجلة في ضريبة القيمة المضافة؟ / 2"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the tick never ends a silent flow",
+      "caught": true,
+      "fails": [
+        "✗ [د] (ask 1) the tick ends it: «expired», no alert (first ask) — [{\"partnerId\":501,\"action\":\"waiting\"}]",
+        "✗ [د] (ask 2) no tap, 61 minutes: expired, no alert — [{\"partnerId\":501,\"action\":\"waiting\"}]",
+        "✗ [د] (ask 3) no tap, 61 minutes: expired + Baraa's alert — [{\"partnerId\":501,\"action\":\"waiting\"}]",
+        "✗ [د] Baraa's alert: once, with the customer's name — []"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "Baraa alerted on every unanswered ask (not only the third)",
+      "caught": true,
+      "fails": [
+        "✗ [د] (ask 1) the tick ends it: «expired», no alert (first ask) — [{\"partnerId\":501,\"action\":\"expired_alerted\"}]",
+        "✗ [د] (ask 2) no tap, 61 minutes: expired, no alert — [{\"partnerId\":501,\"action\":\"expired_alerted\"}]"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "«إيقاف» does not stop the questions",
+      "caught": true,
+      "fails": [
+        "✗ [د] «إيقاف» → the questions stop, the reply says nothing was saved — اكتب العنوان: الحي والشارع، أو العنوان الوطني المختصر",
+        "✗ [د] …nothing saved (no vat, «غير معروف»), the flow gone",
+        "✗ [د] a text after it is an ordinary message (not the name)"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the location pending ignored (a district taken as a wrong number)",
+      "caught": true,
+      "fails": [
+        "✗ [د] «الملز» → the district saved on the order, the flow still at the number — ⚠️ الرقم الضريبي 15 رقماً يبدأ بـ3 وينتهي بـ3. اكتبه مرة ثانية."
+      ]
+    },
+    {
+      "part": "د",
+      "name": "no per-step lock (two numbers at once → two steps)",
+      "caught": true,
+      "fails": [
+        "✗ [د] the same number twice at the same instant: one «اكتب اسم المنشأة», the other nothing (the step's lock), the flow at the name step — [\"اكتب اسم المنشأة كما في السجل التجاري\",\"اكتب اسم المنشأة كما في السجل التجاري\"]"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the tick ignores a cancelled order",
+      "caught": true,
+      "fails": [
+        "✗ [د] the order cancelled in Odoo → the tick ends the flow — [{\"partnerId\":501,\"action\":\"waiting\"}]"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the order cancelled by the customer leaves the flow open",
+      "caught": true,
+      "fails": [
+        "✗ [د] the order cancelled → the flow ends",
+        "✗ [د] …a late «نعم» → «انتهت مهلة هذا السؤال» — اكتب الرقم الضريبي (15 رقماً)"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "no question after «تأكيد الطلب»",
+      "caught": true,
+      "fails": [
+        "✗ [د] the confirmation, then the question (in that order) — [\"تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿\"]",
+        "✗ [د] with «نعم» / «لا» buttons — []",
+        "✗ [د] asked once: x_vat_ask_count 1, still «غير معروف»",
+        "✗ [د] the question recorded (x_wa_message, purpose customer_vat_ask) through the gateway — [null,\"{\\\"purpose\\\":\\\"bot_reply\\\"}\"]"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "no question after «سجّله لبكرة»",
+      "caught": true,
+      "fails": [
+        "✗ [د] «سجّله لبكرة»: the order confirmed, then the question — [\"تم ✅ سجّلنا طلبك رقم #10016 على طلبات يوم 1 أكتوبر 2026:\\n• طماطم كرتون × 10\\n\\nيوصلك صباح 2 أكتوبر 2026 إن شاء الله 🌿\\n\\n📍 أرسل موقع التوصيل (📎 → موقع → موقعي الحالي) أو اكتب اسم الحي.\"]"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "no question after the standing order",
+      "caught": true,
+      "fails": [
+        "✗ [د] the standing order: confirmed, then the question — [\"تم ✅ طلبك المعتاد رقم #10016 تحت التجهيز.\"]"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the follow-up never sent",
+      "caught": true,
+      "fails": [
+        "✗ [د] the confirmation, then the question (in that order) — [\"تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿\"]",
+        "✗ [د] with «نعم» / «لا» buttons — []",
+        "✗ [د] the question recorded (x_wa_message, purpose customer_vat_ask) through the gateway — [null,\"{\\\"purpose\\\":\\\"bot_reply\\\"}\"]",
+        "✗ [د] «نعم» → «اكتب الرقم الضريبي (15 رقماً)» — أهلاً وسهلاً"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the purpose ignored (every reply bot_reply)",
+      "caught": true,
+      "fails": [
+        "✗ [د] the question recorded (x_wa_message, purpose customer_vat_ask) through the gateway — [null,\"{\\\"purpose\\\":\\\"bot_reply\\\"}\",\"{\\\"purpose\\\":\\\"bot_reply\\\"}\"]",
+        "✗ [د] every step recorded as customer_vat_ask"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "his texts never reach the questions",
+      "caught": true,
+      "fails": [
+        "✗ [د] a wrong number → asked again — أهلاً وسهلاً",
+        "✗ [د] Arabic-Indic digits with spaces → accepted, «اكتب اسم المنشأة كما في السجل التجاري» — أهلاً وسهلاً",
+        "✗ [د] the name → «اكتب العنوان…» — أهلاً وسهلاً",
+        "✗ [د] the address → «تم حفظ بياناتك الضريبية ✅» — أهلاً وسهلاً"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "«غير مسجّل» with a number still a full invoice",
+      "caught": true,
+      "fails": [
+        "✗ [د] the buyer: a number and «مسجّل» → full; «غير مسجّل» with a number → simplified; no number → simplified; «غير معروف» + a number Baraa typed → full",
+        "✗ [د] Baraa sets «غير مسجّل» on the card (the number stays): simplified again"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the full invoice without the official name",
+      "caught": true,
+      "fails": [
+        "✗ [د] …the establishment's official name printed (not the WhatsApp name)"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the full invoice without the address",
+      "caught": true,
+      "fails": [
+        "✗ [د] …its address printed (the street it gave) — {\"name\":\"مؤسسة الوادي للتموين\",\"address\":\"العليا\",\"phone\":\"+966500000501\",\"vat\":\"310123456700003\"}"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the full invoice without the buyer's number",
+      "caught": true,
+      "fails": [
+        "✗ [د] the next delivery: «فاتورة ضريبية» (not «مبسطة») —  html, body { margin: 0; padding: 0; background: #F7F5F0; } * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } @page { size: A4; margin: 0; background: #F7F5F0; } @media print { html,",
+        "✗ [د] …its VAT number printed"
       ]
     }
   ]

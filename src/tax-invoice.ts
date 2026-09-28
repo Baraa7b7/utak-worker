@@ -44,6 +44,28 @@ export function taxInvoiceBreakdown(lines: TaxLine[], total: number, discount: n
   return { lines: out, subtotal, discount: disc, tax, nominalTax, adjustment: round2(tax - nominalTax), total: t };
 }
 
+/** § 44 د — the partner fields the full tax invoice reads (res.partner). */
+export const BUYER_TAX_FIELDS = ["id", "vat", "x_vat_status", "x_legal_name", "street", "city"] as const;
+export interface BuyerTax { vat: string; legalName?: string; address?: string }
+/**
+ * § 44 د — the buyer of a full tax invoice, or null (a simplified one): a VAT
+ * number on his card and a status that is not «غير مسجّل» — «مسجّل» (the
+ * WhatsApp questions, or Baraa on the card), or «غير معروف» / empty with a
+ * number Baraa typed on the card (§ 41's rule). Printed: the establishment's
+ * official name (x_legal_name, else the customer's name), its VAT number and
+ * its address (street, city).
+ */
+export function buyerTaxInfo(p: {
+  vat?: string | false | null; x_vat_status?: string | false | null; x_legal_name?: string | false | null;
+  street?: string | false | null; city?: string | false | null;
+} | null | undefined): BuyerTax | null {
+  const vat = typeof p?.vat === "string" ? p.vat.trim() : "";
+  if (!vat || p?.x_vat_status === "not_registered") return null;
+  const legalName = typeof p?.x_legal_name === "string" && p.x_legal_name.trim() ? p.x_legal_name.trim() : undefined;
+  const address = [p?.street, p?.city].map((s) => (typeof s === "string" ? s.trim() : "")).filter(Boolean).join("، ") || undefined;
+  return { vat, ...(legalName ? { legalName } : {}), ...(address ? { address } : {}) };
+}
+
 /** «فاتورة ضريبية» with a registered customer (a VAT number), else «فاتورة ضريبية مبسطة». */
 export function taxInvoiceKind(customerVat: string | undefined | null): "tax" | "simplified" {
   return typeof customerVat === "string" && customerVat.trim() ? "tax" : "simplified";

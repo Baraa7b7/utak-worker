@@ -14,6 +14,11 @@ const root = new URL("../", import.meta.url).pathname;
 const T = "tests/s44.test.mts";
 const RP = "scripts/lib/real-partners.mjs";
 const MK = "scripts/s42-20260927-prelaunch-mark.mts";
+const VA = "src/vat-ask.ts";
+const RT = "src/router.ts";
+const IX = "src/index.ts";
+const TX = "src/tax-invoice.ts";
+const INV = "src/invoice.ts";
 
 // [part, name, [[file, find, replace], …], test file]
 const M = [
@@ -45,6 +50,70 @@ const M = [
   ["ب", "the mark script's write guard removed", [[MK,
     "    if (s.ids.some((id) => L[m]?.has(id))) throw new Error(`${m}: a record linked to a real customer reached the write`);\n",
     ""]], T],
+  // ---------------------------------------------------------------- د the customer's VAT number
+  ["د", "asked though «مسجّل» / «غير مسجّل»", [[VA,
+    "    if (!p || vatStatusOf(p) !== \"unknown\") return null;",
+    "    if (!p) return null;"]], T],
+  ["د", "asked though Baraa typed a number on the card", [[VA,
+    "    if (typeof p.vat === \"string\" && p.vat.trim()) return null; // Baraa entered it on the card\n", ""]], T],
+  ["د", "no limit of three asks", [[VA,
+    "    if (count >= VAT_MAX_ASKS) return null;\n", ""]], T],
+  ["د", "the ask counter not incremented", [[VA,
+    "vals: { x_vat_ask_count: count + 1 } }", "vals: { x_vat_ask_count: count } }"]], T],
+  ["د", "a second question while one is open", [[VA,
+    "    if (open && now - open.at < VAT_WAIT_MIN * MIN) return null;\n", ""]], T],
+  ["د", "any 15 digits taken as a VAT number (not 3…3)", [[VA,
+    "  return /^3\\d{13}3$/.test(s) ? s : null;", "  return /^\\d{15}$/.test(s) ? s : null;"]], T],
+  ["د", "Arabic-Indic digits not read", [[VA,
+    "    .replace(/[٠-٩۰-۹]/g, (d) => DIGITS[d] ?? d)\n    .replace(/[\\s\\u200e", "    .replace(/[\\s\\u200e"]], T],
+  ["د", "the spaces not removed", [[VA,
+    "    .replace(/[\\s\\u200e\\u200f\\u2066-\\u2069\\u202a-\\u202e]+/g, \"\");", "    .replace(/[\\u200e\\u200f]+/g, \"\");"]], T],
+  ["د", "the number saved before the third answer (a partial save)", [[VA,
+    "      await writeFlow(env, { ...f, vat, step: \"name\", at: now });",
+    "      await call(env, \"res.partner\", \"write\", { ids: [partnerId], vals: { vat } });\n      await writeFlow(env, { ...f, vat, step: \"name\", at: now });"]], T],
+  ["د", "«لا» saves nothing", [[VA,
+    "vals: { x_vat_status: \"not_registered\" } }", "vals: {} }"]], T],
+  ["د", "the third answer does not set «مسجّل»", [[VA,
+    "      vat: f.vat, x_legal_name: f.legalName, street: address, x_vat_status: \"registered\",",
+    "      vat: f.vat, x_legal_name: f.legalName, street: address,"]], T],
+  ["د", "a step answered after its 60 minutes", [[VA,
+    "  if (now - f.at > VAT_WAIT_MIN * MIN) return null; // the tick ends it\n", ""]], T],
+  ["د", "the tick never ends a silent flow", [[VA,
+    "      if (now - f.at >= VAT_WAIT_MIN * MIN) {", "      if (false) {"]], T],
+  ["د", "Baraa alerted on every unanswered ask (not only the third)", [[VA,
+    "  if (f.askNo < VAT_MAX_ASKS) return false;\n", ""]], T],
+  ["د", "«إيقاف» does not stop the questions", [[VA,
+    "  if (isVatStopWord(text)) {", "  if (false && isVatStopWord(text)) {"]], T],
+  ["د", "the location pending ignored (a district taken as a wrong number)", [[VA,
+    "  if (f.step === \"number\" && opts.locationPending && !/[0-9٠-٩۰-۹]/.test(text)) return null;\n", ""]], T],
+  ["د", "no per-step lock (two numbers at once → two steps)", [[VA,
+    "  if (!claim.claimed) return { text: \"\" }; // the same step is being answered right now", "  void claim;"]], T],
+  ["د", "the tick ignores a cancelled order", [[VA,
+    "      if (o && o.x_state === \"cancelled\") {", "      if (false) {"]], T],
+  ["د", "the order cancelled by the customer leaves the flow open", [[RT,
+    "  if (partner?.id) await import(\"./vat-ask\").then((m) => m.endVatFlowForOrder(env, partner.id, orderId)).catch(() => {});\n", ""]], T],
+  ["د", "no question after «تأكيد الطلب»", [[RT,
+    "  return action === \"confirm_order\" ? await withVatAsk(env, reply, partner?.id) : reply;", "  return reply;"]], T],
+  ["د", "no question after «سجّله لبكرة»", [[RT,
+    "      ? await withVatAsk(env, await handleLateYes(env, partner, pid), partner?.id ?? pid)", "      ? await handleLateYes(env, partner, pid)"]], T],
+  ["د", "no question after the standing order", [[RT,
+    "    if (text !== ALREADY_DONE_TEXT) return await withVatAsk(env, out, partner?.id);", "    if (text !== ALREADY_DONE_TEXT) return out;"]], T],
+  ["د", "the follow-up never sent", [[IX,
+    "  if (reply.followUp) await sendReply(env, to, reply.followUp, ctx);\n", ""]], T],
+  ["د", "the purpose ignored (every reply bot_reply)", [[IX,
+    "  const purpose = reply.purpose ?? \"bot_reply\";", "  const purpose = \"bot_reply\";"]], T],
+  ["د", "his texts never reach the questions", [[IX,
+    "        const vr = await vatFlowReply(env, partner.id, msg.text, Date.now(), { locationPending: !!loc });",
+    "        const vr = null as unknown as Awaited<ReturnType<typeof vatFlowReply>>; void loc;"]], T],
+  ["د", "«غير مسجّل» with a number still a full invoice", [[TX,
+    "  if (!vat || p?.x_vat_status === \"not_registered\") return null;", "  if (!vat) return null;"]], T],
+  ["د", "the full invoice without the official name", [[INV,
+    "      name: buyer?.legalName || order.customer_name || 'عميل',", "      name: order.customer_name || 'عميل',"]], T],
+  ["د", "the full invoice without the address", [[INV,
+    "      address: buyer?.address || order.neighborhood || 'الرياض',", "      address: order.neighborhood || 'الرياض',"]], T],
+  ["د", "the full invoice without the buyer's number", [[INV,
+    "      ...(buyer ? { vat: buyer.vat } : {}),\n    },\n    items,\n    subtotal: vatAmount > 0 ? netSubtotal : subtotal,",
+    "    },\n    items,\n    subtotal: vatAmount > 0 ? netSubtotal : subtotal,"]], T],
 ];
 
 const want = new Set(process.argv.slice(2));

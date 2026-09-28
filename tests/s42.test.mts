@@ -51,6 +51,7 @@ const FX = [
   "./fixtures-odoo-fields-20260926-s41.json",
   // § 42 — fields_get of 2026-09-27 (scripts/s42-20260927-fields-fixture.mjs), the dues and the accounting twins included
   "./fixtures-odoo-fields-20260927-s42.json",
+  "./fixtures-odoo-fields-20260928-s44.json", // § 44: x_vat_status / x_legal_name / x_vat_ask_count on res.partner (the invoice reads them), the purchase side (last: it wins)
 ].map(load);
 const REAL: Record<string, string[]> = Object.assign({}, ...FX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FX.map((f) => f._selections));

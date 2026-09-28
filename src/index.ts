@@ -210,6 +210,15 @@ export default {
           } catch (e) {
             console.error("[pinv tick] failed", (e as Error)?.message);
           }
+          // § 44 د — the VAT questions: 60 minutes without the step's answer (or
+          // the order cancelled) end them; Baraa's one alert after the third ask.
+          try {
+            const { runVatAskTick } = await import("./vat-ask");
+            const va = await runVatAskTick(env, Date.now());
+            if (va.some((r) => r.action !== "waiting")) console.log("[vat-ask tick]", JSON.stringify(va));
+          } catch (e) {
+            console.error("[vat-ask tick] failed", (e as Error)?.message);
+          }
           // § 42 ب — a collection left without «المبلغ كامل» / an amount: the
           // collector's one reminder at 30 minutes, Baraa's one alert 30 after it.
           try {
@@ -2590,6 +2599,24 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       }
     }
 
+    // § 44 د — his answer to the VAT questions (the number, the name, the
+    // address; «إيقاف» / «إلغاء» ends them). Before the opt-out: «إيقاف» here
+    // stops the questions, not the marketing messages. Null = not his flow.
+    if (msg.type === "text" && msg.text) {
+      try {
+        const { vatFlowReply } = await import("./vat-ask");
+        const loc = await env.MSG_DEDUP.get(`pending_neighborhood:${partner.id}`).catch(() => null);
+        const vr = await vatFlowReply(env, partner.id, msg.text, Date.now(), { locationPending: !!loc });
+        if (vr) {
+          await sendReply(env, msg.from, vr, ctx);
+          await markSeen(env, msg.messageId);
+          continue;
+        }
+      } catch (e) {
+        console.warn("[vat-ask] text failed", (e as Error)?.message);
+      }
+    }
+
     if (optoutCmd) {
       const { handleOptoutCommand } = await import("./optout");
       const reply = await handleOptoutCommand(env, partner, msg.text);
@@ -2787,14 +2814,15 @@ async function sendReply(
   reply: RouterReply,
   ctx?: ExecutionContext,
 ): Promise<void> {
+  // § 44 د — a reply may name its purpose (customer_vat_ask) and carry a second message after it
+  const purpose = reply.purpose ?? "bot_reply";
   if (reply.buttons && reply.buttons.length > 0) {
     const body = reply.bodyBeforeButtons ?? reply.text ?? "";
-    await sendButtons(env, to, body, reply.buttons, { ctx, purpose: "bot_reply" });
-    return;
+    await sendButtons(env, to, body, reply.buttons, { ctx, purpose });
+  } else if (reply.text && reply.text.trim()) {
+    await sendText(env, to, reply.text, { ctx, purpose });
   }
-  if (reply.text && reply.text.trim()) {
-    await sendText(env, to, reply.text, { ctx, purpose: "bot_reply" });
-  }
+  if (reply.followUp) await sendReply(env, to, reply.followUp, ctx);
 }
 
 function json(obj: unknown, status = 200): Response {

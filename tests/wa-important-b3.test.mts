@@ -52,6 +52,7 @@ const FIX = [
   "fixtures-odoo-fields-20260925-prices.json",     // x_price_day*, x_daily_price
   "fixtures-odoo-fields-20260926-b3.json",         // § 38: x_utak_simulation on the order / invoice / payment
   "fixtures-odoo-fields-20260926-s41.json",        // § 41: x_utak_simulation on the per-day models
+  "fixtures-odoo-fields-20260928-s44.json", // § 44: x_vat_status / x_legal_name / x_vat_ask_count on res.partner (the invoice reads them), the purchase side (last: it wins)
 ].map((f) => JSON.parse(readFileSync(new URL(`./${f}`, import.meta.url), "utf8")));
 const REAL: Record<string, string[]> = Object.assign({}, ...FIX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FIX.map((f) => f._selections ?? {}));

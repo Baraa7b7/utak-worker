@@ -44,7 +44,8 @@ const FX = ["./fixtures-odoo-fields-20260924.json", "./fixtures-odoo-fields-2026
   // STATUS § 36 — the echo state and the template text fields
   "./fixtures-odoo-fields-20260925-s36.json",
   // STATUS § 41 ج — the 18:00 list and م2 exclude by x_invoice.x_utak_simulation
-  "./fixtures-odoo-fields-20260926-s41.json"].map(load);
+  "./fixtures-odoo-fields-20260926-s41.json",
+  "./fixtures-odoo-fields-20260928-s44.json"].map(load); // § 44: x_vat_status / x_legal_name / x_vat_ask_count on res.partner (the invoice reads them), the purchase side (last: it wins)
 const REAL: Record<string, string[]> = Object.assign({}, ...FX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FX.map((f) => f._selections));
 const rejected: string[] = [];

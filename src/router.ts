@@ -74,6 +74,24 @@ export interface RouterReply {
   text?: string;
   buttons?: Array<{ id: string; title: string }>;
   bodyBeforeButtons?: string;
+  /** The gateway purpose (default bot_reply). § 44 د: customer_vat_ask. */
+  purpose?: string;
+  /** § 44 د — a second message after this one (the VAT question after a confirmation). */
+  followUp?: RouterReply;
+  /** § 44 د — this reply confirmed the order (the question may follow). Never sent. */
+  confirmedOrderId?: number;
+  /** § 44 د — the customer of that order when the button's partner is not known. Never sent. */
+  confirmedCustomerId?: number;
+}
+
+/** § 44 د — after a confirmed order: the VAT question follows the confirmation, when due. */
+async function withVatAsk(env: Env, reply: RouterReply, partnerId: number | undefined): Promise<RouterReply> {
+  const orderId = reply.confirmedOrderId;
+  const pid = partnerId || reply.confirmedCustomerId || 0;
+  if (!orderId || !pid) return reply;
+  const { maybeAskVat } = await import("./vat-ask");
+  const ask = await maybeAskVat(env, pid, orderId);
+  return ask ? { ...reply, followUp: ask } : reply;
 }
 
 // --------------------------------------------------------------
@@ -477,6 +495,11 @@ async function handleButton(
   // These come from customer_welcome, customer_inactive, customer_feedback,
   // customer_delivery_done templates. Payload defaults to button text.
   const t = (buttonId || "").trim();
+  // § 44 د — «نعم» / «لا» of the VAT question.
+  if (/^vat_(yes|no)_\d+_[a-z0-9]{4,16}$/.test(t)) {
+    const { handleVatButton } = await import("./vat-ask");
+    return await handleVatButton(env, t);
+  }
   if (t === "أبغى أطلب") {
     return { text: "تمام 👍 أرسل لي الأصناف اللي تبيها والكميات، وأنا أجهّز الطلب." };
   }
@@ -509,7 +532,7 @@ async function handleButton(
       intent: `late_${mLate[1]}`, actionTaken: `button:late_${mLate[1]}:${pid}`,
     });
     return mLate[1] === "yes"
-      ? await handleLateYes(env, partner, pid)
+      ? await withVatAsk(env, await handleLateYes(env, partner, pid), partner?.id ?? pid)
       : await handleLateNo(env, partner, pid);
   }
 
@@ -527,7 +550,7 @@ async function handleButton(
       out = await handleStandingConfirm(env, sid);
       return out.text ?? "";
     }, 26 * 60 * 60);
-    if (text !== ALREADY_DONE_TEXT) return out;
+    if (text !== ALREADY_DONE_TEXT) return await withVatAsk(env, out, partner?.id);
     const { findLiveOrderOn } = await import("./odoo");
     const existing = partner?.id ? await findLiveOrderOn(env, partner.id, riyadhDateKey(), "standing_order") : null;
     return {
@@ -769,7 +792,8 @@ async function handleButton(
         : await editOrderButton(env, orderId, partner);
     return reply.text ?? reply.bodyBeforeButtons ?? "";
   }, 90);
-  return lockText === ALREADY_DONE_TEXT ? { text: ALREADY_DONE_TEXT } : reply;
+  if (lockText === ALREADY_DONE_TEXT) return { text: ALREADY_DONE_TEXT };
+  return action === "confirm_order" ? await withVatAsk(env, reply, partner?.id) : reply;
 }
 
 // --------------------------------------------------------------
@@ -816,7 +840,7 @@ async function confirmOrderButton(env: Env, orderId: number, partner: OdooPartne
         tail = "\n📍 أرسل موقع التوصيل (📎 → موقع → موقعي الحالي) أو اكتب اسم الحي.";
       }
     }
-    return { text: `تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿${tail}` };
+    return { text: `تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿${tail}`, confirmedOrderId: orderId };
   }
 
   // Not confirmable now: cancelled at the cutoff, stale, or past 21:00.
@@ -849,6 +873,8 @@ async function cancelOrderButton(env: Env, orderId: number, partner: OdooPartner
   }
   await updateOrderState(env, orderId, "cancelled");
   await cancelSaleOrderForDailyOrder(env, orderId);
+  // § 44 د — the VAT questions this order opened end, nothing saved
+  if (partner?.id) await import("./vat-ask").then((m) => m.endVatFlowForOrder(env, partner.id, orderId)).catch(() => {});
   return { text: "تم الإلغاء. نستناك المرة الجاية 🌿" };
 }
 

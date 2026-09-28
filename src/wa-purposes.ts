@@ -70,6 +70,10 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // day outside the window. Not «important»: the publication report counts
   // the held ones (no alert per customer).
   customer_prices: crit(op("أسعار اليوم"), "أسعار اليوم"),
+  // § 44 د — «هل منشأتك مسجلة في ضريبة القيمة المضافة؟» after a confirmed order,
+  // and its three steps: the bot answering his tap / text (his window is open),
+  // stale with the step (60 minutes).
+  customer_vat_ask: { label: "سؤال الرقم الضريبي", kind: "reply", important: false, ttl: { hours: 1 } },
   customer_feedback: { label: "طلب التقييم", kind: "marketing", important: false, ttl: "day" },
   customer_inactive: { label: "تذكير الغياب", kind: "marketing", important: false, ttl: "day" },
   // ---- suppliers

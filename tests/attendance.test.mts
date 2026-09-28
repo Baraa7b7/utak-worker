@@ -47,8 +47,10 @@ const F6 = load("./fixtures-odoo-fields-20260925-gateway.json");
 const F7 = load("./fixtures-odoo-fields-20260925-s36.json");
 // STATUS § 41 ج — the 18:00 list excludes by x_invoice.x_utak_simulation (the tenant after § 41)
 const F8 = load("./fixtures-odoo-fields-20260926-s41.json");
-const REAL: Record<string, string[]> = { ...F1, ...F2, ...F3, ...F4, ...F5, ...F6, ...F7, ...F8 };
-const SELECTIONS: Record<string, string[]> = { ...F1._selections, ...F2._selections, ...F3._selections, ...F4._selections, ...F5._selections, ...F6._selections, ...F7._selections, ...F8._selections };
+// § 44: x_vat_status / x_legal_name / x_vat_ask_count on res.partner (the invoice reads them), the purchase side (last: it wins)
+const F9 = load("./fixtures-odoo-fields-20260928-s44.json");
+const REAL: Record<string, string[]> = { ...F1, ...F2, ...F3, ...F4, ...F5, ...F6, ...F7, ...F8, ...F9 };
+const SELECTIONS: Record<string, string[]> = { ...F1._selections, ...F2._selections, ...F3._selections, ...F4._selections, ...F5._selections, ...F6._selections, ...F7._selections, ...F8._selections, ...F9._selections };
 const rejected: string[] = [];
 function known(model: string, name: string): boolean {
   const list = REAL[model];

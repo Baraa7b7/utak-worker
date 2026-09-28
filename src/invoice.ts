@@ -56,7 +56,7 @@ import type { CompanyInfo } from "./company";
 import { readCompanyInfo } from "./company";
 import { toLegalFooterAr } from "./legal-footer";
 import { parseOdooUtc, resolveZatcaQr, zatcaQrSvg, type ZatcaQr } from "./zatca-qr";
-import { riyadhDateTime, taxInvoiceBreakdown, taxInvoiceKind } from "./tax-invoice";
+import { BUYER_TAX_FIELDS, buyerTaxInfo, riyadhDateTime, taxInvoiceBreakdown, taxInvoiceKind, type BuyerTax } from "./tax-invoice";
 import { VAT_RATE_PCT } from "./config";
 import { UI, resolveDocLang, type DocLang } from "./i18n";
 import { formatDateEn, fromPartyFor, itemCellHTML, labelForBillTo, labelForFrom, labelForTerms, taglineFor, thanksLine } from "./doc-shell";
@@ -1269,14 +1269,16 @@ export async function buildInvoicePDFDataFromOdoo(
     vatAmount = b.tax;
     netSubtotal = b.subtotal;
   }
-  let customerVat: string | undefined;
+  // § 44 د — a full tax invoice for a registered buyer: his establishment's
+  // official name, VAT number and address, read at the moment of issue.
+  let buyer: BuyerTax | null = null;
   if (vatAmount > 0) {
     try {
-      const [p] = await call<Array<{ id: number; vat: string | false }>>(env, "res.partner", "read", {
+      const [p] = await call<Array<{ id: number; vat: string | false; x_vat_status: string | false; x_legal_name: string | false; street: string | false; city: string | false }>>(env, "res.partner", "read", {
         ids: [order.customer_id],
-        fields: ["id", "vat"],
+        fields: [...BUYER_TAX_FIELDS],
       });
-      if (p && typeof p.vat === "string" && p.vat.trim()) customerVat = p.vat.trim();
+      buyer = buyerTaxInfo(p);
     } catch (e) {
       console.warn(`[invoice] customer VAT lookup failed`, (e as Error).message);
     }
@@ -1308,10 +1310,10 @@ export async function buildInvoicePDFDataFromOdoo(
     invoiceNumber: invoice.number,
     invoiceDate: invoice.date ? new Date(`${invoice.date}T12:00:00Z`) : new Date(),
     customer: {
-      name: order.customer_name || 'عميل',
-      address: order.neighborhood || 'الرياض',
+      name: buyer?.legalName || order.customer_name || 'عميل',
+      address: buyer?.address || order.neighborhood || 'الرياض',
       phone: order.customer_whatsapp || '',
-      ...(customerVat ? { vat: customerVat } : {}),
+      ...(buyer ? { vat: buyer.vat } : {}),
     },
     items,
     subtotal: vatAmount > 0 ? netSubtotal : subtotal,
@@ -1405,13 +1407,15 @@ export async function buildInvoicePDFDataFromAccountMove(
   if (!head) return null;
   if (head.move_type !== "out_invoice" && head.move_type !== "out_refund") return null;
 
-  type Partner = { id: number; name: string | false; phone: string | false; street: string | false; city: string | false; vat: string | false };
+  type Partner = { id: number; name: string | false; phone: string | false; street: string | false; city: string | false; vat: string | false; x_vat_status: string | false; x_legal_name: string | false };
   const partner = head.partner_id
     ? (await call<Partner[]>(env, "res.partner", "read", {
         ids: [head.partner_id[0]],
-        fields: ["id","name","phone","street","city","vat"],
+        fields: ["id","name","phone","street","city","vat","x_vat_status","x_legal_name"],
       }))[0]
     : null;
+  // § 44 د — the same buyer rule as the x_invoice path (a VAT number, not «غير مسجّل»)
+  const buyer = (head.amount_tax || 0) > 0 ? buyerTaxInfo(partner) : null;
 
   type Line = {
     id: number;
@@ -1514,10 +1518,10 @@ export async function buildInvoicePDFDataFromAccountMove(
     invoiceNumber,
     invoiceDate,
     customer: {
-      name: partner?.name || (head.partner_id ? head.partner_id[1] : "عميل"),
-      address: partner?.street || partner?.city || "الرياض",
+      name: buyer?.legalName || partner?.name || (head.partner_id ? head.partner_id[1] : "عميل"),
+      address: buyer?.address || partner?.street || partner?.city || "الرياض",
       phone: partner?.phone || "",
-      ...(typeof partner?.vat === "string" && partner.vat.trim() ? { vat: partner.vat.trim() } : {}),
+      ...(buyer ? { vat: buyer.vat } : {}),
     },
     items,
     subtotal: (head.amount_tax || 0) > 0 ? round2(head.amount_untaxed) : subtotal,

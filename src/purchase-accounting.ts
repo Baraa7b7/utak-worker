@@ -21,9 +21,25 @@
 // supplier without vat → no tax at all. The tax is the price-included twin of
 // res.company.account_purchase_tax_id, found live in Odoo (never hard-coded).
 //
-// Idempotent: either x_purchase_order_id or x_account_move_id set → skip. A
-// live PO whose origin is this list but that was never linked also blocks a
-// second create (owner alerted) — a crash between confirm and link can never
+// § 44 هـ (2026-09-28) — ONE VENDOR BILL PER SUPPLIER. A list whose items
+// came from more than one supplier (Ahmed, and «مشتريات السوق النقدية» #104
+// for the lines Omar's written market purchase price won in «أسعار اليوم» —
+// the attribution of the supplier dues, src/supplier-pay.ts planDues) gets a
+// purchase.order + bill per supplier, with that supplier's lines and prices:
+// his own item at the list's unit_price, a market-won item at Omar's written
+// price. The input tax is split only for a supplier with a VAT number on his
+// card and a bill dated from 10-01 (per bill). A no-VAT bill of the cash market
+// from 10-01 → ONE line a day to Baraa «مشتريات سوق بلا رقم ضريبي: X ر.س،
+// ضريبتها لا تُخصم» (X = the day's no-VAT cash-market bills).
+//
+// Idempotent, per supplier: the purchase.order's origin is fixed
+// (x_purchase_list/<list>/s<supplier>) and searched before every create — a
+// live one is never created twice (a posted bill → «already»; none → the owner
+// is alerted). The list is linked (x_purchase_order_id / x_account_move_id, the
+// list supplier's bill first) only when EVERY supplier's bill is posted, so a
+// linked list is complete and skipped, and a partial one completes on a re-run.
+// A live PO of the old single-bill origin (x_purchase_list/<list>) still blocks
+// the whole list (owner alerted) — a crash between confirm and link can never
 // produce a duplicate purchase.
 //
 // Guard on the posted bill: expense debited (expense_direct_cost / expense),
@@ -38,6 +54,7 @@ import { isVatApplicable } from "./config";
 import type { PurchaseListItem } from "./types";
 import { call } from "./odoo";
 import { sendOwnerAlert } from "./templates";
+import { findCashMarketSupplier, winnerKey, type MarketWinners } from "./cash-market";
 import {
   computeInclusiveTotals,
   isAccountingSyncEnabled,
@@ -49,9 +66,70 @@ import {
 
 export const PURCHASE_GOODS_PRODUCT_CODE = "UTAK-PUR-GOODS";
 
-/** purchase.order.origin for a list — also the orphan-PO search key. */
+/** purchase.order.origin of the old single bill of a list — still the orphan-PO search key. */
 export function purchaseListOrigin(listId: number): string {
   return `x_purchase_list/${listId}`;
+}
+
+/** § 44 هـ — the fixed purchase.order.origin of one supplier's bill of a list (searched before every create). */
+export function purchaseBillOrigin(listId: number, supplierId: number): string {
+  return `${purchaseListOrigin(listId)}/s${supplierId}`;
+}
+
+/** § 44 ز — the bill's reference: the purchase list's number (the supplier's own invoice number has no field yet). */
+export function purchaseBillRef(listId: number): string {
+  return `PL-${listId}`;
+}
+
+export const CASH_NO_VAT_PREFIX = "مشتريات سوق بلا رقم ضريبي";
+/** § 44 هـ — Baraa's one line a day. */
+export function cashNoVatText(totalSar: number): string {
+  const r = Math.round(totalSar * 100) / 100;
+  return `${CASH_NO_VAT_PREFIX}: ${Number.isInteger(r) ? r : r.toFixed(2)} ر.س، ضريبتها لا تُخصم`;
+}
+
+export interface SupplierBillPlan {
+  supplierId: number;
+  /** The supplier's items, each at the price he is paid (unit_price). */
+  items: PurchaseListItem[];
+  /** The market-won lines (owed to «مشتريات السوق النقدية»). */
+  market: boolean;
+}
+
+/**
+ * § 44 هـ — the list's items per supplier (the supplier dues' attribution): a
+ * line whose winning purchase price came from a market source goes to the
+ * cash-market supplier at that written price; any other to its own supplier
+ * (price_supplier_id, else the list's) at the list's unit_price. No supplier →
+ * `noSupplier`. The list's supplier first, then by id.
+ */
+export function planSupplierBills(
+  items: PurchaseListItem[],
+  listSupplierId: number | null,
+  market?: { cashSupplierId: number | null; winners: MarketWinners },
+): { bills: SupplierBillPlan[]; noSupplier: PurchaseListItem[] } {
+  const by = new Map<number, SupplierBillPlan>();
+  const noSupplier: PurchaseListItem[] = [];
+  for (const it of items) {
+    if (!(Number(it.total_quantity) > 0)) continue;
+    const won = market?.winners.get(winnerKey(it.product_id, it.packaging_id));
+    let sid: number | null;
+    let line: PurchaseListItem = it;
+    if (won) {
+      sid = market!.cashSupplierId;
+      line = { ...it, unit_price: won.price };
+    } else {
+      const p = Number((it as { price_supplier_id?: number | null }).price_supplier_id ?? 0);
+      sid = p > 0 ? p : listSupplierId && listSupplierId > 0 ? listSupplierId : null;
+    }
+    if (!sid) { noSupplier.push(it); continue; }
+    const b = by.get(sid) ?? { supplierId: sid, items: [], market: !!won };
+    b.items.push(line);
+    b.market = b.market || !!won;
+    by.set(sid, b);
+  }
+  const bills = [...by.values()].sort((a, b) => (a.supplierId === listSupplierId ? -1 : b.supplierId === listSupplierId ? 1 : a.supplierId - b.supplierId));
+  return { bills, noSupplier };
 }
 
 /** A supplier is VAT-registered when res.partner.vat holds a non-empty value. */
@@ -218,15 +296,32 @@ export interface PurchaseSyncOptions {
   vatEffectiveDate?: string;
 }
 
+export interface SupplierBillResult {
+  supplierId: number;
+  purchaseOrderId: number;
+  moveId: number;
+  /** Found by its fixed origin (not created now). */
+  existed: boolean;
+  tax: boolean;
+  total: number;
+}
+
 export interface PurchaseSyncResult {
+  /** The first bill (the list supplier's when it has one). */
   purchaseOrderId: number;
   moveId: number;
   skipped: boolean;
+  /** § 44 هـ — one per supplier. */
+  bills?: SupplierBillResult[];
+  /** § 44 هـ — suppliers whose bill was refused (owner alerted), and items with no supplier. */
+  failed?: number[];
+  noSupplier?: number;
 }
 
 /**
- * Sync one closed x_purchase_list → purchase.order + posted vendor bill.
- * Returns the linked ids, or null on any refusal/failure (owner alerted).
+ * Sync one closed x_purchase_list → a purchase.order + posted vendor bill per
+ * supplier (§ 44 هـ). Returns the bills (the first one's ids on top), or null
+ * when none could be made (owner alerted). NEVER throws.
  */
 export async function syncPurchaseListToAccounting(
   env: Env,
@@ -234,22 +329,20 @@ export async function syncPurchaseListToAccounting(
   opts: PurchaseSyncOptions = {},
 ): Promise<PurchaseSyncResult | null> {
   if (!isAccountingSyncEnabled(env)) return null;
-  let poId: number | null = null;
-  let billId: number | null = null;
-  const fail = async (reason: string): Promise<null> => {
-    if (billId) await cancelMoveQuietly(env, billId);
-    if (poId) await cancelPurchaseOrderQuietly(env, poId);
-    const msg = `[purchase-accounting] قائمة الشراء #${listId}: ${reason}` +
-      (billId || poId ? ` — أُلغي${billId ? ` القيد ${billId}` : ""}${poId ? ` وأمر الشراء ${poId}` : ""}` : "") +
-      "، ولم يُربط شيء";
+  const alert = async (reason: string): Promise<void> => {
+    const msg = `[purchase-accounting] قائمة الشراء #${listId}: ${reason}`;
     console.error(msg);
     try { await sendOwnerAlert(env, msg); } catch { /* alert must not block */ }
+  };
+  const failList = async (reason: string): Promise<null> => {
+    await alert(`${reason}، ولم يُربط شيء`);
     return null;
   };
 
   try {
     type ListRow = {
       id: number;
+      x_date?: string | false;
       x_supplier_id: [number, string] | false;
       x_purchase_order_id: [number, string] | false;
       x_account_move_id: [number, string] | false;
@@ -257,9 +350,9 @@ export async function syncPurchaseListToAccounting(
     };
     const [list] = await call<ListRow[]>(env, "x_purchase_list", "read", {
       ids: [listId],
-      fields: ["id", "x_supplier_id", "x_purchase_order_id", "x_account_move_id", "x_aggregated_items"],
+      fields: ["id", "x_date", "x_supplier_id", "x_purchase_order_id", "x_account_move_id", "x_aggregated_items"],
     });
-    if (!list) return await fail("القائمة غير موجودة");
+    if (!list) return await failList("القائمة غير موجودة");
     if (list.x_purchase_order_id || list.x_account_move_id) {
       console.log(`[purchase-accounting] list ${listId} already linked (po=${list.x_purchase_order_id ? list.x_purchase_order_id[0] : "-"}, move=${list.x_account_move_id ? list.x_account_move_id[0] : "-"}) — skip`);
       return {
@@ -268,15 +361,13 @@ export async function syncPurchaseListToAccounting(
         skipped: true,
       };
     }
-    if (!list.x_supplier_id) return await fail("المورد (x_supplier_id) غير محدد");
-    const supplierId = list.x_supplier_id[0];
 
     let items: PurchaseListItem[];
     try { items = parsePurchaseListItems(list.x_aggregated_items); }
-    catch (e) { return await fail(`x_aggregated_items تالف: ${(e as Error).message}`); }
-    const itemReasons = validatePurchaseItems(items);
-    if (itemReasons.length) return await fail(itemReasons.join("؛ "));
+    catch (e) { return await failList(`x_aggregated_items تالف: ${(e as Error).message}`); }
+    if (!items.some((it) => Number(it.total_quantity) > 0)) return await failList("لا أصناف بكمية في القائمة");
 
+    // the old single bill of this list (origin without /s…): never a second purchase
     const origin = purchaseListOrigin(listId);
     const orphans = await call<Array<{ id: number; name: string; state: string }>>(env, "purchase.order", "search_read", {
       domain: [["origin", "=", origin], ["state", "!=", "cancel"]],
@@ -284,7 +375,21 @@ export async function syncPurchaseListToAccounting(
       limit: 5,
     });
     if (orphans.length) {
-      return await fail(`يوجد أمر شراء قائم لهذه القائمة غير مربوط (${orphans.map((o) => `${o.name}/${o.id}`).join("، ")}) — راجعه يدوياً`);
+      return await failList(`يوجد أمر شراء قائم لهذه القائمة غير مربوط (${orphans.map((o) => `${o.name}/${o.id}`).join("، ")}) — راجعه يدوياً`);
+    }
+
+    // who is owed each line: the supplier dues' attribution (§ 42 أ)
+    let market: { cashSupplierId: number | null; winners: MarketWinners } | undefined;
+    if (list.x_date) {
+      const { readMarketPlan } = await import("./supplier-pay");
+      market = await readMarketPlan(env, String(list.x_date));
+    }
+    const listSupplierId = list.x_supplier_id ? list.x_supplier_id[0] : null;
+    const plan = planSupplierBills(items, listSupplierId, market);
+    if (plan.noSupplier.length) {
+      const names = plan.noSupplier.map((it) => `«${it.product_name} — ${it.packaging_name}»`).join("، ");
+      if (!plan.bills.length) return await failList(`المورد غير محدد لأي صنف (${names})`);
+      await alert(`بلا مورد: ${names} — لم تدخل أي فاتورة مورد، والقائمة لم تُربط`);
     }
 
     const [product] = await call<Array<{ id: number }>>(env, "product.product", "search_read", {
@@ -292,28 +397,100 @@ export async function syncPurchaseListToAccounting(
       fields: ["id"],
       limit: 1,
     });
-    if (!product) return await fail(`منتج الخدمة ${PURCHASE_GOODS_PRODUCT_CODE} غير موجود (شغّل scripts/acct-20260923-purchase-setup.mjs)`);
+    if (!product) return await failList(`منتج الخدمة ${PURCHASE_GOODS_PRODUCT_CODE} غير موجود (شغّل scripts/acct-20260923-purchase-setup.mjs)`);
+
+    const billDate = opts.billDate ?? todayRiyadhYmd();
+    const done: SupplierBillResult[] = [];
+    const failed: number[] = [];
+    for (const b of plan.bills) {
+      const r = await syncOneSupplierBill(env, listId, b, product.id, billDate, opts);
+      if (r.ok) done.push(r.bill);
+      else { failed.push(b.supplierId); await alert(r.reason); }
+    }
+    if (!done.length) return null;
+
+    // linked only when complete: every supplier's bill, and no item without a supplier
+    if (!failed.length && !plan.noSupplier.length) {
+      await call<boolean>(env, "x_purchase_list", "write", {
+        ids: [listId],
+        vals: { x_purchase_order_id: done[0].purchaseOrderId, x_account_move_id: done[0].moveId },
+      });
+    }
+    console.log(`[purchase-accounting] list ${listId}: ${done.map((d) => `s${d.supplierId} → po ${d.purchaseOrderId} bill ${d.moveId}${d.existed ? " (existed)" : ""} total ${d.total}${d.tax ? " taxed" : ""}`).join("; ")}${failed.length ? ` · failed ${failed.join(",")}` : ""}`);
+
+    // § 44 هـ — the cash market without a VAT number from 10-01: Baraa's one line a day
+    if (done.some((d) => !d.existed && !d.tax) && isVatApplicable(billDate, opts.vatEffectiveDate)) {
+      try { await notifyCashNoVat(env, billDate, done); } catch (e) { console.warn("[purchase-accounting] cash no-VAT line failed", (e as Error)?.message); }
+    }
+    return {
+      purchaseOrderId: done[0].purchaseOrderId, moveId: done[0].moveId, skipped: false,
+      bills: done, failed, noSupplier: plan.noSupplier.length,
+    };
+  } catch (e) {
+    return await failList(`فشل الربط المحاسبي: ${(e as Error).message}`);
+  }
+}
+
+/** One supplier's purchase.order + posted bill (§ 44 هـ). Never throws; cancels what it made on failure. */
+async function syncOneSupplierBill(
+  env: Env,
+  listId: number,
+  b: SupplierBillPlan,
+  productId: number,
+  billDate: string,
+  opts: PurchaseSyncOptions,
+): Promise<{ ok: true; bill: SupplierBillResult } | { ok: false; reason: string }> {
+  let poId: number | null = null;
+  let billId: number | null = null;
+  const fail = async (reason: string): Promise<{ ok: false; reason: string }> => {
+    if (billId) await cancelMoveQuietly(env, billId);
+    if (poId) await cancelPurchaseOrderQuietly(env, poId);
+    return {
+      ok: false,
+      reason: `فاتورة المورد #${b.supplierId}: ${reason}` +
+        (billId || poId ? ` — أُلغي${billId ? ` القيد ${billId}` : ""}${poId ? ` وأمر الشراء ${poId}` : ""}` : "") + "، ولم تُربط القائمة",
+    };
+  };
+  try {
+    const itemReasons = validatePurchaseItems(b.items);
+    if (itemReasons.length) return await fail(itemReasons.join("؛ "));
+    const origin = purchaseBillOrigin(listId, b.supplierId);
+    // the fixed reference, checked before the create: one bill per supplier per list
+    const existing = await call<Array<{ id: number; name: string; state: string; invoice_ids: number[] }>>(env, "purchase.order", "search_read", {
+      domain: [["origin", "=", origin], ["state", "!=", "cancel"]],
+      fields: ["id", "name", "state", "invoice_ids"],
+      limit: 5,
+    });
+    if (existing.length) {
+      const inv = existing[0].invoice_ids?.length
+        ? await call<Array<{ id: number; state: string; amount_total: number; amount_tax: number }>>(env, "account.move", "search_read", {
+            domain: [["id", "in", existing[0].invoice_ids], ["state", "=", "posted"], ["move_type", "=", "in_invoice"]],
+            fields: ["id", "state", "amount_total", "amount_tax"], limit: 5,
+          })
+        : [];
+      if (existing.length === 1 && inv.length === 1) {
+        return { ok: true, bill: { supplierId: b.supplierId, purchaseOrderId: existing[0].id, moveId: inv[0].id, existed: true, tax: (inv[0].amount_tax ?? 0) > 0, total: inv[0].amount_total } };
+      }
+      return { ok: false, reason: `فاتورة المورد #${b.supplierId}: يوجد أمر شراء قائم لها (${existing.map((o) => `${o.name}/${o.id}`).join("، ")}) بلا فاتورة مرحّلة واحدة — راجعه يدوياً، ولم تُربط القائمة` };
+    }
 
     const [supplier] = await call<Array<{ id: number; vat: string | false }>>(env, "res.partner", "read", {
-      ids: [supplierId],
+      ids: [b.supplierId],
       fields: ["id", "vat"],
     });
-    const billDate = opts.billDate ?? todayRiyadhYmd();
     const tax = await resolvePurchaseTaxForBill(env, {
       supplierVat: supplier?.vat, billDate, vatEffectiveDate: opts.vatEffectiveDate,
     });
-    const priced = items.filter((it) => Number(it.total_quantity) > 0);
     const expected = computeInclusiveTotals(
-      priced.map((it) => (it.unit_price as number) * it.total_quantity),
+      b.items.map((it) => (it.unit_price as number) * it.total_quantity),
       tax?.rate ?? null,
     );
-
     const [createdPo] = await call<number[]>(env, "purchase.order", "create", {
       vals_list: [{
-        partner_id: supplierId,
+        partner_id: b.supplierId,
         origin,
-        partner_ref: `PL-${listId}`,
-        order_line: buildPurchaseOrderLineCommands(priced, product.id, tax ? [tax.id] : []),
+        partner_ref: purchaseBillRef(listId),
+        order_line: buildPurchaseOrderLineCommands(b.items, productId, tax ? [tax.id] : []),
       }],
     }, { probe: [["origin", "=", origin], ["state", "=", "draft"]] });
     poId = createdPo;
@@ -331,7 +508,7 @@ export async function syncPurchaseListToAccounting(
     billId = po.invoice_ids[0];
     await call<boolean>(env, "account.move", "write", {
       ids: [billId],
-      vals: { invoice_date: billDate, ref: `PL-${listId}` },
+      vals: { invoice_date: billDate, ref: purchaseBillRef(listId) },
     });
     try {
       await call<boolean>(env, "account.move", "action_post", { ids: [billId] });
@@ -358,16 +535,29 @@ export async function syncPurchaseListToAccounting(
       },
     });
     if (!guard.ok) return await fail(`حارس فاتورة المورد: ${guard.reasons.join("؛ ")}`);
-
-    await call<boolean>(env, "x_purchase_list", "write", {
-      ids: [listId],
-      vals: { x_purchase_order_id: poId, x_account_move_id: billId },
-    });
-    console.log(`[purchase-accounting] linked x_purchase_list ${listId} → purchase.order ${poId} + bill ${billId} (total ${expected.total}, tax ${expected.tax})`);
-    return { purchaseOrderId: poId, moveId: billId, skipped: false };
+    return { ok: true, bill: { supplierId: b.supplierId, purchaseOrderId: poId, moveId: billId, existed: false, tax: tax !== null, total: expected.total } };
   } catch (e) {
     return await fail(`فشل الربط المحاسبي: ${(e as Error).message}`);
   }
+}
+
+/**
+ * § 44 هـ — a no-VAT bill of «مشتريات السوق النقدية» from 10-01: ONE line to
+ * Baraa that day with the day's no-VAT cash-market bills (claimed per day).
+ */
+async function notifyCashNoVat(env: Env, billDate: string, bills: SupplierBillResult[]): Promise<void> {
+  const cash = await findCashMarketSupplier(env);
+  if (!cash || !bills.some((d) => d.supplierId === cash.id && !d.tax && !d.existed)) return;
+  const { claimButton } = await import("./button-lock");
+  const claim = await claimButton(env, `cash_novat:${billDate}`, 26 * 60 * 60);
+  if (!claim.claimed) return;
+  const day = await call<Array<{ amount_total: number; amount_tax: number }>>(env, "account.move", "search_read", {
+    domain: [["move_type", "=", "in_invoice"], ["state", "=", "posted"], ["partner_id", "=", cash.id], ["invoice_date", "=", billDate]],
+    fields: ["amount_total", "amount_tax"], limit: 200,
+  });
+  const total = roundHalala(day.filter((m) => !(m.amount_tax > 0)).reduce((a, m) => a + (m.amount_total ?? 0), 0));
+  if (!(total > 0)) return;
+  await sendOwnerAlert(env, cashNoVatText(total));
 }
 
 async function readMoveLinesWithTypes(env: Env, moveId: number): Promise<GuardLine[]> {

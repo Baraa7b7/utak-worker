@@ -19,6 +19,9 @@ const RT = "src/router.ts";
 const IX = "src/index.ts";
 const TX = "src/tax-invoice.ts";
 const INV = "src/invoice.ts";
+const PA = "src/purchase-accounting.ts";
+const SA = "src/sale-accounting.ts";
+const TSA = "tests/sale-accounting.test.mts";
 
 // [part, name, [[file, find, replace], …], test file]
 const M = [
@@ -114,6 +117,44 @@ const M = [
   ["د", "the full invoice without the buyer's number", [[INV,
     "      ...(buyer ? { vat: buyer.vat } : {}),\n    },\n    items,\n    subtotal: vatAmount > 0 ? netSubtotal : subtotal,",
     "    },\n    items,\n    subtotal: vatAmount > 0 ? netSubtotal : subtotal,"]], T],
+  // ---------------------------------------------------------------- هـ one bill per supplier
+  ["هـ", "the market winners ignored (Omar's line back on Ahmed's bill)", [[PA,
+    "    const won = market?.winners.get(winnerKey(it.product_id, it.packaging_id));",
+    "    const won = undefined as { price: number } | undefined; void winnerKey;"]], T],
+  ["هـ", "a market line at the list's price (Ahmed's 13), not Omar's written one", [[PA,
+    "      line = { ...it, unit_price: won.price };", "      line = it;"]], T],
+  ["هـ", "no check of the fixed origin before the create (a second bill)", [[PA,
+    "    if (existing.length) {\n      const inv =", "    if (false) {\n      const inv ="]], T],
+  ["هـ", "the list linked though a supplier's bill failed", [[PA,
+    "    if (!failed.length && !plan.noSupplier.length) {", "    if (true) {"]], T],
+  ["هـ", "the input tax split whatever the supplier's card says", [[PA,
+    "      supplierVat: supplier?.vat, billDate, vatEffectiveDate: opts.vatEffectiveDate,\n    });\n    const expected",
+    "      supplierVat: \"3\", billDate, vatEffectiveDate: opts.vatEffectiveDate,\n    });\n    void supplier;\n    const expected"]], T],
+  ["هـ", "the no-VAT line before 10-01 too", [[PA,
+    "    if (done.some((d) => !d.existed && !d.tax) && isVatApplicable(billDate, opts.vatEffectiveDate)) {",
+    "    if (done.some((d) => !d.existed && !d.tax)) {"]], T],
+  ["هـ", "the no-VAT line more than once a day", [[PA,
+    "  const claim = await claimButton(env, `cash_novat:${billDate}`, 26 * 60 * 60);\n  if (!claim.claimed) return;\n",
+    "  void claimButton;\n"]], T],
+  // two guards (its bill carries no tax; the day's sum counts untaxed bills only): both off together
+  ["هـ", "the no-VAT line though the cash market has a VAT number", [[PA,
+    "  if (!cash || !bills.some((d) => d.supplierId === cash.id && !d.tax && !d.existed)) return;",
+    "  if (!cash || !bills.some((d) => d.supplierId === cash.id && !d.existed)) return;"], [PA,
+    "  const total = roundHalala(day.filter((m) => !(m.amount_tax > 0)).reduce((a, m) => a + (m.amount_total ?? 0), 0));",
+    "  const total = roundHalala(day.reduce((a, m) => a + (m.amount_total ?? 0), 0));"]], T],
+  ["هـ", "a reused (existing) bill announced as a new no-VAT purchase", [[PA,
+    "  if (!cash || !bills.some((d) => d.supplierId === cash.id && !d.tax && !d.existed)) return;",
+    "  if (!cash || !bills.some((d) => d.supplierId === cash.id && !d.tax)) return;"]], T],
+  ["هـ", "the list linked to the market's bill (not the list supplier's first)", [[PA,
+    "  const bills = [...by.values()].sort((a, b) => (a.supplierId === listSupplierId ? -1 : b.supplierId === listSupplierId ? 1 : a.supplierId - b.supplierId));",
+    "  const bills = [...by.values()].sort((a, b) => a.supplierId - b.supplierId);"]], T],
+  ["هـ", "no supplier for an item billed anyway to the list's supplier", [[PA,
+    "      sid = market!.cashSupplierId;", "      sid = market!.cashSupplierId ?? listSupplierId;"]], T],
+  // ---------------------------------------------------------------- ز the invoice number on its entry
+  ["ز", "the supplier bill without the list's number (PL-<list>)", [[PA,
+    "      vals: { invoice_date: billDate, ref: purchaseBillRef(listId) },", "      vals: { invoice_date: billDate },"]], T],
+  ["ز", "the customer's entry without the invoice number sent to him (UTAK-INV-…)", [[SA,
+    "      vals: { invoice_date: invoiceDate, ref: args.invoiceNumber },", "      vals: { invoice_date: invoiceDate },"]], TSA],
 ];
 
 const want = new Set(process.argv.slice(2));

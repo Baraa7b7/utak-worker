@@ -14,6 +14,12 @@
 //       one alert; «إيقاف» or the order cancelled → nothing saved; the full tax
 //       invoice after the save (name, number, address printed), the simplified
 //       one before it; delivery never waits.
+//   [هـ] a purchase list with items from two suppliers (Ahmed, and «مشتريات
+//       السوق النقدية» for the lines Omar's market purchase price won) → one
+//       purchase.order + posted bill per supplier with its lines and prices; the
+//       input tax only for a supplier with a VAT number, from 10-01; the cash
+//       market without one → no input tax and Baraa's one line a day; one bill
+//       per supplier per list (fixed origin, checked before every create).
 //   [س] schema: every Odoo request names real fields and values (§ 44 fixture).
 //
 // In-memory Odoo + captured Graph (tests/wa-harness.mts). No network, no send.
@@ -81,8 +87,31 @@ globalThis.fetch = (async (input: unknown, init?: any) => {
       return new Response(JSON.stringify({ name: "builtins.ValueError", message, arguments: [message] }), { status: 500 });
     }
   }
+  // § 44 هـ — Odoo's purchase flow, as the tenant runs it: confirm, the bill from the PO lines
+  // (price-included 15 % when the line carries tax 43), post.
+  if (m && m[1] === "purchase.order" && m[2] === "button_confirm") {
+    for (const id of JSON.parse(init.body).ids) (table("purchase.order").get(id) as any).state = "purchase";
+    return new Response("true", { status: 200 });
+  }
+  if (m && m[1] === "purchase.order" && m[2] === "action_create_invoice") {
+    const po = table("purchase.order").get(JSON.parse(init.body).ids[0]) as any;
+    const grosses = (po.order_line as any[]).map((c) => c[2].price_unit * c[2].product_qty);
+    const taxed = (po.order_line as any[]).some((c) => JSON.stringify(c[2].tax_ids) === "[[6,0,[43]]]");
+    const t = ACC.computeInclusiveTotals(grosses, taxed ? 15 : null);
+    const moveId = seed("account.move", { move_type: "in_invoice", state: "draft", partner_id: po.partner_id, amount_total: t.total, amount_tax: t.tax, invoice_origin: po.name ?? false });
+    seed("account.move.line", { move_id: moveId, account_id: [136, "400001"], debit: t.subtotal, credit: 0, display_type: "product", tax_line_id: false });
+    if (t.tax > 0) seed("account.move.line", { move_id: moveId, account_id: [100, "104041"], debit: t.tax, credit: 0, display_type: "tax", tax_line_id: [43, "15%"] });
+    seed("account.move.line", { move_id: moveId, account_id: [106, "201002"], debit: 0, credit: t.total, display_type: "payment_term", tax_line_id: false });
+    po.invoice_ids = [moveId];
+    return new Response(JSON.stringify({ res_model: "account.move", res_id: moveId }), { status: 200 });
+  }
+  if (m && m[1] === "account.move" && m[2] === "action_post") {
+    for (const id of JSON.parse(init.body).ids) (table("account.move").get(id) as any).state = "posted";
+    return new Response("true", { status: 200 });
+  }
   return harnessFetch(input as any, init);
 }) as typeof fetch;
+const ACC = await import("../src/accounting.ts");
 
 const { setOdooRetryHooksForTests } = await import("../src/odoo.ts");
 setOdooRetryHooksForTests({ sleep: async () => {}, alert: async () => {} });
@@ -480,6 +509,123 @@ console.log("\n[د] the invoice at delivery (10-01): simplified before the save,
   const d = await deliver("2026-09-30 20:00");
   assert("[د] before 10-01 the status changes nothing: «فاتورة», no VAT", !d.text.includes("فاتورة ضريبية") && !d.data.customer.vat, d.text.slice(0, 120));
   assert("[د] no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
+}
+
+
+// ================================================================ [هـ]
+const PA = await import("../src/purchase-accounting.ts");
+const CASH = 104, OMAR_EMP = 7000 + DRIVER;
+/** A day of «أسعار اليوم» (D) and a confirmed list: tomato 10 (Ahmed won at 20), cucumber 4 (Omar's market purchase 11.5 won; the list priced it at Ahmed's 13). */
+function purchaseSetup(riyadh: string, D: string, o: { ahmedVat?: string | false; cashVat?: string | false; market?: boolean; cash?: boolean } = {}): number {
+  fresh(riyadh);
+  ENV.ACCOUNTING_SYNC = "true";
+  Object.assign(table("res.partner").get(AHMED)!, { vat: o.ahmedVat ?? false });
+  if (o.cash !== false) seed("res.partner", { id: CASH, name: "مشتريات السوق النقدية", ref: "UTAK-CASH-MARKET", supplier_rank: 1, x_vat_registered: true, x_price_source: false, x_wa_allowed: false, vat: o.cashVat ?? false });
+  Object.assign(table("hr.employee").get(OMAR_EMP)!, { x_price_source: true, x_vat_registered: true });
+  seed("product.product", { id: 900, default_code: "UTAK-PUR-GOODS", type: "service", name: "بضاعة مشتراة (وسيط)" });
+  Object.assign(table("res.company").get(1)!, { account_purchase_tax_id: [21, "15%"] });
+  seed("account.tax", { id: 21, amount: 15, amount_type: "percent", type_tax_use: "purchase", price_include: false, active: true, tax_group_id: [3, "VAT"] });
+  seed("account.tax", { id: 43, amount: 15, amount_type: "percent", type_tax_use: "purchase", price_include: true, price_include_override: "tax_included", active: true, tax_group_id: [3, "VAT"] });
+  seed("account.account", { id: 136, code: "400001", account_type: "expense_direct_cost" });
+  seed("account.account", { id: 106, code: "201002", account_type: "liability_payable" });
+  seed("account.account", { id: 100, code: "104041", account_type: "asset_current" });
+  const day = seed("x_price_day", { x_date: D, x_state: "published" });
+  seed("x_price_day_line", { x_day_id: day, x_product_tmpl_id: 1, x_packaging_id: 11, x_supplier_id: AHMED, x_source_price: 20, x_cost_price: 20 });
+  if (o.market !== false) seed("x_price_day_line", { x_day_id: day, x_product_tmpl_id: 2, x_packaging_id: 21, x_supplier_id: DRIVER, x_source_price: 11.5, x_cost_price: 11.5 });
+  const items = [
+    { product_id: 1, product_name: "[UTAK-VEG-001] طماطم", packaging_id: 11, packaging_name: "كرتون", total_quantity: 10, order_ids: [1], price_supplier_id: AHMED, unit_price: 20 },
+    { product_id: 2, product_name: "[UTAK-VEG-002] خيار", packaging_id: 21, packaging_name: "جرم", total_quantity: 4, order_ids: [2], price_supplier_id: AHMED, unit_price: 13 },
+  ];
+  return seed("x_purchase_list", { x_date: D, x_status: "done", x_supplier_id: AHMED, x_aggregated_items: JSON.stringify(items), x_ahmad_confirmed_at: `${D} 00:30:00` });
+}
+const pos = () => rows("purchase.order") as any[];
+const bills = () => (rows("account.move") as any[]).filter((m) => m.move_type === "in_invoice");
+const billOf = (sid: number) => bills().find((b) => b.partner_id === sid);
+const poOf = (sid: number) => pos().find((p) => p.partner_id === sid);
+const noVatLines = () => sentTo(OWNER).map(bodyOf).filter((t) => t.startsWith(PA.CASH_NO_VAT_PREFIX));
+
+console.log("\n[هـ] Ahmed + the cash market (10-01, neither registered): two bills, each its lines at its price, no input tax, Baraa's one line");
+{
+  const L = purchaseSetup("2026-10-01 03:30", "2026-09-30");
+  const r = await quiet(() => PA.syncPurchaseListToAccounting(ENV, L, { billDate: "2026-10-01" }));
+  assert("[هـ] two purchase orders, two posted bills", pos().length === 2 && bills().length === 2 && bills().every((b) => b.state === "posted"), JSON.stringify(pos().map((p) => [p.partner_id, p.origin])));
+  const pa = poOf(AHMED), pc = poOf(CASH);
+  assert("[هـ] Ahmed's: origin x_purchase_list/L/s801, his tomato only, 10 × 20 (the list's price)", pa?.origin === PA.purchaseBillOrigin(L, AHMED) && pa.order_line.length === 1 && pa.order_line[0][2].product_qty === 10 && pa.order_line[0][2].price_unit === 20 && /طماطم/.test(pa.order_line[0][2].name), JSON.stringify(pa?.order_line));
+  assert("[هـ] the cash market's: origin …/s104, the cucumber at Omar's written 11.5 (not Ahmed's 13)", pc?.origin === PA.purchaseBillOrigin(L, CASH) && pc.order_line.length === 1 && pc.order_line[0][2].price_unit === 11.5 && pc.order_line[0][2].product_qty === 4, JSON.stringify(pc?.order_line));
+  assert("[هـ] totals: Ahmed 200, the market 46", billOf(AHMED)?.amount_total === 200 && billOf(CASH)?.amount_total === 46);
+  assert("[هـ] no input tax on either (no VAT number on the cards)", bills().every((b) => b.amount_tax === 0) && pos().every((p) => JSON.stringify(p.order_line[0][2].tax_ids) === "[[6,0,[]]]"));
+  assert("[هـ] each bill's reference = the list's number PL-<list> (§ 44 ز), dated 10-01", bills().every((b) => b.ref === `PL-${L}` && b.invoice_date === "2026-10-01"));
+  const list = table("x_purchase_list").get(L) as any;
+  assert("[هـ] complete → the list linked to Ahmed's (the list supplier's) PO and bill", list.x_purchase_order_id === pa.id && list.x_account_move_id === billOf(AHMED)!.id);
+  assert("[هـ] the result lists both bills", r?.bills?.length === 2 && r.bills.map((b) => b.supplierId).join() === `${AHMED},${CASH}` && !r.failed?.length, JSON.stringify(r));
+  const line = noVatLines();
+  assert("[هـ] Baraa: «مشتريات سوق بلا رقم ضريبي: 46 ر.س، ضريبتها لا تُخصم», once", line.length === 1 && line[0] === "مشتريات سوق بلا رقم ضريبي: 46 ر.س، ضريبتها لا تُخصم", JSON.stringify(line));
+  const again = await quiet(() => PA.syncPurchaseListToAccounting(ENV, L, { billDate: "2026-10-01" }));
+  assert("[هـ] run again: linked → skipped, no third bill, no second line", again?.skipped === true && pos().length === 2 && bills().length === 2 && noVatLines().length === 1);
+  const L2 = seed("x_purchase_list", { ...(table("x_purchase_list").get(L) as any), id: undefined, x_purchase_order_id: false, x_account_move_id: false });
+  await quiet(() => PA.syncPurchaseListToAccounting(ENV, L2, { billDate: "2026-10-01" }));
+  assert("[هـ] a second list the same day: its own two bills, and still ONE line that day", bills().length === 4 && noVatLines().length === 1, JSON.stringify(noVatLines()));
+  assert("[هـ] no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
+}
+
+console.log("\n[هـ] the input tax: only a supplier with a VAT number, only from 10-01");
+{
+  const L = purchaseSetup("2026-10-01 03:30", "2026-09-30", { ahmedVat: "310123456700003" });
+  await quiet(() => PA.syncPurchaseListToAccounting(ENV, L, { billDate: "2026-10-01" }));
+  assert("[هـ] Ahmed registered, 10-01: his line carries the included tax 43, 200 → 173.91 + 26.09", JSON.stringify(poOf(AHMED)?.order_line[0][2].tax_ids) === "[[6,0,[43]]]" && billOf(AHMED)?.amount_tax === 26.09 && billOf(AHMED)?.amount_total === 200, JSON.stringify(billOf(AHMED)));
+  assert("[هـ] …the cash market (no number) in the same list: no input tax", billOf(CASH)?.amount_tax === 0 && JSON.stringify(poOf(CASH)?.order_line[0][2].tax_ids) === "[[6,0,[]]]");
+  assert("[هـ] …Baraa's no-VAT line for the market's 46", noVatLines().join() === "مشتريات سوق بلا رقم ضريبي: 46 ر.س، ضريبتها لا تُخصم");
+  const L9 = purchaseSetup("2026-09-30 03:30", "2026-09-29", { ahmedVat: "310123456700003" });
+  await quiet(() => PA.syncPurchaseListToAccounting(ENV, L9, { billDate: "2026-09-30" }));
+  assert("[هـ] 09-30 (before the cutoff), Ahmed registered: no tax on any bill", bills().length === 2 && bills().every((b) => b.amount_tax === 0));
+  assert("[هـ] …and no no-VAT line before 10-01 (there is no VAT to deduct yet)", noVatLines().length === 0);
+  const Lc = purchaseSetup("2026-10-01 03:30", "2026-09-30", { cashVat: "300000000000003" });
+  await quiet(() => PA.syncPurchaseListToAccounting(ENV, Lc, { billDate: "2026-10-01" }));
+  assert("[هـ] the cash market WITH a VAT number on its card: its bill split (46 → 40 + 6), no line to Baraa", billOf(CASH)?.amount_tax === 6 && noVatLines().length === 0, JSON.stringify(billOf(CASH)));
+}
+
+console.log("\n[هـ] one supplier only (no market line): one bill, as before");
+{
+  const L = purchaseSetup("2026-10-01 03:30", "2026-09-30", { market: false });
+  await quiet(() => PA.syncPurchaseListToAccounting(ENV, L, { billDate: "2026-10-01" }));
+  assert("[هـ] one PO and one bill for Ahmed: tomato 10 × 20 + cucumber 4 × 13 = 252", pos().length === 1 && poOf(AHMED)?.order_line.length === 2 && billOf(AHMED)?.amount_total === 252, JSON.stringify(pos().map((p) => p.order_line)));
+  assert("[هـ] …linked, no line to Baraa", (table("x_purchase_list").get(L) as any).x_account_move_id === billOf(AHMED)!.id && noVatLines().length === 0);
+}
+
+console.log("\n[هـ] no duplicate: the fixed origin is checked before every create (a partial run completes, a posted one is reused)");
+{
+  const L = purchaseSetup("2026-10-01 03:30", "2026-09-30");
+  // the market's bill already made (a run that stopped before the link)
+  const moveId = seed("account.move", { move_type: "in_invoice", state: "posted", partner_id: CASH, amount_total: 46, amount_tax: 0, invoice_date: "2026-10-01", ref: `PL-${L}` });
+  seed("purchase.order", { partner_id: CASH, origin: PA.purchaseBillOrigin(L, CASH), state: "purchase", invoice_ids: [moveId], order_line: [] });
+  const r = await quiet(() => PA.syncPurchaseListToAccounting(ENV, L, { billDate: "2026-10-01" }));
+  assert("[هـ] only Ahmed's is created; the market's found by its origin and reused", pos().length === 2 && bills().length === 2 && r?.bills?.find((b) => b.supplierId === CASH)?.existed === true && r?.bills?.find((b) => b.supplierId === AHMED)?.existed === false, JSON.stringify(r));
+  assert("[هـ] …now complete → linked", (table("x_purchase_list").get(L) as any).x_account_move_id === billOf(AHMED)!.id);
+  assert("[هـ] …an existing bill is not a new no-VAT line", noVatLines().length === 0);
+  const L2 = purchaseSetup("2026-10-01 03:30", "2026-09-30");
+  seed("purchase.order", { partner_id: CASH, origin: PA.purchaseBillOrigin(L2, CASH), state: "purchase", invoice_ids: [], order_line: [] });
+  const r2 = await quiet(() => PA.syncPurchaseListToAccounting(ENV, L2, { billDate: "2026-10-01" }));
+  assert("[هـ] a live PO for the market without a posted bill: nothing created for it, Baraa alerted, the list NOT linked", pos().filter((p) => p.partner_id === CASH).length === 1 && r2?.failed?.includes(CASH)
+    && !(table("x_purchase_list").get(L2) as any).x_account_move_id && sentTo(OWNER).map(bodyOf).some((t) => t.includes(`فاتورة المورد #${CASH}`) && t.includes("راجعه يدوياً")), JSON.stringify(r2));
+  const r3 = await quiet(() => PA.syncPurchaseListToAccounting(ENV, L2, { billDate: "2026-10-01" }));
+  assert("[هـ] …run again: Ahmed's reused (not a second), the market still refused", pos().filter((p) => p.partner_id === AHMED).length === 1 && r3?.bills?.find((b) => b.supplierId === AHMED)?.existed === true);
+  const L3 = purchaseSetup("2026-10-01 03:30", "2026-09-30", { cash: false });
+  const r4 = await quiet(() => PA.syncPurchaseListToAccounting(ENV, L3, { billDate: "2026-10-01" }));
+  assert("[هـ] the cash-market partner missing: the market line has no supplier → alerted, not billed to Ahmed, the list not linked",
+    pos().length === 1 && poOf(AHMED)?.order_line.length === 1 && r4?.noSupplier === 1 && !(table("x_purchase_list").get(L3) as any).x_account_move_id
+    && sentTo(OWNER).map(bodyOf).some((t) => t.includes("بلا مورد") && t.includes("خيار")), JSON.stringify(r4));
+  assert("[هـ] no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
+}
+
+console.log("\n[هـ] the plan (pure): per supplier, the market lines at the written price");
+{
+  const it = (p: number, k: number, q: number, s: number | null, price: number | null) => ({ product_id: p, product_name: `p${p}`, packaging_id: k, packaging_name: "k", total_quantity: q, order_ids: [1], price_supplier_id: s, unit_price: price }) as any;
+  const winners = new Map([["2::21", { partnerId: DRIVER, sourceName: "عمر", price: 11.5 }]]);
+  const p1 = PA.planSupplierBills([it(1, 11, 10, AHMED, 20), it(2, 21, 4, AHMED, 13), it(3, 31, 0, AHMED, 5)], AHMED, { cashSupplierId: CASH, winners });
+  assert("[هـ] Ahmed first, the market second; zero quantities dropped", p1.bills.map((b) => `${b.supplierId}:${b.items.map((i) => `${i.product_id}@${i.unit_price}`).join("+")}`).join(" ") === `${AHMED}:1@20 ${CASH}:2@11.5` && p1.noSupplier.length === 0, JSON.stringify(p1));
+  const p2 = PA.planSupplierBills([it(1, 11, 10, null, 20)], null);
+  assert("[هـ] no supplier anywhere → noSupplier", p2.bills.length === 0 && p2.noSupplier.length === 1);
+  assert("[هـ] the line's text", PA.cashNoVatText(46) === "مشتريات سوق بلا رقم ضريبي: 46 ر.س، ضريبتها لا تُخصم" && PA.cashNoVatText(12.5) === "مشتريات سوق بلا رقم ضريبي: 12.50 ر.س، ضريبتها لا تُخصم");
 }
 
 // ================================================================ summary

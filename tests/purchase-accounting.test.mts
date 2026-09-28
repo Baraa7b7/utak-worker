@@ -18,6 +18,7 @@
 import {
   buildPurchaseOrderLineCommands,
   evaluateVendorBillGuard,
+  purchaseBillOrigin,
   purchaseListOrigin,
   resolveCompanyPurchaseTaxIncluded,
   supplierIsVatRegistered,
@@ -144,7 +145,9 @@ async function testUnregistered(): Promise<void> {
   assert("linked", r?.purchaseOrderId === 501 && r?.moveId === 601, JSON.stringify(r));
   assert("PO line tax_ids = [[6,0,[]]]", JSON.stringify(poLines()[0]?.[2]?.tax_ids) === "[[6,0,[]]]");
   assert("PO line = service product 900, 1 × 80", poLines()[0]?.[2]?.product_id === 900 && poLines()[0]?.[2]?.price_unit === 80 && poLines()[0]?.[2]?.product_qty === 1);
-  assert("PO origin = x_purchase_list/7", hits("/purchase.order/create")[0]?.body?.vals_list?.[0]?.origin === purchaseListOrigin(7));
+  // § 44 هـ — one bill per supplier: the fixed origin x_purchase_list/7/s90, searched before the create
+  assert("PO origin = x_purchase_list/7/s90 (§ 44: one per supplier)", hits("/purchase.order/create")[0]?.body?.vals_list?.[0]?.origin === purchaseBillOrigin(7, 90));
+  assert("…the old single-bill origin x_purchase_list/7 still searched first", JSON.stringify(hits("/purchase.order/search_read")[0]?.body?.domain?.[0]) === JSON.stringify(["origin", "=", purchaseListOrigin(7)]));
   assert("no tax lookup", hits("/account.tax/read").length === 0 && hits("/account.tax/search_read").length === 0);
   assert("button_confirm called", hits("/purchase.order/button_confirm").length === 1);
   assert("bill dated 2026-10-05", hits("/account.move/write")[0]?.body?.vals?.invoice_date === "2026-10-05");

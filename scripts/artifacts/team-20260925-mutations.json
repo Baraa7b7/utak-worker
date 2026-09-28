@@ -392,7 +392,7 @@
     "first": [
       "no new partner, nothing sent to him (no welcome, no reply)",
       "both messages kept on the archived partner (x_wa_message)",
-      "«طلب أو استفسار شراء» → ONE owner alert «رقم مؤرشف يطلب: مؤرشف قديم» for the day — []"
+      "«طلب أو استفسار شراء» → ONE owner alert «رقم مؤرشف يطلب: مؤرشف قديم» for the day — [{\"messaging_product\":\"whatsapp\","
     ]
   },
   {

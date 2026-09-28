@@ -1,0 +1,1209 @@
+{
+  "at": "2026-09-28T06:50:10.156Z",
+  "riyadhNow": "2026-09-28 09:50",
+  "since": "2026-09-26 21:00:00",
+  "sinceRiyadh": "2026-09-27 00:00",
+  "counts": {
+    "waRows": 60,
+    "inboundExternal": 1,
+    "outbound": 50,
+    "outboundFailures": 6
+  },
+  "inbound": [
+    {
+      "wa_row": 754,
+      "partner": "#105 بيت التمور",
+      "number": "+966…9526",
+      "riyadh": "2026-09-27 08:59",
+      "kind": "text",
+      "text": "السلام عليكم",
+      "class": "customer",
+      "reviewPending": true,
+      "intent": "unclear",
+      "did": "خارج SIM_ALLOWLIST لكن x_wa_allowed = true (افتراض الشريك الجديد): عولج كعميل وأُرسل له",
+      "replies": [
+        "08:59 customer_welcome → read",
+        "08:59 bot_reply → read"
+      ],
+      "ownerAlerts": [],
+      "gotReply": true
+    }
+  ],
+  "outbound": [
+    {
+      "wa_row": 727,
+      "riyadh": "2026-09-27 01:58",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "owner_alert",
+      "kind": "text",
+      "template": "",
+      "status": "sent",
+      "gateway": "",
+      "manual": false,
+      "text": "⚠️ Odoo لم يستجب بعد 4 محاولات — العملية resource.calendar.l",
+      "error": ""
+    },
+    {
+      "wa_row": 728,
+      "riyadh": "2026-09-27 01:58",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "—",
+      "kind": "text",
+      "template": "",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "⚠️ Odoo لم يستجب بعد 4 محاولات — العملية resource.calendar.l",
+      "error": "Meta 131047: Re-engagement message — النافذة مقفلة، أُعيدت إلى طابور الرقم (صالحة حتى 28 سبتمبر 2026، 13:58)"
+    },
+    {
+      "wa_row": 729,
+      "riyadh": "2026-09-27 02:01",
+      "to": "أحمد (مورد)",
+      "number": "+966…7704",
+      "purpose": "supplier_ask",
+      "kind": "template",
+      "template": "طلب أسعار اليوم (للمورد)",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "صباح الخير أحمد حسان، معك يو تاك. نحتاج أسعارك اليوم لهالأصن",
+      "error": ""
+    },
+    {
+      "wa_row": 730,
+      "riyadh": "2026-09-27 02:01",
+      "to": "فريق: عمر المجهلي",
+      "number": "+966…6832",
+      "purpose": "team_shift_start",
+      "kind": "template",
+      "template": "بداية الدوام (للفريق)",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "مرحباً عمر المجهلي، مهامك في يو تاك لهذا اليوم جاهزة. اضغط ز",
+      "error": ""
+    },
+    {
+      "wa_row": 732,
+      "riyadh": "2026-09-27 02:01",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "owner_alert",
+      "kind": "text",
+      "template": "",
+      "status": "read",
+      "gateway": "held",
+      "manual": false,
+      "text": "⚠️ Odoo لم يستجب بعد 4 محاولات — العملية x_team_attendance.s",
+      "error": ""
+    },
+    {
+      "wa_row": 733,
+      "riyadh": "2026-09-27 02:01",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "—",
+      "kind": "template",
+      "template": "",
+      "status": "skipped",
+      "gateway": "",
+      "manual": false,
+      "text": "📋 conv_open_owner",
+      "error": "البوابة: القالب utak_update_owner حالته PENDING عند Meta"
+    },
+    {
+      "wa_row": 734,
+      "riyadh": "2026-09-27 02:31",
+      "to": "فريق: عمر المجهلي",
+      "number": "+966…6832",
+      "purpose": "team_shift_start",
+      "kind": "template",
+      "template": "بداية الدوام (للفريق)",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "مرحباً عمر المجهلي، مهامك في يو تاك لهذا اليوم جاهزة. اضغط ز",
+      "error": ""
+    },
+    {
+      "wa_row": 735,
+      "riyadh": "2026-09-27 02:31",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "owner_alert",
+      "kind": "text",
+      "template": "",
+      "status": "read",
+      "gateway": "held",
+      "manual": false,
+      "text": "⏰ عمر المجهلي لم يسجّل حضوره: دوامه 02:00، ومضت 30 دقيقة بلا",
+      "error": ""
+    },
+    {
+      "wa_row": 736,
+      "riyadh": "2026-09-27 03:01",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "owner_alert",
+      "kind": "text",
+      "template": "",
+      "status": "read",
+      "gateway": "held",
+      "manual": false,
+      "text": "❌ عمر المجهلي سُجّل غائباً اليوم: لم يضغط «بدء الدوام» خلال ",
+      "error": ""
+    },
+    {
+      "wa_row": 737,
+      "riyadh": "2026-09-27 04:01",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "owner_price_exception",
+      "kind": "text",
+      "template": "",
+      "status": "expired",
+      "gateway": "held",
+      "manual": false,
+      "text": "⚠️ استثناء في أسعار اليوم (27 سبتمبر 2026) رمان وسط (كرتون) ",
+      "error": "البوابة: انتهت صلاحيتها (27 سبتمبر 2026، 06:00) ولم يراسل الرقم قبلها، فلم تُرسل"
+    },
+    {
+      "wa_row": 738,
+      "riyadh": "2026-09-27 04:01",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "owner_price_exception",
+      "kind": "text",
+      "template": "",
+      "status": "expired",
+      "gateway": "held",
+      "manual": false,
+      "text": "⚠️ استثناء في أسعار اليوم (27 سبتمبر 2026) افوكادو (كرتون · ",
+      "error": "البوابة: انتهت صلاحيتها (27 سبتمبر 2026، 06:00) ولم يراسل الرقم قبلها، فلم تُرسل"
+    },
+    {
+      "wa_row": 739,
+      "riyadh": "2026-09-27 04:01",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "owner_price_exception",
+      "kind": "text",
+      "template": "",
+      "status": "expired",
+      "gateway": "held",
+      "manual": false,
+      "text": "⚠️ استثناء في أسعار اليوم (27 سبتمبر 2026) رمان صغير (كرتون)",
+      "error": "البوابة: انتهت صلاحيتها (27 سبتمبر 2026، 06:00) ولم يراسل الرقم قبلها، فلم تُرسل"
+    },
+    {
+      "wa_row": 740,
+      "riyadh": "2026-09-27 04:01",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "owner_price_exception",
+      "kind": "text",
+      "template": "",
+      "status": "expired",
+      "gateway": "held",
+      "manual": false,
+      "text": "⚠️ استثناء في أسعار اليوم (27 سبتمبر 2026) رمان كبير (كرتون)",
+      "error": "البوابة: انتهت صلاحيتها (27 سبتمبر 2026، 06:00) ولم يراسل الرقم قبلها، فلم تُرسل"
+    },
+    {
+      "wa_row": 741,
+      "riyadh": "2026-09-27 05:01",
+      "to": "أحمد (مورد)",
+      "number": "+966…7704",
+      "purpose": "supplier_price_nudge",
+      "kind": "template",
+      "template": "تذكير بالأسعار المتأخرة (للمورد)",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "أهلاً أحمد حسان، لم تصلنا أسعارك اليوم بعد. نحتاجها قبل السا",
+      "error": ""
+    },
+    {
+      "wa_row": 742,
+      "riyadh": "2026-09-27 06:01",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "owner_alert",
+      "kind": "text",
+      "template": "",
+      "status": "read",
+      "gateway": "held",
+      "manual": false,
+      "text": "☀️ صباح الخير براء الموردين اللي ما ردوا (1/1): • أحمد حسان ",
+      "error": ""
+    },
+    {
+      "wa_row": 743,
+      "riyadh": "2026-09-27 06:01",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "—",
+      "kind": "template",
+      "template": "",
+      "status": "skipped",
+      "gateway": "",
+      "manual": false,
+      "text": "📋 conv_open_owner",
+      "error": "البوابة: القالب utak_update_owner فئته MARKETING ولا يُستعمل لغرض تشغيلي"
+    },
+    {
+      "wa_row": 744,
+      "riyadh": "2026-09-27 06:01",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "team_shift_start",
+      "kind": "template",
+      "template": "بداية الدوام (للفريق)",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "مرحباً براء، مهامك في يو تاك لهذا اليوم جاهزة. اضغط زر «بدء ",
+      "error": ""
+    },
+    {
+      "wa_row": 745,
+      "riyadh": "2026-09-27 06:01",
+      "to": "فريق: عثمان عبدالوهاب",
+      "number": "+966…9474",
+      "purpose": "team_shift_start",
+      "kind": "template",
+      "template": "بداية الدوام (للفريق)",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "مرحباً عثمان عبدالوهاب، مهامك في يو تاك لهذا اليوم جاهزة. اض",
+      "error": ""
+    },
+    {
+      "wa_row": 746,
+      "riyadh": "2026-09-27 06:01",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "owner_alert",
+      "kind": "text",
+      "template": "",
+      "status": "read",
+      "gateway": "held",
+      "manual": false,
+      "text": "⏰ أسعار اليوم (27 سبتمبر 2026) لم تُنشر حتى 06:00: لا صنف مع",
+      "error": ""
+    },
+    {
+      "wa_row": 748,
+      "riyadh": "2026-09-27 06:02",
+      "to": "فريق: عثمان عبدالوهاب",
+      "number": "+966…9474",
+      "purpose": "shift_ack",
+      "kind": "text",
+      "template": "",
+      "status": "delivered",
+      "gateway": "",
+      "manual": false,
+      "text": "تم تسجيل حضورك الساعة 06:01 ✅",
+      "error": ""
+    },
+    {
+      "wa_row": 749,
+      "riyadh": "2026-09-27 06:02",
+      "to": "فريق: عثمان عبدالوهاب",
+      "number": "+966…9474",
+      "purpose": "shift_ack",
+      "kind": "text",
+      "template": "",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "ما عندك مهام الآن. أول ما تجهز توصلك هنا 👍",
+      "error": ""
+    },
+    {
+      "wa_row": 751,
+      "riyadh": "2026-09-27 07:07",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "owner_alert",
+      "kind": "text",
+      "template": "",
+      "status": "read",
+      "gateway": "held",
+      "manual": false,
+      "text": "🕘 عمر المجهلي سجّل حضوره متأخراً الساعة 07:07 (دوامه 02:00)",
+      "error": ""
+    },
+    {
+      "wa_row": 752,
+      "riyadh": "2026-09-27 07:08",
+      "to": "فريق: عمر المجهلي",
+      "number": "+966…6832",
+      "purpose": "shift_ack",
+      "kind": "text",
+      "template": "",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "تم تسجيل حضورك الساعة 07:07 ✅ (متأخر، دوامك 02:00)",
+      "error": ""
+    },
+    {
+      "wa_row": 753,
+      "riyadh": "2026-09-27 07:08",
+      "to": "فريق: عمر المجهلي",
+      "number": "+966…6832",
+      "purpose": "market_price_ask",
+      "kind": "text",
+      "template": "",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "صباح الخير عمر 🌿 أرسل أسعار السوق اليوم لو سمحت: الصنف والت",
+      "error": ""
+    },
+    {
+      "wa_row": 755,
+      "riyadh": "2026-09-27 08:59",
+      "to": "آخر: #105 بيت التمور",
+      "number": "+966…9526",
+      "purpose": "customer_welcome",
+      "kind": "template",
+      "template": "ترحيب عميل جديد",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "أهلاً fa86ii، تم تفعيل حسابك في يو تاك. اطلب مباشرة من هنا، ",
+      "error": ""
+    },
+    {
+      "wa_row": 756,
+      "riyadh": "2026-09-27 08:59",
+      "to": "آخر: #105 بيت التمور",
+      "number": "+966…9526",
+      "purpose": "bot_reply",
+      "kind": "text",
+      "template": "",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "أهلاً fa86ii، حياك الله في UTAK. كيف نقدر نساعدك؟",
+      "error": ""
+    },
+    {
+      "wa_row": 758,
+      "riyadh": "2026-09-27 08:59",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "owner_alert",
+      "kind": "text",
+      "template": "",
+      "status": "sent",
+      "gateway": "",
+      "manual": false,
+      "text": "رقم جديد ينتظر المراجعة: fa86ii",
+      "error": ""
+    },
+    {
+      "wa_row": 759,
+      "riyadh": "2026-09-27 08:59",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "owner_alert",
+      "kind": "text",
+      "template": "",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "✅ تم. تنبيهات يو تاك توصلك هنا نصاً حتى 08:59 بكرة.",
+      "error": ""
+    },
+    {
+      "wa_row": 760,
+      "riyadh": "2026-09-27 21:16",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "owner_alert",
+      "kind": "text",
+      "template": "",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "📊 21:15 لا يوجد طلبات مؤكدة اليوم — ما تم إنشاء قائمة شراء.",
+      "error": ""
+    },
+    {
+      "wa_row": 761,
+      "riyadh": "2026-09-27 21:16",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "owner_alert",
+      "kind": "text",
+      "template": "",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "⚠️ المورد \"أحمد حسان\" لم يرسل أسعار اليوم حتى بناء قائمة الش",
+      "error": ""
+    },
+    {
+      "wa_row": 762,
+      "riyadh": "2026-09-27 21:31",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "owner_summary",
+      "kind": "text",
+      "template": "",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "📊 ملخص اليوم 27 سبتمبر 2026 طلبات الغد: 0 مؤكدة لـ 28 سبتمب",
+      "error": ""
+    },
+    {
+      "wa_row": 763,
+      "riyadh": "2026-09-28 02:01",
+      "to": "فريق: عمر المجهلي",
+      "number": "+966…6832",
+      "purpose": "team_shift_start",
+      "kind": "template",
+      "template": "بداية الدوام (للفريق)",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "مرحباً عمر المجهلي، مهامك في يو تاك لهذا اليوم جاهزة. اضغط ز",
+      "error": ""
+    },
+    {
+      "wa_row": 764,
+      "riyadh": "2026-09-28 02:01",
+      "to": "أحمد (مورد)",
+      "number": "+966…7704",
+      "purpose": "supplier_ask",
+      "kind": "template",
+      "template": "طلب أسعار اليوم (للمورد)",
+      "status": "delivered",
+      "gateway": "",
+      "manual": false,
+      "text": "صباح الخير أحمد حسان، معك يو تاك. نحتاج أسعارك اليوم لهالأصن",
+      "error": ""
+    },
+    {
+      "wa_row": 766,
+      "riyadh": "2026-09-28 02:01",
+      "to": "فريق: عمر المجهلي",
+      "number": "+966…6832",
+      "purpose": "shift_ack",
+      "kind": "text",
+      "template": "",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "تم تسجيل حضورك الساعة 02:01 ✅",
+      "error": ""
+    },
+    {
+      "wa_row": 767,
+      "riyadh": "2026-09-28 02:01",
+      "to": "فريق: عمر المجهلي",
+      "number": "+966…6832",
+      "purpose": "shift_ack",
+      "kind": "text",
+      "template": "",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "ما عندك مهام الآن. أول ما تجهز توصلك هنا 👍",
+      "error": ""
+    },
+    {
+      "wa_row": 768,
+      "riyadh": "2026-09-28 02:31",
+      "to": "فريق: عمر المجهلي",
+      "number": "+966…6832",
+      "purpose": "market_price_ask",
+      "kind": "text",
+      "template": "",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "صباح الخير عمر 🌿 أرسل أسعار السوق اليوم لو سمحت: الصنف والت",
+      "error": ""
+    },
+    {
+      "wa_row": 770,
+      "riyadh": "2026-09-28 02:32",
+      "to": "فريق: عمر المجهلي",
+      "number": "+966…6832",
+      "purpose": "bot_reply",
+      "kind": "text",
+      "template": "",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "مرحبا عمر المجهلي 👋 استخدم الأزرار عشان نأكد الحالة. 🔘 💵 ",
+      "error": ""
+    },
+    {
+      "wa_row": 771,
+      "riyadh": "2026-09-28 04:01",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "owner_price_exception",
+      "kind": "text",
+      "template": "",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "⚠️ استثناء في أسعار اليوم (28 سبتمبر 2026) رمان وسط (كرتون) ",
+      "error": ""
+    },
+    {
+      "wa_row": 772,
+      "riyadh": "2026-09-28 04:01",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "owner_price_exception",
+      "kind": "text",
+      "template": "",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "⚠️ استثناء في أسعار اليوم (28 سبتمبر 2026) افوكادو (كرتون · ",
+      "error": ""
+    },
+    {
+      "wa_row": 773,
+      "riyadh": "2026-09-28 04:02",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "owner_price_exception",
+      "kind": "text",
+      "template": "",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "⚠️ استثناء في أسعار اليوم (28 سبتمبر 2026) رمان صغير (كرتون)",
+      "error": ""
+    },
+    {
+      "wa_row": 774,
+      "riyadh": "2026-09-28 04:02",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "owner_price_exception",
+      "kind": "text",
+      "template": "",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "⚠️ استثناء في أسعار اليوم (28 سبتمبر 2026) رمان كبير (كرتون)",
+      "error": ""
+    },
+    {
+      "wa_row": 775,
+      "riyadh": "2026-09-28 05:01",
+      "to": "أحمد (مورد)",
+      "number": "+966…7704",
+      "purpose": "supplier_price_nudge",
+      "kind": "template",
+      "template": "تذكير بالأسعار المتأخرة (للمورد)",
+      "status": "delivered",
+      "gateway": "",
+      "manual": false,
+      "text": "أهلاً أحمد حسان، لم تصلنا أسعارك اليوم بعد. نحتاجها قبل السا",
+      "error": ""
+    },
+    {
+      "wa_row": 776,
+      "riyadh": "2026-09-28 06:01",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "owner_alert",
+      "kind": "text",
+      "template": "",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "☀️ صباح الخير براء الموردين اللي ما ردوا (1/1): • أحمد حسان ",
+      "error": ""
+    },
+    {
+      "wa_row": 777,
+      "riyadh": "2026-09-28 06:01",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "team_shift_start",
+      "kind": "template",
+      "template": "بداية الدوام (للفريق)",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "مرحباً براء، مهامك في يو تاك لهذا اليوم جاهزة. اضغط زر «بدء ",
+      "error": ""
+    },
+    {
+      "wa_row": 778,
+      "riyadh": "2026-09-28 06:01",
+      "to": "فريق: عثمان عبدالوهاب",
+      "number": "+966…9474",
+      "purpose": "team_shift_start",
+      "kind": "template",
+      "template": "بداية الدوام (للفريق)",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "مرحباً عثمان عبدالوهاب، مهامك في يو تاك لهذا اليوم جاهزة. اض",
+      "error": ""
+    },
+    {
+      "wa_row": 779,
+      "riyadh": "2026-09-28 06:01",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "owner_alert",
+      "kind": "text",
+      "template": "",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "⏰ أسعار اليوم (28 سبتمبر 2026) لم تُنشر حتى 06:00: لا صنف مع",
+      "error": ""
+    },
+    {
+      "wa_row": 781,
+      "riyadh": "2026-09-28 06:03",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "owner_alert",
+      "kind": "text",
+      "template": "",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "✅ تم. تنبيهات يو تاك توصلك هنا نصاً حتى 06:03 بكرة.",
+      "error": ""
+    },
+    {
+      "wa_row": 783,
+      "riyadh": "2026-09-28 06:20",
+      "to": "فريق: عثمان عبدالوهاب",
+      "number": "+966…9474",
+      "purpose": "shift_ack",
+      "kind": "text",
+      "template": "",
+      "status": "delivered",
+      "gateway": "",
+      "manual": false,
+      "text": "تم تسجيل حضورك الساعة 06:19 ✅ (متأخر، دوامك 06:00)",
+      "error": ""
+    },
+    {
+      "wa_row": 784,
+      "riyadh": "2026-09-28 06:20",
+      "to": "فريق: عثمان عبدالوهاب",
+      "number": "+966…9474",
+      "purpose": "shift_ack",
+      "kind": "text",
+      "template": "",
+      "status": "delivered",
+      "gateway": "",
+      "manual": false,
+      "text": "ما عندك مهام الآن. أول ما تجهز توصلك هنا 👍",
+      "error": ""
+    },
+    {
+      "wa_row": 786,
+      "riyadh": "2026-09-28 08:54",
+      "to": "فريق: عمر المجهلي",
+      "number": "+966…6832",
+      "purpose": "bot_reply",
+      "kind": "text",
+      "template": "",
+      "status": "read",
+      "gateway": "",
+      "manual": false,
+      "text": "ما فيه موردين في قائمة شراء اليوم. تُسجَّل الدفعة لمورد من ا",
+      "error": ""
+    }
+  ],
+  "failures": [
+    {
+      "wa_row": 733,
+      "riyadh": "2026-09-27 02:01",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "—",
+      "kind": "template",
+      "template": "",
+      "status": "skipped",
+      "gateway": "",
+      "manual": false,
+      "text": "📋 conv_open_owner",
+      "error": "البوابة: القالب utak_update_owner حالته PENDING عند Meta"
+    },
+    {
+      "wa_row": 737,
+      "riyadh": "2026-09-27 04:01",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "owner_price_exception",
+      "kind": "text",
+      "template": "",
+      "status": "expired",
+      "gateway": "held",
+      "manual": false,
+      "text": "⚠️ استثناء في أسعار اليوم (27 سبتمبر 2026) رمان وسط (كرتون) ",
+      "error": "البوابة: انتهت صلاحيتها (27 سبتمبر 2026، 06:00) ولم يراسل الرقم قبلها، فلم تُرسل"
+    },
+    {
+      "wa_row": 738,
+      "riyadh": "2026-09-27 04:01",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "owner_price_exception",
+      "kind": "text",
+      "template": "",
+      "status": "expired",
+      "gateway": "held",
+      "manual": false,
+      "text": "⚠️ استثناء في أسعار اليوم (27 سبتمبر 2026) افوكادو (كرتون · ",
+      "error": "البوابة: انتهت صلاحيتها (27 سبتمبر 2026، 06:00) ولم يراسل الرقم قبلها، فلم تُرسل"
+    },
+    {
+      "wa_row": 739,
+      "riyadh": "2026-09-27 04:01",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "owner_price_exception",
+      "kind": "text",
+      "template": "",
+      "status": "expired",
+      "gateway": "held",
+      "manual": false,
+      "text": "⚠️ استثناء في أسعار اليوم (27 سبتمبر 2026) رمان صغير (كرتون)",
+      "error": "البوابة: انتهت صلاحيتها (27 سبتمبر 2026، 06:00) ولم يراسل الرقم قبلها، فلم تُرسل"
+    },
+    {
+      "wa_row": 740,
+      "riyadh": "2026-09-27 04:01",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "owner_price_exception",
+      "kind": "text",
+      "template": "",
+      "status": "expired",
+      "gateway": "held",
+      "manual": false,
+      "text": "⚠️ استثناء في أسعار اليوم (27 سبتمبر 2026) رمان كبير (كرتون)",
+      "error": "البوابة: انتهت صلاحيتها (27 سبتمبر 2026، 06:00) ولم يراسل الرقم قبلها، فلم تُرسل"
+    },
+    {
+      "wa_row": 743,
+      "riyadh": "2026-09-27 06:01",
+      "to": "براء",
+      "number": "+966…4962",
+      "purpose": "—",
+      "kind": "template",
+      "template": "",
+      "status": "skipped",
+      "gateway": "",
+      "manual": false,
+      "text": "📋 conv_open_owner",
+      "error": "البوابة: القالب utak_update_owner فئته MARKETING ولا يُستعمل لغرض تشغيلي"
+    }
+  ],
+  "kv": {
+    "wa_q:v1:": [
+      {
+        "key": "wa_q:v1:index",
+        "expires": null,
+        "items": []
+      }
+    ],
+    "team_q:": [],
+    "pending_loc:": [],
+    "cpay_open:": [],
+    "cpay:v1:": [],
+    "pending_neighborhood:": [],
+    "late_order:": [],
+    "cutoff_prompt:": [],
+    "spay:": [],
+    "sp_flow:": []
+  },
+  "kvPrefixes": {
+    "autosend:v1": 15,
+    "btnlock:v1": 29,
+    "inactive": 10,
+    "mask:v": 1,
+    "ordering_open": 1,
+    "pinv_checked:v": 1,
+    "prices_fp:v": 4,
+    "sim:current_run_id": 1,
+    "sp_due_fp:v": 1,
+    "sp_noprice_seen:v": 1,
+    "supplier_noprice_alert": 1,
+    "supplier_nudge": 2,
+    "team:roles": 1,
+    "team:roster": 1,
+    "wa_inbox:bot_partner_id": 1,
+    "wa_inbox:channel_for_partner": 1,
+    "wa_inbox:last_in_ts": 4,
+    "wa_q:v1": 1,
+    "wa_q_sent:v": 2,
+    "wa_q_sent:v1": 5,
+    "wa_rej:v1": 1,
+    "wa_send_fail": 3,
+    "wa_sent:v1": 83,
+    "wa_win:v": 4,
+    "wamid.* (dedup)": 5
+  },
+  "kvDetail": {
+    "wa_rej:v1:wamid.HBgMOTY2NTA1MTU0OTYyFQIAERgSMTUwNjQ2ODQxODgxQTE3MUYyAA==": "2026-09-26T22:58:25.701Z",
+    "wa_send_fail:2026-09-24": "2",
+    "wa_send_fail:2026-09-25": "2",
+    "wa_send_fail:2026-09-27": "1",
+    "wa_q:v1:index": "[]"
+  },
+  "created": {
+    "res.partner": [
+      {
+        "id": 105,
+        "name": "بيت التمور",
+        "create_date": "2026-09-27 08:59",
+        "x_contact_class": "customer",
+        "x_whatsapp_number": "+966…9526",
+        "customer_rank": 1,
+        "supplier_rank": 0,
+        "active": true,
+        "createdBy": "sim من واتساب (أول رسالة 08:59)"
+      }
+    ],
+    "x_daily_order": [],
+    "x_daily_order_line": [],
+    "x_quotation": [],
+    "x_invoice": [],
+    "x_payment": [],
+    "x_delivery_route": [],
+    "x_delivery_stop": [],
+    "x_purchase_list": []
+  },
+  "manualWa": [],
+  "classChanges": [],
+  "writtenPartners": [
+    {
+      "id": 50,
+      "name": "Not Book",
+      "write_date": "2026-09-28 09:16",
+      "x_contact_class": "personal",
+      "x_review_pending": false,
+      "x_ai_intent": "purchase",
+      "active": true,
+      "customer_rank": 1
+    },
+    {
+      "id": 20,
+      "name": "PILOT-عميل-حي-العليا-316376",
+      "write_date": "2026-09-28 09:16",
+      "x_contact_class": false,
+      "x_review_pending": false,
+      "x_ai_intent": false,
+      "active": false,
+      "customer_rank": 1
+    },
+    {
+      "id": 30,
+      "name": "أحمد حسان",
+      "write_date": "2026-09-28 05:01",
+      "x_contact_class": false,
+      "x_review_pending": false,
+      "x_ai_intent": false,
+      "active": true,
+      "customer_rank": 0
+    },
+    {
+      "id": 31,
+      "name": "ابو مكين المعبري",
+      "write_date": "2026-09-28 09:16",
+      "x_contact_class": "customer",
+      "x_review_pending": false,
+      "x_ai_intent": false,
+      "active": true,
+      "customer_rank": 1
+    },
+    {
+      "id": 7,
+      "name": "براء - اختبار",
+      "write_date": "2026-09-28 05:01",
+      "x_contact_class": false,
+      "x_review_pending": false,
+      "x_ai_intent": false,
+      "active": true,
+      "customer_rank": 0
+    },
+    {
+      "id": 105,
+      "name": "بيت التمور",
+      "write_date": "2026-09-27 10:55",
+      "x_contact_class": "customer",
+      "x_review_pending": true,
+      "x_ai_intent": "unclear",
+      "active": true,
+      "customer_rank": 1
+    },
+    {
+      "id": 46,
+      "name": "عمر",
+      "write_date": "2026-09-28 09:16",
+      "x_contact_class": false,
+      "x_review_pending": false,
+      "x_ai_intent": false,
+      "active": false,
+      "customer_rank": 1
+    },
+    {
+      "id": 47,
+      "name": "يو",
+      "write_date": "2026-09-28 09:16",
+      "x_contact_class": false,
+      "x_review_pending": false,
+      "x_ai_intent": false,
+      "active": false,
+      "customer_rank": 1
+    }
+  ],
+  "schedules": {
+    "invocations": 825,
+    "byCron": {
+      "*/5 * * * *": {
+        "2026-09-27": {
+          "runs": 288,
+          "statuses": {
+            "success": 288
+          }
+        },
+        "2026-09-28": {
+          "runs": 118,
+          "statuses": {
+            "success": 118
+          }
+        }
+      },
+      "2,7,12,17,22,27,32,37,42,47,52,57 * * * *": {
+        "2026-09-27": {
+          "runs": 288,
+          "statuses": {
+            "success": 288
+          }
+        },
+        "2026-09-28": {
+          "runs": 117,
+          "statuses": {
+            "success": 117
+          }
+        }
+      },
+      "0 23 * * *": {
+        "2026-09-27": {
+          "runs": 1,
+          "statuses": {
+            "success": 1
+          }
+        },
+        "2026-09-28": {
+          "runs": 1,
+          "statuses": {
+            "success": 1
+          }
+        }
+      },
+      "0 2 * * *": {
+        "2026-09-27": {
+          "runs": 1,
+          "statuses": {
+            "success": 1
+          }
+        },
+        "2026-09-28": {
+          "runs": 1,
+          "statuses": {
+            "success": 1
+          }
+        }
+      },
+      "0 3 * * *": {
+        "2026-09-27": {
+          "runs": 1,
+          "statuses": {
+            "success": 1
+          }
+        },
+        "2026-09-28": {
+          "runs": 1,
+          "statuses": {
+            "success": 1
+          }
+        }
+      },
+      "0 5 * * *": {
+        "2026-09-27": {
+          "runs": 1,
+          "statuses": {
+            "success": 1
+          }
+        },
+        "2026-09-28": {
+          "runs": 1,
+          "statuses": {
+            "success": 1
+          }
+        }
+      },
+      "0 14 * * *": {
+        "2026-09-27": {
+          "runs": 1,
+          "statuses": {
+            "success": 1
+          }
+        }
+      },
+      "0 15 * * *": {
+        "2026-09-27": {
+          "runs": 1,
+          "statuses": {
+            "success": 1
+          }
+        }
+      },
+      "0 17 * * *": {
+        "2026-09-27": {
+          "runs": 1,
+          "statuses": {
+            "success": 1
+          }
+        }
+      },
+      "0 18 * * *": {
+        "2026-09-27": {
+          "runs": 1,
+          "statuses": {
+            "success": 1
+          }
+        }
+      },
+      "15 18 * * *": {
+        "2026-09-27": {
+          "runs": 1,
+          "statuses": {
+            "success": 1
+          }
+        }
+      },
+      "30 18 * * *": {
+        "2026-09-27": {
+          "runs": 1,
+          "statuses": {
+            "success": 1
+          }
+        }
+      }
+    }
+  },
+  "priceDays": [
+    {
+      "id": 47,
+      "x_date": "2026-09-28",
+      "x_state": "missed",
+      "x_utak_simulation": false,
+      "x_published_at": false,
+      "x_line_ids": [
+        78,
+        79,
+        80,
+        81
+      ]
+    },
+    {
+      "id": 43,
+      "x_date": "2026-09-28",
+      "x_state": "missed",
+      "x_utak_simulation": true,
+      "x_published_at": false,
+      "x_line_ids": [
+        62,
+        63,
+        64,
+        65
+      ]
+    },
+    {
+      "id": 38,
+      "x_date": "2026-09-28",
+      "x_state": "missed",
+      "x_utak_simulation": true,
+      "x_published_at": false,
+      "x_line_ids": [
+        42,
+        43,
+        44,
+        45
+      ]
+    },
+    {
+      "id": 46,
+      "x_date": "2026-09-27",
+      "x_state": "missed",
+      "x_utak_simulation": false,
+      "x_published_at": false,
+      "x_line_ids": [
+        74,
+        75,
+        76,
+        77
+      ]
+    },
+    {
+      "id": 42,
+      "x_date": "2026-09-27",
+      "x_state": "published",
+      "x_utak_simulation": true,
+      "x_published_at": "2026-09-27 03:00:00",
+      "x_line_ids": [
+        58,
+        59,
+        60,
+        61
+      ]
+    },
+    {
+      "id": 41,
+      "x_date": "2026-09-27",
+      "x_state": "published",
+      "x_utak_simulation": true,
+      "x_published_at": "2026-09-27 03:00:00",
+      "x_line_ids": [
+        54,
+        55,
+        56,
+        57
+      ]
+    },
+    {
+      "id": 5,
+      "x_date": "2026-09-27",
+      "x_state": "published",
+      "x_utak_simulation": true,
+      "x_published_at": "2026-09-27 03:00:00",
+      "x_line_ids": [
+        9,
+        10,
+        11,
+        12
+      ]
+    }
+  ]
+}

@@ -20,6 +20,10 @@
 //       input tax only for a supplier with a VAT number, from 10-01; the cash
 //       market without one → no input tax and Baraa's one line a day; one bill
 //       per supplier per list (fixed origin, checked before every create).
+//   [و] «🆕 عميل جديد»: a new number served directly (purchase intent, or its
+//       first real order, no review) → ONE alert to Baraa with its name, number
+//       and first message, through the gateway (held while his window is
+//       closed); a number that entered review keeps its one review alert only.
 //   [س] schema: every Odoo request names real fields and values (§ 44 fixture).
 //
 // In-memory Odoo + captured Graph (tests/wa-harness.mts). No network, no send.
@@ -58,13 +62,14 @@ function known(model: string, name: string): boolean {
   return list.includes(f);
 }
 let claudeIntent = "other";
+let screenIntent: { intent: string; reason: string } = { intent: "purchase", reason: "يطلب" };
 const harnessFetch = globalThis.fetch;
 globalThis.fetch = (async (input: unknown, init?: any) => {
   const url = typeof input === "string" ? input : (input as any)?.url ?? String(input);
   if (url.includes("anthropic.com")) {
     const sys = String(JSON.parse(String(init?.body ?? "{}")).system ?? "");
     const out = /classify UTAK WhatsApp messages|You classify/.test(sys) ? { intent: claudeIntent, confidence: 0.9 }
-      : sys.startsWith("You screen") ? { intent: "purchase", reason: "يطلب" }
+      : sys.startsWith("You screen") ? screenIntent
       : /extract structured order items/.test(sys) ? [] : "أهلاً وسهلاً";
     return new Response(JSON.stringify({ content: [{ type: "text", text: typeof out === "string" ? out : JSON.stringify(out) }] }), { status: 200 });
   }
@@ -135,7 +140,7 @@ const COMPANY = { nameAr: SELLER, nameEn: "UTAK", address: "الرياض", email
 let ENV: any;
 function fresh(riyadh: string): any {
   const env = reset(); clearTemplateCache(); setRiyadh(riyadh);
-  rejected.length = 0; claudeIntent = "other";
+  rejected.length = 0; claudeIntent = "other"; screenIntent = { intent: "purchase", reason: "يطلب" };
   seed("res.partner", { id: DRIVER, name: "عمر المجهلي", x_whatsapp_number: "+" + DRIVER_PHONE });
   employee(DRIVER, [72], { x_utak_attendance: false, resource_calendar_id: workSchedule(SAT_THU, { name: "UTAK — عمر" }) });
   seed("res.users", { id: 2, login: "x", partner_id: 3 });
@@ -626,6 +631,87 @@ console.log("\n[هـ] the plan (pure): per supplier, the market lines at the wri
   const p2 = PA.planSupplierBills([it(1, 11, 10, null, 20)], null);
   assert("[هـ] no supplier anywhere → noSupplier", p2.bills.length === 0 && p2.noSupplier.length === 1);
   assert("[هـ] the line's text", PA.cashNoVatText(46) === "مشتريات سوق بلا رقم ضريبي: 46 ر.س، ضريبتها لا تُخصم" && PA.cashNoVatText(12.5) === "مشتريات سوق بلا رقم ضريبي: 12.50 ر.س، ضريبتها لا تُخصم");
+}
+
+
+// ================================================================ [و]
+const SCR = await import("../src/screening.ts");
+const { closeOwnerWindow, heldFor } = await import("./wa-harness.mts");
+const newAlerts = () => sentTo(OWNER).map(bodyOf).filter((t) => t.startsWith(SCR.NEW_CUSTOMER_PREFIX));
+const reviewAlerts = () => sentTo(OWNER).map(bodyOf).filter((t) => t.startsWith(SCR.REVIEW_ALERT_PREFIX));
+const partnerByNumber = (d: string) => (rows("res.partner") as any[]).find((p) => String(p.x_whatsapp_number ?? "").replace(/\D/g, "") === d);
+
+console.log("\n[و] a new number asking to buy: served, and ONE «🆕 عميل جديد» to Baraa with its name, number and first message");
+{
+  fresh(`${DAY} 10:00`); publishedTomato(DAY);
+  const N = "966500000931";
+  claudeIntent = "product_inquiry";
+  await say(N, { type: "text", text: { body: "السلام عليكم، عندكم طماطم؟ كم سعر الكرتون اليوم لو سمحت" } });
+  const p = partnerByNumber(N);
+  assert("[و] a new partner, «غير مراجَع», not flagged for review, answered", !!p && p.x_contact_class === "unreviewed" && !p.x_review_pending && sentTo(N).length >= 1, JSON.stringify(p));
+  const a = newAlerts();
+  assert("[و] ONE «🆕 عميل جديد» to Baraa", a.length === 1, JSON.stringify(sentTo(OWNER).map(bodyOf)));
+  assert("[و] …with the name, the full number and the first message (shortened to 80)", a[0]?.startsWith(`🆕 عميل جديد: ${p.name} — +${N} — «السلام عليكم، عندكم طماطم؟`) , a[0]);
+  assert("[و] …no review alert, no review channel post", reviewAlerts().length === 0);
+  const rec = (rows("x_wa_message") as any[]).filter((r) => String(r.x_body ?? "").startsWith(SCR.NEW_CUSTOMER_PREFIX));
+  assert("[و] …through the gateway: recorded in x_wa_message (owner_alert)", rec.length === 1 && String(rec[0].x_debug_payload ?? "").includes("owner_alert"), JSON.stringify(rec.map((r) => r.x_debug_payload)));
+  await say(N, { type: "text", text: { body: "أبغى 3 كراتين" } });
+  claudeIntent = "place_order";
+  await say(N, { type: "text", text: { body: "وخيار كرتون" } });
+  assert("[و] his next messages: no second alert", newAlerts().length === 1);
+  assert("[و] no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
+}
+
+console.log("\n[و] a number that entered review: its one review alert only, never «🆕» — even when it later asks to buy");
+{
+  fresh(`${DAY} 10:00`); publishedTomato(DAY);
+  const N = "966500000932";
+  claudeIntent = "greeting"; screenIntent = { intent: "unclear", reason: "تحية فقط" };
+  await say(N, { type: "text", text: { body: "السلام عليكم" } });
+  assert("[و] unclear → review, one review alert, no «🆕»", reviewAlerts().length === 1 && newAlerts().length === 0, JSON.stringify(sentTo(OWNER).map(bodyOf)));
+  claudeIntent = "product_inquiry";
+  await say(N, { type: "text", text: { body: "عندكم طماطم؟" } });
+  assert("[و] then a purchase text: still no «🆕», still one review alert", reviewAlerts().length === 1 && newAlerts().length === 0, JSON.stringify(sentTo(OWNER).map(bodyOf)));
+  (partnerByNumber(N) as any).x_review_pending = false; // Baraa switched «ينتظر المراجعة» off on the card, the class still «غير مراجَع»
+  await say(N, { type: "text", text: { body: "أبغى طماطم كرتونين" } });
+  assert("[و] the flag switched off by hand, then a purchase text: still no «🆕» (it entered review once)", newAlerts().length === 0 && reviewAlerts().length === 1, JSON.stringify(sentTo(OWNER).map(bodyOf)));
+}
+{
+  fresh(`${DAY} 10:00`); publishedTomato(DAY);
+  const N = "966500000936";
+  const pid = seed("res.partner", { name: "ينتظر", x_whatsapp_number: "+" + N, phone: "+" + N, customer_rank: 1, x_contact_class: "unreviewed", x_review_pending: true, x_ai_intent: "unclear" });
+  waiting(DAY, { x_customer_id: pid });
+  claudeIntent = "other";
+  await say(N, { type: "text", text: { body: "تمام" } });
+  assert("[و] a number waiting for review whose first real order makes it «عميل»: no «🆕» (its review alert stands)", (table("res.partner").get(pid) as any).x_contact_class === "customer" && newAlerts().length === 0, JSON.stringify(sentTo(OWNER).map(bodyOf)));
+}
+
+console.log("\n[و] Baraa's window closed: the alert is held for his next tap, not lost and not sent");
+{
+  fresh(`${DAY} 10:00`); publishedTomato(DAY);
+  closeOwnerWindow(ENV);
+  const N = "966500000933";
+  claudeIntent = "product_inquiry";
+  await say(N, { type: "text", text: { body: "كم سعر الطماطم؟" } });
+  const held = heldFor(ENV, OWNER);
+  assert("[و] held in the gateway's queue for Baraa (not sent)", newAlerts().length === 0 && held.some((h: any) => JSON.stringify(h).includes("🆕 عميل جديد")), JSON.stringify(held).slice(0, 300));
+}
+
+console.log("\n[و] a new number whose first real order makes it «عميل»: the same one alert");
+{
+  fresh(`${DAY} 10:00`); publishedTomato(DAY);
+  const N = "966500000934";
+  const pid = seed("res.partner", { name: "بقالة جديدة", x_whatsapp_number: "+" + N, phone: "+" + N, customer_rank: 1, x_contact_class: "unreviewed" });
+  seed("x_wa_message", { x_partner_id: pid, x_direction: "in", x_kind: "text", x_body: "أول رسالة: أبغى طماطم" });
+  waiting(DAY, { x_customer_id: pid });
+  claudeIntent = "other";
+  await say(N, { type: "text", text: { body: "تمام" } });
+  const p = table("res.partner").get(pid) as any;
+  assert("[و] → «عميل» by its real order, and ONE «🆕 عميل جديد» with its FIRST message", p.x_contact_class === "customer" && newAlerts().length === 1 && newAlerts()[0].includes("«أول رسالة: أبغى طماطم»"), JSON.stringify(newAlerts()));
+  await say(N, { type: "text", text: { body: "شكراً" } });
+  assert("[و] …not again", newAlerts().length === 1);
+  const q = SCR.newCustomerText({ name: "س", number: "+966 50 000 0935", first: "أ".repeat(100) });
+  assert("[و] the text: the number in digits with +, the first message cut at 80 with «…»", q === `🆕 عميل جديد: س — +966500000935 — «${"أ".repeat(80)}…»`, q);
 }
 
 // ================================================================ summary

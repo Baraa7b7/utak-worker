@@ -24,6 +24,11 @@
 //     hold follows the latest intent (a later purchase message lifts it).
 //   • Class personal / team / supplier (Baraa's decision): no automated
 //     customer message at all.
+//   • § 44 و (2026-09-28) — a new number served directly (its text reads
+//     «طلب أو استفسار شراء», or its first real order made it «عميل», with no
+//     review) → ONE owner alert «🆕 عميل جديد: الاسم — الرقم — «أول رسالة»», once
+//     per partner, through the gateway (held while Baraa's window is closed). A
+//     number that entered review keeps its one review alert and never gets this one.
 
 import type { Env } from "./config";
 import type { Intent } from "./types";
@@ -64,6 +69,14 @@ const CLASSIFY_REASON: Partial<Record<Intent, string>> = {
 export const REVIEW_CHANNEL_NAME = "📋 مراجعة الأرقام";
 export const REVIEW_ACTION_NAME = "UTAK — مراجعة الأرقام";
 export const REVIEW_ALERT_PREFIX = "رقم جديد ينتظر المراجعة: ";
+export const NEW_CUSTOMER_PREFIX = "🆕 عميل جديد: ";
+/** § 44 و — «🆕 عميل جديد: الاسم — الرقم — «أول رسالة (مختصرة)»». */
+export function newCustomerText(a: { name: string; number: string; first: string }): string {
+  const first = String(a.first ?? "").replace(/\s+/g, " ").trim();
+  const short = first.length > 80 ? `${first.slice(0, 80)}…` : first;
+  const num = String(a.number ?? "").replace(/[^0-9]/g, "");
+  return `${NEW_CUSTOMER_PREFIX}${a.name || "بلا اسم"} — ${num ? "+" + num : "بلا رقم"}${short ? ` — «${short}»` : ""}`;
+}
 /** Fields read to decide screening and the hold. */
 export const SCREEN_FIELDS = ["x_contact_class", "x_ai_intent", "x_review_pending"] as const;
 const RECENT_TEXTS = 5;
@@ -190,6 +203,8 @@ export async function screenInbound(env: Env, input: ScreenInput): Promise<Scree
   if (await hasRealOrder(env, input.partnerId)) {
     await call(env, "res.partner", "write", { ids: [input.partnerId], vals: { x_contact_class: "customer", x_review_pending: false, ...last } });
     console.log(`[screen] partner=${input.partnerId} → customer (real order)`);
+    // § 44 و — served with no review: Baraa's one «🆕 عميل جديد» (none if it ever entered review)
+    if (!st.x_review_pending) await announceNewCustomerSafe(env, { partnerId: input.partnerId, name: st.name || input.partnerName, number: input.number, current: input.text });
     return { action: "customer_by_order", pending: false, held: false };
   }
 
@@ -220,6 +235,9 @@ export async function screenInbound(env: Env, input: ScreenInput): Promise<Scree
     } catch (e) {
       console.warn(`[screen] announce failed for ${input.partnerId}`, (e as Error)?.message);
     }
+  } else if (!pending && intent === "purchase") {
+    // § 44 و — a new number served directly (purchase, no review): Baraa's one «🆕 عميل جديد»
+    await announceNewCustomerSafe(env, { partnerId: input.partnerId, name: st.name || input.partnerName, number: input.number, current: input.text });
   }
   const after = { ...st, x_ai_intent: intent, x_review_pending: pending };
   return { action: "screened", intent, reason, pending, entered, held: isCustomerAutomationHeld(after) };
@@ -303,6 +321,42 @@ async function announceReview(env: Env, a: {
   }
   const { sendOwnerAlert } = await import("./templates");
   await sendOwnerAlert(env, `${REVIEW_ALERT_PREFIX}${a.name}`);
+}
+
+// ---------------------------------------------------------------- § 44 و: a new customer served directly
+
+/** The partner's first inbound text (the current one when none is stored yet). */
+async function firstInboundText(env: Env, partnerId: number, current: string): Promise<string> {
+  try {
+    const rows = await call<Array<{ x_body: string | false }>>(env, "x_wa_message", "search_read", {
+      domain: [["x_partner_id", "=", partnerId], ["x_direction", "=", "in"], ["x_kind", "=", "text"]],
+      fields: ["x_body"], order: "id asc", limit: 10,
+    });
+    return rows.map((r) => String(r.x_body || "").trim()).find((t) => t && !MEDIA_MARK.test(t)) ?? String(current ?? "");
+  } catch {
+    return String(current ?? "");
+  }
+}
+
+/**
+ * ONE «🆕 عميل جديد» per partner served with no review (KV claim, a year).
+ * Never for a partner that entered review (its review announcement's claim).
+ * Through sendOwnerAlert → the gateway: held for his next tap when his window
+ * is closed. Never throws.
+ */
+async function announceNewCustomerSafe(env: Env, a: { partnerId: number; name: string; number: string; current: string }): Promise<void> {
+  try {
+    const reviewed = await env.MSG_DEDUP.get(`btnlock:v1:review:announce:${a.partnerId}`).catch(() => null);
+    if (reviewed !== null) return;
+    const claim = await claimButton(env, `newcust:announce:${a.partnerId}`, 365 * 24 * 60 * 60);
+    if (!claim.claimed) return;
+    const first = await firstInboundText(env, a.partnerId, a.current);
+    const { sendOwnerAlert } = await import("./templates");
+    await sendOwnerAlert(env, newCustomerText({ name: a.name, number: a.number, first }));
+    console.log(`[screen] partner=${a.partnerId} new customer served directly → owner alerted`);
+  } catch (e) {
+    console.warn(`[screen] new-customer alert failed for ${a.partnerId}`, (e as Error)?.message);
+  }
 }
 
 // ---------------------------------------------------------------- archived numbers (STATUS § 31)

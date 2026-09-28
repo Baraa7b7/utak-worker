@@ -22,6 +22,7 @@ const INV = "src/invoice.ts";
 const PA = "src/purchase-accounting.ts";
 const SA = "src/sale-accounting.ts";
 const TSA = "tests/sale-accounting.test.mts";
+const SC = "src/screening.ts";
 
 // [part, name, [[file, find, replace], …], test file]
 const M = [
@@ -155,6 +156,22 @@ const M = [
     "      vals: { invoice_date: billDate, ref: purchaseBillRef(listId) },", "      vals: { invoice_date: billDate },"]], T],
   ["ز", "the customer's entry without the invoice number sent to him (UTAK-INV-…)", [[SA,
     "      vals: { invoice_date: invoiceDate, ref: args.invoiceNumber },", "      vals: { invoice_date: invoiceDate },"]], TSA],
+  // ---------------------------------------------------------------- و «🆕 عميل جديد»
+  ["و", "no alert for a new number served on its purchase text", [[SC,
+    "  } else if (!pending && intent === \"purchase\") {", "  } else if (false) {"]], T],
+  ["و", "no alert for a new number made «عميل» by its first real order", [[SC,
+    "    if (!st.x_review_pending) await announceNewCustomerSafe(env, { partnerId: input.partnerId, name: st.name || input.partnerName, number: input.number, current: input.text });\n", ""]], T],
+  ["و", "«🆕» for a number waiting for review (its first real order)", [[SC,
+    "    if (!st.x_review_pending) await announceNewCustomerSafe(", "    if (true) await announceNewCustomerSafe("]], T],
+  ["و", "«🆕» for a number that entered review once", [[SC,
+    "    if (reviewed !== null) return;\n", ""]], T],
+  ["و", "the alert repeated on every message", [[SC,
+    "    const claim = await claimButton(env, `newcust:announce:${a.partnerId}`, 365 * 24 * 60 * 60);\n    if (!claim.claimed) return;\n", ""]], T],
+  ["و", "the latest message instead of the first", [[SC,
+    "      fields: [\"x_body\"], order: \"id asc\", limit: 10,\n    });\n    return rows.map((r) => String(r.x_body || \"\").trim()).find((t) => t && !MEDIA_MARK.test(t)) ?? String(current ?? \"\");",
+    "      fields: [\"x_body\"], order: \"id desc\", limit: 10,\n    });\n    return rows.map((r) => String(r.x_body || \"\").trim()).find((t) => t && !MEDIA_MARK.test(t)) ?? String(current ?? \"\");"]], T],
+  ["و", "the first message not shortened", [[SC,
+    "  const short = first.length > 80 ? `${first.slice(0, 80)}…` : first;", "  const short = first;"]], T],
 ];
 
 const want = new Set(process.argv.slice(2));

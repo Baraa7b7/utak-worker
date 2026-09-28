@@ -1,127 +1,66 @@
 {
-  "at": "2026-09-28T06:41:57.307Z",
-  "caught": 13,
-  "total": 13,
+  "at": "2026-09-28T06:45:15.424Z",
+  "caught": 7,
+  "total": 7,
   "results": [
     {
-      "part": "هـ",
-      "name": "the market winners ignored (Omar's line back on Ahmed's bill)",
+      "part": "و",
+      "name": "no alert for a new number served on its purchase text",
       "caught": true,
       "fails": [
-        "✗ [هـ] two purchase orders, two posted bills — [[801,\"x_purchase_list/10010/s801\"]]",
-        "✗ [هـ] Ahmed's: origin x_purchase_list/L/s801, his tomato only, 10 × 20 (the list's price) — [[0,0,{\"product_id\":900,\"name\":\"[UTAK-VEG-001] طماطم — كرتون\",\"product_qty\":10,\"price_unit\":20,\"tax_ids\":[[6,0,[]]]}],[0,0,{\"product_id\":900,\"name\":\"[UTAK-VEG-002] خيار — جرم\",\"product_qty\":4,\"price_unit\":13,\"tax_ids\":[[6,0,[]]]}]]",
-        "✗ [هـ] the cash market's: origin …/s104, the cucumber at Omar's written 11.5 (not Ahmed's 13)",
-        "✗ [هـ] totals: Ahmed 200, the market 46"
+        "✗ [و] ONE «🆕 عميل جديد» to Baraa — []",
+        "✗ [و] …with the name, the full number and the first message (shortened to 80)",
+        "✗ [و] …through the gateway: recorded in x_wa_message (owner_alert) — []",
+        "✗ [و] his next messages: no second alert"
       ]
     },
     {
-      "part": "هـ",
-      "name": "a market line at the list's price (Ahmed's 13), not Omar's written one",
+      "part": "و",
+      "name": "no alert for a new number made «عميل» by its first real order",
       "caught": true,
       "fails": [
-        "✗ [هـ] the cash market's: origin …/s104, the cucumber at Omar's written 11.5 (not Ahmed's 13) — [[0,0,{\"product_id\":900,\"name\":\"[UTAK-VEG-002] خيار — جرم\",\"product_qty\":4,\"price_unit\":13,\"tax_ids\":[[6,0,[]]]}]]",
-        "✗ [هـ] totals: Ahmed 200, the market 46",
-        "✗ [هـ] Baraa: «مشتريات سوق بلا رقم ضريبي: 46 ر.س، ضريبتها لا تُخصم», once — [\"مشتريات سوق بلا رقم ضريبي: 52 ر.س، ضريبتها لا تُخصم\"]",
-        "✗ [هـ] …Baraa's no-VAT line for the market's 46"
+        "✗ [و] → «عميل» by its real order, and ONE «🆕 عميل جديد» with its FIRST message — []",
+        "✗ [و] …not again"
       ]
     },
     {
-      "part": "هـ",
-      "name": "no check of the fixed origin before the create (a second bill)",
+      "part": "و",
+      "name": "«🆕» for a number waiting for review (its first real order)",
       "caught": true,
       "fails": [
-        "✗ [هـ] only Ahmed's is created; the market's found by its origin and reused — {\"purchaseOrderId\":10013,\"moveId\":10014,\"skipped\":false,\"bills\":[{\"supplierId\":801,\"purchaseOrderId\":10013,\"moveId\":10014,\"existed\":false,\"tax\":false,\"total\":200},{\"supplierId\":104,\"purchaseOrderId\":10017,\"moveId\":10018,\"existed\":false,\"tax\":false,\"total\":46}],\"failed\":[],\"noSupplier\":0}",
-        "✗ [هـ] …an existing bill is not a new no-VAT line",
-        "✗ [هـ] a live PO for the market without a posted bill: nothing created for it, Baraa alerted, the list NOT linked — {\"purchaseOrderId\":10012,\"moveId\":10013,\"skipped\":false,\"bills\":[{\"supplierId\":801,\"purchaseOrderId\":10012,\"moveId\":10013,\"existed\":false,\"tax\":false,\"total\":200},{\"supplierId\":104,\"purchaseOrderId\":10016,\"moveId\":10017,\"existed\":false,\"tax\":false,\"total\":46}],\"failed\":[],\"noSupplier\":0}",
-        "✗ [هـ] …run again: Ahmed's reused (not a second), the market still refused"
+        "✗ [و] a number waiting for review whose first real order makes it «عميل»: no «🆕» (its review alert stands) — [\"🆕 عميل جديد: ينتظر — +966500000936 — «تمام»\"]"
       ]
     },
     {
-      "part": "هـ",
-      "name": "the list linked though a supplier's bill failed",
+      "part": "و",
+      "name": "«🆕» for a number that entered review once",
       "caught": true,
       "fails": [
-        "✗ [هـ] a live PO for the market without a posted bill: nothing created for it, Baraa alerted, the list NOT linked — {\"purchaseOrderId\":10012,\"moveId\":10013,\"skipped\":false,\"bills\":[{\"supplierId\":801,\"purchaseOrderId\":10012,\"moveId\":10013,\"existed\":false,\"tax\":false,\"total\":200}],\"failed\":[104],\"noSupplier\":0}",
-        "✗ [هـ] …run again: Ahmed's reused (not a second), the market still refused",
-        "✗ [هـ] the cash-market partner missing: the market line has no supplier → alerted, not billed to Ahmed, the list not linked — {\"purchaseOrderId\":10012,\"moveId\":10013,\"skipped\":false,\"bills\":[{\"supplierId\":801,\"purchaseOrderId\":10012,\"moveId\":10013,\"existed\":false,\"tax\":false,\"total\":200}],\"failed\":[],\"noSupplier\":1}"
+        "✗ [و] the flag switched off by hand, then a purchase text: still no «🆕» (it entered review once) — [\"رقم جديد ينتظر المراجعة: x\",\"🆕 عميل جديد: x — +966500000932 — «السلام عليكم»\"]"
       ]
     },
     {
-      "part": "هـ",
-      "name": "the input tax split whatever the supplier's card says",
+      "part": "و",
+      "name": "the alert repeated on every message",
       "caught": true,
       "fails": [
-        "✗ [هـ] no input tax on either (no VAT number on the cards)",
-        "✗ [هـ] Baraa: «مشتريات سوق بلا رقم ضريبي: 46 ر.س، ضريبتها لا تُخصم», once — []",
-        "✗ [هـ] run again: linked → skipped, no third bill, no second line",
-        "✗ [هـ] a second list the same day: its own two bills, and still ONE line that day — []"
+        "✗ [و] his next messages: no second alert"
       ]
     },
     {
-      "part": "هـ",
-      "name": "the no-VAT line before 10-01 too",
+      "part": "و",
+      "name": "the latest message instead of the first",
       "caught": true,
       "fails": [
-        "✗ [هـ] …and no no-VAT line before 10-01 (there is no VAT to deduct yet)"
+        "✗ [و] → «عميل» by its real order, and ONE «🆕 عميل جديد» with its FIRST message — [\"🆕 عميل جديد: بقالة جديدة — +966500000934 — «تمام»\"]"
       ]
     },
     {
-      "part": "هـ",
-      "name": "the no-VAT line more than once a day",
+      "part": "و",
+      "name": "the first message not shortened",
       "caught": true,
       "fails": [
-        "✗ [هـ] a second list the same day: its own two bills, and still ONE line that day — [\"مشتريات سوق بلا رقم ضريبي: 46 ر.س، ضريبتها لا تُخصم\",\"مشتريات سوق بلا رقم ضريبي: 92 ر.س، ضريبتها لا تُخصم\"]"
-      ]
-    },
-    {
-      "part": "هـ",
-      "name": "the no-VAT line though the cash market has a VAT number",
-      "caught": true,
-      "fails": [
-        "✗ [هـ] the cash market WITH a VAT number on its card: its bill split (46 → 40 + 6), no line to Baraa — {\"move_type\":\"in_invoice\",\"state\":\"posted\",\"partner_id\":104,\"amount_total\":46,\"amount_tax\":6,\"invoice_origin\":false,\"id\":10016,\"invoice_date\":\"2026-10-01\",\"ref\":\"PL-10010\"}"
-      ]
-    },
-    {
-      "part": "هـ",
-      "name": "a reused (existing) bill announced as a new no-VAT purchase",
-      "caught": true,
-      "fails": [
-        "✗ [هـ] …an existing bill is not a new no-VAT line"
-      ]
-    },
-    {
-      "part": "هـ",
-      "name": "the list linked to the market's bill (not the list supplier's first)",
-      "caught": true,
-      "fails": [
-        "✗ [هـ] complete → the list linked to Ahmed's (the list supplier's) PO and bill",
-        "✗ [هـ] the result lists both bills — {\"purchaseOrderId\":10011,\"moveId\":10012,\"skipped\":false,\"bills\":[{\"supplierId\":104,\"purchaseOrderId\":10011,\"moveId\":10012,\"existed\":false,\"tax\":false,\"total\":46},{\"supplierId\":801,\"purchaseOrderId\":10015,\"moveId\":10016,\"existed\":false,\"tax\":false,\"total\":200}],\"failed\":[],\"noSupplier\":0}",
-        "✗ [هـ] …now complete → linked",
-        "✗ [هـ] Ahmed first, the market second; zero quantities dropped — {\"bills\":[{\"supplierId\":104,\"items\":[{\"product_id\":2,\"product_name\":\"p2\",\"packaging_id\":21,\"packaging_name\":\"k\",\"total_quantity\":4,\"order_ids\":[1],\"price_supplier_id\":801,\"unit_price\":11.5}],\"market\":true},{\"supplierId\":801,\"items\":[{\"product_id\":1,\"product_name\":\"p1\",\"packaging_id\":11,\"packaging_name\":\"k\",\"total_quantity\":10,\"order_ids\":[1],\"price_supplier_id\":801,\"unit_price\":20}],\"market\":false}],\"noSupplier\":[]}"
-      ]
-    },
-    {
-      "part": "هـ",
-      "name": "no supplier for an item billed anyway to the list's supplier",
-      "caught": true,
-      "fails": [
-        "✗ [هـ] the cash-market partner missing: the market line has no supplier → alerted, not billed to Ahmed, the list not linked — {\"purchaseOrderId\":10011,\"moveId\":10012,\"skipped\":false,\"bills\":[{\"supplierId\":801,\"purchaseOrderId\":10011,\"moveId\":10012,\"existed\":false,\"tax\":false,\"total\":246}],\"failed\":[],\"noSupplier\":0}"
-      ]
-    },
-    {
-      "part": "ز",
-      "name": "the supplier bill without the list's number (PL-<list>)",
-      "caught": true,
-      "fails": [
-        "✗ [هـ] each bill's reference = the list's number PL-<list> (§ 44 ز), dated 10-01"
-      ]
-    },
-    {
-      "part": "ز",
-      "name": "the customer's entry without the invoice number sent to him (UTAK-INV-…)",
-      "caught": true,
-      "fails": [
-        "✗ invoice_date = delivery date, ref = x_invoice number"
+        "✗ [و] the text: the number in digits with +, the first message cut at 80 with «…» — 🆕 عميل جديد: س — +966500000935 — «أأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأأ»"
       ]
     }
   ]

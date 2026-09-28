@@ -1,0 +1,92 @@
+{
+  "label": "post-deploy",
+  "at": "2026-09-28T06:56:59.032Z",
+  "riyadh": "2026-09-28 09:56",
+  "cloudflare": {
+    "prod": {
+      "deployed": {
+        "created_on": "2026-09-26T21:50:32.117Z",
+        "versions": [
+          "109030aa 100%"
+        ]
+      },
+      "schedules": [],
+      "secretNames": [
+        "ADMIN_TOKEN",
+        "ANTHROPIC_API_KEY",
+        "AUDIT_TOKEN",
+        "GOTENBERG_PASSWORD",
+        "GOTENBERG_URL",
+        "GOTENBERG_USER",
+        "INTERNAL_WEBHOOK_SECRET",
+        "META_ACCESS_TOKEN",
+        "META_APP_SECRET",
+        "META_VERIFY_TOKEN",
+        "ODOO_API_KEY",
+        "ODOO_HOOK_TOKEN",
+        "SALE_PDF_DOWNLOAD_TOKEN",
+        "SIM_SECRET"
+      ]
+    },
+    "sim": {
+      "deployed": {
+        "created_on": "2026-09-28T06:56:35.877885Z",
+        "versions": [
+          "5451b16d 100%"
+        ]
+      },
+      "schedules": [
+        "0 14 * * *",
+        "0 15 * * *",
+        "0 17 * * *",
+        "0 18 * * *",
+        "0 2 * * *",
+        "0 23 * * *",
+        "0 3 * * *",
+        "0 5 * * *",
+        "15 18 * * *",
+        "2,7,12,17,22,27,32,37,42,47,52,57 * * * *",
+        "30 18 * * *",
+        "*/5 * * * *"
+      ],
+      "secretNames": [
+        "ADMIN_TOKEN",
+        "ANTHROPIC_API_KEY",
+        "GOTENBERG_PASSWORD",
+        "GOTENBERG_URL",
+        "GOTENBERG_USER",
+        "INTERNAL_WEBHOOK_SECRET",
+        "META_ACCESS_TOKEN",
+        "META_APP_SECRET",
+        "META_VERIFY_TOKEN",
+        "ODOO_API_KEY",
+        "ODOO_HOOK_TOKEN",
+        "SALE_PDF_DOWNLOAD_TOKEN",
+        "SIM_SECRET"
+      ]
+    }
+  },
+  "meta": {
+    "phoneWebhook": {
+      "application": "https://utak-worker-sim.utak-business.workers.dev/webhook"
+    },
+    "wabaSubscribedApps": [
+      {
+        "id": "2331128704328678",
+        "name": "UTAK",
+        "override_callback_uri": null
+      }
+    ],
+    "pointsTo": "sim"
+  },
+  "health": {
+    "sim": {
+      "status": 200,
+      "body": "{\"status\":\"ok\",\"odoo\":\"connected (apikey)\",\"sigFailures\":{\"totalLast7Days\":0,\"byDay\":[{\"date\":\"2026-09-28\",\"count\":0},{\"date\":\"2026-09-27\",\"count\":0},{\"date\":\"2026-09-26\",\"count\":0},{\"date\":\"2026-09-25\",\"count\":0},{\"date\":\"2026-09-24\",\"count\":0},{\"date\":\"2026-09-23\",\"count\":0},{\"date\":\"2026-09-22\",\""
+    },
+    "prod": {
+      "status": 200,
+      "body": "{\"status\":\"ok\",\"odoo\":\"connected (apikey)\",\"timestamp\":\"2026-09-28T06:56:59.305Z\"}"
+    }
+  }
+}

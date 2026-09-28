@@ -5626,12 +5626,25 @@ node --experimental-strip-types --experimental-loader=./tests/loader.mjs scripts
 ### الـ commits والنشر
 
 - **الـ commits:** ب `7505af9`، وج `df44853`، ود `f267c6b`، وهـ `4ee9fe0`، وو `38bf69e`، ثم الوثائق (أ وز وح).
-- **sim:** يُنشر بعد commit الوثائق، والنتيجة في «بعد النشر» تحت (هدف التراجع `a796bc93`).
+- **sim:** **`5451b16d`** (`wrangler deploy --env sim` من `157a2c8`، 09:56)، وهدف التراجع **`a796bc93`**. والتفاصيل في «بعد النشر».
 - **prod:** بلا نشر.
 - **Odoo (هذه المهمة):**
   - (ج) خمسة شركاء، والتراجع `node --experimental-strip-types --experimental-loader=./tests/loader.mjs scripts/s44-20260928-partners.mts --rollback --apply`.
   - (د) ثلاثة حقول وافتراض وعرض، والتراجع `node scripts/s44-20260928-odoo.mjs --rollback --drop --apply` بعد تراجع الكود.
 - **الـ push:** `sim-harness` وحده.
+
+### بعد النشر (قراءة فقط، 09:56–09:58)
+
+- **prod بلا تغيير:** `109030aa` وجدولته `[]` ([s44-20260928-precheck-post-deploy.json](../scripts/artifacts/s44-20260928-precheck-post-deploy.json)).
+- **sim:** `5451b16d` 100%، والجدولة **اثنا عشر موعداً** كما كانت، و`ACCOUNTING_SYNC` = false (`--dry-run` قبل النشر).
+- **`/health`:** sim `ok` وprod `ok`، Odoo `connected (apikey)`.
+- **webhook Meta:** ما زال إلى sim (`webhook_configuration.application` واشتراك التطبيق).
+- **`scripts/cutover-prod.mts` جافاً بعد التغييرات** ([dry-202609280957](../scripts/artifacts/cutover-prod/dry-202609280957/)): كل الفحوص ✓.
+  - الأسرار الست، وسر التطبيق صالح، وتحدي التحقق على prod وsim، و`/health` prod.
+  - 24 سجلاً في Odoo على مضيف sim، كلها «غير مطابق → قيمة الملف».
+  - طوابير KV فارغة، والوسم جافاً بلا شيء، و«real customers the re-mark never marks: #31، #105».
+  - أهداف التراجع: sim **`5451b16d`** وprod `109030aa`.
+  - خارج النافذة ومن `sim-harness`، فـ `--apply` يرفض كما يجب.
 
 ### قرارات خارج حرفية الأمر
 
@@ -5657,3 +5670,5 @@ node --experimental-strip-types --experimental-loader=./tests/loader.mjs scripts
 3. **رقم فاتورة المورد على قيده:** إن أردته، حقل على قائمة الشراء يكتبه عمر أو أنت.
 4. **الإشعار الدائن:** بناء المسار (أعلاه)، وحتى ذلك الخطوات اليدوية.
 5. **التالي:** أمر الإطلاق الليلة 22:00. قبل التحويل يُعاد الوسم (قائمة الاستثناء فيه الآن)، والفحص الجاف لجمهور النشر.
+   - هدف تراجع sim في سكربت التحويل صار `5451b16d`.
+   - ومع أول «تم الشراء» على prod بالمحاسبة: فاتورة لكل مورد، وتحتاج رقم أحمد الضريبي في بطاقته.

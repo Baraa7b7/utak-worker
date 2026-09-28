@@ -20,7 +20,8 @@
 //     host → its planned value (host → prod, the token → the file's value for the secret its route expects)
 //   · sim's KV queues (read only — listed, never moved): wa_q:v1:* (the held messages), pending_loc:*
 //     (the team's deferred tasks), cpay_open:v1 (open collections)
-//   · the re-mark, dry: what `s42-20260927-prelaunch-mark.mts mark` would flag now
+//   · the re-mark, dry: what `s42-20260927-prelaunch-mark.mts mark` would flag now — never a record linked
+//     to a real customer (§ 44 ب: scripts/lib/real-partners.mjs, #31 and #105; the mark script leaves them out)
 //
 // The steps (--apply), in this order; a failure rolls back every step before it, then stops:
 //   1. Meta: POST /{app}/subscriptions — callback https://<prod>/webhook, the same fields, the file's
@@ -54,6 +55,8 @@ import { spawnSync } from "node:child_process";
 import { cronBlocks, TWELVE } from "../tests/cron-blocks.mts";
 // @ts-ignore — plain .mjs helper (retries 429 like src/odoo.ts)
 import { call } from "./lib/odoo-cli.mjs";
+// @ts-ignore — plain .mjs helper (§ 44 ب: the real customers the re-mark never marks)
+import { REAL_PARTNER_IDS } from "./lib/real-partners.mjs";
 
 const APPLY = process.argv.includes("--apply");
 const ROLLBACK = process.argv.includes("--rollback");
@@ -400,6 +403,8 @@ log(`  · sim KV queues (not moved): ${Object.entries(queues).map(([p, v]) => `$
 
 const remarkDry = markStep(["mark", `--rb=cutover-prod-${runId}-remark-rollback.json`]);
 report.remarkDry = remarkDry.lines;
+report.realPartnersNeverMarked = REAL_PARTNER_IDS;
+log(`  · real customers the re-mark never marks (§ 44 ب): ${REAL_PARTNER_IDS.map((id: number) => "#" + id).join(", ")}`);
 log(`  · re-mark now (dry): ${remarkDry.lines.filter((l) => !/dry-run/.test(l)).join(" · ") || "nothing to mark"}`);
 
 // the toml edits, in memory: sim [] then prod the twelve → «prod» is the active block, and back again exactly

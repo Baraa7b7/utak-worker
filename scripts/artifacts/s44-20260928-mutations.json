@@ -1,0 +1,89 @@
+{
+  "at": "2026-09-28T06:11:26.432Z",
+  "caught": 9,
+  "total": 9,
+  "results": [
+    {
+      "part": "ب",
+      "name": "the exclusion drops nothing (every x_is_simulation record marked)",
+      "caught": true,
+      "fails": [
+        "✗ [ب] x_daily_order: the real customer's record (x_is_simulation) is not selected, and is listed as excluded — {\"hasIs\":true,\"hasSim\":true,\"ids\":[10000,10001,10002],\"excluded\":[],\"unmarkedNoRule\":null}",
+        "✗ [ب] x_daily_order_line: the real customer's record (x_is_simulation) is not selected, and is listed as excluded — {\"hasIs\":true,\"hasSim\":true,\"ids\":[10003,10004],\"excluded\":[],\"unmarkedNoRule\":null}",
+        "✗ [ب] x_invoice: the real customer's record (x_is_simulation) is not selected, and is listed as excluded — {\"hasIs\":true,\"hasSim\":true,\"ids\":[10005,10006],\"excluded\":[],\"unmarkedNoRule\":null}",
+        "✗ [ب] x_payment: the real customer's record (x_is_simulation) is not selected, and is listed as excluded — {\"hasIs\":true,\"hasSim\":true,\"ids\":[10007,10008],\"excluded\":[],\"unmarkedNoRule\":null}"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "selectForMark ignores the links",
+      "caught": true,
+      "fails": [
+        "✗ [ب] x_daily_order: the real customer's record (x_is_simulation) is not selected, and is listed as excluded — {\"hasIs\":true,\"hasSim\":true,\"ids\":[10000,10001,10002],\"excluded\":[],\"unmarkedNoRule\":null}",
+        "✗ [ب] x_daily_order_line: the real customer's record (x_is_simulation) is not selected, and is listed as excluded — {\"hasIs\":true,\"hasSim\":true,\"ids\":[10003,10004],\"excluded\":[],\"unmarkedNoRule\":null}",
+        "✗ [ب] x_invoice: the real customer's record (x_is_simulation) is not selected, and is listed as excluded — {\"hasIs\":true,\"hasSim\":true,\"ids\":[10005,10006],\"excluded\":[],\"unmarkedNoRule\":null}",
+        "✗ [ب] x_payment: the real customer's record (x_is_simulation) is not selected, and is listed as excluded — {\"hasIs\":true,\"hasSim\":true,\"ids\":[10007,10008],\"excluded\":[],\"unmarkedNoRule\":null}"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the route carrying his stop not protected",
+      "caught": true,
+      "fails": [
+        "✗ [ب] linked: the route carrying his stop, the purchase list of his live order's day, its due and due line",
+        "✗ [ب] x_delivery_route: the real customer's record (x_is_simulation) is not selected, and is listed as excluded — {\"hasIs\":true,\"hasSim\":true,\"ids\":[10009,10010],\"excluded\":[],\"unmarkedNoRule\":null}"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "a cancelled order protects its day's purchase list",
+      "caught": true,
+      "fails": [
+        "✗ [ب] NOT linked: the simulation partner's records, and the list of a day with only his cancelled order",
+        "✗ [ب] the day with only his cancelled order: its list is still selected"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the dues' lines not protected",
+      "caught": true,
+      "fails": [
+        "✗ [ب] linked: the route carrying his stop, the purchase list of his live order's day, its due and due line",
+        "✗ [ب] x_supplier_due_line: the real customer's record (x_is_simulation) is not selected, and is listed as excluded — {\"hasIs\":true,\"hasSim\":true,\"ids\":[10018,10019],\"excluded\":[],\"unmarkedNoRule\":null}"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the payment read through a wrong path",
+      "caught": true,
+      "fails": [
+        "✗ [ب] linked: the real customer's orders (live and cancelled), line, invoice, payment, stop",
+        "✗ [ب] x_payment: the real customer's record (x_is_simulation) is not selected, and is listed as excluded — {\"hasIs\":true,\"hasSim\":true,\"ids\":[10007,10008],\"excluded\":[],\"unmarkedNoRule\":null}"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "«بيت التمور» (#105) left out of the list",
+      "caught": true,
+      "fails": [
+        "✗ [ب] the list is #31 and #105 — [31]"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the mark script selects without the links",
+      "caught": true,
+      "fails": [
+        "✗ [ب] the pre-launch mark script selects through selectForMark with the real customers' links"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the mark script's write guard removed",
+      "caught": true,
+      "fails": [
+        "✗ [ب] the mark script refuses to write a real customer's record, and verify checks its own marks"
+      ]
+    }
+  ]
+}

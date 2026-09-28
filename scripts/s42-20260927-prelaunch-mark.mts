@@ -44,9 +44,15 @@
 // x_name among its watched fields): it is switched off for the renames only
 // and on again in `finally`; verify checks it is on.
 //
+// § 44 ب — the real customers (scripts/lib/real-partners.mjs: #31 Abu Makeen, #105 «بيت التمور»):
+// a record linked to one of them is NEVER marked, even with x_is_simulation = true (every step reads
+// the links first; scan lists the ones already marked, for Baraa — nothing is unmarked here).
+//
 // Rollback file: scripts/artifacts/s42-20260927-prelaunch-mark-rollback.json. No WhatsApp, no deletion.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { call } from "./lib/odoo-cli.mjs";
+// @ts-ignore — plain .mjs helper
+import { REAL_PARTNER_IDS, linkedRecordIds, selectForMark } from "./lib/real-partners.mjs";
 
 const step = process.argv[2] ?? "";
 const APPLY = process.argv.includes("--apply");
@@ -87,13 +93,14 @@ globalThis.fetch = (async (input: any, init?: any) => {
 async function fieldsOf(model: string): Promise<Record<string, { type: string }>> {
   return call(model, "fields_get", { attributes: ["type"] });
 }
-async function selectable(model: string): Promise<{ hasIs: boolean; hasSim: boolean; ids: number[]; unmarkedNoRule: number | null }> {
-  const f = await fieldsOf(model);
-  const hasIs = IS in f, hasSim = SIM in f;
-  if (!hasSim) return { hasIs, hasSim, ids: [], unmarkedNoRule: null };
-  if (!hasIs) return { hasIs, hasSim, ids: [], unmarkedNoRule: await call(model, "search_count", { domain: [[SIM, "!=", true]] }) };
-  const ids = await call<number[]>(model, "search", { domain: [[IS, "=", true], [SIM, "!=", true]], order: "id asc" });
-  return { hasIs, hasSim, ids, unmarkedNoRule: null };
+// § 44 ب — per model, the records linked to a real customer (read once per run)
+let LINKED: Record<string, Set<number>> | null = null;
+async function linked(): Promise<Record<string, Set<number>>> {
+  LINKED ??= await linkedRecordIds(call, REAL_PARTNER_IDS);
+  return LINKED!;
+}
+async function selectable(model: string): Promise<{ hasIs: boolean; hasSim: boolean; ids: number[]; excluded: number[]; unmarkedNoRule: number | null }> {
+  return selectForMark(call, model, await linked());
 }
 async function acctCounts() {
   return { moves: await call<number>("account.move", "search_count", { domain: [] }), payments: await call<number>("account.payment", "search_count", { domain: [] }) };
@@ -107,9 +114,25 @@ if (step === "scan") {
   const out: any = { at: new Date().toISOString(), today: TODAY, models: {}, sp: {}, numbers: {}, sequences: [], numbers31: [] };
   for (const m of MODELS) {
     const s = await selectable(m);
-    out.models[m] = { hasIsSimulation: s.hasIs, hasUtakSimulation: s.hasSim, toMark: s.ids.length, ids: s.ids, unmarkedNoRule: s.unmarkedNoRule };
-    log(`${m.padEnd(22)} ${s.hasIs ? `to mark ${s.ids.length}${s.ids.length ? ` (${s.ids.join(",")})` : ""}` : `no ${IS} — ${s.unmarkedNoRule} unmarked, left as they are`}`);
+    out.models[m] = { hasIsSimulation: s.hasIs, hasUtakSimulation: s.hasSim, toMark: s.ids.length, ids: s.ids, excludedReal: s.excluded, unmarkedNoRule: s.unmarkedNoRule };
+    log(`${m.padEnd(22)} ${s.hasIs ? `to mark ${s.ids.length}${s.ids.length ? ` (${s.ids.join(",")})` : ""}${s.excluded.length ? ` · real customer, never marked ${s.excluded.length} (${s.excluded.join(",")})` : ""}` : `no ${IS} — ${s.unmarkedNoRule} unmarked, left as they are`}`);
   }
+  // § 44 ب — the real customers: their linked records, and the ones already marked (Baraa decides)
+  const L = await linked();
+  out.realPartners = { ids: REAL_PARTNER_IDS, linked: {}, alreadyMarked: {}, otherCustomers: [] };
+  for (const [m, set] of Object.entries(L)) {
+    out.realPartners.linked[m] = [...set];
+    if (!set.size) continue;
+    const f = await fieldsOf(m);
+    if (!(SIM in f)) continue;
+    const marked = await call<number[]>(m, "search", { domain: [["id", "in", [...set]], [SIM, "=", true]], context: { active_test: false } });
+    if (marked.length) out.realPartners.alreadyMarked[m] = marked;
+  }
+  // customers classified «عميل» by hand that are not in the list (to add, if real)
+  out.realPartners.otherCustomers = (await call<any[]>("res.partner", "search_read", {
+    domain: [["x_contact_class", "=", "customer"], ["id", "not in", [...REAL_PARTNER_IDS]], [SIM, "!=", true]], fields: ["id", "name", "active"], context: { active_test: false },
+  })).map((p) => `#${p.id} ${p.name}${p.active ? "" : " (مؤرشف)"}`);
+  log(`real customers ${REAL_PARTNER_IDS.map((id) => "#" + id).join(", ")}: linked ${Object.entries(L).filter(([, v]) => v.size).map(([m, v]) => `${m} ${v.size}`).join(", ") || "none"}; already marked (Baraa decides): ${JSON.stringify(out.realPartners.alreadyMarked)}; other «عميل» not in the list: ${out.realPartners.otherCustomers.join(", ") || "none"}`);
   const sp = await call<any[]>("x_supplier_payment", "search_read", { domain: [], fields: ["id", "x_name", SIM, IS, "x_state"], order: "id asc" });
   const dr = await call<any[]>("ir.sequence.date_range", "search_read", { domain: [["sequence_id", "=", SP_SEQUENCE]], fields: ["id", "date_from", "date_to", "number_next_actual"] });
   out.sp = { payments: sp, dateRanges: dr, realPayments: sp.filter((p) => !p[SIM] && !p[IS]).map((p) => p.x_name) };
@@ -169,6 +192,10 @@ if (step === "mark") {
   for (const m of MODELS) {
     const s = await selectable(m);
     if (!s.ids.length) continue;
+    if (s.excluded.length) log(`${m}: real customer, never marked: ${s.excluded.join(",")}`);
+    // § 44 ب — a second guard at the write itself
+    const L = await linked();
+    if (s.ids.some((id) => L[m]?.has(id))) throw new Error(`${m}: a record linked to a real customer reached the write`);
     log(`${m}: ${SIM} ← true on ${s.ids.length} (${s.ids.join(",")})`);
     rb.flags[m] = [...new Set([...(rb.flags[m] ?? []), ...s.ids])];
     saveRb(rb);
@@ -222,8 +249,12 @@ if (step === "verify") {
     if (!s.hasIs) continue;
     counts[m] = s.ids.length;
   }
-  check(`nothing left to mark (x_is_simulation without x_utak_simulation): ${JSON.stringify(counts)}`, Object.values(counts).every((n) => n === 0));
+  check(`nothing left to mark (x_is_simulation without x_utak_simulation, real customers aside): ${JSON.stringify(counts)}`, Object.values(counts).every((n) => n === 0));
   const rb = readRb();
+  // § 44 ب — this run's marks never touched a real customer's record
+  const L = await linked();
+  const touched = Object.entries(rb.flags as Record<string, number[]>).flatMap(([m, ids]) => ids.filter((id) => L[m]?.has(id)).map((id) => `${m} #${id}`));
+  check(`no record of a real customer (${REAL_PARTNER_IDS.map((id) => "#" + id).join(", ")}) among this run's marks`, touched.length === 0, touched.join(", "));
   for (const [m, ids] of Object.entries(rb.flags as Record<string, number[]>)) {
     const rows = await call<any[]>(m, "read", { ids, fields: ["id", SIM] });
     check(`${m}: the ${ids.length} marked still flagged`, rows.length === ids.length && rows.every((r) => r[SIM] === true));

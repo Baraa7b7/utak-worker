@@ -69,6 +69,8 @@ function attDomain(dom: unknown[], r: Record<string, unknown>): boolean {
     const x = r[f];
     if (op === "=") return x === v;
     if (op === "in") return (v as unknown[]).includes(x);
+    // § 41 — the worker reads its rows with x_utak_simulation != true (a missing field reads as false, as in Odoo)
+    if (op === "!=") return (x ?? false) !== v;
     throw new Error(`dry-run: x_team_attendance domain op ${op} not modelled`);
   });
 }

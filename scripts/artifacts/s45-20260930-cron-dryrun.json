@@ -1,0 +1,312 @@
+{
+ "at": "2026-09-30T14:21:26.436Z",
+ "window": {
+  "fromRiyadh": "2026-09-30 22:35",
+  "hours": 24
+ },
+ "env": {
+  "SIMULATION_MODE": "false",
+  "PILOT_MODE": "false",
+  "SIM_ALLOWLIST": "(unset)",
+  "ACCOUNTING_SYNC": "true",
+  "OWNER_WINDOW_OPEN_AT": "06:00",
+  "WORKER_ORIGIN": "https://utak-worker.utak-business.workers.dev"
+ },
+ "crons": [
+  "0 23 * * *",
+  "0 2 * * *",
+  "0 3 * * *",
+  "0 17 * * *",
+  "0 18 * * *",
+  "15 18 * * *",
+  "0 15 * * *",
+  "0 14 * * *",
+  "0 5 * * *",
+  "*/5 * * * *",
+  "2,7,12,17,22,27,32,37,42,47,52,57 * * * *",
+  "30 18 * * *"
+ ],
+ "runs": {
+  "total": 586,
+  "byCron": [
+   {
+    "cron": "0 23 * * *",
+    "label": "02:00 طلب أسعار الموردين",
+    "runs": 1
+   },
+   {
+    "cron": "0 2 * * *",
+    "label": "05:00 درجات الموردين + تذكير المورد الصامت + مزامنة القوالب",
+    "runs": 1
+   },
+   {
+    "cron": "0 3 * * *",
+    "label": "06:00 فتح الطلبات + تنبيه موردين لم يردوا + متابعة قائمة الشراء",
+    "runs": 1
+   },
+   {
+    "cron": "0 17 * * *",
+    "label": "20:00 تذكير الطلبات غير المؤكدة",
+    "runs": 1
+   },
+   {
+    "cron": "0 18 * * *",
+    "label": "21:00 إقفال الطلبات غير المؤكدة",
+    "runs": 1
+   },
+   {
+    "cron": "15 18 * * *",
+    "label": "21:15 قائمة الشراء + تنبيه المورد بلا سعر",
+    "runs": 1
+   },
+   {
+    "cron": "0 15 * * *",
+    "label": "18:00 ملخص التحصيل",
+    "runs": 1
+   },
+   {
+    "cron": "0 14 * * *",
+    "label": "17:00 تذكير الطلب المعتاد",
+    "runs": 1
+   },
+   {
+    "cron": "0 5 * * *",
+    "label": "08:00 التقييم + تذكير الدفع (م2) + إعادة التنشيط",
+    "runs": 1
+   },
+   {
+    "cron": "*/5 * * * *",
+    "label": "*/5 التحضير + الطابور + السجل + الأسعار + تأكيد الدفع + فاتورة الشراء + التحصيل + دفع الموردين",
+    "runs": 288
+   },
+   {
+    "cron": "2,7,12,17,22,27,32,37,42,47,52,57 * * * *",
+    "label": "*/5+2 متابعة السائق (م12)",
+    "runs": 288
+   },
+   {
+    "cron": "30 18 * * *",
+    "label": "21:30 ملخص اليوم لبراء (م17)",
+    "runs": 1
+   }
+  ]
+ },
+ "recipients": [
+  {
+   "number": "+966…7704",
+   "category": "أحمد (#30)",
+   "name": "أحمد حسان (#30)",
+   "purposes": [
+    "supplier_ask"
+   ],
+   "outcomes": {
+    "قالب utak_supplier_ask_v2": 1
+   },
+   "jobs": [
+    "02:00 طلب أسعار الموردين"
+   ],
+   "first": "2026-10-01 02:00"
+  },
+  {
+   "number": "+966…4962",
+   "category": "براء",
+   "name": "براء (OWNER_WHATSAPP)",
+   "purposes": [
+    "owner_alert",
+    "team_shift_start",
+    "owner_summary"
+   ],
+   "outcomes": {
+    "جلسة (text)": 2,
+    "قالب utak_shift_start_v2": 1,
+    "قالب utak_owner_daily_summary_v1": 1
+   },
+   "jobs": [
+    "06:00 فتح الطلبات + تنبيه موردين لم يردوا + متابعة قائمة الشراء",
+    "*/5 التحضير + الطابور + السجل + الأسعار + تأكيد الدفع + فاتورة الشراء + التحصيل + دفع الموردين",
+    "21:15 قائمة الشراء + تنبيه المورد بلا سعر",
+    "21:30 ملخص اليوم لبراء (م17)"
+   ],
+   "first": "2026-10-01 06:00"
+  },
+  {
+   "number": "+966…6832",
+   "category": "فريق (hr.employee)",
+   "name": "عمر المجهلي (موظف #4)",
+   "purposes": [
+    "team_shift_start"
+   ],
+   "outcomes": {
+    "قالب utak_shift_start_v2": 1
+   },
+   "jobs": [
+    "*/5 التحضير + الطابور + السجل + الأسعار + تأكيد الدفع + فاتورة الشراء + التحصيل + دفع الموردين"
+   ],
+   "first": "2026-10-01 02:00"
+  },
+  {
+   "number": "+966…9474",
+   "category": "فريق (hr.employee)",
+   "name": "عثمان عبدالوهاب (موظف #5)",
+   "purposes": [
+    "team_shift_start"
+   ],
+   "outcomes": {
+    "قالب utak_shift_start_v2": 1
+   },
+   "jobs": [
+    "*/5 التحضير + الطابور + السجل + الأسعار + تأكيد الدفع + فاتورة الشراء + التحصيل + دفع الموردين"
+   ],
+   "first": "2026-10-01 06:00"
+  }
+ ],
+ "condition": {
+  "allowedOnly": true,
+  "others": [],
+  "pricePublishOthers": []
+ },
+ "sends": [
+  {
+   "at": "2026-10-01 02:00",
+   "job": "02:00 02:00 طلب أسعار الموردين",
+   "to": "+966…7704",
+   "kind": "template",
+   "template": "utak_supplier_ask_v2",
+   "purpose": "supplier_ask"
+  },
+  {
+   "at": "2026-10-01 02:00",
+   "job": "02:00 */5 التحضير + الطابور + السجل + الأسعار + تأكيد الدفع + فاتورة الشراء + التحصيل + دفع الموردين",
+   "to": "+966…6832",
+   "kind": "template",
+   "template": "utak_shift_start_v2",
+   "purpose": "team_shift_start"
+  },
+  {
+   "at": "2026-10-01 06:00",
+   "job": "06:00 06:00 فتح الطلبات + تنبيه موردين لم يردوا + متابعة قائمة الشراء",
+   "to": "+966…4962",
+   "kind": "text",
+   "text": "☀️ صباح الخير براء — ما فيه طلبات أسعار انرسلت الليلة (لعل القوالب لسا PENDING).",
+   "purpose": "owner_alert"
+  },
+  {
+   "at": "2026-10-01 06:00",
+   "job": "06:00 */5 التحضير + الطابور + السجل + الأسعار + تأكيد الدفع + فاتورة الشراء + التحصيل + دفع الموردين",
+   "to": "+966…4962",
+   "kind": "template",
+   "template": "utak_shift_start_v2",
+   "purpose": "team_shift_start"
+  },
+  {
+   "at": "2026-10-01 06:00",
+   "job": "06:00 */5 التحضير + الطابور + السجل + الأسعار + تأكيد الدفع + فاتورة الشراء + التحصيل + دفع الموردين",
+   "to": "+966…9474",
+   "kind": "template",
+   "template": "utak_shift_start_v2",
+   "purpose": "team_shift_start"
+  },
+  {
+   "at": "2026-10-01 21:15",
+   "job": "21:15 21:15 قائمة الشراء + تنبيه المورد بلا سعر",
+   "to": "+966…4962",
+   "kind": "text",
+   "text": "📊 21:15 لا يوجد طلبات مؤكدة اليوم — ما تم إنشاء قائمة شراء.",
+   "purpose": "owner_alert"
+  },
+  {
+   "at": "2026-10-01 21:30",
+   "job": "21:30 21:30 ملخص اليوم لبراء (م17)",
+   "to": "+966…4962",
+   "kind": "template",
+   "template": "utak_owner_daily_summary_v1",
+   "purpose": "owner_summary"
+  }
+ ],
+ "decisions": [
+  {
+   "at": "2026-10-01 02:00",
+   "job": "02:00 02:00 طلب أسعار الموردين",
+   "action": "sent",
+   "purpose": "supplier_ask",
+   "last4": "7704",
+   "note": "via=template:utak_supplier_ask_v2"
+  },
+  {
+   "at": "2026-10-01 02:00",
+   "job": "02:00 */5 التحضير + الطابور + السجل + الأسعار + تأكيد الدفع + فاتورة الشراء + التحصيل + دفع الموردين",
+   "action": "sent",
+   "purpose": "team_shift_start",
+   "last4": "6832",
+   "note": "via=template:utak_shift_start_v2"
+  },
+  {
+   "at": "2026-10-01 06:00",
+   "job": "06:00 06:00 فتح الطلبات + تنبيه موردين لم يردوا + متابعة قائمة الشراء",
+   "action": "sent",
+   "purpose": "owner_alert",
+   "last4": "4962",
+   "note": "via=text"
+  },
+  {
+   "at": "2026-10-01 06:00",
+   "job": "06:00 */5 التحضير + الطابور + السجل + الأسعار + تأكيد الدفع + فاتورة الشراء + التحصيل + دفع الموردين",
+   "action": "sent",
+   "purpose": "team_shift_start",
+   "last4": "4962",
+   "note": "via=template:utak_shift_start_v2"
+  },
+  {
+   "at": "2026-10-01 06:00",
+   "job": "06:00 */5 التحضير + الطابور + السجل + الأسعار + تأكيد الدفع + فاتورة الشراء + التحصيل + دفع الموردين",
+   "action": "sent",
+   "purpose": "team_shift_start",
+   "last4": "9474",
+   "note": "via=template:utak_shift_start_v2"
+  },
+  {
+   "at": "2026-10-01 21:15",
+   "job": "21:15 21:15 قائمة الشراء + تنبيه المورد بلا سعر",
+   "action": "sent",
+   "purpose": "owner_alert",
+   "last4": "4962",
+   "note": "via=text"
+  },
+  {
+   "at": "2026-10-01 21:30",
+   "job": "21:30 21:30 ملخص اليوم لبراء (م17)",
+   "action": "sent",
+   "purpose": "owner_summary",
+   "last4": "4962",
+   "note": "via=template:utak_owner_daily_summary_v1"
+  }
+ ],
+ "priceApprovalAudience": [
+  {
+   "number": "+966…7756",
+   "name": "ابو مكين المعبري (#31)",
+   "category": "عميل حقيقي"
+  },
+  {
+   "number": "+966…9526",
+   "name": "بيت التمور (#105)",
+   "category": "عميل حقيقي"
+  }
+ ],
+ "heldAtEnd": [],
+ "odoo": {
+  "reads": 1213,
+  "cacheHits": 2561,
+  "writesIntercepted": {
+   "x_wa_message.create": 7,
+   "x_supplier_price_request_log.create": 1,
+   "x_team_attendance.create": 2,
+   "x_team_attendance.write": 2,
+   "x_price_day.create": 38,
+   "res.partner.write": 2,
+   "x_wa_control.write": 1
+  }
+ },
+ "refusedCalls": [],
+ "errors": {}
+}

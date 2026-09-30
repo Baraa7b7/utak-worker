@@ -74,9 +74,25 @@ async function readRecord(env: Env, to: string): Promise<WindowRecord | null> {
   }
 }
 
+/** When the KV key of `rec` may go: an hour past the window's end, so a late 131047 still finds it. */
+export function windowRecordUntil(rec: WindowRecord): number {
+  return Math.max(rec.in || 0, rec.closed || 0) + WINDOW_MS + 3600_000;
+}
+
+/**
+ * § 45 هـ — one number's two records (sim's KV and prod's at the cutover,
+ * scripts/cutover-prod.mts step 2ب): the newest inbound and the newest 131047,
+ * so no window is lost and none is reopened by the copy.
+ */
+export function mergeWindowRecords(a: WindowRecord | null, b: WindowRecord | null): WindowRecord | null {
+  if (!a && !b) return null;
+  const inMs = Math.max(Number(a?.in) || 0, Number(b?.in) || 0);
+  const closed = Math.max(Number(a?.closed) || 0, Number(b?.closed) || 0);
+  return closed ? { in: inMs, closed } : { in: inMs };
+}
+
 async function writeRecord(env: Env, to: string, rec: WindowRecord, now: number): Promise<void> {
-  // Kept an hour past the window's end, so a late 131047 still finds it.
-  const until = Math.max(rec.in || 0, rec.closed || 0) + WINDOW_MS + 3600_000;
+  const until = windowRecordUntil(rec);
   const ttl = Math.max(60, Math.ceil((until - now) / 1000));
   try {
     await env.MSG_DEDUP.put(kvWindowKey(to), JSON.stringify(rec), { expirationTtl: ttl });

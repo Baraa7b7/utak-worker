@@ -212,6 +212,25 @@
           "rejected_reason": null
         }
       }
+    },
+    {
+      "atRiyadh": "2026-09-30 17:12",
+      "status": {
+        "utak_owner_daily_summary_v1": {
+          "id": "1610912117193617",
+          "status": "APPROVED",
+          "category": "UTILITY",
+          "previous_category": null,
+          "rejected_reason": null
+        },
+        "utak_owner_price_review_v1": {
+          "id": "28443958348618504",
+          "status": "APPROVED",
+          "category": "MARKETING",
+          "previous_category": "UTILITY",
+          "rejected_reason": null
+        }
+      }
     }
   ],
   "status": {
@@ -230,5 +249,5 @@
       "rejected_reason": null
     }
   },
-  "statusAtRiyadh": "2026-09-30 17:02"
+  "statusAtRiyadh": "2026-09-30 17:12"
 }

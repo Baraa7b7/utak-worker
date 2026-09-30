@@ -408,6 +408,32 @@ console.log("\n[ج] the driver's follow-up on Friday: 11:30 and 12:30, no «را
   assert("18:00: no «يوم راحته» / «إجازة» alert (Friday is his working day)", !ownerMsgs().map(textOf).some((t) => /راحته|إجازة/.test(t)) && ownerMsgs().length === 1, JSON.stringify(ownerMsgs().map(textOf)));
 }
 
+// ================================================================ [هـ] the windows at the cutover
+console.log("\n[هـ] the 24h windows move with the cutover: sim's KV → prod's KV, merged, nothing lost");
+{
+  const NOW = Date.parse("2026-09-30T22:40:00+03:00");
+  const H = 3600_000;
+  const m1 = WIN.mergeWindowRecords({ in: NOW - 2 * H }, null);
+  assert("sim only → the same record", JSON.stringify(m1) === JSON.stringify({ in: NOW - 2 * H }), JSON.stringify(m1));
+  const m2 = WIN.mergeWindowRecords({ in: NOW - 2 * H }, { in: NOW - 60_000 });
+  assert("prod has a newer inbound (after step 1) → the newer one kept", m2?.in === NOW - 60_000, JSON.stringify(m2));
+  const m3 = WIN.mergeWindowRecords({ in: NOW - 60_000 }, { in: NOW - 30 * H });
+  assert("prod's stale key → sim's newer inbound kept", m3?.in === NOW - 60_000, JSON.stringify(m3));
+  const m4 = WIN.mergeWindowRecords({ in: NOW - 2 * H, closed: NOW - H }, null);
+  assert("a 131047 after the last inbound stays: the copy never reopens a window Meta closed", m4?.closed === NOW - H && !WIN.evaluateWindow(m4, NOW).open, JSON.stringify(m4));
+  const m5 = WIN.mergeWindowRecords({ in: NOW - 2 * H, closed: NOW - H }, { in: NOW - 60_000 });
+  assert("…and a newer inbound on prod reopens it (Meta's rule)", WIN.evaluateWindow(m5, NOW).open, JSON.stringify(m5));
+  assert("the key lives an hour past the window's end", WIN.windowRecordUntil({ in: NOW }) === NOW + 25 * H);
+  const cut = readFileSync(new URL("../scripts/cutover-prod.mts", import.meta.url), "utf8");
+  const i1 = cut.indexOf("// 1. Meta\ntry {"), i2 = cut.indexOf("// 2. Odoo\ntry {"), i2b = cut.indexOf("// 2ب. § 45 هـ — the windows"), i3 = cut.indexOf("// 3. sim crons → []");
+  assert("the cutover: Meta ← Odoo ← the windows ← sim [] (the order of § 45 ز)", i1 > 0 && i1 < i2 && i2 < i2b && i2b < i3, `${i1} ${i2} ${i2b} ${i3}`);
+  assert("…the windows step copies wa_win:v1:* from sim's KV into prod's, merged and read back", cut.includes('const WIN_PREFIX = "wa_win:v1:";') && cut.includes("mergeWindowRecords(sim, parseWin(prodBefore))")
+    && cut.includes("await kvPut(PROD_KV, w.key, JSON.stringify(w.merged), w.until);") && cut.includes("prod KV window key(s) not as written"));
+  assert("…and a failure rolls it back with the steps before it", cut.includes('completed.includes("2ب") ? rb.s2b : null') && cut.includes('read("step2b-windows-rollback.json")'));
+  const win = readFileSync(new URL("../src/wa-window.ts", import.meta.url), "utf8");
+  assert("the gateway's window source is the worker's own KV first (why the copy is needed)", /Source: KV `wa_win:v1:<digits>`/.test(win) && win.includes("const rec = await readRecord(env, to);\n  if (rec) return evaluateWindow(rec, now, \"kv\");"));
+}
+
 // ================================================================ schema gate
 console.log("\n[س] every Odoo call used real fields and selection values");
 assert("no field / value the tenant does not have", rejected.length === 0, rejected.slice(0, 5).join(" | "));

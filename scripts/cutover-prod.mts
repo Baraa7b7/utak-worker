@@ -20,6 +20,9 @@
 //     host → its planned value (host → prod, the token → the file's value for the secret its route expects)
 //   · sim's KV queues (read only — listed, never moved): wa_q:v1:* (the held messages), pending_loc:*
 //     (the team's deferred tasks), cpay_open:v1 (open collections)
+//   · § 45 هـ — the 24h windows: the gateway reads them from the worker's OWN KV (src/wa-window.ts,
+//     wa_win:v1:<digits>; Odoo only when the key is missing), and prod's KV is not sim's — every
+//     wa_win:v1:* of sim, listed (masked) with what step 2ب would write on prod
 //   · the re-mark, dry: what `s42-20260927-prelaunch-mark.mts mark` would flag now — never a record linked
 //     to a real customer (§ 44 ب: scripts/lib/real-partners.mjs, #31 and #105; the mark script leaves them out)
 //
@@ -31,6 +34,10 @@
 //      value → the file's value. Before / after listed with the tokens masked. Rollback: the original
 //      values, written back (kept in backups/cutover-prod-odoo-originals-<ts>.json, mode 600, outside
 //      git: they carry sim's tokens; the artifact keeps only masked values and sha256).
+//   2ب. § 45 هـ — the windows: every wa_win:v1:* of sim's KV → prod's KV, merged with prod's own key
+//      (mergeWindowRecords: the newest inbound and the newest 131047 — after step 1 new inbounds land on
+//      prod, so nothing is lost and nothing reopened), with the key's expiry (windowRecordUntil).
+//      Verified: each key read back from prod. Rollback: prod's previous value back, or the key removed.
 //   3. sim: [env.sim.triggers] crons = [] in wrangler.toml, `wrangler deploy --env sim`. Verified: sim's
 //      schedules []. Rollback: wrangler.toml back, sim's schedules (the twelve) and its previous version
 //      (Cloudflare API).
@@ -57,6 +64,7 @@ import { cronBlocks, TWELVE } from "../tests/cron-blocks.mts";
 import { call } from "./lib/odoo-cli.mjs";
 // @ts-ignore — plain .mjs helper (§ 44 ب: the real customers the re-mark never marks)
 import { REAL_PARTNER_IDS } from "./lib/real-partners.mjs";
+import { evaluateWindow, mergeWindowRecords, windowRecordUntil, type WindowRecord } from "../src/wa-window.ts";
 
 const APPLY = process.argv.includes("--apply");
 const ROLLBACK = process.argv.includes("--rollback");
@@ -74,6 +82,8 @@ const SIM_HOST = "utak-worker-sim.utak-business.workers.dev";
 const PROD_WEBHOOK = `https://${PROD_HOST}/webhook`;
 const APP_ID = "2331128704328678";
 const SIM_KV = "998122f32d7b46c2a45cf01acec3cb0e";
+const PROD_KV = "1e77d51cf1154af1aef076d1d31905a6";
+const WIN_PREFIX = "wa_win:v1:";
 const SECRETS = ["ODOO_HOOK_TOKEN", "SALE_PDF_DOWNLOAD_TOKEN", "SIM_SECRET", "INTERNAL_WEBHOOK_SECRET", "META_APP_SECRET", "META_VERIFY_TOKEN"] as const;
 
 const dotenv = (f: string): Record<string, string> => Object.fromEntries(readFileSync(rel(f), "utf8").split(/\r?\n/)
@@ -122,21 +132,53 @@ const invocationsSince = async (sinceIso: string) => {
   if (j.errors) throw new Error(`analytics: ${JSON.stringify(j.errors).slice(0, 200)}`);
   return (j.data?.viewer?.accounts?.[0]?.workersInvocationsScheduled ?? []) as Array<{ scriptName: string; cron: string; status: string; datetime: string }>;
 };
-const kvGet = async (key: string): Promise<string | null> => {
-  const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/storage/kv/namespaces/${SIM_KV}/values/${encodeURIComponent(key)}`, { headers: { Authorization: `Bearer ${cfToken}` } });
-  return r.status === 404 ? null : r.text();
+const kvUrl = (ns: string, key: string) => `https://api.cloudflare.com/client/v4/accounts/${account}/storage/kv/namespaces/${ns}/values/${encodeURIComponent(key)}`;
+const kvGet = async (key: string, ns: string = SIM_KV): Promise<string | null> => {
+  const r = await fetch(kvUrl(ns, key), { headers: { Authorization: `Bearer ${cfToken}` } });
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error(`KV get ${ns.slice(0, 6)} ${key.split(":").slice(0, 2).join(":")}: HTTP ${r.status}`);
+  return r.text();
 };
-const kvKeys = async (prefix: string): Promise<string[]> => {
+const kvKeys = async (prefix: string, ns: string = SIM_KV): Promise<string[]> => {
   const out: string[] = [];
   let cursor = "";
   do {
-    const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/storage/kv/namespaces/${SIM_KV}/keys?prefix=${encodeURIComponent(prefix)}&limit=1000${cursor ? `&cursor=${cursor}` : ""}`, { headers: { Authorization: `Bearer ${cfToken}` } });
+    const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/storage/kv/namespaces/${ns}/keys?prefix=${encodeURIComponent(prefix)}&limit=1000${cursor ? `&cursor=${cursor}` : ""}`, { headers: { Authorization: `Bearer ${cfToken}` } });
     const j: any = await r.json();
+    if (!j.success) throw new Error(`KV list ${ns.slice(0, 6)} ${prefix}: ${JSON.stringify(j.errors).slice(0, 200)}`);
     out.push(...(j.result ?? []).map((k: any) => k.name));
     cursor = j.result_info?.cursor ?? "";
   } while (cursor);
   return out;
 };
+/** § 45 هـ — a KV write with an absolute expiry (unix seconds). */
+const kvPut = async (ns: string, key: string, value: string, expirationMs: number) => {
+  const r = await fetch(`${kvUrl(ns, key)}?expiration=${Math.ceil(expirationMs / 1000)}`, { method: "PUT", headers: { Authorization: `Bearer ${cfToken}`, "Content-Type": "text/plain" }, body: value });
+  const j: any = await r.json().catch(() => ({}));
+  if (!r.ok || !j.success) throw new Error(`KV put ${ns.slice(0, 6)} ${key.split(":").slice(0, 2).join(":")}: HTTP ${r.status} ${JSON.stringify(j.errors ?? "").slice(0, 160)}`);
+};
+const kvDelete = async (ns: string, key: string) => {
+  const r = await fetch(kvUrl(ns, key), { method: "DELETE", headers: { Authorization: `Bearer ${cfToken}` } });
+  if (!r.ok && r.status !== 404) throw new Error(`KV delete ${ns.slice(0, 6)}: HTTP ${r.status}`);
+};
+const parseWin = (raw: string | null): WindowRecord | null => {
+  if (!raw) return null;
+  try { const j = JSON.parse(raw); return { in: Number(j?.in) || 0, ...(Number(j?.closed) ? { closed: Number(j.closed) } : {}) }; } catch { return null; }
+};
+/** § 45 هـ — sim's windows and what step 2ب writes on prod (merged with prod's own key). */
+async function windowPlan(): Promise<Array<{ key: string; sim: WindowRecord; prodBefore: string | null; merged: WindowRecord; until: number; open: boolean }>> {
+  const out = [];
+  for (const key of await kvKeys(WIN_PREFIX, SIM_KV)) {
+    const sim = parseWin(await kvGet(key, SIM_KV));
+    if (!sim) continue;
+    const prodBefore = await kvGet(key, PROD_KV);
+    const merged = mergeWindowRecords(sim, parseWin(prodBefore))!;
+    const until = windowRecordUntil(merged);
+    if (until <= Date.now() + 60_000) continue; // gone within the minute anyway
+    out.push({ key, sim, prodBefore, merged, until, open: evaluateWindow(merged).open });
+  }
+  return out;
+}
 
 // ---------------------------------------------------------------- Meta
 const graph = async (path: string, token: string, init: RequestInit = {}) => {
@@ -271,12 +313,12 @@ if (ROLLBACK) {
   const s3f = withToml(read("step3-sim-rollback.json"), "step3-wrangler.toml.before");
   if ((read("step4-prod-rollback.json") && !s4f) || (read("step3-sim-rollback.json") && !s3f)) throw new Error("a step3/step4-wrangler.toml.before file is missing — not rolling back blind");
   if (read("step1-meta-rollback.json") && !existsSync(rel(".env.prod-launch"))) log("  ⚠ .env.prod-launch is gone (deleted after a green cutover): step 1 needs META_APP_SECRET and META_VERIFY_TOKEN — recreate the file, or set the callback from Meta's dashboard");
-  const done = await rollbackSteps(s4f, s3f, read("step2-odoo-rollback.json"), read("step1-meta-rollback.json"));
+  const done = await rollbackSteps(s4f, s3f, read("step2-odoo-rollback.json"), read("step1-meta-rollback.json"), read("step2b-windows-rollback.json"));
   save("report.json", { ...report, of: last, done });
   process.exit(done.every((d) => d.ok) ? 0 : 1);
 }
 
-async function rollbackSteps(s4: any, s3: any, s2: any, s1: any): Promise<Array<{ step: string; ok: boolean; detail: string }>> {
+async function rollbackSteps(s4: any, s3: any, s2: any, s1: any, s2b: any = null): Promise<Array<{ step: string; ok: boolean; detail: string }>> {
   const done: Array<{ step: string; ok: boolean; detail: string }> = [];
   const attempt = async (step: string, fn: () => Promise<string>) => {
     try { const d = await fn(); done.push({ step, ok: true, detail: d }); log(`  ↩ ${step}: ${d}`); } catch (e) { done.push({ step, ok: false, detail: (e as Error).message }); log(`  ✗ ${step}: ${(e as Error).message}`); }
@@ -298,6 +340,15 @@ async function rollbackSteps(s4: any, s3: any, s2: any, s1: any): Promise<Array<
     const now3 = await schedules("utak-worker-sim");
     if (!sameSet(now3, s3.schedules)) throw new Error(`sim schedules ${now3.length}, want ${s3.schedules.length}`);
     return `sim schedules ${now3.length}, version ${s3.prevVersion.slice(0, 8)}`;
+  });
+  if (s2b) await attempt("2ب windows", async () => {
+    const keys = s2b.keys as Array<{ key: string; prodBefore: string | null; untilBefore: number | null }>;
+    if (!APPLY) return `would: ${keys.length} prod KV window key(s) back (${keys.filter((k) => k.prodBefore === null).length} removed)`;
+    for (const k of keys) {
+      if (k.prodBefore === null) await kvDelete(PROD_KV, k.key);
+      else await kvPut(PROD_KV, k.key, k.prodBefore, Math.max(Date.now() + 120_000, k.untilBefore ?? 0));
+    }
+    return `${keys.length} prod KV window key(s) back`;
   });
   if (s2) await attempt("2 Odoo", async () => {
     const originals = JSON.parse(readFileSync(rel(s2.originalsFile), "utf8")) as Array<{ model: string; id: number; field: string; original: string }>;
@@ -399,6 +450,10 @@ for (const prefix of ["wa_q:v1:", "pending_loc:", "cpay_open:", "cpay:v1:"]) {
   }));
 }
 report.simKvQueues = queues;
+// § 45 هـ — the windows (read only here; step 2ب writes them on prod)
+const winPlan0 = await windowPlan();
+report.windows = winPlan0.map((w) => ({ key: mask(w.key), open: w.open, lastInRiyadh: w.merged.in ? riyadh(new Date(w.merged.in)) : null, closedByMeta: !!w.merged.closed && w.merged.closed >= w.merged.in, prodHad: w.prodBefore !== null }));
+log(`  · sim's 24h windows (${WIN_PREFIX}*): ${winPlan0.length} key(s), ${winPlan0.filter((w) => w.open).length} open now — step 2ب copies them to prod's KV: ${winPlan0.map((w) => `${mask(w.key).slice(WIN_PREFIX.length)}${w.open ? " open" : ""}`).join(", ") || "none"}`);
 log(`  · sim KV queues (not moved): ${Object.entries(queues).map(([p, v]) => `${p} ${(v as unknown[]).length}`).join(", ")}`);
 
 const remarkDry = markStep(["mark", `--rb=cutover-prod-${runId}-remark-rollback.json`]);
@@ -419,6 +474,7 @@ log("\n[plan]");
 log(`  1. Meta subscription callback ${sub0?.callback_url ?? "?"} → ${PROD_WEBHOOK} (fields ${sub0?.fields.join(",") ?? "?"}, verify_token from the file)`);
 log(`  2. Odoo, ${targets.length} records:`);
 for (const t of targets) log(`       ${t.model} #${t.id} ${t.name} [${t.field}]: ${t.links.map((l) => `${l.path} ${l.expects} ${l.token}`).join("; ")}`);
+log(`  2ب. the 24h windows: ${winPlan0.length} key(s) of sim's KV → prod's KV (merged, read back; rollback: prod's previous values)`);
 log(`  3. [env.sim.triggers] → [] and wrangler deploy --env sim (rollback: sim's twelve + version ${cfState.simVersion.slice(0, 8)})`);
 log(`     3ب. re-mark: backup ← mark --apply ← verify (account.move ${acct0.moves}, account.payment ${acct0.payments} expected unchanged)`);
 log(`  4. [triggers] → the twelve and wrangler deploy (rollback: [] + version ${cfState.prodVersion.slice(0, 8)})`);
@@ -435,12 +491,12 @@ if (!APPLY) {
 }
 
 // ================================================================ the four steps (--apply)
-const completed: Array<"1" | "2" | "3" | "4"> = [];
+const completed: Array<"1" | "2" | "2ب" | "3" | "4"> = [];
 const rb: Record<string, any> = {};
 const stepLog: Record<string, unknown> = {};
 const fail = async (step: string, e: unknown) => {
   log(`\n✗ step ${step} failed: ${(e as Error).message}\n↩ rolling back ${completed.length ? completed.slice().reverse().join(", ") : "nothing (no step completed)"}`);
-  const done = await rollbackSteps(completed.includes("4") ? rb.s4 : null, completed.includes("3") ? rb.s3 : null, completed.includes("2") ? rb.s2 : null, completed.includes("1") ? rb.s1 : null);
+  const done = await rollbackSteps(completed.includes("4") ? rb.s4 : null, completed.includes("3") ? rb.s3 : null, completed.includes("2") ? rb.s2 : null, completed.includes("1") ? rb.s1 : null, completed.includes("2ب") ? rb.s2b : null);
   save("report.json", { ...report, steps: stepLog, failed: { step, error: (e as Error).message }, rolledBack: done });
   log(done.every((d) => d.ok) ? "↩ rollback complete" : "✗ ROLLBACK INCOMPLETE — see report.json");
   process.exit(1);
@@ -483,6 +539,23 @@ try {
   stepLog["2"] = { records: rows.length, rows, tokens: "every link: prod host, the file's value (مطابق)" };
   log(`✓ 2. Odoo: ${rows.length} records → prod, tokens = the file's values`);
 } catch (e) { await fail("2", e); }
+
+// 2ب. § 45 هـ — the windows: sim's KV → prod's KV (after step 1 new inbounds land on prod: merged, nothing lost)
+try {
+  const plan = await windowPlan();
+  rb.s2b = { keys: plan.map((w) => ({ key: w.key, prodBefore: w.prodBefore, untilBefore: w.prodBefore ? windowRecordUntil(parseWin(w.prodBefore) ?? { in: 0 }) : null })) };
+  writeFileSync(new URL("step2b-windows-rollback.json", runDir), JSON.stringify(rb.s2b, null, 2) + "\n", { mode: 0o600 });
+  completed.push("2ب");
+  for (const w of plan) await kvPut(PROD_KV, w.key, JSON.stringify(w.merged), w.until);
+  const bad: string[] = [];
+  for (const w of plan) {
+    const back = parseWin(await kvGet(w.key, PROD_KV));
+    if (!back || back.in !== w.merged.in || (back.closed ?? 0) !== (w.merged.closed ?? 0)) bad.push(mask(w.key));
+  }
+  if (bad.length) throw new Error(`prod KV window key(s) not as written: ${bad.join(", ")}`);
+  stepLog["2ب"] = { keys: plan.length, open: plan.filter((w) => w.open).length, numbers: plan.map((w) => ({ key: mask(w.key), open: w.open, lastInRiyadh: riyadh(new Date(w.merged.in)) })) };
+  log(`✓ 2ب. windows: ${plan.length} key(s) → prod's KV (${plan.filter((w) => w.open).length} open), read back`);
+} catch (e) { await fail("2ب", e); }
 
 // 3. sim crons → []
 try {
@@ -547,6 +620,11 @@ check(simAfter.length === 0, `nothing on sim after step 3 (${simAfter.length} in
 const h = await getHealth();
 check(h.status === 200 && h.body?.status === "ok", `prod /health: ${h.status} ${h.body?.status} ${h.body?.odoo}`);
 check((await schedules("utak-worker-sim")).length === 0, "sim schedules []");
+{
+  const s2b = (stepLog["2ب"] as any) ?? { keys: 0 };
+  const onProd = (await kvKeys(WIN_PREFIX, PROD_KV)).length;
+  check(onProd >= s2b.keys, `prod's KV holds the copied windows (${onProd} key(s) ≥ ${s2b.keys} copied)`);
+}
 if (!post.length) {
   unlinkSync(rel(".env.prod-launch"));
   log("  ✓ .env.prod-launch deleted");

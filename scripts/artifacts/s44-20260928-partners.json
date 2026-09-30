@@ -1,0 +1,382 @@
+{
+ "at": "2026-09-28T06:17:28.204Z",
+ "mode": "apply",
+ "plan": {
+  "#20": "أرشفة",
+  "#46": "أرشفة (لا hr.employee يشير إليه)",
+  "#47→#31": {
+   "move": {
+    "discuss.channel:x_wa_partner_id:many2one": [
+     31
+    ],
+    "x_wa_message:x_partner_id:many2one": [
+     52,
+     76,
+     78,
+     80,
+     95,
+     96
+    ]
+   },
+   "keep": [
+    "mail.message.author_id #2115: Odoo يرفض تعديل mail.message لمستخدم الـ API (403، § 22): يبقى كاتبها #47 المؤرشف",
+    "mail.message.author_id #2008: Odoo يرفض تعديل mail.message لمستخدم الـ API (403، § 22): يبقى كاتبها #47 المؤرشف",
+    "res.partner.commercial_partner_id #47: حقل محسوب مخزّن يشير إلى السجل نفسه"
+   ],
+   "number": "رقم #47 (+966…7756) إلى #31",
+   "channel": "القناة الحية 31 إلى #31، وقناته القديمة 17 تبقى «(قديم)»",
+   "classify": "#31 «عميل» بزر المراجعة (إجراء الخادم 988)",
+   "archive": "#47 أرشفة"
+  },
+  "#50": "«شخصي» بزر المراجعة (إجراء الخادم 991)"
+ },
+ "before": [
+  {
+   "id": 20,
+   "name": "PILOT-عميل-حي-العليا-316376",
+   "active": true,
+   "x_contact_class": false,
+   "x_review_pending": false,
+   "x_ai_intent": false,
+   "customer_rank": 1,
+   "supplier_rank": 0,
+   "x_whatsapp_number": "+966…6376",
+   "phone": "+966…6376",
+   "x_wa_allowed": false,
+   "x_wa_marketing_optout": false,
+   "x_wa_channel_id": false,
+   "x_role_ids": []
+  },
+  {
+   "id": 46,
+   "name": "عمر",
+   "active": true,
+   "x_contact_class": false,
+   "x_review_pending": false,
+   "x_ai_intent": false,
+   "customer_rank": 1,
+   "supplier_rank": 0,
+   "x_whatsapp_number": "+967…0888",
+   "phone": "+967…0888",
+   "x_wa_allowed": false,
+   "x_wa_marketing_optout": false,
+   "x_wa_channel_id": [
+    30,
+    "واتساب · عمر · +967…0888"
+   ],
+   "x_role_ids": [
+    6
+   ]
+  },
+  {
+   "id": 47,
+   "name": "يو",
+   "active": true,
+   "x_contact_class": false,
+   "x_review_pending": false,
+   "x_ai_intent": false,
+   "customer_rank": 1,
+   "supplier_rank": 0,
+   "x_whatsapp_number": "+966…7756",
+   "phone": "+966…7756",
+   "x_wa_allowed": false,
+   "x_wa_marketing_optout": false,
+   "x_wa_channel_id": [
+    31,
+    "واتساب · يو · +966…7756"
+   ],
+   "x_role_ids": [
+    7
+   ]
+  },
+  {
+   "id": 31,
+   "name": "ابو مكين المعبري",
+   "active": true,
+   "x_contact_class": false,
+   "x_review_pending": false,
+   "x_ai_intent": false,
+   "customer_rank": 1,
+   "supplier_rank": 0,
+   "x_whatsapp_number": "",
+   "phone": "+966…7756",
+   "x_wa_allowed": false,
+   "x_wa_marketing_optout": false,
+   "x_wa_channel_id": [
+    17,
+    "(قديم) واتساب · ابو مكين المعبري · +966…7756"
+   ],
+   "x_role_ids": []
+  },
+  {
+   "id": 50,
+   "name": "Not Book",
+   "active": true,
+   "x_contact_class": "unreviewed",
+   "x_review_pending": false,
+   "x_ai_intent": "purchase",
+   "customer_rank": 1,
+   "supplier_rank": 0,
+   "x_whatsapp_number": "+967…6370",
+   "phone": "+967…6370",
+   "x_wa_allowed": false,
+   "x_wa_marketing_optout": false,
+   "x_wa_channel_id": [
+    33,
+    "واتساب · Not Book · +967…6370"
+   ],
+   "x_role_ids": [
+    9
+   ]
+  }
+ ],
+ "after": [
+  {
+   "id": 20,
+   "name": "PILOT-عميل-حي-العليا-316376",
+   "active": false,
+   "x_contact_class": false,
+   "x_review_pending": false,
+   "x_ai_intent": false,
+   "customer_rank": 1,
+   "supplier_rank": 0,
+   "x_whatsapp_number": "+966…6376",
+   "phone": "+966…6376",
+   "x_wa_allowed": false,
+   "x_wa_marketing_optout": false,
+   "x_wa_channel_id": false,
+   "x_role_ids": []
+  },
+  {
+   "id": 46,
+   "name": "عمر",
+   "active": false,
+   "x_contact_class": false,
+   "x_review_pending": false,
+   "x_ai_intent": false,
+   "customer_rank": 1,
+   "supplier_rank": 0,
+   "x_whatsapp_number": "+967…0888",
+   "phone": "+967…0888",
+   "x_wa_allowed": false,
+   "x_wa_marketing_optout": false,
+   "x_wa_channel_id": [
+    30,
+    "واتساب · عمر · +967…0888"
+   ],
+   "x_role_ids": [
+    6
+   ]
+  },
+  {
+   "id": 47,
+   "name": "يو",
+   "active": false,
+   "x_contact_class": false,
+   "x_review_pending": false,
+   "x_ai_intent": false,
+   "customer_rank": 1,
+   "supplier_rank": 0,
+   "x_whatsapp_number": "+966…7756",
+   "phone": "+966…7756",
+   "x_wa_allowed": false,
+   "x_wa_marketing_optout": false,
+   "x_wa_channel_id": [
+    31,
+    "واتساب · ابو مكين المعبري · +966…7756"
+   ],
+   "x_role_ids": [
+    7
+   ]
+  },
+  {
+   "id": 31,
+   "name": "ابو مكين المعبري",
+   "active": true,
+   "x_contact_class": "customer",
+   "x_review_pending": false,
+   "x_ai_intent": false,
+   "customer_rank": 1,
+   "supplier_rank": 0,
+   "x_whatsapp_number": "+966…7756",
+   "phone": "+966…7756",
+   "x_wa_allowed": false,
+   "x_wa_marketing_optout": false,
+   "x_wa_channel_id": [
+    31,
+    "واتساب · ابو مكين المعبري · +966…7756"
+   ],
+   "x_role_ids": []
+  },
+  {
+   "id": 50,
+   "name": "Not Book",
+   "active": true,
+   "x_contact_class": "personal",
+   "x_review_pending": false,
+   "x_ai_intent": "purchase",
+   "customer_rank": 1,
+   "supplier_rank": 0,
+   "x_whatsapp_number": "+967…6370",
+   "phone": "+967…6370",
+   "x_wa_allowed": false,
+   "x_wa_marketing_optout": false,
+   "x_wa_channel_id": [
+    33,
+    "واتساب · Not Book · +967…6370"
+   ],
+   "x_role_ids": [
+    9
+   ]
+  }
+ ],
+ "refsBefore": [
+  {
+   "model": "discuss.channel",
+   "field": "x_wa_partner_id",
+   "ttype": "many2one",
+   "id": 31,
+   "partner": 47
+  },
+  {
+   "model": "mail.message",
+   "field": "author_id",
+   "ttype": "many2one",
+   "id": 2115,
+   "partner": 47
+  },
+  {
+   "model": "mail.message",
+   "field": "author_id",
+   "ttype": "many2one",
+   "id": 2008,
+   "partner": 47
+  },
+  {
+   "model": "res.partner",
+   "field": "commercial_partner_id",
+   "ttype": "many2one",
+   "id": 47,
+   "partner": 47
+  },
+  {
+   "model": "x_wa_message",
+   "field": "x_partner_id",
+   "ttype": "many2one",
+   "id": 52,
+   "partner": 47
+  },
+  {
+   "model": "x_wa_message",
+   "field": "x_partner_id",
+   "ttype": "many2one",
+   "id": 76,
+   "partner": 47
+  },
+  {
+   "model": "x_wa_message",
+   "field": "x_partner_id",
+   "ttype": "many2one",
+   "id": 78,
+   "partner": 47
+  },
+  {
+   "model": "x_wa_message",
+   "field": "x_partner_id",
+   "ttype": "many2one",
+   "id": 80,
+   "partner": 47
+  },
+  {
+   "model": "x_wa_message",
+   "field": "x_partner_id",
+   "ttype": "many2one",
+   "id": 95,
+   "partner": 47
+  },
+  {
+   "model": "x_wa_message",
+   "field": "x_partner_id",
+   "ttype": "many2one",
+   "id": 96,
+   "partner": 47
+  }
+ ],
+ "refsLeft": [
+  {
+   "model": "mail.message",
+   "field": "author_id",
+   "ttype": "many2one",
+   "id": 2115,
+   "partner": 47,
+   "why": "Odoo يرفض تعديل mail.message لمستخدم الـ API (403، § 22): يبقى كاتبها #47 المؤرشف"
+  },
+  {
+   "model": "mail.message",
+   "field": "author_id",
+   "ttype": "many2one",
+   "id": 2008,
+   "partner": 47,
+   "why": "Odoo يرفض تعديل mail.message لمستخدم الـ API (403، § 22): يبقى كاتبها #47 المؤرشف"
+  },
+  {
+   "model": "res.partner",
+   "field": "commercial_partner_id",
+   "ttype": "many2one",
+   "id": 47,
+   "partner": 47,
+   "why": "حقل محسوب مخزّن يشير إلى السجل نفسه"
+  }
+ ],
+ "channelsBefore": [
+  {
+   "id": 17,
+   "name": "(قديم) واتساب · ابو مكين المعبري · +966…7756",
+   "x_wa_partner_id": [
+    31,
+    "ابو مكين المعبري"
+   ]
+  },
+  {
+   "id": 31,
+   "name": "واتساب · يو · +966…7756",
+   "x_wa_partner_id": [
+    47,
+    "يو"
+   ]
+  }
+ ],
+ "channelsAfter": [
+  {
+   "id": 17,
+   "name": "(قديم) واتساب · ابو مكين المعبري · +966…7756",
+   "x_wa_partner_id": [
+    31,
+    "ابو مكين المعبري"
+   ]
+  },
+  {
+   "id": 31,
+   "name": "واتساب · ابو مكين المعبري · +966…7756",
+   "x_wa_partner_id": [
+    31,
+    "ابو مكين المعبري"
+   ]
+  }
+ ],
+ "audienceBefore": [
+  "#20 PILOT-عميل-حي-العليا-316376 +966…6376",
+  "#46 عمر +967…0888",
+  "#47 يو +966…7756",
+  "#50 Not Book +967…6370",
+  "#105 بيت التمور +966…9526"
+ ],
+ "audienceAfter": [
+  "#31 ابو مكين المعبري +966…7756",
+  "#105 بيت التمور +966…9526"
+ ],
+ "verify": {
+  "ok": 11,
+  "total": 11
+ }
+}

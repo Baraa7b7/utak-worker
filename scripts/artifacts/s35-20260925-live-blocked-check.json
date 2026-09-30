@@ -1,0 +1,26 @@
+{
+  "day": {
+    "id": 1,
+    "x_state": "draft"
+  },
+  "before": {
+    "id": 2,
+    "x_outlier_ok": true,
+    "x_blocked": false
+  },
+  "unticked": {
+    "id": 2,
+    "x_outlier_ok": false,
+    "x_blocked": true
+  },
+  "approve": {
+    "refused": true,
+    "error": "أسعار شاذة لم تُعالج — عدّل السعر أو فعّل «اعتماد رغم الشذوذ»: خيار"
+  },
+  "stateAfter": "draft",
+  "restored": {
+    "id": 2,
+    "x_outlier_ok": true,
+    "x_blocked": false
+  }
+}

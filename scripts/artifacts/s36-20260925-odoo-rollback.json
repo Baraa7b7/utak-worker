@@ -1,0 +1,26 @@
+{
+  "at": "2026-09-25T18:57:22.463Z",
+  "before": {
+    "templateFields": [],
+    "messageFields": [],
+    "action": null,
+    "views": {
+      "list": null,
+      "form": null
+    }
+  },
+  "created": {
+    "fields": [
+      20415,
+      20417,
+      20419,
+      20421,
+      20423
+    ],
+    "action": 1010,
+    "views": [
+      2837,
+      2838
+    ]
+  }
+}

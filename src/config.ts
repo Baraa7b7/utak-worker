@@ -29,8 +29,6 @@ export interface Env {
 
   // ---- Optional secrets ----
   ADMIN_TOKEN?: string;
-  /** Temporary — scoped auth for /admin/audit-partners diagnostic only. Delete once dedup done. */
-  AUDIT_TOKEN?: string;
   GOTENBERG_URL?: string;
   GOTENBERG_USER?: string;
   GOTENBERG_PASSWORD?: string;
@@ -38,6 +36,12 @@ export interface Env {
   INTERNAL_WEBHOOK_SECRET?: string;
   /** Phase 1+: shared token for /odoo/hook/* routes (template sync, manual WA send). */
   ODOO_HOOK_TOKEN?: string;
+  /**
+   * § 37 — a live trial's tag («🧪 تجربة § 37»): set only in a trial script's
+   * environment (never in wrangler.toml). Supplier payments created under it
+   * carry it (x_trial_tag), and every text about them starts with it.
+   */
+  TRIAL_TAG?: string;
   /**
    * 2026-09-19 — token gating GET /internal/sale-quotation-pdf.
    * Independent of INTERNAL_WEBHOOK_SECRET and ODOO_HOOK_TOKEN so this
@@ -57,6 +61,13 @@ export interface Env {
   SIM_SECRET?: string;
   /** D1 binding for the sim_outbound log. Only bound on the sim worker. */
   SIM_DB?: D1Database;
+  /**
+   * § 41 و — set ONLY by the full-day simulation (scripts/s41-full-day-sim.mts)
+   * on its own in-process env, never in wrangler.toml: with SIMULATION_MODE
+   * it keeps the run's messages out of the real Discuss channels (the
+   * x_wa_message rows are written as always). See isSimRun.
+   */
+  SIM_RUN_ID?: string;
 
   /**
    * PILOT_MODE — sends REAL Meta messages, but only to numbers permitted by
@@ -80,6 +91,39 @@ export interface Env {
    * Examples: "+96650,+96651"  or "+966505154962,+966580040467"
    */
   SIM_ALLOWLIST?: string;
+
+  /**
+   * 2026-09-21 — accounting parallel-write switch.
+   * "true" only in [env.sim.vars] until Baraa turns it on for prod. When
+   * enabled, x_invoice creates get an account.move twin (out_invoice,
+   * posted; VAT by invoice date — see VAT_EFFECTIVE_DATE_RIYADH) and
+   * x_payment creates get an account.payment twin
+   * routed to journal CSHD (cash) or BNK1 (bank). Accounting failure
+   * never blocks the x_* row or the WhatsApp send — the owner is
+   * alerted and the flow continues. Absent / any-other-value = disabled.
+   *
+   * WARNING: the Odoo tenant is shared between sim and prod, so any
+   * posted move is a real move in the company's books. Flip this on
+   * prod only after Baraa's explicit go-ahead.
+   */
+  ACCOUNTING_SYNC?: string;
+
+  /**
+   * 2026-09-23 — NOT a wrangler var. Set in code only, on a shallow copy
+   * of env that scheduled() / runSimJob() hand to a job (see
+   * withAutoSendJob in src/auto-send-guard.ts). When present, the send gateway
+   * claims a KV idempotency key per (recipient, template, Riyadh day,
+   * job) before sending, so a second run of the same job cannot send the
+   * same message twice. Request paths (webhook replies, Odoo manual send)
+   * never carry it.
+   */
+  AUTO_SEND_JOB?: string;
+
+  /**
+   * 2026-09-25 (STATUS § 29) — Riyadh «HH:MM» at which Baraa gets the daily
+   * «بدء الدوام» template that opens his 24h window. Absent/invalid = 06:00.
+   */
+  OWNER_WINDOW_OPEN_AT?: string;
 }
 
 // ============================================================
@@ -169,12 +213,12 @@ export function isRecipientAllowed(env: Env, to: string): boolean {
  * `isTestMode`  = "should Odoo creates be stamped with x_is_simulation AND
  *                 should outbound messages be recorded in sim_outbound?"
  *   → true for sim AND pilot.
- *   → drives the injection in src/odoo.ts::call and the D1 record in fetchMeta.
+ *   → drives the injection in src/odoo.ts::call and the D1 record in the send gateway.
  *   → also used by /sim/purge as the criterion for "this row is disposable".
  *
  * `shouldRealSend` = "should we actually POST to graph.facebook.com?"
  *   → false for sim; true for pilot and prod.
- *   → drives whether fetchMeta hits Meta.
+ *   → drives whether the send gateway hits Meta.
  *
  * A "misconfig" env (both flags true, or pilot with empty allowlist) is
  * treated as test mode — fail-closed — so no unstamped row can slip
@@ -182,6 +226,15 @@ export function isRecipientAllowed(env: Env, to: string): boolean {
  */
 export function isTestMode(env: Env): boolean {
   return env.SIMULATION_MODE === "true" || env.PILOT_MODE === "true";
+}
+
+/**
+ * § 41 و — a full-day simulation run: SIM_RUN_ID set AND SIMULATION_MODE on
+ * (every send captured to sim_outbound). Only the simulation script's own env
+ * has both; the deployed sim worker (PILOT_MODE) and prod never do.
+ */
+export function isSimRun(env: Env): boolean {
+  return !!env.SIM_RUN_ID && env.SIMULATION_MODE === "true";
 }
 
 export function shouldRealSend(env: Env): boolean {
@@ -266,6 +319,45 @@ export const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 export const ANTHROPIC_VERSION = "2023-06-01";
 export const DEDUP_TTL_SECONDS = 24 * 60 * 60;
 
+// 2026-09-23 — VAT activation cutoff, a Riyadh-local calendar date (UTC+3,
+// no DST), compared against the invoice date as YYYY-MM-DD. Source: Baraa's
+// locked decision of 2026-09-23 — UTAK charges 15% VAT on invoices dated
+// 2026-10-01 or later; anything dated before stays tax-free. The tax itself
+// (id, rate, price-included) is read from Odoo (res.company
+// account_sale_tax_id), never hard-coded — see scripts/tax-20260923-enable-vat.mjs.
+export const VAT_EFFECTIVE_DATE_RIYADH = "2026-10-01";
+
+/**
+ * True when a Riyadh-local invoice date (YYYY-MM-DD) is on/after the VAT cutoff.
+ * `effectiveDate` exists only so the live-verify script can post a taxed
+ * cycle today (Odoo refuses future-dated moves); runtime callers never pass it.
+ */
+export function isVatApplicable(invoiceDateRiyadh: string, effectiveDate: string = VAT_EFFECTIVE_DATE_RIYADH): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(invoiceDateRiyadh)) {
+    throw new Error(`isVatApplicable: invoice date must be YYYY-MM-DD, got "${invoiceDateRiyadh}"`);
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(effectiveDate)) {
+    throw new Error(`isVatApplicable: effective date must be YYYY-MM-DD, got "${effectiveDate}"`);
+  }
+  return invoiceDateRiyadh >= effectiveDate;
+}
+
+/**
+ * § 41 أ (2026-09-26) — the VAT rate inside the profit (the unit profit of
+ * the engine, the order's profit in the discount guard, the day's profit in
+ * the 21:30 coverage line): every price is VAT-inclusive from the cutoff, so
+ * 15% of it is not profit. The invoice keeps reading the rate from Odoo.
+ */
+export const PROFIT_VAT_RATE_PCT = 15;
+
+/** § 41 د — the rate a stored tax invoice is printed with (the issue took Odoo's sale tax, 15 %). */
+export const VAT_RATE_PCT = 15;
+
+/** The rate to take out of a profit on this Riyadh day: 15 from the cutoff, null before it. */
+export function profitVatRate(dayRiyadh: string): number | null {
+  return isVatApplicable(dayRiyadh) ? PROFIT_VAT_RATE_PCT : null;
+}
+
 // v2: catalog cache in KV, refreshed hourly
 // v2 (2026-09-15) — bump forces a re-query after the x_is_active_for_sale
 // filter joined fetchCatalog's domain. Do not touch without also invalidating
@@ -287,6 +379,15 @@ export const ORDERING_OPEN_TTL_SECONDS = 20 * 60 * 60;
 // v3: supplier template purposes (must match x_whatsapp_template.x_purpose)
 export const TMPL_SUPPLIER_ASK = "supplier_ask";
 export const TMPL_SUPPLIER_CONFIRM = "supplier_confirm";
+
+// 2026-09-25 (م5) — one reminder to a supplier still silent at the 05:00 job
+// (3h after the 02:00 ask), then one owner alert per still-silent supplier
+// when the 21:15 purchase list is built.
+export const TMPL_SUPPLIER_PRICE_NUDGE = "supplier_price_nudge";
+// 2026-09-25 — a supplier's new price is an outlier when it differs from his
+// last price for the same product + packaging by this factor or more (either
+// way): saved, marked x_extraction_status=pending, owner alerted. Never refused.
+export const PRICE_OUTLIER_RATIO = 1.5;
 
 // v4: team template purposes (registered in x_whatsapp_template once Meta-approved;
 // until then, team.ts falls back to plain sendText — team members are internal users
@@ -345,6 +446,24 @@ Notes:
 - If message contains BOTH quantities AND a quotation phrase, prefer place_order (the order handler creates the quotation inline when it sees "خلاص"/"جهزه" in the same message).
 - Short "ok"/"تمام"/"طيب" after a bot message = other (buttons handle confirmation, not free text).`;
 
+// ---- New-number screening — Haiku, only for a partner still «غير مراجَع» (2026-09-25, STATUS § 30) ----
+export const SYSTEM_PROMPT_SCREEN = `You screen a WhatsApp contact of UTAK, a B2B wholesale fresh produce distributor in Riyadh (Arabic-speaking). The number is not reviewed yet. Read the contact's recent messages (oldest first) and decide what they want from UTAK.
+Return ONLY a JSON object: {"intent": "<one_of_the_intents>", "reason": "<one short Arabic line, at most 12 words>"}
+No prose, no markdown, no backticks.
+
+Intents (pick exactly one):
+- purchase: wants to buy from us, or asks about our products, prices, delivery or an order (even a short "أبغى أطلب").
+- wrong_number: says it is a wrong number, or the message is clearly meant for another person or business.
+- vendor_pitch: offers US a product or a service (suppliers, installers, marketing, subscriptions, job seekers) — selling to us, not buying.
+- personal: personal, family or friend chat; invitations, meeting links, dates; a courier or appointment that concerns us personally.
+- spam: chain messages, prizes or free-data offers, scam or random links, mass ads.
+- unclear: too short or ambiguous to tell (a greeting alone, a single letter, dots, an emoji).
+
+Notes:
+- A greeting alone ("السلام عليكم") is unclear.
+- Judge the whole conversation; the latest message weighs most.
+- The reason states in Arabic what the messages show (e.g. "يعرض علينا تركيب شبكة إنترنت").`;
+
 // ---- Reply composer — Sonnet, only for free-form Arabic replies ----
 export const SYSTEM_PROMPT_REPLY = `You are UTAK's WhatsApp assistant. Reply in clear professional Arabic. Max 3 lines. Never quote firm prices or delivery times. This is a technical test phase — keep replies functional and warm.`;
 
@@ -380,7 +499,7 @@ You will receive:
 Return ONLY a JSON object (no prose, no markdown, no backticks):
 {
   "prices": [
-    {"product_id": <int>, "packaging_id": <int>, "cost_price": <number>, "actual_weight_kg": <number|null>, "notes": "<string|null>"}
+    {"product_id": <int>, "packaging_id": <int>, "cost_price": <number|null>, "market_price": <number|null>, "available_qty": <number|null>, "actual_weight_kg": <number|null>, "notes": "<string|null>"}
   ],
   "unrecognized": ["<raw line the message had but you couldn't map>"]
 }
@@ -388,7 +507,10 @@ Return ONLY a JSON object (no prose, no markdown, no backticks):
 Rules:
 - Match Arabic product names fuzzily (طماطم=بندورة, خيار=قثاء, بطاطس=بطاطا).
 - If packaging is not explicit, pick the product's default packaging (default=true).
-- cost_price is a plain number in SAR (drop "ريال", "ر.س", "sar", commas).
+- cost_price is a plain number in SAR (drop "ريال", "ر.س", "sar", commas): the price the sender gives for the item.
+- market_price: only a price the message itself labels as the market's (the word سوق / السوق / بالسوق next to the number). If that is the item's only price, put it here and cost_price null. Else null.
+- available_qty: only when the message states how much of the item is available (e.g. "متوفر 30 كرتون"). Else null.
+- Copy every number exactly as written; never compute, round or infer a price.
 - actual_weight_kg only if supplier mentioned the actual crate weight (e.g. "الكرتون طلع 9 كيلو") — else null.
 - NEVER invent a product not in the catalog. Put unmappable lines in "unrecognized".
 - If the message is a greeting / question / non-price text, return {"prices": [], "unrecognized": []}.`;

@@ -1,0 +1,132 @@
+{
+  "at": "2026-09-24T16:45:49.110Z",
+  "template": {
+    "name": "utak_collection_summary",
+    "status": "APPROVED",
+    "category": "UTILITY",
+    "language": "ar",
+    "variables": 4
+  },
+  "collectors": [
+    {
+      "id": 9,
+      "name": "عمر المجهلي",
+      "to": "…6832",
+      "inside24h": false
+    }
+  ],
+  "A_today": {
+    "report": {
+      "invoices": 0,
+      "total": 0,
+      "sends": [
+        {
+          "to": "…6832",
+          "via": "none",
+          "reason": "nothing unpaid, outside 24h window"
+        }
+      ]
+    },
+    "graphPosts": [],
+    "odooWritesBlocked": []
+  },
+  "B_0924_list": {
+    "invoices": 15,
+    "total": 555,
+    "allSimulation": true,
+    "toGraph": [
+      {
+        "messaging_product": "whatsapp",
+        "to": "…6832",
+        "type": "template",
+        "template": {
+          "name": "utak_collection_summary",
+          "language": {
+            "code": "ar"
+          },
+          "components": [
+            {
+              "type": "body",
+              "parameters": [
+                {
+                  "type": "text",
+                  "text": "24 سبتمبر 2026"
+                },
+                {
+                  "type": "text",
+                  "text": "1. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968293059، 2. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968341921، 3. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968449449، 4. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968612987، 5. اختبار محاسبة — 12 ر.س — UTAK-ACCT-A-1790150435183، 6. اختبار محاسبة — 12 ر.س — UTAK-ACCT-A-1790150473897، 7. اختبار محاسبة — 10 ر.س — UTAK-ACCT-B-1790150475867، 8. اختبار محاسبة — 7 ر.س — UTAK-ACCT-C48-1790150477606، 9. اختبار محاسبة ب — 7 ر.س — UTAK-ACCT-CB-1790150478040، 10. اختبار محاسبة — 50 ر.س — UTAK-VAT-E′-1790151799179 … و 5 أخرى"
+                },
+                {
+                  "type": "text",
+                  "text": "555"
+                },
+                {
+                  "type": "text",
+                  "text": "15"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "params": [
+      "24 سبتمبر 2026",
+      "1. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968293059، 2. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968341921، 3. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968449449، 4. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968612987، 5. اختبار محاسبة — 12 ر.س — UTAK-ACCT-A-1790150435183، 6. اختبار محاسبة — 12 ر.س — UTAK-ACCT-A-1790150473897، 7. اختبار محاسبة — 10 ر.س — UTAK-ACCT-B-1790150475867، 8. اختبار محاسبة — 7 ر.س — UTAK-ACCT-C48-1790150477606، 9. اختبار محاسبة ب — 7 ر.س — UTAK-ACCT-CB-1790150478040، 10. اختبار محاسبة — 50 ر.س — UTAK-VAT-E′-1790151799179 … و 5 أخرى",
+      "555",
+      "15"
+    ],
+    "meta": {
+      "count": "4/4",
+      "oneLine": true,
+      "noFiveSpaces": true,
+      "nonEmpty": true,
+      "renderedLength": 710,
+      "accepted": true
+    },
+    "rendered": "📋 قائمة تحصيل اليوم 24 سبتمبر 2026:\n\n1. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968293059، 2. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968341921، 3. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968449449، 4. اختبار محاسبة — 3 ر.س — UTAK-ACCT-TEST-1789968612987، 5. اختبار محاسبة — 12 ر.س — UTAK-ACCT-A-1790150435183، 6. اختبار محاسبة — 12 ر.س — UTAK-ACCT-A-1790150473897، 7. اختبار محاسبة — 10 ر.س — UTAK-ACCT-B-1790150475867، 8. اختبار محاسبة — 7 ر.س — UTAK-ACCT-C48-1790150477606، 9. اختبار محاسبة ب — 7 ر.س — UTAK-ACCT-CB-1790150478040، 10. اختبار محاسبة — 50 ر.س — UTAK-VAT-E′-1790151799179 … و 5 أخرى\n\nإجمالي مطلوب: 555 ر.س\nعدد الفواتير: 15\n\nلما تحصّل من أي عميل، افتح رسالة الفاتورة واضغط زر التحصيل."
+  },
+  "C_refused_template": {
+    "report": {
+      "invoices": 15,
+      "total": 555,
+      "sends": [
+        {
+          "to": "…6832",
+          "via": "none",
+          "reason": "template HTTP 400, outside 24h window"
+        }
+      ]
+    },
+    "textToCollectors": 0,
+    "ownerAlerts": [
+      {
+        "messaging_product": "whatsapp",
+        "to": "…4962",
+        "type": "template",
+        "template": {
+          "name": "utak_owner_alert",
+          "language": {
+            "code": "ar"
+          },
+          "components": [
+            {
+              "type": "body",
+              "parameters": [
+                {
+                  "type": "text",
+                  "text": "⚠️ فشل إرسال واتساب — القالب: utak_collection_summary، الرمز 132018، المستقبل …6832. رفضه Meta: (#132018) simulated. أول فشل لهذا القالب اليوم؛ التفاصيل في سجل رسائل واتساب."
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "failureRowsWouldBeWritten": 1
+  },
+  "nothingLeft": {
+    "graphPostsForwarded": 0,
+    "odooWritesForwarded": 0
+  }
+}

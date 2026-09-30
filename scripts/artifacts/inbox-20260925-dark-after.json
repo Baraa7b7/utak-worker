@@ -1,0 +1,234 @@
+{
+  "phase": "after",
+  "at": "2026-09-24T23:18:37.807Z",
+  "messages": [
+    2462,
+    2464,
+    2466,
+    2488,
+    2474,
+    2035
+  ],
+  "css": {
+    "light": "https://utakfresh.odoo.com/web/assets/106837a/web.assets_web.rtl.min.css",
+    "dark": "https://utakfresh.odoo.com/web/assets/299a116/web.assets_web_dark.rtl.min.css"
+  },
+  "minRatio": {
+    "light": 9.27,
+    "dark": 10.33
+  },
+  "light": [
+    {
+      "id": 2462,
+      "minRatio": 9.31,
+      "pass": true,
+      "texts": [
+        {
+          "el": "p",
+          "fg": "#374151",
+          "bg": "#e8f6f8",
+          "ratio": 9.31
+        }
+      ]
+    },
+    {
+      "id": 2464,
+      "minRatio": 9.31,
+      "pass": true,
+      "texts": [
+        {
+          "el": "p",
+          "fg": "#374151",
+          "bg": "#e8f6f8",
+          "ratio": 9.31
+        },
+        {
+          "el": "strong",
+          "fg": "#374151",
+          "bg": "#e8f6f8",
+          "ratio": 9.31
+        }
+      ],
+      "bar": "#374151",
+      "barRatio": 9.31,
+      "barWidth": "3px"
+    },
+    {
+      "id": 2466,
+      "minRatio": 9.31,
+      "pass": true,
+      "texts": [
+        {
+          "el": "p",
+          "fg": "#374151",
+          "bg": "#e8f6f8",
+          "ratio": 9.31
+        },
+        {
+          "el": "strong",
+          "fg": "#374151",
+          "bg": "#e8f6f8",
+          "ratio": 9.31
+        }
+      ],
+      "bar": "#374151",
+      "barRatio": 9.31,
+      "barWidth": "3px"
+    },
+    {
+      "id": 2488,
+      "minRatio": 9.31,
+      "pass": true,
+      "texts": [
+        {
+          "el": "p",
+          "fg": "#374151",
+          "bg": "#e8f6f8",
+          "ratio": 9.31
+        },
+        {
+          "el": "strong",
+          "fg": "#374151",
+          "bg": "#e8f6f8",
+          "ratio": 9.31
+        }
+      ],
+      "bar": "#374151",
+      "barRatio": 9.31,
+      "barWidth": "3px"
+    },
+    {
+      "id": 2474,
+      "minRatio": 9.31,
+      "pass": true,
+      "texts": [
+        {
+          "el": "p",
+          "fg": "#374151",
+          "bg": "#e8f6f8",
+          "ratio": 9.31
+        }
+      ]
+    },
+    {
+      "id": 2035,
+      "minRatio": 9.27,
+      "pass": true,
+      "texts": [
+        {
+          "el": "p",
+          "fg": "#374151",
+          "bg": "#eaf6ec",
+          "ratio": 9.27
+        }
+      ]
+    }
+  ],
+  "dark": [
+    {
+      "id": 2462,
+      "minRatio": 10.56,
+      "pass": true,
+      "texts": [
+        {
+          "el": "p",
+          "fg": "#e4e4e4",
+          "bg": "#1d3046",
+          "ratio": 10.56
+        }
+      ]
+    },
+    {
+      "id": 2464,
+      "minRatio": 10.56,
+      "pass": true,
+      "texts": [
+        {
+          "el": "p",
+          "fg": "#e4e4e4",
+          "bg": "#1d3046",
+          "ratio": 10.56
+        },
+        {
+          "el": "strong",
+          "fg": "#e4e4e4",
+          "bg": "#1d3046",
+          "ratio": 10.56
+        }
+      ],
+      "bar": "#e4e4e4",
+      "barRatio": 10.56,
+      "barWidth": "3px"
+    },
+    {
+      "id": 2466,
+      "minRatio": 10.56,
+      "pass": true,
+      "texts": [
+        {
+          "el": "p",
+          "fg": "#e4e4e4",
+          "bg": "#1d3046",
+          "ratio": 10.56
+        },
+        {
+          "el": "strong",
+          "fg": "#e4e4e4",
+          "bg": "#1d3046",
+          "ratio": 10.56
+        }
+      ],
+      "bar": "#e4e4e4",
+      "barRatio": 10.56,
+      "barWidth": "3px"
+    },
+    {
+      "id": 2488,
+      "minRatio": 10.56,
+      "pass": true,
+      "texts": [
+        {
+          "el": "p",
+          "fg": "#e4e4e4",
+          "bg": "#1d3046",
+          "ratio": 10.56
+        },
+        {
+          "el": "strong",
+          "fg": "#e4e4e4",
+          "bg": "#1d3046",
+          "ratio": 10.56
+        }
+      ],
+      "bar": "#e4e4e4",
+      "barRatio": 10.56,
+      "barWidth": "3px"
+    },
+    {
+      "id": 2474,
+      "minRatio": 10.56,
+      "pass": true,
+      "texts": [
+        {
+          "el": "p",
+          "fg": "#e4e4e4",
+          "bg": "#1d3046",
+          "ratio": 10.56
+        }
+      ]
+    },
+    {
+      "id": 2035,
+      "minRatio": 10.33,
+      "pass": true,
+      "texts": [
+        {
+          "el": "p",
+          "fg": "#e4e4e4",
+          "bg": "#183629",
+          "ratio": 10.33
+        }
+      ]
+    }
+  ]
+}

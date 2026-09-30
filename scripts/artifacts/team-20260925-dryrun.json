@@ -1,0 +1,211 @@
+{
+  "assume": null,
+  "days": [
+    "2026-09-26",
+    "2026-09-27"
+  ],
+  "crons": [
+    "0 23 * * *",
+    "0 2 * * *",
+    "0 3 * * *",
+    "0 17 * * *",
+    "0 18 * * *",
+    "15 18 * * *",
+    "0 15 * * *",
+    "0 14 * * *",
+    "0 5 * * *",
+    "*/5 * * * *"
+  ],
+  "roster": [
+    {
+      "employee": 4,
+      "partner": 9,
+      "name": "عمر المجهلي",
+      "to": "…6832",
+      "roles": [
+        "driver",
+        "warehouse",
+        "collector"
+      ],
+      "attendance": false,
+      "calendar": null
+    },
+    {
+      "employee": 5,
+      "partner": 15,
+      "name": "عثمان عبدالوهاب",
+      "to": "…9474",
+      "roles": [
+        "admin"
+      ],
+      "attendance": false,
+      "calendar": null
+    }
+  ],
+  "plans": {
+    "2026-09-26": [
+      {
+        "kind": "not_enrolled",
+        "day": "2026-09-26",
+        "name": "عمر المجهلي",
+        "to": "…6832",
+        "roles": [
+          "driver",
+          "warehouse",
+          "collector"
+        ],
+        "attendance": false,
+        "calendar": "-"
+      },
+      {
+        "kind": "not_enrolled",
+        "day": "2026-09-26",
+        "name": "عثمان عبدالوهاب",
+        "to": "…9474",
+        "roles": [
+          "admin"
+        ],
+        "attendance": false,
+        "calendar": "-"
+      }
+    ],
+    "2026-09-27": [
+      {
+        "kind": "not_enrolled",
+        "day": "2026-09-27",
+        "name": "عمر المجهلي",
+        "to": "…6832",
+        "roles": [
+          "driver",
+          "warehouse",
+          "collector"
+        ],
+        "attendance": false,
+        "calendar": "-"
+      },
+      {
+        "kind": "not_enrolled",
+        "day": "2026-09-27",
+        "name": "عثمان عبدالوهاب",
+        "to": "…9474",
+        "roles": [
+          "admin"
+        ],
+        "attendance": false,
+        "calendar": "-"
+      }
+    ]
+  },
+  "ownerWindowAt": {
+    "2026-09-26": "06:00",
+    "2026-09-27": "06:00"
+  },
+  "sends": [
+    {
+      "day": "2026-09-26",
+      "at": "02:00",
+      "to": "…7704",
+      "what": "قالب utak_supplier_ask_v2 [أحمد حسان | افوكادو، رمان وسط]",
+      "who": "…7704"
+    },
+    {
+      "day": "2026-09-26",
+      "at": "06:00",
+      "to": "…4962",
+      "what": "قالب utak_owner_alert [☀️ صباح الخير براء — ما فيه طلبات أسعار انرسلت الليلة (لعل القوالب لسا PENDING).]",
+      "who": "براء (المالك)"
+    },
+    {
+      "day": "2026-09-26",
+      "at": "06:00",
+      "to": "…4962",
+      "what": "قالب utak_shift_start_v2 [براء]",
+      "who": "براء (المالك)"
+    },
+    {
+      "day": "2026-09-26",
+      "at": "21:15",
+      "to": "…4962",
+      "what": "قالب utak_owner_alert [📊 21:15 | لا يوجد طلبات مؤكدة اليوم — ما تم إنشاء قائمة شراء.]",
+      "who": "براء (المالك)"
+    },
+    {
+      "day": "2026-09-27",
+      "at": "02:00",
+      "to": "…7704",
+      "what": "قالب utak_supplier_ask_v2 [أحمد حسان | افوكادو، رمان وسط]",
+      "who": "…7704"
+    },
+    {
+      "day": "2026-09-27",
+      "at": "06:00",
+      "to": "…4962",
+      "what": "قالب utak_owner_alert [☀️ صباح الخير براء — ما فيه طلبات أسعار انرسلت الليلة (لعل القوالب لسا PENDING).]",
+      "who": "براء (المالك)"
+    },
+    {
+      "day": "2026-09-27",
+      "at": "06:00",
+      "to": "…4962",
+      "what": "قالب utak_shift_start_v2 [براء]",
+      "who": "براء (المالك)"
+    },
+    {
+      "day": "2026-09-27",
+      "at": "21:15",
+      "to": "…4962",
+      "what": "قالب utak_owner_alert [📊 21:15 | لا يوجد طلبات مؤكدة اليوم — ما تم إنشاء قائمة شراء.]",
+      "who": "براء (المالك)"
+    }
+  ],
+  "probes": [
+    {
+      "day": "2026-09-26",
+      "at": "10:00",
+      "hold": {
+        "hold": false,
+        "phase": "-",
+        "next": "-",
+        "onAttendance": false
+      }
+    },
+    {
+      "day": "2026-09-26",
+      "at": "16:00",
+      "hold": {
+        "hold": false,
+        "phase": "-",
+        "next": "-",
+        "onAttendance": false
+      }
+    },
+    {
+      "day": "2026-09-27",
+      "at": "10:00",
+      "hold": {
+        "hold": false,
+        "phase": "-",
+        "next": "-",
+        "onAttendance": false
+      }
+    },
+    {
+      "day": "2026-09-27",
+      "at": "16:00",
+      "hold": {
+        "hold": false,
+        "phase": "-",
+        "next": "-",
+        "onAttendance": false
+      }
+    }
+  ],
+  "attendanceRows": [],
+  "writesOutsideAttendance": 12,
+  "blocked": [],
+  "errors": [],
+  "refused": [
+    "https://graph.facebook.com/v22.0/2144001136512196/message_templates",
+    "https://graph.facebook.com/v22.0/2144001136512196/message_templates"
+  ]
+}

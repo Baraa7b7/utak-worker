@@ -1,0 +1,38 @@
+{
+  "at": "2026-09-23T21:50:32.310Z",
+  "partner": {
+    "id": 10,
+    "name": "محمد المحصّل - اختبار",
+    "active": true,
+    "x_role_ids": [
+      3
+    ]
+  },
+  "refs": {
+    "accounting": {
+      "account.move.partner_id": 0,
+      "account.move.line.partner_id": 0,
+      "account.payment.partner_id": 0,
+      "sale.order.partner_id": 0,
+      "purchase.order.partner_id": 0
+    },
+    "x_payment": [
+      {
+        "id": 1,
+        "x_amount": 120,
+        "x_account_payment_id": false,
+        "x_notes": "smoke test",
+        "x_collected_at": "2026-08-30 08:12:47"
+      }
+    ],
+    "x_collection_task": [
+      {
+        "id": 1,
+        "x_status": "draft",
+        "x_date": "2026-08-29"
+      }
+    ],
+    "x_wa_message": 6
+  },
+  "rollback": "node scripts/cleanup-20260924-archive-test-collector.mjs --rollback"
+}

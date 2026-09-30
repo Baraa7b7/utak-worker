@@ -1,0 +1,167 @@
+{
+  "at": "2026-09-26T08:35:10.977Z",
+  "riyadh": "11:35",
+  "day": "2026-09-26",
+  "sources": {
+    "employees": [
+      "عمر المجهلي (موظف 4، شريك 9)"
+    ],
+    "partners": [
+      "أحمد حسان (شريك 30، مورد)"
+    ],
+    "marketAskTargets": [
+      "عمر المجهلي"
+    ]
+  },
+  "offersCounted": [
+    "أحمد حسان: شراء 50 — 105/47 (x_daily_price #20)",
+    "أحمد حسان: شراء 15 — 100/37 (x_daily_price #21)",
+    "أحمد حسان: شراء 1 (شاذ) — 104/46 (x_daily_price #22)",
+    "أحمد حسان: شراء 20 — 99/36 (x_daily_price #23)"
+  ],
+  "dailyPriceRowsToday": [
+    "#20 أحمد حسان · [UTAK-FRT-010] افوكادو · 50 (extracted)",
+    "#21 أحمد حسان · [UTAK-FRT-005] رمان وسط · 15 (extracted)",
+    "#22 أحمد حسان · [UTAK-FRT-009] بطيخ (بالحبة) · 1 (pending)",
+    "#23 أحمد حسان · [UTAK-FRT-004] عنب · 20 (extracted)"
+  ],
+  "dayRecord": {
+    "id": 4,
+    "x_state": "missed"
+  },
+  "settings": {
+    "configId": 1,
+    "wastePct": 5,
+    "minOrder": 150,
+    "plannedStops": null
+  },
+  "tiers": [
+    {
+      "id": 1,
+      "from": 0,
+      "to": 499.99,
+      "pct": 0
+    },
+    {
+      "id": 2,
+      "from": 500,
+      "to": 1000,
+      "pct": 2
+    },
+    {
+      "id": 3,
+      "from": 1000.01,
+      "to": null,
+      "pct": 3
+    }
+  ],
+  "engine": {
+    "lines": [
+      {
+        "product": "رمان وسط",
+        "packaging": "كرتون",
+        "purchase": 15,
+        "purchaseFrom": "أحمد حسان",
+        "market": null,
+        "observations": 0,
+        "sale": null,
+        "unitProfit": null,
+        "displayMarginPct": null,
+        "status": "exception",
+        "reason": "لا سعر سوق",
+        "offers": "أحمد حسان: شراء 15"
+      },
+      {
+        "product": "افوكادو",
+        "packaging": "كرتون · 4 كيلو",
+        "purchase": 50,
+        "purchaseFrom": "أحمد حسان",
+        "market": null,
+        "observations": 0,
+        "sale": null,
+        "unitProfit": null,
+        "displayMarginPct": null,
+        "status": "exception",
+        "reason": "لا سعر سوق",
+        "offers": "أحمد حسان: شراء 50"
+      },
+      {
+        "product": "رمان صغير",
+        "packaging": "كرتون",
+        "purchase": null,
+        "purchaseFrom": null,
+        "market": null,
+        "observations": 0,
+        "sale": null,
+        "unitProfit": null,
+        "displayMarginPct": null,
+        "status": "exception",
+        "reason": "لا سعر شراء، لا سعر سوق",
+        "offers": null
+      },
+      {
+        "product": "رمان كبير",
+        "packaging": "كرتون",
+        "purchase": null,
+        "purchaseFrom": null,
+        "market": null,
+        "observations": 0,
+        "sale": null,
+        "unitProfit": null,
+        "displayMarginPct": null,
+        "status": "exception",
+        "reason": "لا سعر شراء، لا سعر سوق",
+        "offers": null
+      }
+    ],
+    "counts": {
+      "lines": 4,
+      "auto": 0,
+      "exceptions": 4
+    },
+    "exceptionsMessage": "4 message(s), one per exception",
+    "whyExceptions": [
+      [
+        "لا سعر سوق",
+        2
+      ],
+      [
+        "لا سعر شراء، لا سعر سوق",
+        2
+      ]
+    ]
+  },
+  "costs": {
+    "today": {
+      "total": 0,
+      "items": [],
+      "reason": null
+    },
+    "2026-10-01": {
+      "total": 500,
+      "items": [
+        {
+          "id": 1,
+          "name": "السيارة والسائق (شامل)",
+          "frequency": "daily",
+          "amount": 500,
+          "perDay": 500
+        }
+      ]
+    },
+    "2026-10-02 (Friday)": {
+      "total": 500
+    },
+    "minProfitPerOrder": "المحطات فارغ: لا خصم"
+  },
+  "tonight": {
+    "coverage": {
+      "profit": 0,
+      "cost": 0,
+      "pct": null
+    },
+    "line": "تغطية تكاليف اليوم: تعذّر (ربح 0.00 من 0.00)",
+    "templateVar3": "المحصَّل اليوم 0.00 والمعلَّق 0.00 · تغطية التكاليف تعذّر بربح 0.00 من 0.00",
+    "errors": []
+  }
+}

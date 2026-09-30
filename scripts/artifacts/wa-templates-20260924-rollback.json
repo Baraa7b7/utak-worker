@@ -1,0 +1,627 @@
+{
+  "created": "2026-09-24T03:12:53.807Z",
+  "ops": [
+    {
+      "ts": "2026-09-24T03:12:53.946Z",
+      "id": 42,
+      "name": "utak_v2_collection",
+      "before": {
+        "x_purpose": "collection_summary",
+        "x_label_ar": "ملخص تحصيل (v2)",
+        "x_name": "ملخص تحصيل (v2)"
+      },
+      "after": {
+        "x_purpose": "other",
+        "x_label_ar": "(قديم) ملخص تحصيل — استخدم: قائمة تحصيل اليوم (للمحصّل)",
+        "x_name": "(قديم) ملخص تحصيل — استخدم: قائمة تحصيل اليوم (للمحصّل)"
+      },
+      "why": "duplicate collection_summary; keep #11"
+    },
+    {
+      "ts": "2026-09-24T03:12:54.127Z",
+      "id": 43,
+      "name": "utak_v2_purchase",
+      "before": {
+        "x_purpose": "purchase_list",
+        "x_label_ar": "قائمة شراء (v2)",
+        "x_name": "قائمة شراء (v2)"
+      },
+      "after": {
+        "x_purpose": "other",
+        "x_label_ar": "(قديم) قائمة شراء — استخدم: قائمة شراء اليوم (للمستودع)",
+        "x_name": "(قديم) قائمة شراء — استخدم: قائمة شراء اليوم (للمستودع)"
+      },
+      "why": "duplicate purchase_list; keep #5"
+    },
+    {
+      "ts": "2026-09-24T03:12:54.230Z",
+      "id": 44,
+      "name": "utak_v2_driver_route",
+      "before": {
+        "x_purpose": "driver_dispatch",
+        "x_label_ar": "مسار السائق (v2)",
+        "x_name": "مسار السائق (v2)"
+      },
+      "after": {
+        "x_purpose": "other",
+        "x_label_ar": "(قديم) مسار السائق — استخدم: بداية جولة التوصيل (للسائق)",
+        "x_name": "(قديم) مسار السائق — استخدم: بداية جولة التوصيل (للسائق)"
+      },
+      "why": "duplicate driver_dispatch; keep #7"
+    },
+    {
+      "ts": "2026-09-24T03:12:54.324Z",
+      "id": 18,
+      "name": "utak_delivery_done",
+      "before": {
+        "x_purpose": "customer_delivery_done",
+        "x_label_ar": "(قديم) تأكيد التسليم للعميل — استخدم: تم التسليم",
+        "x_name": "(قديم) تأكيد التسليم للعميل — استخدم: تم التسليم"
+      },
+      "after": {
+        "x_purpose": "other",
+        "x_label_ar": "(قديم) تم التسليم — استخدم: تم التسليم",
+        "x_name": "(قديم) تم التسليم — استخدم: تم التسليم"
+      },
+      "why": "migrate customer_delivery_done step 1: clear old"
+    },
+    {
+      "ts": "2026-09-24T03:12:54.406Z",
+      "id": 60,
+      "name": "utak_delivered",
+      "before": {
+        "x_purpose": "other"
+      },
+      "after": {
+        "x_purpose": "customer_delivery_done"
+      },
+      "why": "migrate customer_delivery_done step 2: set new"
+    },
+    {
+      "ts": "2026-09-24T03:12:54.556Z",
+      "id": 14,
+      "name": "utak_v2_welcome",
+      "before": {
+        "x_purpose": "customer_welcome",
+        "x_label_ar": "(قديم) ترحيب عميل — استخدم: ترحيب عميل جديد",
+        "x_name": "(قديم) ترحيب عميل — استخدم: ترحيب عميل جديد"
+      },
+      "after": {
+        "x_purpose": "other",
+        "x_label_ar": "(قديم) ترحيب عميل جديد — استخدم: ترحيب عميل جديد",
+        "x_name": "(قديم) ترحيب عميل جديد — استخدم: ترحيب عميل جديد"
+      },
+      "why": "migrate customer_welcome step 1: clear old"
+    },
+    {
+      "ts": "2026-09-24T03:12:54.608Z",
+      "id": 53,
+      "name": "utak_welcome",
+      "before": {
+        "x_purpose": "other"
+      },
+      "after": {
+        "x_purpose": "customer_welcome"
+      },
+      "why": "migrate customer_welcome step 2: set new"
+    },
+    {
+      "ts": "2026-09-24T03:12:54.719Z",
+      "id": 16,
+      "name": "utak_v2_order_confirm",
+      "before": {
+        "x_purpose": "customer_order_confirm",
+        "x_label_ar": "(قديم) تأكيد الطلب — استخدم: تأكيد الطلب",
+        "x_name": "(قديم) تأكيد الطلب — استخدم: تأكيد الطلب"
+      },
+      "after": {
+        "x_purpose": "other",
+        "x_label_ar": "(قديم) تأكيد الطلب — استخدم: تأكيد الطلب",
+        "x_name": "(قديم) تأكيد الطلب — استخدم: تأكيد الطلب"
+      },
+      "why": "migrate customer_order_confirm step 1: clear old"
+    },
+    {
+      "ts": "2026-09-24T03:12:54.768Z",
+      "id": 65,
+      "name": "utak_order_confirmed",
+      "before": {
+        "x_purpose": "other"
+      },
+      "after": {
+        "x_purpose": "customer_order_confirm"
+      },
+      "why": "migrate customer_order_confirm step 2: set new"
+    },
+    {
+      "ts": "2026-09-24T03:12:54.867Z",
+      "id": 17,
+      "name": "utak_delivery_incoming",
+      "before": {
+        "x_purpose": "customer_delivery_incoming",
+        "x_label_ar": "(قديم) الطلب قادم إليك — استخدم: الطلب في الطريق",
+        "x_name": "(قديم) الطلب قادم إليك — استخدم: الطلب في الطريق"
+      },
+      "after": {
+        "x_purpose": "other",
+        "x_label_ar": "(قديم) الطلب في الطريق — استخدم: الطلب في الطريق",
+        "x_name": "(قديم) الطلب في الطريق — استخدم: الطلب في الطريق"
+      },
+      "why": "migrate customer_delivery_incoming step 1: clear old"
+    },
+    {
+      "ts": "2026-09-24T03:12:54.915Z",
+      "id": 61,
+      "name": "utak_out_for_delivery",
+      "before": {
+        "x_purpose": "other"
+      },
+      "after": {
+        "x_purpose": "customer_delivery_incoming"
+      },
+      "why": "migrate customer_delivery_incoming step 2: set new"
+    },
+    {
+      "ts": "2026-09-24T03:12:54.989Z",
+      "id": 4,
+      "name": "utak_supplier_daily_ask",
+      "before": {
+        "x_label_ar": "طلب أسعار المورّد",
+        "x_name": "طلب أسعار المورّد"
+      },
+      "after": {
+        "x_label_ar": "طلب أسعار اليوم (للمورد)",
+        "x_name": "طلب أسعار اليوم (للمورد)"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:12:55.038Z",
+      "id": 5,
+      "name": "utak_purchase_list_v2",
+      "before": {
+        "x_label_ar": "قائمة الشراء",
+        "x_name": "قائمة الشراء"
+      },
+      "after": {
+        "x_label_ar": "قائمة شراء اليوم (للمستودع)",
+        "x_name": "قائمة شراء اليوم (للمستودع)"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:12:55.127Z",
+      "id": 6,
+      "name": "utak_v2_loading",
+      "before": {
+        "x_label_ar": "جاهزية التحميل",
+        "x_name": "جاهزية التحميل"
+      },
+      "after": {
+        "x_label_ar": "انتهاء التحميل (للمستودع)",
+        "x_name": "انتهاء التحميل (للمستودع)"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:12:55.175Z",
+      "id": 7,
+      "name": "utak_driver_dispatch",
+      "before": {
+        "x_label_ar": "جدول جولة السائق",
+        "x_name": "جدول جولة السائق"
+      },
+      "after": {
+        "x_label_ar": "بداية جولة التوصيل (للسائق)",
+        "x_name": "بداية جولة التوصيل (للسائق)"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:12:55.224Z",
+      "id": 8,
+      "name": "utak_driver_stop",
+      "before": {
+        "x_label_ar": "محطة توصيل",
+        "x_name": "محطة توصيل"
+      },
+      "after": {
+        "x_label_ar": "محطة توصيل (للسائق)",
+        "x_name": "محطة توصيل (للسائق)"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:12:55.273Z",
+      "id": 9,
+      "name": "utak_driver_collection",
+      "before": {
+        "x_label_ar": "تحصيل السائق",
+        "x_name": "تحصيل السائق"
+      },
+      "after": {
+        "x_label_ar": "توصيل مع تحصيل (للسائق)",
+        "x_name": "توصيل مع تحصيل (للسائق)"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:12:55.322Z",
+      "id": 10,
+      "name": "utak_collection_request",
+      "before": {
+        "x_label_ar": "طلب تحصيل",
+        "x_name": "طلب تحصيل"
+      },
+      "after": {
+        "x_label_ar": "طلب تحصيل فاتورة (للمحصّل)",
+        "x_name": "طلب تحصيل فاتورة (للمحصّل)"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:12:55.373Z",
+      "id": 11,
+      "name": "utak_collection_summary",
+      "before": {
+        "x_label_ar": "ملخص التحصيل اليومي",
+        "x_name": "ملخص التحصيل اليومي"
+      },
+      "after": {
+        "x_label_ar": "قائمة تحصيل اليوم (للمحصّل)",
+        "x_name": "قائمة تحصيل اليوم (للمحصّل)"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:12:55.475Z",
+      "id": 12,
+      "name": "utak_v2_commission",
+      "before": {
+        "x_label_ar": "عمولات",
+        "x_name": "عمولات"
+      },
+      "after": {
+        "x_label_ar": "كشف العمولة (للفريق)",
+        "x_name": "كشف العمولة (للفريق)"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:12:55.524Z",
+      "id": 13,
+      "name": "utak_v2_summary",
+      "before": {
+        "x_label_ar": "ملخص المالك",
+        "x_name": "ملخص المالك"
+      },
+      "after": {
+        "x_label_ar": "ملخص اليوم (للمالك)",
+        "x_name": "ملخص اليوم (للمالك)"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:12:55.575Z",
+      "id": 15,
+      "name": "utak_v2_daily_remind",
+      "before": {
+        "x_label_ar": "تذكير يومي للعميل",
+        "x_name": "تذكير يومي للعميل"
+      },
+      "after": {
+        "x_label_ar": "تذكير الطلب الثابت لبكرة",
+        "x_name": "تذكير الطلب الثابت لبكرة"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:12:55.624Z",
+      "id": 19,
+      "name": "utak_invoice_customer_v2",
+      "before": {
+        "x_label_ar": "فاتورة العميل (نص)",
+        "x_name": "فاتورة العميل (نص)"
+      },
+      "after": {
+        "x_label_ar": "إرسال الفاتورة (نص احتياطي)",
+        "x_name": "إرسال الفاتورة (نص احتياطي)"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:13:24.121Z",
+      "id": 20,
+      "name": "utak_v2_pay_remind",
+      "before": {
+        "x_label_ar": "(قديم) تذكير دفع — استخدم: تذكير دفع",
+        "x_name": "(قديم) تذكير دفع — استخدم: تذكير دفع"
+      },
+      "after": {
+        "x_label_ar": "تذكير دفع بالمبلغ المستحق",
+        "x_name": "تذكير دفع بالمبلغ المستحق"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:13:24.609Z",
+      "id": 21,
+      "name": "utak_v2_inactive",
+      "before": {
+        "x_label_ar": "(قديم) عميل غير نشط — استخدم: إعادة تنشيط عميل (تسويق)",
+        "x_name": "(قديم) عميل غير نشط — استخدم: إعادة تنشيط عميل (تسويق)"
+      },
+      "after": {
+        "x_label_ar": "تذكير عميل منقطع (تسويق)",
+        "x_name": "تذكير عميل منقطع (تسويق)"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:13:25.062Z",
+      "id": 22,
+      "name": "utak_feedback",
+      "before": {
+        "x_label_ar": "تقييم العميل",
+        "x_name": "تقييم العميل"
+      },
+      "after": {
+        "x_label_ar": "طلب تقييم بعد التسليم",
+        "x_name": "طلب تقييم بعد التسليم"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:13:25.509Z",
+      "id": 23,
+      "name": "utak_invoice_pdf_v1",
+      "before": {
+        "x_label_ar": "فاتورة العميل (PDF)",
+        "x_name": "فاتورة العميل (PDF)"
+      },
+      "after": {
+        "x_label_ar": "إرسال الفاتورة (PDF)",
+        "x_name": "إرسال الفاتورة (PDF)"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:13:25.955Z",
+      "id": 24,
+      "name": "utak_owner_alert",
+      "before": {
+        "x_label_ar": "تنبيه المالك",
+        "x_name": "تنبيه المالك"
+      },
+      "after": {
+        "x_label_ar": "تنبيه تشغيلي (للمالك)",
+        "x_name": "تنبيه تشغيلي (للمالك)"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:13:26.405Z",
+      "id": 25,
+      "name": "utak_shift_start",
+      "before": {
+        "x_label_ar": "بداية وردية",
+        "x_name": "بداية وردية"
+      },
+      "after": {
+        "x_label_ar": "بداية الدوام (للفريق)",
+        "x_name": "بداية الدوام (للفريق)"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:13:26.856Z",
+      "id": 45,
+      "name": "hello_world",
+      "before": {
+        "x_label_ar": "اختبار (لا يُستخدم)",
+        "x_name": "اختبار (لا يُستخدم)"
+      },
+      "after": {
+        "x_label_ar": "اختبار Meta (لا يُستخدم)",
+        "x_name": "اختبار Meta (لا يُستخدم)"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:13:27.304Z",
+      "id": 46,
+      "name": "utak_supplier_confirm_v1",
+      "before": {
+        "x_label_ar": "تأكيد المورد",
+        "x_name": "تأكيد المورد"
+      },
+      "after": {
+        "x_label_ar": "تأكيد استلام الأسعار (للمورد)",
+        "x_name": "تأكيد استلام الأسعار (للمورد)"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:13:27.757Z",
+      "id": 47,
+      "name": "utak_po_confirmed",
+      "before": {
+        "x_label_ar": "طلب شراء لمورد",
+        "x_name": "طلب شراء لمورد"
+      },
+      "after": {
+        "x_label_ar": "طلب شراء جديد (للمورد)",
+        "x_name": "طلب شراء جديد (للمورد)"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:13:28.206Z",
+      "id": 48,
+      "name": "utak_supplier_price_nudge",
+      "before": {
+        "x_label_ar": "تذكير مورد بالأسعار",
+        "x_name": "تذكير مورد بالأسعار"
+      },
+      "after": {
+        "x_label_ar": "تذكير بالأسعار المتأخرة (للمورد)",
+        "x_name": "تذكير بالأسعار المتأخرة (للمورد)"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:13:28.656Z",
+      "id": 49,
+      "name": "utak_quality_issue",
+      "before": {
+        "x_label_ar": "ملاحظة جودة لمورد",
+        "x_name": "ملاحظة جودة لمورد"
+      },
+      "after": {
+        "x_label_ar": "ملاحظة جودة على توريد (للمورد)",
+        "x_name": "ملاحظة جودة على توريد (للمورد)"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:13:29.105Z",
+      "id": 50,
+      "name": "utak_po_changed",
+      "before": {
+        "x_label_ar": "تعديل طلب شراء",
+        "x_name": "تعديل طلب شراء"
+      },
+      "after": {
+        "x_label_ar": "تعديل طلب شراء (للمورد)",
+        "x_name": "تعديل طلب شراء (للمورد)"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:13:29.613Z",
+      "id": 51,
+      "name": "utak_reactivate",
+      "before": {
+        "x_label_ar": "إعادة تنشيط عميل (تسويق)",
+        "x_name": "إعادة تنشيط عميل (تسويق)"
+      },
+      "after": {
+        "x_label_ar": "إعادة تنشيط بعرض اليوم (تسويق)",
+        "x_name": "إعادة تنشيط بعرض اليوم (تسويق)"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:13:30.063Z",
+      "id": 52,
+      "name": "utak_service_notice",
+      "before": {
+        "x_label_ar": "تنبيه خدمة",
+        "x_name": "تنبيه خدمة"
+      },
+      "after": {
+        "x_label_ar": "تنبيه خدمة عام (تسويق)",
+        "x_name": "تنبيه خدمة عام (تسويق)"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:13:30.937Z",
+      "id": 54,
+      "name": "utak_complaint_resolved",
+      "before": {
+        "x_label_ar": "معالجة ملاحظة",
+        "x_name": "معالجة ملاحظة"
+      },
+      "after": {
+        "x_label_ar": "معالجة ملاحظة العميل",
+        "x_name": "معالجة ملاحظة العميل"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:13:31.385Z",
+      "id": 55,
+      "name": "utak_complaint_received",
+      "before": {
+        "x_label_ar": "استلام ملاحظة",
+        "x_name": "استلام ملاحظة"
+      },
+      "after": {
+        "x_label_ar": "استلام ملاحظة العميل",
+        "x_name": "استلام ملاحظة العميل"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:13:32.690Z",
+      "id": 58,
+      "name": "utak_invoice_ready",
+      "before": {
+        "x_label_ar": "فاتورة جاهزة",
+        "x_name": "فاتورة جاهزة"
+      },
+      "after": {
+        "x_label_ar": "الفاتورة جاهزة (PDF)",
+        "x_name": "الفاتورة جاهزة (PDF)"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:13:34.423Z",
+      "id": 62,
+      "name": "utak_delivery_delay",
+      "before": {
+        "x_label_ar": "تأخير التوصيل",
+        "x_name": "تأخير التوصيل"
+      },
+      "after": {
+        "x_label_ar": "تأخر التوصيل",
+        "x_name": "تأخر التوصيل"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:13:34.873Z",
+      "id": 63,
+      "name": "utak_item_shortage",
+      "before": {
+        "x_label_ar": "صنف ناقص وبديل",
+        "x_name": "صنف ناقص وبديل"
+      },
+      "after": {
+        "x_label_ar": "صنف ناقص واقتراح بديل",
+        "x_name": "صنف ناقص واقتراح بديل"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:13:37.032Z",
+      "id": 68,
+      "name": "utak_po_quality_issue",
+      "before": {
+        "x_label_ar": "ملاحظة جودة على طلب شراء",
+        "x_name": "ملاحظة جودة على طلب شراء"
+      },
+      "after": {
+        "x_label_ar": "ملاحظة جودة على طلب شراء (للمورد)",
+        "x_name": "ملاحظة جودة على طلب شراء (للمورد)"
+      },
+      "why": "label"
+    },
+    {
+      "ts": "2026-09-24T03:13:37.914Z",
+      "id": 70,
+      "name": "utak_followup_po",
+      "before": {
+        "x_label_ar": "متابعة طلب شراء مورد",
+        "x_name": "متابعة طلب شراء مورد"
+      },
+      "after": {
+        "x_label_ar": "متابعة طلب شراء (للمورد)",
+        "x_name": "متابعة طلب شراء (للمورد)"
+      },
+      "why": "label"
+    }
+  ]
+}

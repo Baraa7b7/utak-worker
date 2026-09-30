@@ -20,6 +20,15 @@ import {
 } from "../src/webhook-alert.ts";
 import { verifySignature } from "../src/meta.ts";
 import { riyadhDateKey } from "../src/hours.ts";
+import { noteInbound } from "../src/wa-window.ts";
+
+// 2026-09-25 (STATUS § 33) — the alert goes through the single send gateway:
+// text inside Baraa's 24h window, held for his next message outside it. Most
+// cases below open his window first (an inbound from him an hour ago).
+const OWNER = "+966505154962";
+async function ownerWindowOpen(env: any): Promise<void> {
+  await noteInbound(env, OWNER, Date.now() - 60 * 60 * 1000);
+}
 
 // ---------- fetch mock ----------
 interface CapturedRequest {
@@ -120,7 +129,7 @@ function makeEnv(overrides: Record<string, unknown> = {}): {
     META_GRAPH_VERSION: "v22.0",
     MSG_DEDUP: kv,
     // Deliberately no SIMULATION_MODE / PILOT_MODE / SIM_ALLOWLIST so
-    // runtimeMode() lands on "prod" and fetchMeta takes the real-send path
+    // runtimeMode() lands on "prod" and the gateway takes the real-send path
     // (which our fetch mock intercepts). This is the failure mode that
     // matters most: the same path prod would take under the actual outage.
     ...overrides,
@@ -208,6 +217,7 @@ origLog("\n[2] first + second failure same day");
   const { env, kv } = makeEnv();
   const now = new Date("2026-09-21T10:00:00Z");
   const dateKey = riyadhDateKey(now);
+  await ownerWindowOpen(env);
 
   await handleSignatureFailure(env, {
     rawBodyLength: 512,
@@ -278,6 +288,22 @@ origLog("\n[2] first + second failure same day");
 }
 
 // ============================================================
+// [2b] Baraa outside his 24h window — held for him, nothing sent now
+// ============================================================
+origLog("\n[2b] owner outside the 24h window — the alert waits in his queue");
+{
+  resetFetch();
+  resetLogs();
+  const { env, kv } = makeEnv();
+  const now = new Date("2026-09-21T11:00:00Z");
+  await handleSignatureFailure(env, { rawBodyLength: 64, signatureHeader: "sha256=deadbeef1234567890", now });
+  assert("no Graph POST outside the window", graphCalls().length === 0, `got ${graphCalls().length}`);
+  const q = JSON.parse(kv.store.get("wa_q:v1:966505154962")?.value ?? "[]");
+  assert("the alert is held in his queue", q.length === 1 && String(q[0]?.body?.text?.body ?? "").includes("رفض توقيع webhook"));
+  assert("no template for it (utak_owner_alert is MARKETING)", !captured.some((c) => JSON.stringify(c.body ?? "").includes("utak_owner_alert")));
+}
+
+// ============================================================
 // [3] missing header treated as failure
 // ============================================================
 origLog("\n[3] missing x-hub-signature-256 header");
@@ -287,6 +313,7 @@ origLog("\n[3] missing x-hub-signature-256 header");
   const { env, kv } = makeEnv();
   const now = new Date("2026-09-22T10:00:00Z");
   const dateKey = riyadhDateKey(now);
+  await ownerWindowOpen(env);
 
   await handleSignatureFailure(env, {
     rawBodyLength: 128,
@@ -322,6 +349,7 @@ origLog("\n[4] alert send throws");
   const { env, kv } = makeEnv();
   const now = new Date("2026-09-23T10:00:00Z");
   const dateKey = riyadhDateKey(now);
+  await ownerWindowOpen(env);
 
   let threw = false;
   try {
@@ -360,6 +388,7 @@ origLog("\n[5] Meta returns non-2xx (24h window closed)");
   useFetch((input) => {
     const url = String(input);
     if (url.includes("graph.facebook.com")) {
+      captured.push({ url, method: "POST", body: null });
       return new Response(
         JSON.stringify({
           error: {
@@ -376,6 +405,7 @@ origLog("\n[5] Meta returns non-2xx (24h window closed)");
   const { env, kv } = makeEnv();
   const now = new Date("2026-09-24T10:00:00Z");
   const dateKey = riyadhDateKey(now);
+  await ownerWindowOpen(env);
 
   let threw = false;
   try {
@@ -394,8 +424,14 @@ origLog("\n[5] Meta returns non-2xx (24h window closed)");
   );
   assert(
     "warn log line captured Meta rejection",
-    !!findLog("alert send blocked by Meta"),
+    !!findLog("[meta] send failed status=400 code=131047"),
   );
+  // STATUS § 33 — 131047: his window is marked closed, the alert waits for him.
+  const win = JSON.parse(kv.store.get("wa_win:v1:966505154962")?.value ?? "{}");
+  assert("131047 marks the owner's window closed", Number(win.closed) > 0);
+  const q = JSON.parse(kv.store.get("wa_q:v1:966505154962")?.value ?? "[]");
+  assert("the alert goes back to his queue, once", q.length === 1 && q[0]?.attempts === 1);
+  assert("one Graph POST only — no retry", graphCalls().length === 1, `got ${graphCalls().length}`);
   resetFetch();
 }
 

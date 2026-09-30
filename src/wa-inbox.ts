@@ -12,6 +12,7 @@
 // bookkeeping tripped.
 
 import type { Env } from "./config";
+import { isSimRun } from "./config";
 import { call } from "./odoo";
 
 // KV keys — 1h TTL so we still recover from an accidental partner rename or
@@ -62,23 +63,114 @@ export async function getBotPartnerId(env: Env): Promise<number | null> {
 }
 
 // -------------------------------------------------------------
+// Channel title — 2026-09-25
+// -------------------------------------------------------------
+
+/** "+<digits>" for any stored or Meta phone form; "" when it holds no digit. */
+export function waNumber(raw: unknown): string {
+  const d = String(raw || "").replace(/\D/g, "");
+  return d ? `+${d}` : "";
+}
+
+const BIDI_CONTROLS = /[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
+/** A display name, or "" when it is empty or only a number (createCustomer names a nameless sender by its number). */
+function titleName(v: unknown): string {
+  const s = String(v || "").replace(BIDI_CONTROLS, "").replace(/\s+/g, " ").trim();
+  return /^[\d\s+\-().]*$/.test(s) ? "" : s;
+}
+
+/** Prefix of a channel that shares its number with the live one. */
+export const OLD_TITLE_PREFIX = "(قديم) ";
+
+/**
+ * The one title of a WhatsApp inbox channel (Baraa, 2026-09-25):
+ * «واتساب · <name> · +<number>», or «واتساب · +<number>» without a name.
+ * <name> is the partner's name in Odoo, else the WhatsApp profile name. The
+ * full number is wrapped in LRI…PDI so Odoo's RTL sidebar prints «+966…»
+ * and not «966…+». Null without a number: a channel is never titled without
+ * one.
+ */
+export function inboxChannelName(a: {
+  partnerName?: unknown;
+  profileName?: unknown;
+  number: unknown;
+  old?: boolean;
+}): string | null {
+  const num = waNumber(a.number);
+  if (!num) return null;
+  const name = titleName(a.partnerName) || titleName(a.profileName);
+  const title = ["واتساب", name, `\u2066${num}\u2069`].filter(Boolean).join(" · ");
+  return a.old ? OLD_TITLE_PREFIX + title : title;
+}
+
+// -------------------------------------------------------------
 // Channel resolution
 // -------------------------------------------------------------
+
+type PartnerPhones = {
+  id: number;
+  name: string;
+  active: boolean;
+  x_whatsapp_number: string | false;
+  phone: string | false;
+  phone_sanitized: string | false;
+  x_wa_channel_id: [number, string] | false;
+};
+const PARTNER_PHONE_FIELDS = ["id", "name", "active", "x_whatsapp_number", "phone", "phone_sanitized", "x_wa_channel_id"];
+const partnerNumber = (p: PartnerPhones) => waNumber(p.x_whatsapp_number || p.phone_sanitized || p.phone);
+
+/**
+ * The partner (active or archived) whose inbox channel already carries this
+ * number: an archived customer who writes again, or a contact saved as
+ * «+966 50 …» that the exact-match lookups miss, would otherwise open a
+ * second channel for the same number. Active partners first, then newest.
+ */
+async function findChannelForNumber(env: Env, num: string): Promise<{ partnerId: number; name: string; channelId: number } | null> {
+  const rows = await call<PartnerPhones[]>(env, "res.partner", "search_read", {
+    domain: [
+      ["x_wa_channel_id", "!=", false],
+      "|", "|", ["x_whatsapp_number", "=", num], ["phone_sanitized", "=", num], ["phone", "=", num],
+    ],
+    fields: PARTNER_PHONE_FIELDS,
+    context: { active_test: false },
+    limit: 20,
+  });
+  const hit = rows
+    .filter((p) => p.x_wa_channel_id && partnerNumber(p) === num)
+    .sort((a, b) => Number(b.active) - Number(a.active) || (b.x_wa_channel_id as [number, string])[0] - (a.x_wa_channel_id as [number, string])[0])[0];
+  return hit ? { partnerId: hit.id, name: hit.name, channelId: (hit.x_wa_channel_id as [number, string])[0] } : null;
+}
+
+/**
+ * 2026-09-25 — for the outbound echo when no active partner matches the
+ * number exactly (archived, or a phone saved as «+967 779 …»): the partner
+ * whose channel carries it, so the echo lands in that channel. Null when the
+ * number has no channel — an echo alone never opens one.
+ */
+export async function inboxPartnerForNumber(env: Env, to: string): Promise<{ id: number; name: string } | null> {
+  const num = waNumber(to);
+  const hit = num ? await findChannelForNumber(env, num) : null;
+  return hit ? { id: hit.partnerId, name: hit.name } : null;
+}
 
 /**
  * Ensure a discuss.channel exists for `partnerId`. Returns the channel id, or
  * null if the record cannot be created (surfaced to the caller which then
  * logs a warning and continues).
  *
- * Idempotent by partner.x_wa_channel_id, then by KV cache, and creates the
- * channel + writes the link atomically enough that a lost race just wastes a
- * throw-away channel row (unlinked on rerun via ensureChannelDeduplicate).
+ * Idempotent by partner.x_wa_channel_id, then by KV cache, then by number
+ * (2026-09-25: one channel per WhatsApp number — a partner without a link
+ * reuses the channel its number already has). A new channel is titled by
+ * inboxChannelName and is never created without a number.
  */
 export async function ensureInboxChannel(
   env: Env,
   partnerId: number,
   partnerName: string,
+  opts: { number?: string; profileName?: string } = {},
 ): Promise<number | null> {
+  // § 41 و — a simulation run posts nothing to the real Discuss channels.
+  if (isSimRun(env)) return null;
   if (!partnerId) return null;
 
   // KV cache
@@ -88,14 +180,14 @@ export async function ensureInboxChannel(
   } catch { /* ignore */ }
 
   // Existing link
+  let partner: PartnerPhones | undefined;
   try {
-    const rows = await call<Array<{ id: number; x_wa_channel_id: [number, string] | false }>>(
-      env,
-      "res.partner",
-      "read",
-      { ids: [partnerId], fields: ["id", "x_wa_channel_id"] },
-    );
-    const link = rows[0]?.x_wa_channel_id;
+    const rows = await call<PartnerPhones[]>(env, "res.partner", "read", {
+      ids: [partnerId],
+      fields: PARTNER_PHONE_FIELDS,
+    });
+    partner = rows[0];
+    const link = partner?.x_wa_channel_id;
     if (link && Array.isArray(link) && typeof link[0] === "number") {
       try { await env.MSG_DEDUP.put(kvChannel(partnerId), String(link[0]), { expirationTtl: KV_TTL }); } catch { /* ignore */ }
       return link[0];
@@ -105,9 +197,41 @@ export async function ensureInboxChannel(
     return null;
   }
 
+  const num = waNumber(opts.number) || (partner ? partnerNumber(partner) : "");
+  const title = inboxChannelName({ partnerName: partner?.name || partnerName, profileName: opts.profileName, number: num });
+  if (!title) {
+    console.warn(`[wa-inbox] partner ${partnerId} has no number — no channel created`);
+    return null;
+  }
+
+  // Same number, another partner's channel → reuse it. An archived owner
+  // hands the channel over (its title then follows this partner); an active
+  // one keeps it, so the name saved in Odoo stays the title.
+  try {
+    const reuse = (await findChannelForNumber(env, num))?.channelId;
+    if (reuse) {
+      await call(env, "res.partner", "write", { ids: [partnerId], vals: { x_wa_channel_id: reuse } });
+      const [ch] = await call<Array<{ x_wa_partner_id: [number, string] | false }>>(env, "discuss.channel", "read", {
+        ids: [reuse], fields: ["x_wa_partner_id"],
+      });
+      const ownerId = ch?.x_wa_partner_id ? ch.x_wa_partner_id[0] : 0;
+      const [owner] = ownerId
+        ? await call<Array<{ active: boolean }>>(env, "res.partner", "read", { ids: [ownerId], fields: ["active"], context: { active_test: false } })
+        : [];
+      if (!owner?.active) {
+        await call(env, "discuss.channel", "write", { ids: [reuse], vals: { x_wa_partner_id: partnerId } });
+        await syncInboxChannelTitles(env, { partnerId });
+      }
+      try { await env.MSG_DEDUP.put(kvChannel(partnerId), String(reuse), { expirationTtl: KV_TTL }); } catch { /* ignore */ }
+      console.log(`[wa-inbox] partner ${partnerId} reuses channel ${reuse} of ${phoneTail(num)}`);
+      return reuse;
+    }
+  } catch (e) {
+    console.warn("[wa-inbox] channel-by-number lookup failed", (e as Error).message);
+  }
+
   // Create
   const baraa = await getBaraaPartnerId(env);
-  const displayName = (partnerName ?? "").trim() || `#${partnerId}`;
   let channelId: number;
   try {
     // channel_partner_ids on discuss.channel is a computed m2m that Odoo 19
@@ -116,7 +240,7 @@ export async function ensureInboxChannel(
     // in a follow-up call.
     const created = await call<number[]>(env, "discuss.channel", "create", {
       vals_list: [{
-        name: `واتساب · ${displayName}`,
+        name: title,
         channel_type: "group",
         x_wa_partner_id: partnerId,
       }],
@@ -156,6 +280,107 @@ export async function ensureInboxChannel(
   return channelId;
 }
 
+export interface ChannelTitleChange {
+  channelId: number;
+  partnerId: number | null;
+  number: string;
+  before: string;
+  /** null = left as is: the channel's partner has no number. */
+  after: string | null;
+  old: boolean;
+  written: boolean;
+}
+
+/**
+ * Bring WhatsApp inbox channel titles in line with inboxChannelName — the one
+ * path for the 2026-09-25 rename, for a partner renamed in Odoo (base.automation
+ * «wa_inbox.partner_title» → /odoo/hook/wa-inbox-partner), and for re-runs.
+ * With `partnerId`, only the channels of that partner's numbers.
+ *
+ * A title is built from the channel's own partner (x_wa_partner_id). A number
+ * with several channels keeps one live — the channel of the partner incoming
+ * messages resolve to (team → supplier → customer, as ingestInbound), else
+ * the newest — and the others get «(قديم) ». Only discuss.channel.name is
+ * written; a channel whose partner has no number is left as is.
+ */
+export async function syncInboxChannelTitles(
+  env: Env,
+  opts: { partnerId?: number; dryRun?: boolean } = {},
+): Promise<ChannelTitleChange[]> {
+  type Ch = { id: number; name: string; x_wa_partner_id: [number, string] };
+  const channels = await call<Ch[]>(env, "discuss.channel", "search_read", {
+    domain: [["x_wa_partner_id", "!=", false]],
+    fields: ["id", "name", "x_wa_partner_id"],
+    context: { active_test: false },
+    order: "id asc",
+    limit: 2000,
+  });
+  const pids = [...new Set(channels.map((c) => c.x_wa_partner_id[0]))];
+  if (opts.partnerId && !pids.includes(opts.partnerId)) pids.push(opts.partnerId);
+  const partners = pids.length
+    ? await call<PartnerPhones[]>(env, "res.partner", "read", { ids: pids, fields: PARTNER_PHONE_FIELDS, context: { active_test: false } })
+    : [];
+  const byId = new Map(partners.map((p) => [p.id, p]));
+  const numberOf = (c: Ch) => { const p = byId.get(c.x_wa_partner_id[0]); return p ? partnerNumber(p) : ""; };
+
+  const groups = new Map<string, Ch[]>();
+  for (const c of channels) {
+    const n = numberOf(c);
+    if (n) groups.set(n, [...(groups.get(n) ?? []), c]);
+  }
+  let scope = channels;
+  if (opts.partnerId) {
+    const own = byId.get(opts.partnerId);
+    const nums = new Set([own ? partnerNumber(own) : "", ...channels.filter((c) => c.x_wa_partner_id[0] === opts.partnerId).map(numberOf)]);
+    scope = channels.filter((c) => c.x_wa_partner_id[0] === opts.partnerId || nums.has(numberOf(c)));
+  }
+
+  const live = new Map<string, number>();
+  for (const [num, list] of groups) {
+    if (list.length === 1) live.set(num, list[0].id);
+    else if (scope.some((c) => numberOf(c) === num)) live.set(num, await liveChannelFor(env, num, list, byId));
+  }
+
+  const out: ChannelTitleChange[] = [];
+  for (const c of scope) {
+    const num = numberOf(c);
+    const old = Boolean(num) && live.get(num) !== c.id;
+    const after = inboxChannelName({ partnerName: byId.get(c.x_wa_partner_id[0])?.name, number: num, old });
+    const change: ChannelTitleChange = { channelId: c.id, partnerId: c.x_wa_partner_id[0], number: num, before: c.name, after, old, written: false };
+    if (after && after !== c.name && !opts.dryRun) {
+      await call(env, "discuss.channel", "write", { ids: [c.id], vals: { name: after } });
+      change.written = true;
+    }
+    out.push(change);
+  }
+  return out;
+}
+
+/** The channel incoming messages from `num` reach, among a number's channels. */
+async function liveChannelFor(
+  env: Env,
+  num: string,
+  list: Array<{ id: number; x_wa_partner_id: [number, string] }>,
+  byId: Map<number, PartnerPhones>,
+): Promise<number> {
+  const { findTeamMemberByWhatsApp, findSupplierByWhatsApp, findCustomerByWhatsApp } = await import("./odoo");
+  const [team, sup, cus] = await Promise.all([
+    findTeamMemberByWhatsApp(env, num).catch(() => null),
+    findSupplierByWhatsApp(env, num).catch(() => null),
+    findCustomerByWhatsApp(env, num).catch(() => null),
+  ]);
+  const who = team ?? sup ?? cus;
+  if (who) {
+    const [p] = await call<PartnerPhones[]>(env, "res.partner", "read", { ids: [who.id], fields: PARTNER_PHONE_FIELDS });
+    const link = p?.x_wa_channel_id ? p.x_wa_channel_id[0] : 0;
+    if (list.some((c) => c.id === link)) return link;
+    const owned = list.filter((c) => c.x_wa_partner_id[0] === who.id);
+    if (owned.length) return owned[owned.length - 1].id;
+  }
+  const active = list.filter((c) => byId.get(c.x_wa_partner_id[0])?.active);
+  return (active.length ? active : list)[(active.length ? active : list).length - 1].id;
+}
+
 // -------------------------------------------------------------
 // Message posting
 // -------------------------------------------------------------
@@ -168,6 +393,8 @@ export async function ensureInboxChannel(
  *   2. broadcasts the bus.bus notification `discuss.channel/new_message`,
  *      which is what makes the message appear in the Discuss UI live without
  *      a page refresh. mail.message.create alone did neither.
+ * Every body loses any colour-pinning style first (stripFixedColors): what
+ * the worker writes into Odoo inherits the Discuss theme, light or dark.
  * Returns true on success. Failure is non-fatal for the caller.
  */
 export async function postToChannel(
@@ -177,10 +404,14 @@ export async function postToChannel(
   body: string,
   attachmentIds: number[] = [],
 ): Promise<boolean> {
+  // § 41 و — a simulation run posts nothing to a Discuss channel (the review
+  // channel «📋 مراجعة الأرقام» included: it is found by name, not through
+  // ensureInboxChannel).
+  if (isSimRun(env)) return false;
   try {
     const args: Record<string, unknown> = {
       ids: [channelId],
-      body,
+      body: stripFixedColors(body),
       body_is_html: true,
       message_type: "comment",
       author_id: authorPartnerId,
@@ -221,7 +452,51 @@ interface UploadedAttachment {
  * Download a Meta media object by id, upload it as ir.attachment attached to
  * the given discuss.channel, and return the new attachment id.
  * Best-effort — a failure returns null and the caller falls back to text.
+ *
+ * 2026-09-25 — the bytes go in `raw` (base64 over RPC). Odoo saas~19.4 has no
+ * `datas` any more: ir.attachment._check_contents pops it with a warning, so
+ * every media we sent that way was stored as an empty file (the three voice
+ * notes 248/252/253, file_size 0), and the voice player crashed on it
+ * (decodeAudioData fails → buffer undefined → «reading 'duration'»). An empty
+ * or short download is refused, and the stored size is read back: an
+ * attachment Odoo did not keep whole is removed, never left broken.
  */
+/**
+ * A Meta media object's bytes: GET the media (URL + mime), then the URL. Null
+ * when Meta or the download fails, or the bytes are empty / not the size Meta
+ * gave. Used by the inbox mirror and by the supplier-payment receipt (§ 37).
+ */
+export async function fetchMetaMediaBytes(
+  env: Env,
+  mediaId: string,
+): Promise<{ bytes: Uint8Array; mime: string | undefined } | null> {
+  const gv = env.META_GRAPH_VERSION || "v20.0";
+  // 1) get URL + mime
+  const metaRes = await fetch(`https://graph.facebook.com/${gv}/${mediaId}`, {
+    headers: { Authorization: `Bearer ${env.META_ACCESS_TOKEN}` },
+  });
+  if (!metaRes.ok) {
+    console.warn("[wa-inbox] media meta fetch failed", metaRes.status);
+    return null;
+  }
+  const meta = (await metaRes.json()) as { url?: string; mime_type?: string; file_size?: number };
+  if (!meta.url) return null;
+  // 2) fetch bytes
+  const binRes = await fetch(meta.url, {
+    headers: { Authorization: `Bearer ${env.META_ACCESS_TOKEN}` },
+  });
+  if (!binRes.ok) {
+    console.warn("[wa-inbox] media bytes fetch failed", binRes.status);
+    return null;
+  }
+  const bytes = new Uint8Array(await binRes.arrayBuffer());
+  if (bytes.length === 0 || (typeof meta.file_size === "number" && meta.file_size > 0 && bytes.length !== meta.file_size)) {
+    console.warn(`[wa-inbox] media bytes incomplete: got ${bytes.length}, Meta says ${meta.file_size ?? "?"}`);
+    return null;
+  }
+  return { bytes, mime: meta.mime_type };
+}
+
 export async function attachMetaMedia(
   env: Env,
   mediaId: string,
@@ -230,40 +505,32 @@ export async function attachMetaMedia(
   filenameHint?: string,
 ): Promise<UploadedAttachment | null> {
   try {
-    const gv = env.META_GRAPH_VERSION || "v20.0";
-    // 1) get URL + mime
-    const metaRes = await fetch(`https://graph.facebook.com/${gv}/${mediaId}`, {
-      headers: { Authorization: `Bearer ${env.META_ACCESS_TOKEN}` },
-    });
-    if (!metaRes.ok) {
-      console.warn("[wa-inbox] media meta fetch failed", metaRes.status);
-      return null;
-    }
-    const meta = (await metaRes.json()) as { url?: string; mime_type?: string; file_size?: number };
-    if (!meta.url) return null;
-    const mime = overrideMime || meta.mime_type || "application/octet-stream";
-    // 2) fetch bytes
-    const binRes = await fetch(meta.url, {
-      headers: { Authorization: `Bearer ${env.META_ACCESS_TOKEN}` },
-    });
-    if (!binRes.ok) {
-      console.warn("[wa-inbox] media bytes fetch failed", binRes.status);
-      return null;
-    }
-    const bytes = new Uint8Array(await binRes.arrayBuffer());
-    const b64 = bytesToBase64(bytes);
+    const got = await fetchMetaMediaBytes(env, mediaId);
+    if (!got) return null;
+    const { bytes } = got;
+    const mime = overrideMime || got.mime || "application/octet-stream";
     const filename = filenameHint || defaultFilename(mime, mediaId);
     // 3) upload as ir.attachment on the discuss.channel
     const created = await call<number[]>(env, "ir.attachment", "create", {
       vals_list: [{
         name: filename,
-        datas: b64,
+        raw: bytesToBase64(bytes),
         mimetype: mime,
         res_model: "discuss.channel",
         res_id: channelId,
       }],
     });
-    return { attachmentId: created[0], filename, mimetype: mime };
+    const attachmentId = created[0];
+    // 4) Odoo must have kept every byte.
+    const [stored] = await call<Array<{ file_size: number }>>(env, "ir.attachment", "read", {
+      ids: [attachmentId], fields: ["file_size"],
+    });
+    if (stored?.file_size !== bytes.length) {
+      console.warn(`[wa-inbox] attachment ${attachmentId} stored ${stored?.file_size ?? "?"} of ${bytes.length} bytes — removed`);
+      await call(env, "ir.attachment", "unlink", { ids: [attachmentId] }).catch(() => undefined);
+      return null;
+    }
+    return { attachmentId, filename, mimetype: mime };
   } catch (e) {
     console.warn("[wa-inbox] attachMetaMedia failed", (e as Error).message);
     return null;
@@ -319,6 +586,9 @@ function bytesToBase64(bytes: Uint8Array): string {
 export interface InboundForInbox {
   partnerId: number;
   partnerName: string;
+  /** Sender number and WhatsApp profile name — used only when the channel is created. */
+  number?: string;
+  profileName?: string;
   wamid: string;
   type: string;               // "text" | "image" | "audio" | "video" | "document" | "sticker" | "location" | "interactive" | "button" | ...
   text?: string;              // caption / button text
@@ -330,7 +600,8 @@ export interface InboundForInbox {
 // Ingest — the single funnel every inbound Meta message flows through.
 // -------------------------------------------------------------
 
-export type InboundRoute = "team" | "supplier" | "customer" | "new" | "owner";
+// "quiet" (STATUS § 31): x_contact_class «شخصي» — mirrored, nothing sent.
+export type InboundRoute = "team" | "supplier" | "customer" | "new" | "owner" | "archived" | "quiet";
 
 export interface IngestResult {
   /** last-4 tail of the sender, for the [inbox] log line. */
@@ -353,7 +624,9 @@ export interface IngestResult {
  * so a failure never blocks the customer bot.
  */
 export async function mirrorInbound(env: Env, m: InboundForInbox): Promise<void> {
-  const channelId = await ensureInboxChannel(env, m.partnerId, m.partnerName);
+  const channelId = await ensureInboxChannel(env, m.partnerId, m.partnerName, {
+    number: m.number, profileName: m.profileName,
+  });
   if (!channelId) return;
 
   // The customer partner is the author. For "unknown" partners (created on
@@ -425,11 +698,83 @@ function escapeHtml(s: string): string {
  * HTML sanitizer sometimes strips inline styles; when it does, the "🤖 آلي"
  * prefix in the text still marks the row and the badge column on
  * x_wa_message keeps the same distinction machine-readable.
+ *
+ * 2026-09-25 (dark mode) — no fixed colour at all. The cream box made the
+ * theme's own text colour unreadable in dark mode (#E4E4E4 on #F7F5F0,
+ * 1.2:1), and pinning a dark ink on it (09-24) would only move the problem to
+ * whatever Odoo theme comes next. Now the box has no background and no
+ * colour: the text and the bar inherit the Discuss theme, so they read as
+ * well as any other message, in light and in dark. The mark that does not
+ * lean on colour is the «🤖 آلي» label plus a bar on the start side (right,
+ * the UI is RTL) drawn in currentColor.
+ *
+ * Written exactly as Odoo stores it («prop:value; prop:value», whitelisted
+ * properties only — odoo/tools/mail.py _style_whitelist keeps
+ * border-right-style/-width and drops the border-left shorthand), so the body
+ * we post is the body Odoo keeps. Every body also passes stripFixedColors in
+ * postToChannel.
  */
-const AUTO_STYLE =
-  "border-left: 3px solid #1E5A41; background-color: #F7F5F0; padding: 4px 8px; margin: 0;";
+export const AUTO_STYLE = "border-right-style:solid; border-right-width:3px; padding-right:8px; margin:0";
 
-function autoLabelHtml(bodyText: string, templateLabel?: string): string {
+/**
+ * Style declarations that pin a colour: color, background*, border colours,
+ * or a border/outline shorthand that names one. What the worker writes into
+ * Odoo must inherit the theme instead.
+ */
+const FIXED_COLOR_DECL = /^(color|background(-[a-z-]+)?|border(-[a-z]+)*-color|outline-color|fill|stroke|text-decoration-color|caret-color)$/i;
+const COLOR_VALUE = /#[0-9a-f]{3,8}\b|\b(rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(|\b(white|black|red|green|blue|gray|grey|cream|yellow|orange|silver|navy)\b/i;
+
+function fixedColorDecl(decl: string): boolean {
+  const i = decl.indexOf(":");
+  if (i < 0) return false;
+  const prop = decl.slice(0, i).trim();
+  const value = decl.slice(i + 1).trim();
+  if (FIXED_COLOR_DECL.test(prop)) return true;
+  // border: 3px solid #1E5A41 / outline: … red — a shorthand carrying a colour.
+  return /^(border(-[a-z]+)?|outline)$/i.test(prop) && COLOR_VALUE.test(value);
+}
+
+// Real tags only: message text is escaped (&lt;), so «<p style=…>» typed by a
+// customer never matches and is never rewritten.
+const TAG = /<[a-z][a-z0-9]*\b[^>]*>/gi;
+const STYLE_ATTR = /\sstyle\s*=\s*(?:"([^"]*)"|'([^']*)')/gi;
+const COLOR_ATTR = /\s(?:color|bgcolor)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi;
+
+/** True when a tag in `html` pins a colour: a style declaration, or a colour attribute. */
+export function hasFixedColor(html: string): boolean {
+  for (const [tag] of (html ?? "").matchAll(TAG)) {
+    if (new RegExp(COLOR_ATTR.source, "i").test(tag)) return true;
+    for (const m of tag.matchAll(STYLE_ATTR)) {
+      if ((m[1] ?? m[2] ?? "").split(";").some(fixedColorDecl)) return true;
+    }
+  }
+  return false;
+}
+
+/** Remove every colour-pinning declaration (and color/bgcolor attributes) from the tags of `html`; text untouched. */
+export function stripFixedColors(html: string): string {
+  return (html ?? "").replace(TAG, (tag) => tag
+    .replace(COLOR_ATTR, "")
+    .replace(STYLE_ATTR, (_m, dq: string | undefined, sq: string | undefined) => {
+      const kept = (dq ?? sq ?? "").split(";").map((d) => d.trim()).filter((d) => d && !fixedColorDecl(d));
+      return kept.length ? ` style="${kept.join("; ")}"` : "";
+    }));
+}
+
+/**
+ * Bot echoes already stored in Odoo carry the old box style (cream
+ * background, 09-20 → 09-24). Return the same body with that box restyled to
+ * AUTO_STYLE, or null when `body` is not such an echo or is already current.
+ * Only the style attribute of the leading «🤖 آلي» paragraph changes; every
+ * other character of the body is kept.
+ */
+export function restyleAutoEcho(body: string): string | null {
+  const m = /^<p style="([^"]*)">(<strong>🤖 آلي)/.exec(body ?? "");
+  if (!m || m[1] === AUTO_STYLE) return null;
+  return `<p style="${AUTO_STYLE}">` + body.slice(`<p style="${m[1]}">`.length);
+}
+
+export function autoLabelHtml(bodyText: string, templateLabel?: string): string {
   const prefix = templateLabel
     ? `🤖 آلي · ${escapeHtml(templateLabel)}`
     : "🤖 آلي";
@@ -451,9 +796,11 @@ export async function echoOutbound(
   partnerName: string,
   body: string,
   templateLabel?: string,
+  /** The number the message went to — titles the channel if this send creates it. */
+  number?: string,
 ): Promise<void> {
   if (!partnerId || !body) return;
-  const channelId = await ensureInboxChannel(env, partnerId, partnerName);
+  const channelId = await ensureInboxChannel(env, partnerId, partnerName, { number });
   if (!channelId) return;
   const bot = await getBotPartnerId(env);
   if (!bot) {
@@ -461,6 +808,46 @@ export async function echoOutbound(
     return;
   }
   await postToChannel(env, channelId, bot, autoLabelHtml(body, templateLabel));
+}
+
+// -------------------------------------------------------------
+// Late re-delivery — 2026-09-25 (STATUS § 29 ب)
+//
+// Meta re-delivers a webhook it could not hand over, days later, with the
+// message's ORIGINAL timestamp. On 09-20/21 Ahmad's «صباح الورد» and «ابشر»
+// (sent 09-17 23:02 UTC) arrived 71 and 75 hours late; the bot answered at
+// once and Meta failed both answers with #131047 (the 24h window had closed
+// days before). A message older than Meta's window is mirrored to the inbox
+// as usual, but the bot does not act on it: no reply (it would fail), no
+// price saved under today's date, no order for today from an old message.
+// -------------------------------------------------------------
+export const LATE_INBOUND_MS = 24 * 60 * 60 * 1000;
+
+/** Hours since Meta's timestamp when it is older than the 24h window; otherwise null. */
+export function lateInboundHours(metaTimestamp: string | undefined, nowMs: number = Date.now()): number | null {
+  const t = parseMetaTimestampMs(metaTimestamp);
+  if (t === null) return null;
+  const age = nowMs - t;
+  return age >= LATE_INBOUND_MS ? Math.floor(age / 3_600_000) : null;
+}
+
+/** One line in the contact's channel under the late message: why the bot stayed silent. */
+export async function noteLateInbound(
+  env: Env,
+  partnerId: number,
+  partnerName: string,
+  metaTimestamp: string | undefined,
+  nowMs: number = Date.now(),
+): Promise<void> {
+  const hours = lateInboundHours(metaTimestamp, nowMs);
+  if (!partnerId || hours === null) return;
+  const channelId = await ensureInboxChannel(env, partnerId, partnerName);
+  if (!channelId) return;
+  const bot = await getBotPartnerId(env);
+  if (!bot) return;
+  const sent = new Date((parseMetaTimestampMs(metaTimestamp) as number) + 3 * 3_600_000).toISOString().slice(0, 16).replace("T", " ");
+  await postToChannel(env, channelId, bot,
+    `<p>⏳ وصلتنا هذه الرسالة من Meta متأخرة ${hours} ساعة (أُرسلت ${escapeHtml(sent)} بتوقيت الرياض). نافذة 24 ساعة انتهت، فلم يرد البوت عليها ولم ينفّذ شيئاً منها.</p>`);
 }
 
 /**
@@ -479,6 +866,28 @@ export async function echoFailure(
   const bot = await getBotPartnerId(env);
   if (!bot) return;
   await postToChannel(env, channelId, bot, `<p>⚠️ ما انرسلت: ${escapeHtml(reason)}</p>`);
+}
+
+/**
+ * 2026-09-25 (STATUS § 33) — the gateway held a message for this contact: the
+ * 24h window is closed and its purpose has no usable UTILITY template. One
+ * line in the channel says what waits, and until when.
+ */
+export async function echoHeld(
+  env: Env,
+  partnerId: number,
+  partnerName: string,
+  text: string,
+  until: string,
+): Promise<void> {
+  if (!partnerId) return;
+  const channelId = await ensureInboxChannel(env, partnerId, partnerName);
+  if (!channelId) return;
+  const bot = await getBotPartnerId(env);
+  if (!bot) return;
+  await postToChannel(env, channelId, bot,
+    `<p>⏳ محفوظة ولم تُرسل بعد: خارج نافذة 24 ساعة ولا قالب معتمد لها. تُرسل تلقائياً عند أول رسالة منه، وتنتهي صلاحيتها ${escapeHtml(until)}.</p>` +
+    textToHtml(text));
 }
 
 // -------------------------------------------------------------
@@ -504,7 +913,7 @@ export async function ingestInbound(
   looked?: {
     team?: { id: number; name: string } | null;
     supplier?: { id: number; name: string } | null;
-    customer?: { id: number; name: string } | null;
+    customer?: { id: number; name: string; x_contact_class?: string | false } | null;
   },
 ): Promise<IngestResult> {
   const fromTail = phoneTail(m.from);
@@ -528,7 +937,7 @@ export async function ingestInbound(
   const lCustomer = looked?.customer ?? null;
   if (lTeam) { matched = { id: lTeam.id, name: lTeam.name }; route = "team"; }
   else if (lSupplier) { matched = { id: lSupplier.id, name: lSupplier.name }; route = "supplier"; }
-  else if (lCustomer) { matched = { id: lCustomer.id, name: lCustomer.name }; route = "customer"; }
+  else if (lCustomer) { matched = { id: lCustomer.id, name: lCustomer.name }; route = lCustomer.x_contact_class === "personal" ? "quiet" : "customer"; }
 
   if (!matched) {
     // Fall back to fresh lookups (a caller that already did Promise.all
@@ -543,7 +952,7 @@ export async function ingestInbound(
       ]);
       if (team) { matched = { id: team.id, name: team.name }; route = "team"; }
       else if (sup) { matched = { id: sup.id, name: sup.name }; route = "supplier"; }
-      else if (cus) { matched = { id: cus.id, name: cus.name }; route = "customer"; }
+      else if (cus) { matched = { id: cus.id, name: cus.name }; route = cus.x_contact_class === "personal" ? "quiet" : "customer"; }
     } catch (e) {
       console.warn("[inbox ingest] lookup failed:", (e as Error).message);
     }
@@ -557,7 +966,9 @@ export async function ingestInbound(
       const { findOrCreateCustomer } = await import("./odoo");
       const created = await findOrCreateCustomer(env, m.from, m.profileName ?? "");
       matched = { id: created.id, name: created.name || m.profileName || m.from };
-      route = "new";
+      // 2026-09-25 (STATUS § 30) — archived from «مراجعة الأرقام»: the message
+      // lands on that partner's inbox, and the bot leaves it alone.
+      route = created.archived ? "archived" : created.quiet ? "quiet" : "new";
     } catch (e) {
       const skip = `partner-create: ${(e as Error).message}`;
       return { fromTail, partnerId: null, partnerName: "", route: "new", mirrored: false, skip };
@@ -616,6 +1027,8 @@ export async function ingestInbound(
     await mirrorInbound(env, {
       partnerId: matched.id,
       partnerName: matched.name,
+      number: m.from,
+      profileName: m.profileName,
       wamid: m.wamid,
       type: m.type,
       text: m.text,
@@ -690,109 +1103,13 @@ export function htmlToText(html: string): string {
 
 // -------------------------------------------------------------
 // 24h window check
+//
+// 2026-09-25 (STATUS § 33) — isInside24hWindow is gone: it also read arrival
+// times (x_message_analysis.x_created_at, the Discuss mirror's date), so a
+// message Meta re-delivered days late looked like a fresh one. The window is
+// src/wa-window.ts (Meta timestamps only, per number), and only the send
+// gateway decides by it.
 // -------------------------------------------------------------
-
-/**
- * Returns true iff `partnerId` has an inbound WhatsApp event newer than 24h.
- * Sources (in order, first that yields a fresh unix-ms wins the compare):
- *   1. KV `wa_inbox:last_in_ts:<partnerId>` — Meta's own timestamp for the
- *      most recent inbound, written by ingestInbound. This is the primary
- *      source because it reflects Meta's own clock, in UTC, and never lags
- *      behind Odoo write latency.
- *   2. x_wa_message with x_direction='in' — the audit tab in Odoo. Uses
- *      x_processed_at (Meta timestamp, set by logWaMessage on inbound) with
- *      create_date as a legacy fallback for pre-fix rows.
- *   3. x_message_analysis.x_created_at — classifier records; kept for
- *      backward compat with prior conversations that never hit x_wa_message.
- *   4. mail.message on the partner's Discuss channel authored by the partner
- *      themselves — the mirror row. Safety net so a channel with visible
- *      inbounds is never wrongly reported closed.
- * All comparisons in UTC unix ms. A read failure on a source is treated as
- * "no evidence" (never as "closed"), so one failing lookup does not lock the
- * user out when another source has the answer.
- */
-export async function isInside24hWindow(env: Env, partnerId: number): Promise<boolean> {
-  if (!partnerId) return false;
-  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
-  let latest = 0;
-
-  // (1) KV — the fastest and most accurate source.
-  try {
-    const raw = await env.MSG_DEDUP.get(kvLastInboundTs(partnerId));
-    if (raw) {
-      const t = Number(raw);
-      if (Number.isFinite(t) && t > 0) latest = Math.max(latest, t);
-    }
-  } catch (e) {
-    console.warn("[wa-inbox] window read KV failed", (e as Error).message);
-  }
-  if (latest > cutoff) return true;
-
-  // (2) x_wa_message.x_processed_at (Meta timestamp), fallback to create_date.
-  try {
-    const rows = await call<Array<{ create_date: string; x_processed_at: string | false }>>(
-      env,
-      "x_wa_message",
-      "search_read",
-      {
-        domain: [["x_partner_id", "=", partnerId], ["x_direction", "=", "in"]],
-        fields: ["create_date", "x_processed_at"],
-        order: "create_date desc",
-        limit: 1,
-      },
-    );
-    const r = rows[0];
-    const src = (typeof r?.x_processed_at === "string" && r.x_processed_at) || r?.create_date;
-    if (src) {
-      const t = Date.parse(String(src).replace(" ", "T") + "Z");
-      if (Number.isFinite(t)) latest = Math.max(latest, t);
-    }
-  } catch (e) {
-    console.warn("[wa-inbox] window read x_wa_message failed", (e as Error).message);
-  }
-  if (latest > cutoff) return true;
-
-  // (3) x_message_analysis.
-  try {
-    const rows = await call<Array<{ x_created_at: string }>>(env, "x_message_analysis", "search_read", {
-      domain: [["x_customer_id", "=", partnerId]],
-      fields: ["x_created_at"],
-      order: "x_created_at desc",
-      limit: 1,
-    });
-    if (rows[0]?.x_created_at) {
-      const t = Date.parse(rows[0].x_created_at.replace(" ", "T") + "Z");
-      if (Number.isFinite(t)) latest = Math.max(latest, t);
-    }
-  } catch (e) {
-    console.warn("[wa-inbox] window read x_message_analysis failed", (e as Error).message);
-  }
-  if (latest > cutoff) return true;
-
-  // (4) mail.message on the partner's Discuss channel authored by the partner
-  //     themselves (safety net for pre-fix conversations where the mirror
-  //     ran but no x_wa_message row was ever written).
-  try {
-    const rows = await call<Array<{ date: string }>>(env, "mail.message", "search_read", {
-      domain: [
-        ["model", "=", "discuss.channel"],
-        ["author_id", "=", partnerId],
-        ["message_type", "=", "comment"],
-      ],
-      fields: ["date"],
-      order: "date desc",
-      limit: 1,
-    });
-    if (rows[0]?.date) {
-      const t = Date.parse(String(rows[0].date).replace(" ", "T") + "Z");
-      if (Number.isFinite(t)) latest = Math.max(latest, t);
-    }
-  } catch (e) {
-    console.warn("[wa-inbox] window read mail.message failed", (e as Error).message);
-  }
-
-  return latest > cutoff;
-}
 
 // -------------------------------------------------------------
 // Inbound author gate (used by /odoo/hook/wa-inbox)

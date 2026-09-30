@@ -1,0 +1,612 @@
+// § 42 — the launch (2026-09-27).
+//
+//   [أ] «مشتريات السوق النقدية»: a purchase-list line whose winning purchase
+//       price came from a source that is not a supplier (Omar) is owed to it at
+//       Omar's written price — Ahmed's due is untouched and no «بلا سعر» line
+//       lands under Ahmed; a winner that is a supplier, a simulation day and a
+//       missing partner; its payments through Omar's steps and Baraa's
+//       approval with no notice; the gateway never sends it anything.
+//   [ب] the partial collection from WhatsApp: «نقد» / «تحويل» (session or
+//       template) records nothing and asks «المبلغ كامل (X ر.س)» / «مبلغ آخر»;
+//       «المبلغ كامل» records the open balance; «مبلغ آخر» takes his first
+//       text within 30 minutes with one positive number (Western or
+//       Arabic-Indic digits), refuses more than the balance («المتبقي X ر.س
+//       فقط») and asks again; the rest stays due (م2) and a later «نقد» is a
+//       new prompt; every step locked (a double tap, two amounts at once:
+//       one payment); no choice for 30 minutes → one reminder, nothing 30
+//       after it → one alert to Baraa with the invoice and the customer;
+//       ACCOUNTING_SYNC=true → one account.payment per payment at its own
+//       amount, their sum never over the invoice.
+//   [د] prod's variables, read from wrangler.toml itself: SIMULATION_MODE and
+//       PILOT_MODE false, ACCOUNTING_SYNC true, no SIM_ALLOWLIST / SIM_RUN_ID →
+//       runtime «prod», nothing stamped simulation; a new number → «غير
+//       مراجَع», «📋 مراجعة الأرقام» and Baraa's alert, and it is answered (not
+//       refused); a classified customer (x_wa_allowed off, as the 31 of § 27)
+//       → the full reply; the same new number under PILOT_MODE=true → refused.
+//   [س] schema: every Odoo request names real fields and values (§ 42 fixture).
+//
+// In-memory Odoo + captured Graph (tests/wa-harness.mts). No network, no send.
+//
+//   node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/s42.test.mts
+
+import { cronBlocks } from "./cron-blocks.mts";
+import { readFileSync } from "node:fs";
+import {
+  COLL, COLL_PHONE, CUST, OWNER, computes, employee, graph, inbound, openWindow, ownerAlerts, quiet, reset, rows, seed, sentTo, setRiyadh, signed, table,
+} from "./wa-harness.mts";
+
+let passed = 0, failed = 0;
+const failures: string[] = [];
+function assert(name: string, cond: unknown, detail = ""): void {
+  if (cond) { passed++; console.log(`  ✓ ${name}`); }
+  else { failed++; failures.push(name); console.log(`  ✗ ${name}${detail ? " — " + detail : ""}`); }
+}
+
+// ---------------------------------------------------------------- strict schema gate
+const load = (f: string) => JSON.parse(readFileSync(new URL(f, import.meta.url), "utf8"));
+const FX = [
+  "./fixtures-odoo-fields-20260924.json", "./fixtures-odoo-fields-20260925-review.json", "./fixtures-odoo-fields-20260925-gateway.json",
+  "./fixtures-odoo-fields-20260925-team.json", "./fixtures-odoo-fields-20260925-opener.json", "./fixtures-odoo-fields-20260925-prices.json",
+  "./fixtures-odoo-fields-20260925-s36.json", "./fixtures-odoo-fields-20260925-s37.json", "./fixtures-odoo-fields-20260926-s37-sim.json",
+  "./fixtures-odoo-fields-20260926-s41.json",
+  // § 42 — fields_get of 2026-09-27 (scripts/s42-20260927-fields-fixture.mjs), the dues and the accounting twins included
+  "./fixtures-odoo-fields-20260927-s42.json",
+  "./fixtures-odoo-fields-20260928-s44.json", // § 44: x_vat_status / x_legal_name / x_vat_ask_count on res.partner (the invoice reads them), the purchase side (last: it wins)
+].map(load);
+const REAL: Record<string, string[]> = Object.assign({}, ...FX);
+const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FX.map((f) => f._selections));
+const rejected: string[] = [];
+function known(model: string, name: string): boolean {
+  const list = REAL[model];
+  const f = name.split(".")[0];
+  if (!list || f === "id") return true;
+  if ((model === "res.partner" || model === "product.template") && !f.startsWith("x_")) return true;
+  return list.includes(f);
+}
+let SCREEN: unknown = { intent: "unclear", reason: "سبب" };
+let CLASSIFY = "other";
+const harnessFetch = globalThis.fetch;
+const round2 = (n: number) => Math.round(n * 100) / 100;
+globalThis.fetch = (async (input: unknown, init?: any) => {
+  const url = typeof input === "string" ? input : (input as any)?.url ?? String(input);
+  const m = /\/json\/2\/([^/]+)\/([^/?]+)/.exec(url);
+  // § 42 ب — Odoo's payment wizard, as the tenant runs it: the payment, its
+  // posted entry (cash / bank debit, receivable credit) and the invoice's
+  // residual and payment state after it.
+  // § 42 د — Claude, by its system prompt (the screening, the classifier, a reply)
+  if (url.includes("anthropic.com")) {
+    const b = JSON.parse(init.body);
+    const sys = String(b.system ?? "");
+    const text = sys.startsWith("You screen") ? JSON.stringify(SCREEN)
+      : sys.startsWith("You classify") ? JSON.stringify({ intent: CLASSIFY, confidence: 0.9 })
+      : sys.includes("extract structured order items") ? "[]" : "أهلاً وسهلاً، كيف نخدمك؟";
+    return new Response(JSON.stringify({ content: [{ type: "text", text }] }), { status: 200 });
+  }
+  if (m && m[1] === "account.payment.register" && m[2] === "action_create_payments") {
+    const b = JSON.parse(init.body);
+    const wiz = table("account.payment.register").get(b.ids[0]) as any;
+    const invMove = table("account.move").get(b.context.active_ids[0]) as any;
+    const amount = Number(wiz.amount);
+    const moveId = seed("account.move", { state: "posted", move_type: "entry" });
+    seed("account.move.line", { move_id: moveId, account_id: [1001, "101001"], debit: amount, credit: 0 });
+    seed("account.move.line", { move_id: moveId, account_id: [1002, "102011"], debit: 0, credit: amount });
+    invMove.amount_residual = round2(invMove.amount_residual - amount);
+    invMove.payment_state = invMove.amount_residual <= 0.005 ? "paid" : "partial";
+    const pid = seed("account.payment", { amount, state: "paid", partner_id: invMove.commercial_partner_id, move_id: [moveId, "PAY"], journal_id: wiz.journal_id });
+    return new Response(JSON.stringify({ res_model: "account.payment", res_id: pid }), { status: 200 });
+  }
+  if (m && init?.body) {
+    const b = JSON.parse(init.body);
+    const writes: Array<Record<string, unknown>> = [b.vals ?? {}, ...((b.vals_list ?? []) as Array<Record<string, unknown>>)];
+    const names = [
+      ...((b.domain ?? []) as unknown[]).filter(Array.isArray).map((t: any) => String(t[0])),
+      ...(b.fields ?? []),
+      ...writes.flatMap((v) => Object.keys(v)),
+    ];
+    const bad = names.filter((f: string) => !known(m[1], f));
+    const badSel = writes.flatMap((v) => Object.entries(v))
+      .filter(([k, val]) => SELECTIONS[`${m[1]}.${k}`] && val !== false && !SELECTIONS[`${m[1]}.${k}`].includes(String(val)))
+      .map(([k, val]) => `${k}=${val}`);
+    if (bad.length || badSel.length) {
+      rejected.push(`${m[1]}.${m[2]}: ${[...bad, ...badSel].join(",")}`);
+      return new Response(JSON.stringify({ name: "builtins.ValueError", message: "Invalid" }), { status: 500 });
+    }
+  }
+  return harnessFetch(input as any, init);
+}) as typeof fetch;
+
+const SPM = await import("../src/supplier-pay.ts");
+const { syncSupplierDues, settlePayment, planDues, SP_START, SP_SKIP, SP_TEXT, CASH_MARKET_NOTICE } = SPM;
+const CM = await import("../src/cash-market.ts");
+const { sendViaGateway, gatewayDecision } = await import("../src/wa-gateway.ts");
+const { textContent } = await import("../src/meta.ts");
+const { clearTemplateCache } = await import("../src/templates.ts");
+const CP = await import("../src/collect-pay.ts");
+const INV = await import("../src/invoice.ts");
+const OUT = await import("../src/outreach.ts");
+const { ALREADY_DONE_TEXT } = await import("../src/button-lock.ts");
+const worker = (await import("../src/index.ts")).default;
+
+// ---------------------------------------------------------------- data
+const DAY = "2026-09-27";
+const AHMED = 701, AHMED_PHONE = "966500000701";
+const CASH = 104;
+const BOT = 42;
+let ENV: any;
+let seqN = 0;
+const odooTs = () => new Date(Date.now()).toISOString().replace("T", " ").slice(0, 19);
+
+/** Omar is the harness collector (COLL, «سالم»): a price source employee with the collection role. */
+function fresh(riyadh = `${DAY} 10:00`, opts: { cash?: boolean } = {}): any {
+  const env = reset(); clearTemplateCache(); setRiyadh(riyadh);
+  rejected.length = 0; seqN = 0;
+  env.ODOO_HOOK_TOKEN = "HOOKTOKEN";
+  seed("res.partner", { id: BOT, name: "UTAK بوت" });
+  seed("res.partner", { id: 3, name: "albaraa abdulwahab" });
+  seed("res.users", { id: 2, login: "admin", partner_id: 3, name: "albaraa abdulwahab" });
+  seed("res.partner", { id: AHMED, name: "أحمد حسان", x_whatsapp_number: "+" + AHMED_PHONE, supplier_rank: 5, x_price_source: true, x_vat_registered: true });
+  if (opts.cash !== false) seed("res.partner", { id: CASH, name: "مشتريات السوق النقدية", ref: "UTAK-CASH-MARKET", supplier_rank: 1, x_vat_registered: true, x_price_source: false, x_wa_allowed: false, x_contact_class: "supplier" });
+  const omarEmp = table("hr.employee").get(7000 + COLL) as any;
+  Object.assign(omarEmp, { x_price_source: true, x_vat_registered: true });
+  seed("product.template", { id: 3, name: "[UTAK-VEG-003] بطاطس" });
+  seed("product.template", { id: 4, name: "[UTAK-FRT-004] افوكادو" });
+  seed("product.template", { id: 5, name: "[UTAK-FRT-005] رمان صغير" });
+  seed("x_product_packaging", { id: 31, x_name: "كرتون · 10 كيلو", x_product_tmpl_id: 3 });
+  seed("x_product_packaging", { id: 41, x_name: "كرتون · 4 كيلو", x_product_tmpl_id: 4 });
+  seed("x_product_packaging", { id: 51, x_name: "صندوق", x_product_tmpl_id: 5 });
+  computes["x_supplier_payment"] = (r: any) => {
+    if (r.x_name) return;
+    r.x_name = `SP-2026-${String(++seqN).padStart(4, "0")}`;
+    if (!r.x_date) r.x_date = DAY;
+    r.x_amount = Math.round(Number(r.x_amount) * 100) / 100;
+    if (r.x_channel === "whatsapp") { if (!r.x_state) r.x_state = "pending"; }
+    else Object.assign(r, { x_channel: "odoo", x_state: "approved", x_decided_by: 2, x_decided_at: odooTs(), x_recorded_by: r.x_recorded_by || 3 });
+  };
+  return env;
+}
+function dailyPrice(supplier: number, product: number, packaging: number, p: number, extra: Record<string, unknown> = {}): number {
+  return seed("x_daily_price", { x_supplier_id: supplier, x_product_tmpl_id: product, x_packaging_id: packaging, x_date: DAY, x_price_sar: p, x_extraction_status: "extracted", ...extra });
+}
+/** «أسعار اليوم» of DAY: potato won by Ahmed (20), avocado by Omar (11.5 — Ahmed said 13), small pomegranate by Omar (9 — Ahmed had none). */
+function priceDay(extra: Record<string, unknown> = {}, lines?: Array<[number, number, number, number]>): number {
+  const day = seed("x_price_day", { x_date: DAY, x_state: "published", ...extra });
+  for (const [p, k, sup, price] of lines ?? [[3, 31, AHMED, 20], [4, 41, COLL, 11.5], [5, 51, COLL, 9]]) {
+    seed("x_price_day_line", { x_day_id: day, x_product_tmpl_id: p, x_packaging_id: k, x_supplier_id: sup, x_source_price: price, x_cost_price: price, ...(extra.x_utak_simulation ? { x_utak_simulation: true } : {}) });
+  }
+  return day;
+}
+/** The confirmed list as the 21:15 prefill leaves it: Ahmed's x_daily_price on potato and avocado, nothing on the pomegranate; the list's supplier Ahmed. */
+function confirmedList(extra: Record<string, unknown> = {}): number {
+  const items = [
+    { product_id: 3, product_name: "[UTAK-VEG-003] بطاطس", packaging_id: 31, packaging_name: "كرتون · 10 كيلو", total_quantity: 10, order_ids: [1], price_supplier_id: AHMED, unit_price: 20 },
+    { product_id: 4, product_name: "[UTAK-FRT-004] افوكادو", packaging_id: 41, packaging_name: "كرتون · 4 كيلو", total_quantity: 4, order_ids: [1], price_supplier_id: AHMED, unit_price: 13 },
+    { product_id: 5, product_name: "[UTAK-FRT-005] رمان صغير", packaging_id: 51, packaging_name: "صندوق", total_quantity: 2, order_ids: [2], price_supplier_id: null },
+  ];
+  return seed("x_purchase_list", { x_date: DAY, x_status: "done", x_supplier_id: AHMED, x_aggregated_items: JSON.stringify(items), x_ahmad_confirmed_at: `${DAY} 03:00:00`, ...extra });
+}
+const dues = () => rows("x_supplier_due") as any[];
+const dueOf = (s: number) => dues().find((d) => d.x_supplier_id === s);
+const linesOf = (dueId: number) => (rows("x_supplier_due_line") as any[]).filter((l) => l.x_due_id === dueId);
+const payments = () => rows("x_supplier_payment") as any[];
+const texts = (to: string) => sentTo(to).map((b) => String(b.text?.body ?? b.interactive?.body?.text ?? ""));
+const last = (to: string) => sentTo(to).at(-1);
+function collectingCtx() {
+  const tasks: Promise<unknown>[] = [];
+  return { tasks, waitUntil: (p: Promise<unknown>) => { tasks.push(p); }, passThroughOnException: () => {} } as any;
+}
+async function say(from: string, m: Record<string, unknown>): Promise<void> {
+  const c = collectingCtx();
+  await quiet(async () => { await worker.fetch(signed(inbound(from, m)), ENV, c); await Promise.all(c.tasks); });
+}
+const tap = (from: string, id: string, title = "x") => say(from, { type: "interactive", interactive: { type: "button_reply", button_reply: { id, title } } });
+const write = (from: string, text: string) => say(from, { type: "text", text: { body: text } });
+
+// ================================================================ أ. «مشتريات السوق النقدية»
+console.log("\n[أ] «مشتريات السوق النقدية»: the market-won lines, Ahmed untouched, payments with no notice, nothing sent");
+{
+  // --- the plan (pure)
+  const it = (p: number, k: number, q: number, s: number | null) => ({ product_id: p, product_name: `p${p}`, packaging_id: k, packaging_name: "k", total_quantity: q, price_supplier_id: s });
+  const P = (id: number, s: number, p: number, k: number, v: number) => ({ id, x_supplier_id: [s, "s"], x_product_tmpl_id: [p, "p"], x_packaging_id: [k, "k"], x_date: DAY, x_price_sar: v, x_extraction_status: "extracted" }) as any;
+  const items = [it(3, 31, 10, AHMED), it(4, 41, 4, AHMED), it(5, 51, 2, null)];
+  const prices = [P(1, AHMED, 3, 31, 20), P(2, AHMED, 4, 41, 13)];
+  const winners = new Map([["4::41", { partnerId: COLL, sourceName: "سالم", price: 11.5 }], ["5::51", { partnerId: COLL, sourceName: "سالم", price: 9 }]]);
+  const before = planDues({ x_date: DAY, listSupplierId: AHMED }, items, prices);
+  const after = planDues({ x_date: DAY, listSupplierId: AHMED }, items, prices, { cashSupplierId: CASH, winners });
+  const aB = before.dues.find((d) => d.supplierId === AHMED)!, aA = after.dues.find((d) => d.supplierId === AHMED)!;
+  assert("without the rule (§ 41): avocado 4 × 13 under Ahmed and the pomegranate «بلا سعر» under Ahmed",
+    aB.amountH === 25200 && aB.unpriced === 1 && aB.lines.find((l) => l.productId === 5)?.noPrice === true, JSON.stringify(aB));
+  assert("with it: Ahmed keeps his own line only (potato 10 × 20 = 200.00), nothing «بلا سعر»",
+    aA.amountH === 20000 && aA.unpriced === 0 && aA.lines.length === 1 && aA.lines[0].productId === 3 && aA.lines[0].unitPrice === 20 && aA.lines[0].priceId === 1, JSON.stringify(aA));
+  const c = after.dues.find((d) => d.supplierId === CASH)!;
+  assert("…«مشتريات السوق النقدية»: avocado 4 × 11.5 + pomegranate 2 × 9 = 64.00, at Omar's written prices",
+    c?.amountH === 6400 && c.unpriced === 0 && c.lines.map((l) => `${l.productId}:${l.unitPrice}:${l.subtotalH}`).join() === "4:11.5:4600,5:9:1800" && c.lines.every((l) => l.marketBy === "سالم"), JSON.stringify(c));
+  const noCash = planDues({ x_date: DAY, listSupplierId: AHMED }, items, prices, { cashSupplierId: null, winners });
+  assert("no partner found: the market lines have no supplier («بلا مورد»), still not Ahmed's",
+    noCash.noSupplier.map((i) => i.product_id).join() === "4,5" && noCash.dues.length === 1 && noCash.dues[0].amountH === 20000);
+  const ahmedOnly = planDues({ x_date: DAY, listSupplierId: AHMED }, [it(3, 31, 10, AHMED)], prices, { cashSupplierId: CASH, winners });
+  assert("a list with Ahmed's lines only: the same due as before the rule", JSON.stringify(ahmedOnly) === JSON.stringify(planDues({ x_date: DAY, listSupplierId: AHMED }, [it(3, 31, 10, AHMED)], prices)));
+
+  // --- the dues in Odoo
+  ENV = fresh();
+  dailyPrice(AHMED, 3, 31, 20); dailyPrice(AHMED, 4, 41, 13);
+  priceDay();
+  priceDay({ x_utak_simulation: true, x_state: "draft" }, [[3, 31, COLL, 1]]); // a simulation day of the same date: never read
+  const listId = confirmedList();
+  const r = await quiet(() => syncSupplierDues(ENV, listId));
+  const a = dueOf(AHMED), cash = dueOf(CASH);
+  assert("synced: Ahmed 200.00 with one line and 0 «بلا سعر»", r.action === "synced" && a?.x_amount === 200 && a?.x_unpriced_count === 0 && linesOf(a.id).length === 1, JSON.stringify(r));
+  const pl = linesOf(a.id)[0];
+  assert("…his line: potato 10 × 20 from his x_daily_price (the simulation day's winner ignored)", pl.x_product_tmpl_id === 3 && pl.x_unit_price === 20 && pl.x_subtotal === 200 && !!pl.x_daily_price_id && pl.x_no_price === false);
+  const cl = linesOf(cash?.id ?? -1);
+  assert("«مشتريات السوق النقدية» #104: 64.00, two lines at Omar's prices, noted «سعر شراء سالم المكتوب من السوق»",
+    cash?.x_amount === 64 && cash?.x_unpriced_count === 0 && cl.length === 2 && cl.every((l) => l.x_no_price === false && !l.x_daily_price_id && String(l.x_note).includes("سعر شراء سالم المكتوب من السوق"))
+      && cl.find((l) => l.x_product_tmpl_id === 4)?.x_subtotal === 46 && cl.find((l) => l.x_product_tmpl_id === 5)?.x_subtotal === 18, JSON.stringify(cl));
+  assert("no «بلا سعر» alert at all (Omar's lines are not Ahmed's)", !ownerAlerts().some((x) => x.includes("بلا سعر")), ownerAlerts().join(" | "));
+  const r2 = await quiet(() => syncSupplierDues(ENV, listId));
+  assert("again: unchanged", r2.action === "unchanged" && dues().length === 2);
+
+  // a winner that is a supplier (Ahmed) stays Ahmed's; the pomegranate won by Ahmed without a price row is his «بلا سعر»
+  ENV = fresh();
+  dailyPrice(AHMED, 3, 31, 20); dailyPrice(AHMED, 4, 41, 13);
+  priceDay({}, [[3, 31, AHMED, 20], [4, 41, AHMED, 13]]);
+  const l2 = confirmedList();
+  await quiet(() => syncSupplierDues(ENV, l2));
+  assert("every winner a supplier: all Ahmed's (20 × 10 + 13 × 4 = 252), pomegranate «بلا سعر» as before, nothing to the market",
+    dueOf(AHMED)?.x_amount === 252 && dueOf(AHMED)?.x_unpriced_count === 1 && !dueOf(CASH), JSON.stringify(dues()));
+
+  // the partner missing (archived / ref changed)
+  ENV = fresh(`${DAY} 10:00`, { cash: false });
+  dailyPrice(AHMED, 3, 31, 20); dailyPrice(AHMED, 4, 41, 13);
+  priceDay();
+  const l3 = confirmedList();
+  await quiet(() => syncSupplierDues(ENV, l3));
+  const al = ownerAlerts().filter((x) => x.includes("بلا مورد"));
+  assert("no «مشتريات السوق النقدية»: Ahmed 200 only, the two market lines «بلا مورد (شراء السوق…)» in Baraa's alert",
+    dueOf(AHMED)?.x_amount === 200 && dueOf(AHMED)?.x_unpriced_count === 0 && dues().length === 1 && al.length === 1 && al[0].includes("شراء السوق") && al[0].includes("UTAK-CASH-MARKET"), al.join(" | "));
+
+  // --- the payments: Omar records, Baraa approves, no notice
+  ENV = fresh();
+  dailyPrice(AHMED, 3, 31, 20); dailyPrice(AHMED, 4, 41, 13);
+  priceDay();
+  const l4 = confirmedList();
+  await quiet(() => syncSupplierDues(ENV, l4));
+  openWindow(ENV, COLL_PHONE, 2);
+  await tap(COLL_PHONE, SP_START);
+  const ids = (last(COLL_PHONE)?.interactive?.action?.buttons ?? []).map((b: any) => b.reply.id);
+  assert("Omar's picker: Ahmed and «مشتريات السوق النقدية»", ids.includes(`sp_sup_${AHMED}`) && ids.includes(`sp_sup_${CASH}`), JSON.stringify(ids));
+  await tap(COLL_PHONE, `sp_sup_${CASH}`);
+  assert("…the amount step names it", texts(COLL_PHONE).at(-1) === SP_TEXT.askAmount("مشتريات السوق النقدية"));
+  await write(COLL_PHONE, "٦٤");
+  const alertsBefore = ownerAlerts().length;
+  await tap(COLL_PHONE, SP_SKIP);
+  const p = payments()[0];
+  assert("a pending cash payment to #104 by Omar, 64.00", payments().length === 1 && p.x_supplier_id === CASH && p.x_amount === 64 && p.x_state === "pending" && p.x_recorded_by === COLL, JSON.stringify(p));
+  const pa = ownerAlerts().slice(alertsBefore).join(" | ");
+  assert("…Baraa's approval alert: the supplier, 64.00, the remaining 64.00 before it", pa.includes("بانتظار اعتمادك") && pa.includes("مشتريات السوق النقدية") && pa.includes("64.00"), pa);
+  Object.assign(table("x_supplier_payment").get(p.id) as any, { x_state: "approved", x_decided_by: 2, x_decided_at: odooTs() });
+  const graphBefore = graph.length;
+  const s = await quiet(() => settlePayment(ENV, p.id));
+  const out = graph.slice(graphBefore).map((b) => b?.to);
+  assert("approved: settled with «لا إشعار للمورد (مشتريات السوق النقدية بلا رقم)», remaining 0.00", s.action === "approved" && s.notice === CASH_MARKET_NOTICE && s.remaining === "0.00"
+    && (table("x_supplier_payment").get(p.id) as any).x_supplier_notice === CASH_MARKET_NOTICE, JSON.stringify(s));
+  assert("…only Omar hears of it (the decision line); no message to any supplier", out.length === 1 && out[0] === COLL_PHONE && texts(COLL_PHONE).at(-1).includes("اعتمد براء دفعتك"), JSON.stringify(out));
+  assert("…Ahmed's balance untouched (200 due, nothing paid)", dueOf(AHMED)?.x_amount === 200 && !payments().some((x) => x.x_supplier_id === AHMED));
+
+  // --- the gateway: a number added to it later in Odoo never receives anything
+  Object.assign(table("res.partner").get(CASH) as any, { phone: "0500000104" }); // local spelling: the last nine digits decide
+  ENV.MSG_DEDUP.store.delete("cash_market_nums:v1"); // the 10-minute cache
+  openWindow(ENV, "966500000104", 1);
+  const g0 = graph.length;
+  const d1 = gatewayDecision(await quiet(() => sendViaGateway(ENV, { purpose: "supplier_payment_sent", to: "+966500000104", content: textContent("دفعة") })));
+  const d2 = gatewayDecision(await quiet(() => sendViaGateway(ENV, { purpose: "wa_message_manual", to: "0500000104", content: textContent("يدوية") })));
+  const d3 = gatewayDecision(await quiet(() => sendViaGateway(ENV, { purpose: "bot_reply", to: "966500000104", content: textContent("رد") })));
+  assert("the gateway refuses it for any purpose (notice, manual, bot reply), any spelling of the number",
+    [d1, d2, d3].every((d) => d?.action === "refused" && String((d as any).reason).includes("CashMarketSupplier")) && graph.length === g0, JSON.stringify([d1, d2, d3]));
+  const g1 = graph.length;
+  const d4 = gatewayDecision(await quiet(() => sendViaGateway(ENV, { purpose: "bot_reply", to: AHMED_PHONE, content: textContent("هلا") })));
+  openWindow(ENV, AHMED_PHONE, 1);
+  const d5 = gatewayDecision(await quiet(() => sendViaGateway(ENV, { purpose: "bot_reply", to: AHMED_PHONE, content: textContent("هلا") })));
+  assert("…Ahmed's number is not affected", d4?.action !== "refused" && d5?.action === "session" && graph.length === g1 + 1, JSON.stringify([d4, d5]));
+  // a second payment approved after the number was added: still no notice
+  const p2 = seed("x_supplier_payment", { x_supplier_id: CASH, x_amount: 10, x_method: "cash" });
+  computes["x_supplier_payment"]!(table("x_supplier_payment").get(p2)!);
+  const g2 = graph.length;
+  const s2 = await quiet(() => settlePayment(ENV, p2));
+  assert("…a payment settled after the number was added: still «لا إشعار», nothing to it (only Baraa's «رصيد دائن» alert: 74 paid of 64)",
+    s2.notice === CASH_MARKET_NOTICE && s2.overpaid === true && graph.slice(g2).every((b) => b?.to === OWNER) && sentTo("966500000104").length === 0, JSON.stringify(s2));
+  assert("isCashMarketNumber: its number yes, Ahmed's no, empty no", await CM.isCashMarketNumber(ENV, "+966500000104") && !(await CM.isCashMarketNumber(ENV, AHMED_PHONE)) && !(await CM.isCashMarketNumber(ENV, "")));
+}
+
+
+// ================================================================ ب. the partial collection
+console.log("\n[ب] the partial collection from WhatsApp: «المبلغ كامل» / «مبلغ آخر», locks, 30 minutes, the reminder, Baraa's alert");
+const tplTap = (from: string, payload: string, text = "نقد 💵") => say(from, { type: "button", button: { payload, text } });
+const choiceIds = (to: string) => {
+  const b = sentTo(to).filter((x) => x.type === "interactive").at(-1)?.interactive?.action?.buttons ?? [];
+  return { full: String(b[0]?.reply?.id ?? ""), fullTitle: String(b[0]?.reply?.title ?? ""), other: String(b[1]?.reply?.id ?? ""), otherTitle: String(b[1]?.reply?.title ?? "") };
+};
+const xpay = () => rows("x_payment") as any[];
+const lastText = (to: string) => texts(to).at(-1) ?? "";
+function invoice(total = 190, extra: Record<string, unknown> = {}): { order: number; inv: number } {
+  const order = seed("x_daily_order", { x_customer_id: CUST, x_state: "delivered", x_order_date: DAY, x_created_via: "whatsapp" });
+  const inv = seed("x_invoice", { x_invoice_number: `UTAK-INV-20260927-00${order % 10}`, x_total: total, x_subtotal: total, x_tax_amount: 0, x_status: "issued", x_order_id: order, x_invoice_date: DAY, ...extra });
+  return { order, inv };
+}
+/** The harness KV keeps every key: the 60-second lock of a «نقد» tap has passed. */
+const minuteLater = (inv: number) => ENV.MSG_DEDUP.store.delete(`btnlock:v1:collect_ask:${inv}`);
+const tickAt = async (hm: string) => { setRiyadh(`${DAY} ${hm}`); return quiet(() => CP.runCollectPayTick(ENV, Date.now())); };
+{
+  // --- the pure rules
+  const P = CP.parseCollectedAmount;
+  const ok: Array<[string, number]> = [["100", 100], ["١٠٠", 100], ["۱۰۰", 100], ["استلمت 75.5 ريال", 75.5], ["٧٥٫٥", 75.5], ["1,500", 1500], ["  90 ", 90], ["100.50", 100.5]];
+  assert("an amount: one positive number, Western or Arabic-Indic digits, «٫» or «.», a thousands comma",
+    ok.every(([t, v]) => { const r = P(t); return r.kind === "ok" && r.value === v; }), JSON.stringify(ok.map(([t]) => [t, P(t)])));
+  const none = ["", "خلاص", "0", "0.00", "-50", "12.345", "9999999"];
+  assert("not an amount: no number, zero, a sign, three decimals, too large", none.every((t) => P(t).kind === "none"), JSON.stringify(none.map((t) => [t, P(t)])));
+  assert("two different numbers: «many» (never guessed)", P("100 و 90").kind === "many" && P("١٠٠ من ١٩٠").kind === "many" && P("100 ... 100.00").kind === "ok");
+  assert("the full button fits Meta's 20 characters: «المبلغ كامل (90 ر.س)», «كامل (190 ر.س)», «كامل (12345.5 ر.س)»",
+    CP.fullTitle(90) === "المبلغ كامل (90 ر.س)" && CP.fullTitle(190) === "كامل (190 ر.س)" && CP.fullTitle(12345.5) === "كامل (12345.50 ر.س)"
+      && [90, 190, 1234.56, 99999.99, 1e6].every((x) => CP.fullTitle(x).length <= 20), JSON.stringify([90, 190, 12345.5, 1e6].map(CP.fullTitle)));
+
+  // --- «نقد» (session) → the prompt; «المبلغ كامل» → the open balance, once
+  ENV = fresh(`${DAY} 13:00`);
+  openWindow(ENV, COLL_PHONE, 2);
+  const a = invoice(190);
+  await tap(COLL_PHONE, `collect_cash_${a.inv}`, "نقد 💵");
+  const c1 = choiceIds(COLL_PHONE);
+  const body1 = String(sentTo(COLL_PHONE).at(-1)?.interactive?.body?.text ?? "");
+  assert("«نقد»: nothing recorded, the reply in his conversation with «كامل (190 ر.س)» and «مبلغ آخر»",
+    xpay().length === 0 && c1.full.startsWith(`collect_full_cash_${a.inv}_`) && c1.other.startsWith(`collect_other_cash_${a.inv}_`) && c1.fullTitle === "كامل (190 ر.س)" && c1.otherTitle === "مبلغ آخر"
+      && body1.includes("المتبقي: 190 ر.س") && body1.includes("مطعم الوادي"), JSON.stringify({ c1, body1 }));
+  await tap(COLL_PHONE, `collect_transfer_${a.inv}`, "تحويل 🏦");
+  assert("«تحويل» on it within the minute (a double tap): «تم مسبقاً», no second prompt", lastText(COLL_PHONE) === ALREADY_DONE_TEXT && choiceIds(COLL_PHONE).full === c1.full);
+  const sameNonce = c1.full.split("_").at(-1) === c1.other.split("_").at(-1);
+  assert("…both buttons carry the same prompt (nonce), and the state waits in KV", sameNonce && !!(await CP.readPending(ENV, a.inv)) && (await CP.readIndex(ENV)).includes(a.inv));
+  await Promise.all([tap(COLL_PHONE, c1.full, "كامل"), tap(COLL_PHONE, c1.full, "كامل")]);
+  assert("«المبلغ كامل» tapped twice at once: ONE payment of 190 cash, paid, the order closed",
+    xpay().length === 1 && xpay()[0].x_amount === 190 && xpay()[0].x_method === "cash" && xpay()[0].x_collected_by === COLL
+      && table("x_invoice").get(a.inv)!.x_status === "paid" && table("x_daily_order").get(a.order)!.x_state === "closed", JSON.stringify(xpay()));
+  const recReply = sentTo(COLL_PHONE).filter((b) => String(b.interactive?.body?.text ?? b.text?.body ?? "").includes("تم تسجيل التحصيل"));
+  assert("…«تم تسجيل التحصيل نقد 💵» with «ملاحظة 📝», and «تم مسبقاً» for the other tap",
+    recReply.length === 1 && recReply[0].interactive?.action?.buttons?.[0]?.reply?.id === `collect_note_${a.inv}` && texts(COLL_PHONE).includes(ALREADY_DONE_TEXT), JSON.stringify(texts(COLL_PHONE).slice(-3)));
+  assert("…the prompt's state and the index are cleared", !(await CP.readPending(ENV, a.inv)) && !(await CP.readIndex(ENV)).includes(a.inv));
+  await tap(COLL_PHONE, c1.full, "كامل");
+  await tap(COLL_PHONE, c1.other, "مبلغ آخر");
+  assert("a later tap of either button of that prompt: «تم مسبقاً», still one payment", xpay().length === 1 && texts(COLL_PHONE).slice(-2).every((t) => t === ALREADY_DONE_TEXT), JSON.stringify(texts(COLL_PHONE).slice(-2)));
+
+  // --- «تحويل» from the template → «مبلغ آخر» → the amount
+  ENV = fresh(`${DAY} 13:00`);
+  openWindow(ENV, COLL_PHONE, 2);
+  const b = invoice(190);
+  await tplTap(COLL_PHONE, `collect_transfer_${b.inv}`, "تحويل 🏦");
+  const c2 = choiceIds(COLL_PHONE);
+  assert("«تحويل» from the template's quick reply: the same prompt, nothing recorded", c2.full.startsWith(`collect_full_transfer_${b.inv}_`) && xpay().length === 0, JSON.stringify(c2));
+  await tap(COLL_PHONE, c2.other, "مبلغ آخر");
+  assert("«مبلغ آخر»: «اكتب المبلغ المستلم رقماً فقط (المتبقي 190 ر.س)», nothing recorded", lastText(COLL_PHONE) === CP.askAmountText(190) && xpay().length === 0, lastText(COLL_PHONE));
+  await write(COLL_PHONE, "استلمت الحين");
+  assert("a text without a number: asked again, nothing recorded", lastText(COLL_PHONE) === CP.badAmountText(190) && xpay().length === 0, lastText(COLL_PHONE));
+  await write(COLL_PHONE, "100 و 90");
+  assert("two numbers: asked again (never guessed)", lastText(COLL_PHONE) === CP.badAmountText(190) && xpay().length === 0);
+  await write(COLL_PHONE, "٢٥٠");
+  assert("more than the balance (٢٥٠): «المتبقي 190 ر.س فقط» and asked again, nothing recorded", lastText(COLL_PHONE) === CP.overAmountText(190) && xpay().length === 0, lastText(COLL_PHONE));
+  await Promise.all([write(COLL_PHONE, "١٠٠"), write(COLL_PHONE, "١٠٠")]);
+  assert("«١٠٠» (Arabic-Indic), sent twice at once: ONE payment of 100 by transfer, the invoice still issued, the order open",
+    xpay().length === 1 && xpay()[0].x_amount === 100 && xpay()[0].x_method === "transfer" && table("x_invoice").get(b.inv)!.x_status === "issued" && table("x_daily_order").get(b.order)!.x_state === "delivered", JSON.stringify(xpay()));
+  assert("…his reply: «تم تسجيل تحصيل جزئي تحويل 🏦 100 ر.س … (المتبقي 90 ر.س)» with «ملاحظة 📝»",
+    texts(COLL_PHONE).some((t) => t.includes("تحصيل جزئي") && t.includes("100 ر.س") && t.includes("المتبقي 90 ر.س")), JSON.stringify(texts(COLL_PHONE).slice(-3)));
+  const n0 = xpay().length;
+  await write(COLL_PHONE, "50");
+  assert("a number after it is an ordinary message (the pointer is cleared): no payment, not «تم مسبقاً»", xpay().length === n0 && lastText(COLL_PHONE) !== ALREADY_DONE_TEXT && !(await CP.readPending(ENV, b.inv)), lastText(COLL_PHONE));
+  setRiyadh("2026-09-30 08:00");
+  const owed = await quiet(() => OUT.owedByCustomer(ENV));
+  assert("the rest stays due: م2 reminds 90 on the invoice", owed.get(CUST)?.amount === 90, JSON.stringify([...owed]));
+  setRiyadh(`${DAY} 14:00`);
+  minuteLater(b.inv);
+  await tap(COLL_PHONE, `collect_cash_${b.inv}`, "نقد 💵");
+  const c3 = choiceIds(COLL_PHONE);
+  assert("a later «نقد» on it: a new prompt on the rest, «المبلغ كامل (90 ر.س)»", c3.fullTitle === "المبلغ كامل (90 ر.س)" && c3.full !== c2.full, JSON.stringify(c3));
+  await tap(COLL_PHONE, c3.full, "كامل");
+  assert("…recorded 90: two payments (100 + 90 = 190), paid, closed", xpay().length === 2 && round2(xpay().reduce((t, p) => t + p.x_amount, 0)) === 190 && table("x_invoice").get(b.inv)!.x_status === "paid" && table("x_daily_order").get(b.order)!.x_state === "closed");
+  await tap(COLL_PHONE, c2.full, "كامل");
+  assert("the first prompt's «المبلغ كامل» (its partial recorded): «تم مسبقاً», nothing more", xpay().length === 2 && lastText(COLL_PHONE) === ALREADY_DONE_TEXT);
+  const direct = await quiet(() => INV.recordCollection(ENV, { invoiceId: invoice(50).inv, method: "cash", amount: 80, exact: true }));
+  assert("recordCollection exact: more than the balance → refused (overLimit), nothing recorded", direct.paymentId === null && direct.overLimit?.remaining === 50 && xpay().length === 2, JSON.stringify(direct));
+
+  // --- the 30 minutes: an amount after them is an ordinary message
+  ENV = fresh(`${DAY} 10:00`);
+  openWindow(ENV, COLL_PHONE, 2);
+  const c = invoice(120);
+  await tap(COLL_PHONE, `collect_cash_${c.inv}`);
+  await tap(COLL_PHONE, choiceIds(COLL_PHONE).other, "مبلغ آخر");
+  setRiyadh(`${DAY} 10:31`);
+  await write(COLL_PHONE, "60");
+  assert("«60» 31 minutes after «مبلغ آخر»: not recorded", xpay().length === 0, JSON.stringify(xpay()));
+
+  // --- one amount, then another number: the second is an ordinary message
+  ENV = fresh(`${DAY} 10:00`);
+  openWindow(ENV, COLL_PHONE, 2);
+  const k = invoice(120);
+  await tap(COLL_PHONE, `collect_cash_${k.inv}`);
+  await tap(COLL_PHONE, choiceIds(COLL_PHONE).other, "مبلغ آخر");
+  await write(COLL_PHONE, "40");
+  await write(COLL_PHONE, "30");
+  assert("«40» recorded, then «30» a minute later: an ordinary message (not «تم مسبقاً», not a payment)",
+    xpay().length === 1 && xpay()[0].x_amount === 40 && lastText(COLL_PHONE) !== ALREADY_DONE_TEXT && lastText(COLL_PHONE).includes("استخدم الأزرار"), lastText(COLL_PHONE));
+
+  // --- «مبلغ آخر» takes over an open supplier-payment flow (the latest tap wins)
+  ENV = fresh(`${DAY} 10:00`);
+  openWindow(ENV, COLL_PHONE, 2);
+  dailyPrice(AHMED, 3, 31, 20); priceDay({}, [[3, 31, AHMED, 20]]); confirmedList();
+  const d = invoice(120);
+  await tap(COLL_PHONE, SP_START);
+  await tap(COLL_PHONE, `sp_sup_${AHMED}`);
+  assert("(the supplier-payment flow is open: it asks Ahmed's amount)", lastText(COLL_PHONE) === SP_TEXT.askAmount("أحمد حسان"), lastText(COLL_PHONE));
+  await tap(COLL_PHONE, `collect_cash_${d.inv}`);
+  await tap(COLL_PHONE, choiceIds(COLL_PHONE).other, "مبلغ آخر");
+  await write(COLL_PHONE, "70");
+  assert("an open «💵 دفعت لمورد» then «مبلغ آخر» then «70»: a collection of 70, no supplier payment", xpay().length === 1 && xpay()[0].x_amount === 70 && payments().length === 0, JSON.stringify({ x: xpay(), sp: payments() }));
+
+  // --- no choice: one reminder at 30, one alert to Baraa 30 after it
+  ENV = fresh(`${DAY} 10:00`);
+  openWindow(ENV, COLL_PHONE, 2);
+  const e = invoice(190);
+  await tap(COLL_PHONE, `collect_cash_${e.inv}`);
+  const promptIds = choiceIds(COLL_PHONE);
+  const sentBefore = sentTo(COLL_PHONE).length;
+  const t1 = await tickAt("10:20");
+  assert("20 minutes: waiting, nothing sent", t1.some((r) => r.invoiceId === e.inv && r.action === "waiting") && sentTo(COLL_PHONE).length === sentBefore);
+  setRiyadh(`${DAY} 10:31`);
+  await quiet(() => worker.scheduled({ cron: "*/5 * * * *", scheduledTime: Date.now() } as any, ENV, collectingCtx()));
+  const rem = sentTo(COLL_PHONE).slice(sentBefore).filter((m) => String(m.interactive?.body?.text ?? "").includes("⏰ تذكير"));
+  assert("31 minutes (the */5 cron): ONE reminder to Omar with the same two buttons, nothing recorded",
+    rem.length === 1 && rem[0].interactive.action.buttons[0].reply.id === promptIds.full && rem[0].interactive.action.buttons[1].reply.id === promptIds.other
+      && String(rem[0].interactive.body.text).includes(table("x_invoice").get(e.inv)!.x_invoice_number as string) && xpay().length === 0, JSON.stringify(sentTo(COLL_PHONE).slice(sentBefore)));
+  const alertsBefore = ownerAlerts().length;
+  await tickAt("10:45");
+  await tickAt("10:58");
+  assert("…no second reminder, no alert yet", sentTo(COLL_PHONE).slice(sentBefore).filter((m) => String(m.interactive?.body?.text ?? "").includes("⏰ تذكير")).length === 1 && ownerAlerts().length === alertsBefore);
+  const t3 = await tickAt("11:02");
+  const al = ownerAlerts().slice(alertsBefore);
+  assert("31 minutes after the reminder: ONE alert to Baraa with the invoice number and the customer's name, nothing recorded",
+    t3.some((r) => r.action === "alerted") && al.length === 1 && al[0].includes(table("x_invoice").get(e.inv)!.x_invoice_number as string) && al[0].includes("مطعم الوادي") && al[0].includes("لم يُسجَّل") && xpay().length === 0, al.join(" | "));
+  await tickAt("11:40"); await tickAt("12:40");
+  assert("…never a second alert (the invoice leaves the list)", ownerAlerts().length === alertsBefore + 1 && !(await CP.readIndex(ENV)).includes(e.inv));
+  await tap(COLL_PHONE, promptIds.full, "كامل");
+  assert("his late «المبلغ كامل» still records it (190)", xpay().length === 1 && xpay()[0].x_amount === 190);
+
+  // --- a step after the reminder moves Baraa's alert: 30 minutes after his last step
+  ENV = fresh(`${DAY} 10:00`);
+  openWindow(ENV, COLL_PHONE, 2);
+  const f = invoice(190);
+  await tap(COLL_PHONE, `collect_cash_${f.inv}`);
+  const fIds = choiceIds(COLL_PHONE);
+  await tickAt("10:31");
+  setRiyadh(`${DAY} 10:50`);
+  await tap(COLL_PHONE, fIds.other, "مبلغ آخر");
+  const fa = ownerAlerts().length;
+  await tickAt("11:02");
+  assert("«مبلغ آخر» at 10:50 (after the 10:31 reminder): no alert at 11:02", ownerAlerts().length === fa);
+  await tickAt("11:21");
+  assert("…the alert at 11:21, 31 minutes after his last step, once", ownerAlerts().length === fa + 1 && ownerAlerts().at(-1)!.includes("تحصيل لم يكتمل"));
+
+  // --- paid meanwhile (Baraa, in Odoo): no reminder
+  ENV = fresh(`${DAY} 10:00`);
+  openWindow(ENV, COLL_PHONE, 2);
+  const g = invoice(80);
+  await tap(COLL_PHONE, `collect_cash_${g.inv}`);
+  seed("x_payment", { x_invoice_id: g.inv, x_amount: 80, x_method: "transfer" });
+  table("x_invoice").get(g.inv)!.x_status = "paid";
+  const gs = sentTo(COLL_PHONE).length;
+  const tg = await tickAt("10:35");
+  assert("paid from Odoo before the 30 minutes: settled, no reminder, no alert", tg.some((r) => r.invoiceId === g.inv && r.action === "settled") && sentTo(COLL_PHONE).length === gs && !(await CP.readIndex(ENV)).includes(g.inv));
+
+  // --- ACCOUNTING_SYNC=true: one account.payment per payment at its own amount, their sum ≤ the invoice
+  ENV = fresh(`${DAY} 13:00`);
+  ENV.ACCOUNTING_SYNC = "true";
+  openWindow(ENV, COLL_PHONE, 2);
+  seed("account.journal", { id: 7, code: "CSHD" }); seed("account.journal", { id: 8, code: "BNK1" });
+  seed("account.account", { id: 1001, code: "101001", account_type: "asset_cash" });
+  seed("account.account", { id: 1002, code: "102011", account_type: "asset_receivable" });
+  const move = seed("account.move", { name: "INV/2026/00001", state: "posted", move_type: "out_invoice", amount_total: 190, amount_residual: 190, payment_state: "not_paid", commercial_partner_id: [CUST, "مطعم الوادي"], partner_id: [CUST, "مطعم الوادي"] });
+  const h = invoice(190, { x_account_move_id: move });
+  await tap(COLL_PHONE, `collect_transfer_${h.inv}`);
+  await tap(COLL_PHONE, choiceIds(COLL_PHONE).other, "مبلغ آخر");
+  await write(COLL_PHONE, "٢٠٠");
+  assert("with accounting: more than the balance creates nothing (no wizard, no payment)", rows("account.payment.register").length === 0 && xpay().length === 0);
+  await write(COLL_PHONE, "100");
+  const ap1 = rows("account.payment") as any[];
+  assert("the partial 100 → ONE account.payment of 100 (the wizard at 100, bank), linked on the x_payment",
+    ap1.length === 1 && ap1[0].amount === 100 && (rows("account.payment.register") as any[])[0]?.amount === 100 && (rows("account.payment.register") as any[])[0]?.journal_id === 8
+      && xpay()[0].x_account_payment_id === ap1[0].id && (table("account.move").get(move) as any).payment_state === "partial", JSON.stringify({ ap1, reg: rows("account.payment.register") }));
+  minuteLater(h.inv);
+  await tap(COLL_PHONE, `collect_cash_${h.inv}`);
+  await tap(COLL_PHONE, choiceIds(COLL_PHONE).full, "كامل");
+  const ap2 = rows("account.payment") as any[];
+  const sum = round2(ap2.reduce((t, p) => t + p.amount, 0));
+  assert("the rest by «المبلغ كامل» → a second account.payment of 90 (cash); 100 + 90 = 190 = the invoice, paid",
+    ap2.length === 2 && ap2[1].amount === 90 && sum === 190 && (table("account.move").get(move) as any).payment_state === "paid" && table("x_invoice").get(h.inv)!.x_status === "paid", JSON.stringify(ap2));
+  minuteLater(h.inv);
+  await tap(COLL_PHONE, `collect_cash_${h.inv}`);
+  await write(COLL_PHONE, "10");
+  assert("after it: «نقد» again finds it paid — no third payment, the sum never over the invoice", rows("account.payment").length === 2 && xpay().length === 2 && round2(xpay().reduce((t, p) => t + p.x_amount, 0)) <= 190
+    && texts(COLL_PHONE).some((t) => t.includes("تم تحصيلها مسبقاً")));
+  assert("no accounting alert to Baraa (every guard passed)", !ownerAlerts().some((x) => x.includes("[accounting]")), ownerAlerts().filter((x) => x.includes("accounting")).join(" | "));
+}
+
+
+// ================================================================ د. prod's variables
+console.log("\n[د] prod's variables (wrangler.toml): every number accepted, an unclassified one to review, a classified customer served");
+const CFG = await import("../src/config.ts");
+/** The top-level [vars] of wrangler.toml — prod's own, not a copy. */
+function prodVars(): Record<string, string> {
+  const toml = readFileSync(new URL("../wrangler.toml", import.meta.url), "utf8");
+  const start = toml.indexOf("\n[vars]\n");
+  const end = toml.indexOf("\n[", start + 7);
+  const out: Record<string, string> = {};
+  for (const line of toml.slice(start + 7, end).split("\n")) {
+    const mm = /^([A-Z_]+)\s*=\s*"([^"]*)"/.exec(line.trim());
+    if (mm) out[mm[1]] = mm[2];
+  }
+  return out;
+}
+const PROD = prodVars();
+// § 43 — prod's crons: [] until the cutover (sim runs the twelve), the twelve after it (sim []); never both
+const CB = cronBlocks();
+assert("wrangler.toml prod: SIMULATION_MODE false, PILOT_MODE false, ACCOUNTING_SYNC true, OWNER_WINDOW_OPEN_AT 06:00, no SIM_ALLOWLIST / SIM_RUN_ID, crons [] until the cutover and the twelve after it (sim the other way round)",
+  PROD.SIMULATION_MODE === "false" && PROD.PILOT_MODE === "false" && PROD.ACCOUNTING_SYNC === "true" && PROD.OWNER_WINDOW_OPEN_AT === "06:00"
+    && !("SIM_ALLOWLIST" in PROD) && !("SIM_RUN_ID" in PROD) && CB.active !== null, JSON.stringify({ PROD, prodCrons: CB.prod.length, simCrons: CB.sim.length }));
+const REVIEW_CH = 880, REVIEW_ACTION = 881;
+function prodEnv(pilot = false): any {
+  const env = fresh(`${DAY} 10:00`);
+  delete env.SIM_ALLOWLIST; delete env.PILOT_MODE; delete env.SIMULATION_MODE;
+  // the mode variables of prod; the endpoints and Baraa's number stay the harness's
+  for (const k of ["SIMULATION_MODE", "PILOT_MODE", "ACCOUNTING_SYNC", "OWNER_WINDOW_OPEN_AT", "SIM_ALLOWLIST", "SIM_RUN_ID"]) if (k in PROD) env[k] = PROD[k];
+  if (pilot) Object.assign(env, { PILOT_MODE: "true", SIM_ALLOWLIST: "+966505154962,+966571777704,+966530399474,+966545816832" });
+  seed("discuss.channel", { id: REVIEW_CH, name: "📋 مراجعة الأرقام", channel_type: "channel" });
+  seed("ir.actions.act_window", { id: REVIEW_ACTION, name: "UTAK — مراجعة الأرقام" });
+  seed("x_whatsapp_template", { id: 960, x_purpose: "customer_welcome", x_meta_template_id: "utak_welcome", x_language: "ar", x_meta_status: "APPROVED", x_param_count: 2, x_category: "UTILITY" });
+  return env;
+}
+{
+  ENV = prodEnv();
+  const rm = CFG.runtimeMode(ENV);
+  assert("runtime «prod», no misconfig; not test mode (no x_is_simulation stamp); accounting on; any number allowed",
+    rm.mode === "prod" && rm.misconfig === null && !CFG.isTestMode(ENV) && (await import("../src/accounting.ts")).isAccountingSyncEnabled(ENV)
+      && CFG.isRecipientAllowed(ENV, "+966512345678") && CFG.isRecipientAllowed(ENV, "+201001234567"), JSON.stringify(rm));
+  // a new number
+  const NEW = "966512345678";
+  SCREEN = { intent: "unclear", reason: "تحية بلا طلب" }; CLASSIFY = "other";
+  const alerts0 = ownerAlerts().length;
+  await say(NEW, { type: "text", text: { body: "السلام عليكم، مين معي؟" } });
+  const [np] = (rows("res.partner") as any[]).filter((r) => r.x_whatsapp_number === "+" + NEW);
+  assert("a new number: created «غير مراجَع», pending review (نية «غير واضح»)", np?.x_contact_class === "unreviewed" && np?.x_review_pending === true && np?.x_ai_intent === "unclear", JSON.stringify(np));
+  const reviewAlerts = ownerAlerts().slice(alerts0).filter((x) => x.includes("رقم جديد ينتظر المراجعة"));
+  const posts = (await import("./wa-harness.mts")).odooLog.filter((l) => l.model === "discuss.channel" && l.method === "message_post" && l.body?.ids?.[0] === REVIEW_CH);
+  assert("…one message in «📋 مراجعة الأرقام» and ONE alert to Baraa", reviewAlerts.length === 1 && posts.length === 1, JSON.stringify({ reviewAlerts, posts: posts.length }));
+  const toNew = sentTo(NEW);
+  const refused = (rows("x_wa_message") as any[]).filter((r) => String(r.x_meta_error ?? r.x_debug_payload ?? "").includes("AllowlistBlocked"));
+  assert("…and it is answered, not refused (no SIM_ALLOWLIST, no x_wa_allowed needed)", toNew.length >= 1 && refused.length === 0, JSON.stringify({ toNew: toNew.map((b) => b.type), refused: refused.length }));
+  assert("…nothing stamped x_is_simulation (the partner, its messages)", !np?.x_is_simulation && !(rows("x_wa_message") as any[]).some((r) => r.x_is_simulation), JSON.stringify(np));
+  // a classified customer (x_wa_allowed off, as the 31 of § 27)
+  const OLD = "966512340031";
+  seed("res.partner", { id: 531, name: "بقالة قديمة", x_whatsapp_number: "+" + OLD, customer_rank: 1, x_contact_class: "customer", x_wa_allowed: false });
+  CLASSIFY = "greeting";
+  const alerts1 = ownerAlerts().length;
+  await say(OLD, { type: "text", text: { body: "مرحبا" } });
+  const toOld = sentTo(OLD).map((b) => String(b.text?.body ?? b.interactive?.body?.text ?? b.template?.name ?? ""));
+  assert("a classified customer with x_wa_allowed off: the full reply («أهلاً بقالة قديمة، حياك الله»), no review, no alert",
+    toOld.some((t) => t.includes("أهلاً بقالة قديمة")) && ownerAlerts().length === alerts1 && (table("res.partner").get(531) as any).x_review_pending !== true, JSON.stringify(toOld));
+  // the contrast: the pilot combination refuses the same new number
+  ENV = prodEnv(true);
+  SCREEN = { intent: "unclear", reason: "تحية بلا طلب" }; CLASSIFY = "other";
+  await say(NEW, { type: "text", text: { body: "السلام عليكم، مين معي؟" } });
+  assert("PILOT_MODE=true with the team allowlist (sim's): the same new number gets nothing (refused by the allowlist)",
+    sentTo(NEW).length === 0 && CFG.runtimeMode(ENV).mode === "pilot" && CFG.isTestMode(ENV), JSON.stringify(sentTo(NEW)));
+}
+
+// ================================================================ س. schema
+console.log("\n[س] schema: every Odoo request names real fields and values");
+assert("no request with an unknown field or selection value", rejected.length === 0, rejected.join(" | "));
+
+console.log(`\ns42: ${passed} passed, ${failed} failed`);
+if (failed) { console.log(failures.map((f) => ` - ${f}`).join("\n")); process.exit(1); }

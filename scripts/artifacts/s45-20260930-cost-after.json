@@ -1,0 +1,245 @@
+{
+  "at": "2026-09-30T13:46:34.503Z",
+  "days": {
+    "2026-10-01": {
+      "day": "2026-10-01",
+      "total": 496.52,
+      "items": [
+        {
+          "id": 2,
+          "name": "إيجار الباص المبرد",
+          "frequency": "monthly",
+          "amount": 5000,
+          "perDay": 161.29032258064515
+        },
+        {
+          "id": 3,
+          "name": "الديزل",
+          "frequency": "monthly",
+          "amount": 1000,
+          "perDay": 32.25806451612903
+        },
+        {
+          "id": 4,
+          "name": "راتب عمر",
+          "frequency": "monthly",
+          "amount": 4000,
+          "perDay": 129.03225806451613
+        },
+        {
+          "id": 5,
+          "name": "تأمينات عمر (أخطار مهنية 2%)",
+          "frequency": "monthly",
+          "amount": 80,
+          "perDay": 2.5806451612903225
+        },
+        {
+          "id": 6,
+          "name": "اشتراك Odoo",
+          "frequency": "monthly",
+          "amount": 80,
+          "perDay": 2.5806451612903225
+        },
+        {
+          "id": 7,
+          "name": "Claude API",
+          "frequency": "monthly",
+          "amount": 75,
+          "perDay": 2.4193548387096775
+        },
+        {
+          "id": 8,
+          "name": "الرصيد والاتصالات",
+          "frequency": "monthly",
+          "amount": 100,
+          "perDay": 3.225806451612903
+        },
+        {
+          "id": 9,
+          "name": "تجديد هوية/إقامة عمر",
+          "frequency": "yearly",
+          "amount": 11000,
+          "perDay": 30.136986301369863
+        },
+        {
+          "id": 10,
+          "name": "رسوم دخول السوق",
+          "frequency": "daily",
+          "amount": 83,
+          "perDay": 83
+        },
+        {
+          "id": 11,
+          "name": "العربية",
+          "frequency": "daily",
+          "amount": 50,
+          "perDay": 50
+        }
+      ],
+      "workingDay": true,
+      "monthWorkingDays": 31,
+      "yearWorkingDays": 365,
+      "driver": "عمر المجهلي"
+    },
+    "2026-10-02": {
+      "day": "2026-10-02",
+      "total": 496.52,
+      "items": [
+        {
+          "id": 2,
+          "name": "إيجار الباص المبرد",
+          "frequency": "monthly",
+          "amount": 5000,
+          "perDay": 161.29032258064515
+        },
+        {
+          "id": 3,
+          "name": "الديزل",
+          "frequency": "monthly",
+          "amount": 1000,
+          "perDay": 32.25806451612903
+        },
+        {
+          "id": 4,
+          "name": "راتب عمر",
+          "frequency": "monthly",
+          "amount": 4000,
+          "perDay": 129.03225806451613
+        },
+        {
+          "id": 5,
+          "name": "تأمينات عمر (أخطار مهنية 2%)",
+          "frequency": "monthly",
+          "amount": 80,
+          "perDay": 2.5806451612903225
+        },
+        {
+          "id": 6,
+          "name": "اشتراك Odoo",
+          "frequency": "monthly",
+          "amount": 80,
+          "perDay": 2.5806451612903225
+        },
+        {
+          "id": 7,
+          "name": "Claude API",
+          "frequency": "monthly",
+          "amount": 75,
+          "perDay": 2.4193548387096775
+        },
+        {
+          "id": 8,
+          "name": "الرصيد والاتصالات",
+          "frequency": "monthly",
+          "amount": 100,
+          "perDay": 3.225806451612903
+        },
+        {
+          "id": 9,
+          "name": "تجديد هوية/إقامة عمر",
+          "frequency": "yearly",
+          "amount": 11000,
+          "perDay": 30.136986301369863
+        },
+        {
+          "id": 10,
+          "name": "رسوم دخول السوق",
+          "frequency": "daily",
+          "amount": 83,
+          "perDay": 83
+        },
+        {
+          "id": 11,
+          "name": "العربية",
+          "frequency": "daily",
+          "amount": 50,
+          "perDay": 50
+        }
+      ],
+      "workingDay": true,
+      "monthWorkingDays": 31,
+      "yearWorkingDays": 365,
+      "driver": "عمر المجهلي"
+    },
+    "2026-10-03": {
+      "day": "2026-10-03",
+      "total": 496.52,
+      "items": [
+        {
+          "id": 2,
+          "name": "إيجار الباص المبرد",
+          "frequency": "monthly",
+          "amount": 5000,
+          "perDay": 161.29032258064515
+        },
+        {
+          "id": 3,
+          "name": "الديزل",
+          "frequency": "monthly",
+          "amount": 1000,
+          "perDay": 32.25806451612903
+        },
+        {
+          "id": 4,
+          "name": "راتب عمر",
+          "frequency": "monthly",
+          "amount": 4000,
+          "perDay": 129.03225806451613
+        },
+        {
+          "id": 5,
+          "name": "تأمينات عمر (أخطار مهنية 2%)",
+          "frequency": "monthly",
+          "amount": 80,
+          "perDay": 2.5806451612903225
+        },
+        {
+          "id": 6,
+          "name": "اشتراك Odoo",
+          "frequency": "monthly",
+          "amount": 80,
+          "perDay": 2.5806451612903225
+        },
+        {
+          "id": 7,
+          "name": "Claude API",
+          "frequency": "monthly",
+          "amount": 75,
+          "perDay": 2.4193548387096775
+        },
+        {
+          "id": 8,
+          "name": "الرصيد والاتصالات",
+          "frequency": "monthly",
+          "amount": 100,
+          "perDay": 3.225806451612903
+        },
+        {
+          "id": 9,
+          "name": "تجديد هوية/إقامة عمر",
+          "frequency": "yearly",
+          "amount": 11000,
+          "perDay": 30.136986301369863
+        },
+        {
+          "id": 10,
+          "name": "رسوم دخول السوق",
+          "frequency": "daily",
+          "amount": 83,
+          "perDay": 83
+        },
+        {
+          "id": 11,
+          "name": "العربية",
+          "frequency": "daily",
+          "amount": 50,
+          "perDay": 50
+        }
+      ],
+      "workingDay": true,
+      "monthWorkingDays": 31,
+      "yearWorkingDays": 365,
+      "driver": "عمر المجهلي"
+    }
+  }
+}

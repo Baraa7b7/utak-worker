@@ -1,0 +1,118 @@
+{
+  "at": "2026-09-23T08:40:37.922Z",
+  "note": "live-verify POs locked after bill reversal (cancel refused by Odoo because bills are posted+reversed). Unlock with purchase.order.button_unlock.",
+  "before": [
+    {
+      "id": 8,
+      "name": "P00010",
+      "state": "purchase",
+      "locked": false,
+      "invoice_status": "to invoice",
+      "partner_id": [
+        52,
+        "[SIM] مورد اختبار شراء — بلا رقم ضريبي"
+      ]
+    },
+    {
+      "id": 9,
+      "name": "P00011",
+      "state": "purchase",
+      "locked": false,
+      "invoice_status": "to invoice",
+      "partner_id": [
+        53,
+        "[SIM] مورد اختبار شراء — مسجل ضريبياً"
+      ]
+    },
+    {
+      "id": 10,
+      "name": "P00012",
+      "state": "purchase",
+      "locked": false,
+      "invoice_status": "to invoice",
+      "partner_id": [
+        52,
+        "[SIM] مورد اختبار شراء — بلا رقم ضريبي"
+      ]
+    }
+  ],
+  "after": [
+    {
+      "id": 8,
+      "name": "P00010",
+      "state": "purchase",
+      "locked": true,
+      "invoice_status": "to invoice",
+      "partner_id": [
+        52,
+        "[SIM] مورد اختبار شراء — بلا رقم ضريبي"
+      ]
+    },
+    {
+      "id": 9,
+      "name": "P00011",
+      "state": "purchase",
+      "locked": true,
+      "invoice_status": "to invoice",
+      "partner_id": [
+        53,
+        "[SIM] مورد اختبار شراء — مسجل ضريبياً"
+      ]
+    },
+    {
+      "id": 10,
+      "name": "P00012",
+      "state": "purchase",
+      "locked": true,
+      "invoice_status": "to invoice",
+      "partner_id": [
+        52,
+        "[SIM] مورد اختبار شراء — بلا رقم ضريبي"
+      ]
+    }
+  ],
+  "bills": [
+    {
+      "id": 35,
+      "name": "BILL/2026/09/0001",
+      "state": "posted",
+      "payment_state": "reversed",
+      "amount_total": 80
+    },
+    {
+      "id": 36,
+      "name": "BILL/2026/09/0002",
+      "state": "posted",
+      "payment_state": "reversed",
+      "amount_total": 115
+    },
+    {
+      "id": 37,
+      "name": "BILL/2026/09/0003",
+      "state": "posted",
+      "payment_state": "reversed",
+      "amount_total": 30
+    },
+    {
+      "id": 38,
+      "name": "RBILL/2026/09/0001",
+      "state": "posted",
+      "payment_state": "paid",
+      "amount_total": 80
+    },
+    {
+      "id": 39,
+      "name": "RBILL/2026/09/0002",
+      "state": "posted",
+      "payment_state": "paid",
+      "amount_total": 115
+    },
+    {
+      "id": 40,
+      "name": "RBILL/2026/09/0003",
+      "state": "posted",
+      "payment_state": "paid",
+      "amount_total": 30
+    }
+  ]
+}

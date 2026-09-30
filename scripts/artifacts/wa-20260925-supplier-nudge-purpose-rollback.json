@@ -1,0 +1,8 @@
+{
+  "script": "scripts/wa-20260925-supplier-nudge-purpose.mjs",
+  "createdAt": "2026-09-24T19:35:42.908Z",
+  "before": {
+    "x_purpose": "other"
+  },
+  "selectionCreated": 4025
+}

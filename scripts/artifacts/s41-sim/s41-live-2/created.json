@@ -1,0 +1,101 @@
+{
+ "run": "s41-live-2",
+ "mode": "live",
+ "aborted": "stopped at 09-28 02:xx: fake numbers of s41-live-1 archived (route=archived) and inbound wamids repeated; created.json rebuilt from create_date, every row checked as the run’s (wamid.SIM. / wamid.S41IN, dates 2026-09-27/28)",
+ "created": [
+  {
+   "model": "x_wa_message",
+   "ids": [
+    454,
+    455,
+    456,
+    457,
+    458,
+    459,
+    460,
+    461,
+    462,
+    463,
+    464,
+    465,
+    466,
+    467,
+    468,
+    469,
+    470,
+    471,
+    472,
+    473,
+    474,
+    475,
+    476,
+    477,
+    478,
+    479,
+    480,
+    481
+   ],
+   "at": "reconstructed (create_date ≥ 15:56:30 UTC)"
+  },
+  {
+   "model": "x_supplier_price_request_log",
+   "ids": [
+    63
+   ],
+   "at": "reconstructed (create_date ≥ 15:56:30 UTC)"
+  },
+  {
+   "model": "x_team_attendance",
+   "ids": [
+    42,
+    43,
+    44
+   ],
+   "at": "reconstructed (create_date ≥ 15:56:30 UTC)"
+  },
+  {
+   "model": "x_daily_price",
+   "ids": [
+    61,
+    62
+   ],
+   "at": "reconstructed (create_date ≥ 15:56:30 UTC)"
+  },
+  {
+   "model": "x_price_offer",
+   "ids": [
+    39,
+    40,
+    41,
+    42,
+    43
+   ],
+   "at": "reconstructed (create_date ≥ 15:56:30 UTC)"
+  },
+  {
+   "model": "x_price_day",
+   "ids": [
+    41
+   ],
+   "at": "reconstructed (create_date ≥ 15:56:30 UTC)"
+  },
+  {
+   "model": "x_price_day_line",
+   "ids": [
+    54,
+    55,
+    56,
+    57
+   ],
+   "at": "reconstructed (create_date ≥ 15:56:30 UTC)"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    117
+   ],
+   "at": "reconstructed (create_date ≥ 15:56:30 UTC)"
+  }
+ ],
+ "writes": []
+}

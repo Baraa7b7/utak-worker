@@ -1,0 +1,183 @@
+{
+  "tag": "after",
+  "images": {
+    "stamp": {
+      "format": "png",
+      "width": 709,
+      "height": 709,
+      "hasAlpha": true,
+      "corners": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "transparentPct": 82.8,
+      "opaqueWhitePct": 0
+    },
+    "signature": {
+      "format": "png",
+      "width": 1600,
+      "height": 472,
+      "hasAlpha": true,
+      "corners": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "transparentPct": 89.5,
+      "opaqueWhitePct": 0
+    }
+  },
+  "docs": [
+    {
+      "doc": "invoice",
+      "file": "/Users/baraa7/utak-worker/scripts/artifacts/brand-20260924-paper-invoice-after.pdf",
+      "pages": [
+        {
+          "page": 1,
+          "paper": "247,245,240",
+          "whiteRegions": []
+        }
+      ]
+    },
+    {
+      "doc": "quotation",
+      "file": "/Users/baraa7/utak-worker/scripts/artifacts/brand-20260924-paper-quotation-after.pdf",
+      "pages": [
+        {
+          "page": 1,
+          "paper": "247,245,240",
+          "whiteRegions": []
+        }
+      ]
+    },
+    {
+      "doc": "delivery-note",
+      "file": "/Users/baraa7/utak-worker/scripts/artifacts/brand-20260924-paper-delivery-note-after.pdf",
+      "pages": [
+        {
+          "page": 1,
+          "paper": "247,245,240",
+          "whiteRegions": []
+        }
+      ]
+    },
+    {
+      "doc": "receipt",
+      "file": "/Users/baraa7/utak-worker/scripts/artifacts/brand-20260924-paper-receipt-after.pdf",
+      "pages": [
+        {
+          "page": 1,
+          "paper": "247,245,240",
+          "whiteRegions": []
+        }
+      ]
+    },
+    {
+      "doc": "purchase-order",
+      "file": "/Users/baraa7/utak-worker/scripts/artifacts/brand-20260924-paper-purchase-order-after.pdf",
+      "pages": [
+        {
+          "page": 1,
+          "paper": "247,245,240",
+          "whiteRegions": []
+        }
+      ]
+    },
+    {
+      "doc": "official-doc",
+      "file": "/Users/baraa7/utak-worker/scripts/artifacts/brand-20260924-paper-official-doc-after.pdf",
+      "pages": [
+        {
+          "page": 1,
+          "paper": "247,245,240",
+          "whiteRegions": []
+        },
+        {
+          "page": 2,
+          "paper": "247,245,240",
+          "whiteRegions": []
+        }
+      ]
+    },
+    {
+      "doc": "statements",
+      "file": "/Users/baraa7/utak-worker/scripts/artifacts/financial-statements-2026-09-13_2026-09-24.pdf",
+      "pages": [
+        {
+          "page": 1,
+          "paper": "247,245,240",
+          "whiteRegions": []
+        },
+        {
+          "page": 2,
+          "paper": "247,245,240",
+          "whiteRegions": []
+        },
+        {
+          "page": 3,
+          "paper": "247,245,240",
+          "whiteRegions": []
+        },
+        {
+          "page": 4,
+          "paper": "247,245,240",
+          "whiteRegions": []
+        },
+        {
+          "page": 5,
+          "paper": "247,245,240",
+          "whiteRegions": []
+        },
+        {
+          "page": 6,
+          "paper": "247,245,240",
+          "whiteRegions": []
+        }
+      ]
+    }
+  ],
+  "totalWhiteRegions": 0
+}

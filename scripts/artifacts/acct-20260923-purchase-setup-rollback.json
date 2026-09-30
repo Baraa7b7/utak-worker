@@ -1,0 +1,25 @@
+{
+  "taken_at": "2026-09-23T08:35:32.140Z",
+  "fields": {
+    "x_supplier_id": {
+      "id": 20260,
+      "created": true
+    },
+    "x_purchase_order_id": {
+      "id": 20262,
+      "created": true
+    },
+    "x_account_move_id": {
+      "id": 20264,
+      "created": true
+    }
+  },
+  "product": {
+    "tmpl_id": 110,
+    "created": true
+  },
+  "tax": {
+    "id": 43,
+    "created": true
+  }
+}

@@ -1,0 +1,361 @@
+[
+  {
+    "mutation": "plan: a supplier's first price instead of the latest",
+    "files": [
+      "src/pricing-engine.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "a supplier's later price replaces his earlier one (أحمد 30 → 22): the new lowest — {\"x_day_id\":10008,\"x_name\":\"طماطم"
+    ]
+  },
+  {
+    "mutation": "plan: a failed extraction counts",
+    "files": [
+      "src/pricing-engine.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 3,
+    "first": [
+      "tomato: the lowest purchase (خالد 25, not the failed 10), market 32 → sale 32, profit 5.75, auto — {\"x_day_id\":10008",
+      "the offers shown on the line — خالد: شراء 10 · أحمد حسان: شراء 30 · عمر: سوق 32",
+      "a supplier's later price replaces his earlier one (أحمد 30 → 22): the new lowest — {\"x_day_id\":10008,\"x_name\":\"طماطم"
+    ]
+  },
+  {
+    "mutation": "prices: another day's prices read",
+    "files": [
+      "src/pricing-engine.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "no offer today (yesterday's exist) → nothing built"
+    ]
+  },
+  {
+    "mutation": "deadline: ORDERING_HOURS_OPEN ignored (07:00)",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 9,
+    "first": [
+      "deadline = ORDERING_HOURS_OPEN (06:00)",
+      "PRICES_DEADLINE=07:00 overrides; invalid → 06:00",
+      "06:00: the auto line published, the day «منشورة», without Baraa — {\"action\":\"before\",\"day\":\"2026-09-26\"}"
+    ]
+  },
+  {
+    "mutation": "refresh: Baraa's decision overwritten (every line follows the rule)",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": null,
+    "first": [
+      "Baraa's decision on a line is kept by the next refresh («لا تنشر») — {\"x_day_id\":10008,\"x_name\":\"خيار — جرم\",\"x_sequ",
+      "a late decision (سعر معدّل 29) then approval (from «missed») is allowed"
+    ]
+  },
+  {
+    "mutation": "refresh: an approved day is rebuilt",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "an approved day is never touched"
+    ]
+  },
+  {
+    "mutation": "refresh: no fingerprint (every tick rewrites)",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "run again with nothing new → unchanged"
+    ]
+  },
+  {
+    "mutation": "publish: a draft is published",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": null,
+    "first": [
+      "a draft is not published",
+      "published: 1 item, recipients = the two plain customers — {\"action\":\"in_progress\",\"day\":\"2026-09-26\",\"dayId\":10004,\"",
+      "inside the window: the list as text, at the market price — []"
+    ]
+  },
+  {
+    "mutation": "publish: twice (no «already»)",
+    "files": [
+      "src/prices.ts",
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "publishing again → «already», nothing sent"
+    ]
+  },
+  {
+    "mutation": "publish: an excluded line published",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 4,
+    "first": [
+      "published: 1 item, recipients = the two plain customers — {\"action\":\"published\",\"day\":\"2026-09-26\",\"dayId\":10004,\"it",
+      "…and not the cucumber exception",
+      "Baraa: the counts, «لم يُنشر», and the same list — [\"📢 نُشرت أسعار السبت 26 سبتمبر 2026. الأصناف: 2، والعملاء: 2.\\n"
+    ]
+  },
+  {
+    "mutation": "publish: the purchase price shown instead of the sale price",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 4,
+    "first": [
+      "inside the window: the list as text, at the market price — [\"🌿 أسعار يو تاك اليوم — السبت 26 سبتمبر 2026\\n\\n• طماطم",
+      "…no purchase price, no source, no margin in it — 🌿 أسعار يو تاك اليوم — السبت 26 سبتمبر 2026",
+      "Baraa: the counts, «لم يُنشر», and the same list — [\"📢 نُشرت أسعار السبت 26 سبتمبر 2026. الأصناف: 1، والعملاء: 2.\\n"
+    ]
+  },
+  {
+    "mutation": "publish: an unhandled outlier published",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "an approved day with a line marked «يمنع الاعتماد» → blocked, no customer send"
+    ]
+  },
+  {
+    "mutation": "publish: a sale price off the rule published",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "a stored sale price that is not the rule → not published"
+    ]
+  },
+  {
+    "mutation": "publish: no copy / counts for Baraa",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "Baraa: the counts, «لم يُنشر», and the same list — [\"⏰ لم يُنشر اليوم 1 صنف: استثناء بلا قرار حتى النشر. التفاصيل في"
+    ]
+  },
+  {
+    "mutation": "publish: no line with the undecided exceptions",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "…and one line with the number of exceptions left without a decision — [\"📢 نُشرت أسعار السبت 26 سبتمبر 2026. الأصناف",
+      "…the undecided cucumber not published, one line to Baraa"
+    ]
+  },
+  {
+    "mutation": "publish: never cut into parts",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "a long list is cut into parts ≤ 3500 characters, numbered, every item once, the footer at the end — 7707"
+    ]
+  },
+  {
+    "mutation": "publish: not critical (no opener when held)",
+    "files": [
+      "src/wa-purposes.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "outside the window: held for the day, + utak_update_customer [account, «أسعار اليوم»] — []"
+    ]
+  },
+  {
+    "mutation": "recipients: the opted-out included",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 4,
+    "first": [
+      "published: 1 item, recipients = the two plain customers — {\"action\":\"published\",\"day\":\"2026-09-26\",\"dayId\":10004,\"it",
+      "opted out / review-held / «شخصي» / team: nothing at all",
+      "Baraa: the counts, «لم يُنشر», and the same list — [\"📢 نُشرت أسعار السبت 26 سبتمبر 2026. الأصناف: 1، والعملاء: 3.\\n"
+    ]
+  },
+  {
+    "mutation": "recipients: review-held and «شخصي» included",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 4,
+    "first": [
+      "published: 1 item, recipients = the two plain customers — {\"action\":\"published\",\"day\":\"2026-09-26\",\"dayId\":10004,\"it",
+      "opted out / review-held / «شخصي» / team: nothing at all",
+      "Baraa: the counts, «لم يُنشر», and the same list — [\"📢 نُشرت أسعار السبت 26 سبتمبر 2026. الأصناف: 1، والعملاء: 4.\\n"
+    ]
+  },
+  {
+    "mutation": "recipients: the team included",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 4,
+    "first": [
+      "published: 1 item, recipients = the two plain customers — {\"action\":\"published\",\"day\":\"2026-09-26\",\"dayId\":10004,\"it",
+      "opted out / review-held / «شخصي» / team: nothing at all",
+      "Baraa: the counts, «لم يُنشر», and the same list — [\"📢 نُشرت أسعار السبت 26 سبتمبر 2026. الأصناف: 1، والعملاء: 3.\\n"
+    ]
+  },
+  {
+    "mutation": "deadline: the day not marked «missed»",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "06:00 with exceptions only → «missed», one alert, no customer send — [\"⏰ أسعار اليوم (26 سبتمبر 2026) لم تُنشر حتى 0",
+      "no offer today (yesterday published) → today's record «missed», every line an exception"
+    ]
+  },
+  {
+    "mutation": "deadline: the alert every tick (no claim)",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "the next tick → once only"
+    ]
+  },
+  {
+    "mutation": "deadline: a late worker still raises it at 09:00",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "09:00 (a worker down at 06:00) → no late alert"
+    ]
+  },
+  {
+    "mutation": "tick: publishes an approval at once (no wait for the webhook)",
+    "files": [
+      "src/prices.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 2,
+    "first": [
+      "the tick waits for the webhook (< 3 min)",
+      "…then publishes it (> 3 min)"
+    ]
+  },
+  {
+    "mutation": "hook: no token check",
+    "files": [
+      "src/index.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "hook: no token → 401"
+    ]
+  },
+  {
+    "mutation": "quotes: the published price not used",
+    "files": [
+      "src/odoo.ts"
+    ],
+    "test": "tests/prices.test.mts",
+    "caught": true,
+    "exit": 1,
+    "failed": 1,
+    "first": [
+      "published → the published price (30, the market), source today — {\"price\":34.5,\"source\":\"today\",\"price_date\":\"2026-0"
+    ]
+  }
+]

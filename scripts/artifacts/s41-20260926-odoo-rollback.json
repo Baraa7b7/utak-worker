@@ -1,0 +1,50 @@
+{
+  "script": "scripts/s41-20260926-odoo.mjs",
+  "createdAt": "2026-09-26T11:00:12.120Z",
+  "created": {
+    "fields": [
+      20677,
+      20680,
+      20682,
+      20684,
+      20686,
+      20688,
+      20690,
+      20692,
+      20694,
+      20696,
+      20698,
+      20700,
+      20702,
+      20704,
+      20706,
+      20708,
+      20710
+    ],
+    "defaults": [
+      27,
+      28
+    ],
+    "views": {
+      "partnerVat": 2860,
+      "employeeVat": 2861,
+      "invoiceIssued": 2862,
+      "spTaxInvoice": 2863,
+      "plList": 2864,
+      "plForm": 2865
+    },
+    "windows": {
+      "purchaseLists": 1029
+    },
+    "menus": {
+      "purchaseLists": 580
+    }
+  },
+  "before": {
+    "values": {
+      "res.partner:30:x_vat_registered": false,
+      "hr.employee:4:x_vat_registered": false
+    },
+    "dayUniqueCode": "for rec in records:\n    if env['x_price_day'].search_count([('x_date', '=', rec.x_date), ('id', '!=', rec.id)]):\n        raise UserError('يوجد سجل «أسعار اليوم» لتاريخ %s من قبل.' % rec.x_date)"
+  }
+}

@@ -1,0 +1,4351 @@
+[
+ {
+  "at": "2026-09-27 02:00",
+  "to": "966571777704",
+  "type": "template",
+  "template": "utak_supplier_ask_v2",
+  "text": "أحمد حسان | افوكادو، رمان وسط",
+  "wamid": "wamid.SIM.PcgLRbIwab33Gvzd7B7x1Fl3YUc0lzd7",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966571777704",
+   "type": "template",
+   "template": {
+    "name": "utak_supplier_ask_v2",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "أحمد حسان"
+       },
+       {
+        "type": "text",
+        "text": "افوكادو، رمان وسط"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 02:00",
+  "to": "966545816832",
+  "type": "template",
+  "template": "utak_shift_start_v2",
+  "text": "عمر المجهلي",
+  "wamid": "wamid.SIM.sE3uvmsB6VaXIoRAD1Slns0tkGoGumfD",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "template",
+   "template": {
+    "name": "utak_shift_start_v2",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "عمر المجهلي"
+       }
+      ]
+     },
+     {
+      "type": "button",
+      "sub_type": "quick_reply",
+      "index": "0",
+      "parameters": [
+       {
+        "type": "payload",
+        "payload": "shift_start"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 02:03",
+  "to": "966545816832",
+  "type": "text",
+  "template": null,
+  "text": "تم تسجيل حضورك الساعة 02:03 ✅",
+  "wamid": "wamid.SIM.fgASB--Bde6tkHYFG0y6Cy-nxqYnU52R",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "text",
+   "text": {
+    "body": "تم تسجيل حضورك الساعة 02:03 ✅"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 02:03",
+  "to": "966545816832",
+  "type": "text",
+  "template": null,
+  "text": "ما عندك مهام الآن. أول ما تجهز توصلك هنا 👍",
+  "wamid": "wamid.SIM.3A9FQ9f_c0Ry_Eolf9rN1ABxszAoFcKE",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "text",
+   "text": {
+    "body": "ما عندك مهام الآن. أول ما تجهز توصلك هنا 👍"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 02:20",
+  "to": "966571777704",
+  "type": "template",
+  "template": "utak_supplier_confirm_v1",
+  "text": "أحمد حسان | 2",
+  "wamid": "wamid.SIM.zo8IgMydtXYT4LQvZXsQSGNhCUws_HI-",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966571777704",
+   "type": "template",
+   "template": {
+    "name": "utak_supplier_confirm_v1",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "أحمد حسان"
+       },
+       {
+        "type": "text",
+        "text": "2"
+       }
+      ]
+     },
+     {
+      "type": "button",
+      "sub_type": "quick_reply",
+      "index": "0",
+      "parameters": [
+       {
+        "type": "payload",
+        "payload": "supplier_edit"
+       }
+      ]
+     },
+     {
+      "type": "button",
+      "sub_type": "quick_reply",
+      "index": "1",
+      "parameters": [
+       {
+        "type": "payload",
+        "payload": "supplier_stop"
+       }
+      ]
+     },
+     {
+      "type": "button",
+      "sub_type": "quick_reply",
+      "index": "2",
+      "parameters": [
+       {
+        "type": "payload",
+        "payload": "supplier_thanks"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 02:30",
+  "to": "966545816832",
+  "type": "text",
+  "template": null,
+  "text": "صباح الخير عمر 🌿 أرسل أسعار السوق اليوم لو سمحت: الصنف والتعبئة والسعر لكل صنف. ولو معك سعر شراء اكتب «شراء» جنب رقمه.",
+  "wamid": "wamid.SIM.eF9N5oO3L9LU9Ey_d-0_d_eXKh9z2YdL",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "text",
+   "text": {
+    "body": "صباح الخير عمر 🌿 أرسل أسعار السوق اليوم لو سمحت: الصنف والتعبئة والسعر لكل صنف. ولو معك سعر شراء اكتب «شراء» جنب رقمه."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 02:45",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "⚠️ Odoo لم يستجب بعد 4 محاولات — العملية x_price_offer.create، السجل x_name=\"2026-09-27 · 105/47\" — odoo HTTP_429: <html><body><h1>429 Too Many Requests</h1>\nYou have sent too many requests in a given amount of time.\n</body></html>\n",
+  "wamid": "wamid.SIM.l5GpGpOhhrHhRZiFNao86n6yxra2By8Q",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "⚠️ Odoo لم يستجب بعد 4 محاولات — العملية x_price_offer.create، السجل x_name=\"2026-09-27 · 105/47\" — odoo HTTP_429: <html><body><h1>429 Too Many Requests</h1>\nYou have sent too many requests in a given amount of time.\n</body></html>\n"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 02:45",
+  "to": "966545816832",
+  "type": "text",
+  "template": null,
+  "text": "وصلتنا أسعار السوق (3 صنف) 🌿 الله يعطيك العافية.",
+  "wamid": "wamid.SIM.vwOmRD4VQrQ9z0AI2VBZ8kt1BfNaxiWy",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "text",
+   "text": {
+    "body": "وصلتنا أسعار السوق (3 صنف) 🌿 الله يعطيك العافية."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 04:00",
+  "to": "966505154962",
+  "type": "interactive",
+  "template": null,
+  "text": "⚠️ استثناء في أسعار اليوم (27 سبتمبر 2026)\nرمان صغير (كرتون)\nالشراء: 11.50 · السوق: 12 · ربح الوحدة: -0.08\nالسبب: ربح الوحدة ≤ 0 (-0.08)\nقرارك قبل 06:00، وإلا لا يُنشر اليوم.",
+  "wamid": "wamid.SIM.MDqfeprthEv8hbDzKkd88RgeRpK2Cnfr",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "interactive",
+   "interactive": {
+    "type": "button",
+    "body": {
+     "text": "⚠️ استثناء في أسعار اليوم (27 سبتمبر 2026)\nرمان صغير (كرتون)\nالشراء: 11.50 · السوق: 12 · ربح الوحدة: -0.08\nالسبب: ربح الوحدة ≤ 0 (-0.08)\nقرارك قبل 06:00، وإلا لا يُنشر اليوم."
+    },
+    "action": {
+     "buttons": [
+      {
+       "type": "reply",
+       "reply": {
+        "id": "pexc_m_11",
+        "title": "اعتمد بسعر السوق"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "pexc_s_11",
+        "title": "لا تنشر"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "pexc_e_11",
+        "title": "عدّل"
+       }
+      }
+     ]
+    }
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 04:20",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "✅ رمان صغير: يُنشر بسعر السوق 12 ر.س.",
+  "wamid": "wamid.SIM.of2iIJE9MWe7bFkA-sw4PHtbiJw2H8qZ",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "✅ رمان صغير: يُنشر بسعر السوق 12 ر.س."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 06:00",
+  "to": "966505154962",
+  "type": "template",
+  "template": "utak_shift_start_v2",
+  "text": "براء",
+  "wamid": "wamid.SIM.rNb4A2a4k3tg-JpBiKlFOjkub1On4lvi",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "template",
+   "template": {
+    "name": "utak_shift_start_v2",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "براء"
+       }
+      ]
+     },
+     {
+      "type": "button",
+      "sub_type": "quick_reply",
+      "index": "0",
+      "parameters": [
+       {
+        "type": "payload",
+        "payload": "shift_start"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 06:00",
+  "to": "966530399474",
+  "type": "template",
+  "template": "utak_shift_start_v2",
+  "text": "عثمان عبدالوهاب",
+  "wamid": "wamid.SIM.kL9-aZQa9hNYSJ3oTTqUDmqPpyOXeUDZ",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966530399474",
+   "type": "template",
+   "template": {
+    "name": "utak_shift_start_v2",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "عثمان عبدالوهاب"
+       }
+      ]
+     },
+     {
+      "type": "button",
+      "sub_type": "quick_reply",
+      "index": "0",
+      "parameters": [
+       {
+        "type": "payload",
+        "payload": "shift_start"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 06:00",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "📢 نُشرت أسعار الأحد 27 سبتمبر 2026. الأصناف: 4، والعملاء: 4.\nنصاً 0 · محفوظة حتى رسالتهم 0 · محجوبة 4.\nوهذه نسخة ما وصلهم:\n\n🌿 أسعار يو تاك اليوم — الأحد 27 سبتمبر 2026\n\n• رمان وسط (كرتون): 19 ر.س\n• افوكادو (كرتون · 4 كيلو): 62 ر.س\n• رمان صغير (كرتون): 12 ر.س\n• رمان كبير (كرتون): 26 ر.س\n\nالأسعار لطلبات اليوم. اطلب من هنا قبل الساعة 9:00 مساءً 🌿",
+  "wamid": "wamid.SIM.hX9iOasXFF9XZ3ZFf640g5dYvC2vmYIm",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "📢 نُشرت أسعار الأحد 27 سبتمبر 2026. الأصناف: 4، والعملاء: 4.\nنصاً 0 · محفوظة حتى رسالتهم 0 · محجوبة 4.\nوهذه نسخة ما وصلهم:\n\n🌿 أسعار يو تاك اليوم — الأحد 27 سبتمبر 2026\n\n• رمان وسط (كرتون): 19 ر.س\n• افوكادو (كرتون · 4 كيلو): 62 ر.س\n• رمان صغير (كرتون): 12 ر.س\n• رمان كبير (كرتون): 26 ر.س\n\nالأسعار لطلبات اليوم. اطلب من هنا قبل الساعة 9:00 مساءً 🌿"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 06:00",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "☀️ صباح الخير — كل الموردين (1) ردوا. الاستقبال مفتوح 🌿",
+  "wamid": "wamid.SIM.jlA41MOoJYld8gU_Hj3HWu9YtdsiA-EZ",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "☀️ صباح الخير — كل الموردين (1) ردوا. الاستقبال مفتوح 🌿"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 06:02",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "✅ تم. تنبيهات يو تاك توصلك هنا نصاً حتى 06:02 بكرة.",
+  "wamid": "wamid.SIM.pGePzKm4OmrIclGnYfA5sqM0w5Bjn9-P",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "✅ تم. تنبيهات يو تاك توصلك هنا نصاً حتى 06:02 بكرة."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 06:02",
+  "to": "966530399474",
+  "type": "text",
+  "template": null,
+  "text": "تم تسجيل حضورك الساعة 06:02 ✅",
+  "wamid": "wamid.SIM.RTgtfJ4B60-5ePo2swfVqEhTguyuEh2M",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966530399474",
+   "type": "text",
+   "text": {
+    "body": "تم تسجيل حضورك الساعة 06:02 ✅"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 06:02",
+  "to": "966530399474",
+  "type": "text",
+  "template": null,
+  "text": "ما عندك مهام الآن. أول ما تجهز توصلك هنا 👍",
+  "wamid": "wamid.SIM.77tyn_aJvS1QXp2HXfD84d1kJHhXvj_G",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966530399474",
+   "type": "text",
+   "text": {
+    "body": "ما عندك مهام الآن. أول ما تجهز توصلك هنا 👍"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 08:10",
+  "to": "966500004101",
+  "type": "template",
+  "template": "utak_welcome",
+  "text": "مطعم الواحة (محاكاة) | 9:00 مساءً",
+  "wamid": "wamid.SIM.WOmtBhMxB4xYbHgo2drbgZUnIbT9V_Uu",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004101",
+   "type": "template",
+   "template": {
+    "name": "utak_welcome",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "مطعم الواحة (محاكاة)"
+       },
+       {
+        "type": "text",
+        "text": "9:00 مساءً"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 08:10",
+  "to": "966500004101",
+  "type": "text",
+  "template": null,
+  "text": "أهلاً مطعم الواحة (محاكاة)، حياك الله في UTAK. كيف نقدر نساعدك؟",
+  "wamid": "wamid.SIM.--wm8qa-KjppePWEWa6tSg5ydSMza3hh",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004101",
+   "type": "text",
+   "text": {
+    "body": "أهلاً مطعم الواحة (محاكاة)، حياك الله في UTAK. كيف نقدر نساعدك؟"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 08:10",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "⚠️ Odoo لم يستجب بعد 4 محاولات — العملية discuss.channel.search_read، السجل domain=[[\"name\",\"=\",\"📋 مراجعة الأرقام\"],[\"channel_type\",\"=\",\"channel\"]] — odoo HTTP_504: <html>\r\n<head><title>504 Gateway Time-out</title></head>\r\n<body>\r\n<center><h1>504 Gateway Time-out</h1></center>\r\n<hr><center>nginx</center>\r\n</body>\r\n</html>\r\n",
+  "wamid": "wamid.SIM.QI8ybSOKO38lzaNAFVpw-b3eBhDqxV2R",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "⚠️ Odoo لم يستجب بعد 4 محاولات — العملية discuss.channel.search_read، السجل domain=[[\"name\",\"=\",\"📋 مراجعة الأرقام\"],[\"channel_type\",\"=\",\"channel\"]] — odoo HTTP_504: <html>\r\n<head><title>504 Gateway Time-out</title></head>\r\n<body>\r\n<center><h1>504 Gateway Time-out</h1></center>\r\n<hr><center>nginx</center>\r\n</body>\r\n</html>\r\n"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 08:10",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "⚠️ Odoo لم يستجب بعد 4 محاولات — العملية res.partner.search_read، السجل domain=[[\"x_whatsapp_number\",\"=\",\"+966500004101\"]] — odoo HTTP_502: <html>\n   <head>\n      <title>Database not available</title>\n      <link href='//fonts.googleapis.com/css?family=Lato:300,400,700,300italic,400italic,700italic' rel='stylesheet' type='t",
+  "wamid": "wamid.SIM.AmYutH1c0VfulzM08hJB6D9aJPDYDecn",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "⚠️ Odoo لم يستجب بعد 4 محاولات — العملية res.partner.search_read، السجل domain=[[\"x_whatsapp_number\",\"=\",\"+966500004101\"]] — odoo HTTP_502: <html>\n   <head>\n      <title>Database not available</title>\n      <link href='//fonts.googleapis.com/css?family=Lato:300,400,700,300italic,400italic,700italic' rel='stylesheet' type='t"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 08:20",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "⚠️ Odoo لم يستجب بعد 4 محاولات — العملية res.partner.search_read، السجل domain=[[\"x_whatsapp_number\",\"=\",\"+966500004101\"]] — odoo HTTP_502: <html>\n   <head>\n      <title>Database not available</title>\n      <link href='//fonts.googleapis.com/css?family=Lato:300,400,700,300italic,400italic,700italic' rel='stylesheet' type='t",
+  "wamid": "wamid.SIM.YpKHqGxHFcx9SJX7V6eROENa-GW3tkrv",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "⚠️ Odoo لم يستجب بعد 4 محاولات — العملية res.partner.search_read، السجل domain=[[\"x_whatsapp_number\",\"=\",\"+966500004101\"]] — odoo HTTP_502: <html>\n   <head>\n      <title>Database not available</title>\n      <link href='//fonts.googleapis.com/css?family=Lato:300,400,700,300italic,400italic,700italic' rel='stylesheet' type='t"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 09:00",
+  "to": "966500004101",
+  "type": "text",
+  "template": null,
+  "text": "بديت لك طلب جديد ✅\n• رمان وسط كرتون × 12\nتبغى تضيف شي ثاني، ولا نجهز الكوتيشن؟ (اكتب \"خلاص\" لما تخلّص)",
+  "wamid": "wamid.SIM.X2moUlmCa6SUJ_6S1pWRKbcVKtXSMMBU",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004101",
+   "type": "text",
+   "text": {
+    "body": "بديت لك طلب جديد ✅\n• رمان وسط كرتون × 12\nتبغى تضيف شي ثاني، ولا نجهز الكوتيشن؟ (اكتب \"خلاص\" لما تخلّص)"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 09:00",
+  "to": "966500004101",
+  "type": "text",
+  "template": null,
+  "text": "📍 قبل ما نجهّز الكوتيشن — أرسل موقع التوصيل\nاضغط 📎 → موقع → إرسال موقعي الحالي\n(أو موقع محدد لو التوصيل لمكان ثاني)",
+  "wamid": "wamid.SIM.qMFyqRCZaiUUoN0g8QOABH0s4XlUNz-J",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004101",
+   "type": "text",
+   "text": {
+    "body": "📍 قبل ما نجهّز الكوتيشن — أرسل موقع التوصيل\nاضغط 📎 → موقع → إرسال موقعي الحالي\n(أو موقع محدد لو التوصيل لمكان ثاني)"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 09:00",
+  "to": "966500004101",
+  "type": "interactive",
+  "template": null,
+  "text": "📄 الكوتيشن رقم UTAK-Q-20260927-001\n• رمان وسط كرتون × 12\n\n📍 التوصيل إلى: العليا (https://maps.google.com/?q=24.71,46.67)\nالأسعار النهائية عند التسليم. اختر:",
+  "wamid": "wamid.SIM.q_03ojEEgvkP-xF-KfAmLSdYjCcLPVgO",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004101",
+   "type": "interactive",
+   "interactive": {
+    "type": "button",
+    "body": {
+     "text": "📄 الكوتيشن رقم UTAK-Q-20260927-001\n• رمان وسط كرتون × 12\n\n📍 التوصيل إلى: العليا (https://maps.google.com/?q=24.71,46.67)\nالأسعار النهائية عند التسليم. اختر:"
+    },
+    "action": {
+     "buttons": [
+      {
+       "type": "reply",
+       "reply": {
+        "id": "confirm_order_39",
+        "title": "تأكيد الطلب ✅"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "edit_order_39",
+        "title": "تعديل ✏️"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "cancel_order_39",
+        "title": "إلغاء ❌"
+       }
+      }
+     ]
+    }
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 09:00",
+  "to": "966500004101",
+  "type": "text",
+  "template": null,
+  "text": "تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿",
+  "wamid": "wamid.SIM.iove3RP8b02MQMUijdq-bGca2GbkkrRb",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004101",
+   "type": "text",
+   "text": {
+    "body": "تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 10:00",
+  "to": "966500004102",
+  "type": "template",
+  "template": "utak_welcome",
+  "text": "بقالة الريان (محاكاة) | 9:00 مساءً",
+  "wamid": "wamid.SIM.rAOP48khEkEuZZpx3w_4YUPpT8Nduu9y",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004102",
+   "type": "template",
+   "template": {
+    "name": "utak_welcome",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "بقالة الريان (محاكاة)"
+       },
+       {
+        "type": "text",
+        "text": "9:00 مساءً"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 10:00",
+  "to": "966500004102",
+  "type": "text",
+  "template": null,
+  "text": "بديت لك طلب جديد ✅\n• رمان كبير كرتون × 4\nتبغى تضيف شي ثاني، ولا نجهز الكوتيشن؟ (اكتب \"خلاص\" لما تخلّص)",
+  "wamid": "wamid.SIM.sqXPvvPB6s15D4PyY8BJetHvC6IZt4q_",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004102",
+   "type": "text",
+   "text": {
+    "body": "بديت لك طلب جديد ✅\n• رمان كبير كرتون × 4\nتبغى تضيف شي ثاني، ولا نجهز الكوتيشن؟ (اكتب \"خلاص\" لما تخلّص)"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 10:00",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "⚠️ Odoo لم يستجب بعد 4 محاولات — العملية x_pricing_config.search_read، السجل domain=[[\"x_is_active\",\"=\",true],[\"x_active_from\",\"<=\",\"2026-09-27\"],\"|\",[\"x_active_to\",\"=\",false],[\"x_active_to\",\">=\",\"2026-09-27\"]] — odoo HTTP_429: <html><body><h1>429 Too Many Requests</h1>\nYou have sent too many requests in a given amount of time.\n</body></html>\n",
+  "wamid": "wamid.SIM.rd4UVXMxFt42U951NkBNAxDbf20foUWr",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "⚠️ Odoo لم يستجب بعد 4 محاولات — العملية x_pricing_config.search_read، السجل domain=[[\"x_is_active\",\"=\",true],[\"x_active_from\",\"<=\",\"2026-09-27\"],\"|\",[\"x_active_to\",\"=\",false],[\"x_active_to\",\">=\",\"2026-09-27\"]] — odoo HTTP_429: <html><body><h1>429 Too Many Requests</h1>\nYou have sent too many requests in a given amount of time.\n</body></html>\n"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 10:00",
+  "to": "966500004102",
+  "type": "text",
+  "template": null,
+  "text": "📍 قبل ما نجهّز الكوتيشن — أرسل موقع التوصيل\nاضغط 📎 → موقع → إرسال موقعي الحالي\n(أو موقع محدد لو التوصيل لمكان ثاني)",
+  "wamid": "wamid.SIM.2ZTKQR9gMcrJReu1I_gmyTWEp4HkgtAf",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004102",
+   "type": "text",
+   "text": {
+    "body": "📍 قبل ما نجهّز الكوتيشن — أرسل موقع التوصيل\nاضغط 📎 → موقع → إرسال موقعي الحالي\n(أو موقع محدد لو التوصيل لمكان ثاني)"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 10:00",
+  "to": "966500004102",
+  "type": "text",
+  "template": null,
+  "text": "أضفنا لطلبك ✅\n• افوكادو كرتون · 4 كيلو × 1\nتبغى تضيف شي ثاني، ولا نجهز الكوتيشن؟ (اكتب \"خلاص\" لما تخلّص)",
+  "wamid": "wamid.SIM.nlUWHveHaalVBEpuZ35q4FP0u0jKky3y",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004102",
+   "type": "text",
+   "text": {
+    "body": "أضفنا لطلبك ✅\n• افوكادو كرتون · 4 كيلو × 1\nتبغى تضيف شي ثاني، ولا نجهز الكوتيشن؟ (اكتب \"خلاص\" لما تخلّص)"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 10:00",
+  "to": "966500004102",
+  "type": "text",
+  "template": null,
+  "text": "حفظنا الحي: خلاص ✅\nلو تقدر ترسل موقعك من قوقل مابس (📎 → موقع → موقعي الحالي) بيوصلك السائق أدق مرة جاية 🌿",
+  "wamid": "wamid.SIM.8EjTrU8kIQXJmD_O1nVT3yt-Fm-SHoGO",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004102",
+   "type": "text",
+   "text": {
+    "body": "حفظنا الحي: خلاص ✅\nلو تقدر ترسل موقعك من قوقل مابس (📎 → موقع → موقعي الحالي) بيوصلك السائق أدق مرة جاية 🌿"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 10:00",
+  "to": "966500004102",
+  "type": "interactive",
+  "template": null,
+  "text": "📄 الكوتيشن رقم UTAK-Q-20260927-001\n• رمان كبير كرتون × 4\n• افوكادو كرتون · 4 كيلو × 1\n\n📍 التوصيل إلى: خلاص\nالأسعار النهائية عند التسليم. اختر:",
+  "wamid": "wamid.SIM.K0245MfMOd603kp0y13J5C5eqv7VAH_0",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004102",
+   "type": "interactive",
+   "interactive": {
+    "type": "button",
+    "body": {
+     "text": "📄 الكوتيشن رقم UTAK-Q-20260927-001\n• رمان كبير كرتون × 4\n• افوكادو كرتون · 4 كيلو × 1\n\n📍 التوصيل إلى: خلاص\nالأسعار النهائية عند التسليم. اختر:"
+    },
+    "action": {
+     "buttons": [
+      {
+       "type": "reply",
+       "reply": {
+        "id": "confirm_order_40",
+        "title": "تأكيد الطلب ✅"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "edit_order_40",
+        "title": "تعديل ✏️"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "cancel_order_40",
+        "title": "إلغاء ❌"
+       }
+      }
+     ]
+    }
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 10:00",
+  "to": "966500004102",
+  "type": "text",
+  "template": null,
+  "text": "حفظنا موقعك للتوصيل ✅ طلباتك الجاية بيوصلك السائق مباشرة.",
+  "wamid": "wamid.SIM.FZQeq1-IpmrX71ktOd9bODVnq_7kf841",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004102",
+   "type": "text",
+   "text": {
+    "body": "حفظنا موقعك للتوصيل ✅ طلباتك الجاية بيوصلك السائق مباشرة."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 10:00",
+  "to": "966500004102",
+  "type": "text",
+  "template": null,
+  "text": "تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿",
+  "wamid": "wamid.SIM.Kb574IRCHDyi8QwbdQD0D1Vew6IUlM0L",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004102",
+   "type": "text",
+   "text": {
+    "body": "تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 17:00",
+  "to": "966500004103",
+  "type": "template",
+  "template": "utak_welcome",
+  "text": "مخبز الندى (محاكاة) | 9:00 مساءً",
+  "wamid": "wamid.SIM.X_FjGwyZJ3vcgwBZ7PARPHxSswg-qQDc",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004103",
+   "type": "template",
+   "template": {
+    "name": "utak_welcome",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "مخبز الندى (محاكاة)"
+       },
+       {
+        "type": "text",
+        "text": "9:00 مساءً"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 17:00",
+  "to": "966500004103",
+  "type": "text",
+  "template": null,
+  "text": "بديت لك طلب جديد ✅\n• رمان صغير كرتون × 15\nتبغى تضيف شي ثاني، ولا نجهز الكوتيشن؟ (اكتب \"خلاص\" لما تخلّص)",
+  "wamid": "wamid.SIM.Hy7S7fF1mdIIP4L0ZIzSr-rQTgA9hDs0",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004103",
+   "type": "text",
+   "text": {
+    "body": "بديت لك طلب جديد ✅\n• رمان صغير كرتون × 15\nتبغى تضيف شي ثاني، ولا نجهز الكوتيشن؟ (اكتب \"خلاص\" لما تخلّص)"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 17:00",
+  "to": "966500004103",
+  "type": "text",
+  "template": null,
+  "text": "📍 قبل ما نجهّز الكوتيشن — أرسل موقع التوصيل\nاضغط 📎 → موقع → إرسال موقعي الحالي\n(أو موقع محدد لو التوصيل لمكان ثاني)",
+  "wamid": "wamid.SIM.QJvDScOShofE1L-IBGEJ2IfMMMF7A-_g",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004103",
+   "type": "text",
+   "text": {
+    "body": "📍 قبل ما نجهّز الكوتيشن — أرسل موقع التوصيل\nاضغط 📎 → موقع → إرسال موقعي الحالي\n(أو موقع محدد لو التوصيل لمكان ثاني)"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 17:00",
+  "to": "966500004103",
+  "type": "interactive",
+  "template": null,
+  "text": "📄 الكوتيشن رقم UTAK-Q-20260927-001\n• رمان صغير كرتون × 15\n\n📍 التوصيل إلى: النرجس (https://maps.google.com/?q=24.71,46.67)\nالأسعار النهائية عند التسليم. اختر:",
+  "wamid": "wamid.SIM.AwSYUfQL_6yfb20m7b6AJK_MvckH9B7I",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004103",
+   "type": "interactive",
+   "interactive": {
+    "type": "button",
+    "body": {
+     "text": "📄 الكوتيشن رقم UTAK-Q-20260927-001\n• رمان صغير كرتون × 15\n\n📍 التوصيل إلى: النرجس (https://maps.google.com/?q=24.71,46.67)\nالأسعار النهائية عند التسليم. اختر:"
+    },
+    "action": {
+     "buttons": [
+      {
+       "type": "reply",
+       "reply": {
+        "id": "confirm_order_41",
+        "title": "تأكيد الطلب ✅"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "edit_order_41",
+        "title": "تعديل ✏️"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "cancel_order_41",
+        "title": "إلغاء ❌"
+       }
+      }
+     ]
+    }
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 20:00",
+  "to": "966500004103",
+  "type": "interactive",
+  "template": null,
+  "text": "⏰ طلبك رقم #41 لسه ما تأكد، ويُلغى تلقائياً الساعة 9:00 مساءً لو ما تأكد. اضغط «تأكيد الطلب» عشان يدخل طلبات اليوم 👇",
+  "wamid": "wamid.SIM.WYH1jXrKyWY3oEjI5rkMpJBPdTtpK_Xl",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004103",
+   "type": "interactive",
+   "interactive": {
+    "type": "button",
+    "body": {
+     "text": "⏰ طلبك رقم #41 لسه ما تأكد، ويُلغى تلقائياً الساعة 9:00 مساءً لو ما تأكد. اضغط «تأكيد الطلب» عشان يدخل طلبات اليوم 👇"
+    },
+    "action": {
+     "buttons": [
+      {
+       "type": "reply",
+       "reply": {
+        "id": "confirm_order_41",
+        "title": "تأكيد الطلب ✅"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "cancel_order_41",
+        "title": "إلغاء ❌"
+       }
+      }
+     ]
+    }
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 21:00",
+  "to": "966500004103",
+  "type": "text",
+  "template": null,
+  "text": "طلبك رقم #41 أُلغي لأنه ما تأكد قبل الساعة 9:00 مساءً 🙏 لو تبغاه على طلبات بكرة، أرسل الأصناف هنا ونسجّلها لك.",
+  "wamid": "wamid.SIM.giZkMX7owgHJHuCjgc87GoAoaPYHk6Fy",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004103",
+   "type": "text",
+   "text": {
+    "body": "طلبك رقم #41 أُلغي لأنه ما تأكد قبل الساعة 9:00 مساءً 🙏 لو تبغاه على طلبات بكرة، أرسل الأصناف هنا ونسجّلها لك."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 21:00",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "📊 إقفال الطلبات\nتم إلغاء 1 طلب لم يُؤكَّد اليوم (#41). أُبلغ 1 عميل.",
+  "wamid": "wamid.SIM.44xnVTTlFwH4W0PeoDG7A1wNclVW9hxt",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "📊 إقفال الطلبات\nتم إلغاء 1 طلب لم يُؤكَّد اليوم (#41). أُبلغ 1 عميل."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 21:08",
+  "to": "966500004101",
+  "type": "interactive",
+  "template": null,
+  "text": "استقبال طلبات اليوم انقفل الساعة 9:00 مساءً، وطلبك ما تسجّل.\n\n• رمان وسط كرتون × 5\n\nتبغانا نسجّله على طلبات بكرة (28 سبتمبر 2026)؟ يوصلك صباح 29 سبتمبر 2026 إن شاء الله.",
+  "wamid": "wamid.SIM.h6ijV8fAfvyeLuO1MvDgxRRFMWs5QcJm",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004101",
+   "type": "interactive",
+   "interactive": {
+    "type": "button",
+    "body": {
+     "text": "استقبال طلبات اليوم انقفل الساعة 9:00 مساءً، وطلبك ما تسجّل.\n\n• رمان وسط كرتون × 5\n\nتبغانا نسجّله على طلبات بكرة (28 سبتمبر 2026)؟ يوصلك صباح 29 سبتمبر 2026 إن شاء الله."
+    },
+    "action": {
+     "buttons": [
+      {
+       "type": "reply",
+       "reply": {
+        "id": "late_yes_64",
+        "title": "سجّله لبكرة"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "late_no_64",
+        "title": "لا شكراً"
+       }
+      }
+     ]
+    }
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 21:08",
+  "to": "966500004101",
+  "type": "text",
+  "template": null,
+  "text": "تم ✅ سجّلنا طلبك رقم #42 على طلبات يوم 28 سبتمبر 2026:\n• رمان وسط كرتون × 5\n\nيوصلك صباح 29 سبتمبر 2026 إن شاء الله 🌿",
+  "wamid": "wamid.SIM.5nqHcPGksOvqrSiuFzZkm8Ho6329Tpen",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004101",
+   "type": "text",
+   "text": {
+    "body": "تم ✅ سجّلنا طلبك رقم #42 على طلبات يوم 28 سبتمبر 2026:\n• رمان وسط كرتون × 5\n\nيوصلك صباح 29 سبتمبر 2026 إن شاء الله 🌿"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 21:15",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "⏳ مهمة لـعمر المجهلي بعد دوامه: قائمة الشراء #8 (3 صنف). تصله مع بداية دوامه القادم (الاثنين 02:00).",
+  "wamid": "wamid.SIM.i6Ss5vaVATHjaOR40mqXbKLoERGBX6wR",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "⏳ مهمة لـعمر المجهلي بعد دوامه: قائمة الشراء #8 (3 صنف). تصله مع بداية دوامه القادم (الاثنين 02:00)."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-27 21:30",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "📊 ملخص اليوم 27 سبتمبر 2026\nطلبات الغد: 2 مؤكدة لـ 28 سبتمبر 2026 بإجمالي 394.00 ريال\nتوصيلات اليوم: 0 مسلَّمة من 0\nتحصيل اليوم: المحصَّل اليوم 0.00 والمعلَّق 0.00 ريال\nتغطية تكاليف اليوم: تعذّر (ربح 0.00 من 0.00)",
+  "wamid": "wamid.SIM.kSD6Xfq3sRdQrJVtTtUoYrrXCLoqqKXB",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "📊 ملخص اليوم 27 سبتمبر 2026\nطلبات الغد: 2 مؤكدة لـ 28 سبتمبر 2026 بإجمالي 394.00 ريال\nتوصيلات اليوم: 0 مسلَّمة من 0\nتحصيل اليوم: المحصَّل اليوم 0.00 والمعلَّق 0.00 ريال\nتغطية تكاليف اليوم: تعذّر (ربح 0.00 من 0.00)"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 02:03",
+  "to": "966545816832",
+  "type": "text",
+  "template": null,
+  "text": "دوامك اليوم يبدأ 02:00، ووقتها يوصلك زر «بدء الدوام» ومعه مهامك.",
+  "wamid": "wamid.SIM.xnKSL1Z-jI9O3hZLQd2L0vq65SC3yqmW",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "text",
+   "text": {
+    "body": "دوامك اليوم يبدأ 02:00، ووقتها يوصلك زر «بدء الدوام» ومعه مهامك."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 03:30",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "🚚 تم إرسال المسارات\n- عدد السواقين: 1\n- عدد التوصيلات: 2",
+  "wamid": "wamid.SIM.LQz8ctOI9nkD14zu5fmWBMsy7yHZxaFf",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "🚚 تم إرسال المسارات\n- عدد السواقين: 1\n- عدد التوصيلات: 2"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 03:30",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "⚠️ مستحقات الموردين — قائمة الشراء #8 (27 سبتمبر 2026): أسطر «بلا سعر» لم تُحسب في المستحق:\n• أحمد حسان: رمان كبير (كرتون) × 4\nأدخل سعر المورد لذلك اليوم في «الأسعار اليومية»، وتُحسب تلقائياً (أو «🔄 إعادة حساب المستحقات» في 💵 دفع الموردين).",
+  "wamid": "wamid.SIM.j0hfUzB_DkGWa4tziL83vbSmSeLuLlGg",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "⚠️ مستحقات الموردين — قائمة الشراء #8 (27 سبتمبر 2026): أسطر «بلا سعر» لم تُحسب في المستحق:\n• أحمد حسان: رمان كبير (كرتون) × 4\nأدخل سعر المورد لذلك اليوم في «الأسعار اليومية»، وتُحسب تلقائياً (أو «🔄 إعادة حساب المستحقات» في 💵 دفع الموردين)."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 03:30",
+  "to": "966545816832",
+  "type": "interactive",
+  "template": null,
+  "text": "تمام 👍 تم إرسال المسارات لـ 1 سواق (2 توصيلة).\n📸 أرسل صورة فاتورة الشراء الضريبية",
+  "wamid": "wamid.SIM.Ycz1FnHTPBuETrcz5GvuVWuz-o_jnuA3",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "interactive",
+   "interactive": {
+    "type": "button",
+    "body": {
+     "text": "تمام 👍 تم إرسال المسارات لـ 1 سواق (2 توصيلة).\n📸 أرسل صورة فاتورة الشراء الضريبية"
+    },
+    "action": {
+     "buttons": [
+      {
+       "type": "reply",
+       "reply": {
+        "id": "sp_pay_start",
+        "title": "💵 دفعت لمورد"
+       }
+      }
+     ]
+    }
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 03:45",
+  "to": "966545816832",
+  "type": "text",
+  "template": null,
+  "text": "وصلت الفاتورة ✅",
+  "wamid": "wamid.SIM.vc6uKPusfptX_WyHbFfkfyh8b_3lEYDb",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "text",
+   "text": {
+    "body": "وصلت الفاتورة ✅"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 05:30",
+  "to": "966500004101",
+  "type": "template",
+  "template": "utak_invoice_pdf_v1",
+  "text": "مطعم الواحة (محاكاة) | UTAK-INV-20260928-001 | 28 سبتمبر 2026 | 228",
+  "wamid": "wamid.SIM.w-4rcX1YX5tRe-AVkSnrXnUM307V0Q6n",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004101",
+   "type": "template",
+   "template": {
+    "name": "utak_invoice_pdf_v1",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "header",
+      "parameters": [
+       {
+        "type": "document",
+        "document": {
+         "link": "https://utak-worker-sim.utak-business.workers.dev/invoice-pdf/UTAK-INV-20260928-001/e92e06431569e96c.pdf",
+         "filename": "UTAK-INV-20260928-001.pdf"
+        }
+       }
+      ]
+     },
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "مطعم الواحة (محاكاة)"
+       },
+       {
+        "type": "text",
+        "text": "UTAK-INV-20260928-001"
+       },
+       {
+        "type": "text",
+        "text": "28 سبتمبر 2026"
+       },
+       {
+        "type": "text",
+        "text": "228"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 05:30",
+  "to": "966500004101",
+  "type": "template",
+  "template": "utak_delivered",
+  "text": "39",
+  "wamid": "wamid.SIM.l4duhruNqFVlYZZwBiCBATO-sF998fHo",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004101",
+   "type": "template",
+   "template": {
+    "name": "utak_delivered",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "39"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 05:30",
+  "to": "966500004102",
+  "type": "text",
+  "template": null,
+  "text": "🚚 طلبك رقم #40 في الطريق إليك الآن مع السائق عمر المجهلي. يو تاك",
+  "wamid": "wamid.SIM.WmAuUA5tqUqn1lJK-UDW8dS3vOKCPmb7",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004102",
+   "type": "text",
+   "text": {
+    "body": "🚚 طلبك رقم #40 في الطريق إليك الآن مع السائق عمر المجهلي. يو تاك"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 05:30",
+  "to": "966545816832",
+  "type": "text",
+  "template": null,
+  "text": "تم التسليم ✅ — التوصيلة الجاية بانتظارك.",
+  "wamid": "wamid.SIM.tiKN36zJV9waKPc_0ggjhztPqOxMOr9T",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "text",
+   "text": {
+    "body": "تم التسليم ✅ — التوصيلة الجاية بانتظارك."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 06:00",
+  "to": "966505154962",
+  "type": "template",
+  "template": "utak_shift_start_v2",
+  "text": "براء",
+  "wamid": "wamid.SIM.e8j5otxATBt6Io9bXisD9pAoZ7S1HEGv",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "template",
+   "template": {
+    "name": "utak_shift_start_v2",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "براء"
+       }
+      ]
+     },
+     {
+      "type": "button",
+      "sub_type": "quick_reply",
+      "index": "0",
+      "parameters": [
+       {
+        "type": "payload",
+        "payload": "shift_start"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 06:00",
+  "to": "966530399474",
+  "type": "template",
+  "template": "utak_shift_start_v2",
+  "text": "عثمان عبدالوهاب",
+  "wamid": "wamid.SIM.aJac6UtViboqP7Ut_hgD5cTHsWuzB0fQ",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966530399474",
+   "type": "template",
+   "template": {
+    "name": "utak_shift_start_v2",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "عثمان عبدالوهاب"
+       }
+      ]
+     },
+     {
+      "type": "button",
+      "sub_type": "quick_reply",
+      "index": "0",
+      "parameters": [
+       {
+        "type": "payload",
+        "payload": "shift_start"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 06:00",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "⏰ أسعار اليوم (28 سبتمبر 2026) لم تُنشر حتى 06:00: لا صنف معتمد (تلقائياً أو منك).\nلم يصل سعر من المصادر اليوم.\nلا تُعاد أسعار أمس. قرارك ثم «نشر المعتمد الآن» في «💰 أسعار اليوم» ينشر عادي.",
+  "wamid": "wamid.SIM.3GyUVby-FkYbLtuXhCHVFCVygtsKEtxc",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "⏰ أسعار اليوم (28 سبتمبر 2026) لم تُنشر حتى 06:00: لا صنف معتمد (تلقائياً أو منك).\nلم يصل سعر من المصادر اليوم.\nلا تُعاد أسعار أمس. قرارك ثم «نشر المعتمد الآن» في «💰 أسعار اليوم» ينشر عادي."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 06:00",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "☀️ صباح الخير براء — ما فيه طلبات أسعار انرسلت الليلة (لعل القوالب لسا PENDING).",
+  "wamid": "wamid.SIM.LNpNeoxZdB4sVRSXaQRV_ezCK5JIoWvH",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "☀️ صباح الخير براء — ما فيه طلبات أسعار انرسلت الليلة (لعل القوالب لسا PENDING)."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 06:00",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "✅ تم. تنبيهات يو تاك توصلك هنا نصاً حتى 06:00 بكرة.",
+  "wamid": "wamid.SIM.Uv2bUiY6xG6leipRgi2LNst7eNNoiMB4",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "✅ تم. تنبيهات يو تاك توصلك هنا نصاً حتى 06:00 بكرة."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 06:00",
+  "to": "966530399474",
+  "type": "text",
+  "template": null,
+  "text": "تم تسجيل حضورك الساعة 06:00 ✅",
+  "wamid": "wamid.SIM.UqRe7O_O3U-Bz0MRKRWO_wtF_hsIUYYj",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966530399474",
+   "type": "text",
+   "text": {
+    "body": "تم تسجيل حضورك الساعة 06:00 ✅"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 06:00",
+  "to": "966530399474",
+  "type": "text",
+  "template": null,
+  "text": "ما عندك مهام الآن. أول ما تجهز توصلك هنا 👍",
+  "wamid": "wamid.SIM.FuFbTCh_i3na4cqBBOc0D9v7guO2zyj4",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966530399474",
+   "type": "text",
+   "text": {
+    "body": "ما عندك مهام الآن. أول ما تجهز توصلك هنا 👍"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 06:15",
+  "to": "966545816832",
+  "type": "text",
+  "template": null,
+  "text": "تمام، اكتب لي وش المشكلة بالضبط (رسالة واحدة) وأنا أسجّلها لبراء.",
+  "wamid": "wamid.SIM.uGLPnwthTSm5UWLLogJbb0RC4kGj_rwi",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "text",
+   "text": {
+    "body": "تمام، اكتب لي وش المشكلة بالضبط (رسالة واحدة) وأنا أسجّلها لبراء."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 06:15",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "⚠️ ملاحظة توصيل من عمر المجهلي\nالعميل: بقالة الريان (محاكاة)\nالطلب: #40\nالملاحظة: المحل مقفل، بأرجع له بعد الظهر",
+  "wamid": "wamid.SIM.AOmJ2QvzooMZ4YUTDX249Zdpbeo2lK9z",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "⚠️ ملاحظة توصيل من عمر المجهلي\nالعميل: بقالة الريان (محاكاة)\nالطلب: #40\nالملاحظة: المحل مقفل، بأرجع له بعد الظهر"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 06:15",
+  "to": "966545816832",
+  "type": "text",
+  "template": null,
+  "text": "تم تسجيل المشكلة، براء بيراجعها 🙏",
+  "wamid": "wamid.SIM.Q2MvEkiwZbWUh-JhCbeiM0A0-L5QR9Bv",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "text",
+   "text": {
+    "body": "تم تسجيل المشكلة، براء بيراجعها 🙏"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 08:00",
+  "to": "966500004101",
+  "type": "template",
+  "template": "utak_feedback",
+  "text": "مطعم الواحة (محاكاة)",
+  "wamid": "wamid.SIM.gMqN3Oi_04t0OcDmtuANvqLx42We7GXe",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004101",
+   "type": "template",
+   "template": {
+    "name": "utak_feedback",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "مطعم الواحة (محاكاة)"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 11:32",
+  "to": "966545816832",
+  "type": "text",
+  "template": null,
+  "text": "⏰ باقي 30 دقيقة على نهاية دوامك (12:00)، وعندك محطة واحدة بلا «تم التسليم»: بقالة الريان (محاكاة). اضغط «تم التسليم» على كل توصيلة توصّلها، أو «فيه مشكلة» لو فيه عائق.",
+  "wamid": "wamid.SIM.3LRTJruqZ-JzziTqv5FB-zvUQqEwA4fF",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "text",
+   "text": {
+    "body": "⏰ باقي 30 دقيقة على نهاية دوامك (12:00)، وعندك محطة واحدة بلا «تم التسليم»: بقالة الريان (محاكاة). اضغط «تم التسليم» على كل توصيلة توصّلها، أو «فيه مشكلة» لو فيه عائق."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 12:32",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "🚚 عمر المجهلي: انتهى دوامه الساعة 12:00، وبقي طلب واحد بلا «تم التسليم»: #40 (مشكلة). لا فاتورة ولا تحصيل لها حتى يُضغط «تم التسليم».",
+  "wamid": "wamid.SIM.VAVNL5OKNfQnKFsrfV7b7UbxEU5OvbeY",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "🚚 عمر المجهلي: انتهى دوامه الساعة 12:00، وبقي طلب واحد بلا «تم التسليم»: #40 (مشكلة). لا فاتورة ولا تحصيل لها حتى يُضغط «تم التسليم»."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 13:10",
+  "to": "966500004102",
+  "type": "template",
+  "template": "utak_invoice_pdf_v1",
+  "text": "بقالة الريان (محاكاة) | UTAK-INV-20260928-002 | 28 سبتمبر 2026 | 166",
+  "wamid": "wamid.SIM.NjfOKW9J9R3g5prDUK-pXXjs_AGWEzc1",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004102",
+   "type": "template",
+   "template": {
+    "name": "utak_invoice_pdf_v1",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "header",
+      "parameters": [
+       {
+        "type": "document",
+        "document": {
+         "link": "https://utak-worker-sim.utak-business.workers.dev/invoice-pdf/UTAK-INV-20260928-002/ba15cb6407199856.pdf",
+         "filename": "UTAK-INV-20260928-002.pdf"
+        }
+       }
+      ]
+     },
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "بقالة الريان (محاكاة)"
+       },
+       {
+        "type": "text",
+        "text": "UTAK-INV-20260928-002"
+       },
+       {
+        "type": "text",
+        "text": "28 سبتمبر 2026"
+       },
+       {
+        "type": "text",
+        "text": "166"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 13:10",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "⏳ مهمة لـعمر المجهلي بعد دوامه: طلب تحصيل UTAK-INV-20260928-002 (بقالة الريان (محاكاة)، 166 ر.س). تصله مع بداية دوامه القادم (الثلاثاء 02:00).",
+  "wamid": "wamid.SIM.3MywRbbJ0ZSvPzsCo7umwz2T8OThJobE",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "⏳ مهمة لـعمر المجهلي بعد دوامه: طلب تحصيل UTAK-INV-20260928-002 (بقالة الريان (محاكاة)، 166 ر.س). تصله مع بداية دوامه القادم (الثلاثاء 02:00)."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 13:10",
+  "to": "966500004102",
+  "type": "template",
+  "template": "utak_delivered",
+  "text": "40",
+  "wamid": "wamid.SIM.O3RLx1CZviRlEjFQE4mTqm50tLDl-YP3",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004102",
+   "type": "template",
+   "template": {
+    "name": "utak_delivered",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "40"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 13:10",
+  "to": "966545816832",
+  "type": "text",
+  "template": null,
+  "text": "تم التسليم ✅ — خلصت مسارك اليوم. شكراً 🙏",
+  "wamid": "wamid.SIM.RFz98PU5di9WUgtVhLmQuioSzPEAFGyO",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "text",
+   "text": {
+    "body": "تم التسليم ✅ — خلصت مسارك اليوم. شكراً 🙏"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 13:30",
+  "to": "966545816832",
+  "type": "interactive",
+  "template": null,
+  "text": "تم تسجيل التحصيل نقد 💵 — الفاتورة UTAK-INV-20260928-001 ✅",
+  "wamid": "wamid.SIM.HSKJon1Fnvtn4N14GX7m0xf-8R9xzlQA",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "interactive",
+   "interactive": {
+    "type": "button",
+    "body": {
+     "text": "تم تسجيل التحصيل نقد 💵 — الفاتورة UTAK-INV-20260928-001 ✅"
+    },
+    "action": {
+     "buttons": [
+      {
+       "type": "reply",
+       "reply": {
+        "id": "collect_note_25",
+        "title": "ملاحظة 📝"
+       }
+      }
+     ]
+    }
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 13:30",
+  "to": "966500004101",
+  "type": "text",
+  "template": null,
+  "text": "✅ استلمنا دفعتك بمبلغ 228 ريال على فاتورة UTAK-INV-20260928-001. شكراً لك\nرقم الإيصال: UTAK-R-20260928-015\nطريقة الدفع: نقد\nالإيصال: https://utak-worker-sim.utak-business.workers.dev/receipt-pdf/UTAK-R-20260928-015/745e76524ae279ed.pdf\nيو تاك 🌿",
+  "wamid": "wamid.SIM.FjQ5UVq0PRkjpAICT51fLT90ITlWZKgT",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004101",
+   "type": "text",
+   "text": {
+    "body": "✅ استلمنا دفعتك بمبلغ 228 ريال على فاتورة UTAK-INV-20260928-001. شكراً لك\nرقم الإيصال: UTAK-R-20260928-015\nطريقة الدفع: نقد\nالإيصال: https://utak-worker-sim.utak-business.workers.dev/receipt-pdf/UTAK-R-20260928-015/745e76524ae279ed.pdf\nيو تاك 🌿"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 14:00",
+  "to": "966500004102",
+  "type": "template",
+  "template": "utak_payment_received",
+  "text": "100 | UTAK-INV-20260928-002",
+  "wamid": "wamid.SIM.Rn1VbDx7mj_cmsJVTvBzoBg-uLHRfTEh",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004102",
+   "type": "template",
+   "template": {
+    "name": "utak_payment_received",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "100"
+       },
+       {
+        "type": "text",
+        "text": "UTAK-INV-20260928-002"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 18:00",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "⏳ مهمة لـعمر المجهلي بعد دوامه: ملخص التحصيل (1 فاتورة، 166 ر.س). تصله مع بداية دوامه القادم (الثلاثاء 02:00).",
+  "wamid": "wamid.SIM.7o2jFPAB2qMw3cT-TJg0mt8Tz-NY0hCN",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "⏳ مهمة لـعمر المجهلي بعد دوامه: ملخص التحصيل (1 فاتورة، 166 ر.س). تصله مع بداية دوامه القادم (الثلاثاء 02:00)."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-28 21:30",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "📊 ملخص اليوم 28 سبتمبر 2026\nطلبات الغد: 1 مؤكدة لـ 29 سبتمبر 2026 بإجمالي 103.50 ريال\nتوصيلات اليوم: 2 مسلَّمة من 2\nتحصيل اليوم: المحصَّل اليوم 328.00 والمعلَّق 66.00 ريال\nتغطية تكاليف اليوم: تعذّر (ربح 60.10 من 0.00)",
+  "wamid": "wamid.SIM.lFjkJilvyP1gTeGHUZowG-KdYVZ-xRbB",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "📊 ملخص اليوم 28 سبتمبر 2026\nطلبات الغد: 1 مؤكدة لـ 29 سبتمبر 2026 بإجمالي 103.50 ريال\nتوصيلات اليوم: 2 مسلَّمة من 2\nتحصيل اليوم: المحصَّل اليوم 328.00 والمعلَّق 66.00 ريال\nتغطية تكاليف اليوم: تعذّر (ربح 60.10 من 0.00)"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-30 02:00",
+  "to": "966571777704",
+  "type": "template",
+  "template": "utak_supplier_ask_v2",
+  "text": "أحمد حسان | افوكادو، رمان وسط",
+  "wamid": "wamid.SIM.PisnOQJfC7Cil3VzT_JOPKvEDdeWGaXA",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966571777704",
+   "type": "template",
+   "template": {
+    "name": "utak_supplier_ask_v2",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "أحمد حسان"
+       },
+       {
+        "type": "text",
+        "text": "افوكادو، رمان وسط"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-30 02:03",
+  "to": "966545816832",
+  "type": "text",
+  "template": null,
+  "text": "دوامك اليوم يبدأ 02:00، ووقتها يوصلك زر «بدء الدوام» ومعه مهامك.",
+  "wamid": "wamid.SIM.WFlAtX8CM4Fi2I0tkVS57hDVjHriT-xh",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "text",
+   "text": {
+    "body": "دوامك اليوم يبدأ 02:00، ووقتها يوصلك زر «بدء الدوام» ومعه مهامك."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-30 02:15",
+  "to": "966571777704",
+  "type": "template",
+  "template": "utak_supplier_confirm_v1",
+  "text": "أحمد حسان | 2",
+  "wamid": "wamid.SIM.0fqmLtjQwVeWlZ6qlf0LVQizLDJb6Ne2",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966571777704",
+   "type": "template",
+   "template": {
+    "name": "utak_supplier_confirm_v1",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "أحمد حسان"
+       },
+       {
+        "type": "text",
+        "text": "2"
+       }
+      ]
+     },
+     {
+      "type": "button",
+      "sub_type": "quick_reply",
+      "index": "0",
+      "parameters": [
+       {
+        "type": "payload",
+        "payload": "supplier_edit"
+       }
+      ]
+     },
+     {
+      "type": "button",
+      "sub_type": "quick_reply",
+      "index": "1",
+      "parameters": [
+       {
+        "type": "payload",
+        "payload": "supplier_stop"
+       }
+      ]
+     },
+     {
+      "type": "button",
+      "sub_type": "quick_reply",
+      "index": "2",
+      "parameters": [
+       {
+        "type": "payload",
+        "payload": "supplier_thanks"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-30 02:40",
+  "to": "966545816832",
+  "type": "text",
+  "template": null,
+  "text": "دوامك اليوم يبدأ 02:00، ووقتها يوصلك زر «بدء الدوام» ومعه مهامك.",
+  "wamid": "wamid.SIM.ZTkN2le_tqy40LZw7xOmz_2i_5-uN8SL",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "text",
+   "text": {
+    "body": "دوامك اليوم يبدأ 02:00، ووقتها يوصلك زر «بدء الدوام» ومعه مهامك."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-30 06:00",
+  "to": "966505154962",
+  "type": "template",
+  "template": "utak_shift_start_v2",
+  "text": "براء",
+  "wamid": "wamid.SIM.Ffjjaxljfa8Oj5AyqRctxkVvh8n4uqix",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "template",
+   "template": {
+    "name": "utak_shift_start_v2",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "براء"
+       }
+      ]
+     },
+     {
+      "type": "button",
+      "sub_type": "quick_reply",
+      "index": "0",
+      "parameters": [
+       {
+        "type": "payload",
+        "payload": "shift_start"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-30 06:00",
+  "to": "966530399474",
+  "type": "template",
+  "template": "utak_shift_start_v2",
+  "text": "عثمان عبدالوهاب",
+  "wamid": "wamid.SIM.mSrWH1QHRSjCTC1NaIOnjCSieknm4W11",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966530399474",
+   "type": "template",
+   "template": {
+    "name": "utak_shift_start_v2",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "عثمان عبدالوهاب"
+       }
+      ]
+     },
+     {
+      "type": "button",
+      "sub_type": "quick_reply",
+      "index": "0",
+      "parameters": [
+       {
+        "type": "payload",
+        "payload": "shift_start"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-30 06:00",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "⏰ أسعار اليوم (30 سبتمبر 2026) لم تُنشر حتى 06:00: لا صنف معتمد (تلقائياً أو منك).\nالأصناف: 4 (استثناء بلا قرار: 4، ولم يُنشر: 0).\nلا تُعاد أسعار أمس. قرارك ثم «نشر المعتمد الآن» في «💰 أسعار اليوم» ينشر عادي.",
+  "wamid": "wamid.SIM.phKrHNlHI5gzx0mKuI0Xi-Uorp5lRguP",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "⏰ أسعار اليوم (30 سبتمبر 2026) لم تُنشر حتى 06:00: لا صنف معتمد (تلقائياً أو منك).\nالأصناف: 4 (استثناء بلا قرار: 4، ولم يُنشر: 0).\nلا تُعاد أسعار أمس. قرارك ثم «نشر المعتمد الآن» في «💰 أسعار اليوم» ينشر عادي."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-30 06:00",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "☀️ صباح الخير — كل الموردين (1) ردوا. الاستقبال مفتوح 🌿",
+  "wamid": "wamid.SIM.W4aqZS7LxL6785evkO02gm4dSgarA3Z8",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "☀️ صباح الخير — كل الموردين (1) ردوا. الاستقبال مفتوح 🌿"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-30 06:00",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "✅ تم. تنبيهات يو تاك توصلك هنا نصاً حتى 06:00 بكرة.",
+  "wamid": "wamid.SIM.qzkT3rfXIosU8BPVN8NYfWYqGgaw1x4U",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "✅ تم. تنبيهات يو تاك توصلك هنا نصاً حتى 06:00 بكرة."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-30 09:00",
+  "to": "966500004101",
+  "type": "text",
+  "template": null,
+  "text": "بديت لك طلب جديد ✅\n• رمان وسط كرتون × 10\nتبغى تضيف شي ثاني، ولا نجهز الكوتيشن؟ (اكتب \"خلاص\" لما تخلّص)",
+  "wamid": "wamid.SIM.Umnc0XY3qf79uPgRlx916ycKxBxak80f",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004101",
+   "type": "text",
+   "text": {
+    "body": "بديت لك طلب جديد ✅\n• رمان وسط كرتون × 10\nتبغى تضيف شي ثاني، ولا نجهز الكوتيشن؟ (اكتب \"خلاص\" لما تخلّص)"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-30 09:00",
+  "to": "966500004101",
+  "type": "interactive",
+  "template": null,
+  "text": "📄 الكوتيشن رقم UTAK-Q-20260930-001\n• رمان وسط كرتون × 10\n\n📍 التوصيل إلى: العليا (https://maps.google.com/?q=24.71,46.67)\nالأسعار النهائية عند التسليم. اختر:",
+  "wamid": "wamid.SIM.M4GjPq4shSbn2tzUkjIt6-pxnxAuN9qU",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004101",
+   "type": "interactive",
+   "interactive": {
+    "type": "button",
+    "body": {
+     "text": "📄 الكوتيشن رقم UTAK-Q-20260930-001\n• رمان وسط كرتون × 10\n\n📍 التوصيل إلى: العليا (https://maps.google.com/?q=24.71,46.67)\nالأسعار النهائية عند التسليم. اختر:"
+    },
+    "action": {
+     "buttons": [
+      {
+       "type": "reply",
+       "reply": {
+        "id": "confirm_order_43",
+        "title": "تأكيد الطلب ✅"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "edit_order_43",
+        "title": "تعديل ✏️"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "cancel_order_43",
+        "title": "إلغاء ❌"
+       }
+      }
+     ]
+    }
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-30 09:00",
+  "to": "966500004101",
+  "type": "text",
+  "template": null,
+  "text": "تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿",
+  "wamid": "wamid.SIM.1oobRgm2Y3grZCQ9gpOH50R6IbV_NA-O",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004101",
+   "type": "text",
+   "text": {
+    "body": "تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-30 10:00",
+  "to": "966500004102",
+  "type": "text",
+  "template": null,
+  "text": "بديت لك طلب جديد ✅\n• افوكادو كرتون · 4 كيلو × 3\nتبغى تضيف شي ثاني، ولا نجهز الكوتيشن؟ (اكتب \"خلاص\" لما تخلّص)",
+  "wamid": "wamid.SIM.01KhvkY3mdP-FFSZQj6koRr28aI0w1dA",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004102",
+   "type": "text",
+   "text": {
+    "body": "بديت لك طلب جديد ✅\n• افوكادو كرتون · 4 كيلو × 3\nتبغى تضيف شي ثاني، ولا نجهز الكوتيشن؟ (اكتب \"خلاص\" لما تخلّص)"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-30 10:00",
+  "to": "966500004102",
+  "type": "interactive",
+  "template": null,
+  "text": "📄 الكوتيشن رقم UTAK-Q-20260930-001\n• افوكادو كرتون · 4 كيلو × 3\n\n📍 التوصيل إلى: الملز (https://maps.google.com/?q=24.71,46.67)\nالأسعار النهائية عند التسليم. اختر:",
+  "wamid": "wamid.SIM.pzTgitGwxnk8AsOyRlF8amG_i-PRNzAY",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004102",
+   "type": "interactive",
+   "interactive": {
+    "type": "button",
+    "body": {
+     "text": "📄 الكوتيشن رقم UTAK-Q-20260930-001\n• افوكادو كرتون · 4 كيلو × 3\n\n📍 التوصيل إلى: الملز (https://maps.google.com/?q=24.71,46.67)\nالأسعار النهائية عند التسليم. اختر:"
+    },
+    "action": {
+     "buttons": [
+      {
+       "type": "reply",
+       "reply": {
+        "id": "confirm_order_44",
+        "title": "تأكيد الطلب ✅"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "edit_order_44",
+        "title": "تعديل ✏️"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "cancel_order_44",
+        "title": "إلغاء ❌"
+       }
+      }
+     ]
+    }
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-30 10:00",
+  "to": "966500004102",
+  "type": "text",
+  "template": null,
+  "text": "تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿",
+  "wamid": "wamid.SIM.fT03-j1aE2F2qKJe0RMbY2D_folqKLjQ",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004102",
+   "type": "text",
+   "text": {
+    "body": "تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-09-30 21:15",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "⏳ مهمة لـعمر المجهلي بعد دوامه: قائمة الشراء #9 (2 صنف). تصله مع بداية دوامه القادم (الخميس 02:00).",
+  "wamid": "wamid.SIM.txAJ2yihHqUviw8qCvRzd9Oar4M5-_0N",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "⏳ مهمة لـعمر المجهلي بعد دوامه: قائمة الشراء #9 (2 صنف). تصله مع بداية دوامه القادم (الخميس 02:00)."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 02:00",
+  "to": "966571777704",
+  "type": "template",
+  "template": "utak_supplier_ask_v2",
+  "text": "أحمد حسان | افوكادو، رمان وسط",
+  "wamid": "wamid.SIM.q6cfDnc_4N-bNSYZ-FTLGouMO2Txl3Ms",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966571777704",
+   "type": "template",
+   "template": {
+    "name": "utak_supplier_ask_v2",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "أحمد حسان"
+       },
+       {
+        "type": "text",
+        "text": "افوكادو، رمان وسط"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 02:00",
+  "to": "966545816832",
+  "type": "template",
+  "template": "utak_shift_start_v2",
+  "text": "عمر المجهلي",
+  "wamid": "wamid.SIM.CCOkNLXH_bqOafLNTLJA4yodOfthfbqs",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "template",
+   "template": {
+    "name": "utak_shift_start_v2",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "عمر المجهلي"
+       }
+      ]
+     },
+     {
+      "type": "button",
+      "sub_type": "quick_reply",
+      "index": "0",
+      "parameters": [
+       {
+        "type": "payload",
+        "payload": "shift_start"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 02:03",
+  "to": "966545816832",
+  "type": "text",
+  "template": null,
+  "text": "تم تسجيل حضورك الساعة 02:03 ✅",
+  "wamid": "wamid.SIM.4V_3M7a_bXi514k7BDpI61uJDXVD5S8F",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "text",
+   "text": {
+    "body": "تم تسجيل حضورك الساعة 02:03 ✅"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 02:03",
+  "to": "966545816832",
+  "type": "text",
+  "template": null,
+  "text": "🚚 مسارك اليوم — 2 توصيلة\nمرحبا عمر المجهلي\n\n1. مطعم الواحة (محاكاة)\n   📍 العليا\n   📞 +966500004101\n   رمان وسط كرتون × 12\n\n2. بقالة الريان (محاكاة)\n   📍 خلاص\n   📞 +966500004102\n   رمان كبير كرتون × 4، افوكادو كرتون · 4 كيلو × 1\n\nلما تخلّص كل توصيلة، ابعث لي رقم الطلب واضغط الأزرار اللي تجيك.",
+  "wamid": "wamid.SIM.0ceic6RrIrX_KYuiEz-wcYXWwTx-s9oG",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "text",
+   "text": {
+    "body": "🚚 مسارك اليوم — 2 توصيلة\nمرحبا عمر المجهلي\n\n1. مطعم الواحة (محاكاة)\n   📍 العليا\n   📞 +966500004101\n   رمان وسط كرتون × 12\n\n2. بقالة الريان (محاكاة)\n   📍 خلاص\n   📞 +966500004102\n   رمان كبير كرتون × 4، افوكادو كرتون · 4 كيلو × 1\n\nلما تخلّص كل توصيلة، ابعث لي رقم الطلب واضغط الأزرار اللي تجيك."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 02:03",
+  "to": "966545816832",
+  "type": "location",
+  "template": null,
+  "text": "#39 — مطعم الواحة (محاكاة) — العليا",
+  "wamid": "wamid.SIM.6qIe-eODnQ1hQ_qk01rLHMoS7A9on10e",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "location",
+   "location": {
+    "latitude": 24.71,
+    "longitude": 46.67,
+    "name": "#39 — مطعم الواحة (محاكاة)",
+    "address": "العليا"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 02:03",
+  "to": "966545816832",
+  "type": "text",
+  "template": null,
+  "text": "📦 إذن تسليم للطلب 39\nالعميل: مطعم الواحة (محاكاة)\nالحي: العليا\n\nالوثيقة: https://utak-worker-sim.utak-business.workers.dev/delivery-note-pdf/DLV-2026-0004/919b4b338341fd42.pdf",
+  "wamid": "wamid.SIM.Te_rHrVy98kcXbae08MH-PN0GKAmiuSc",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "text",
+   "text": {
+    "body": "📦 إذن تسليم للطلب 39\nالعميل: مطعم الواحة (محاكاة)\nالحي: العليا\n\nالوثيقة: https://utak-worker-sim.utak-business.workers.dev/delivery-note-pdf/DLV-2026-0004/919b4b338341fd42.pdf"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 02:03",
+  "to": "966545816832",
+  "type": "interactive",
+  "template": null,
+  "text": "توصيلة #39 — مطعم الواحة (محاكاة) (العليا)\nرمان وسط كرتون × 12",
+  "wamid": "wamid.SIM.EjlCAZtwLuVwg928DDdjsIvwU-b2qDDK",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "interactive",
+   "interactive": {
+    "type": "button",
+    "body": {
+     "text": "توصيلة #39 — مطعم الواحة (محاكاة) (العليا)\nرمان وسط كرتون × 12"
+    },
+    "action": {
+     "buttons": [
+      {
+       "type": "reply",
+       "reply": {
+        "id": "delivered_39",
+        "title": "تم التسليم ✅"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "delivery_issue_39",
+        "title": "فيه مشكلة ⚠️"
+       }
+      }
+     ]
+    }
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 02:03",
+  "to": "966545816832",
+  "type": "location",
+  "template": null,
+  "text": "#40 — بقالة الريان (محاكاة) — خلاص",
+  "wamid": "wamid.SIM.rllKn0zz02Pviyh8j4-zbypBdy6Pc2N9",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "location",
+   "location": {
+    "latitude": 24.71,
+    "longitude": 46.67,
+    "name": "#40 — بقالة الريان (محاكاة)",
+    "address": "خلاص"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 02:03",
+  "to": "966545816832",
+  "type": "text",
+  "template": null,
+  "text": "📦 إذن تسليم للطلب 40\nالعميل: بقالة الريان (محاكاة)\nالحي: خلاص\n\nالوثيقة: https://utak-worker-sim.utak-business.workers.dev/delivery-note-pdf/DLV-2026-0005/1dc3c23fe27d9a95.pdf",
+  "wamid": "wamid.SIM.Jxc5RHmJYy0tO9Wk1cN3yJF0RRu4-GP6",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "text",
+   "text": {
+    "body": "📦 إذن تسليم للطلب 40\nالعميل: بقالة الريان (محاكاة)\nالحي: خلاص\n\nالوثيقة: https://utak-worker-sim.utak-business.workers.dev/delivery-note-pdf/DLV-2026-0005/1dc3c23fe27d9a95.pdf"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 02:03",
+  "to": "966545816832",
+  "type": "interactive",
+  "template": null,
+  "text": "توصيلة #40 — بقالة الريان (محاكاة) (خلاص)\nرمان كبير كرتون × 4، افوكادو كرتون · 4 كيلو × 1",
+  "wamid": "wamid.SIM.59xtMM1VyPRQMPX6fIhLINU1c_2dk7A6",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "interactive",
+   "interactive": {
+    "type": "button",
+    "body": {
+     "text": "توصيلة #40 — بقالة الريان (محاكاة) (خلاص)\nرمان كبير كرتون × 4، افوكادو كرتون · 4 كيلو × 1"
+    },
+    "action": {
+     "buttons": [
+      {
+       "type": "reply",
+       "reply": {
+        "id": "delivered_40",
+        "title": "تم التسليم ✅"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "delivery_issue_40",
+        "title": "فيه مشكلة ⚠️"
+       }
+      }
+     ]
+    }
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 02:03",
+  "to": "966545816832",
+  "type": "interactive",
+  "template": null,
+  "text": "💰 طلب تحصيل\n\nالعميل: مطعم الواحة (محاكاة) (العليا)\nالفاتورة: UTAK-INV-20260928-001\nالمبلغ: 228 ر.س\n\nاختر طريقة التحصيل:",
+  "wamid": "wamid.SIM.I0d86o4b-FiXx8eihR5gsIYBdFvc4I2h",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "interactive",
+   "interactive": {
+    "type": "button",
+    "body": {
+     "text": "💰 طلب تحصيل\n\nالعميل: مطعم الواحة (محاكاة) (العليا)\nالفاتورة: UTAK-INV-20260928-001\nالمبلغ: 228 ر.س\n\nاختر طريقة التحصيل:"
+    },
+    "action": {
+     "buttons": [
+      {
+       "type": "reply",
+       "reply": {
+        "id": "collect_cash_25",
+        "title": "نقد 💵"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "collect_transfer_25",
+        "title": "تحويل 🏦"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "collect_note_25",
+        "title": "ملاحظة 📝"
+       }
+      }
+     ]
+    }
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 02:03",
+  "to": "966545816832",
+  "type": "interactive",
+  "template": null,
+  "text": "💰 طلب تحصيل\n\nالعميل: بقالة الريان (محاكاة) (خلاص)\nالفاتورة: UTAK-INV-20260928-002\nالمبلغ: 166 ر.س\n\nاختر طريقة التحصيل:",
+  "wamid": "wamid.SIM.QD3CIOr9F_5z2k5iyODRvpRQ7m3AmLyP",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "interactive",
+   "interactive": {
+    "type": "button",
+    "body": {
+     "text": "💰 طلب تحصيل\n\nالعميل: بقالة الريان (محاكاة) (خلاص)\nالفاتورة: UTAK-INV-20260928-002\nالمبلغ: 166 ر.س\n\nاختر طريقة التحصيل:"
+    },
+    "action": {
+     "buttons": [
+      {
+       "type": "reply",
+       "reply": {
+        "id": "collect_cash_26",
+        "title": "نقد 💵"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "collect_transfer_26",
+        "title": "تحويل 🏦"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "collect_note_26",
+        "title": "ملاحظة 📝"
+       }
+      }
+     ]
+    }
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 02:03",
+  "to": "966545816832",
+  "type": "interactive",
+  "template": null,
+  "text": "🛒 قائمة الشراء #9 (30 سبتمبر 2026) — 2 صنف\n\n1. رمان وسط — كرتون × 10\n2. افوكادو — كرتون · 4 كيلو × 3",
+  "wamid": "wamid.SIM.I-CqIjLX9yFJ60k9DjW4NAKTZLRB88H7",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "interactive",
+   "interactive": {
+    "type": "button",
+    "body": {
+     "text": "🛒 قائمة الشراء #9 (30 سبتمبر 2026) — 2 صنف\n\n1. رمان وسط — كرتون × 10\n2. افوكادو — كرتون · 4 كيلو × 3"
+    },
+    "action": {
+     "buttons": [
+      {
+       "type": "reply",
+       "reply": {
+        "id": "purchase_done_9",
+        "title": "تم الشراء ✅"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "purchase_issue_9",
+        "title": "مشكلة ⚠️"
+       }
+      }
+     ]
+    }
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 02:03",
+  "to": "966545816832",
+  "type": "text",
+  "template": null,
+  "text": "📋 قائمة التحصيل اليومية\n\n1. بقالة الريان (محاكاة) (خلاص) — 166 ر.س — UTAK-INV-20260928-002\n\nالإجمالي المطلوب: 166 ر.س\nعدد الفواتير: 1\n\nلما تحصّل من أي عميل، افتح رسالة الفاتورة الأصلية واضغط زر التحصيل.",
+  "wamid": "wamid.SIM.plZ-HZcuf7ltZLSdfAQNBotWMlMEKrYH",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "text",
+   "text": {
+    "body": "📋 قائمة التحصيل اليومية\n\n1. بقالة الريان (محاكاة) (خلاص) — 166 ر.س — UTAK-INV-20260928-002\n\nالإجمالي المطلوب: 166 ر.س\nعدد الفواتير: 1\n\nلما تحصّل من أي عميل، افتح رسالة الفاتورة الأصلية واضغط زر التحصيل."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 02:10",
+  "to": "966571777704",
+  "type": "template",
+  "template": "utak_supplier_confirm_v1",
+  "text": "أحمد حسان | 2",
+  "wamid": "wamid.SIM.tN6JRIIWe3WCIQ1F-hYwTi9VhajBaUec",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966571777704",
+   "type": "template",
+   "template": {
+    "name": "utak_supplier_confirm_v1",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "أحمد حسان"
+       },
+       {
+        "type": "text",
+        "text": "2"
+       }
+      ]
+     },
+     {
+      "type": "button",
+      "sub_type": "quick_reply",
+      "index": "0",
+      "parameters": [
+       {
+        "type": "payload",
+        "payload": "supplier_edit"
+       }
+      ]
+     },
+     {
+      "type": "button",
+      "sub_type": "quick_reply",
+      "index": "1",
+      "parameters": [
+       {
+        "type": "payload",
+        "payload": "supplier_stop"
+       }
+      ]
+     },
+     {
+      "type": "button",
+      "sub_type": "quick_reply",
+      "index": "2",
+      "parameters": [
+       {
+        "type": "payload",
+        "payload": "supplier_thanks"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 02:30",
+  "to": "966545816832",
+  "type": "text",
+  "template": null,
+  "text": "صباح الخير عمر 🌿 أرسل أسعار السوق اليوم لو سمحت: الصنف والتعبئة والسعر لكل صنف. ولو معك سعر شراء اكتب «شراء» جنب رقمه.",
+  "wamid": "wamid.SIM.Y2eilvtyl-7NmZj9ChoOS4_MbC5B-hYB",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "text",
+   "text": {
+    "body": "صباح الخير عمر 🌿 أرسل أسعار السوق اليوم لو سمحت: الصنف والتعبئة والسعر لكل صنف. ولو معك سعر شراء اكتب «شراء» جنب رقمه."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 02:40",
+  "to": "966545816832",
+  "type": "text",
+  "template": null,
+  "text": "وصلتنا أسعار السوق (4 صنف) 🌿 الله يعطيك العافية.",
+  "wamid": "wamid.SIM.iNIbHlosbqU-NiIMYgI0T67q6hBKCgax",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "text",
+   "text": {
+    "body": "وصلتنا أسعار السوق (4 صنف) 🌿 الله يعطيك العافية."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 03:30",
+  "to": "966545816832",
+  "type": "template",
+  "template": "utak_driver_dispatch",
+  "text": "عمر المجهلي | 1 أكتوبر 2026 | 1. مطعم الواحة (محاكاة) (العليا)، 2. بقالة الريان (محاكاة) (الملز) | 2",
+  "wamid": "wamid.SIM.Y2WVOKI4hk1OACo6-TbYramLswLND0Pp",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "template",
+   "template": {
+    "name": "utak_driver_dispatch",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "عمر المجهلي"
+       },
+       {
+        "type": "text",
+        "text": "1 أكتوبر 2026"
+       },
+       {
+        "type": "text",
+        "text": "1. مطعم الواحة (محاكاة) (العليا)، 2. بقالة الريان (محاكاة) (الملز)"
+       },
+       {
+        "type": "text",
+        "text": "2"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 03:30",
+  "to": "966545816832",
+  "type": "location",
+  "template": null,
+  "text": "#43 — مطعم الواحة (محاكاة) — العليا",
+  "wamid": "wamid.SIM.6z_QN0T0dxnas0_FpuGKrR4DGWjNXdEw",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "location",
+   "location": {
+    "latitude": 24.71,
+    "longitude": 46.67,
+    "name": "#43 — مطعم الواحة (محاكاة)",
+    "address": "العليا"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 03:30",
+  "to": "966545816832",
+  "type": "text",
+  "template": null,
+  "text": "📦 إذن تسليم للطلب 43\nالعميل: مطعم الواحة (محاكاة)\nالحي: العليا\n\nالوثيقة: https://utak-worker-sim.utak-business.workers.dev/delivery-note-pdf/DLV-2026-0006/8bae68e7fc74e234.pdf",
+  "wamid": "wamid.SIM.Wtr_C9k5Ahhbw3hE86JMlvTaEDLBqGkD",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "text",
+   "text": {
+    "body": "📦 إذن تسليم للطلب 43\nالعميل: مطعم الواحة (محاكاة)\nالحي: العليا\n\nالوثيقة: https://utak-worker-sim.utak-business.workers.dev/delivery-note-pdf/DLV-2026-0006/8bae68e7fc74e234.pdf"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 03:30",
+  "to": "966545816832",
+  "type": "template",
+  "template": "utak_driver_stop",
+  "text": "43 | مطعم الواحة (محاكاة) | العليا | https://maps.google.com/?q=24.71,46.67 | رمان وسط كرتون × 10",
+  "wamid": "wamid.SIM.hy8-QsgZmOufEk_QG8eiuZGbdvLROPNf",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "template",
+   "template": {
+    "name": "utak_driver_stop",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "43"
+       },
+       {
+        "type": "text",
+        "text": "مطعم الواحة (محاكاة)"
+       },
+       {
+        "type": "text",
+        "text": "العليا"
+       },
+       {
+        "type": "text",
+        "text": "https://maps.google.com/?q=24.71,46.67"
+       },
+       {
+        "type": "text",
+        "text": "رمان وسط كرتون × 10"
+       }
+      ]
+     },
+     {
+      "type": "button",
+      "sub_type": "quick_reply",
+      "index": "0",
+      "parameters": [
+       {
+        "type": "payload",
+        "payload": "delivered_43"
+       }
+      ]
+     },
+     {
+      "type": "button",
+      "sub_type": "quick_reply",
+      "index": "1",
+      "parameters": [
+       {
+        "type": "payload",
+        "payload": "delivery_issue_43"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 03:30",
+  "to": "966545816832",
+  "type": "location",
+  "template": null,
+  "text": "#44 — بقالة الريان (محاكاة) — الملز",
+  "wamid": "wamid.SIM.vU_w3PV712LOnRpOTifq1tp5mMCHMuBB",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "location",
+   "location": {
+    "latitude": 24.71,
+    "longitude": 46.67,
+    "name": "#44 — بقالة الريان (محاكاة)",
+    "address": "الملز"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 03:30",
+  "to": "966545816832",
+  "type": "text",
+  "template": null,
+  "text": "📦 إذن تسليم للطلب 44\nالعميل: بقالة الريان (محاكاة)\nالحي: الملز\n\nالوثيقة: https://utak-worker-sim.utak-business.workers.dev/delivery-note-pdf/DLV-2026-0007/909c128bb0b6b9cd.pdf",
+  "wamid": "wamid.SIM.Tho5yHrd0uHN9ufc5Jcu_nEgqlj8VfO4",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "text",
+   "text": {
+    "body": "📦 إذن تسليم للطلب 44\nالعميل: بقالة الريان (محاكاة)\nالحي: الملز\n\nالوثيقة: https://utak-worker-sim.utak-business.workers.dev/delivery-note-pdf/DLV-2026-0007/909c128bb0b6b9cd.pdf"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 03:30",
+  "to": "966545816832",
+  "type": "template",
+  "template": "utak_driver_stop",
+  "text": "44 | بقالة الريان (محاكاة) | الملز | https://maps.google.com/?q=24.71,46.67 | افوكادو كرتون · 4 كيلو × 3",
+  "wamid": "wamid.SIM.LnBfaHGs1eqghJ_TG2AppwI7pjO_IMcG",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "template",
+   "template": {
+    "name": "utak_driver_stop",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "44"
+       },
+       {
+        "type": "text",
+        "text": "بقالة الريان (محاكاة)"
+       },
+       {
+        "type": "text",
+        "text": "الملز"
+       },
+       {
+        "type": "text",
+        "text": "https://maps.google.com/?q=24.71,46.67"
+       },
+       {
+        "type": "text",
+        "text": "افوكادو كرتون · 4 كيلو × 3"
+       }
+      ]
+     },
+     {
+      "type": "button",
+      "sub_type": "quick_reply",
+      "index": "0",
+      "parameters": [
+       {
+        "type": "payload",
+        "payload": "delivered_44"
+       }
+      ]
+     },
+     {
+      "type": "button",
+      "sub_type": "quick_reply",
+      "index": "1",
+      "parameters": [
+       {
+        "type": "payload",
+        "payload": "delivery_issue_44"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 03:30",
+  "to": "966500004101",
+  "type": "text",
+  "template": null,
+  "text": "🚚 طلبك رقم #43 في الطريق إليك الآن مع السائق عمر المجهلي. يو تاك",
+  "wamid": "wamid.SIM.f3Tu8tkeVwC2SPdgF6iZ6Xo-3pYcqOyQ",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004101",
+   "type": "text",
+   "text": {
+    "body": "🚚 طلبك رقم #43 في الطريق إليك الآن مع السائق عمر المجهلي. يو تاك"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 03:30",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "🚚 تم إرسال المسارات\n- عدد السواقين: 1\n- عدد التوصيلات: 2",
+  "wamid": "wamid.SIM._CSnBEqYNkGg4_tjVb0hFaw5VFlBDDS0",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "🚚 تم إرسال المسارات\n- عدد السواقين: 1\n- عدد التوصيلات: 2"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 03:30",
+  "to": "966545816832",
+  "type": "interactive",
+  "template": null,
+  "text": "تمام 👍 تم إرسال المسارات لـ 1 سواق (2 توصيلة).\n📸 أرسل صورة فاتورة الشراء الضريبية",
+  "wamid": "wamid.SIM.01UwW-If2wglg3kU2Yp11OvxjV0yop9m",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "interactive",
+   "interactive": {
+    "type": "button",
+    "body": {
+     "text": "تمام 👍 تم إرسال المسارات لـ 1 سواق (2 توصيلة).\n📸 أرسل صورة فاتورة الشراء الضريبية"
+    },
+    "action": {
+     "buttons": [
+      {
+       "type": "reply",
+       "reply": {
+        "id": "sp_pay_start",
+        "title": "💵 دفعت لمورد"
+       }
+      }
+     ]
+    }
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 04:05",
+  "to": "966505154962",
+  "type": "interactive",
+  "template": null,
+  "text": "⚠️ استثناء في أسعار اليوم (1 أكتوبر 2026)\nرمان كبير (كرتون)\nالشراء: 23 · السوق: 24 · ربح الوحدة: -0.13\nالسبب: ربح الوحدة ≤ 0 (-0.13)\nقرارك قبل 06:00، وإلا لا يُنشر اليوم.",
+  "wamid": "wamid.SIM.-dSDgsRn2gu1bcChRQEtP_TBMBeJaWh6",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "interactive",
+   "interactive": {
+    "type": "button",
+    "body": {
+     "text": "⚠️ استثناء في أسعار اليوم (1 أكتوبر 2026)\nرمان كبير (كرتون)\nالشراء: 23 · السوق: 24 · ربح الوحدة: -0.13\nالسبب: ربح الوحدة ≤ 0 (-0.13)\nقرارك قبل 06:00، وإلا لا يُنشر اليوم."
+    },
+    "action": {
+     "buttons": [
+      {
+       "type": "reply",
+       "reply": {
+        "id": "pexc_m_53",
+        "title": "اعتمد بسعر السوق"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "pexc_s_53",
+        "title": "لا تنشر"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "pexc_e_53",
+        "title": "عدّل"
+       }
+      }
+     ]
+    }
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 04:05",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "✏️ أرسل سعر البيع لـ رمان كبير رقماً واحداً خلال 30 دقيقة.",
+  "wamid": "wamid.SIM.PDiJXom_FVAYRFpPhp6JHm_WCVxxro5a",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "✏️ أرسل سعر البيع لـ رمان كبير رقماً واحداً خلال 30 دقيقة."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 04:05",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "✅ رمان كبير: يُنشر بـ 25 ر.س.",
+  "wamid": "wamid.SIM.6aNcqJZKSsZJh8KL008PvXFgFAUriP_u",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "✅ رمان كبير: يُنشر بـ 25 ر.س."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 05:30",
+  "to": "966500004101",
+  "type": "template",
+  "template": "utak_invoice_pdf_v1",
+  "text": "مطعم الواحة (محاكاة) | UTAK-INV-20261001-001 | 1 أكتوبر 2026 | 207",
+  "wamid": "wamid.SIM.oPzm8HyDaXrpCR88SasxmLl3aID5eDWD",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004101",
+   "type": "template",
+   "template": {
+    "name": "utak_invoice_pdf_v1",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "header",
+      "parameters": [
+       {
+        "type": "document",
+        "document": {
+         "link": "https://utak-worker-sim.utak-business.workers.dev/invoice-pdf/UTAK-INV-20261001-001/0112eac55397fba1.pdf",
+         "filename": "UTAK-INV-20261001-001.pdf"
+        }
+       }
+      ]
+     },
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "مطعم الواحة (محاكاة)"
+       },
+       {
+        "type": "text",
+        "text": "UTAK-INV-20261001-001"
+       },
+       {
+        "type": "text",
+        "text": "1 أكتوبر 2026"
+       },
+       {
+        "type": "text",
+        "text": "207"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 05:30",
+  "to": "966545816832",
+  "type": "template",
+  "template": "utak_collection_request",
+  "text": "مطعم الواحة (محاكاة) | العليا | UTAK-INV-20261001-001 | 207",
+  "wamid": "wamid.SIM.jWMUEdC5gaf7woDxLEPNa8jIRljZMOiM",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "template",
+   "template": {
+    "name": "utak_collection_request",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "مطعم الواحة (محاكاة)"
+       },
+       {
+        "type": "text",
+        "text": "العليا"
+       },
+       {
+        "type": "text",
+        "text": "UTAK-INV-20261001-001"
+       },
+       {
+        "type": "text",
+        "text": "207"
+       }
+      ]
+     },
+     {
+      "type": "button",
+      "sub_type": "quick_reply",
+      "index": "0",
+      "parameters": [
+       {
+        "type": "payload",
+        "payload": "collect_cash_27"
+       }
+      ]
+     },
+     {
+      "type": "button",
+      "sub_type": "quick_reply",
+      "index": "1",
+      "parameters": [
+       {
+        "type": "payload",
+        "payload": "collect_transfer_27"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 05:30",
+  "to": "966500004101",
+  "type": "template",
+  "template": "utak_delivered",
+  "text": "43",
+  "wamid": "wamid.SIM.Ln_G-wbU846DzZ_xKrtEm_-XitfIzl4-",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004101",
+   "type": "template",
+   "template": {
+    "name": "utak_delivered",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "43"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 05:30",
+  "to": "966500004102",
+  "type": "text",
+  "template": null,
+  "text": "🚚 طلبك رقم #44 في الطريق إليك الآن مع السائق عمر المجهلي. يو تاك",
+  "wamid": "wamid.SIM.z7gbK5JFoAQ72lqTAYkdiTTo927SWC9q",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004102",
+   "type": "text",
+   "text": {
+    "body": "🚚 طلبك رقم #44 في الطريق إليك الآن مع السائق عمر المجهلي. يو تاك"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 05:30",
+  "to": "966545816832",
+  "type": "text",
+  "template": null,
+  "text": "تم التسليم ✅ — التوصيلة الجاية بانتظارك.",
+  "wamid": "wamid.SIM.0ld9OU65_fEZwjBpRk8TaOjqWA6jp-_0",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "text",
+   "text": {
+    "body": "تم التسليم ✅ — التوصيلة الجاية بانتظارك."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 05:50",
+  "to": "966500004102",
+  "type": "template",
+  "template": "utak_invoice_pdf_v1",
+  "text": "بقالة الريان (محاكاة) | UTAK-INV-20261001-002 | 1 أكتوبر 2026 | 207",
+  "wamid": "wamid.SIM.oKf5bcQea755UVh_Rf-iKgQCDGoT-DdS",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004102",
+   "type": "template",
+   "template": {
+    "name": "utak_invoice_pdf_v1",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "header",
+      "parameters": [
+       {
+        "type": "document",
+        "document": {
+         "link": "https://utak-worker-sim.utak-business.workers.dev/invoice-pdf/UTAK-INV-20261001-002/caa6bb0185b45f6d.pdf",
+         "filename": "UTAK-INV-20261001-002.pdf"
+        }
+       }
+      ]
+     },
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "بقالة الريان (محاكاة)"
+       },
+       {
+        "type": "text",
+        "text": "UTAK-INV-20261001-002"
+       },
+       {
+        "type": "text",
+        "text": "1 أكتوبر 2026"
+       },
+       {
+        "type": "text",
+        "text": "207"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 05:50",
+  "to": "966545816832",
+  "type": "template",
+  "template": "utak_collection_request",
+  "text": "بقالة الريان (محاكاة) | الملز | UTAK-INV-20261001-002 | 207",
+  "wamid": "wamid.SIM.sR21xv4i4PhRkAMpCDrfUbw_dXFI85Lt",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "template",
+   "template": {
+    "name": "utak_collection_request",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "بقالة الريان (محاكاة)"
+       },
+       {
+        "type": "text",
+        "text": "الملز"
+       },
+       {
+        "type": "text",
+        "text": "UTAK-INV-20261001-002"
+       },
+       {
+        "type": "text",
+        "text": "207"
+       }
+      ]
+     },
+     {
+      "type": "button",
+      "sub_type": "quick_reply",
+      "index": "0",
+      "parameters": [
+       {
+        "type": "payload",
+        "payload": "collect_cash_28"
+       }
+      ]
+     },
+     {
+      "type": "button",
+      "sub_type": "quick_reply",
+      "index": "1",
+      "parameters": [
+       {
+        "type": "payload",
+        "payload": "collect_transfer_28"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 05:50",
+  "to": "966500004102",
+  "type": "template",
+  "template": "utak_delivered",
+  "text": "44",
+  "wamid": "wamid.SIM.QxejS8MmfwSkC-XRcYjYbdgg_4-vCVTJ",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004102",
+   "type": "template",
+   "template": {
+    "name": "utak_delivered",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "44"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 05:50",
+  "to": "966545816832",
+  "type": "text",
+  "template": null,
+  "text": "تم التسليم ✅ — خلصت مسارك اليوم. شكراً 🙏",
+  "wamid": "wamid.SIM.IV61JE-6HXPdLh6wXtjXHgJCgY4Mjd6y",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "text",
+   "text": {
+    "body": "تم التسليم ✅ — خلصت مسارك اليوم. شكراً 🙏"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 06:00",
+  "to": "966500004101",
+  "type": "text",
+  "template": null,
+  "text": "🌿 أسعار يو تاك اليوم — الخميس 1 أكتوبر 2026\n\n• رمان وسط (كرتون): 20 ر.س\n• افوكادو (كرتون · 4 كيلو): 62.50 ر.س\n• رمان صغير (كرتون): 13 ر.س\n• رمان كبير (كرتون): 25 ر.س\n\nالأسعار لطلبات اليوم. اطلب من هنا قبل الساعة 9:00 مساءً 🌿",
+  "wamid": "wamid.SIM.WW6VTgdlro3MWt0Vqw-l63ftn_ayIAoe",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004101",
+   "type": "text",
+   "text": {
+    "body": "🌿 أسعار يو تاك اليوم — الخميس 1 أكتوبر 2026\n\n• رمان وسط (كرتون): 20 ر.س\n• افوكادو (كرتون · 4 كيلو): 62.50 ر.س\n• رمان صغير (كرتون): 13 ر.س\n• رمان كبير (كرتون): 25 ر.س\n\nالأسعار لطلبات اليوم. اطلب من هنا قبل الساعة 9:00 مساءً 🌿"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 06:00",
+  "to": "966500004102",
+  "type": "text",
+  "template": null,
+  "text": "🌿 أسعار يو تاك اليوم — الخميس 1 أكتوبر 2026\n\n• رمان وسط (كرتون): 20 ر.س\n• افوكادو (كرتون · 4 كيلو): 62.50 ر.س\n• رمان صغير (كرتون): 13 ر.س\n• رمان كبير (كرتون): 25 ر.س\n\nالأسعار لطلبات اليوم. اطلب من هنا قبل الساعة 9:00 مساءً 🌿",
+  "wamid": "wamid.SIM.GZwCdIhaKi_UXYovC5OmDslJ8BpNBLxe",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004102",
+   "type": "text",
+   "text": {
+    "body": "🌿 أسعار يو تاك اليوم — الخميس 1 أكتوبر 2026\n\n• رمان وسط (كرتون): 20 ر.س\n• افوكادو (كرتون · 4 كيلو): 62.50 ر.س\n• رمان صغير (كرتون): 13 ر.س\n• رمان كبير (كرتون): 25 ر.س\n\nالأسعار لطلبات اليوم. اطلب من هنا قبل الساعة 9:00 مساءً 🌿"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 06:00",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "📢 نُشرت أسعار الخميس 1 أكتوبر 2026. الأصناف: 4، والعملاء: 7.\nنصاً 2 · محفوظة حتى رسالتهم 1 · محجوبة 4.\nوهذه نسخة ما وصلهم:\n\n🌿 أسعار يو تاك اليوم — الخميس 1 أكتوبر 2026\n\n• رمان وسط (كرتون): 20 ر.س\n• افوكادو (كرتون · 4 كيلو): 62.50 ر.س\n• رمان صغير (كرتون): 13 ر.س\n• رمان كبير (كرتون): 25 ر.س\n\nالأسعار لطلبات اليوم. اطلب من هنا قبل الساعة 9:00 مساءً 🌿",
+  "wamid": "wamid.SIM.xNqNJpAQoL7O9cz6TlhrbL0iLCN7NTmn",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "📢 نُشرت أسعار الخميس 1 أكتوبر 2026. الأصناف: 4، والعملاء: 7.\nنصاً 2 · محفوظة حتى رسالتهم 1 · محجوبة 4.\nوهذه نسخة ما وصلهم:\n\n🌿 أسعار يو تاك اليوم — الخميس 1 أكتوبر 2026\n\n• رمان وسط (كرتون): 20 ر.س\n• افوكادو (كرتون · 4 كيلو): 62.50 ر.س\n• رمان صغير (كرتون): 13 ر.س\n• رمان كبير (كرتون): 25 ر.س\n\nالأسعار لطلبات اليوم. اطلب من هنا قبل الساعة 9:00 مساءً 🌿"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 06:00",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "☀️ صباح الخير — كل الموردين (1) ردوا. الاستقبال مفتوح 🌿",
+  "wamid": "wamid.SIM.Pl_F5N6w_ZGOsbO4zzjl1lljheiekYEz",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "☀️ صباح الخير — كل الموردين (1) ردوا. الاستقبال مفتوح 🌿"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 06:00",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "✅ تم. تنبيهات يو تاك توصلك هنا نصاً حتى 06:00 بكرة.",
+  "wamid": "wamid.SIM.zeylBe8pYO6fjMzIKdTfLAwJwLZRLQnE",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "✅ تم. تنبيهات يو تاك توصلك هنا نصاً حتى 06:00 بكرة."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 06:00",
+  "to": "966530399474",
+  "type": "text",
+  "template": null,
+  "text": "دوامك اليوم يبدأ 06:00، ووقتها يوصلك زر «بدء الدوام» ومعه مهامك.",
+  "wamid": "wamid.SIM.xoIDOe55SfNJUUq7lWZS9taUUkwqKspT",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966530399474",
+   "type": "text",
+   "text": {
+    "body": "دوامك اليوم يبدأ 06:00، ووقتها يوصلك زر «بدء الدوام» ومعه مهامك."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 07:59",
+  "to": "966500004102",
+  "type": "template",
+  "template": "utak_feedback",
+  "text": "بقالة الريان (محاكاة)",
+  "wamid": "wamid.SIM.TtHmd_bzO4DiJhClIT96zY59fBAqryaO",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004102",
+   "type": "template",
+   "template": {
+    "name": "utak_feedback",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "بقالة الريان (محاكاة)"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 07:59",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "⚠️ رسالة «تذكير الدفع» إلى …4102 لم تُرسل: لا قالب مربوط بالغرض customer_pay_remind.",
+  "wamid": "wamid.SIM.M5oUfz6c_jNzl-rK4Cy1dOCR7LQs1vV0",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "⚠️ رسالة «تذكير الدفع» إلى …4102 لم تُرسل: لا قالب مربوط بالغرض customer_pay_remind."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 07:59",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "⚠️ Odoo لم يستجب بعد 4 محاولات — العملية x_daily_order.search_read، السجل domain=[[\"x_state\",\"in\",[\"delivered\",\"closed\"]]] — odoo HTTP_429: <html><body><h1>429 Too Many Requests</h1>\nYou have sent too many requests in a given amount of time.\n</body></html>\n",
+  "wamid": "wamid.SIM.233-6fux0kCzUuSvTu9YFDT_zpzPjFyD",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "⚠️ Odoo لم يستجب بعد 4 محاولات — العملية x_daily_order.search_read، السجل domain=[[\"x_state\",\"in\",[\"delivered\",\"closed\"]]] — odoo HTTP_429: <html><body><h1>429 Too Many Requests</h1>\nYou have sent too many requests in a given amount of time.\n</body></html>\n"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 07:59",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "⚠️ مهمة 08:00 «تذكير الغياب» فشلت ولم يُرسل منها شيء: odoo HTTP_429: <html><body><h1>429 Too Many Requests</h1>\nYou have sent too many requests in a given amount of time.\n</body></html>\n",
+  "wamid": "wamid.SIM.U2YJNLtHrGaA2SgAYqEg3Qf5zwNd0KG0",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "⚠️ مهمة 08:00 «تذكير الغياب» فشلت ولم يُرسل منها شيء: odoo HTTP_429: <html><body><h1>429 Too Many Requests</h1>\nYou have sent too many requests in a given amount of time.\n</body></html>\n"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 08:00",
+  "to": "966500004105",
+  "type": "text",
+  "template": null,
+  "text": "أهلاً مطبخ السنبلة (محاكاة)، حياك الله في UTAK. كيف نقدر نساعدك؟",
+  "wamid": "wamid.SIM.tC33arOwSB19rUd3jkJZ479OWGc9sW1J",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004105",
+   "type": "text",
+   "text": {
+    "body": "أهلاً مطبخ السنبلة (محاكاة)، حياك الله في UTAK. كيف نقدر نساعدك؟"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 08:00",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "رقم جديد ينتظر المراجعة: مطبخ السنبلة (محاكاة)",
+  "wamid": "wamid.SIM.nlS7_aXK5e2b4vggVVjsXYparvF1PSuk",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "رقم جديد ينتظر المراجعة: مطبخ السنبلة (محاكاة)"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 08:00",
+  "to": "966500004105",
+  "type": "text",
+  "template": null,
+  "text": "بديت لك طلب جديد ✅\n• افوكادو كرتون · 4 كيلو × 3\nتبغى تضيف شي ثاني، ولا نجهز الكوتيشن؟ (اكتب \"خلاص\" لما تخلّص)",
+  "wamid": "wamid.SIM.1LLWFznDdwaIsHfZhywuGt5FGvLd99rB",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004105",
+   "type": "text",
+   "text": {
+    "body": "بديت لك طلب جديد ✅\n• افوكادو كرتون · 4 كيلو × 3\nتبغى تضيف شي ثاني، ولا نجهز الكوتيشن؟ (اكتب \"خلاص\" لما تخلّص)"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 08:00",
+  "to": "966500004105",
+  "type": "text",
+  "template": null,
+  "text": "📍 قبل ما نجهّز الكوتيشن — أرسل موقع التوصيل\nاضغط 📎 → موقع → إرسال موقعي الحالي\n(أو موقع محدد لو التوصيل لمكان ثاني)",
+  "wamid": "wamid.SIM.CJ0vGZD7_EVdKwLbtV32iVWaHAQ6Li23",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004105",
+   "type": "text",
+   "text": {
+    "body": "📍 قبل ما نجهّز الكوتيشن — أرسل موقع التوصيل\nاضغط 📎 → موقع → إرسال موقعي الحالي\n(أو موقع محدد لو التوصيل لمكان ثاني)"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 08:00",
+  "to": "966500004105",
+  "type": "interactive",
+  "template": null,
+  "text": "📄 الكوتيشن رقم UTAK-Q-20261001-001\n• افوكادو كرتون · 4 كيلو × 3\n\n📍 التوصيل إلى: النرجس (https://maps.google.com/?q=24.71,46.67)\nالأسعار شاملة ضريبة القيمة المضافة.\nالأسعار النهائية عند التسليم. اختر:",
+  "wamid": "wamid.SIM.xDvpTX_TRw3G9mVsIRuiSGvshQhFsUki",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004105",
+   "type": "interactive",
+   "interactive": {
+    "type": "button",
+    "body": {
+     "text": "📄 الكوتيشن رقم UTAK-Q-20261001-001\n• افوكادو كرتون · 4 كيلو × 3\n\n📍 التوصيل إلى: النرجس (https://maps.google.com/?q=24.71,46.67)\nالأسعار شاملة ضريبة القيمة المضافة.\nالأسعار النهائية عند التسليم. اختر:"
+    },
+    "action": {
+     "buttons": [
+      {
+       "type": "reply",
+       "reply": {
+        "id": "confirm_order_45",
+        "title": "تأكيد الطلب ✅"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "edit_order_45",
+        "title": "تعديل ✏️"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "cancel_order_45",
+        "title": "إلغاء ❌"
+       }
+      }
+     ]
+    }
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 08:00",
+  "to": "966500004105",
+  "type": "text",
+  "template": null,
+  "text": "تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿",
+  "wamid": "wamid.SIM.7e74pEZtzb7EHK7GSN-iu0kFeeTGapv3",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004105",
+   "type": "text",
+   "text": {
+    "body": "تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 10:00",
+  "to": "966500004102",
+  "type": "text",
+  "template": null,
+  "text": "بديت لك طلب جديد ✅\n• رمان صغير كرتون × 5\nتبغى تضيف شي ثاني، ولا نجهز الكوتيشن؟ (اكتب \"خلاص\" لما تخلّص)",
+  "wamid": "wamid.SIM.g7ZA-sOCeD8bAaLRJRycbziojHs3R2n_",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004102",
+   "type": "text",
+   "text": {
+    "body": "بديت لك طلب جديد ✅\n• رمان صغير كرتون × 5\nتبغى تضيف شي ثاني، ولا نجهز الكوتيشن؟ (اكتب \"خلاص\" لما تخلّص)"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 10:00",
+  "to": "966500004102",
+  "type": "text",
+  "template": null,
+  "text": "أقل طلب 150 ريال، أضف أصنافاً ليكتمل\nمجموع طلبك الآن: 65 ريال.",
+  "wamid": "wamid.SIM.7yV-dK9GtDCANyR-p80qEPteVeEzE2Vs",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004102",
+   "type": "text",
+   "text": {
+    "body": "أقل طلب 150 ريال، أضف أصنافاً ليكتمل\nمجموع طلبك الآن: 65 ريال."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 10:00",
+  "to": "966500004102",
+  "type": "text",
+  "template": null,
+  "text": "أضفنا لطلبك ✅\n• رمان وسط كرتون × 5\nتبغى تضيف شي ثاني، ولا نجهز الكوتيشن؟ (اكتب \"خلاص\" لما تخلّص)",
+  "wamid": "wamid.SIM.gqZ2fQTWtDbDNbHk9_fMFEJ8bQFvV4Xz",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004102",
+   "type": "text",
+   "text": {
+    "body": "أضفنا لطلبك ✅\n• رمان وسط كرتون × 5\nتبغى تضيف شي ثاني، ولا نجهز الكوتيشن؟ (اكتب \"خلاص\" لما تخلّص)"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 10:00",
+  "to": "966500004102",
+  "type": "interactive",
+  "template": null,
+  "text": "📄 الكوتيشن رقم UTAK-Q-20261001-001\n• رمان صغير كرتون × 5\n• رمان وسط كرتون × 5\n\n📍 التوصيل إلى: الملز (https://maps.google.com/?q=24.71,46.67)\nالأسعار شاملة ضريبة القيمة المضافة.\nالأسعار النهائية عند التسليم. اختر:",
+  "wamid": "wamid.SIM.KwadF3BsMn9RdvuNz58wg6CEjjJGJykD",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004102",
+   "type": "interactive",
+   "interactive": {
+    "type": "button",
+    "body": {
+     "text": "📄 الكوتيشن رقم UTAK-Q-20261001-001\n• رمان صغير كرتون × 5\n• رمان وسط كرتون × 5\n\n📍 التوصيل إلى: الملز (https://maps.google.com/?q=24.71,46.67)\nالأسعار شاملة ضريبة القيمة المضافة.\nالأسعار النهائية عند التسليم. اختر:"
+    },
+    "action": {
+     "buttons": [
+      {
+       "type": "reply",
+       "reply": {
+        "id": "confirm_order_46",
+        "title": "تأكيد الطلب ✅"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "edit_order_46",
+        "title": "تعديل ✏️"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "cancel_order_46",
+        "title": "إلغاء ❌"
+       }
+      }
+     ]
+    }
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 10:00",
+  "to": "966500004102",
+  "type": "text",
+  "template": null,
+  "text": "تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿",
+  "wamid": "wamid.SIM.4wDEVE2FWWl_MBg557qoanp_PR3AGQsl",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004102",
+   "type": "text",
+   "text": {
+    "body": "تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 12:00",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "⚠️ قائمة الشراء #9 (30 سبتمبر 2026) مؤكدة بلا فاتورة شراء ضريبية مرفقة حتى 12:00. اطلبها من المستودع أو أرفقها في UTAK ← 🛒 المشتريات ← قوائم الشراء.",
+  "wamid": "wamid.SIM.Olws0GhN5jolKPWUlWpYlJEVwMpIEk3i",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "⚠️ قائمة الشراء #9 (30 سبتمبر 2026) مؤكدة بلا فاتورة شراء ضريبية مرفقة حتى 12:00. اطلبها من المستودع أو أرفقها في UTAK ← 🛒 المشتريات ← قوائم الشراء."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 13:00",
+  "to": "966545816832",
+  "type": "interactive",
+  "template": null,
+  "text": "تم تسجيل التحصيل نقد 💵 — الفاتورة UTAK-INV-20261001-001 ✅",
+  "wamid": "wamid.SIM.qP_O6QE4XpS3QneqiH6zKUfFD-KUO11-",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966545816832",
+   "type": "interactive",
+   "interactive": {
+    "type": "button",
+    "body": {
+     "text": "تم تسجيل التحصيل نقد 💵 — الفاتورة UTAK-INV-20261001-001 ✅"
+    },
+    "action": {
+     "buttons": [
+      {
+       "type": "reply",
+       "reply": {
+        "id": "collect_note_27",
+        "title": "ملاحظة 📝"
+       }
+      }
+     ]
+    }
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 13:00",
+  "to": "966500004101",
+  "type": "template",
+  "template": "utak_payment_received",
+  "text": "207 | UTAK-INV-20261001-001",
+  "wamid": "wamid.SIM.uMYiey4d8lla9nFVKl0-Lo_r6y7TjYHx",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004101",
+   "type": "template",
+   "template": {
+    "name": "utak_payment_received",
+    "language": {
+     "code": "ar"
+    },
+    "components": [
+     {
+      "type": "body",
+      "parameters": [
+       {
+        "type": "text",
+        "text": "207"
+       },
+       {
+        "type": "text",
+        "text": "UTAK-INV-20261001-001"
+       }
+      ]
+     }
+    ]
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 13:20",
+  "to": "966500004102",
+  "type": "text",
+  "template": null,
+  "text": "✅ استلمنا دفعتك بمبلغ 100 ريال على فاتورة UTAK-INV-20261001-002. شكراً لك\nالمتبقي على الفاتورة: 107 ريال\nرقم الإيصال: UTAK-R-20261001-018\nطريقة الدفع: تحويل بنكي\nالإيصال: https://utak-worker-sim.utak-business.workers.dev/receipt-pdf/UTAK-R-20261001-018/8a4dde7bfe6e038c.pdf\nيو تاك 🌿",
+  "wamid": "wamid.SIM.J98y_xilyOOn-MTpkfvgpgy8Os38HqdF",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004102",
+   "type": "text",
+   "text": {
+    "body": "✅ استلمنا دفعتك بمبلغ 100 ريال على فاتورة UTAK-INV-20261001-002. شكراً لك\nالمتبقي على الفاتورة: 107 ريال\nرقم الإيصال: UTAK-R-20261001-018\nطريقة الدفع: تحويل بنكي\nالإيصال: https://utak-worker-sim.utak-business.workers.dev/receipt-pdf/UTAK-R-20261001-018/8a4dde7bfe6e038c.pdf\nيو تاك 🌿"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 17:00",
+  "to": "966500004103",
+  "type": "text",
+  "template": null,
+  "text": "🌿 أسعار يو تاك اليوم — الخميس 1 أكتوبر 2026\n\n• رمان وسط (كرتون): 20 ر.س\n• افوكادو (كرتون · 4 كيلو): 62.50 ر.س\n• رمان صغير (كرتون): 13 ر.س\n• رمان كبير (كرتون): 25 ر.س\n\nالأسعار لطلبات اليوم. اطلب من هنا قبل الساعة 9:00 مساءً 🌿",
+  "wamid": "wamid.SIM.ROftqg7-Ad0ocSmbd4ozWjqD8f1wGcRv",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004103",
+   "type": "text",
+   "text": {
+    "body": "🌿 أسعار يو تاك اليوم — الخميس 1 أكتوبر 2026\n\n• رمان وسط (كرتون): 20 ر.س\n• افوكادو (كرتون · 4 كيلو): 62.50 ر.س\n• رمان صغير (كرتون): 13 ر.س\n• رمان كبير (كرتون): 25 ر.س\n\nالأسعار لطلبات اليوم. اطلب من هنا قبل الساعة 9:00 مساءً 🌿"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 17:00",
+  "to": "966500004103",
+  "type": "text",
+  "template": null,
+  "text": "بديت لك طلب جديد ✅\n• رمان كبير كرتون × 7\nتبغى تضيف شي ثاني، ولا نجهز الكوتيشن؟ (اكتب \"خلاص\" لما تخلّص)",
+  "wamid": "wamid.SIM.0Mfx4oWGAm3oWRl2UwId98FNnGw-l7bd",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004103",
+   "type": "text",
+   "text": {
+    "body": "بديت لك طلب جديد ✅\n• رمان كبير كرتون × 7\nتبغى تضيف شي ثاني، ولا نجهز الكوتيشن؟ (اكتب \"خلاص\" لما تخلّص)"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 17:00",
+  "to": "966500004103",
+  "type": "interactive",
+  "template": null,
+  "text": "📄 الكوتيشن رقم UTAK-Q-20261001-001\n• رمان كبير كرتون × 7\n\n📍 التوصيل إلى: النرجس (https://maps.google.com/?q=24.71,46.67)\nالأسعار شاملة ضريبة القيمة المضافة.\nالأسعار النهائية عند التسليم. اختر:",
+  "wamid": "wamid.SIM.Jgfi2gVEjz1efE1QkmaaVaJOQZ9N66Uq",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004103",
+   "type": "interactive",
+   "interactive": {
+    "type": "button",
+    "body": {
+     "text": "📄 الكوتيشن رقم UTAK-Q-20261001-001\n• رمان كبير كرتون × 7\n\n📍 التوصيل إلى: النرجس (https://maps.google.com/?q=24.71,46.67)\nالأسعار شاملة ضريبة القيمة المضافة.\nالأسعار النهائية عند التسليم. اختر:"
+    },
+    "action": {
+     "buttons": [
+      {
+       "type": "reply",
+       "reply": {
+        "id": "confirm_order_47",
+        "title": "تأكيد الطلب ✅"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "edit_order_47",
+        "title": "تعديل ✏️"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "cancel_order_47",
+        "title": "إلغاء ❌"
+       }
+      }
+     ]
+    }
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 20:00",
+  "to": "966500004103",
+  "type": "interactive",
+  "template": null,
+  "text": "⏰ طلبك رقم #47 لسه ما تأكد، ويُلغى تلقائياً الساعة 9:00 مساءً لو ما تأكد. اضغط «تأكيد الطلب» عشان يدخل طلبات اليوم 👇",
+  "wamid": "wamid.SIM.3tE3u0GtJJzD4RzyK0HYDSWLtqrNsldY",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004103",
+   "type": "interactive",
+   "interactive": {
+    "type": "button",
+    "body": {
+     "text": "⏰ طلبك رقم #47 لسه ما تأكد، ويُلغى تلقائياً الساعة 9:00 مساءً لو ما تأكد. اضغط «تأكيد الطلب» عشان يدخل طلبات اليوم 👇"
+    },
+    "action": {
+     "buttons": [
+      {
+       "type": "reply",
+       "reply": {
+        "id": "confirm_order_47",
+        "title": "تأكيد الطلب ✅"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "cancel_order_47",
+        "title": "إلغاء ❌"
+       }
+      }
+     ]
+    }
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 21:00",
+  "to": "966500004103",
+  "type": "text",
+  "template": null,
+  "text": "طلبك رقم #47 أُلغي لأنه ما تأكد قبل الساعة 9:00 مساءً 🙏 لو تبغاه على طلبات بكرة، أرسل الأصناف هنا ونسجّلها لك.",
+  "wamid": "wamid.SIM.9jVmStP9BG3UK4VCn9CjK0I6aFh29IKK",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004103",
+   "type": "text",
+   "text": {
+    "body": "طلبك رقم #47 أُلغي لأنه ما تأكد قبل الساعة 9:00 مساءً 🙏 لو تبغاه على طلبات بكرة، أرسل الأصناف هنا ونسجّلها لك."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 21:00",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "📊 إقفال الطلبات\nتم إلغاء 1 طلب لم يُؤكَّد اليوم (#47). أُبلغ 1 عميل.",
+  "wamid": "wamid.SIM.OtQrJwbyjA8exx0iIlw21fiimtfb_EB7",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "📊 إقفال الطلبات\nتم إلغاء 1 طلب لم يُؤكَّد اليوم (#47). أُبلغ 1 عميل."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 21:10",
+  "to": "966500004105",
+  "type": "interactive",
+  "template": null,
+  "text": "استقبال طلبات اليوم انقفل الساعة 9:00 مساءً، وطلبك ما تسجّل.\n\n• افوكادو كرتون · 4 كيلو × 2\n\nتبغانا نسجّله على طلبات بكرة (2 أكتوبر 2026)؟ يوصلك صباح 3 أكتوبر 2026 إن شاء الله.",
+  "wamid": "wamid.SIM.aH5ODUXF5c-0G5oZquBn1u-H9QVIHSYr",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004105",
+   "type": "interactive",
+   "interactive": {
+    "type": "button",
+    "body": {
+     "text": "استقبال طلبات اليوم انقفل الساعة 9:00 مساءً، وطلبك ما تسجّل.\n\n• افوكادو كرتون · 4 كيلو × 2\n\nتبغانا نسجّله على طلبات بكرة (2 أكتوبر 2026)؟ يوصلك صباح 3 أكتوبر 2026 إن شاء الله."
+    },
+    "action": {
+     "buttons": [
+      {
+       "type": "reply",
+       "reply": {
+        "id": "late_yes_99",
+        "title": "سجّله لبكرة"
+       }
+      },
+      {
+       "type": "reply",
+       "reply": {
+        "id": "late_no_99",
+        "title": "لا شكراً"
+       }
+      }
+     ]
+    }
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 21:10",
+  "to": "966500004105",
+  "type": "text",
+  "template": null,
+  "text": "تم ✅ سجّلنا طلبك رقم #48 على طلبات يوم 2 أكتوبر 2026:\n• افوكادو كرتون · 4 كيلو × 2\n\nيوصلك صباح 3 أكتوبر 2026 إن شاء الله 🌿",
+  "wamid": "wamid.SIM.XqJDCNGDfEZsTURmtmFoWshzwCaZ4toB",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966500004105",
+   "type": "text",
+   "text": {
+    "body": "تم ✅ سجّلنا طلبك رقم #48 على طلبات يوم 2 أكتوبر 2026:\n• افوكادو كرتون · 4 كيلو × 2\n\nيوصلك صباح 3 أكتوبر 2026 إن شاء الله 🌿"
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 21:15",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "⏳ مهمة لـعمر المجهلي بعد دوامه: قائمة الشراء #10 (3 صنف). تصله مع بداية دوامه القادم (السبت 02:00).",
+  "wamid": "wamid.SIM.Lyd5gP2vZR-AdfZpALn9FQGtS8j_S7lW",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "⏳ مهمة لـعمر المجهلي بعد دوامه: قائمة الشراء #10 (3 صنف). تصله مع بداية دوامه القادم (السبت 02:00)."
+   },
+   "__delivered": false
+  }
+ },
+ {
+  "at": "2026-10-01 21:30",
+  "to": "966505154962",
+  "type": "text",
+  "template": null,
+  "text": "📊 ملخص اليوم 1 أكتوبر 2026\nطلبات الغد: 2 مؤكدة لـ 2 أكتوبر 2026 بإجمالي 352.50 ريال\nتوصيلات اليوم: 2 مسلَّمة من 2\nتحصيل اليوم: المحصَّل اليوم 307.00 والمعلَّق 173.00 ريال\nتغطية تكاليف اليوم: 17% (ربح 86.09 من 500.00)",
+  "wamid": "wamid.SIM.fdxDqwos8-owQstZYOamcO8W05jMb7bb",
+  "raw": {
+   "messaging_product": "whatsapp",
+   "to": "966505154962",
+   "type": "text",
+   "text": {
+    "body": "📊 ملخص اليوم 1 أكتوبر 2026\nطلبات الغد: 2 مؤكدة لـ 2 أكتوبر 2026 بإجمالي 352.50 ريال\nتوصيلات اليوم: 2 مسلَّمة من 2\nتحصيل اليوم: المحصَّل اليوم 307.00 والمعلَّق 173.00 ريال\nتغطية تكاليف اليوم: 17% (ربح 86.09 من 500.00)"
+   },
+   "__delivered": false
+  }
+ }
+]

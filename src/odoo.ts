@@ -11,6 +11,7 @@ import type {
   ExtractedOrderItem,
   OrderState,
 } from "./types";
+import { pickTemplate, TEMPLATE_CANDIDATE_FIELDS, type TemplateCandidate } from "./template-pick";
 
 type AuthMode = "apikey" | "session";
 
@@ -55,7 +56,205 @@ async function authenticateSession(env: Env): Promise<void> {
   authMode = "session";
 }
 
+// ============================================================
+// Retry policy (2026-09-23 — found live: Odoo.com answered HTTP 429 in the
+// middle of an invoice flow and `call` gave up on the first try).
+//
+// Retryable failures: 429, any 5xx, and a network error from fetch.
+// Never retried: every other 4xx (400/403/404, and 422 = UserError /
+// ValidationError, which is how Odoo refuses a posting), and any response
+// whose body names an odoo.exceptions.* error, whatever its status.
+//
+// No duplicate creates — a retry may only re-send a request when that
+// cannot write a record twice:
+//   • 429 is answered by the odoo.com rate limiter in front of Odoo, so the
+//     request never ran → safe to re-send for every method.
+//   • read-only methods (READ_METHODS) → safe on any retryable failure.
+//   • `write` → idempotent (the same vals written twice give the same row).
+//   • `create` on a TransientModel wizard → a stray wizard row is not a
+//     record (Odoo vacuums them) → safe.
+//   • `create` with `opts.probe` (a domain that finds the record this create
+//     would make): after an ambiguous failure (5xx / network — the request
+//     may have run and committed) we wait, search the probe, and if the
+//     record exists we return its id instead of creating again. Only if the
+//     probe finds nothing is the create re-sent.
+//   • any other mutating call (create without probe, action_post,
+//     button_confirm, unlink, …) → an ambiguous failure is NOT retried; it
+//     throws as before and the caller's cleanup runs (drafts cancelled).
+//
+// Exhausted retries → one owner alert (T.OWNER_ALERT via sendOwnerAlert)
+// naming the operation and the record, then the error is thrown so the
+// caller's existing failure path runs (cancel draft, alert, don't link).
+// ============================================================
+
+export const ODOO_MAX_RETRIES = 3;
+const RETRY_BASE_MS = 1000;
+const RETRY_CAP_MS = 8000;
+const RETRY_AFTER_CAP_MS = 15000;
+
+const READ_METHODS: ReadonlySet<string> = new Set([
+  "search_read", "read", "search", "search_count", "fields_get", "name_search",
+  "read_group", "web_search_read", "web_read", "search_fetch", "default_get",
+  "has_access", "check_access_rights",
+]);
+const TRANSIENT_WIZARD_MODELS: ReadonlySet<string> = new Set([
+  "account.payment.register", "sale.advance.payment.inv",
+]);
+
+export interface CallOptions {
+  /** create only: domain that finds the record this create would make. */
+  probe?: unknown[];
+}
+
+type RetryHooks = {
+  sleep: (ms: number) => Promise<void>;
+  random: () => number;
+  alert: (env: Env, text: string) => Promise<void>;
+};
+const defaultHooks: RetryHooks = {
+  sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+  random: Math.random,
+  alert: async (env, text) => {
+    const { sendOwnerAlert } = await import("./templates");
+    await sendOwnerAlert(env, text);
+  },
+};
+let hooks: RetryHooks = defaultHooks;
+/** Tests only: replace sleep / jitter / the owner-alert sink. */
+export function setOdooRetryHooksForTests(h: Partial<RetryHooks> | null): void {
+  hooks = h ? { ...defaultHooks, ...h } : defaultHooks;
+  alertedAt.clear();
+}
+
+/** Parse Retry-After (delta-seconds or HTTP-date) into ms, capped. */
+export function parseRetryAfter(v: string | null, now: number = Date.now()): number | null {
+  if (!v) return null;
+  const s = v.trim();
+  if (/^\d+(\.\d+)?$/.test(s)) return Math.min(Math.round(Number(s) * 1000), RETRY_AFTER_CAP_MS);
+  const t = Date.parse(s);
+  if (Number.isNaN(t)) return null;
+  return Math.min(Math.max(0, t - now), RETRY_AFTER_CAP_MS);
+}
+
+/** Exponential backoff with jitter: attempt 0 → 0.5–1 s, 1 → 1–2 s, 2 → 2–4 s. */
+export function backoffMs(attempt: number, random: () => number = Math.random): number {
+  const ceil = Math.min(RETRY_CAP_MS, RETRY_BASE_MS * 2 ** attempt);
+  return Math.round(ceil / 2 + random() * (ceil / 2));
+}
+
+type Failure =
+  | { kind: "http"; status: number; retryAfter: string | null; err: Error }
+  | { kind: "network"; err: Error };
+
+/** Is re-sending this request after this failure safe and useful? */
+export function retryDecision(
+  model: string,
+  method: string,
+  f: { kind: "http"; status: number; odooException?: boolean } | { kind: "network" },
+  hasProbe: boolean,
+): "retry" | "probe-then-retry" | "no" {
+  if (f.kind === "http") {
+    if (f.odooException) return "no";
+    if (f.status !== 429 && f.status < 500) return "no";
+    if (f.status === 429) return "retry"; // rejected by the rate limiter before Odoo ran it
+  }
+  // ambiguous: 5xx or network — the request may have run
+  if (READ_METHODS.has(method) || method === "write") return "retry";
+  if (method === "create" && TRANSIENT_WIZARD_MODELS.has(model)) return "retry";
+  if (method === "create" && hasProbe) return "probe-then-retry";
+  return "no";
+}
+
+function describeTarget(body: Record<string, unknown>, opts: CallOptions): string {
+  const ids = (body as { ids?: unknown }).ids;
+  if (Array.isArray(ids) && ids.length) return `ids=${ids.slice(0, 10).join(",")}`;
+  if (opts.probe) return `probe=${JSON.stringify(opts.probe).slice(0, 200)}`;
+  const vl = (body as { vals_list?: Array<Record<string, unknown>> }).vals_list;
+  const v = Array.isArray(vl) ? vl[0] : (body as { values?: Record<string, unknown> }).values;
+  if (v && typeof v === "object") {
+    const keys = ["name", "ref", "origin", "partner_id", "x_name"].filter((k) => k in v);
+    if (keys.length) return keys.map((k) => `${k}=${JSON.stringify(v[k])}`).join(" ").slice(0, 200);
+  }
+  const d = (body as { domain?: unknown }).domain;
+  if (d) return `domain=${JSON.stringify(d).slice(0, 200)}`;
+  return "(no record)";
+}
+
+// One alert per model.method per 10 min per isolate, so a rate-limit storm
+// does not flood the owner. alertDepth stops the alert path (which itself
+// can reach Odoo) from alerting about its own failures.
+const ALERT_THROTTLE_MS = 10 * 60 * 1000;
+const alertedAt = new Map<string, number>();
+let alertDepth = 0;
+
+async function alertExhausted(env: Env, model: string, method: string, target: string, err: Error, attempts: number): Promise<void> {
+  if (alertDepth > 0) return;
+  const key = `${model}.${method}`;
+  const now = Date.now();
+  const last = alertedAt.get(key);
+  if (last !== undefined && now - last < ALERT_THROTTLE_MS) return;
+  alertedAt.set(key, now);
+  alertDepth++;
+  try {
+    await hooks.alert(env,
+      `⚠️ Odoo لم يستجب بعد ${attempts} محاولات — العملية ${key}، السجل ${target} — ${err.message.slice(0, 200)}`);
+  } catch (e) {
+    console.error("[odoo] retry-exhausted alert failed", (e as Error)?.message);
+  } finally {
+    alertDepth--;
+  }
+}
+
 export async function call<T = unknown>(
+  env: Env,
+  model: string,
+  method: string,
+  body: Record<string, unknown>,
+  opts: CallOptions = {},
+): Promise<T> {
+  let attempt = 0;
+  for (;;) {
+    let failure: Failure;
+    try {
+      return await callOnce<T>(env, model, method, body);
+    } catch (e) {
+      const err = e as Error & { status?: number; retryAfter?: string | null; odooException?: boolean; network?: boolean };
+      if (err.network) failure = { kind: "network", err };
+      else if (typeof err.status === "number") failure = { kind: "http", status: err.status, retryAfter: err.retryAfter ?? null, err };
+      else throw err;
+      const decision = retryDecision(
+        model, method,
+        failure.kind === "http" ? { kind: "http", status: failure.status, odooException: err.odooException } : { kind: "network" },
+        Array.isArray(opts.probe),
+      );
+      if (decision === "no") throw err;
+      const wait = (failure.kind === "http" ? parseRetryAfter(failure.retryAfter) : null) ?? backoffMs(attempt, hooks.random);
+      if (decision === "probe-then-retry") {
+        // The failed create may have run and committed. Give it time to
+        // land, then adopt the record if it is there — also after the last
+        // attempt, so an exhausted create never leaves an unknown draft.
+        await hooks.sleep(wait);
+        const found = await call<number[]>(env, model, "search", { domain: opts.probe, limit: 2 });
+        if (found.length === 1) {
+          console.warn(`[odoo] ${model}.create ambiguous failure — probe found ${found[0]}, not creating again`);
+          return [found[0]] as T;
+        }
+        if (found.length > 1) {
+          throw Object.assign(new Error(`odoo ${model}.create: probe matched ${found.length} records after an ambiguous failure — not retrying`), { status: failure.kind === "http" ? failure.status : 0 });
+        }
+      }
+      if (attempt >= ODOO_MAX_RETRIES) {
+        await alertExhausted(env, model, method, describeTarget(body, opts), err, attempt + 1);
+        throw err;
+      }
+      console.warn(`[odoo] ${model}.${method} ${failure.kind === "http" ? `HTTP ${failure.status}` : "network error"} — retry ${attempt + 1}/${ODOO_MAX_RETRIES}${decision === "probe-then-retry" ? " (probe empty)" : ` in ${wait}ms`}`);
+      if (decision !== "probe-then-retry") await hooks.sleep(wait);
+      attempt++;
+    }
+  }
+}
+
+async function callOnce<T>(
   env: Env,
   model: string,
   method: string,
@@ -74,7 +273,7 @@ export async function call<T = unknown>(
   // "Test mode" = SIMULATION_MODE OR PILOT_MODE. Both worlds create rows
   // that /sim/purge must be able to clean up afterwards; only the outbound
   // WhatsApp behavior differs (captured vs really-sent), handled in
-  // src/meta.ts::fetchMeta.
+  // src/wa-gateway.ts (sendViaGateway).
   //
   // Odoo JSON-2 create uses either `vals_list: [{...}, ...]` (batch) or
   // `values: {...}` (single). We patch whichever form is present.
@@ -92,7 +291,12 @@ export async function call<T = unknown>(
     }
   }
 
-  const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+  let res: Response;
+  try {
+    res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+  } catch (e) {
+    throw Object.assign(new Error(`odoo network error on ${model}.${method}: ${(e as Error)?.message ?? e}`), { network: true });
+  }
   const text = await res.text();
   let parsed: unknown;
   try {
@@ -104,13 +308,17 @@ export async function call<T = unknown>(
   if (!res.ok) {
     if (res.status === 401 && authMode === "apikey") {
       await authenticateSession(env);
-      return call<T>(env, model, method, body);
+      return callOnce<T>(env, model, method, body);
     }
     // deno-lint-ignore no-explicit-any
     const p = parsed as any;
-    const errName = p?.data?.name ?? `HTTP_${res.status}`;
-    const errMsg = p?.data?.message ?? (typeof text === "string" ? text.slice(0, 200) : "");
-    throw Object.assign(new Error(`odoo ${errName}: ${errMsg}`), { status: res.status });
+    const errName = p?.data?.name ?? p?.name ?? `HTTP_${res.status}`;
+    const errMsg = p?.data?.message ?? p?.message ?? (typeof text === "string" ? text.slice(0, 200) : "");
+    throw Object.assign(new Error(`odoo ${errName}: ${errMsg}`), {
+      status: res.status,
+      retryAfter: res.headers.get("retry-after"),
+      odooException: typeof errName === "string" && errName.startsWith("odoo.exceptions."),
+    });
   }
 
   return parsed as T;
@@ -139,7 +347,8 @@ export async function findCustomerByWhatsApp(env: Env, e164: string): Promise<Od
       ["x_whatsapp_number", "=", e164],
       ["phone", "=", e164],
     ],
-    fields: ["id", "name", "customer_rank", "x_whatsapp_number"],
+    // x_contact_class: «شخصي» takes the quiet route (STATUS § 31)
+    fields: ["id", "name", "customer_rank", "x_whatsapp_number", "x_contact_class"],
     limit: 1,
   });
   return rows[0] ?? null;
@@ -158,7 +367,7 @@ export async function findSupplierByWhatsApp(env: Env, e164: string): Promise<Od
 }
 
 // item4 (2026-09-17) — Per-partner WhatsApp allow-flag lookup with a short
-// KV cache so fetchMeta doesn't re-hit Odoo on every send.
+// KV cache so the send gateway doesn't re-hit Odoo on every send.
 //
 // isRecipientAllowed (config.ts) reads only SIM_ALLOWLIST prefixes; item4
 // broadens the gate with an Odoo-backed toggle Baraa can flip from the
@@ -212,77 +421,111 @@ export async function isPartnerWaAllowed(env: Env, to: string): Promise<boolean>
 }
 
 /**
- * Fetch — or create if missing — the `customer` row in x_employee_role.
- * Only ever creates the "customer" role. Never staff roles (driver,
- * warehouse, collector, admin). Result is cached in ROLE_CODE_CACHE.
+ * The `customer` row of x_employee_role — archived rows included.
  *
- * A stray failure during the role search must NOT prevent partner creation
- * — the fallback path is documented in createCustomer below.
+ * 2026-09-25 (STATUS § 31) — the model's active field is x_active, so the
+ * default active_test hid every «Customer» row (they are all archived): the
+ * old search found nothing and created a new, archived row on every cold
+ * cache (rows 5–11, one per new WhatsApp partner). Now the search sees the
+ * archived rows and a row is created only when the table has no `customer`
+ * code at all — never a duplicate. Nothing links it to partners any more: a
+ * new partner's class is x_contact_class (STATUS § 30).
  */
-async function ensureCustomerRoleId(env: Env): Promise<number | null> {
-  // Cache path
-  if (ROLE_CODE_CACHE) {
-    for (const [id, code] of ROLE_CODE_CACHE) if (code === "customer") return id;
-  }
+export async function ensureCustomerRoleId(env: Env): Promise<number | null> {
   try {
     const found = await call<Array<{ id: number }>>(env, "x_employee_role", "search_read", {
       domain: [["x_code", "=", "customer"]],
       fields: ["id"],
+      order: "id asc",
       limit: 1,
+      context: { active_test: false },
     });
-    if (found[0]) {
-      if (ROLE_CODE_CACHE) ROLE_CODE_CACHE.set(found[0].id, "customer");
-      return found[0].id;
-    }
+    if (found[0]) return found[0].id;
     const ids = await call<number[]>(env, "x_employee_role", "create", {
       vals_list: [{ x_name: "Customer", x_code: "customer" }],
-    });
-    const id = ids[0];
-    if (ROLE_CODE_CACHE) ROLE_CODE_CACHE.set(id, "customer");
-    console.log(`[roles] created customer role id=${id} in x_employee_role`);
-    return id;
+    }, { probe: [["x_code", "=", "customer"], "|", ["x_active", "=", true], ["x_active", "=", false]] });
+    console.log(`[roles] created customer role id=${ids[0]} in x_employee_role (none existed)`);
+    return ids[0];
   } catch (e) {
-    // Common causes: x_name field named differently, or ACL blocks role
-    // creation. Log loudly — partner creation still proceeds without role.
-    console.error(
-      "[roles] ensureCustomerRoleId failed — partner will be created without a role",
-      (e as Error)?.message,
-    );
+    console.error("[roles] ensureCustomerRoleId failed", (e as Error)?.message);
     return null;
   }
 }
 
 export async function createCustomer(env: Env, name: string, e164: string): Promise<number> {
-  // Rule (v8+): every partner auto-created from an incoming WhatsApp message
-  // gets the `customer` role explicitly. Never a staff role, regardless of
-  // what the message text says — spec §8. This eliminates the "pending
-  // no-role" rows we were accumulating.
-  const customerRoleId = await ensureCustomerRoleId(env);
+  // 2026-09-25 (STATUS § 31) — no role on a partner created from WhatsApp:
+  // the «Customer» role link is gone (it duplicated the role row on every cold
+  // cache); the class is x_contact_class «غير مراجَع» (STATUS § 30), and the
+  // team lives in hr.employee.
   const values: Record<string, unknown> = {
     name: name || e164,
     phone: e164,
     x_whatsapp_number: e164,
     customer_rank: 1,
+    // 2026-09-25 (STATUS § 30) — every number starts as a customer, «غير مراجَع»:
+    // the conversation shows its intent (screening.ts).
+    x_contact_class: "unreviewed",
   };
-  if (customerRoleId !== null) {
-    // Odoo M2M "add" command; keeps any pre-existing role ids untouched
-    // (there won't be any on a brand-new row, but the tuple form is stable
-    // across Odoo versions).
-    values.x_role_ids = [[4, customerRoleId, 0]];
-  }
   const ids = await call<number[]>(env, "res.partner", "create", {
     vals_list: [values],
   });
   return ids[0];
 }
 
+/**
+ * An archived partner with this number (the newest). 2026-09-25 (STATUS § 30)
+ * — a number Baraa archived from «مراجعة الأرقام» kept its archived partner;
+ * 2026-09-25 (STATUS § 31) — the same for EVERY archived partner (before, an
+ * archived partner without a class got a fresh partner, a welcome and a bot
+ * reply). A new message from it must not create a fresh partner: it lands on
+ * the archived one's inbox, and the bot leaves it alone.
+ */
+export async function findArchivedPartner(env: Env, e164: string): Promise<OdooPartner | null> {
+  const rows = await call<OdooPartner[]>(env, "res.partner", "search_read", {
+    domain: [
+      ["active", "=", false],
+      "|",
+      ["x_whatsapp_number", "=", e164],
+      ["phone", "=", e164],
+    ],
+    fields: ["id", "name", "customer_rank", "x_whatsapp_number"],
+    order: "id desc",
+    limit: 1,
+  });
+  return rows[0] ?? null;
+}
+
+/**
+ * 2026-09-25 (STATUS § 31) — an active partner with this number that Baraa
+ * classified «شخصي» but that has no customer rank: it keeps its number (no
+ * fresh partner, no welcome) and takes the quiet route.
+ */
+export async function findPersonalPartner(env: Env, e164: string): Promise<OdooPartner | null> {
+  const rows = await call<OdooPartner[]>(env, "res.partner", "search_read", {
+    domain: [
+      ["x_contact_class", "=", "personal"],
+      "|",
+      ["x_whatsapp_number", "=", e164],
+      ["phone", "=", e164],
+    ],
+    fields: ["id", "name", "customer_rank", "x_whatsapp_number", "x_contact_class"],
+    order: "id desc",
+    limit: 1,
+  });
+  return rows[0] ?? null;
+}
+
 export async function findOrCreateCustomer(
   env: Env,
   e164: string,
   profileName: string,
-): Promise<OdooPartner> {
+): Promise<OdooPartner & { archived?: boolean; quiet?: boolean }> {
   const existing = await findCustomerByWhatsApp(env, e164);
-  if (existing) return existing;
+  if (existing) return existing.x_contact_class === "personal" ? { ...existing, quiet: true } : existing;
+  const archived = await findArchivedPartner(env, e164).catch(() => null);
+  if (archived) return { ...archived, archived: true };
+  const personal = await findPersonalPartner(env, e164).catch(() => null);
+  if (personal) return { ...personal, quiet: true };
   const id = await createCustomer(env, profileName, e164);
   return {
     id,
@@ -591,13 +834,28 @@ export async function getActivePricingConfig(env: Env): Promise<PricingConfig | 
 export async function getTemplateByPurpose(
   env: Env,
   purpose: string,
+  /**
+   * params the caller will send — ranks a template with that many variables
+   * first. A function of the template name when the purpose is moving between
+   * templates with different variables (supplier_ask, 2026-09-25).
+   */
+  paramCount?: number | ((templateName: string) => number),
 ): Promise<WhatsAppTemplateRow | null> {
-  const rows = await call<WhatsAppTemplateRow[]>(env, "x_whatsapp_template", "search_read", {
+  // 2026-09-24 — all candidates, ranked by pickTemplate; a shared purpose is
+  // reported (log + owner alert) instead of letting row order decide.
+  const rows = await call<Array<WhatsAppTemplateRow & TemplateCandidate>>(env, "x_whatsapp_template", "search_read", {
     domain: [["x_purpose", "=", purpose]],
-    fields: ["id", "x_meta_template_id", "x_language", "x_purpose"],
-    limit: 1,
+    fields: [...TEMPLATE_CANDIDATE_FIELDS, "x_purpose"],
+    order: "id desc",
+    limit: 10,
   });
-  return rows[0] ?? null;
+  const chosen = pickTemplate(rows, (name) =>
+    typeof paramCount === "function" ? paramCount(name) : paramCount ?? null);
+  if (chosen && rows.length > 1) {
+    const { reportDuplicatePurpose } = await import("./templates");
+    await reportDuplicatePurpose(env, purpose, rows, chosen);
+  }
+  return chosen;
 }
 
 // ---- Suppliers to ask ----
@@ -634,8 +892,23 @@ export async function getSupplierPendingLog(
     domain: [
       ["x_supplier_id", "=", supplierId],
       ["x_replied_at", "=", false],
+      ["x_utak_simulation", "!=", true], // § 41
     ],
     fields: ["id", "x_supplier_id", "x_sent_at", "x_replied_at", "x_status"],
+    order: "x_sent_at desc",
+    limit: 1,
+  });
+  return rows[0] ?? null;
+}
+
+/** 2026-09-25 — the supplier's latest ask log, replied or not (for «توقف اليوم»). */
+export async function getLatestSupplierLog(
+  env: Env,
+  supplierId: number,
+): Promise<(SupplierLogRow & { x_name: string | false }) | null> {
+  const rows = await call<Array<SupplierLogRow & { x_name: string | false }>>(env, "x_supplier_price_request_log", "search_read", {
+    domain: [["x_supplier_id", "=", supplierId], ["x_utak_simulation", "!=", true]],
+    fields: ["id", "x_name", "x_supplier_id", "x_sent_at", "x_replied_at", "x_status"],
     order: "x_sent_at desc",
     limit: 1,
   });
@@ -660,7 +933,7 @@ export async function getRecentSupplierLogs(
   const cutoff = new Date(Date.now() - hours * 3600 * 1000)
     .toISOString().replace("T", " ").slice(0, 19);
   return await call<SupplierLogRow[]>(env, "x_supplier_price_request_log", "search_read", {
-    domain: [["x_sent_at", ">=", cutoff]],
+    domain: [["x_sent_at", ">=", cutoff], ["x_utak_simulation", "!=", true]],
     fields: [
       "id",
       "x_supplier_id",
@@ -686,9 +959,14 @@ export async function createDailyPrice(
     actual_weight_kg: number | null;
     source_message_id: string;
     raw_reply: string;
+    /** 2026-09-25 — "pending" marks an outlier price for review; it is still used. */
+    extraction_status?: "extracted" | "pending";
   },
 ): Promise<number> {
-  const today = new Date().toISOString().slice(0, 10);
+  // 2026-09-25 — the Riyadh day, as the 21:15 purchase list reads it
+  // (prefillPurchasePrices). Suppliers answer the 02:00 ask between 02:00 and
+  // 06:00 Riyadh = the previous UTC day, so a UTC date hid their prices.
+  const today = riyadhToday();
   const record: Record<string, unknown> = {
     x_supplier_id: vals.supplier_id,
     x_product_tmpl_id: vals.product_id,
@@ -698,13 +976,40 @@ export async function createDailyPrice(
     x_sale_price: vals.sale_price,
     x_source_message_id: vals.source_message_id,
     x_raw_reply: vals.raw_reply.slice(0, 2000),
-    x_extraction_status: "extracted",
+    x_extraction_status: vals.extraction_status ?? "extracted",
   };
   if (typeof vals.actual_weight_kg === "number") {
     record.x_actual_weight_kg = vals.actual_weight_kg;
   }
   const ids = await call<number[]>(env, "x_daily_price", "create", { vals_list: [record] });
   return ids[0];
+}
+
+/**
+ * 2026-09-25 — the supplier's latest earlier price for the same product +
+ * packaging (the outlier check reads it before the new price is written).
+ */
+export async function getLastSupplierPrice(
+  env: Env,
+  supplierId: number,
+  productId: number,
+  packagingId: number,
+): Promise<{ price: number; date: string } | null> {
+  type Row = { x_price_sar: number | false; x_date: string | false };
+  const rows = await call<Row[]>(env, "x_daily_price", "search_read", {
+    domain: [
+      ["x_supplier_id", "=", supplierId],
+      ["x_product_tmpl_id", "=", productId],
+      ["x_packaging_id", "=", packagingId],
+      ["x_price_sar", ">", 0],
+      ["x_utak_simulation", "!=", true], // § 41 — a simulation price is no reference
+    ],
+    fields: ["x_price_sar", "x_date"],
+    order: "x_date desc, id desc",
+    limit: 1,
+  });
+  const r = rows[0];
+  return r && typeof r.x_price_sar === "number" ? { price: r.x_price_sar, date: typeof r.x_date === "string" ? r.x_date : "" } : null;
 }
 
 // ---- Partner fields ----
@@ -811,90 +1116,28 @@ import type {
   RouteStop,
 } from "./types";
 
-// ---- Employee role cache (v8: many2many x_role_ids) ----
-let ROLE_CODE_CACHE: Map<number, TeamRole> | null = null;
-async function getRoleCodeMap(env: Env): Promise<Map<number, TeamRole>> {
-  if (ROLE_CODE_CACHE) return ROLE_CODE_CACHE;
-  const rows = await call<Array<{ id: number; x_code: string }>>(
-    env,
-    "x_employee_role",
-    "search_read",
-    { domain: [], fields: ["id", "x_code"], limit: 20 },
-  );
-  ROLE_CODE_CACHE = new Map(rows.map((r) => [r.id, r.x_code as TeamRole]));
-  return ROLE_CODE_CACHE;
-}
+// ---- Team members — hr.employee (2026-09-25, STATUS § 31) ----
+// The team is the Employees app: «أدوار UTAK» on hr.employee, the number from
+// its Work Contact. One cached roster read (team-roster.ts) answers every
+// lookup below; res.partner.x_role_ids is not read any more.
 
-// ---- Team members (drivers / collector / warehouse) by role ----
+/** Team members with this role (a number and a Work Contact), in employee order. */
 export async function getTeamMembersByRole(
   env: Env,
   role: TeamRole,
 ): Promise<TeamMember[]> {
-  const rows = await call<Array<{
-    id: number;
-    name: string;
-    x_whatsapp_number: string | false;
-    x_role_ids: number[] | false;
-    x_neighborhoods: number[] | false;
-  }>>(env, "res.partner", "search_read", {
-    domain: [["x_role_ids.x_code", "=", role], ["active", "=", true]],
-    fields: ["id", "name", "x_whatsapp_number", "x_role_ids", "x_neighborhoods"],
-    limit: 50,
-  });
-  const roleMap = await getRoleCodeMap(env);
-  return rows
-    .filter((r) => typeof r.x_whatsapp_number === "string" && r.x_whatsapp_number.length > 3)
-    .map((r) => {
-      const codes: TeamRole[] = Array.isArray(r.x_role_ids)
-        ? (r.x_role_ids.map((id) => roleMap.get(id)).filter(Boolean) as TeamRole[])
-        : [role];
-      return {
-        id: r.id,
-        name: r.name,
-        x_whatsapp_number: r.x_whatsapp_number as string,
-        x_role: role,
-        x_role_codes: codes,
-        x_neighborhoods: Array.isArray(r.x_neighborhoods) ? r.x_neighborhoods : [],
-      };
-    });
+  const { loadRoster, membersByRole, toTeamMember } = await import("./team-roster");
+  return membersByRole(await loadRoster(env), role).map((m) => toTeamMember(m, role));
 }
 
+/** The team member whose Work Contact number is `e164`, or null. */
 export async function findTeamMemberByWhatsApp(
   env: Env,
   e164: string,
 ): Promise<TeamMember | null> {
-  const rows = await call<Array<{
-    id: number;
-    name: string;
-    x_whatsapp_number: string | false;
-    x_role_ids: number[] | false;
-    x_neighborhoods: number[] | false;
-  }>>(env, "res.partner", "search_read", {
-    domain: [
-      "|",
-      ["x_whatsapp_number", "=", e164],
-      ["phone", "=", e164],
-      ["x_role_ids", "!=", false],
-      ["active", "=", true],
-    ],
-    fields: ["id", "name", "x_whatsapp_number", "x_role_ids", "x_neighborhoods"],
-    limit: 1,
-  });
-  const r = rows[0];
-  if (!r || !Array.isArray(r.x_role_ids) || r.x_role_ids.length === 0) return null;
-  const roleMap = await getRoleCodeMap(env);
-  const codes = r.x_role_ids
-    .map((id) => roleMap.get(id))
-    .filter(Boolean) as TeamRole[];
-  if (codes.length === 0) return null;
-  return {
-    id: r.id,
-    name: r.name,
-    x_whatsapp_number: typeof r.x_whatsapp_number === "string" ? r.x_whatsapp_number : e164,
-    x_role: codes[0],           // backward compat: primary role
-    x_role_codes: codes,        // all roles (v8+)
-    x_neighborhoods: Array.isArray(r.x_neighborhoods) ? r.x_neighborhoods : [],
-  };
+  const { loadRoster, memberByNumber, toTeamMember } = await import("./team-roster");
+  const m = memberByNumber(await loadRoster(env), e164);
+  return m ? toTeamMember(m) : null;
 }
 
 // ---- Riyadh calendar date helper (kept local to avoid circular import) ----
@@ -904,21 +1147,220 @@ function riyadhToday(): string {
   return riyadh.toISOString().slice(0, 10);
 }
 
-// ---- 21:00 cutoff: cancel every waiting_confirmation from today ----
-export async function cancelStaleWaitingOrders(env: Env): Promise<number[]> {
-  const today = riyadhToday();
-  const orders = await call<Array<{ id: number }>>(env, "x_daily_order", "search_read", {
+// ---- Unconfirmed orders of a Riyadh day ----
+// 2026-09-24 (ح3): "unconfirmed" = waiting_confirmation, or a draft that
+// already has lines (a draft with no lines is an empty shell, not an order).
+export interface UnconfirmedOrder {
+  id: number;
+  state: OrderState;
+  customerId: number;
+  customerName: string;
+  lineCount: number;
+}
+
+export async function getUnconfirmedOrders(env: Env, date: string = riyadhToday()): Promise<UnconfirmedOrder[]> {
+  type Row = { id: number; x_state: OrderState; x_customer_id: [number, string] | false; x_line_ids: number[] };
+  const rows = await call<Row[]>(env, "x_daily_order", "search_read", {
     domain: [
-      ["x_order_date", "=", today],
-      ["x_state", "=", "waiting_confirmation"],
+      ["x_order_date", "=", date],
+      ["x_state", "in", ["waiting_confirmation", "draft"]],
+      ["x_utak_simulation", "!=", true], // § 41
     ],
+    fields: ["id", "x_state", "x_customer_id", "x_line_ids"],
+    limit: 500,
+    order: "id",
+  });
+  return rows
+    .filter((r) => r.x_state === "waiting_confirmation" || (r.x_line_ids ?? []).length > 0)
+    .map((r) => ({
+      id: r.id,
+      state: r.x_state,
+      customerId: r.x_customer_id ? r.x_customer_id[0] : 0,
+      customerName: r.x_customer_id ? stripRef(r.x_customer_id[1]) : "",
+      lineCount: (r.x_line_ids ?? []).length,
+    }));
+}
+
+// ---- 21:00 cutoff: cancel every unconfirmed order from today ----
+// 2026-09-24 (ح3): drafts with lines are cancelled too (they used to linger
+// forever — never cancelled, never purchased, never flagged). The write is
+// conditional on the state still being unconfirmed, so an order confirmed in
+// the same second is not swept.
+export async function cancelStaleWaitingOrders(env: Env): Promise<number[]> {
+  const pending = await getUnconfirmedOrders(env);
+  if (pending.length === 0) return [];
+  const still = await call<Array<{ id: number }>>(env, "x_daily_order", "search_read", {
+    domain: [["id", "in", pending.map((o) => o.id)], ["x_state", "in", ["waiting_confirmation", "draft"]]],
     fields: ["id"],
     limit: 500,
   });
-  if (orders.length === 0) return [];
-  const ids = orders.map((o) => o.id);
+  if (still.length === 0) return [];
+  const ids = still.map((o) => o.id);
   await call(env, "x_daily_order", "write", { ids, vals: { x_state: "cancelled" } });
   return ids;
+}
+
+// ---- Order snapshot for button guards (2026-09-24, ح4) ----
+export interface OrderBrief {
+  id: number;
+  state: OrderState;
+  date: string;
+  customerId: number;
+  hasLocation: boolean;
+  lineIds: number[];
+  createdVia: string;
+}
+
+export async function getOrderBrief(env: Env, orderId: number): Promise<OrderBrief | null> {
+  type Row = {
+    id: number; x_state: OrderState; x_order_date: string | false;
+    x_customer_id: [number, string] | false; x_line_ids: number[];
+    x_delivery_neighborhood: string | false; x_created_via: string | false;
+  };
+  const rows = await call<Row[]>(env, "x_daily_order", "read", {
+    ids: [orderId],
+    fields: ["id", "x_state", "x_order_date", "x_customer_id", "x_line_ids", "x_delivery_neighborhood", "x_created_via"],
+  });
+  const r = rows[0];
+  if (!r) return null;
+  return {
+    id: r.id,
+    state: r.x_state,
+    date: typeof r.x_order_date === "string" ? r.x_order_date : "",
+    customerId: r.x_customer_id ? r.x_customer_id[0] : 0,
+    hasLocation: typeof r.x_delivery_neighborhood === "string" && r.x_delivery_neighborhood.trim() !== "",
+    lineIds: r.x_line_ids ?? [],
+    createdVia: typeof r.x_created_via === "string" ? r.x_created_via : "",
+  };
+}
+
+/** Lines of an order as re-usable items (for a late re-registration). */
+export async function getOrderLineItems(env: Env, orderId: number): Promise<LateItem[]> {
+  type L = {
+    x_product_tmpl_id: [number, string] | false; x_packaging_id: [number, string] | false;
+    x_quantity: number; x_notes: string | false;
+  };
+  const lines = await call<L[]>(env, "x_daily_order_line", "search_read", {
+    domain: [["x_order_id", "=", orderId]],
+    fields: ["x_product_tmpl_id", "x_packaging_id", "x_quantity", "x_notes"],
+    limit: 500,
+  });
+  return lines
+    .filter((l) => l.x_product_tmpl_id && l.x_packaging_id && l.x_quantity > 0)
+    .map((l) => ({
+      product_id: (l.x_product_tmpl_id as [number, string])[0],
+      packaging_id: (l.x_packaging_id as [number, string])[0],
+      quantity: l.x_quantity,
+      notes: typeof l.x_notes === "string" ? l.x_notes : "",
+      label: `${stripRef((l.x_product_tmpl_id as [number, string])[1])} ${stripRef((l.x_packaging_id as [number, string])[1])} × ${l.x_quantity}`,
+    }));
+}
+
+/** An item carried across a closed-hours prompt (ح2) — enough to recreate a line. */
+export interface LateItem {
+  product_id: number;
+  packaging_id: number;
+  quantity: number;
+  notes?: string;
+  /** "طماطم كرتون × 3" — for the customer-facing summary. */
+  label: string;
+}
+
+/**
+ * Create an order for a given Riyadh date with its lines (ح2 / ح9). The state
+ * is written in the create so the order is never visible half-built.
+ */
+export async function createOrderWithLines(
+  env: Env,
+  a: {
+    customerId: number;
+    date: string;
+    items: LateItem[];
+    via: "whatsapp" | "standing_order";
+    state: OrderState;
+    sourceMessageId?: string;
+    neighborhood?: string;
+  },
+): Promise<number> {
+  const vals: Record<string, unknown> = {
+    x_customer_id: a.customerId,
+    x_order_date: a.date,
+    x_state: a.state,
+    x_created_via: a.via,
+  };
+  if (a.sourceMessageId) vals.x_source_message_id = a.sourceMessageId;
+  if (a.neighborhood) vals.x_delivery_neighborhood = a.neighborhood;
+  if (a.state === "confirmed") vals.x_confirmed_at = nowOdoo();
+  const ids = await call<number[]>(env, "x_daily_order", "create", { vals_list: [vals] });
+  const orderId = ids[0];
+  const lines = a.items
+    .filter((it) => it.product_id > 0 && it.packaging_id > 0 && it.quantity > 0)
+    .map((it) => ({
+      x_order_id: orderId,
+      x_product_tmpl_id: it.product_id,
+      x_packaging_id: it.packaging_id,
+      x_quantity: it.quantity,
+      x_status: "pending",
+      x_notes: it.notes || "",
+    }));
+  if (lines.length > 0) await call<number[]>(env, "x_daily_order_line", "create", { vals_list: lines });
+  return orderId;
+}
+
+/** A live (not cancelled) order of this customer on this date and channel, if any. */
+export async function findLiveOrderOn(
+  env: Env,
+  customerId: number,
+  date: string,
+  via?: "whatsapp" | "standing_order",
+): Promise<number | null> {
+  const domain: unknown[] = [
+    ["x_customer_id", "=", customerId],
+    ["x_order_date", "=", date],
+    ["x_state", "!=", "cancelled"],
+  ];
+  if (via) domain.push(["x_created_via", "=", via]);
+  const rows = await call<Array<{ id: number }>>(env, "x_daily_order", "search_read", {
+    domain, fields: ["id"], limit: 1, order: "id desc",
+  });
+  return rows[0]?.id ?? null;
+}
+
+// ---- Purchase list: status + issue note (ح7) ----
+export async function getPurchaseListBrief(
+  env: Env,
+  id: number,
+): Promise<{ id: number; status: string; date: string; notes: string; items: PurchaseListItem[] } | null> {
+  type Row = { id: number; x_status: string | false; x_date: string | false; x_notes: string | false; x_aggregated_items: string | false };
+  const rows = await call<Row[]>(env, "x_purchase_list", "read", {
+    ids: [id], fields: ["id", "x_status", "x_date", "x_notes", "x_aggregated_items"],
+  });
+  const r = rows[0];
+  if (!r) return null;
+  let items: PurchaseListItem[] = [];
+  try { items = typeof r.x_aggregated_items === "string" ? JSON.parse(r.x_aggregated_items) : []; } catch { items = []; }
+  return {
+    id: r.id,
+    status: typeof r.x_status === "string" ? r.x_status : "",
+    date: typeof r.x_date === "string" ? r.x_date : "",
+    notes: typeof r.x_notes === "string" ? r.x_notes : "",
+    items: Array.isArray(items) ? items : [],
+  };
+}
+
+export async function appendPurchaseListNote(env: Env, id: number, line: string): Promise<void> {
+  const cur = await getPurchaseListBrief(env, id);
+  const next = [cur?.notes || "", `[${nowOdoo()} UTC] ${line}`].filter(Boolean).join("\n");
+  await call(env, "x_purchase_list", "write", { ids: [id], vals: { x_notes: next.slice(-8000) } });
+}
+
+/** Lists sent to the warehouse and still not confirmed, on or after `sinceDate`. */
+export async function getUnconfirmedPurchaseLists(env: Env, sinceDate: string): Promise<number[]> {
+  const rows = await call<Array<{ id: number }>>(env, "x_purchase_list", "search_read", {
+    domain: [["x_status", "=", "sent"], ["x_date", ">=", sinceDate], ["x_utak_simulation", "!=", true]],
+    fields: ["id"], order: "id", limit: 20,
+  });
+  return rows.map((r) => r.id);
 }
 
 // ---- Pull today's confirmed lines for aggregation ----
@@ -929,7 +1371,7 @@ export async function getConfirmedLinesForToday(env: Env): Promise<ConfirmedLine
     x_customer_id: [number, string] | false;
     x_delivery_neighborhood: string | false;
   }>>(env, "x_daily_order", "search_read", {
-    domain: [["x_order_date", "=", today], ["x_state", "=", "confirmed"]],
+    domain: [["x_order_date", "=", today], ["x_state", "=", "confirmed"], ["x_utak_simulation", "!=", true]],
     fields: ["id", "x_customer_id", "x_delivery_neighborhood"],
     limit: 500,
   });
@@ -996,6 +1438,53 @@ export function aggregatePurchaseList(lines: ConfirmedLine[]): PurchaseListItem[
   return Array.from(map.values()).sort((a, b) => b.total_quantity - a.total_quantity);
 }
 
+// 2026-09-23 — purchase → accounting. Pre-fill each item's unit_price (what
+// is paid per packaging unit) from the day's x_daily_price.x_price_sar, and
+// the list supplier when every priced item comes from the same supplier.
+// Baraa can correct both in Odoo before the list is closed; a missing price
+// or supplier only blocks the accounting write (owner alerted), never the
+// list itself. `keep` = items already on the list — an edited unit_price
+// survives a same-day re-run of the 21:15 cron.
+export async function prefillPurchasePrices(
+  env: Env,
+  items: PurchaseListItem[],
+  ymd: string,
+  keep: PurchaseListItem[] = [],
+): Promise<{ items: PurchaseListItem[]; supplierId: number | null }> {
+  const key = (p: number, k: number) => `${p}::${k}`;
+  const kept = new Map(keep.map((it) => [key(it.product_id, it.packaging_id), it]));
+  const productIds = Array.from(new Set(items.map((it) => it.product_id)));
+  type Row = { x_product_tmpl_id: [number, string] | false; x_packaging_id: [number, string] | false; x_supplier_id: [number, string] | false; x_price_sar: number | false };
+  const rows = productIds.length
+    ? await call<Row[]>(env, "x_daily_price", "search_read", {
+        domain: [["x_product_tmpl_id", "in", productIds], ["x_date", "=", ymd], ["x_price_sar", ">", 0], ["x_utak_simulation", "!=", true]],
+        fields: ["x_product_tmpl_id", "x_packaging_id", "x_supplier_id", "x_price_sar"],
+        order: "id desc",
+        limit: 500,
+      })
+    : [];
+  const latest = new Map<string, Row>();
+  for (const r of rows) {
+    if (!r.x_product_tmpl_id || !r.x_packaging_id) continue;
+    const k = key(r.x_product_tmpl_id[0], r.x_packaging_id[0]);
+    if (!latest.has(k)) latest.set(k, r);
+  }
+  const out = items.map((it) => {
+    const prev = kept.get(key(it.product_id, it.packaging_id));
+    if (prev && typeof prev.unit_price === "number" && prev.unit_price > 0) {
+      return { ...it, unit_price: prev.unit_price, price_supplier_id: prev.price_supplier_id ?? null };
+    }
+    const r = latest.get(key(it.product_id, it.packaging_id));
+    return {
+      ...it,
+      unit_price: r && typeof r.x_price_sar === "number" ? r.x_price_sar : null,
+      price_supplier_id: r && r.x_supplier_id ? r.x_supplier_id[0] : null,
+    };
+  });
+  const suppliers = new Set(out.map((it) => it.price_supplier_id).filter((n): n is number => typeof n === "number"));
+  return { items: out, supplierId: suppliers.size === 1 ? [...suppliers][0] : null };
+}
+
 // ---- Create the daily x_purchase_list record ----
 export async function createPurchaseListRecord(
   env: Env,
@@ -1003,30 +1492,39 @@ export async function createPurchaseListRecord(
 ): Promise<number> {
   const today = riyadhToday();
   // If one exists for today (idempotency), return it
-  const existing = await call<Array<{ id: number }>>(env, "x_purchase_list", "search_read", {
-    domain: [["x_date", "=", today]],
-    fields: ["id"],
+  const existing = await call<Array<{ id: number; x_aggregated_items: string | false; x_supplier_id: [number, string] | false }>>(env, "x_purchase_list", "search_read", {
+    domain: [["x_date", "=", today], ["x_utak_simulation", "!=", true]],
+    fields: ["id", "x_aggregated_items", "x_supplier_id"],
     limit: 1,
   });
+  let keep: PurchaseListItem[] = [];
+  if (existing[0] && typeof existing[0].x_aggregated_items === "string") {
+    try { keep = JSON.parse(existing[0].x_aggregated_items) as PurchaseListItem[]; } catch { keep = []; }
+  }
+  let priced: { items: PurchaseListItem[]; supplierId: number | null } = { items, supplierId: null };
+  try {
+    priced = await prefillPurchasePrices(env, items, today, keep);
+  } catch (e) {
+    console.warn("[purchase-list] price prefill failed — list saved without prices", (e as Error)?.message);
+  }
   if (existing[0]) {
-    await call(env, "x_purchase_list", "write", {
-      ids: [existing[0].id],
-      vals: {
-        x_aggregated_items: JSON.stringify(items),
-        x_total_items_count: items.length,
-      },
-    });
+    const vals: Record<string, unknown> = {
+      x_aggregated_items: JSON.stringify(priced.items),
+      x_total_items_count: priced.items.length,
+    };
+    if (!existing[0].x_supplier_id && priced.supplierId) vals.x_supplier_id = priced.supplierId;
+    await call(env, "x_purchase_list", "write", { ids: [existing[0].id], vals });
     return existing[0].id;
   }
 
-  const ids = await call<number[]>(env, "x_purchase_list", "create", {
-    vals_list: [{
-      x_date: today,
-      x_status: "draft",
-      x_aggregated_items: JSON.stringify(items),
-      x_total_items_count: items.length,
-    }],
-  });
+  const vals: Record<string, unknown> = {
+    x_date: today,
+    x_status: "draft",
+    x_aggregated_items: JSON.stringify(priced.items),
+    x_total_items_count: priced.items.length,
+  };
+  if (priced.supplierId) vals.x_supplier_id = priced.supplierId;
+  const ids = await call<number[]>(env, "x_purchase_list", "create", { vals_list: [vals] });
   return ids[0];
 }
 
@@ -1104,7 +1602,7 @@ export async function transitionOrdersToInPurchase(env: Env, orderIds: number[])
 export async function getLatestPurchaseListToday(env: Env): Promise<number | null> {
   const today = riyadhToday();
   const rows = await call<Array<{ id: number }>>(env, "x_purchase_list", "search_read", {
-    domain: [["x_date", "=", today]],
+    domain: [["x_date", "=", today], ["x_utak_simulation", "!=", true]],
     fields: ["id"],
     limit: 1,
     order: "id desc",
@@ -1128,7 +1626,7 @@ export async function buildAndCreateRoutesForDrivers(
   const today = riyadhToday();
   const domain = orderIds && orderIds.length > 0
     ? [["id", "in", orderIds], ["x_state", "=", "in_purchase"]]
-    : [["x_order_date", "=", today], ["x_state", "=", "in_purchase"]];
+    : [["x_order_date", "=", today], ["x_state", "=", "in_purchase"], ["x_utak_simulation", "!=", true]];
   const orders = await call<Array<{
     id: number;
     x_customer_id: [number, string] | false;
@@ -1865,6 +2363,8 @@ export async function getOrderForInvoicing(
   customer_name: string;
   customer_whatsapp: string;
   neighborhood: string;
+  /** § 40 د — x_order_date, the order's (Riyadh) day: its prices, its purchase costs, its discount. */
+  order_date: string | null;
   lines: Array<{
     id: number;
     product_id: number;
@@ -1885,10 +2385,11 @@ export async function getOrderForInvoicing(
     x_customer_id: [number, string] | false;
     x_delivery_neighborhood: string | false;
     x_line_ids: number[];
+    x_order_date: string | false;
   };
   const orders = await call<OrderRow[]>(env, "x_daily_order", "read", {
     ids: [orderId],
-    fields: ["id", "x_customer_id", "x_delivery_neighborhood", "x_line_ids"],
+    fields: ["id", "x_customer_id", "x_delivery_neighborhood", "x_line_ids", "x_order_date"],
   });
   const order = orders[0];
   if (!order || !order.x_customer_id) return null;
@@ -1935,6 +2436,7 @@ export async function getOrderForInvoicing(
     customer_name: partner?.name ?? "عميل",
     customer_whatsapp: wa || "",
     neighborhood: order.x_delivery_neighborhood || "",
+    order_date: typeof order.x_order_date === "string" && order.x_order_date ? order.x_order_date : null,
     lines: usable.map((l) => ({
       id: l.id,
       product_id: l.x_product_tmpl_id ? l.x_product_tmpl_id[0] : 0,
@@ -1966,8 +2468,38 @@ export async function getLatestSalePrice(
   env: Env,
   productId: number,
   packagingId: number,
+  /**
+   * § 41 — the day whose price counts: the ORDER's day for an order's lines
+   * (the price it was quoted and confirmed at). The invoice is issued at
+   * «تم التسليم», the next morning — often before that day's prices are
+   * published (06:00) — and took the delivery day's: nothing published yet →
+   * that day's supplier row (a purchase price) or the latest price ever.
+   * Default: today (Riyadh).
+   */
+  day?: string,
 ): Promise<SalePriceLookup> {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = day ?? riyadhToday(); // 2026-09-25 — the day x_daily_price.x_date is written in
+  // 2026-09-25 (STATUS § 35) — today's published price (what the customers
+  // received in «أسعار اليوم») comes first: the quotation and the invoice
+  // follow the list. Nothing published today → as before.
+  try {
+    const pub = await call<Array<{ x_sale_price: number | false }>>(env, "x_price_day_line", "search_read", {
+      domain: [
+        ["x_day_id.x_date", "=", today],
+        ["x_day_id.x_state", "=", "published"],
+        ["x_day_id.x_utak_simulation", "!=", true], // § 41
+        ["x_product_tmpl_id", "=", productId],
+        ["x_packaging_id", "=", packagingId],
+        ["x_excluded", "=", false],
+      ],
+      fields: ["x_sale_price"],
+      limit: 1,
+    });
+    const p = Number(pub[0]?.x_sale_price ?? 0);
+    if (p > 0) return { price: p, source: "today", price_date: today, age_days: 0 };
+  } catch (e) {
+    console.warn("[price] published lookup failed — supplier price", (e as Error)?.message);
+  }
   type Row = { x_sale_price: number | false; x_price_sar: number | false; x_date: string | false };
   const pickPrice = (r: Row): number => {
     if (typeof r.x_sale_price === "number" && r.x_sale_price > 0) return r.x_sale_price;
@@ -1980,6 +2512,7 @@ export async function getLatestSalePrice(
       ["x_product_tmpl_id", "=", productId],
       ["x_packaging_id", "=", packagingId],
       ["x_date", "=", today],
+      ["x_utak_simulation", "!=", true], // § 41
     ],
     fields: ["x_sale_price", "x_price_sar", "x_date"],
     order: "id desc",
@@ -1991,11 +2524,14 @@ export async function getLatestSalePrice(
       return { price, source: "today", price_date: today, age_days: 0 };
     }
   }
-  // Fallback: most recent price ever (kept — only tagged, not removed).
+  // Fallback: most recent price ever (kept — only tagged, not removed), up to
+  // the day asked (§ 41: a later day's price is not this order's).
   const fallback = await call<Row[]>(env, "x_daily_price", "search_read", {
     domain: [
       ["x_product_tmpl_id", "=", productId],
       ["x_packaging_id", "=", packagingId],
+      ["x_date", "<=", today],
+      ["x_utak_simulation", "!=", true], // § 41
     ],
     fields: ["x_sale_price", "x_price_sar", "x_date"],
     order: "x_date desc, id desc",
@@ -2017,10 +2553,14 @@ export async function getLatestSalePrice(
 }
 
 // ---- Invoice CRUD ----
-export async function getInvoiceCountToday(env: Env): Promise<number> {
-  const today = new Date().toISOString().slice(0, 10) + " 00:00:00";
+/**
+ * § 41 ج — the invoices already issued on `day` (the Riyadh date of issue,
+ * x_invoice_date), simulation ones left out: the next serial of the day's
+ * numbers. It counted create_date from 00:00 UTC (03:00 Riyadh).
+ */
+export async function getInvoiceCountToday(env: Env, day: string): Promise<number> {
   return await call<number>(env, "x_invoice", "search_count", {
-    domain: [["create_date", ">=", today]],
+    domain: [["x_invoice_date", "=", day], ["x_utak_simulation", "!=", true]],
   });
 }
 
@@ -2029,12 +2569,19 @@ export async function createInvoiceRecord(
   vals: {
     orderId: number;
     invoiceNumber: string;
+    /** 2026-09-23 — Riyadh-local YYYY-MM-DD (the date VAT is decided on). */
+    invoiceDate?: string;
     subtotal: number;
     tax: number;
     total: number;
+    /** § 40 د — the quantity discount before VAT, written only when there is one. */
+    discount?: number;
+    discountPct?: number;
+    /** § 41 ج — the moment of «تم التسليم»: the supply and issue time (x_issued_at). */
+    issuedAt?: Date;
   },
 ): Promise<number> {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = vals.invoiceDate ?? new Date().toISOString().slice(0, 10);
   const ids = await call<number[]>(env, "x_invoice", "create", {
     vals_list: [{
       x_order_id: vals.orderId,
@@ -2044,6 +2591,8 @@ export async function createInvoiceRecord(
       x_tax_amount: vals.tax,
       x_total: vals.total,
       x_status: "issued",
+      ...(vals.issuedAt ? { x_issued_at: vals.issuedAt.toISOString().replace("T", " ").slice(0, 19) } : {}),
+      ...((vals.discount ?? 0) > 0 ? { x_discount: vals.discount, x_discount_pct: vals.discountPct ?? 0 } : {}),
     }],
   });
   return ids[0];
@@ -2064,6 +2613,11 @@ export async function getInvoiceById(
   id: number;
   number: string;
   total: number;
+  /** 2026-09-23 — net (before VAT) and VAT as stored at issue time. */
+  subtotal: number;
+  tax: number;
+  /** x_invoice_date, YYYY-MM-DD (Riyadh since 2026-09-23), or null. */
+  date: string | null;
   status: string;
   orderId: number | null;
 } | null> {
@@ -2071,12 +2625,15 @@ export async function getInvoiceById(
     id: number;
     x_invoice_number: string;
     x_total: number;
+    x_subtotal: number | false;
+    x_tax_amount: number | false;
+    x_invoice_date: string | false;
     x_status: string;
     x_order_id: [number, string] | false;
   };
   const rows = await call<Row[]>(env, "x_invoice", "read", {
     ids: [invoiceId],
-    fields: ["id", "x_invoice_number", "x_total", "x_status", "x_order_id"],
+    fields: ["id", "x_invoice_number", "x_total", "x_subtotal", "x_tax_amount", "x_invoice_date", "x_status", "x_order_id"],
   });
   const r = rows[0];
   if (!r) return null;
@@ -2084,6 +2641,9 @@ export async function getInvoiceById(
     id: r.id,
     number: r.x_invoice_number,
     total: r.x_total,
+    subtotal: typeof r.x_subtotal === "number" ? r.x_subtotal : r.x_total,
+    tax: typeof r.x_tax_amount === "number" ? r.x_tax_amount : 0,
+    date: typeof r.x_invoice_date === "string" && r.x_invoice_date ? r.x_invoice_date : null,
     status: r.x_status,
     orderId: r.x_order_id ? r.x_order_id[0] : null,
   };
@@ -2143,22 +2703,13 @@ export async function getOrderCustomerWhatsapp(
   return p?.x_whatsapp_number || p?.phone || null;
 }
 
-// ---- Collectors (team members with x_role=collector) ----
+// ---- Collectors («محصّل» in «أدوار UTAK», hr.employee — STATUS § 31) ----
 export async function getCollectorTeamMembers(
   env: Env,
-): Promise<Array<{ id: number; name: string; whatsapp: string }>> {
-  type Row = { id: number; name: string; phone: string | false; x_whatsapp_number: string | false };
-  const rows = await call<Row[]>(env, "res.partner", "search_read", {
-    domain: [
-      ["x_role_ids.x_code", "=", "collector"],
-      ["active", "=", true],
-    ],
-    fields: ["id", "name", "phone", "x_whatsapp_number"],
-    limit: 50,
-  });
-  return rows
-    .map((r) => ({ id: r.id, name: r.name, whatsapp: r.x_whatsapp_number || r.phone || "" }))
-    .filter((r) => r.whatsapp);
+): Promise<Array<{ id: number; name: string; whatsapp: string; employeeId: number }>> {
+  const { loadRoster, membersByRole } = await import("./team-roster");
+  return membersByRole(await loadRoster(env), "collector")
+    .map((m) => ({ id: m.partnerId, name: m.name, whatsapp: m.whatsapp, employeeId: m.employeeId }));
 }
 
 // ---- Unpaid invoices for the 18:00 collection summary ----
@@ -2178,7 +2729,13 @@ export async function getUnpaidInvoicesWithCustomer(
     x_order_id: [number, string] | false;
   };
   const invs = await call<InvRow[]>(env, "x_invoice", "search_read", {
-    domain: [["x_status", "in", ["issued", "overdue"]]],
+    // 2026-09-24 — test / simulation invoices never reach the collector: the
+    // 18:00 summary carried 15 live-verify invoices (UTAK-ACCT-TEST, UTAK-ACCT,
+    // UTAK-VAT; 555 SAR), their moves reversed or cancelled. § 41 ج — by
+    // x_utak_simulation (§ 38; those 15 and every September test invoice carry
+    // it since § 39), not x_is_simulation, which every invoice of the sim /
+    // pilot worker carries: the list was always empty there.
+    domain: [["x_status", "in", ["issued", "overdue"]], ["x_utak_simulation", "!=", true]],
     fields: ["id", "x_invoice_number", "x_total", "x_order_id"],
     order: "x_invoice_date asc, id asc",
     limit: 200,

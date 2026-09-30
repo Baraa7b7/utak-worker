@@ -1,0 +1,186 @@
+{
+  "script": "scripts/s34-20260925-opener-templates.mjs",
+  "created": {
+    "utak_update_customer": {
+      "at": "2026-09-25T14:43:51.189Z",
+      "http": 200,
+      "response": {
+        "id": "933950629337336",
+        "status": "PENDING",
+        "category": "UTILITY"
+      },
+      "payload": {
+        "name": "utak_update_customer",
+        "language": "ar",
+        "category": "UTILITY",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "يوجد تحديث على حسابك لدى يو تاك رقم {{1}}: {{2}}. اضغط «عرض التحديث» للتفاصيل.",
+            "example": {
+              "body_text": [
+                [
+                  "1045",
+                  "إيصال الدفع"
+                ]
+              ]
+            }
+          },
+          {
+            "type": "BUTTONS",
+            "buttons": [
+              {
+                "type": "QUICK_REPLY",
+                "text": "عرض التحديث"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "utak_update_team": {
+      "at": "2026-09-25T14:43:56.559Z",
+      "http": 200,
+      "response": {
+        "id": "2152058979020380",
+        "status": "PENDING",
+        "category": "UTILITY"
+      },
+      "payload": {
+        "name": "utak_update_team",
+        "language": "ar",
+        "category": "UTILITY",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "يوجد تحديث على مهامك في وردية {{1}}: {{2}}. اضغط «عرض التحديث» للتفاصيل.",
+            "example": {
+              "body_text": [
+                [
+                  "26 سبتمبر 2026",
+                  "مسار التوصيل"
+                ]
+              ]
+            }
+          },
+          {
+            "type": "BUTTONS",
+            "buttons": [
+              {
+                "type": "QUICK_REPLY",
+                "text": "عرض التحديث"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "utak_update_supplier": {
+      "at": "2026-09-25T14:44:01.151Z",
+      "http": 200,
+      "response": {
+        "id": "1114139324289565",
+        "status": "PENDING",
+        "category": "UTILITY"
+      },
+      "payload": {
+        "name": "utak_update_supplier",
+        "language": "ar",
+        "category": "UTILITY",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "يوجد تحديث على طلب التوريد بتاريخ {{1}}: {{2}}. اضغط «عرض التحديث» للتفاصيل.",
+            "example": {
+              "body_text": [
+                [
+                  "26 سبتمبر 2026",
+                  "تعديل الكمية"
+                ]
+              ]
+            }
+          },
+          {
+            "type": "BUTTONS",
+            "buttons": [
+              {
+                "type": "QUICK_REPLY",
+                "text": "عرض التحديث"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "utak_update_owner": {
+      "at": "2026-09-25T14:44:07.203Z",
+      "http": 200,
+      "response": {
+        "id": "1091510086973633",
+        "status": "PENDING",
+        "category": "UTILITY"
+      },
+      "payload": {
+        "name": "utak_update_owner",
+        "language": "ar",
+        "category": "UTILITY",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "يوجد تحديث تشغيلي على حساب يو تاك بتاريخ {{1}}: {{2}}. اضغط «عرض التحديث» للتفاصيل.",
+            "example": {
+              "body_text": [
+                [
+                  "26 سبتمبر 2026",
+                  "تنبيه تشغيلي"
+                ]
+              ]
+            }
+          },
+          {
+            "type": "BUTTONS",
+            "buttons": [
+              {
+                "type": "QUICK_REPLY",
+                "text": "عرض التحديث"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "inventoryAt": "2026-09-25T15:00:05.881Z",
+  "inventoryCount": 66,
+  "status": {
+    "utak_update_customer": {
+      "id": "933950629337336",
+      "status": "PENDING",
+      "category": "MARKETING",
+      "previous_category": "UTILITY",
+      "rejected_reason": "NONE"
+    },
+    "utak_update_team": {
+      "id": "2152058979020380",
+      "status": "APPROVED",
+      "category": "MARKETING",
+      "previous_category": "UTILITY",
+      "rejected_reason": "NONE"
+    },
+    "utak_update_supplier": {
+      "id": "1114139324289565",
+      "status": "PENDING",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": "NONE"
+    },
+    "utak_update_owner": {
+      "id": "1091510086973633",
+      "status": "PENDING",
+      "category": "MARKETING",
+      "previous_category": "UTILITY",
+      "rejected_reason": "NONE"
+    }
+  },
+  "statusAt": "2026-09-25T15:00:06.353Z"
+}

@@ -23,26 +23,158 @@ import {
   createPurchaseListRecord,
   getConfirmedLinesForToday,
   getLatestPurchaseListToday,
+  getOrderCustomer,
   getOrderIdsFromPurchaseList,
+  getPurchaseListBrief,
   getTeamMembersByRole,
+  getUnconfirmedOrders,
+  getUnconfirmedPurchaseLists,
   markPurchaseListDone,
   markPurchaseListSent,
   transitionOrdersToInPurchase,
+  type UnconfirmedOrder,
 } from "./odoo";
-import { sendButtons, sendLocation, sendText } from "./meta";
-import { sendTemplateByPurpose, T, sendOwnerAlert } from "./templates";
+import { buttonsContent, sendButtons, sendLocation, sendText, textContent } from "./meta";
+import { gatewayDecision, sendViaGateway, type GwOption } from "./wa-gateway";
+import { sendTemplateByPurpose, T, sendOwnerAlert, cutoffLabel, purchaseRemindParams } from "./templates";
 import { createAndDispatchDeliveryNoteForStop } from "./delivery-note";
+import { syncPurchaseListToAccounting } from "./purchase-accounting";
+import { riyadhDateKey } from "./hours";
+import { arabicDate, joinCapped } from "./wa-params";
+import type { PurchaseListItem } from "./types";
+import { holdForTask } from "./attendance";
+import { heldPartnerIds } from "./screening";
+import { enqueueTeamItems, type TeamQueueItem } from "./team-queue";
 
 // ============================================================
-// 21:00 Riyadh — auto-cancel unconfirmed orders
+// Customer order notice — 2026-09-24 (ح3)
+//
+// Inside the 24h window: a session message (with buttons when given).
+// Outside it: the approved UTILITY template — utak_order_confirm_remind_v1
+// (customer_order_remind, with «تأكيد الطلب» / «إلغاء») for the 20:00
+// reminder, else utak_order_update («تحديث على طلبك رقم {{1}}: {{2}}. لأي
+// استفسار رد على هذه الرسالة», customer_order_update). A free-form text outside
+// the window would be accepted by Meta and then dropped (131047).
+// 2026-09-25 (STATUS § 33) — one gateway request carries all three; the
+// gateway picks by the window and the templates' approval and category. Only a
+// template that cannot go falls through to the next: one refused by Meta is
+// not re-sent under another name.
+// ============================================================
+export const CUTOFF_PROMPT_TTL = 2 * 60 * 60;
+
+async function notifyOrderCustomer(
+  env: Env,
+  o: { id: number; customerId: number },
+  session: { text: string; buttons?: Array<{ id: string; title: string }> },
+  templateUpdate: string,
+  opts: { remind?: boolean } = {},
+): Promise<"session" | "template" | "template_buttons" | "none" | "held" | "queued" | "failed"> {
+  const cust = await getOrderCustomer(env, o.id);
+  if (!cust?.phone) return "none";
+  // 2026-09-25 (STATUS § 30) — no reminder / notice to a partner held from customer automation.
+  if ((await heldPartnerIds(env, [cust.id])).has(cust.id)) return "held";
+  const content: GwOption = session.buttons?.length ? buttonsContent(session.text, session.buttons) : textContent(session.text);
+  const fallback: GwOption[] = [
+    ...(opts.remind
+      ? [{ kind: "template" as const, purpose: T.CUSTOMER_ORDER_REMIND, params: [`#${o.id}`, cutoffLabel()], buttons: orderRemindButtons(o.id) }]
+      : []),
+    { kind: "template" as const, purpose: T.CUSTOMER_ORDER_UPDATE, params: [`#${o.id}`, templateUpdate] },
+  ];
+  const r = await sendViaGateway(env, {
+    purpose: opts.remind ? T.CUSTOMER_ORDER_REMIND : T.CUSTOMER_ORDER_UPDATE,
+    to: cust.phone,
+    content,
+    fallback,
+  });
+  const d = gatewayDecision(r);
+  if (d?.action === "session") return "session";
+  if (d?.action === "template") return d.lookup === T.CUSTOMER_ORDER_REMIND ? "template_buttons" : "template";
+  if (d?.action === "held") return "queued";
+  return "failed";
+}
+
+/** Payloads for utak_order_confirm_remind_v1: button 0 «تأكيد الطلب», button 1 «إلغاء». */
+export function orderRemindButtons(orderId: number): Array<{ index: number; payload: string }> {
+  return [
+    { index: 0, payload: `confirm_order_${orderId}` },
+    { index: 1, payload: `cancel_order_${orderId}` },
+  ];
+}
+
+// ============================================================
+// 20:00 Riyadh — remind every customer with an unconfirmed order (ح3)
+// ============================================================
+export async function sendCutoffReminders(env: Env): Promise<{ reminded: number; failed: number }> {
+  const orders = await getUnconfirmedOrders(env, riyadhDateKey());
+  let reminded = 0, failed = 0;
+  for (const o of orders) {
+    try {
+      // § 40 د — an order below the minimum: no confirm button (it could not be
+      // confirmed); the reminder says what is missing, and 21:00 cancels it as any other (ح3).
+      const { minimumText, orderMinimum } = await import("./order-pricing");
+      const minimum = await orderMinimum(env, o.id).catch(() => null);
+      if (minimum?.below) {
+        const why = `${minimumText(minimum.min)} قبل الساعة ${cutoffLabel()}، وإلا يُلغى تلقائياً`;
+        const how = await notifyOrderCustomer(env, o, { text: `⏰ طلبك رقم #${o.id}: ${why}.` }, why);
+        if (how === "session" || how === "template") reminded++;
+        else if (how !== "held" && how !== "queued" && how !== "none") failed++;
+        continue;
+      }
+      const how = await notifyOrderCustomer(
+        env,
+        o,
+        {
+          text: `⏰ طلبك رقم #${o.id} لسه ما تأكد، ويُلغى تلقائياً الساعة ${cutoffLabel()} لو ما تأكد. اضغط «تأكيد الطلب» عشان يدخل طلبات اليوم 👇`,
+          buttons: [
+            { id: `confirm_order_${o.id}`, title: "تأكيد الطلب ✅" },
+            { id: `cancel_order_${o.id}`, title: "إلغاء ❌" },
+          ],
+        },
+        `لم يُؤكَّد بعد، ويُلغى تلقائياً الساعة ${cutoffLabel()}. رد على هذه الرسالة لتأكيده`,
+        { remind: true },
+      );
+      if (how === "template") {
+        // A reply to the template (any text) re-sends the confirm button inside the window.
+        await env.MSG_DEDUP.put(`cutoff_prompt:${o.customerId}`, String(o.id), { expirationTtl: CUTOFF_PROMPT_TTL });
+      }
+      if (how === "session" || how === "template" || how === "template_buttons") reminded++;
+      else if (how !== "held" && how !== "queued") failed++;
+    } catch (e) {
+      failed++;
+      console.error(`[cron 20:00] reminder for order ${o.id} failed`, (e as Error)?.message);
+    }
+  }
+  console.log(`[cron 20:00] unconfirmed=${orders.length} reminded=${reminded} failed=${failed}`);
+  return { reminded, failed };
+}
+
+// ============================================================
+// 21:00 Riyadh — auto-cancel unconfirmed orders, and tell each customer (ح3)
 // ============================================================
 export async function closeUnconfirmedOrders(env: Env): Promise<void> {
+  const before = await getUnconfirmedOrders(env);
   const ids = await cancelStaleWaitingOrders(env);
-  console.log(`[cron 21:00] cancelled ${ids.length} waiting_confirmation orders`);
+  console.log(`[cron 21:00] cancelled ${ids.length} unconfirmed orders`);
+  const byId = new Map<number, UnconfirmedOrder>(before.map((o) => [o.id, o]));
+  let notified = 0;
+  for (const id of ids) {
+    const o = byId.get(id) ?? { id, customerId: 0 } as UnconfirmedOrder;
+    try {
+      const how = await notifyOrderCustomer(
+        env,
+        o,
+        { text: `طلبك رقم #${id} أُلغي لأنه ما تأكد قبل الساعة ${cutoffLabel()} 🙏 لو تبغاه على طلبات بكرة، أرسل الأصناف هنا ونسجّلها لك.` },
+        `أُلغي لعدم تأكيده قبل الساعة ${cutoffLabel()}. لو تبغاه على طلبات بكرة رد على هذه الرسالة بالأصناف`,
+      );
+      if (how === "session" || how === "template") notified++;
+    } catch (e) {
+      console.error(`[cron 21:00] cancel notice for order ${id} failed`, (e as Error)?.message);
+    }
+  }
   if (ids.length > 0 && env.OWNER_WHATSAPP) {
     await sendOwnerAlert(
       env,
-      `📊 إقفال الطلبات\nتم إلغاء ${ids.length} طلب لم يُؤكَّد اليوم.`,
+      `📊 إقفال الطلبات\nتم إلغاء ${ids.length} طلب لم يُؤكَّد اليوم (${ids.map((i) => "#" + i).join("، ")}). أُبلغ ${notified} عميل.`,
     );
   }
 }
@@ -73,7 +205,7 @@ export async function aggregateAndDispatchToWarehouse(env: Env): Promise<void> {
 
   const warehouseMembers = await getTeamMembersByRole(env, "warehouse");
   if (warehouseMembers.length === 0) {
-    console.error("[cron 21:15] no warehouse team member found — check res.partner x_role='warehouse'");
+    console.error("[cron 21:15] no warehouse team member found — check «أدوار UTAK» (شراء) on hr.employee");
     if (env.OWNER_WHATSAPP) {
       await sendOwnerAlert(
         env,
@@ -83,31 +215,83 @@ export async function aggregateAndDispatchToWarehouse(env: Env): Promise<void> {
     return;
   }
 
-  const listContent = renderPurchaseListMessage(items);
-  const today = new Date().toISOString().slice(0, 10);
   for (const wh of warehouseMembers) {
-    try {
-      const resp = await sendTemplateByPurpose(env, wh.x_whatsapp_number, T.PURCHASE_LIST,
-        [wh.name || "", today, listContent, String(items.length)],
-        [
-          { index: 0, payload: `purchase_done_${listId}` },
-          { index: 1, payload: `purchase_issue_${listId}` },
-        ]);
-      if (!resp || !resp.ok) {
-        // Fallback to plain buttons if template send fails
-        await sendButtons(env, wh.x_whatsapp_number, listContent, [
-          { id: `purchase_done_${listId}`, title: "تم الشراء ✅" }
-        ]);
-      }
-    } catch (e) {
-      console.error(`[cron 21:15] failed to send to ${wh.name}`, (e as Error)?.message);
+    // 2026-09-25 (STATUS § 29) — not tapped «بدء الدوام» today: the open list
+    // reaches them right after the tap (resendOpenPurchaseLists), not now.
+    // STATUS § 31 — after the shift (or on a day off / time off) the same, until
+    // the next shift's tap, and Baraa gets one «مهمة لـ… بعد دوامه».
+    if ((await holdForTask(env, wh.id, { kind: "purchase_list", label: `قائمة الشراء #${listId} (${items.length} صنف)` })).hold) {
+      console.log(`[cron 21:15] list ${listId} waits for ${wh.name}'s «بدء الدوام»`);
+      continue;
     }
+    await sendPurchaseListTemplate(env, wh, listId, items);
   }
   await markPurchaseListSent(env, listId);
   console.log(`[cron 21:15] purchase list id=${listId} sent to ${warehouseMembers.length} warehouse member(s)`);
 }
 
-function renderPurchaseListMessage(items: ReturnType<typeof aggregatePurchaseList>): string {
+/**
+ * The purchase_list template (utak_purchase_list_v2, 4 vars + «تم الشراء» /
+ * «مشكلة»). {{3}} is ONE line (ح1): Meta refused the old multi-line list with
+ * #132018. A long list is cut on an item boundary and says how many are left;
+ * any reply from the warehouse then gets the full list in the session.
+ */
+async function sendPurchaseListTemplate(
+  env: Env,
+  wh: TeamMember,
+  listId: number,
+  items: PurchaseListItem[],
+  opts: { reminder?: boolean; date?: string } = {},
+): Promise<boolean> {
+  const list = purchaseListLine(items);
+  const day = arabicDate(opts.date || riyadhDateKey());
+  try {
+    // STATUS § 33 — one request: the template, else the session buttons inside
+    // the warehouse's window (held for it otherwise).
+    const resp = await sendViaGateway(env, {
+      purpose: opts.reminder ? T.PURCHASE_LIST_REMIND : T.PURCHASE_LIST,
+      to: wh.x_whatsapp_number,
+      content: purchaseListTemplateOption(wh, listId, items, day, opts.reminder),
+      fallback: [buttonsContent(renderPurchaseListMessage(items), purchaseListButtons(listId))],
+    });
+    return resp.ok;
+  } catch (e) {
+    console.error(`[purchase-list] failed to send to ${wh.name}`, (e as Error)?.message);
+    return false;
+  }
+}
+
+function purchaseListTemplateOption(wh: TeamMember, listId: number, items: PurchaseListItem[], day: string, reminder?: boolean): GwOption {
+  return {
+    kind: "template",
+    purpose: T.PURCHASE_LIST,
+    // built only if the gateway picks this template
+    params: () => [wh.name || "", reminder ? `${day} (تذكير: لم يُضغط «تم الشراء» بعد)` : day, purchaseListLine(items), String(items.length)],
+    buttons: [
+      { index: 0, payload: `purchase_done_${listId}` },
+      { index: 1, payload: `purchase_issue_${listId}` },
+    ],
+  };
+}
+
+export function purchaseListButtons(listId: number): Array<{ id: string; title: string }> {
+  return [
+    { id: `purchase_done_${listId}`, title: "تم الشراء ✅" },
+    { id: `purchase_issue_${listId}`, title: "مشكلة ⚠️" },
+  ];
+}
+
+/** "1. طماطم — كرتون × 3، 2. خيار — جرم × 5 … و 4 أخرى (…)" */
+export function purchaseListLine(items: PurchaseListItem[]): string {
+  return joinCapped(
+    items.map((it, i) => `${i + 1}. ${it.product_name} — ${it.packaging_name} × ${formatQty(it.total_quantity)}`),
+    undefined,
+    "، ",
+    (n) => `و ${n} أصناف أخرى (أرسل أي رسالة لعرض القائمة كاملة)`,
+  ).text;
+}
+
+export function renderPurchaseListMessage(items: PurchaseListItem[]): string {
   const header = `🛒 قائمة شراء اليوم\nعدد الأصناف: ${items.length}`;
   const lines = items
     .map((it, i) => `${i + 1}. ${it.product_name} — ${it.packaging_name} × ${formatQty(it.total_quantity)}`)
@@ -116,6 +300,112 @@ function renderPurchaseListMessage(items: ReturnType<typeof aggregatePurchaseLis
   // Meta interactive body max 1024 chars — trim if we somehow overflow
   const full = `${header}\n\n${lines}\n${footer}`;
   return full.length <= 1024 ? full : full.slice(0, 1020) + "…";
+}
+
+/**
+ * The warehouse wrote something (not a pending issue): send every list still
+ * waiting for «تم الشراء» in full, inside the session window just opened.
+ * Returns how many lists were sent.
+ */
+export async function resendOpenPurchaseLists(env: Env, to: string): Promise<number> {
+  const ids = await getUnconfirmedPurchaseLists(env, riyadhDateKey(new Date(Date.now() - 36 * 3600 * 1000)));
+  let n = 0;
+  for (const id of ids) {
+    const list = await getPurchaseListBrief(env, id);
+    if (!list || list.items.length === 0) continue;
+    const full = [
+      `🛒 قائمة الشراء #${id} (${arabicDate(list.date)}) — ${list.items.length} صنف`,
+      "",
+      ...list.items.map((it, i) => `${i + 1}. ${it.product_name} — ${it.packaging_name} × ${formatQty(it.total_quantity)}`),
+    ].join("\n");
+    // Interactive bodies cap at 1024: long lists go as text chunks, then the buttons.
+    if (full.length > 1000) {
+      for (let i = 0; i < full.length; i += 3500) await sendText(env, to, full.slice(i, i + 3500), { purpose: T.PURCHASE_LIST });
+      await sendButtons(env, to, `قائمة الشراء #${id}: اضغط لما تخلّص.`, purchaseListButtons(id), { purpose: T.PURCHASE_LIST });
+    } else {
+      await sendButtons(env, to, full, purchaseListButtons(id), { purpose: T.PURCHASE_LIST });
+    }
+    n++;
+  }
+  return n;
+}
+
+/**
+ * 06:00 Riyadh — ح7: a purchase list still «sent» (no «تم الشراء») gets a
+ * reminder to the warehouse (the same approved template, marked as a
+ * reminder) and an immediate owner alert.
+ */
+export async function followUpUnconfirmedPurchaseLists(env: Env): Promise<{ reminded: number }> {
+  const ids = await getUnconfirmedPurchaseLists(env, riyadhDateKey(new Date(Date.now() - 36 * 3600 * 1000)));
+  if (ids.length === 0) return { reminded: 0 };
+  const warehouse = await getTeamMembersByRole(env, "warehouse");
+  // 2026-09-25 (STATUS § 29) — a member who has not tapped «بدء الدوام» today
+  // gets the open list right after the tap instead of this reminder (and after
+  // the shift / on a day off: at the next shift, STATUS § 31).
+  const held = new Set<number>();
+  for (const wh of warehouse) {
+    if ((await holdForTask(env, wh.id, { kind: "purchase_list_remind", label: `تذكير قائمة الشراء (${ids.map((i) => "#" + i).join("، ")})` })).hold) held.add(wh.id);
+  }
+  let reminded = 0;
+  for (const id of ids) {
+    const list = await getPurchaseListBrief(env, id);
+    if (!list) continue;
+    for (const wh of warehouse) {
+      if (held.has(wh.id)) continue;
+      if (await sendPurchaseListReminder(env, wh, id, list)) reminded++;
+    }
+    const sentTo = warehouse.filter((w) => !held.has(w.id)).map((w) => w.name).join("، ");
+    const waiting = warehouse.filter((w) => held.has(w.id)).map((w) => w.name).join("، ");
+    await sendOwnerAlert(
+      env,
+      `⏰ قائمة الشراء #${id} (${arabicDate(list.date)}) لم يُضغط عليها «تم الشراء» حتى الآن، فلا مسارات ولا توصيل. ` +
+        (waiting
+          ? `${sentTo ? `أُرسل تذكير للمستودع (${sentTo}). ` : ""}بانتظار «بدء الدوام»: ${waiting}، وتصله القائمة بعد الضغط.`
+          : `أُرسل تذكير للمستودع (${warehouse.map((w) => w.name).join("، ") || "لا يوجد موظف مستودع"}).`),
+    );
+  }
+  return { reminded };
+}
+
+/**
+ * 2026-09-25 — the purchase_list_remind template («تم الشراء» button) once
+ * that purpose is mapped: utak_purchase_list_remind_v2 = [list id, date, item
+ * count], or v1 = [date, item count] (purchaseRemindParams). Until then the
+ * purchase list template again, marked as a reminder, then the session list
+ * inside the warehouse's window. STATUS § 33 — one gateway request: only a
+ * template that cannot go falls through; one refused by Meta is not re-sent
+ * under another name.
+ */
+async function sendPurchaseListReminder(
+  env: Env,
+  wh: TeamMember,
+  listId: number,
+  list: { date: string; items: PurchaseListItem[] },
+): Promise<boolean> {
+  try {
+    const date = arabicDate(list.date || riyadhDateKey());
+    const fallback: GwOption[] = [purchaseListTemplateOption(wh, listId, list.items, date, true)];
+    try {
+      fallback.push(buttonsContent(renderPurchaseListMessage(list.items), purchaseListButtons(listId)));
+    } catch (e) {
+      console.warn(`[purchase-list] list #${listId} cannot be rendered as text — template only`, (e as Error)?.message);
+    }
+    const r = await sendViaGateway(env, {
+      purpose: T.PURCHASE_LIST_REMIND,
+      to: wh.x_whatsapp_number,
+      content: {
+        kind: "template",
+        purpose: T.PURCHASE_LIST_REMIND,
+        params: (name: string) => purchaseRemindParams(name, listId, date, list.items.length),
+        buttons: [{ index: 0, payload: `purchase_done_${listId}` }],
+      },
+      fallback,
+    });
+    return r.ok;
+  } catch (e) {
+    console.error(`[purchase-list] reminder to ${wh.name} failed`, (e as Error)?.message);
+    return false;
+  }
 }
 
 function formatQty(q: number): string {
@@ -147,10 +437,24 @@ export async function warehouseConfirmedPurchase(
       `🚚 تم إرسال المسارات\n- عدد السواقين: ${routes.length}\n- عدد التوصيلات: ${ordersMoved}`,
     );
   }
+
+  // 2026-09-23 — closed list → purchase.order + posted vendor bill, behind
+  // ACCOUNTING_SYNC. Runs last and never throws: routes and WhatsApp above
+  // have already gone out, and a refusal only alerts the owner.
+  await syncPurchaseListToAccounting(env, listId);
+  // 2026-09-25 (STATUS § 37) — the confirmed list's supplier dues (quantity ×
+  // each supplier's own price of the day; «بلا سعر» lines alerted). Never
+  // throws: the */5 tick builds them if this fails.
+  try {
+    const { syncSupplierDues } = await import("./supplier-pay");
+    await syncSupplierDues(env, listId);
+  } catch (e) {
+    console.warn(`[supplier-pay] dues for list ${listId} failed — the tick retries`, (e as Error)?.message);
+  }
   return { routesDispatched: routes.length, ordersMoved };
 }
 
-async function sendDriverRoute(
+export async function sendDriverRoute(
   env: Env,
   driver: TeamMember,
   stops: RouteStop[],
@@ -167,6 +471,45 @@ async function sendDriverRoute(
   const footer = `\nلما تخلّص كل توصيلة، ابعث لي رقم الطلب واضغط الأزرار اللي تجيك.`;
   const body = `${header}\n\n${list}\n${footer}`;
   const trimmed = body.length <= 1024 ? body : body.slice(0, 1020) + "…";
+  const stopBody = (s: RouteStop) =>
+    `توصيلة #${s.order_id} — ${s.customer_name}${s.neighborhood ? " (" + s.neighborhood + ")" : ""}\n${s.line_summary}`.slice(0, 1024);
+  const stopButtons = (s: RouteStop) => [
+    { id: `delivered_${s.order_id}`, title: "تم التسليم ✅" },
+    { id: `delivery_issue_${s.order_id}`, title: "فيه مشكلة ⚠️" },
+  ];
+
+  // 2026-09-25 (STATUS § 29) — attendance. A driver on attendance who has
+  // not tapped today's «بدء الدوام» gets the whole route after the tap: the
+  // list, then per stop its location, delivery note and buttons, all queued in
+  // order. A driver who already tapped today gets it now, without a second
+  // «بدء الدوام» template. A driver not on attendance: unchanged below.
+  // STATUS § 31 — after the shift (or on a day off / time off) the route is
+  // queued the same way for the next shift, and Baraa gets one alert.
+  const att = await holdForTask(env, driver.id, { kind: "route", label: `مسار التوصيل (${stops.length} توصيلة، المسار #${routeId})` });
+  if (att.hold) {
+    const q: TeamQueueItem[] = [{ text: trimmed }];
+    for (const s of stops) {
+      if (typeof s.latitude === "number" && typeof s.longitude === "number") {
+        q.push({ latitude: s.latitude, longitude: s.longitude, name: `#${s.order_id} — ${s.customer_name}`, address: s.neighborhood || undefined });
+      } else if (s.map_url) {
+        q.push({ text: `📍 #${s.order_id} — ${s.customer_name}\n${s.map_url}` });
+      }
+      if (typeof s.stop_id === "number") {
+        try {
+          const dn = await createAndDispatchDeliveryNoteForStop(env, s.stop_id, driver.x_whatsapp_number, { defer: true });
+          if (dn?.deferredText) q.push({ text: dn.deferredText });
+        } catch (e) {
+          console.warn(`[sendDriverRoute] delivery-note failed for stop ${s.stop_id}`, (e as Error)?.message);
+        }
+      }
+      q.push({ text: stopBody(s), buttons: stopButtons(s) });
+    }
+    // STATUS § 38 (م8) — the route reaches him at the flush: its first stop's «في الطريق» then.
+    q.push({ route_start: routeId, driver: driver.name || "" });
+    await enqueueTeamItems(env, driver.x_whatsapp_number, q, att.queueTtl);
+    console.log(`[sendDriverRoute] route ${routeId} (${stops.length} stops) queued until ${driver.name}'s «بدء الدوام»`);
+    return;
+  }
 
   // 2026-09-17 — shift-start gate. Before the driver_dispatch template we
   // send an approved team_shift_start template with a QUICK_REPLY button.
@@ -177,31 +520,37 @@ async function sendDriverRoute(
   // handleWebhook team branch). If the shift template fails or is not
   // wired up in Odoo yet, we fall through to the old inline behaviour so
   // pilot is never worse off than before.
-  const shiftResp = await sendTemplateByPurpose(
-    env,
-    driver.x_whatsapp_number,
-    T.TEAM_SHIFT_START,
-    [driver.name || ""],
-    [{ index: 0, payload: "shift_start" }],
-  );
+  const shiftResp = att.onAttendance
+    ? null
+    : await sendTemplateByPurpose(
+      env,
+      driver.x_whatsapp_number,
+      T.TEAM_SHIFT_START,
+      [driver.name || ""],
+      [{ index: 0, payload: "shift_start" }],
+    );
   const shiftOk = !!shiftResp && shiftResp.ok;
 
   // v7: use approved driver_dispatch template (opens conversation window;
   // per-stop buttons follow inside the 24h window via sendButtons).
-  const today = new Date().toISOString().slice(0, 10);
-  const resp = await sendTemplateByPurpose(env, driver.x_whatsapp_number, T.DRIVER_DISPATCH,
-    [driver.name || "", today, list, String(stops.length)]);
-  if (!resp || !resp.ok) {
-    // Fallback to plain text
-    await sendText(env, driver.x_whatsapp_number, trimmed);
-  }
+  // ح1: {{3}} is one line (the multi-line list was refused with #132018).
+  // Every stop also gets its own driver_stop message below, so a cut list
+  // loses nothing.
+  const oneLine = joinCapped(
+    stops.map((s, i) => `${i + 1}. ${s.customer_name}${s.neighborhood ? " (" + s.neighborhood + ")" : ""}`),
+  ).text;
+  // STATUS § 33 — one request: the template, else the route as text inside
+  // the driver's window (held for it otherwise).
+  await sendTemplateByPurpose(env, driver.x_whatsapp_number, T.DRIVER_DISPATCH,
+    [driver.name || "", arabicDate(riyadhDateKey()), oneLine, String(stops.length)], [], undefined,
+    { fallback: [textContent(trimmed)] });
 
-  const pendingLocations: Array<{
-    latitude: number;
-    longitude: number;
-    name: string;
-    address?: string;
-  }> = [];
+  // Queued behind «بدء الدوام», in stop order: locations and (م11) the
+  // delivery-note texts. Flushed by the team branch in index.ts.
+  const pendingLocations: Array<
+    | { latitude: number; longitude: number; name: string; address?: string }
+    | { text: string }
+  > = [];
 
   for (const s of stops) {
     // 2026-09-17 — when the shift-start template lands, defer this
@@ -224,14 +573,13 @@ async function sendDriverRoute(
           s.longitude,
           `#${s.order_id} — ${s.customer_name}`,
           s.neighborhood || undefined,
+          { purpose: "driver_stop_location" },
         );
       }
     } else if (s.map_url) {
-      await sendText(
-        env,
-        driver.x_whatsapp_number,
-        `📍 #${s.order_id} — ${s.customer_name}\n${s.map_url}`,
-      );
+      const t = `📍 #${s.order_id} — ${s.customer_name}\n${s.map_url}`;
+      if (shiftOk) pendingLocations.push({ text: t });
+      else await sendText(env, driver.x_whatsapp_number, t, { purpose: "driver_stop_location" });
     }
 
     // Phase 3 — before the driver_stop button prompt, generate + send the
@@ -239,7 +587,8 @@ async function sendDriverRoute(
     // failure must not block the driver from getting the stop buttons.
     if (typeof s.stop_id === "number") {
       try {
-        await createAndDispatchDeliveryNoteForStop(env, s.stop_id, driver.x_whatsapp_number);
+        const dn = await createAndDispatchDeliveryNoteForStop(env, s.stop_id, driver.x_whatsapp_number, { defer: shiftOk });
+        if (shiftOk && dn?.deferredText) pendingLocations.push({ text: dn.deferredText });
       } catch (e) {
         console.warn(
           `[sendDriverRoute] delivery-note failed for stop ${s.stop_id}`,
@@ -253,7 +602,8 @@ async function sendDriverRoute(
     }
 
     // v7: driver_stop template — 5 params: stop#, customer, neighborhood, address, items
-    const resp2 = await sendTemplateByPurpose(env, driver.x_whatsapp_number, T.DRIVER_STOP,
+    // STATUS § 33 — the template, else the stop's session buttons (in the window).
+    await sendTemplateByPurpose(env, driver.x_whatsapp_number, T.DRIVER_STOP,
       [
         String(s.order_id),
         s.customer_name || "",
@@ -264,15 +614,9 @@ async function sendDriverRoute(
       [
         { index: 0, payload: `delivered_${s.order_id}` },
         { index: 1, payload: `delivery_issue_${s.order_id}` },
-      ]);
-    if (!resp2 || !resp2.ok) {
-      // Fallback to plain buttons if template send fails
-      const stopBody = `توصيلة #${s.order_id} — ${s.customer_name}${s.neighborhood ? " (" + s.neighborhood + ")" : ""}\n${s.line_summary}`;
-      await sendButtons(env, driver.x_whatsapp_number, stopBody.slice(0, 1024), [
-        { id: `delivered_${s.order_id}`, title: "تم التسليم ✅" },
-        { id: `delivery_issue_${s.order_id}`, title: "فيه مشكلة ⚠️" },
-      ]);
-    }
+      ],
+      undefined,
+      { fallback: [buttonsContent(stopBody(s), stopButtons(s))] });
   }
 
   // 2026-09-17 — store the deferred locations in KV so the team-branch
@@ -280,17 +624,23 @@ async function sendDriverRoute(
   // (shift_start button, or any other reply within 20h).
   if (shiftOk && pendingLocations.length > 0) {
     try {
-      await env.MSG_DEDUP.put(
-        `pending_loc:${driver.x_whatsapp_number}`,
-        JSON.stringify(pendingLocations),
-        { expirationTtl: 20 * 60 * 60 },
-      );
+      // 2026-09-25 — appended (team-queue.ts), no longer overwriting anything
+      // already queued for this number.
+      await enqueueTeamItems(env, driver.x_whatsapp_number, pendingLocations, 20 * 60 * 60);
     } catch (e) {
       console.warn(
         `[sendDriverRoute] failed to queue locations for ${driver.x_whatsapp_number}`,
         (e as Error)?.message,
       );
     }
+  }
+
+  // STATUS § 38 (م8) — the route went out: the first stop's customer gets «في الطريق».
+  try {
+    const { notifyRouteStart } = await import("./out-for-delivery");
+    await notifyRouteStart(env, routeId, driver.name || "");
+  } catch (e) {
+    console.warn(`[sendDriverRoute] «في الطريق» for route ${routeId} failed`, (e as Error)?.message);
   }
 }
 
@@ -304,14 +654,17 @@ export async function notifyCustomerDelivered(
   orderId: number,
 ): Promise<void> {
   if (!customerPhone) return;
-  // v7: use approved delivery_done template (2 buttons: كل شي تمام | عندي ملاحظة)
-  const resp = await sendTemplateByPurpose(env, customerPhone, T.CUSTOMER_DELIVERY_DONE,
-    [customerName || ""]);
-  if (!resp || !resp.ok) {
-    // Fallback to plain text (works only inside 24h window)
-    const msg = `مرحبا ${customerName || ""} 🌿\nتم توصيل طلبك رقم #${orderId}. الفاتورة النهائية بتوصلك قريباً.\nشكراً لثقتك في UTAK.`;
-    await sendText(env, customerPhone, msg);
-  }
+  // 2026-09-24 — customer_delivery_done moved from utak_delivery_done
+  // (MARKETING, {{1}} = name, 2 quick replies) to utak_delivered (UTILITY,
+  // {{1}} = order number, no buttons). Params follow whichever template the
+  // purpose resolves to, so the Odoo switch and a rollback are both safe.
+  // STATUS § 33 — one request: the template (UTILITY utak_delivered; the
+  // MARKETING utak_delivery_done is never used for it), else the text inside
+  // the customer's window.
+  const msg = `مرحبا ${customerName || ""} 🌿\nتم توصيل طلبك رقم #${orderId}. الفاتورة النهائية بتوصلك قريباً.\nشكراً لثقتك في UTAK.`;
+  await sendTemplateByPurpose(env, customerPhone, T.CUSTOMER_DELIVERY_DONE,
+    (name) => (name === "utak_delivery_done" ? [customerName || ""] : [String(orderId)]), [], undefined,
+    { fallback: [textContent(msg)] });
 }
 
 // ============================================================

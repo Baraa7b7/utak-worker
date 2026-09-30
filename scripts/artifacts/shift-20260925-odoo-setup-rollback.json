@@ -1,0 +1,324 @@
+{
+  "before": {
+    "at": "2026-09-25T04:22:50.718Z",
+    "employees": [
+      {
+        "id": 4,
+        "name": "عمر المجهلي",
+        "active": true,
+        "tz": "Asia/Riyadh",
+        "resource_calendar_id": false,
+        "resource_id": [
+          4,
+          "عمر المجهلي"
+        ],
+        "work_contact_id": [
+          9,
+          "عمر المجهلي"
+        ],
+        "company_id": [
+          1,
+          "شركة يوتاك ذات مسؤولية محدودة"
+        ],
+        "version_id": [
+          4,
+          "Jan 1, 2025"
+        ],
+        "x_utak_role_ids": [
+          1,
+          2,
+          3
+        ],
+        "x_utak_attendance": false,
+        "x_utak_whatsapp": "+966545816832"
+      },
+      {
+        "id": 5,
+        "name": "عثمان عبدالوهاب",
+        "active": true,
+        "tz": "Asia/Riyadh",
+        "resource_calendar_id": false,
+        "resource_id": [
+          5,
+          "عثمان عبدالوهاب"
+        ],
+        "work_contact_id": [
+          15,
+          "عثمان عبدالوهاب"
+        ],
+        "company_id": [
+          1,
+          "شركة يوتاك ذات مسؤولية محدودة"
+        ],
+        "version_id": [
+          5,
+          "Sep 25, 2026"
+        ],
+        "x_utak_role_ids": [
+          4
+        ],
+        "x_utak_attendance": false,
+        "x_utak_whatsapp": "+966530399474"
+      },
+      {
+        "id": 2,
+        "name": "Emma Granger",
+        "active": true,
+        "tz": "Asia/Riyadh",
+        "resource_calendar_id": [
+          1,
+          "40 hours/week"
+        ],
+        "resource_id": [
+          2,
+          "Emma Granger"
+        ],
+        "work_contact_id": [
+          61,
+          "Emma Granger"
+        ],
+        "company_id": [
+          1,
+          "شركة يوتاك ذات مسؤولية محدودة"
+        ],
+        "version_id": [
+          2,
+          "Sep 25, 2026"
+        ],
+        "x_utak_role_ids": [],
+        "x_utak_attendance": false,
+        "x_utak_whatsapp": "(555)-768-6230"
+      },
+      {
+        "id": 1,
+        "name": "Michael Williams",
+        "active": true,
+        "tz": "Asia/Riyadh",
+        "resource_calendar_id": [
+          1,
+          "40 hours/week"
+        ],
+        "resource_id": [
+          1,
+          "Michael Williams"
+        ],
+        "work_contact_id": [
+          62,
+          "Michael Williams"
+        ],
+        "company_id": [
+          1,
+          "شركة يوتاك ذات مسؤولية محدودة"
+        ],
+        "version_id": [
+          1,
+          "Sep 25, 2026"
+        ],
+        "x_utak_role_ids": [],
+        "x_utak_attendance": false,
+        "x_utak_whatsapp": "(555)-768-6230"
+      },
+      {
+        "id": 3,
+        "name": "Simon Jones",
+        "active": true,
+        "tz": "Asia/Riyadh",
+        "resource_calendar_id": [
+          1,
+          "40 hours/week"
+        ],
+        "resource_id": [
+          3,
+          "Simon Jones"
+        ],
+        "work_contact_id": [
+          63,
+          "Simon Jones"
+        ],
+        "company_id": [
+          1,
+          "شركة يوتاك ذات مسؤولية محدودة"
+        ],
+        "version_id": [
+          3,
+          "Sep 25, 2026"
+        ],
+        "x_utak_role_ids": [],
+        "x_utak_attendance": false,
+        "x_utak_whatsapp": "(555)-768-6230"
+      }
+    ],
+    "versions": [
+      {
+        "id": 4,
+        "employee_id": [
+          4,
+          "عمر المجهلي"
+        ],
+        "resource_calendar_id": false,
+        "tz": "Asia/Riyadh"
+      },
+      {
+        "id": 5,
+        "employee_id": [
+          5,
+          "عثمان عبدالوهاب"
+        ],
+        "resource_calendar_id": false,
+        "tz": "Asia/Riyadh"
+      },
+      {
+        "id": 2,
+        "employee_id": [
+          2,
+          "Emma Granger"
+        ],
+        "resource_calendar_id": [
+          1,
+          "40 hours/week"
+        ],
+        "tz": "Asia/Riyadh"
+      },
+      {
+        "id": 1,
+        "employee_id": [
+          1,
+          "Michael Williams"
+        ],
+        "resource_calendar_id": [
+          1,
+          "40 hours/week"
+        ],
+        "tz": "Asia/Riyadh"
+      },
+      {
+        "id": 3,
+        "employee_id": [
+          3,
+          "Simon Jones"
+        ],
+        "resource_calendar_id": [
+          1,
+          "40 hours/week"
+        ],
+        "tz": "Asia/Riyadh"
+      }
+    ],
+    "resources": [
+      {
+        "id": 4,
+        "name": "عمر المجهلي",
+        "tz": "Asia/Riyadh",
+        "calendar_id": false,
+        "active": true
+      },
+      {
+        "id": 5,
+        "name": "عثمان عبدالوهاب",
+        "tz": "Asia/Riyadh",
+        "calendar_id": false,
+        "active": true
+      },
+      {
+        "id": 2,
+        "name": "Emma Granger",
+        "tz": "Asia/Riyadh",
+        "calendar_id": [
+          1,
+          "40 hours/week"
+        ],
+        "active": true
+      },
+      {
+        "id": 1,
+        "name": "Michael Williams",
+        "tz": "Asia/Riyadh",
+        "calendar_id": [
+          1,
+          "40 hours/week"
+        ],
+        "active": true
+      },
+      {
+        "id": 3,
+        "name": "Simon Jones",
+        "tz": "Asia/Riyadh",
+        "calendar_id": [
+          1,
+          "40 hours/week"
+        ],
+        "active": true
+      }
+    ],
+    "schedulesWithOurNames": [],
+    "automation6": {
+      "id": 6,
+      "name": "wa_control.on_sync_requested",
+      "active": true,
+      "model_id": [
+        6042,
+        "WhatsApp Control"
+      ],
+      "trigger": "on_create_or_write",
+      "trigger_field_ids": [
+        20092
+      ],
+      "filter_pre_domain": false,
+      "action_server_ids": [
+        963
+      ],
+      "on_change_field_ids": [],
+      "trg_date_id": false,
+      "trg_selection_field_id": false,
+      "trg_field_ref": 0,
+      "filter_domain": "[[\"x_sync_requested\", \"=\", true]]",
+      "write_date": "2026-09-17 14:50:06"
+    },
+    "control": [
+      {
+        "id": 1,
+        "x_name": "Control",
+        "x_sync_requested": false,
+        "x_last_sync_at": false,
+        "x_last_sync_result": false
+      }
+    ]
+  },
+  "plan": [
+    "create resource.calendar «UTAK — عمر» (fixed, company 1) with 6 lines 02:00–12:00: Sat, Sun, Mon, Tue, Wed, Thu; Friday no line",
+    "hr.employee 4 (عمر المجهلي): resource_calendar_id false → «UTAK — عمر», x_utak_attendance false → true (tz Asia/Riyadh kept)",
+    "create resource.calendar «UTAK — عثمان» (fixed, company 1) with 6 lines 06:00–16:00: Sat, Sun, Mon, Tue, Wed, Thu; Friday no line",
+    "hr.employee 5 (عثمان عبدالوهاب): resource_calendar_id false → «UTAK — عثمان», x_utak_attendance false → true (tz Asia/Riyadh kept)",
+    "hr.employee 2 (Emma Granger): active → False (no UTAK role; Work Contact 61: no WhatsApp number, channel, message or Discuss membership; no attendance row)",
+    "hr.employee 1 (Michael Williams): active → False (no UTAK role; Work Contact 62: no WhatsApp number, channel, message or Discuss membership; no attendance row)",
+    "hr.employee 3 (Simon Jones): active → False (no UTAK role; Work Contact 63: no WhatsApp number, channel, message or Discuss membership; no attendance row)",
+    "base.automation 6 (wa_control.on_sync_requested): filter_domain [[\"x_sync_requested\", \"=\", true]] → [[\"x_sync_requested\", \"=\", True]] (nothing else)",
+    "proof: x_wa_control 1.write({x_sync_requested: False}) (its current value) before the fix (expect HTTP 500 NameError, nothing written) and after it (expect OK)"
+  ],
+  "skipped": {},
+  "created": {
+    "calendars": {
+      "omar": 3,
+      "othman": 4
+    },
+    "linked": {
+      "4": true,
+      "5": true
+    },
+    "archived": [
+      2,
+      1,
+      3
+    ],
+    "automation6": true
+  },
+  "proof": {
+    "before": {
+      "ok": false,
+      "error": "x_wa_control.write HTTP 500: {\"name\": \"builtins.ValueError\", \"message\": \"NameError(\\\"name 'true' is not defined\\\") while evaluating\\n'[[\\\"x_sync_requested\\\", \\\"=\\\", true]]'\", \"arguments\": [\"NameError(\\\"name 'true' is not defined\\\") while evaluating\\n'[[\\\"x_sync_requested\\\", \\\"=\\\", true]]'\"], \"timestamp\": 1790310171, \"context\": {}, \"debug\": \"Traceback (most recent call last):\\n  File \\\"/home/odoo/src/odoo/saas-19.4/odoo/tools/"
+    },
+    "after": {
+      "ok": true
+    }
+  }
+}

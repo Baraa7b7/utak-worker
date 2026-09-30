@@ -1,0 +1,90 @@
+{
+  "at": "2026-09-25T19:10:37.554Z",
+  "checks": [
+    [
+      "x_whatsapp_template.x_body_text text",
+      true,
+      ""
+    ],
+    [
+      "x_whatsapp_template.x_buttons_text text",
+      true,
+      ""
+    ],
+    [
+      "x_wa_message.x_echo_status selection",
+      true,
+      ""
+    ],
+    [
+      "x_wa_message.x_echo_message_id integer",
+      true,
+      ""
+    ],
+    [
+      "x_wa_message.x_backfilled boolean",
+      true,
+      ""
+    ],
+    [
+      "x_echo_status values posted,pending,failed,none",
+      true,
+      "posted,pending,failed,none"
+    ],
+    [
+      "server action exists (code, x_wa_message)",
+      true,
+      "[6047,\"WhatsApp Message\"]"
+    ],
+    [
+      "server action code = heldLineActionCode()",
+      true,
+      ""
+    ],
+    [
+      "server action limited to Settings",
+      true,
+      "[4]"
+    ],
+    [
+      "python3 status_line = statusLineFor (8 states)",
+      true,
+      "{\"py\":[\"✅ أُرسلت 21:40\",\"✅ أُرسلت 06:03\",\"✅ أُرسلت\",\"⌛ انتهت صلاحيتها ولم تُرسل: لم يراسل الرقم قبلها.\",\"⏭️ لم تُرسل: Meta رفض الغرض <x> & y\",\"⚠️ لم تصل: Meta 131049: dropped\",\"⏳ محفوظة من جديد: أغلق Meta النافذة، وتُرسل عند أول رسالة منه.\",\"\"],\"ts\":[\"✅ أُرسلت 21:40\",\"✅ أُرسلت 06:03\",\"✅ أُرسلت\",\"⌛ انتهت صلاحيتها ولم تُرسل: لم يراسل الرقم قبلها.\",\"⏭️ لم تُرسل: Meta رفض الغرض <x> & y\",\"⚠️ لم تصل: Meta 131049: dropped\",\"⏳ محفوظة من جديد: أغلق Meta النافذة، وتُرسل عند أول رسالة منه.\",\"\"]}"
+    ],
+    [
+      "python3 new_body = replaceStatusLine (4 bodies × 8 states)",
+      true,
+      ""
+    ],
+    [
+      "view x_wa_message.tree.s36_echo active on 2775",
+      true,
+      ""
+    ],
+    [
+      "view x_wa_message.form.s36_echo active on 2778",
+      true,
+      ""
+    ],
+    [
+      "get_views list shows x_echo_status, x_backfilled and «وقت الإرسال» (x_processed_at)",
+      true,
+      ""
+    ],
+    [
+      "get_views form shows x_echo_status, x_echo_message_id, x_backfilled",
+      true,
+      ""
+    ],
+    [
+      "automation 7 still only on x_status = queued",
+      true,
+      ""
+    ],
+    [
+      "automation 12 still on_create, author ≠ 42 (a bot edit or reply never sends)",
+      true,
+      ""
+    ]
+  ]
+}

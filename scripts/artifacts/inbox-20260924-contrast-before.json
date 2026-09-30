@@ -1,0 +1,39 @@
+{
+  "phase": "before",
+  "at": "2026-09-24T16:44:30.673Z",
+  "messages": [
+    2471,
+    2472,
+    2473,
+    2474
+  ],
+  "boxStyle": "stored",
+  "light": [
+    {
+      "id": 2471,
+      "color": "rgb(17, 24, 39)",
+      "background": "rgb(247, 245, 240)",
+      "ratio": 16.28
+    },
+    {
+      "id": 2473,
+      "color": "rgb(17, 24, 39)",
+      "background": "rgb(247, 245, 240)",
+      "ratio": 16.28
+    }
+  ],
+  "dark": [
+    {
+      "id": 2471,
+      "color": "rgb(228, 228, 228)",
+      "background": "rgb(247, 245, 240)",
+      "ratio": 1.17
+    },
+    {
+      "id": 2473,
+      "color": "rgb(228, 228, 228)",
+      "background": "rgb(247, 245, 240)",
+      "ratio": 1.17
+    }
+  ]
+}

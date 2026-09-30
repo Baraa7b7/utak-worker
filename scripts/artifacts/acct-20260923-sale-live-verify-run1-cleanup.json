@@ -1,0 +1,60 @@
+{
+  "at": "2026-09-23T09:07:12.992Z",
+  "reason": "interrupted run 1 (Odoo 429 in cycle ك) — leftover test rows",
+  "steps": [
+    {
+      "sale.order": 11,
+      "action": "action_cancel",
+      "after": [
+        {
+          "id": 11,
+          "state": "cancel"
+        }
+      ]
+    },
+    {
+      "x_invoice": [
+        {
+          "id": 21,
+          "x_invoice_number": "UTAK-INV-20260923-014",
+          "x_order_id": [
+            35,
+            false
+          ],
+          "x_total": 30,
+          "x_status": "issued"
+        }
+      ],
+      "action": "unlink"
+    },
+    {
+      "x_daily_order": [
+        {
+          "id": 33,
+          "x_state": "confirmed",
+          "x_sale_order_id": [
+            9,
+            "S00009 (UTAK-ORDER-33)"
+          ]
+        },
+        {
+          "id": 34,
+          "x_state": "confirmed",
+          "x_sale_order_id": [
+            10,
+            "S00010 (UTAK-ORDER-34)"
+          ]
+        },
+        {
+          "id": 35,
+          "x_state": "confirmed",
+          "x_sale_order_id": [
+            11,
+            "S00011 (UTAK-ORDER-35)"
+          ]
+        }
+      ],
+      "action": "unlink"
+    }
+  ]
+}

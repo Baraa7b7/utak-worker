@@ -1,0 +1,60 @@
+{
+  "at": "2026-09-30T14:00:46.343Z",
+  "caught": 5,
+  "total": 5,
+  "results": [
+    {
+      "part": "ج",
+      "name": "a hard-coded Friday off in the schedule reader (every path)",
+      "caught": true,
+      "fails": [
+        "✗ Thursday 10-01: 496.52 (10335 ÷ 31 + 11000 ÷ 365 + 133), October 31 days, 2026 365 — {\"t\":565.64,\"m\":26,\"y\":313}",
+        "✗ Friday 10-02: a working day, the same 496.52 — {\"t\":133,\"w\":false}",
+        "✗ Friday 10-02: «يوم عمل» 02:00–12:00 — {\"kind\":\"day_off\",\"day\":\"2026-10-02\"}",
+        "✗ …not a day off (the driver's follow-up reads the same plan)"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "a hard-coded Friday off in the operating cost's working days",
+      "caught": true,
+      "fails": [
+        "✗ Thursday 10-01: 496.52 (10335 ÷ 31 + 11000 ÷ 365 + 133), October 31 days, 2026 365 — {\"t\":565.64,\"m\":26,\"y\":313}",
+        "✗ Friday 10-02: a working day, the same 496.52 — {\"t\":565.64,\"w\":true}",
+        "✗ Thursday 10-01: 496.52 (10335 ÷ 31 + 11000 ÷ 365 + 133), October 31 days, 2026 365",
+        "✗ Friday 10-02: a working day, the same 496.52"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "a hard-coded Friday off for the day's own share",
+      "caught": true,
+      "fails": [
+        "✗ Friday 10-02: a working day, the same 496.52 — {\"t\":133,\"w\":false}",
+        "✗ Friday 10-02: a working day, the same 496.52"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the next shift skips Friday (the list held until Saturday)",
+      "caught": true,
+      "fails": [
+        "✗ Thursday 21:15, the purchase list: held after his shift until «الجمعة 02:00» (not Saturday) — {\"hold\":true,\"onAttendance\":true,\"shift\":\"02:00\",\"phase\":\"after\",\"sent\":true,\"employeeId\":7603,\"name\":\"عمر المجهلي\",\"next\":\"السبت 02:00\",\"queueTtl\":233100}",
+        "✗ …and Baraa's one alert names Friday 02:00 — ⏳ مهمة لـعمر المجهلي بعد دوامه: قائمة الشراء. تصله مع بداية دوامه القادم (السبت 02:00).",
+        "✗ Thursday 21:15, the purchase list: held after his shift until «الجمعة 02:00» (not Saturday)",
+        "✗ …and Baraa's one alert names Friday 02:00"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the driver's follow-up skips Friday",
+      "caught": true,
+      "fails": [
+        "✗ 11:32 (end − 30): the reminder to Omar with his open stop — []",
+        "✗ 12:32 (end + 30): Baraa's end-of-shift alert — []",
+        "✗ 11:32 (end − 30): the reminder to Omar with his open stop",
+        "✗ 12:32 (end + 30): Baraa's end-of-shift alert"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,102 @@
+[
+  {
+    "doc": "quotation",
+    "issued": {
+      "file": "/Users/baraa7/utak-worker/scripts/artifacts/brand-20260924-quotation-issued.pdf",
+      "pages": 1,
+      "images": [
+        {
+          "page": 1,
+          "type": "image",
+          "w": 1600,
+          "h": 472
+        },
+        {
+          "page": 1,
+          "type": "image",
+          "w": 709,
+          "h": 709
+        }
+      ]
+    },
+    "draft": {
+      "pages": 1,
+      "images": []
+    }
+  },
+  {
+    "doc": "delivery-note",
+    "issued": {
+      "file": "/Users/baraa7/utak-worker/scripts/artifacts/brand-20260924-delivery-note-issued.pdf",
+      "pages": 1,
+      "images": [
+        {
+          "page": 1,
+          "type": "image",
+          "w": 1600,
+          "h": 472
+        },
+        {
+          "page": 1,
+          "type": "image",
+          "w": 709,
+          "h": 709
+        }
+      ]
+    },
+    "draft": {
+      "pages": 1,
+      "images": []
+    }
+  },
+  {
+    "doc": "receipt",
+    "issued": {
+      "file": "/Users/baraa7/utak-worker/scripts/artifacts/brand-20260924-receipt-issued.pdf",
+      "pages": 1,
+      "images": [
+        {
+          "page": 1,
+          "type": "image",
+          "w": 1600,
+          "h": 472
+        },
+        {
+          "page": 1,
+          "type": "image",
+          "w": 709,
+          "h": 709
+        }
+      ]
+    },
+    "draft": {
+      "pages": 1,
+      "images": []
+    }
+  },
+  {
+    "doc": "purchase-order",
+    "issued": {
+      "file": "/Users/baraa7/utak-worker/scripts/artifacts/brand-20260924-purchase-order-issued.pdf",
+      "pages": 1,
+      "images": [
+        {
+          "page": 1,
+          "type": "image",
+          "w": 1600,
+          "h": 472
+        },
+        {
+          "page": 1,
+          "type": "image",
+          "w": 709,
+          "h": 709
+        }
+      ]
+    },
+    "draft": {
+      "pages": 1,
+      "images": []
+    }
+  }
+]

@@ -1,0 +1,21 @@
+{
+  "script": "scripts/wa-b3-20260926-odoo.mjs",
+  "createdAt": "2026-09-26T05:29:42.987Z",
+  "created": {
+    "x_daily_order": 20548,
+    "x_invoice": 20550,
+    "x_payment": 20552
+  },
+  "countsBefore": {
+    "x_daily_order": 28,
+    "x_invoice": 17,
+    "x_payment": 12,
+    "account.move": 48,
+    "account.payment": 9
+  },
+  "fieldsBefore": {
+    "x_daily_order": null,
+    "x_invoice": null,
+    "x_payment": null
+  }
+}

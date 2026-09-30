@@ -1,0 +1,50 @@
+{
+  "script": "scripts/s40-20260926-sources.mjs",
+  "createdAt": "2026-09-26T07:45:37.968Z",
+  "created": {
+    "sourceFields": [
+      20588,
+      20591
+    ],
+    "views": {
+      "partnerExt": 2856,
+      "employeeExt": 2857,
+      "offerList": 2858,
+      "offerSearch": 2859
+    },
+    "offerModel": 6227,
+    "fields": [
+      20601,
+      20603,
+      20605,
+      20607,
+      20609,
+      20611,
+      20613,
+      20615,
+      20617,
+      20619,
+      20621,
+      20623,
+      20625,
+      20627,
+      20629
+    ],
+    "windows": {
+      "offers": 1028
+    },
+    "menus": {
+      "offers": 579
+    }
+  },
+  "before": {
+    "flags": {
+      "partner": {
+        "x_price_source": false
+      },
+      "employee": {
+        "x_price_source": false
+      }
+    }
+  }
+}

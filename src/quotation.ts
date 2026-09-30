@@ -2,13 +2,15 @@
 // Uses the shared renderPDFShell for pixel-parity with the invoice.
 
 import type { Env } from "./config";
+import { isVatApplicable } from "./config";
+import { arabicDate } from "./wa-params";
 import {
   call,
   getLatestSalePrice,
   getOrderForInvoicing,
   resolvePackagingNames,
 } from "./odoo";
-import { sendText } from "./meta";
+import { textContent } from "./meta";
 import { sendTemplateByPurpose, T, sendOwnerAlert } from "./templates";
 import {
   BRAND_COLORS,
@@ -16,12 +18,20 @@ import {
   escapeHTML,
   formatMoney,
   htmlToPDF,
+  buildGotenbergFooterHtml,
+  GOTENBERG_FOOTER_MARGIN,
   renderPDFShell,
+  issuedSealHTML,
   signDocToken,
   uploadPDFToR2,
+  type LegalFooterInfo,
   type PageMetrics,
   type PartyInfo,
 } from "./pdf-template";
+import { readCompanyInfo, type CompanyInfo } from "./company";
+import { toLegalFooterAr } from "./legal-footer";
+import { UI, resolveDocLang, type DocLang } from "./i18n";
+import { formatDateEn, fromPartyFor, itemCellHTML, labelForBillTo, labelForFrom, labelForTerms, taglineFor, thanksLine } from "./doc-shell";
 
 export interface QuotationLineItem {
   name: string;
@@ -29,6 +39,9 @@ export interface QuotationLineItem {
   qty: number;
   price: number;
   total: number;
+  // Bilingual overlays (Part B). Empty falls back to Arabic only.
+  name_en?: string;
+  pack_en?: string;
 }
 
 export interface QuotationPriceWarning {
@@ -51,6 +64,12 @@ export interface QuotationPDFData {
   discount: number;
   vatAmount: number;
   grandTotal: number;
+  /**
+   * § 41 د — dated from the VAT cutoff (Riyadh): the quotation says «الأسعار
+   * شاملة ضريبة القيمة المضافة» (its prices are the VAT-inclusive ones the
+   * tax invoice will split). Absent before it: the page as it was.
+   */
+  vatInclusive?: boolean;
   // sim-harness (2026-09-13): loud-fail metadata. Never rendered into the
   // PDF — read by the dispatcher to gate sends and alert the owner.
   price_warnings: QuotationPriceWarning[];
@@ -65,6 +84,11 @@ export interface QuotationPDFData {
   customer_id?: number;
   order_id?: number;
   missing_products?: string[];
+  // Doc-level language. Not a tax invoice — so no Article 53 upgrade.
+  lang?: DocLang;
+  /** Issued document (numbered, sent / recorded). Only issued documents print
+   *  the company seal + signature — never a preview or a draft. */
+  issued?: boolean;
 }
 
 // 2026-09-19 — same-day validity. Old text was "٧ أيام". Since UTAK's cost is
@@ -77,30 +101,43 @@ const QUOTATION_FOOTER =
 export function renderQuotationBodyHTML(
   items: QuotationLineItem[],
   m?: PageMetrics,
+  lang: DocLang = "ar",
 ): string {
   const metrics = m ?? computePageMetrics(items.length);
+  const isAr = lang === "ar";
+  const isEn = lang === "en";
+  const dirEn = isEn ? "right" : "left";
   const rowsHtml = items
     .map(
-      (item) => `
+      (item) => {
+        const nameCell = isAr ? escapeHTML(item.name) : itemCellHTML(item.name, item.name_en, lang);
+        const packCell = isAr ? escapeHTML(item.pack) : itemCellHTML(item.pack, item.pack_en, lang);
+        return `
     <tr style="border-bottom: 0.25px solid ${BRAND_COLORS.borderSoft};">
-      <td style="height: ${metrics.rowHeight}; text-align: right; font-size: 12px; font-weight: 400; padding: 0 12px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHTML(item.name)}</td>
-      <td style="height: ${metrics.rowHeight}; text-align: right; font-size: 12px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; padding: 0 12px 0 0;">${escapeHTML(item.pack)}</td>
-      <td style="height: ${metrics.rowHeight}; text-align: left; font-size: 12px; font-weight: 400; direction: ltr;">${item.qty}</td>
-      <td style="height: ${metrics.rowHeight}; text-align: left; font-size: 12px; font-weight: 400; direction: ltr; color: ${BRAND_COLORS.inkMuted};">${formatMoney(item.price)}</td>
-      <td style="height: ${metrics.rowHeight}; text-align: left; font-size: 12px; font-weight: 400; direction: ltr;">${formatMoney(item.total)}</td>
+      <td style="height: ${metrics.rowHeight}; text-align: ${isEn ? "left" : "right"}; font-size: 12px; font-weight: 400; padding: 0 12px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${nameCell}</td>
+      <td style="height: ${metrics.rowHeight}; text-align: ${isEn ? "left" : "right"}; font-size: 12px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; padding: 0 12px 0 0;">${packCell}</td>
+      <td style="height: ${metrics.rowHeight}; text-align: ${dirEn}; font-size: 12px; font-weight: 400; direction: ltr;">${item.qty}</td>
+      <td style="height: ${metrics.rowHeight}; text-align: ${dirEn}; font-size: 12px; font-weight: 400; direction: ltr; color: ${BRAND_COLORS.inkMuted};">${formatMoney(item.price, lang)}</td>
+      <td style="height: ${metrics.rowHeight}; text-align: ${dirEn}; font-size: 12px; font-weight: 400; direction: ltr;">${formatMoney(item.total, lang)}</td>
     </tr>
-  `,
+  `;
+      },
     )
     .join("");
+
+  const L = (key: "colItem" | "colPackaging" | "colQty" | "colPrice" | "colTotal") =>
+    isEn ? UI[key].en : UI[key].ar;
+  const th = (label: string, w: string, alignEn = false) =>
+    `<th style="width: ${w}; text-align: ${isEn ? (alignEn ? "right" : "left") : (alignEn ? "left" : "right")}; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${metrics.thPad};">${escapeHTML(label)}</th>`;
 
   return `<table style="position: relative; width: 100%; border-collapse: collapse; table-layout: fixed;">
       <thead>
         <tr style="border-top: 0.5px solid ${BRAND_COLORS.borderStrong}; border-bottom: 0.5px solid ${BRAND_COLORS.borderStrong};">
-          <th style="width: 40%; text-align: right; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${metrics.thPad};">الصنف</th>
-          <th style="width: 20%; text-align: right; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${metrics.thPad};">العبوة</th>
-          <th style="width: 10%; text-align: left; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${metrics.thPad};">الكمية</th>
-          <th style="width: 15%; text-align: left; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${metrics.thPad};">السعر</th>
-          <th style="width: 15%; text-align: left; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${metrics.thPad};">الإجمالي</th>
+          ${th(L("colItem"), "40%")}
+          ${th(L("colPackaging"), "20%")}
+          ${th(L("colQty"), "10%", true)}
+          ${th(L("colPrice"), "15%", true)}
+          ${th(L("colTotal"), "15%", true)}
         </tr>
       </thead>
       <tbody>${rowsHtml}</tbody>
@@ -113,42 +150,63 @@ export function renderQuotationTotalsHTML(
   discount: number,
   vatAmount: number,
   grandTotal: number,
+  lang: DocLang = "ar",
 ): string {
+  const L = (key: "subtotal" | "discount" | "vat15" | "grandTotal") =>
+    lang === "en" ? UI[key].en : UI[key].ar;
   return `<div style="position: relative; display: flex; justify-content: flex-end;">
       <div style="width: 40%; display: flex; flex-direction: column; gap: 9px;">
-        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>المجموع الفرعي</span><span style="direction: ltr;">${formatMoney(subtotal)}</span></div>
-        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>الخصم</span><span style="direction: ltr;">${formatMoney(discount)}</span></div>
-        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>ضريبة القيمة المضافة (١٥٪)</span><span style="direction: ltr;">${formatMoney(vatAmount)}</span></div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>${escapeHTML(L("subtotal"))}</span><span style="direction: ltr;">${formatMoney(subtotal, lang)}</span></div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>${escapeHTML(L("discount"))}</span><span style="direction: ltr;">${formatMoney(discount, lang)}</span></div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>${escapeHTML(L("vat15"))}</span><span style="direction: ltr;">${formatMoney(vatAmount, lang)}</span></div>
         <div style="height: 6px;"></div>
         <div style="height: 0; border-top: 0.5px solid ${BRAND_COLORS.borderStrong};"></div>
-        <div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 8px;"><span style="font-size: 12px; font-weight: 500; color: ${BRAND_COLORS.ink};">الإجمالي</span><span style="font-size: 20px; font-weight: 500; color: ${BRAND_COLORS.primary}; direction: ltr;">${formatMoney(grandTotal)}</span></div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 8px;"><span style="font-size: 12px; font-weight: 500; color: ${BRAND_COLORS.ink};">${escapeHTML(L("grandTotal"))}</span><span style="font-size: 20px; font-weight: 500; color: ${BRAND_COLORS.primary}; direction: ltr;">${formatMoney(grandTotal, lang)}</span></div>
       </div>
     </div>`;
 }
 
-export function renderQuotationHTML(data: QuotationPDFData): string {
+export function renderQuotationHTML(data: QuotationPDFData, company?: CompanyInfo): string {
   const pageMetrics = computePageMetrics(data.items.length);
+  const lang: DocLang = resolveDocLang({ docLang: data.lang, isTaxInvoice: false });
   const billTo: PartyInfo = {
     name: data.customer.name,
     contactName: data.customer.contactPerson,
     address: data.customer.address,
     phone: data.customer.phone,
   };
+  const legalFooterBar: LegalFooterInfo | undefined = company
+    ? toLegalFooterAr(company)
+    : undefined;
   return renderPDFShell({
-    documentTitle: "عرض سعر",
+    documentTitle: lang === "en" ? UI.quotation.en : UI.quotation.ar,
     documentNumber: data.quotationNumber,
     documentDate: data.quotationDate,
     billTo,
-    bodyHTML: renderQuotationBodyHTML(data.items, pageMetrics),
+    from: data.lang ? fromPartyFor(lang, company) : undefined,
+    bodyHTML: renderQuotationBodyHTML(data.items, pageMetrics, lang),
     totalsHTML: renderQuotationTotalsHTML(
       data.subtotal,
       data.discount,
       data.vatAmount,
       data.grandTotal,
+      lang,
     ),
-    footerNote: QUOTATION_FOOTER,
+    footerNote: lang === "en"
+      ? (data.vatInclusive ? `${UI.quotationValidity.en} ${UI.vatInclusiveNote.en}.` : UI.quotationValidity.en)
+      : (data.vatInclusive ? `${QUOTATION_FOOTER}. ${UI.vatInclusiveNote.ar}` : QUOTATION_FOOTER),
     showZatcaQR: false,
+    legalFooterBar,
     pageMetrics,
+    lang: data.lang ? lang : undefined,
+    tagline: data.lang ? taglineFor(lang) : undefined,
+    billToLabel: data.lang ? labelForBillTo(lang) : undefined,
+    fromLabel: data.lang ? labelForFrom(lang) : undefined,
+    termsLabel: data.lang ? labelForTerms(lang) : undefined,
+    thanksLine: data.lang ? thanksLine(lang, company) : undefined,
+    footerSealHTML: issuedSealHTML(data.issued, company),
+    sealBesideTotals: true,
+    documentDateStr: lang === "en" ? formatDateEn(data.quotationDate) : undefined,
   });
 }
 
@@ -156,7 +214,12 @@ export async function generateQuotationPDF(
   data: QuotationPDFData,
   env: Env,
 ): Promise<Uint8Array> {
-  return await htmlToPDF(renderQuotationHTML(data), env);
+  const company = await readCompanyInfo(env);
+  const lang: DocLang = resolveDocLang({ docLang: data.lang, isTaxInvoice: false });
+  return await htmlToPDF(renderQuotationHTML(data, company), env, {
+    footerHtml: buildGotenbergFooterHtml(lang),
+    marginBottom: GOTENBERG_FOOTER_MARGIN,
+  });
 }
 
 export async function uploadQuotationToR2(
@@ -257,7 +320,8 @@ export async function buildQuotationPDFDataFromOdoo(
       manualUnit > 0 ? "today" : "today";
     let age_days: number | null = 0;
     if (!unit || unit <= 0) {
-      const lookup = await getLatestSalePrice(env, l.product_id, l.packaging_id);
+      // § 41 — the order's day's price (a quotation rebuilt later keeps it)
+      const lookup = await getLatestSalePrice(env, l.product_id, l.packaging_id, order.order_date ?? undefined);
       unit = lookup.price;
       source = lookup.source;
       age_days = lookup.age_days;
@@ -299,9 +363,40 @@ export async function buildQuotationPDFDataFromOdoo(
   const missing_products = price_warnings
     .filter((w) => w.source === "missing")
     .map((w) => w.product);
+  // § 40 د — the quantity discount, before VAT, on the order's day (the
+  // invoice computes it the same way): shown as its own line; the total is
+  // what the invoice will ask (VAT-inclusive prices: the discount's VAT goes
+  // with it). A quotation with a missing price gets none (it is not sent).
+  let discount = 0;
+  let grandTotal = subtotal;
+  if (!has_blocking_issue && items.length) {
+    try {
+      const { orderDiscount, discountedTotals } = await import("./order-pricing");
+      const day = order.order_date ?? new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10);
+      let rate: number | null = null;
+      const d = await orderDiscount(env, {
+        day,
+        lines: order.lines.map((l, i) => ({ productId: l.product_id, packagingId: l.packaging_id, qty: l.quantity, unit: items[i].price })),
+        vatRate: async () => {
+          const { resolveSaleTaxForDate } = await import("./accounting");
+          rate = (await resolveSaleTaxForDate(env, day))?.rate ?? null;
+          return rate;
+        },
+      });
+      if (d.applied) {
+        const { computeInclusiveTotals } = await import("./accounting");
+        const t = discountedTotals(computeInclusiveTotals(items.map((it) => it.total), rate), d.amount, rate);
+        grandTotal = t.total;
+        discount = round2(subtotal - grandTotal);
+      }
+    } catch (e) {
+      console.warn(`[quotation] ${quotationId}: discount check failed — none shown`, (e as Error).message);
+    }
+  }
   return {
     quotationNumber: number,
     quotationDate,
+    ...(isVatApplicable(new Date(quotationDate.getTime() + 3 * 3600 * 1000).toISOString().slice(0, 10)) ? { vatInclusive: true } : {}),
     customer: {
       name: order.customer_name || "عميل",
       address: order.neighborhood || "الرياض",
@@ -309,15 +404,18 @@ export async function buildQuotationPDFDataFromOdoo(
     },
     items,
     subtotal,
-    discount: 0,
+    discount,
     vatAmount: 0,
-    grandTotal: subtotal,
+    grandTotal,
     price_warnings,
     has_blocking_issue,
     is_manual: isManual,
     customer_id: order.customer_id,
     order_id: order.id,
     missing_products,
+    // An x_quotation with its number is the issued quotation (the one sent to
+    // the customer) → seal + signature. Previews override with issued:false.
+    issued: true,
   };
 }
 
@@ -350,6 +448,18 @@ export interface QuotationDispatchResult {
 
 // sim-harness (2026-09-13): local owner-alert helper, mirrors suppliers.ts
 // so quotation.ts stays free of a suppliers ↔ quotation import cycle.
+/**
+ * customer_quotation_pdf variables, in order — utak_quotation_pdf_v1 (2026-09-25):
+ * «مرحباً {{1}}، مرفق عرض السعر رقم {{2}} من يو تاك بتاريخ {{3}}، بإجمالي {{4}} ريال …»
+ * = [customer name, quotation number, Arabic date, grand total].
+ */
+export function quotationTemplateParams(
+  data: { customer: { name?: string }; quotationNumber: string; grandTotal: number },
+  quotationDate: string,
+): string[] {
+  return [data.customer.name || "", data.quotationNumber, quotationDate, String(data.grandTotal)];
+}
+
 async function alertOwner(env: Env, text: string): Promise<void> {
   try {
     await sendOwnerAlert(env, text);
@@ -418,7 +528,8 @@ export async function createAndDispatchQuotationForRecord(
 
   let html: string;
   try {
-    html = renderQuotationHTML(data);
+    // Company read here too (legal footer + seal), as generateQuotationPDF does.
+    html = renderQuotationHTML(data, await readCompanyInfo(env));
   } catch (e) {
     console.error(
       "[q-issue] step 3 FAILED:",
@@ -430,7 +541,11 @@ export async function createAndDispatchQuotationForRecord(
 
   let pdfBytes: Uint8Array;
   try {
-    pdfBytes = await htmlToPDF(html, env);
+    const lang: DocLang = resolveDocLang({ docLang: data.lang, isTaxInvoice: false });
+    pdfBytes = await htmlToPDF(html, env, {
+      footerHtml: buildGotenbergFooterHtml(lang),
+      marginBottom: GOTENBERG_FOOTER_MARGIN,
+    });
   } catch (e) {
     console.error(
       "[q-issue] step 4 FAILED:",
@@ -478,11 +593,10 @@ export async function createAndDispatchQuotationForRecord(
   }
 
   const customerPhone = data.customer.phone;
-  const quotationDate = data.quotationDate.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  // ت5 (2026-09-24): «24 سبتمبر 2026» (Riyadh day, Arabic month, Latin digits).
+  const quotationDate = arabicDate(
+    new Date(data.quotationDate.getTime() + 3 * 3600 * 1000).toISOString().slice(0, 10),
+  );
 
   let messageId: string | null = null;
   if (!customerPhone) {
@@ -509,38 +623,32 @@ export async function createAndDispatchQuotationForRecord(
     };
   } else {
     try {
+      // Plain text with the PDF link: the fallback while utak_quotation_pdf_v1
+      // cannot go (unmapped, not approved); it needs the 24h window, and waits
+      // for it in the gateway's queue otherwise (STATUS § 33).
+      const body = [
+        `📄 عرض السعر رقم ${data.quotationNumber}`,
+        ``,
+        `العميل: ${data.customer.name}`,
+        `الإجمالي: ${data.grandTotal} ر.س`,
+        ``,
+        `الملف: ${uploaded.publicUrl}`,
+        ``,
+        `الأسعار سارية حتى ٩:٠٠ مساءً من تاريخ الإصدار، وتخضع لأسعار السوق اليومية. شكراً لتعاملكم مع UTAK 🌿`,
+      ].join("\n");
       let resp: Response | null = null;
       try {
         resp = await sendTemplateByPurpose(
           env,
           customerPhone,
           T.CUSTOMER_QUOTATION_PDF,
-          [
-            data.customer.name || "",
-            data.quotationNumber,
-            quotationDate,
-            String(data.grandTotal),
-          ],
+          quotationTemplateParams(data, quotationDate),
           [],
           { type: "document", link: uploaded.publicUrl, filename: `${data.quotationNumber}.pdf` },
+          { requestPurpose: "customer_quotation", fallback: [textContent(body)] },
         );
       } catch (e) {
-        console.warn(`[quotation] template send threw`, (e as Error).message);
-      }
-
-      if (!resp || !resp.ok) {
-        // Fallback: plain text with PDF link (works even before Meta approves utak_v2_quotation_pdf)
-        const body = [
-          `📄 عرض السعر رقم ${data.quotationNumber}`,
-          ``,
-          `العميل: ${data.customer.name}`,
-          `الإجمالي: ${data.grandTotal} ر.س`,
-          ``,
-          `الملف: ${uploaded.publicUrl}`,
-          ``,
-          `الأسعار سارية حتى ٩:٠٠ مساءً من تاريخ الإصدار، وتخضع لأسعار السوق اليومية. شكراً لتعاملكم مع UTAK 🌿`,
-        ].join("\n");
-        resp = await sendText(env, customerPhone, body);
+        console.warn(`[quotation] send threw`, (e as Error).message);
       }
 
       if (resp?.ok) {

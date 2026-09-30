@@ -1,0 +1,33 @@
+{
+  "id": 3,
+  "payment": {
+    "id": 3,
+    "x_name": "SP-2026-0003",
+    "x_supplier_id": [
+      7,
+      "براء - اختبار"
+    ],
+    "x_date": "2026-09-26",
+    "x_amount": 50,
+    "x_method": "transfer",
+    "x_recorded_by": [
+      3,
+      "albaraa abdulwahab"
+    ],
+    "x_channel": "odoo",
+    "x_state": "approved",
+    "x_note": "🧪 تجربة § 37: دفعة تحويل تجريبية من براء (ليست تحويلاً حقيقياً).",
+    "x_reject_reason": false,
+    "x_decided_by": [
+      2,
+      "albaraa abdulwahab"
+    ],
+    "x_decided_at": "2026-09-26 04:23:45",
+    "x_overpaid": true,
+    "x_remaining_after": -50,
+    "x_supplier_notice": "محجوب: AllowlistBlocked: to=966500000099 not permitted by SIM_ALLOWLIST (4 entries) and no partner with x_wa_allowed=true",
+    "x_settled_at": "2026-09-26 04:23:45",
+    "x_trial_tag": "🧪 تجربة § 37",
+    "x_source_wamid": false
+  }
+}

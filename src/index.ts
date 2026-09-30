@@ -23,14 +23,13 @@
 //   GET  /delivery-note-pdf/{num}/{tok}.pdf → PUBLIC delivery-note PDF from R2 (HMAC-signed)
 
 import type { Env } from "./config";
-import { handleVerify, verifySignature, parseWebhook, sendText, sendButtons, sendLocation } from "./meta";
+import { handleVerify, verifySignature, parseWebhook, sendText, sendButtons } from "./meta";
 import { seenBefore, markSeen } from "./dedup";
 import {
   ensureLocationFields,
   findOrCreateCustomer,
   findSupplierByWhatsApp,
   findTeamMemberByWhatsApp,
-  markStopIssue,
   savePartnerLocation,
   savePartnerNeighborhood,
   setOrderLocation,
@@ -41,14 +40,22 @@ import { classifyIntent } from "./claude";
 import { dispatch, type RouterReply } from "./router";
 import type { SenderType, OdooPartner } from "./types";
 import {
+  alertSuppliersWithoutPrices,
   askAllSuppliersForPrices,
+  handleSupplierButton,
+  handleSupplierMedia,
   handleSupplierReply,
+  nudgeLateSuppliers,
   openOrderingWindow,
+  supplierButtonAction,
   updateSupplierReliabilityScores,
 } from "./suppliers";
 import {
   aggregateAndDispatchToWarehouse,
   closeUnconfirmedOrders,
+  followUpUnconfirmedPurchaseLists,
+  resendOpenPurchaseLists,
+  sendCutoffReminders,
 } from "./team";
 import {
   buildInjectedWebhookPayload,
@@ -60,7 +67,8 @@ import {
   verifySimSecret,
   type InjectInput,
 } from "./sim";
-import { parseAllowlist, runtimeMode } from "./config";
+import { parseAllowlist, runtimeMode, isSimRun } from "./config";
+import { isQuotationTrigger } from "./hours";
 import {
   classifySignatureFailure,
   handleSignatureFailure,
@@ -68,18 +76,31 @@ import {
 } from "./webhook-alert";
 
 export default {
-  async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+  async scheduled(event: ScheduledController, rawEnv: Env, ctx: ExecutionContext): Promise<void> {
     const cron = event.cron;
     console.log(`[scheduled] cron=${cron} at ${new Date().toISOString()}`);
+    // 2026-09-23 — every send made inside a cron job is automated: mark env
+    // so the send gateway claims a per-(recipient, template, Riyadh day, job)
+    // KV key before sending. See src/auto-send-guard.ts.
+    const { CRON_JOB, withAutoSendJob } = await import("./auto-send-guard");
+    const env = withAutoSendJob(rawEnv, CRON_JOB[cron] ?? `cron:${cron}`);
     try {
       switch (cron) {
         case "0 23 * * *": await askAllSuppliersForPrices(env); break;
         case "0 2 * * *":
           await updateSupplierReliabilityScores(env);
+          // 2026-09-25 (م5) — one reminder to a supplier still silent 3h after the ask.
+          try {
+            await nudgeLateSuppliers(env);
+          } catch (e) {
+            console.error("[cron 05:00] supplier nudge failed", (e as Error)?.message);
+          }
           // Phase 1 (2026-09-17): daily template sync appended to the 05:00
           // Riyadh handler after its existing work, in try/catch so a sync
           // failure never breaks reliability-score scheduling.
-          try {
+          // § 41 و — a simulation run never reads Meta (nor writes the real
+          // x_wa_control status with a refused sync).
+          if (!isSimRun(env)) try {
             const { runTemplateSync } = await import("./wa-template-sync");
             const report = await runTemplateSync(env);
             console.log("[wa-sync 05:00]", JSON.stringify(report));
@@ -87,9 +108,31 @@ export default {
             console.error("[wa-sync 05:00] failed", (e as Error)?.message);
           }
           break;
-        case "0 3 * * *": await openOrderingWindow(env); break;
+        case "0 3 * * *":
+          await openOrderingWindow(env);
+          // 2026-09-24 (ح7) — a purchase list still without «تم الشراء».
+          try {
+            await followUpUnconfirmedPurchaseLists(withAutoSendJob(rawEnv, "purchase_followup"));
+          } catch (e) {
+            console.error("[cron 06:00] purchase follow-up failed", (e as Error)?.message);
+          }
+          break;
+        case "0 17 * * *": await sendCutoffReminders(env); break;
         case "0 18 * * *": await closeUnconfirmedOrders(env); break;
-        case "15 18 * * *": await aggregateAndDispatchToWarehouse(env); break;
+        case "15 18 * * *":
+          try {
+            await aggregateAndDispatchToWarehouse(env);
+          } finally {
+            // 2026-09-25 (م5) — the purchase list is built: one owner alert per
+            // supplier who still has not sent today's prices (even if the
+            // list itself failed — its error still reaches the catch below).
+            try {
+              await alertSuppliersWithoutPrices(env);
+            } catch (e) {
+              console.error("[cron 21:15] supplier alert failed", (e as Error)?.message);
+            }
+          }
+          break;
         case "0 15 * * *": {
           const { sendDailyCollectionSummary } = await import("./invoice");
           await sendDailyCollectionSummary(env);
@@ -103,6 +146,118 @@ export default {
         case "0 5 * * *": {
           const { runDailyOutreach } = await import("./outreach");
           await runDailyOutreach(env);
+          break;
+        }
+        // 2026-09-25 (STATUS § 29) — team attendance: whatever is due now
+        // («بدء الدوام» at each shift time, the +30 reminder, +60 absence,
+        // and Baraa's window-opening template at OWNER_WINDOW_OPEN_AT).
+        case "*/5 * * * *": {
+          const { runAttendanceTick } = await import("./attendance");
+          const r = await runAttendanceTick(env);
+          const acted = r.members.filter((m) => !["no_time", "before_shift", "waiting", "reminded"].includes(m.action) && !m.action.startsWith("tapped") && !m.action.startsWith("already"));
+          if (acted.length || !["before", "passed", "sent_before"].includes(r.owner.action)) {
+            console.log(`[attendance ${r.at}]`, JSON.stringify({ owner: r.owner.action, acted: acted.map((m) => `${m.name}:${m.action}`) }));
+          }
+          // 2026-09-25 (STATUS § 33) — held messages past their expiry are
+          // dropped and their x_wa_message rows marked «expired», even for a
+          // number that never writes back.
+          try {
+            const { sweepExpiredHeld } = await import("./wa-gateway");
+            const sw = await sweepExpiredHeld(env);
+            if (sw.expired) console.log(`[gateway sweep] ${JSON.stringify(sw)}`);
+          } catch (e) {
+            console.error("[gateway sweep] failed", (e as Error)?.message);
+          }
+          // 2026-09-25 (STATUS § 36) — a Discuss line that could not be posted
+          // (row x_echo_status «pending») is retried, three times at most, and
+          // a row Odoo refused is created.
+          try {
+            const { retryPendingRecords } = await import("./wa-record");
+            const rr = await retryPendingRecords(env);
+            if (rr.echoed || rr.failed || rr.waiting || rr.orphans) console.log(`[record retry] ${JSON.stringify(rr)}`);
+          } catch (e) {
+            console.error("[record retry] failed", (e as Error)?.message);
+          }
+          // 2026-09-25 (STATUS § 35) — today's prices: the record follows the
+          // prices received, the approval deadline, and a lost approval webhook.
+          try {
+            const { runPricesTick } = await import("./prices");
+            const p = await runPricesTick(env, Date.now(), ctx);
+            const quiet = (!p.marketAsk || ("action" in p.marketAsk && ["before", "after"].includes(p.marketAsk.action)))
+              && (!p.exceptions || ("action" in p.exceptions && ["outside", "no_draft", "none", "notified_before", "many_before"].includes(p.exceptions.action)))
+              && (p.refresh && "action" in p.refresh && ["no_prices", "unchanged", "locked", "outside"].includes(p.refresh.action))
+              && (p.deadline && "action" in p.deadline && ["before", "after_window", "claimed_before"].includes(p.deadline.action)) && !p.publish;
+            if (!quiet) console.log("[prices tick]", JSON.stringify(p));
+          } catch (e) {
+            console.error("[prices tick] failed", (e as Error)?.message);
+          }
+          // 2026-09-26 (STATUS § 39 د, م10) — a customer payment whose receipt
+          // webhook was lost: its receipt and its one confirmation now.
+          try {
+            const { runPaymentConfirmTick } = await import("./payment-confirm");
+            const pc = await runPaymentConfirmTick(rawEnv, Date.now(), ctx);
+            if (pc.length) console.log("[payconf tick]", JSON.stringify(pc));
+          } catch (e) {
+            console.error("[payconf tick] failed", (e as Error)?.message);
+          }
+          // § 41 هـ — 12:00: a confirmed purchase list still without its
+          // purchase tax invoice → one line to Baraa that day.
+          try {
+            const { checkPurchaseInvoices, PINV_JOB } = await import("./purchase-invoice");
+            const { withAutoSendJob } = await import("./auto-send-guard");
+            const pi = await checkPurchaseInvoices(withAutoSendJob(rawEnv, PINV_JOB), Date.now());
+            if (pi.action === "alerted") console.log("[pinv tick]", JSON.stringify(pi));
+          } catch (e) {
+            console.error("[pinv tick] failed", (e as Error)?.message);
+          }
+          // § 44 د — the VAT questions: 60 minutes without the step's answer (or
+          // the order cancelled) end them; Baraa's one alert after the third ask.
+          try {
+            const { runVatAskTick } = await import("./vat-ask");
+            const va = await runVatAskTick(env, Date.now());
+            if (va.some((r) => r.action !== "waiting")) console.log("[vat-ask tick]", JSON.stringify(va));
+          } catch (e) {
+            console.error("[vat-ask tick] failed", (e as Error)?.message);
+          }
+          // § 42 ب — a collection left without «المبلغ كامل» / an amount: the
+          // collector's one reminder at 30 minutes, Baraa's one alert 30 after it.
+          try {
+            const { runCollectPayTick } = await import("./collect-pay");
+            const cp = await runCollectPayTick(env, Date.now());
+            if (cp.some((r) => r.action !== "waiting")) console.log("[collect-pay tick]", JSON.stringify(cp));
+          } catch (e) {
+            console.error("[collect-pay tick] failed", (e as Error)?.message);
+          }
+          // 2026-09-25 (STATUS § 37) — supplier payments: the dues of recent
+          // confirmed purchase lists (a price that arrived later), and a
+          // decided payment whose webhook was lost.
+          try {
+            const { runSupplierPayTick } = await import("./supplier-pay");
+            const sp = await runSupplierPayTick(env, Date.now(), ctx);
+            const busy = (Array.isArray(sp.dues) && sp.dues.some((d) => d.action === "synced")) || !Array.isArray(sp.dues)
+              || (Array.isArray(sp.settled) && sp.settled.length > 0) || !Array.isArray(sp.settled);
+            if (busy) console.log("[supplier-pay tick]", JSON.stringify(sp));
+          } catch (e) {
+            console.error("[supplier-pay tick] failed", (e as Error)?.message);
+          }
+          break;
+        }
+        // 2026-09-26 (STATUS § 38, م12) — the driver's end of shift, from his
+        // working schedule: end − 30 his stops without «تم التسليم», end + 30
+        // Baraa's alert (and the reason when there is no reminder).
+        case "2,7,12,17,22,27,32,37,42,47,52,57 * * * *": {
+          const { runDriverFollowupTick } = await import("./driver-followup");
+          const r = await runDriverFollowupTick(env);
+          const acted = r.drivers.flatMap((d) => d.steps.filter((s) => !/:(-|[a-z_]+:-)$/.test(s)).map((s) => `${d.name}:${s}`));
+          if (acted.length) console.log(`[driver-followup ${r.at}]`, JSON.stringify(acted));
+          break;
+        }
+        // 2026-09-26 (STATUS § 38, م17) — 21:30 Riyadh, after the 21:00 close and
+        // the 21:15 purchase list: Baraa's summary of the day (once a day).
+        case "30 18 * * *": {
+          const { sendOwnerSummary } = await import("./owner-summary");
+          const r = await sendOwnerSummary(env);
+          console.log(`[owner-summary ${r.day}] ${r.action}${r.figures?.errors.length ? ` errors=${JSON.stringify(r.figures.errors)}` : ""}`);
           break;
         }
         default: console.warn(`[scheduled] unhandled cron: ${cron}`);
@@ -128,6 +283,12 @@ export default {
         () => [] as { date: string; count: number }[],
       );
       const sigFailuresTotal = sigFailures.reduce((a, b) => a + b.count, 0);
+      // 2026-09-24 (ح6) — WhatsApp send failures (sync, async and refused
+      // template variables), same 7-day shape as sigFailures.
+      const { readRecentSendFailures } = await import("./send-failure");
+      const sendFailures = await readRecentSendFailures(env, 7).catch(
+        () => [] as { date: string; count: number }[],
+      );
       return json(
         {
           status: odoo.ok ? "ok" : "degraded",
@@ -136,6 +297,10 @@ export default {
           sigFailures: {
             totalLast7Days: sigFailuresTotal,
             byDay: sigFailures,
+          },
+          sendFailures: {
+            totalLast7Days: sendFailures.reduce((a, b) => a + b.count, 0),
+            byDay: sendFailures,
           },
           timestamp: new Date().toISOString(),
         },
@@ -158,30 +323,6 @@ export default {
         return json({ ok: true, ...result });
       } catch (e) {
         return json({ ok: false, error: (e as Error).message }, 500);
-      }
-    }
-
-    // TEMPORARY 2026-09-12 — one-shot partner-dedup audit.
-    // Reads Othman id=8/id=15 with linked-record counts, dumps role state,
-    // audits suppliers, and reports customers missing a delivery neighborhood.
-    // Optional: ?create_pilot=1 creates ONE pilot customer.
-    // NEVER archives, NEVER unlinks. Gate: AUDIT_TOKEN secret.
-    if (request.method === "GET" && url.pathname === "/admin/audit-partners") {
-      const token = url.searchParams.get("token") ?? request.headers.get("x-audit-token") ?? "";
-      const expected = env.AUDIT_TOKEN ?? "";
-      if (!expected || token !== expected) {
-        return json({ error: "unauthorized" }, 401);
-      }
-      try {
-        const { runPartnerAudit } = await import("./audit-partners");
-        const createPilot = url.searchParams.get("create_pilot") === "1";
-        const result = await runPartnerAudit(env, { createPilot });
-        return json({ ok: true, ...result });
-      } catch (e) {
-        return json(
-          { ok: false, error: (e as Error).message, stack: (e as Error).stack },
-          500,
-        );
       }
     }
 
@@ -381,7 +522,7 @@ export default {
         (async () => {
           try {
             const { createAndDispatchReceiptForRecord } = await import("./receipt");
-            const result = await createAndDispatchReceiptForRecord(env, pid);
+            const result = await createAndDispatchReceiptForRecord(env, pid, ctx);
             if (!result) {
               console.warn("[r-issue] background pipeline: payment not found for id:", pid);
               return;
@@ -400,6 +541,114 @@ export default {
         JSON.stringify({ status: "accepted", payment_id: pid }),
         { status: 202, headers: { "Content-Type": "application/json" } },
       );
+    }
+
+    // 2026-09-22 — «المستندات الرسمية» pipeline endpoints.
+    // Same shape as /internal/quotation-issue: shared token in ?token=,
+    // 202 async, ctx.waitUntil runs the full pipeline. Any pipeline error
+    // is written back to x_official_doc.x_last_error so the operator sees
+    // it in the Odoo form.
+    if (
+      request.method === "POST" &&
+      (url.pathname === "/internal/official-doc/preview" ||
+        url.pathname === "/internal/official-doc/issue" ||
+        url.pathname === "/internal/official-doc/ai-draft")
+    ) {
+      if (!env.INTERNAL_WEBHOOK_SECRET) {
+        return json({ error: "service misconfigured — INTERNAL_WEBHOOK_SECRET missing" }, 500);
+      }
+      const providedToken = url.searchParams.get("token") ?? "";
+      if (!providedToken || !timingSafeEqual(providedToken, env.INTERNAL_WEBHOOK_SECRET)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      let body: { doc_id?: number; _id?: number; _model?: string } = {};
+      try {
+        body = (await request.json()) as typeof body;
+      } catch {
+        return json({ error: "bad json" }, 400);
+      }
+      if (body._model && body._model !== "x_official_doc") {
+        return json({ error: `unexpected model: ${body._model}` }, 400);
+      }
+      const docId = Number(body.doc_id ?? body._id);
+      if (!Number.isFinite(docId) || docId <= 0) {
+        return json({ error: "invalid doc_id / _id" }, 400);
+      }
+      const action =
+        url.pathname === "/internal/official-doc/preview" ? "preview" :
+          url.pathname === "/internal/official-doc/issue" ? "issue" : "ai-draft";
+      ctx.waitUntil(
+        (async () => {
+          try {
+            const {
+              runPreviewPipeline,
+              runIssuePipeline,
+              runAIDraftPipeline,
+            } = await import("./official-doc");
+            if (action === "preview") {
+              await runPreviewPipeline(env, { docId, workerOrigin: env.WORKER_ORIGIN });
+            } else if (action === "issue") {
+              await runIssuePipeline(env, { docId, workerOrigin: env.WORKER_ORIGIN });
+            } else {
+              await runAIDraftPipeline(env, { docId });
+            }
+          } catch (e) {
+            const msg = (e as Error).message ?? String(e);
+            console.error(`[official-doc:${action}] FAILED id=${docId}`, msg, (e as Error).stack);
+            // Best-effort write-back of the failure — never re-throws.
+            try {
+              const { call } = await import("./odoo");
+              await call<boolean>(env, "x_official_doc", "write", {
+                ids: [docId],
+                vals: { x_last_error: msg.slice(0, 500) },
+              });
+            } catch (writeErr) {
+              console.error(`[official-doc:${action}] writeback also failed`, (writeErr as Error).message);
+            }
+          }
+        })(),
+      );
+      return new Response(
+        JSON.stringify({ status: "accepted", doc_id: docId, action }),
+        { status: 202, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    // 2026-09-22 — PUBLIC: serves an official-doc PDF from R2 by signed URL.
+    // Final path shape:   /official-doc-pdf/UTAK-L-2026-001/{tok}.pdf
+    // Preview path shape: /official-doc-pdf/preview-{docId}-{ts}/{tok}.pdf
+    // The signed name is exactly what signDocToken hashed for that upload;
+    // final docs live under R2 key official-docs/<name>.pdf, previews under
+    // official-docs/previews/<docId>-<ts>.pdf.
+    if (request.method === "GET" && url.pathname.startsWith("/official-doc-pdf/")) {
+      const path = url.pathname.substring("/official-doc-pdf/".length);
+      const match = /^(.+?)\/([a-f0-9]{16})\.pdf$/.exec(path);
+      if (!match) return new Response("not found", { status: 404 });
+      let docName: string;
+      try {
+        docName = decodeURIComponent(match[1]);
+      } catch {
+        return new Response("not found", { status: 404 });
+      }
+      const providedTok = match[2];
+      if (!env.ADMIN_TOKEN) return new Response("service misconfigured", { status: 500 });
+      const { verifyOfficialDocToken } = await import("./official-doc");
+      const valid = await verifyOfficialDocToken(env.ADMIN_TOKEN, docName, providedTok);
+      if (!valid) return new Response("not found", { status: 404 });
+      const previewMatch = /^preview-(\d+)-(\d+)$/.exec(docName);
+      const key = previewMatch
+        ? `official-docs/previews/${previewMatch[1]}-${previewMatch[2]}.pdf`
+        : `official-docs/${docName}.pdf`;
+      const obj = await env.INVOICES_BUCKET.get(key);
+      if (!obj) return new Response("not found", { status: 404 });
+      return new Response(obj.body, {
+        status: 200,
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `inline; filename="${docName}.pdf"`,
+          "Cache-Control": "private, max-age=300",
+        },
+      });
     }
 
     // 2026-09-12 — Diagnostic: run the full receipt pipeline SYNCHRONOUSLY with
@@ -476,33 +725,17 @@ export default {
       }
       if (!uploaded) return json({ paymentId, steps, receiptNumber, pdfUrl });
 
-      // Step 4 — WhatsApp (plain-text fallback, mirrors orchestrator)
-      const customerPhone = built.customer.phone;
-      if (!customerPhone) {
-        steps["4_send_whatsapp"] = "skipped: no phone";
-      } else {
-        try {
-          const method = built.payments[0]?.method || "-";
-          const body = [
-            `✅ تم استلام دفعتك`,
-            `رقم الإيصال: ${built.receiptNumber}`,
-            `المبلغ: ${built.totalReceived} ر.س`,
-            `طريقة الدفع: ${method}`,
-            ``,
-            `الإيصال: ${uploaded.publicUrl}`,
-            ``,
-            `شكراً لتعاملكم مع UTAK 🌿`,
-          ].join("\n");
-          const resp = await sendText(env, customerPhone, body);
-          if (!resp || !resp.ok) {
-            const errText = resp ? await resp.text().catch(() => "") : "no response";
-            steps["4_send_whatsapp"] = `error: ${resp?.status ?? "?"} ${errText.slice(0, 200)}`;
-          } else {
-            steps["4_send_whatsapp"] = "ok";
-          }
-        } catch (e) {
-          steps["4_send_whatsapp"] = `error: ${(e as Error).message}`;
-        }
+      // Step 4 — WhatsApp: the payment's one confirmation (STATUS § 39 د, م10),
+      // with every guard of the receipt pipeline — a payment already confirmed,
+      // a simulation or a held customer sends nothing here either.
+      try {
+        const { confirmPaymentToCustomer } = await import("./payment-confirm");
+        const c = await confirmPaymentToCustomer(env, paymentId, {
+          receipt: { number: built.receiptNumber, url: uploaded.publicUrl, method: built.payments[0]?.method || undefined },
+        });
+        steps["4_send_whatsapp"] = c.action === "sent" ? "ok" : c.action;
+      } catch (e) {
+        steps["4_send_whatsapp"] = `error: ${(e as Error).message}`;
       }
 
       // Step 5 — Odoo write-back
@@ -548,6 +781,8 @@ export default {
           }
           data = await buildQuotationPDFDataFromOdoo(env, id);
           if (!data) return json({ error: `quotation ${id} not found` }, 404);
+          // A dry run is a preview: no seal, no signature.
+          data = { ...data, issued: false };
         } else {
           data = TEST_QUOTATION_DATA;
         }
@@ -827,7 +1062,7 @@ export default {
             ``,
             `الوثيقة: ${uploaded.publicUrl}`,
           ].join("\n");
-          const resp = await sendText(env, driverPhone, body);
+          const resp = await sendText(env, driverPhone, body, { purpose: "driver_delivery_note" });
           if (!resp || !resp.ok) {
             const errText = resp ? await resp.text().catch(() => "") : "no response";
             steps["4_send_whatsapp"] = `error: ${resp?.status ?? "?"} ${errText.slice(0, 200)}`;
@@ -1034,7 +1269,8 @@ export default {
               );
               return;
             }
-            const pdfBytes = await generateQuotationPDF(data, env);
+            // Sending it to the customer issues it: seal + signature.
+            const pdfBytes = await generateQuotationPDF({ ...data, issued: true }, env);
             const uploaded = await uploadQuotationToR2(
               env,
               pdfBytes,
@@ -1254,6 +1490,136 @@ export default {
       return json({ status: "accepted", mail_message_id: mmId }, 202);
     }
 
+    // 2026-09-25 — Odoo → Worker: a partner with an inbox channel was renamed
+    // or got another number. base.automation «wa_inbox.partner_title» on
+    // res.partner (name / x_whatsapp_number / phone) posts {_id, _model}, and
+    // syncInboxChannelTitles — the one place these channels are named —
+    // rebuilds the titles of that partner's numbers.
+    if (request.method === "POST" && url.pathname === "/odoo/hook/wa-inbox-partner") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      let body: { id?: number; _id?: number; _model?: string } = {};
+      try {
+        body = (await request.json()) as typeof body;
+      } catch {
+        return json({ error: "bad json" }, 400);
+      }
+      if (body._model && body._model !== "res.partner") {
+        return json({ error: `unexpected model: ${body._model}` }, 400);
+      }
+      const partnerId = Number(body.id ?? body._id);
+      if (!Number.isFinite(partnerId) || partnerId <= 0) {
+        return json({ error: "invalid id / _id" }, 400);
+      }
+      ctx.waitUntil(
+        (async () => {
+          try {
+            const { syncInboxChannelTitles } = await import("./wa-inbox");
+            const changes = await syncInboxChannelTitles(env, { partnerId });
+            console.log("[wa-inbox title hook]", JSON.stringify({
+              partnerId, written: changes.filter((c) => c.written).map((c) => c.channelId),
+            }));
+          } catch (e) {
+            console.error("[wa-inbox title hook] failed", (e as Error)?.message);
+          }
+        })(),
+      );
+      return json({ status: "accepted", partner_id: partnerId }, 202);
+    }
+
+    // 2026-09-25 (STATUS § 31) — Odoo → Worker: an employee, a working
+    // schedule line or a time off changed (automations «utak.team_roster ←
+    // hr.employee / resource.calendar.attendance / resource.calendar.leaves»,
+    // on create / edit / delete). The cached roster is dropped; the next read
+    // comes from Odoo. Nothing else happens here.
+    if (request.method === "POST" && url.pathname === "/odoo/hook/team-roster") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      let body: { _model?: string; _id?: number; id?: number } = {};
+      try {
+        body = (await request.json()) as typeof body;
+      } catch {
+        body = {};
+      }
+      const { TEAM_ROSTER_HOOK_MODELS } = await import("./team-roster");
+      if (body._model && !TEAM_ROSTER_HOOK_MODELS.includes(body._model)) {
+        return json({ error: `unexpected model: ${body._model}` }, 400);
+      }
+      const { invalidateRoster } = await import("./team-roster");
+      await invalidateRoster(env);
+      console.log("[team-roster hook]", JSON.stringify({ model: body._model ?? "-", id: body._id ?? body.id ?? "-" }));
+      return json({ status: "roster_dropped" }, 202);
+    }
+
+    // 2026-09-25 (STATUS § 35) — Odoo → Worker, from «💰 أسعار اليوم»:
+    //   op=approved — the approval button (after its code action locked the
+    //                 record as approved): publish it now;
+    //   op=refresh  — «🔄 تحديث»: rebuild the day from the suppliers' prices.
+    // 202 at once (Odoo's webhook waits one second); the work runs in waitUntil.
+    if (request.method === "POST" && url.pathname === "/odoo/hook/prices") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      let body: { _model?: string; _id?: number; id?: number; x_date?: string } = {};
+      try {
+        body = (await request.json()) as typeof body;
+      } catch {
+        body = {};
+      }
+      const id = Number(body._id ?? body.id ?? 0);
+      const op = url.searchParams.get("op") ?? "";
+      if (body._model && body._model !== "x_price_day") return json({ error: `unexpected model: ${body._model}` }, 400);
+      if (!id || !["approved", "refresh"].includes(op)) return json({ error: "missing id or op" }, 400);
+      const { publishPriceDay, refreshPriceDay } = await import("./prices");
+      const task = (op === "approved"
+        ? publishPriceDay(env, id, { ctx }).then((r) => console.log("[prices hook] publish", JSON.stringify(r)))
+        : refreshPriceDay(env, { day: typeof body.x_date === "string" ? body.x_date : undefined, force: true }).then((r) => console.log("[prices hook] refresh", JSON.stringify(r)))
+      ).catch((e) => console.error(`[prices hook] ${op} failed`, (e as Error)?.message));
+      ctx.waitUntil(task);
+      return json({ status: "accepted", op, id }, 202);
+    }
+
+    // 2026-09-25 (STATUS § 37) — Odoo → Worker, from «💵 دفع الموردين»:
+    //   op=created — a payment was created (Baraa's own are approved at once:
+    //                its balance, «رصيد دائن», the supplier's notice);
+    //   op=decided — «اعتماد» / «رفض» on a pending payment (the notice, and
+    //                the member's line with the decision);
+    //   op=refresh — «🔄 إعادة حساب المستحقات»: the dues of the last 7 days.
+    // 202 at once (Odoo's webhook waits one second); the work runs in waitUntil.
+    if (request.method === "POST" && url.pathname === "/odoo/hook/supplier-pay") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      let body: { _model?: string; _id?: number; id?: number } = {};
+      try {
+        body = (await request.json()) as typeof body;
+      } catch {
+        body = {};
+      }
+      const id = Number(body._id ?? body.id ?? 0);
+      const op = url.searchParams.get("op") ?? "";
+      if (!["created", "decided", "refresh"].includes(op)) return json({ error: "missing op" }, 400);
+      if (op !== "refresh" && body._model && body._model !== "x_supplier_payment") return json({ error: `unexpected model: ${body._model}` }, 400);
+      if (op !== "refresh" && !id) return json({ error: "missing id" }, 400);
+      const sp = await import("./supplier-pay");
+      const task = (op === "refresh"
+        ? sp.syncRecentDues(env, Date.now(), { force: true, daysBack: 7 }).then((r) => console.log("[supplier-pay hook] refresh", JSON.stringify(r.map((x) => [x.listId, x.action]))))
+        : sp.onPaymentHook(env, id, { ctx, op: op as "created" | "decided" }).then((r) => console.log(`[supplier-pay hook] ${op}`, JSON.stringify(r)))
+      ).catch((e) => console.error(`[supplier-pay hook] ${op} failed`, (e as Error)?.message));
+      ctx.waitUntil(task);
+      return json({ status: "accepted", op, id }, 202);
+    }
+
     // Item 2 (2026-09-17) — Odoo → Worker: process x_wa_message.x_status='queued'.
     // Fired by the base.automation (wa_message.on_queued) via ir.actions.server
     // (wa_message.send_webhook). The full send pipeline (validate → media
@@ -1389,9 +1755,40 @@ async function handleSimRoute(
     return json({ error: "unauthorized" }, 401);
   }
 
+  // STATUS § 34 — the live «فتح المحادثة» trial, Baraa's number only (never
+  // anyone else). POST /sim/opener-trial?close=1&purpose=owner_alert|owner_team_note
+  // closes his 24h window in KV (as a 131047 would), then sends ONE critical
+  // message through the gateway: outside the window it is held, and his
+  // category's opener goes if usable. GET /sim/opener-state reads his window,
+  // his queue and today's opener mark. Nothing else is touched.
+  if (url.pathname === "/sim/opener-trial" || url.pathname === "/sim/opener-state") {
+    const owner = String(env.OWNER_WHATSAPP ?? "");
+    if (!owner) return json({ error: "no OWNER_WHATSAPP" }, 400);
+    const { readWindow, markWindowClosed } = await import("./wa-window");
+    const { readQueue } = await import("./wa-queue");
+    const { openerDayKey } = await import("./wa-opener");
+    const state = async () => ({
+      window: await readWindow(env, owner),
+      queue: (await readQueue(env, owner)).map((i) => ({ purpose: i.purpose, created: new Date(i.createdAt).toISOString(), expires: new Date(i.expiresAt).toISOString(), text: (i.body as { text?: { body?: string } })?.text?.body ?? i.body.type })),
+      openerToday: await env.MSG_DEDUP.get(openerDayKey(owner)).catch(() => null),
+    });
+    if (request.method === "GET") return json(await state());
+    if (request.method !== "POST") return json({ error: "method" }, 405);
+    const purpose = url.searchParams.get("purpose") === "owner_team_note" ? "owner_team_note" : "owner_alert";
+    const text = url.searchParams.get("text") || "🧪 تجربة § 34: رسالة مهمة محفوظة خارج النافذة — تصلك عند ضغطتك أو رسالتك التالية.";
+    const before = await state();
+    if (url.searchParams.get("close") === "1") await markWindowClosed(env, owner, Date.now());
+    const { sendOwnerMessage } = await import("./templates");
+    const { gatewayDecision } = await import("./wa-gateway");
+    const resp = await sendOwnerMessage(env, text, purpose);
+    let body: unknown = null;
+    try { body = resp ? await resp.clone().json() : null; } catch { body = null; }
+    return json({ purpose, decision: gatewayDecision(resp), status: resp?.status ?? null, body, before, after: await state() });
+  }
+
   // TEMPORARY 2026-09-12 — T2 isolation harness.
   // POST /sim/test-send?to=+9665...&text=...  — calls sendText() directly,
-  // no Odoo, no template lookup, no handleWebhook. Returns the fetchMeta
+  // no Odoo, no template lookup, no handleWebhook. Returns the gateway's
   // Response status/body verbatim so a caller can assert AllowlistBlocked
   // (403) or SIM capture (200 + wamid). Remove once T2 signs off.
   if (request.method === "POST" && url.pathname === "/sim/test-send") {
@@ -1399,7 +1796,7 @@ async function handleSimRoute(
     const text = url.searchParams.get("text") ?? "T2 probe";
     if (!to) return json({ error: "missing to" }, 400);
     const { sendText } = await import("./meta");
-    const resp = await sendText(env, to, text);
+    const resp = await sendText(env, to, text, { purpose: "sim_test" });
     const body = await resp.text();
     return json({
       status: resp.status,
@@ -1493,7 +1890,11 @@ async function handleSimRoute(
   return null;
 }
 
-async function runSimJob(env: Env, job: string): Promise<unknown> {
+async function runSimJob(rawEnv: Env, job: string): Promise<unknown> {
+  // 2026-09-23 — same idempotency keys as the cron that runs this job, so
+  // a manual trigger after the cron (or vice versa) cannot double-send.
+  const { withAutoSendJob } = await import("./auto-send-guard");
+  const env = withAutoSendJob(rawEnv, job);
   switch (job) {
     case "ask_suppliers":
       await askAllSuppliersForPrices(env);
@@ -1504,12 +1905,20 @@ async function runSimJob(env: Env, job: string): Promise<unknown> {
     case "open_ordering":
       await openOrderingWindow(env);
       return "openOrderingWindow done";
+    case "cutoff_reminder":
+      return await sendCutoffReminders(env);
     case "close_unconfirmed":
       await closeUnconfirmedOrders(env);
       return "closeUnconfirmedOrders done";
+    case "purchase_followup":
+      return await followUpUnconfirmedPurchaseLists(env);
     case "aggregate_purchase":
       await aggregateAndDispatchToWarehouse(env);
       return "aggregateAndDispatchToWarehouse done";
+    case "supplier_nudge":
+      return await nudgeLateSuppliers(env);
+    case "supplier_noprice_alert":
+      return await alertSuppliersWithoutPrices(env);
     case "collection_summary": {
       const { sendDailyCollectionSummary } = await import("./invoice");
       await sendDailyCollectionSummary(env);
@@ -1522,42 +1931,29 @@ async function runSimJob(env: Env, job: string): Promise<unknown> {
     }
     case "daily_outreach": {
       const { runDailyOutreach } = await import("./outreach");
-      await runDailyOutreach(env);
-      return "runDailyOutreach done";
+      return runDailyOutreach(env);
+    }
+    case "team_attendance": {
+      const { runAttendanceTick } = await import("./attendance");
+      return runAttendanceTick(env);
+    }
+    case "driver_followup": {
+      const { runDriverFollowupTick } = await import("./driver-followup");
+      return runDriverFollowupTick(env);
+    }
+    case "owner_summary": {
+      const { sendOwnerSummary } = await import("./owner-summary");
+      return sendOwnerSummary(env);
     }
     default:
       throw new Error(
-        `unknown job '${job}'. valid: ask_suppliers | reliability_scores | open_ordering | close_unconfirmed | aggregate_purchase | collection_summary | standing_reminders | daily_outreach`,
+        `unknown job '${job}'. valid: ask_suppliers | reliability_scores | supplier_nudge | open_ordering | purchase_followup | cutoff_reminder | close_unconfirmed | aggregate_purchase | supplier_noprice_alert | collection_summary | standing_reminders | daily_outreach | team_attendance | driver_followup | owner_summary`,
       );
   }
 }
 
-// 2026-09-17 — flush deferred sendLocation messages queued in KV by
-// sendDriverRoute under `pending_loc:<driver_phone>` (20h TTL). The team
-// branch calls this on the driver's first inbound; a corrupt payload is
-// dropped after logging so a bad row cannot brick the driver's flow.
-async function flushPendingLocations(env: Env, to: string, key: string): Promise<void> {
-  const raw = await env.MSG_DEDUP.get(key);
-  if (!raw) return;
-  let locs: Array<{ latitude: number; longitude: number; name?: string; address?: string }> = [];
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) locs = parsed;
-  } catch (e) {
-    console.warn("[pending_loc] parse failed", (e as Error)?.message);
-    await env.MSG_DEDUP.delete(key);
-    return;
-  }
-  for (const l of locs) {
-    if (typeof l?.latitude !== "number" || typeof l?.longitude !== "number") continue;
-    try {
-      await sendLocation(env, to, l.latitude, l.longitude, l.name, l.address);
-    } catch (e) {
-      console.warn("[pending_loc] sendLocation failed", (e as Error)?.message);
-    }
-  }
-  await env.MSG_DEDUP.delete(key);
-}
+// 2026-09-17 — the deferred queue (`pending_loc:<number>`) and its flush
+// live in src/team-queue.ts since 2026-09-25 (flushTeamQueue).
 
 async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext): Promise<void> {
   // Item 2 (2026-09-17) — Meta delivery-status callbacks land here alongside
@@ -1570,8 +1966,12 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
   // sees the same "channel is out" cue for late-arriving failures as for
   // immediate ones. Non-failed states stay silent (they'd double the
   // channel's noise) but still stamp x_status on x_wa_message.
+  //
+  // 2026-09-25 (STATUS § 37 أ) — never down: sent < failed < delivered < read
+  // (src/wa-status.ts). Meta's calls arrive out of order; a lower one is not
+  // written, and «failed» after delivered / read is not acted on.
   try {
-    const { updateWaStatusByWamid } = await import("./wa-message-send");
+    const { applyMetaStatus } = await import("./wa-status");
     const { phoneTail } = await import("./wa-inbox");
     // deno-lint-ignore no-explicit-any
     const entries: any[] = (payload as any)?.entry ?? [];
@@ -1594,30 +1994,33 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
             ? `Meta ${s.errors[0].code ?? ""}: ${s.errors[0].message}`
             : undefined;
           const to = s?.recipient_id ?? "";
+          const metaTs = Number(s?.timestamp) > 0 ? Number(s.timestamp) : null;
           console.log(
             `[inbox] wamid=${wamid.slice(-10)} from=${phoneTail(String(to))} kind=status status=${s2}`,
           );
-          await updateWaStatusByWamid(env, wamid, s2, errMsg);
-          if (s2 === "failed" && to) {
+          if (s2 === "failed") {
+            // 2026-09-24 (ح6) — a late failure is a failure: row, counter,
+            // owner alert, Discuss line. 2026-09-25 (STATUS § 33) — and the
+            // gateway's policy: 131047 closes the number's window (a valid
+            // session message goes back to its queue), 131049 stops that
+            // template to that number today, anything else stops the purpose
+            // to that number for 24h. A status Meta delivers twice is handled once.
             try {
-              const { findCustomerByWhatsApp, findSupplierByWhatsApp, findTeamMemberByWhatsApp } =
-                await import("./odoo");
-              const digits = String(to).replace(/[^0-9]/g, "");
-              const e164 = digits.startsWith("+") ? digits : `+${digits}`;
-              const [t, sup, cus] = await Promise.all([
-                findTeamMemberByWhatsApp(env, e164).catch(() => null),
-                findSupplierByWhatsApp(env, e164).catch(() => null),
-                findCustomerByWhatsApp(env, e164).catch(() => null),
-              ]);
-              const partner = t ?? sup ?? cus;
-              if (partner) {
-                const { echoFailure } = await import("./wa-inbox");
-                await echoFailure(env, partner.id, partner.name, errMsg ?? "Meta failed");
-              }
+              const { handleStatusFailure } = await import("./wa-gateway");
+              await handleStatusFailure(env, {
+                wamid,
+                recipient: String(to),
+                code: typeof s?.errors?.[0]?.code === "number" ? s.errors[0].code : null,
+                message: s?.errors?.[0]?.message ?? s?.errors?.[0]?.title ?? "failed status",
+                errText: errMsg,
+                metaTs,
+              });
             } catch (e) {
-              console.warn("[status-failed mirror]", (e as Error)?.message);
+              console.warn("[status-failed]", (e as Error)?.message);
             }
+            continue;
           }
+          await applyMetaStatus(env, { wamid, status: s2, recipient: String(to), metaTs, errText: errMsg }, ctx);
         }
       }
     }
@@ -1649,6 +2052,23 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       );
       continue;
     }
+    // 2026-09-23 — claim the wamid NOW, not after the reply. Processing can
+    // take tens of seconds (Claude + Odoo); a Meta retry landing in that
+    // window used to pass seenBefore and produce a second auto-reply. The
+    // per-branch markSeen calls below stay (idempotent re-put).
+    await markSeen(env, msg.messageId);
+
+    // 2026-09-25 (STATUS § 33) — the number's 24h window, by Meta's own
+    // timestamp: a message or tap opens it; one older than 24h (a late
+    // re-delivery) does not.
+    let inboundWindow: import("./wa-window").WindowState | null = null;
+    try {
+      const { noteInbound } = await import("./wa-window");
+      const { parseMetaTimestampMs } = await import("./wa-inbox");
+      inboundWindow = await noteInbound(env, msg.from, parseMetaTimestampMs(msg.timestamp));
+    } catch (e) {
+      console.warn("[wa-window] note failed", (e as Error)?.message);
+    }
 
     // 2026-09-20 (cover) — single funnel for every inbound. Ingests BEFORE
     // any team/supplier/customer bot routing so a failure in one of those
@@ -1665,7 +2085,9 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
     // Team, supplier and customer matches are also passed through to the
     // bot routing below so we do not re-run the same Odoo lookups a
     // second time on the hot path.
-    let ingestRoute: "team" | "supplier" | "customer" | "new" | "owner" = "new";
+    let ingestRoute: import("./wa-inbox").InboundRoute = "new";
+    let ingestPartnerId = 0;
+    let ingestPartnerName = "";
     let teamMatch: Awaited<ReturnType<typeof findTeamMemberByWhatsApp>> | null = null;
     let supplierMatch: Awaited<ReturnType<typeof findSupplierByWhatsApp>> | null = null;
     let customerMatchForRoute: OdooPartner | null = null;
@@ -1705,10 +2127,12 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         {
           team: t ? { id: t.id, name: t.name } : null,
           supplier: sup ? { id: sup.id, name: sup.name } : null,
-          customer: cus ? { id: cus.id, name: cus.name } : null,
+          customer: cus ? { id: cus.id, name: cus.name, x_contact_class: cus.x_contact_class } : null,
         },
       );
       ingestRoute = ingest.route;
+      ingestPartnerId = ingest.partnerId ?? 0;
+      ingestPartnerName = ingest.partnerName ?? "";
 
       // Single console line every inbound produces, regardless of route.
       const skipOrOk = ingest.mirrored
@@ -1723,7 +2147,9 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       // 2026-09-20 — the unallowed-inbound alert still fires only for
       // strangers (no team, no supplier match). We keep the 24h KV throttle
       // and use the same partner name from the customer match if present.
-      if (!sup && !t) {
+      // 2026-09-25 (STATUS § 31) — «شخصي» (route quiet): its message is kept,
+      // and nothing is sent — not this alert either.
+      if (!sup && !t && ingest.route !== "archived" && ingest.route !== "quiet") {
         const { isRecipientAllowed } = await import("./config");
         const { isPartnerWaAllowed } = await import("./odoo");
         const allowlistOK = isRecipientAllowed(env, msg.from);
@@ -1754,10 +2180,131 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       console.warn("[inbound-log] skipped", (e as Error)?.message);
     }
 
+    // 2026-09-25 (STATUS § 29 ب) — Meta re-delivered this message after its
+    // 24h window (the webhook carries the original timestamp). It is in the
+    // inbox now; the bot does not act on it (any reply fails with #131047, and
+    // an old price or order must not land on today).
+    {
+      const { lateInboundHours, noteLateInbound } = await import("./wa-inbox");
+      const lateH = lateInboundHours(msg.timestamp);
+      if (lateH !== null) {
+        console.log(`[inbox] wamid=${msg.messageId.slice(-10)} late=${lateH}h skip=bot (outside Meta's 24h window)`);
+        try {
+          await noteLateInbound(env, ingestPartnerId, ingestPartnerName, msg.timestamp);
+        } catch (e) {
+          console.warn("[inbox] late note failed", (e as Error)?.message);
+        }
+        await markSeen(env, msg.messageId);
+        continue;
+      }
+    }
+
+    // 2026-09-25 (STATUS § 30) — a number Baraa archived from «مراجعة الأرقام»:
+    // mirrored to its inbox above, and nothing automated follows.
+    // 2026-09-25 (STATUS § 31) — every archived partner (not only the ones
+    // archived from review): the bot sends nothing; a text the screening
+    // classifier reads as «طلب أو استفسار شراء» reaches Baraa as one alert.
+    if (ingestRoute === "archived") {
+      console.log(`[screen] wamid=${msg.messageId.slice(-10)} partner=${ingestPartnerId} archived skip=bot`);
+      if (msg.type === "text" && msg.text && ingestPartnerId > 0) {
+        try {
+          const { alertArchivedPurchase } = await import("./screening");
+          await alertArchivedPurchase(env, { partnerId: ingestPartnerId, name: ingestPartnerName, profileName: msg.profileName, text: msg.text });
+        } catch (e) {
+          console.warn("[screen] archived purchase check failed", (e as Error)?.message);
+        }
+      }
+      await markSeen(env, msg.messageId);
+      continue;
+    }
+
+    // 2026-09-25 (STATUS § 31) — a number Baraa classified «شخصي»: mirrored to
+    // its inbox above; no reply, no message, no alert.
+    if (ingestRoute === "quiet") {
+      console.log(`[screen] wamid=${msg.messageId.slice(-10)} partner=${ingestPartnerId} personal skip=bot`);
+      await markSeen(env, msg.messageId);
+      continue;
+    }
+
+    // 2026-09-25 (STATUS § 33) — the window just opened: what the gateway held
+    // for this number goes now, oldest first, before any reply.
+    let flushed: { sent: number } | null = null;
+    if (inboundWindow?.open) {
+      try {
+        const { flushHeld } = await import("./wa-gateway");
+        flushed = await flushHeld(env, msg.from, inboundWindow, ctx);
+      } catch (e) {
+        console.warn("[gateway] flush failed", (e as Error)?.message);
+      }
+    }
+
+    // 2026-09-25 (STATUS § 34) — «عرض التحديث» on a «فتح المحادثة» template:
+    // the flush above was the answer. Baraa gets his usual «✅ تم» line; anyone
+    // else one line only when nothing was waiting. No other routing.
+    {
+      const { OPEN_PAYLOAD, OPEN_NOTHING_TEXT } = await import("./wa-opener");
+      if ((msg.type === "button" || msg.type === "interactive") && msg.buttonId === OPEN_PAYLOAD) {
+        console.log(`[opener] tap from=${msg.from.slice(-4)} flushed=${flushed?.sent ?? 0}`);
+        try {
+          if (isOwnerNumber(env, msg.from)) {
+            const { ownerWindowAck } = await import("./attendance");
+            await sendText(env, msg.from, ownerWindowAck(), { ctx, purpose: "owner_alert" });
+          } else if (!flushed || flushed.sent === 0) {
+            await sendText(env, msg.from, OPEN_NOTHING_TEXT, { ctx, purpose: "bot_reply" });
+          }
+        } catch (e) {
+          console.warn("[opener] tap reply failed", (e as Error)?.message);
+        }
+        await markSeen(env, msg.messageId);
+        continue;
+      }
+    }
+
     // 2026-09-20 (inbox) — bot routing runs only on text / button / location.
     // Media messages are mirrored above and terminate here (with markSeen so
     // Meta retries stay dedup'd).
     if (!botTypes || (!hasBotContent && hasMedia)) {
+      // 2026-09-24 (ح5) — a customer's voice note / image / video / document
+      // used to stop here with no reply and no alert. Now: an honest reply
+      // (the message reached the team, no speech-to-text) and an immediate
+      // owner alert. Team, supplier and owner media keep the old behaviour.
+      if (!teamMatch && !supplierMatch && ingestRoute !== "owner" && !isOwnerNumber(env, msg.from)) {
+        try {
+          // 2026-09-25 (STATUS § 30) — a number waiting for review as not a
+          // customer (or decided personal / team / supplier): nothing automated.
+          const { readScreenState, isCustomerAutomationHeld } = await import("./screening");
+          const held = ingestPartnerId > 0 && isCustomerAutomationHeld(await readScreenState(env, ingestPartnerId));
+          if (held) console.log(`[screen] partner=${ingestPartnerId} held skip=media-reply`);
+          else await handleCustomerMedia(env, msg, customerMatchForRoute, ctx);
+        } catch (e) {
+          console.warn("[media] customer handling failed", (e as Error)?.message);
+        }
+      } else if (teamMatch && hasMedia && (msg.type === "image" || msg.type === "document")) {
+        // STATUS § 37 — the receipt photo of «💵 دفعت لمورد» (only while the
+        // flow waits for it; any other team media keeps the old behaviour).
+        try {
+          const { handlePayMedia } = await import("./supplier-pay");
+          const reply = await handlePayMedia(env, teamMatch, msg.media!, msg.messageId);
+          if (reply) await sendFlowReply(env, msg.from, reply, ctx);
+          else {
+            // § 41 هـ — within 60 minutes of his «تم الشراء»: the purchase tax invoice
+            const { handlePurchaseInvoiceMedia } = await import("./purchase-invoice");
+            const ack = await handlePurchaseInvoiceMedia(env, teamMatch.id, msg.media!);
+            if (ack) await sendText(env, msg.from, ack, { ctx, purpose: "bot_reply" });
+          }
+        } catch (e) {
+          console.warn("[supplier-pay] receipt media failed", (e as Error)?.message);
+        }
+      } else if (!teamMatch && supplierMatch) {
+        // 2026-09-25 (م6) — a supplier's voice note / image / document (a price
+        // list): «وصلتنا» + owner alert, never a guessed price.
+        try {
+          const reply = await handleSupplierMedia(env, supplierMatch, msg);
+          await sendText(env, msg.from, reply, { ctx, purpose: "bot_reply" });
+        } catch (e) {
+          console.warn("[media] supplier handling failed", (e as Error)?.message);
+        }
+      }
       await markSeen(env, msg.messageId);
       continue;
     }
@@ -1775,47 +2322,142 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       //   • "shift_start" button reply → text confirmation THEN locations
       //   • anything else from the driver → locations first, then the
       //     regular team handler continues.
-      const pendingLocKey = `pending_loc:${msg.from}`;
-      const isShiftStart =
-        msg.type === "interactive" && msg.buttonId === "shift_start";
+      // 2026-09-24 — template quick replies arrive as type "button", session
+      // buttons as type "interactive". Both are button taps (the team branch
+      // used to ignore the template ones: «تم الشراء» and «بدء الدوام» from
+      // a template did nothing).
+      const isButton = (msg.type === "interactive" || msg.type === "button") && !!msg.buttonId;
+      const isShiftStart = isButton && msg.buttonId === "shift_start";
+      const { flushTeamQueue } = await import("./team-queue");
       if (isShiftStart) {
         try {
-          await sendText(
-            env,
-            msg.from,
-            "تم بدء الدوام ✅ هذي مواقع توصيلات اليوم",
-            { ctx },
-          );
-          await flushPendingLocations(env, msg.from, pendingLocKey);
+          // 2026-09-25 (STATUS § 29) — attendance: the tap is recorded (present /
+          // late, Meta's own tap time) and releases the member's tasks. A member
+          // without a shift time keeps the 09-17 behaviour.
+          const { recordShiftTap, deliverTasksOnTap } = await import("./attendance");
+          const { parseMetaTimestampMs } = await import("./wa-inbox");
+          const tap = await recordShiftTap(env, teamMember.id, parseMetaTimestampMs(msg.timestamp) ?? Date.now());
+          if (tap.kind === "not_on_attendance") {
+            await sendText(env, msg.from, "تم بدء الدوام ✅ هذي مواقع توصيلات اليوم", { ctx, purpose: "shift_ack" });
+            await flushTeamQueue(env, msg.from);
+          } else if (tap.kind === "owner") {
+            await sendText(env, msg.from, tap.text, { ctx, purpose: "owner_alert" });
+          } else if (tap.kind === "not_started" || tap.kind === "off_today") {
+            // STATUS § 31 — a day off / time off: nothing recorded, nothing released.
+            await sendText(env, msg.from, tap.text, { ctx, purpose: "shift_ack" });
+          } else {
+            await sendText(env, msg.from, tap.text, { ctx, purpose: "shift_ack" });
+            // STATUS § 31 — a tap after the end of the shift: recorded (late),
+            // and the tasks wait for the next shift.
+            if (!tap.afterEnd) await deliverTasksOnTap(env, teamMember, msg.from);
+          }
         } catch (e) {
-          console.warn("[shift_start] flush failed", (e as Error)?.message);
+          console.warn("[shift_start] failed", (e as Error)?.message);
         }
         await markSeen(env, msg.messageId);
         continue;
       }
-      await flushPendingLocations(env, msg.from, pendingLocKey);
+      // 2026-09-25 (STATUS § 29) — before today's «بدء الدوام» tap, a member on
+      // attendance gets no task: the queue stays, and so do the open lists.
+      const { attendanceHold, holdText } = await import("./attendance");
+      const att = await attendanceHold(env, teamMember.id);
+      if (!att.hold) await flushTeamQueue(env, msg.from);
 
-      if (msg.type === "interactive" && msg.buttonId) {
+      let collectReply: RouterReply | null = null;
+      if (isButton && msg.buttonId!.startsWith("sp_")) {
+        // STATUS § 37 — «💵 دفعت لمورد»: the supplier, then «تخطي» the receipt.
+        const { handlePayButton } = await import("./supplier-pay");
+        const reply = await handlePayButton(env, teamMember, msg.buttonId!).catch((e) => {
+          console.warn("[supplier-pay] button failed", (e as Error)?.message);
+          return { text: "تعذّر تسجيل الدفعة الآن. جرّب بعد قليل، أو أرسلها لبراء نصاً." };
+        });
+        await sendFlowReply(env, msg.from, reply, ctx);
+      } else if (isButton) {
         const reply: RouterReply = await dispatch(env, {
           msg, intent: "other", senderType: "customer",
           partner: { id: teamMember.id, name: teamMember.name, x_whatsapp_number: teamMember.x_whatsapp_number },
         });
         await sendReply(env, msg.from, reply, ctx);
+      } else if (msg.type === "text" && (await import("./supplier-pay").then((m) => m.readFlow(env, teamMember.id)))) {
+        // STATUS § 37 — a text inside the supplier-payment flow: the amount, a
+        // word in the receipt step, or «إلغاء». Before any earlier pending state.
+        const { handlePayText } = await import("./supplier-pay");
+        const reply = await handlePayText(env, teamMember, msg.text).catch((e) => {
+          console.warn("[supplier-pay] text failed", (e as Error)?.message);
+          return { text: "تعذّر تسجيل الدفعة الآن. جرّب بعد قليل، أو أرسلها لبراء نصاً." };
+        });
+        if (reply) await sendFlowReply(env, msg.from, reply, ctx);
+      } else if (msg.type === "text" && (collectReply = await import("./collect-pay").then((m) => m.collectAmountReply(env,
+        { id: teamMember.id, name: teamMember.name, whatsapp: String(teamMember.x_whatsapp_number || msg.from) }, msg.text))
+        .catch((e) => {
+          console.warn("[collect-pay] amount failed", (e as Error)?.message);
+          return { text: "تعذّر تسجيل التحصيل الآن. جرّب بعد قليل، أو أرسله لبراء نصاً." } as RouterReply;
+        }))) {
+        // § 42 ب — the amount after «مبلغ آخر» (30 minutes): recorded, refused over the balance, or asked again.
+        await sendReply(env, msg.from, collectReply, ctx);
       } else if (msg.type === "text") {
         const pendingKey = `pending_issue:${teamMember.id}`;
         const pendingOrderId = await env.MSG_DEDUP.get(pendingKey);
-        if (pendingOrderId) {
-          const orderId = Number(pendingOrderId);
-          await markStopIssue(env, orderId, msg.text);
-          await env.MSG_DEDUP.delete(pendingKey);
-          {
-            const { sendOwnerAlert } = await import("./templates");
-            await sendOwnerAlert(env,
-              `⚠️ مشكلة توصيل\nسواق: ${teamMember.name}\nطلب: #${orderId}\nالمشكلة: ${msg.text}`);
+        // 2026-09-24 (ح7) — the text after «مشكلة» on the purchase list.
+        const purchaseIssueKey = `pending_purchase_issue:${teamMember.id}`;
+        const pendingListId = await env.MSG_DEDUP.get(purchaseIssueKey);
+        // STATUS § 34 — the text after «ملاحظة 📝» on a collection.
+        const { pendingCollectNoteKey } = await import("./team-note");
+        const collectNoteKey = pendingCollectNoteKey(teamMember.id);
+        const pendingCollectNote = await env.MSG_DEDUP.get(collectNoteKey);
+        // § 40 ب — a price source's reply within 90 minutes of today's
+        // «أرسل أسعار السوق اليوم»: read as market prices (null → an ordinary message).
+        let marketReply: string | null = null;
+        if (pendingListId) {
+          const listId = Number(pendingListId);
+          await env.MSG_DEDUP.delete(purchaseIssueKey);
+          try {
+            const { appendPurchaseListNote } = await import("./odoo");
+            await appendPurchaseListNote(env, listId, `${teamMember.name}: ${msg.text}`);
+          } catch (e) {
+            console.warn("[purchase_issue] note write failed", (e as Error)?.message);
           }
-          await sendText(env, msg.from, "تم تسجيل المشكلة، براء بيراجعها 🙏", { ctx });
+          const { sendOwnerAlert } = await import("./templates");
+          await sendOwnerAlert(env,
+            `⚠️ مشكلة في قائمة الشراء #${listId}\nمن: ${teamMember.name}\nالمشكلة: ${msg.text}`);
+          await sendText(env, msg.from, "وصلت المشكلة لبراء وسُجّلت على قائمة الشراء ✅ بيتواصل معك.", { ctx, purpose: "bot_reply" });
+        } else if (pendingOrderId) {
+          const orderId = Number(pendingOrderId);
+          await env.MSG_DEDUP.delete(pendingKey);
+          // STATUS § 34 — the driver's note: on the stop, and to Baraa as a
+          // critical message with the customer and the order.
+          const { recordTeamNote } = await import("./team-note");
+          await recordTeamNote(env, { kind: "delivery", memberName: teamMember.name, orderId, text: msg.text });
+          await sendText(env, msg.from, "تم تسجيل المشكلة، براء بيراجعها 🙏", { ctx, purpose: "bot_reply" });
+        } else if (pendingCollectNote) {
+          // STATUS § 34 — the collector's note after «ملاحظة 📝».
+          const invoiceId = Number(pendingCollectNote);
+          await env.MSG_DEDUP.delete(collectNoteKey);
+          const { recordTeamNote, TEAM_NOTE_ACK } = await import("./team-note");
+          await recordTeamNote(env, { kind: "collection", memberName: teamMember.name, invoiceId, text: msg.text });
+          await sendText(env, msg.from, TEAM_NOTE_ACK, { ctx, purpose: "bot_reply" });
+        } else if ((marketReply = await import("./price-sources").then((m) => m.tryMarketReply(env,
+          { partnerId: teamMember.id, employeeId: teamMember.employeeId ?? null, name: teamMember.name }, msg.from, msg.text, msg.messageId))
+          .catch((e) => { console.warn("[market-reply] failed", (e as Error)?.message); return null; }))) {
+          await sendText(env, msg.from, marketReply, { ctx, purpose: "bot_reply" });
+        } else if (att.hold) {
+          await sendText(env, msg.from, holdText(att), { ctx, purpose: "bot_reply" });
         } else {
-          await sendText(env, msg.from, `مرحبا ${teamMember.name} 👋 استخدم الأزرار عشان نأكد الحالة.`, { ctx });
+          // ح1 — the purchase-list template carries a one-line (possibly cut)
+          // list; any message from the warehouse gets the full open list(s).
+          let sent = 0;
+          if (teamMember.x_role === "warehouse" || teamMember.x_role_codes?.includes("warehouse") || (await isWarehouse(env, teamMember.id))) {
+            sent = await resendOpenPurchaseLists(env, msg.from).catch(() => 0);
+          }
+          if (sent === 0) {
+            // STATUS § 37 — the purchase and collection roles: «💵 دفعت لمورد».
+            const { isPaymentMember, startButton } = await import("./supplier-pay");
+            if (isPaymentMember(teamMember)) {
+              await sendButtons(env, msg.from, `مرحبا ${teamMember.name} 👋 استخدم الأزرار عشان نأكد الحالة.`, [startButton()], { ctx, purpose: "bot_reply" });
+            } else {
+              await sendText(env, msg.from, `مرحبا ${teamMember.name} 👋 استخدم الأزرار عشان نأكد الحالة.`, { ctx, purpose: "bot_reply" });
+            }
+          }
         }
       }
       await markSeen(env, msg.messageId);
@@ -1828,9 +2470,17 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
     // into the supplier ask/reply pipeline).
     const supplier = supplierMatch;
     if (supplier) {
+      // 2026-09-25 (م7) — the confirmation's buttons never reach the price extractor.
+      const action = supplierButtonAction(msg);
+      if (action) {
+        const replyText = await handleSupplierButton(env, supplier, action);
+        if (replyText) await sendText(env, msg.from, replyText, { ctx, purpose: "bot_reply" });
+        await markSeen(env, msg.messageId);
+        continue;
+      }
       const enriched = await enrichSupplier(env, supplier);
       const replyText = await handleSupplierReply(env, enriched, msg.text, msg.messageId);
-      if (replyText) await sendText(env, msg.from, replyText, { ctx });
+      if (replyText) await sendText(env, msg.from, replyText, { ctx, purpose: "bot_reply" });
       await markSeen(env, msg.messageId);
       continue;
     }
@@ -1849,28 +2499,213 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         console.log(
           `[owner-guard] inbound skip from=${msg.from} type=${msg.type}`,
         );
+        // 2026-09-25 (STATUS § 29) — his daily «بدء الدوام» only opens the 24h
+        // window (the inbound itself did that); one line says so. Nothing is
+        // recorded about him.
+        const { isOwnerWindowPayload, ownerWindowButtonReply } = await import("./owner-window");
+        if ((msg.type === "interactive" || msg.type === "button") && msg.buttonId === "shift_start") {
+          const { ownerWindowAck } = await import("./attendance");
+          await sendText(env, msg.from, ownerWindowAck(), { ctx, purpose: "owner_alert" });
+        } else if ((msg.type === "interactive" || msg.type === "button") && isOwnerWindowPayload(msg.buttonId)) {
+          // § 45 ب — «تم الاطلاع» (the 21:30 summary) / «عرض الاستثناءات» (the price review): the tap
+          // opened his window and the flush above sent what was held; one line, nothing else.
+          const r = ownerWindowButtonReply(msg.buttonId!, flushed?.sent ?? 0);
+          if (r) await sendText(env, msg.from, r, { ctx, purpose: "owner_alert" });
+        } else if ((msg.type === "interactive" || msg.type === "button") && /^pexc_[mse]_\d+$/.test(msg.buttonId ?? "")) {
+          // § 40 ج — his decision on a price exception: «اعتمد بسعر السوق» / «لا تنشر» / «عدّل».
+          const { handlePriceExceptionButton } = await import("./prices");
+          const r = await handlePriceExceptionButton(env, msg.buttonId!).catch((e) => {
+            console.warn("[prices] exception button failed", (e as Error)?.message);
+            return "تعذّر تسجيل القرار الآن. جرّب بعد قليل، أو قرّر من «💰 أسعار اليوم».";
+          });
+          if (r) await sendText(env, msg.from, r, { ctx, purpose: "owner_alert" });
+        } else if (msg.type === "text" && msg.text) {
+          // § 40 ج — the price after «عدّل» (within 30 minutes); any other text: nothing, as before.
+          const { handlePriceEditReply } = await import("./prices");
+          const r = await handlePriceEditReply(env, msg.text).catch((e) => {
+            console.warn("[prices] edit reply failed", (e as Error)?.message);
+            return null;
+          });
+          if (r) await sendText(env, msg.from, r, { ctx, purpose: "owner_alert" });
+        }
         await markSeen(env, msg.messageId);
         continue;
+      }
+    }
+
+    // § 40 ب — a price source that is a partner (not a supplier, not the
+    // team): its reply within 90 minutes of today's market-price ask.
+    if (msg.type === "text" && msg.text && ingestPartnerId > 0) {
+      try {
+        const { tryMarketReply } = await import("./price-sources");
+        const r = await tryMarketReply(env, { partnerId: ingestPartnerId, name: ingestPartnerName || msg.profileName || "" }, msg.from, msg.text, msg.messageId);
+        if (r) {
+          await sendText(env, msg.from, r, { ctx, purpose: "bot_reply" });
+          await markSeen(env, msg.messageId);
+          continue;
+        }
+      } catch (e) {
+        console.warn("[market-reply] partner check failed", (e as Error)?.message);
       }
     }
 
     // 2026-09-20 (cover) — ingestInbound already ran findCustomerByWhatsApp,
     // so reuse its match rather than re-hit Odoo.
     const existing = customerMatchForRoute;
-    if (!existing && msg.type === "text") {
+    // 2026-09-24 (م3) — «إيقاف» / «تشغيل» as the whole message is the
+    // marketing opt-out: no welcome, no classifier.
+    const { parseOptoutCommand } = await import("./optout");
+    const optoutCmd = msg.type === "text" ? parseOptoutCommand(msg.text) : null;
+    const partner = await findOrCreateCustomer(env, msg.from, msg.profileName);
+    // 2026-09-25 (STATUS § 30 / § 31) — archived, or «شخصي» (reached here only
+    // if the ingest above failed): no welcome, no new partner, no reply.
+    if (partner.archived || partner.quiet) {
+      await markSeen(env, msg.messageId);
+      continue;
+    }
+    if (!existing && msg.type === "text" && !optoutCmd) {
       try {
-        const { sendTemplateByPurpose, T } = await import("./templates");
+        const { sendTemplateByPurpose, T, welcomeParams } = await import("./templates");
         await sendTemplateByPurpose(env, msg.from, T.CUSTOMER_WELCOME,
-          [msg.profileName || "صديقنا"]);
+          (name) => welcomeParams(name, msg.profileName || "صديقنا"));
       } catch (e) { console.warn("[welcome] send failed", (e as Error).message); }
     }
-    const partner = await findOrCreateCustomer(env, msg.from, msg.profileName);
     const senderType: SenderType = "customer";
 
-    const pendingKey = `pending_neighborhood:${partner.id}`;
-    const pendingOrderId = await env.MSG_DEDUP.get(pendingKey);
+    // 2026-09-25 (STATUS § 30) — screening. A partner held from customer
+    // automation (waiting for review as wrong number / vendor pitch / personal /
+    // spam, or decided personal / team / supplier) gets no bot reply. Its text
+    // is still screened while it is «غير مراجَع»: a purchase message lifts the
+    // hold and the bot answers it as usual. Odoo trouble reads as «not held».
+    const { readScreenState, isCustomerAutomationHeld, screenInbound } = await import("./screening");
+    const screenState = await readScreenState(env, partner.id);
+    let screened = false;
+    if (isCustomerAutomationHeld(screenState)) {
+      let held = true;
+      if (msg.type === "text" && !optoutCmd) {
+        screened = true;
+        try {
+          held = (await screenInbound(env, {
+            partnerId: partner.id, partnerName: partner.name, number: msg.from, profileName: msg.profileName,
+            text: msg.text, state: screenState,
+          })).held;
+        } catch (e) {
+          console.warn("[screen] held screening failed", (e as Error)?.message);
+        }
+      }
+      if (held) {
+        if (optoutCmd) {
+          // the preference is kept for later; no reply goes out
+          const { handleOptoutCommand } = await import("./optout");
+          await handleOptoutCommand(env, partner, msg.text).catch(() => null);
+        }
+        console.log(`[screen] wamid=${msg.messageId.slice(-10)} partner=${partner.id} held skip=bot`);
+        await markSeen(env, msg.messageId);
+        continue;
+      }
+    }
 
-    if (pendingOrderId) {
+    // § 44 د — his answer to the VAT questions (the number, the name, the
+    // address; «إيقاف» / «إلغاء» ends them). Before the opt-out: «إيقاف» here
+    // stops the questions, not the marketing messages. Null = not his flow.
+    if (msg.type === "text" && msg.text) {
+      try {
+        const { vatFlowReply } = await import("./vat-ask");
+        const loc = await env.MSG_DEDUP.get(`pending_neighborhood:${partner.id}`).catch(() => null);
+        const vr = await vatFlowReply(env, partner.id, msg.text, Date.now(), { locationPending: !!loc });
+        if (vr) {
+          await sendReply(env, msg.from, vr, ctx);
+          await markSeen(env, msg.messageId);
+          continue;
+        }
+      } catch (e) {
+        console.warn("[vat-ask] text failed", (e as Error)?.message);
+      }
+    }
+
+    if (optoutCmd) {
+      const { handleOptoutCommand } = await import("./optout");
+      const reply = await handleOptoutCommand(env, partner, msg.text);
+      if (reply) await sendText(env, msg.from, reply, { ctx, purpose: "bot_reply" });
+      await markSeen(env, msg.messageId);
+      continue;
+    }
+
+    // 2026-09-24 (م2) — «حولت» / «دفعت» within 48h of a payment reminder
+    // reaches the owner and the collectors instead of the classifier.
+    if (msg.type === "text") {
+      const { isPaymentClaim, readPayRemindSent, notifyPaymentClaim, PAY_CLAIM_REPLY } = await import("./pay-claim");
+      const reminded = isPaymentClaim(msg.text) ? await readPayRemindSent(env, partner.id) : null;
+      if (reminded) {
+        await sendText(env, msg.from, PAY_CLAIM_REPLY, { ctx, purpose: "bot_reply" });
+        await notifyPaymentClaim(env, partner, reminded, `«${msg.text}»`);
+        await markSeen(env, msg.messageId);
+        continue;
+      }
+    }
+
+    // 2026-09-24 (ح3) — the customer answered the 20:00 utak_order_update
+    // template (sent outside the 24h window). Their reply opened the window,
+    // so the confirm button can go out now.
+    if (msg.type === "text") {
+      const promptKey = `cutoff_prompt:${partner.id}`;
+      const promptOrder = await env.MSG_DEDUP.get(promptKey).catch(() => null);
+      if (promptOrder) {
+        await env.MSG_DEDUP.delete(promptKey);
+        const { getOrderBrief } = await import("./odoo");
+        const o = await getOrderBrief(env, Number(promptOrder));
+        if (o && (o.state === "draft" || o.state === "waiting_confirmation")) {
+          // § 40 د — below the minimum order: no confirm button.
+          const { minimumText, orderMinimum } = await import("./order-pricing");
+          const minimum = await orderMinimum(env, o.id).catch(() => null);
+          if (minimum?.below) {
+            await sendText(env, msg.from, `طلبك رقم #${o.id}: ${minimumText(minimum.min)} قبل الساعة 9:00 مساءً، وإلا يُلغى تلقائياً.`, { ctx, purpose: "bot_reply" });
+          } else {
+            await sendButtons(env, msg.from, `طلبك رقم #${o.id} بانتظار تأكيدك، ويُلغى تلقائياً الساعة 9:00 مساءً لو ما تأكد 👇`, [
+              { id: `confirm_order_${o.id}`, title: "تأكيد الطلب ✅" },
+              { id: `cancel_order_${o.id}`, title: "إلغاء ❌" },
+            ], { ctx, purpose: "bot_reply" });
+          }
+          await markSeen(env, msg.messageId);
+          continue;
+        }
+      }
+    }
+
+    const pendingKey = `pending_neighborhood:${partner.id}`;
+    const pendingRaw = await env.MSG_DEDUP.get(pendingKey);
+    // «loc:<orderId>» = an already-confirmed order only needs its location
+    // (ح2 late order, ح3 confirm of a draft); no quotation follows.
+    const locOnly = typeof pendingRaw === "string" && pendingRaw.startsWith("loc:");
+    const pendingOrderId = locOnly ? pendingRaw!.slice(4) : pendingRaw;
+
+    if (pendingOrderId && locOnly && (msg.type === "location" || msg.type === "text")) {
+      const orderId = Number(pendingOrderId);
+      if (msg.type === "location" && msg.location) {
+        const { latitude, longitude, name, address } = msg.location;
+        const neigh = (name ?? address ?? "").trim().slice(0, 60);
+        await savePartnerLocation(env, partner.id, latitude, longitude, neigh);
+        await setOrderLocation(env, orderId, latitude, longitude, neigh);
+        await env.MSG_DEDUP.delete(pendingKey);
+        await sendText(env, msg.from, `حفظنا موقع التوصيل لطلبك رقم #${orderId} ✅`, { ctx, purpose: "bot_reply" });
+        await markSeen(env, msg.messageId);
+        continue;
+      }
+      const neigh = msg.text.trim();
+      // § 41 و (found by the full-day simulation) — a text with a number in it
+      // is an order («رمان وسط 5»), never a neighborhood: it goes on to the
+      // bot below and the location stays pending (it was saved as the district).
+      if (isNeighborhoodText(neigh)) {
+        await savePartnerNeighborhood(env, partner.id, neigh);
+        await setOrderNeighborhood(env, orderId, neigh);
+        await env.MSG_DEDUP.delete(pendingKey);
+        await sendText(env, msg.from, `حفظنا الحي: ${neigh} ✅ لطلبك رقم #${orderId}.`, { ctx, purpose: "bot_reply" });
+        await markSeen(env, msg.messageId);
+        continue;
+      }
+    }
+
+    if (pendingOrderId && !locOnly) {
       const orderId = Number(pendingOrderId);
 
       if (msg.type === "location" && msg.location) {
@@ -1889,15 +2724,17 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         continue;
       }
 
-      if (msg.type === "text") {
+      if (msg.type === "text" && !hasDigits(msg.text)) {
+        // § 41 و — a text with a number is an order line (it goes on to the bot
+        // and the quotation still waits for the location), not a neighborhood.
         const neigh = msg.text.trim();
-        if (neigh.length >= 2 && neigh.length <= 60) {
+        if (isNeighborhoodText(neigh)) {
           await savePartnerNeighborhood(env, partner.id, neigh);
           await setOrderNeighborhood(env, orderId, neigh);
           await env.MSG_DEDUP.delete(pendingKey);
           await sendText(env, msg.from,
             `حفظنا الحي: ${neigh} ✅\nلو تقدر ترسل موقعك من قوقل مابس (📎 → موقع → موقعي الحالي) بيوصلك السائق أدق مرة جاية 🌿`,
-            { ctx });
+            { ctx, purpose: "bot_reply" });
           const reply: RouterReply = await dispatch(env, {
             msg: { ...msg, text: "خلاص" },
             intent: "request_quotation",
@@ -1909,7 +2746,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         }
         await sendText(env, msg.from,
           "أرسل موقعك من قوقل مابس (📎 → موقع → موقعي الحالي)، أو اكتب اسم الحي فقط 🙏",
-          { ctx });
+          { ctx, purpose: "bot_reply" });
         await markSeen(env, msg.messageId);
         continue;
       }
@@ -1919,7 +2756,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       const { latitude, longitude, name, address } = msg.location;
       const neigh = (name ?? address ?? "").trim().slice(0, 60);
       await savePartnerLocation(env, partner.id, latitude, longitude, neigh);
-      await sendText(env, msg.from, "حفظنا موقعك للتوصيل ✅ طلباتك الجاية بيوصلك السائق مباشرة.", { ctx });
+      await sendText(env, msg.from, "حفظنا موقعك للتوصيل ✅ طلباتك الجاية بيوصلك السائق مباشرة.", { ctx, purpose: "bot_reply" });
       await markSeen(env, msg.messageId);
       continue;
     }
@@ -1933,6 +2770,18 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
     const reply: RouterReply = await dispatch(env, { msg, intent, senderType, partner });
 
     await sendReply(env, msg.from, reply, ctx);
+    // 2026-09-25 (STATUS § 30) — after the reply, so this text is answered as
+    // today; the result steers the next ones.
+    if (msg.type === "text" && !screened) {
+      try {
+        await screenInbound(env, {
+          partnerId: partner.id, partnerName: partner.name, number: msg.from, profileName: msg.profileName,
+          text: msg.text, classifyIntent: intent, state: screenState,
+        });
+      } catch (e) {
+        console.warn("[screen] failed", (e as Error)?.message);
+      }
+    }
     await markSeen(env, msg.messageId);
   }
 }
@@ -1950,20 +2799,36 @@ async function enrichSupplier(env: Env, supplier: OdooPartner): Promise<OdooPart
   };
 }
 
+/** STATUS § 37 — a reply of the supplier-payment flow: a list (the suppliers), else buttons or text. */
+async function sendFlowReply(
+  env: Env,
+  to: string,
+  reply: import("./supplier-pay").FlowReply,
+  ctx?: ExecutionContext,
+): Promise<void> {
+  if (reply.list) {
+    const { sendViaGateway } = await import("./wa-gateway");
+    await sendViaGateway(env, { purpose: "bot_reply", to, content: reply.list, ctx });
+    return;
+  }
+  await sendReply(env, to, reply, ctx);
+}
+
 async function sendReply(
   env: Env,
   to: string,
   reply: RouterReply,
   ctx?: ExecutionContext,
 ): Promise<void> {
+  // § 44 د — a reply may name its purpose (customer_vat_ask) and carry a second message after it
+  const purpose = reply.purpose ?? "bot_reply";
   if (reply.buttons && reply.buttons.length > 0) {
     const body = reply.bodyBeforeButtons ?? reply.text ?? "";
-    await sendButtons(env, to, body, reply.buttons, { ctx });
-    return;
+    await sendButtons(env, to, body, reply.buttons, { ctx, purpose });
+  } else if (reply.text && reply.text.trim()) {
+    await sendText(env, to, reply.text, { ctx, purpose });
   }
-  if (reply.text && reply.text.trim()) {
-    await sendText(env, to, reply.text, { ctx });
-  }
+  if (reply.followUp) await sendReply(env, to, reply.followUp, ctx);
 }
 
 function json(obj: unknown, status = 200): Response {
@@ -1992,4 +2857,85 @@ function arrayBufferToBase64(bytes: Uint8Array): string {
     );
   }
   return btoa(bin);
+}
+
+function isOwnerNumber(env: Env, from: string): boolean {
+  const o = String(env.OWNER_WHATSAPP ?? "").replace(/[^0-9]/g, "");
+  return o.length > 0 && String(from ?? "").replace(/[^0-9]/g, "") === o;
+}
+
+async function isWarehouse(env: Env, partnerId: number): Promise<boolean> {
+  try {
+    const { getTeamMembersByRole } = await import("./odoo");
+    const wh = await getTeamMembersByRole(env, "warehouse");
+    return wh.some((w) => w.id === partnerId);
+  } catch {
+    return false;
+  }
+}
+
+// 2026-09-24 (ح5) — customer media: reply + immediate owner alert (قرار براء:
+// no speech-to-text in this phase, no batching, no delay). Stickers are not a
+// message to follow up and are left alone.
+const MEDIA_LABEL: Readonly<Record<string, string>> = {
+  audio: "رسالة صوتية",
+  image: "صورة",
+  video: "فيديو",
+  document: "مستند",
+};
+
+export async function handleCustomerMedia(
+  env: Env,
+  msg: import("./types").NormalizedMessage,
+  customer: OdooPartner | null,
+  ctx?: ExecutionContext,
+): Promise<boolean> {
+  const label = MEDIA_LABEL[msg.type];
+  if (!label) return false;
+  const kind = msg.type === "audio" && msg.media?.voice ? "رسالة صوتية" : label;
+  // 2026-09-24 (م2) — an image / document within 48h of a payment reminder
+  // is most likely the transfer receipt: it goes to the owner and collectors.
+  if (customer && (msg.type === "image" || msg.type === "document")) {
+    const { readPayRemindSent, notifyPaymentClaim, PAY_RECEIPT_REPLY } = await import("./pay-claim");
+    const reminded = await readPayRemindSent(env, customer.id);
+    if (reminded) {
+      await sendText(env, msg.from, PAY_RECEIPT_REPLY, { ctx, purpose: "bot_reply" });
+      const caption = msg.media?.caption ? ` — التعليق: ${msg.media.caption.slice(0, 120)}` : "";
+      await notifyPaymentClaim(env, customer, reminded, `${kind} (غالباً إيصال التحويل، في محادثته في Discuss)${caption}`);
+      return true;
+    }
+  }
+  await sendText(
+    env,
+    msg.from,
+    `وصلتنا ${kind} ✅ الفريق بيتابعها ويرد عليك قريب. ولو هي طلب، تقدر تكتب الأصناف والكميات نصاً عشان تتسجل مباشرة 🌿`,
+    { ctx, purpose: "bot_reply" },
+  );
+  const { sendOwnerAlert } = await import("./templates");
+  const who = customer?.name || msg.profileName || "عميل جديد";
+  const caption = msg.media?.caption ? ` — التعليق: ${msg.media.caption.slice(0, 200)}` : "";
+  await sendOwnerAlert(
+    env,
+    `${msg.type === "audio" ? "🎤" : "📎"} ${kind} من عميل: ${who} (${msg.from})${caption}. رددنا عليه بأنها وصلت وسيتابعها الفريق؛ افتح محادثته في Discuss.`,
+  );
+  return true;
+}
+
+/** § 41 و — Latin or Arabic-Indic digits: a quantity, so an order line, not a place. */
+export function hasDigits(text: string): boolean {
+  return /[0-9\u0660-\u0669\u06F0-\u06F9]/.test(String(text ?? ""));
+}
+/** § 41 و (the live run) — replies, never a district: «خلاص» typed while the
+ *  quotation waited for the location was saved as the neighborhood. */
+const REPLY_WORDS = new Set([
+  "تم", "تمام", "نعم", "ايوه", "أيوه", "ايوا", "اي", "لا", "اوكي", "اوك", "ok", "okay",
+  "الغاء", "إلغاء", "شكرا", "شكراً", "مشكور", "هلا", "مرحبا", "السلام عليكم", "وعليكم السلام",
+]);
+/** § 41 و — a text that can be a neighborhood name: 2–60 characters, no
+ *  number, not a quotation word («خلاص»، «جهزه») and not a reply word. */
+export function isNeighborhoodText(text: string): boolean {
+  const t = String(text ?? "").trim();
+  if (t.length < 2 || t.length > 60 || hasDigits(t)) return false;
+  const bare = t.replace(/[\p{P}\p{Extended_Pictographic}\s]+/gu, " ").trim().toLowerCase();
+  return !isQuotationTrigger(t) && !REPLY_WORDS.has(bare);
 }

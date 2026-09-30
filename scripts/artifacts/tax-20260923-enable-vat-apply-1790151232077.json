@@ -1,0 +1,55 @@
+{
+  "at": "2026-09-23T08:13:52.077Z",
+  "report": {
+    "vat": {
+      "current": "315022736600003",
+      "source": "none",
+      "action": "kept (no env value supplied)"
+    }
+  },
+  "products_changed": 0,
+  "after": {
+    "company": {
+      "id": 1,
+      "vat": "315022736600003",
+      "account_sale_tax_id": [
+        5,
+        "15%"
+      ],
+      "account_purchase_tax_id": [
+        21,
+        "15%"
+      ],
+      "tax_calculation_rounding_method": "round_per_line",
+      "account_price_include": "tax_excluded"
+    },
+    "sale": {
+      "id": 5,
+      "name": "15%",
+      "type_tax_use": "sale",
+      "amount": 15,
+      "amount_type": "percent",
+      "price_include": true,
+      "price_include_override": "tax_included",
+      "active": true,
+      "company_id": [
+        1,
+        "شركة يو تاك ذات مسؤولية محدودة"
+      ]
+    },
+    "purchase": {
+      "id": 21,
+      "name": "15%",
+      "type_tax_use": "purchase",
+      "amount": 15,
+      "amount_type": "percent",
+      "price_include": false,
+      "price_include_override": false,
+      "active": true,
+      "company_id": [
+        1,
+        "شركة يو تاك ذات مسؤولية محدودة"
+      ]
+    }
+  }
+}

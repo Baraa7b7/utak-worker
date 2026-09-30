@@ -3,19 +3,27 @@
 
 import type { Env } from "./config";
 import { call } from "./odoo";
-import { sendText } from "./meta";
+import { payconfText, paymentAmountLabel, type PayConfAction } from "./payment-confirm";
 import {
   BRAND_COLORS,
   computePageMetrics,
   escapeHTML,
   formatMoney,
   htmlToPDF,
+  buildGotenbergFooterHtml,
+  GOTENBERG_FOOTER_MARGIN,
   renderPDFShell,
+  issuedSealHTML,
   signDocToken,
   uploadPDFToR2,
+  type LegalFooterInfo,
   type PageMetrics,
   type PartyInfo,
 } from "./pdf-template";
+import { readCompanyInfo, type CompanyInfo } from "./company";
+import { toLegalFooterAr } from "./legal-footer";
+import { UI, resolveDocLang, type DocLang } from "./i18n";
+import { formatDateEn, fromPartyFor, labelForBillTo, labelForFrom, labelForTerms, taglineFor, thanksLine } from "./doc-shell";
 
 export interface ReceiptPayment {
   invoiceNumber: string;
@@ -35,7 +43,36 @@ export interface ReceiptPDFData {
   };
   payments: ReceiptPayment[];
   totalReceived: number;
+  // Doc-level language. Receipts do not carry VAT, so no Article 53 upgrade.
+  lang?: DocLang;
+  /** Issued document (numbered, sent / recorded). Only issued documents print
+   *  the company seal + signature — never a preview or a draft. */
+  issued?: boolean;
 }
+
+/**
+ * The receipt's WhatsApp text inside the window (STATUS § 39 د, م10): the
+ * words of utak_payment_received, then the receipt's number, method and link
+ * (src/payment-confirm.ts payconfText; a partial payment also says what is
+ * left — confirmPaymentToCustomer passes it).
+ */
+export function receiptMessageText(data: ReceiptPDFData, publicUrl: string): string {
+  return payconfText({
+    amount: data.totalReceived,
+    invoiceNumber: data.payments[0]?.invoiceNumber || data.receiptNumber,
+    receipt: { number: data.receiptNumber, url: publicUrl, method: data.payments[0]?.method || undefined },
+  });
+}
+
+/** utak_payment_received's {{1}}: «50» or «50.50». */
+export function receiptAmountLabel(amount: number): string {
+  return paymentAmountLabel(amount);
+}
+
+// § 34's sendReceiptToCustomer (a raw gateway send under customer_receipt) is
+// gone (§ 39 د): every confirmation of a payment goes through
+// confirmPaymentToCustomer (src/payment-confirm.ts) — customer_payment_received,
+// one per payment, nothing for a simulation, nothing to a held customer.
 
 const RECEIPT_FOOTER =
   "استلمنا منكم المبلغ المذكور أعلاه عن الفواتير المدرجة. شكراً لالتزامكم.";
@@ -44,28 +81,36 @@ const RECEIPT_FOOTER =
 export function renderReceiptBodyHTML(
   payments: ReceiptPayment[],
   m?: PageMetrics,
+  lang: DocLang = "ar",
 ): string {
   const metrics = m ?? computePageMetrics(payments.length);
+  const isEn = lang === "en";
+  const dirEn = isEn ? "right" : "left";
   const rowsHtml = payments
     .map(
       (p) => `
     <tr style="border-bottom: 0.25px solid ${BRAND_COLORS.borderSoft};">
-      <td style="height: ${metrics.rowHeight}; text-align: right; font-size: 12px; font-weight: 400; padding: 0 12px 0 0; direction: ltr; unicode-bidi: plaintext;">${escapeHTML(p.invoiceNumber)}</td>
-      <td style="height: ${metrics.rowHeight}; text-align: right; font-size: 12px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; padding: 0 12px 0 0;">${escapeHTML(p.invoiceDate)}</td>
-      <td style="height: ${metrics.rowHeight}; text-align: left; font-size: 12px; font-weight: 400; direction: ltr;">${formatMoney(p.amount)}</td>
-      <td style="height: ${metrics.rowHeight}; text-align: left; font-size: 12px; font-weight: 400; color: ${BRAND_COLORS.inkMuted};">${escapeHTML(p.method)}</td>
+      <td style="height: ${metrics.rowHeight}; text-align: ${isEn ? "left" : "right"}; font-size: 12px; font-weight: 400; padding: 0 12px 0 0; direction: ltr; unicode-bidi: plaintext;">${escapeHTML(p.invoiceNumber)}</td>
+      <td style="height: ${metrics.rowHeight}; text-align: ${isEn ? "left" : "right"}; font-size: 12px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; padding: 0 12px 0 0;">${escapeHTML(p.invoiceDate)}</td>
+      <td style="height: ${metrics.rowHeight}; text-align: ${dirEn}; font-size: 12px; font-weight: 400; direction: ltr;">${formatMoney(p.amount, lang)}</td>
+      <td style="height: ${metrics.rowHeight}; text-align: ${dirEn}; font-size: 12px; font-weight: 400; color: ${BRAND_COLORS.inkMuted};">${escapeHTML(p.method)}</td>
     </tr>
   `,
     )
     .join("");
 
+  const L = (key: "colInvoiceNumber" | "colInvoiceDate" | "colAmount" | "colPaymentMethod") =>
+    isEn ? UI[key].en : UI[key].ar;
+  const th = (label: string, w: string, alignEn = false) =>
+    `<th style="width: ${w}; text-align: ${isEn ? (alignEn ? "right" : "left") : (alignEn ? "left" : "right")}; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${metrics.thPad};">${escapeHTML(label)}</th>`;
+
   return `<table style="position: relative; width: 100%; border-collapse: collapse; table-layout: fixed;">
       <thead>
         <tr style="border-top: 0.5px solid ${BRAND_COLORS.borderStrong}; border-bottom: 0.5px solid ${BRAND_COLORS.borderStrong};">
-          <th style="width: 30%; text-align: right; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${metrics.thPad};">رقم الفاتورة</th>
-          <th style="width: 25%; text-align: right; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${metrics.thPad};">تاريخ الفاتورة</th>
-          <th style="width: 20%; text-align: left; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${metrics.thPad};">المبلغ</th>
-          <th style="width: 25%; text-align: left; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; padding: ${metrics.thPad};">طريقة الدفع</th>
+          ${th(L("colInvoiceNumber"), "30%")}
+          ${th(L("colInvoiceDate"), "25%")}
+          ${th(L("colAmount"), "20%", true)}
+          ${th(L("colPaymentMethod"), "25%", true)}
         </tr>
       </thead>
       <tbody>${rowsHtml}</tbody>
@@ -73,33 +118,49 @@ export function renderReceiptBodyHTML(
 }
 
 // ---- Totals: single "إجمالي المستلم" row, using invoice grand-total style ----
-export function renderReceiptTotalsHTML(totalReceived: number): string {
+export function renderReceiptTotalsHTML(totalReceived: number, lang: DocLang = "ar"): string {
+  const label = lang === "en" ? UI.totalReceived.en : UI.totalReceived.ar;
   return `<div style="position: relative; display: flex; justify-content: flex-end;">
       <div style="width: 40%; display: flex; flex-direction: column; gap: 9px;">
         <div style="height: 0; border-top: 0.5px solid ${BRAND_COLORS.borderStrong};"></div>
-        <div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 8px;"><span style="font-size: 12px; font-weight: 500; color: ${BRAND_COLORS.ink};">إجمالي المستلم</span><span style="font-size: 20px; font-weight: 500; color: ${BRAND_COLORS.primary}; direction: ltr;">${formatMoney(totalReceived)}</span></div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 8px;"><span style="font-size: 12px; font-weight: 500; color: ${BRAND_COLORS.ink};">${escapeHTML(label)}</span><span style="font-size: 20px; font-weight: 500; color: ${BRAND_COLORS.primary}; direction: ltr;">${formatMoney(totalReceived, lang)}</span></div>
       </div>
     </div>`;
 }
 
-export function renderReceiptHTML(data: ReceiptPDFData): string {
+export function renderReceiptHTML(data: ReceiptPDFData, company?: CompanyInfo): string {
   const pageMetrics = computePageMetrics(data.payments.length);
+  const lang: DocLang = resolveDocLang({ docLang: data.lang, isTaxInvoice: false });
   const billTo: PartyInfo = {
     name: data.customer.name,
     contactName: data.customer.contactPerson,
     address: data.customer.address,
     phone: data.customer.phone,
   };
+  const legalFooterBar: LegalFooterInfo | undefined = company
+    ? toLegalFooterAr(company)
+    : undefined;
   return renderPDFShell({
-    documentTitle: "إيصال دفع",
+    documentTitle: lang === "en" ? UI.receipt.en : UI.receipt.ar,
     documentNumber: data.receiptNumber,
     documentDate: data.receiptDate,
     billTo,
-    bodyHTML: renderReceiptBodyHTML(data.payments, pageMetrics),
-    totalsHTML: renderReceiptTotalsHTML(data.totalReceived),
-    footerNote: RECEIPT_FOOTER,
+    from: data.lang ? fromPartyFor(lang, company) : undefined,
+    bodyHTML: renderReceiptBodyHTML(data.payments, pageMetrics, lang),
+    totalsHTML: renderReceiptTotalsHTML(data.totalReceived, lang),
+    footerNote: lang === "en" ? UI.receiptConfirmation.en : RECEIPT_FOOTER,
     showZatcaQR: false,
+    legalFooterBar,
     pageMetrics,
+    lang: data.lang ? lang : undefined,
+    tagline: data.lang ? taglineFor(lang) : undefined,
+    billToLabel: data.lang ? labelForBillTo(lang) : undefined,
+    fromLabel: data.lang ? labelForFrom(lang) : undefined,
+    termsLabel: data.lang ? labelForTerms(lang) : undefined,
+    thanksLine: data.lang ? thanksLine(lang, company) : undefined,
+    footerSealHTML: issuedSealHTML(data.issued, company),
+    sealBesideTotals: true,
+    documentDateStr: lang === "en" ? formatDateEn(data.receiptDate) : undefined,
   });
 }
 
@@ -107,7 +168,12 @@ export async function generateReceiptPDF(
   data: ReceiptPDFData,
   env: Env,
 ): Promise<Uint8Array> {
-  return await htmlToPDF(renderReceiptHTML(data), env);
+  const company = await readCompanyInfo(env);
+  const lang: DocLang = resolveDocLang({ docLang: data.lang, isTaxInvoice: false });
+  return await htmlToPDF(renderReceiptHTML(data, company), env, {
+    footerHtml: buildGotenbergFooterHtml(lang),
+    marginBottom: GOTENBERG_FOOTER_MARGIN,
+  });
 }
 
 export async function uploadReceiptToR2(
@@ -214,6 +280,8 @@ export async function buildReceiptPDFDataFromOdoo(
     },
     payments: [{ invoiceNumber: invNum, invoiceDate, amount, method }],
     totalReceived: amount,
+    // A recorded x_payment: the receipt is issued.
+    issued: true,
   };
 }
 
@@ -239,12 +307,14 @@ export interface ReceiptDispatchResult {
   number: string;
   pdfUrl: string;
   pdfSize: number;
-  messageId: string | null;
+  /** § 39 د — what became of the customer's one confirmation (src/payment-confirm.ts). */
+  confirmation: PayConfAction;
 }
 
 export async function createAndDispatchReceiptForRecord(
   env: Env,
   paymentId: number,
+  ctx?: ExecutionContext,
 ): Promise<ReceiptDispatchResult | null> {
   let data: ReceiptPDFData | null;
   try {
@@ -291,43 +361,24 @@ export async function createAndDispatchReceiptForRecord(
     throw e;
   }
 
-  const customerPhone = data.customer.phone;
-  const amount = data.totalReceived;
-  const method = data.payments[0]?.method || "-";
-
-  let messageId: string | null = null;
-  if (!customerPhone) {
-    console.warn(`[receipt] ${paymentId} has no customer WhatsApp — skipping send`);
-  } else {
-    try {
-      // Plain-text fallback pending an approved receipt template (mirrors quotation).
-      const body = [
-        `✅ تم استلام دفعتك`,
-        `رقم الإيصال: ${data.receiptNumber}`,
-        `المبلغ: ${amount} ر.س`,
-        `طريقة الدفع: ${method}`,
-        ``,
-        `الإيصال: ${uploaded.publicUrl}`,
-        ``,
-        `شكراً لتعاملكم مع UTAK 🌿`,
-      ].join("\n");
-      const resp = await sendText(env, customerPhone, body);
-      if (resp?.ok) {
-        try {
-          const j = (await resp.json()) as { messages?: Array<{ id?: string }> };
-          messageId = j?.messages?.[0]?.id ?? null;
-        } catch {
-          /* ignore parse error — Meta returned non-JSON */
-        }
-      }
-    } catch (e) {
-      console.error(
-        "[r-issue] step 4 FAILED:",
-        (e as Error).message,
-        (e as Error).stack,
-      );
-      throw e;
-    }
+  // STATUS § 39 د (م10) — the customer's one confirmation of this payment: the
+  // receipt with its link inside the window, utak_payment_received outside it;
+  // nothing for a simulation or a held customer, never twice.
+  let confirmation: PayConfAction;
+  try {
+    const { confirmPaymentToCustomer } = await import("./payment-confirm");
+    const c = await confirmPaymentToCustomer(env, paymentId, {
+      receipt: { number: data.receiptNumber, url: uploaded.publicUrl, method: data.payments[0]?.method || undefined },
+      ctx,
+    });
+    confirmation = c.action;
+  } catch (e) {
+    console.error(
+      "[r-issue] step 4 FAILED:",
+      (e as Error).message,
+      (e as Error).stack,
+    );
+    throw e;
   }
 
   // Warn-and-continue: a write-back failure must not undo a WhatsApp send
@@ -358,7 +409,7 @@ export async function createAndDispatchReceiptForRecord(
     number: data.receiptNumber,
     pdfUrl: uploaded.publicUrl,
     pdfSize: uploaded.size,
-    messageId,
+    confirmation,
   };
 }
 

@@ -1,0 +1,89 @@
+{
+  "day": "2026-09-26",
+  "assume": {
+    "9": 5
+  },
+  "ownerWindowAt": "06:00",
+  "ticks": 288,
+  "roster": [
+    {
+      "id": 9,
+      "name": "عمر المجهلي",
+      "to": "…6832",
+      "roles": [
+        "driver",
+        "warehouse",
+        "collector"
+      ],
+      "shift": "05:00"
+    }
+  ],
+  "people": [
+    {
+      "id": 9,
+      "name": "عمر المجهلي",
+      "to": "…6832",
+      "roles": [
+        "driver",
+        "warehouse",
+        "collector"
+      ],
+      "shift": "05:00",
+      "sends": [
+        "05:00 قالب utak_shift_start_v2 [عمر المجهلي]",
+        "05:30 قالب utak_shift_start_v2 [عمر المجهلي]"
+      ]
+    },
+    {
+      "id": 0,
+      "name": "براء (المالك)",
+      "to": "…4962",
+      "roles": [
+        "—"
+      ],
+      "shift": "06:00 (نافذة)",
+      "sends": [
+        "05:30 قالب utak_owner_alert [⏰ عمر المجهلي لم يسجّل حضوره: دوامه 05:00، ومضت 30 دقيقة بلا ضغط «بدء الدوام». أُرسل له تذكير.]",
+        "06:00 قالب utak_shift_start_v2 [براء]",
+        "06:00 قالب utak_owner_alert [❌ عمر المجهلي سُجّل غائباً اليوم: لم يضغط «بدء الدوام» خلال 60 دقيقة من دوامه (05:00).]"
+      ]
+    }
+  ],
+  "attendanceRows": [
+    {
+      "id": 1,
+      "x_name": "عمر المجهلي · 2026-09-26",
+      "x_partner_id": 9,
+      "x_date": "2026-09-26",
+      "x_shift_at": "2026-09-26 02:00:00",
+      "x_reminder_sent": true,
+      "x_sent_at": "2026-09-26 02:00:00",
+      "x_status": "absent"
+    }
+  ],
+  "writesOutsideAttendance": [
+    {
+      "at": "05:00",
+      "model": "discuss.channel",
+      "method": "message_post"
+    },
+    {
+      "at": "05:00",
+      "model": "x_wa_message",
+      "method": "create"
+    },
+    {
+      "at": "05:30",
+      "model": "discuss.channel",
+      "method": "message_post"
+    },
+    {
+      "at": "05:30",
+      "model": "x_wa_message",
+      "method": "create"
+    }
+  ],
+  "blocked": [],
+  "errors": [],
+  "refused": []
+}

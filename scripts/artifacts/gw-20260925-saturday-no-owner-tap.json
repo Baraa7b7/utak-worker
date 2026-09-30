@@ -1,0 +1,201 @@
+{
+  "mode": "Baraa never taps",
+  "tapStatus": null,
+  "day": "2026-09-26",
+  "crons": [
+    "0 23 * * *",
+    "0 2 * * *",
+    "0 3 * * *",
+    "0 17 * * *",
+    "0 18 * * *",
+    "15 18 * * *",
+    "0 15 * * *",
+    "0 14 * * *",
+    "0 5 * * *",
+    "*/5 * * * *"
+  ],
+  "windowsAtStart": {
+    "عمر المجهلي …6832": "مقفلة (آخر وارد: 2026-09-21 12:19)",
+    "عثمان عبدالوهاب …9474": "مقفلة (آخر وارد: 2026-09-18 20:38)",
+    "براء …4962": "مفتوحة حتى 2026-09-26 06:43",
+    "أحمد حسان (مورد) …7704": "مقفلة (آخر وارد: 2026-09-18 02:02)"
+  },
+  "roster": [
+    {
+      "name": "عمر المجهلي",
+      "to": "…6832",
+      "roles": [
+        "driver",
+        "warehouse",
+        "collector"
+      ],
+      "attendance": true,
+      "calendar": "UTAK — عمر"
+    },
+    {
+      "name": "عثمان عبدالوهاب",
+      "to": "…9474",
+      "roles": [
+        "admin"
+      ],
+      "attendance": true,
+      "calendar": "UTAK — عثمان"
+    }
+  ],
+  "decisions": [
+    {
+      "at": "02:00",
+      "to": "…7704",
+      "purpose": "supplier_ask",
+      "decision": "قالب utak_supplier_ask_v2",
+      "what": "قالب utak_supplier_ask_v2 [أحمد حسان / افوكادو، رمان وسط]"
+    },
+    {
+      "at": "02:00",
+      "to": "…6832",
+      "purpose": "team_shift_start",
+      "decision": "قالب utak_shift_start_v2",
+      "what": "قالب utak_shift_start_v2 [عمر المجهلي]"
+    },
+    {
+      "at": "02:30",
+      "to": "…6832",
+      "purpose": "team_shift_start",
+      "decision": "قالب utak_shift_start_v2",
+      "what": "قالب utak_shift_start_v2 [عمر المجهلي]"
+    },
+    {
+      "at": "02:30",
+      "to": "…4962",
+      "purpose": "owner_alert",
+      "decision": "نص (text)",
+      "what": "نص: ⏰ عمر المجهلي لم يسجّل حضوره: دوامه 02:00، ومضت 30 دقيقة بلا ضغط «بدء الدوام». أُرسل له تذكير."
+    },
+    {
+      "at": "03:00",
+      "to": "…4962",
+      "purpose": "owner_alert",
+      "decision": "نص (text)",
+      "what": "نص: ❌ عمر المجهلي سُجّل غائباً اليوم: لم يضغط «بدء الدوام» خلال 60 دقيقة من دوامه (02:00)."
+    },
+    {
+      "at": "06:00",
+      "to": "…4962",
+      "purpose": "owner_alert",
+      "decision": "نص (text)",
+      "what": "نص: ☀️ صباح الخير براء — ما فيه طلبات أسعار انرسلت الليلة (لعل القوالب لسا PENDING)."
+    },
+    {
+      "at": "06:00",
+      "to": "…4962",
+      "purpose": "team_shift_start",
+      "decision": "قالب utak_shift_start_v2",
+      "what": "قالب utak_shift_start_v2 [براء]"
+    },
+    {
+      "at": "06:00",
+      "to": "…9474",
+      "purpose": "team_shift_start",
+      "decision": "قالب utak_shift_start_v2",
+      "what": "قالب utak_shift_start_v2 [عثمان عبدالوهاب]"
+    },
+    {
+      "at": "06:30",
+      "to": "…9474",
+      "purpose": "team_shift_start",
+      "decision": "قالب utak_shift_start_v2",
+      "what": "قالب utak_shift_start_v2 [عثمان عبدالوهاب]"
+    },
+    {
+      "at": "06:30",
+      "to": "…4962",
+      "purpose": "owner_alert",
+      "decision": "نص (text)",
+      "what": "نص: ⏰ عثمان عبدالوهاب لم يسجّل حضوره: دوامه 06:00، ومضت 30 دقيقة بلا ضغط «بدء الدوام». أُرسل له تذكير."
+    },
+    {
+      "at": "07:00",
+      "to": "…4962",
+      "purpose": "owner_alert",
+      "decision": "محفوظة (خارج النافذة، لا قالب UTILITY)",
+      "what": "until=2026-09-27T16:00:00.000Z — الرقم خارج نافذة 24 ساعة؛ القالب utak_owner_alert فئته MARKETING ولا يُستعمل لغرض تشغيلي"
+    },
+    {
+      "at": "21:15",
+      "to": "…4962",
+      "purpose": "owner_alert",
+      "decision": "محفوظة (خارج النافذة، لا قالب UTILITY)",
+      "what": "until=2026-09-28T06:15:00.000Z — الرقم خارج نافذة 24 ساعة؛ القالب utak_owner_alert فئته MARKETING ولا يُستعمل لغرض تشغيلي"
+    }
+  ],
+  "graphPosts": 10,
+  "heldAtEnd": {
+    "…4962": [
+      {
+        "purpose": "owner_alert",
+        "body": "❌ عثمان عبدالوهاب سُجّل غائباً اليوم: لم يضغط «بدء الدوام» خلال 60 دقيقة من دوامه (06:00).",
+        "expires": "2026-09-27 19:00"
+      },
+      {
+        "purpose": "owner_alert",
+        "body": "📊 21:15\nلا يوجد طلبات مؤكدة اليوم — ما تم إنشاء قائمة شراء.",
+        "expires": "2026-09-28 09:15"
+      }
+    ]
+  },
+  "rows": [
+    {
+      "day": "2026-09-26",
+      "at": "07:00",
+      "status": "held",
+      "body": "❌ عثمان عبدالوهاب سُجّل غائباً اليوم: لم يضغط «بدء الدوام» خلال 60 دقيقة من دوامه (06:00).",
+      "why": "{\"gateway\":\"held\",\"purpose\":\"owner_alert\",\"reason\":\"الرقم خارج نافذة 24 ساعة؛ القالب utak_owner_alert فئته MARKETING ولا يُستعمل لغرض تشغيلي\",\"expiresAt\":\"2026-"
+    },
+    {
+      "day": "2026-09-26",
+      "at": "21:15",
+      "status": "held",
+      "body": "📊 21:15 لا يوجد طلبات مؤكدة اليوم — ما تم إنشاء قائمة شراء.",
+      "why": "{\"gateway\":\"held\",\"purpose\":\"owner_alert\",\"reason\":\"الرقم خارج نافذة 24 ساعة؛ القالب utak_owner_alert فئته MARKETING ولا يُستعمل لغرض تشغيلي\",\"expiresAt\":\"2026-"
+    }
+  ],
+  "writesByModel": [
+    [
+      "x_team_attendance.search_read",
+      292
+    ],
+    [
+      "discuss.channel.message_post",
+      5
+    ],
+    [
+      "x_wa_message.create",
+      7
+    ],
+    [
+      "x_supplier_price_request_log.create",
+      1
+    ],
+    [
+      "x_team_attendance.create",
+      2
+    ],
+    [
+      "x_team_attendance.write",
+      6
+    ],
+    [
+      "res.partner.write",
+      2
+    ],
+    [
+      "x_wa_control.write",
+      1
+    ]
+  ],
+  "blocked": [],
+  "errors": [],
+  "refused": [
+    "https://graph.facebook.com/v22.0/2144001136512196/message_templates"
+  ]
+}

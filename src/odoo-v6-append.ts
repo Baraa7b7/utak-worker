@@ -52,7 +52,8 @@ export async function createOrderFromStanding(
   const customerId = standing.x_customer_id[0];
   const lines = await getStandingLines(env, standing.id);
   if (lines.length === 0) return null;
-  const today = new Date().toISOString().slice(0, 10);
+  // 2026-09-24 — Riyadh calendar day (was the UTC day), like every other order path.
+  const today = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const orderIds = await v6Call<number[]>(env, "x_daily_order", "create", {
     vals_list: [{
       x_customer_id: customerId,

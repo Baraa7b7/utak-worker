@@ -1,0 +1,66 @@
+{
+  "at": "2026-09-25T18:47:18.129Z",
+  "meta": 66,
+  "odoo": 66,
+  "hasTextFields": false,
+  "changes": [
+    {
+      "id": 85,
+      "name": "utak_update_owner",
+      "fields": {
+        "x_body": {
+          "odoo": false,
+          "meta": "يوجد تحديث تشغيلي على حساب يو تاك بتاريخ {{1}}: {{2}}. اضغط «عرض التحديث» للتفاصيل."
+        },
+        "x_buttons": {
+          "odoo": false,
+          "meta": "[0] QUICK_REPLY — عرض التحديث"
+        }
+      }
+    },
+    {
+      "id": 84,
+      "name": "utak_update_supplier",
+      "fields": {
+        "x_body": {
+          "odoo": false,
+          "meta": "يوجد تحديث على طلب التوريد بتاريخ {{1}}: {{2}}. اضغط «عرض التحديث» للتفاصيل."
+        },
+        "x_buttons": {
+          "odoo": false,
+          "meta": "[0] QUICK_REPLY — عرض التحديث"
+        }
+      }
+    },
+    {
+      "id": 83,
+      "name": "utak_update_team",
+      "fields": {
+        "x_body": {
+          "odoo": false,
+          "meta": "يوجد تحديث على مهامك في وردية {{1}}: {{2}}. اضغط «عرض التحديث» للتفاصيل."
+        },
+        "x_buttons": {
+          "odoo": false,
+          "meta": "[0] QUICK_REPLY — عرض التحديث"
+        }
+      }
+    },
+    {
+      "id": 82,
+      "name": "utak_update_customer",
+      "fields": {
+        "x_body": {
+          "odoo": false,
+          "meta": "يوجد تحديث على حسابك لدى يو تاك رقم {{1}}: {{2}}. اضغط «عرض التحديث» للتفاصيل."
+        },
+        "x_buttons": {
+          "odoo": false,
+          "meta": "[0] QUICK_REPLY — عرض التحديث"
+        }
+      }
+    }
+  ],
+  "missingInOdoo": [],
+  "missingInMeta": []
+}

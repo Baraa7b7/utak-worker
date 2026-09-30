@@ -1,0 +1,12 @@
+{
+  "script": "scripts/wa-20260924-marketing-optout-field.mjs",
+  "createdAt": "2026-09-24T16:55:44.411Z",
+  "before": {
+    "field": null,
+    "view": null
+  },
+  "created": {
+    "field_id": 20293,
+    "view_id": 2820
+  }
+}

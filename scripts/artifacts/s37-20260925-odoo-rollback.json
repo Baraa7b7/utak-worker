@@ -1,0 +1,100 @@
+{
+  "script": "scripts/s37-20260925-odoo.mjs",
+  "createdAt": "2026-09-25T19:57:03.498Z",
+  "created": {
+    "seq": 21,
+    "spModel": 6160,
+    "dueModel": 6162,
+    "lineModel": 6164,
+    "fields": [
+      20449,
+      20451,
+      20453,
+      20455,
+      20457,
+      20459,
+      20461,
+      20463,
+      20465,
+      20467,
+      20469,
+      20471,
+      20473,
+      20475,
+      20477,
+      20479,
+      20481,
+      20483,
+      20485,
+      20487,
+      20489,
+      20491,
+      20493,
+      20495,
+      20497,
+      20499,
+      20501,
+      20503,
+      20505,
+      20507,
+      20509,
+      20511,
+      20513,
+      20515,
+      20517,
+      20519,
+      20521
+    ],
+    "partnerFields": [
+      20523,
+      20526,
+      20529,
+      20532,
+      20535
+    ],
+    "actions": {
+      "createCode": 1011,
+      "createHook": 1012,
+      "approveCode": 1013,
+      "approveHook": 1014,
+      "approve": 1015,
+      "rejectCode": 1016,
+      "rejectHook": 1017,
+      "reject": 1018,
+      "lockCode": 1019,
+      "noUnlinkCode": 1020,
+      "refreshHook": 1021
+    },
+    "views": {
+      "payForm": 2839,
+      "payList": 2840,
+      "paySearch": 2846,
+      "dueForm": 2847,
+      "dueList": 2848,
+      "accList": 2849,
+      "accForm": 2850
+    },
+    "windows": {
+      "newPayment": 1022,
+      "accounts": 1023,
+      "payments": 1024,
+      "dues": 1025
+    },
+    "automations": {
+      "onCreate": 24,
+      "lock": 25,
+      "noUnlink": 26
+    },
+    "menuAccounts": 574,
+    "menuPayments": 575,
+    "menuDues": 576,
+    "purposeSelection": 4106,
+    "tplRow": 86
+  },
+  "accountingBefore": {
+    "moves": 48,
+    "payments": 9
+  },
+  "spNameLabelBefore": "Name",
+  "lockTriggerBefore": []
+}

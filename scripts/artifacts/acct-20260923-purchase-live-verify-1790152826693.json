@@ -1,0 +1,131 @@
+{
+  "started_at": "2026-09-23T08:40:12.362Z",
+  "riyadh_today": "2026-09-23",
+  "cycles": {
+    "و": {
+      "list": 4,
+      "po": {
+        "id": 8,
+        "name": "P00010",
+        "state": "purchase"
+      },
+      "bill": {
+        "id": 35,
+        "name": "BILL/2026/09/0001",
+        "untaxed": 80,
+        "tax": 0,
+        "total": 80
+      },
+      "expected": {
+        "201002": -80,
+        "400001": 80
+      },
+      "actual": {
+        "201002": -80,
+        "400001": 80
+      },
+      "second_run": null
+    },
+    "ز": {
+      "list": 5,
+      "po": {
+        "id": 9,
+        "name": "P00011",
+        "state": "purchase"
+      },
+      "bill": {
+        "id": 36,
+        "name": "BILL/2026/09/0002",
+        "untaxed": 100,
+        "tax": 15,
+        "total": 115
+      },
+      "expected": {
+        "104041": 15,
+        "201002": -115,
+        "400001": 100
+      },
+      "actual": {
+        "104041": 15,
+        "201002": -115,
+        "400001": 100
+      },
+      "second_run": null
+    },
+    "ح": {
+      "list": 6,
+      "po": {
+        "id": 10,
+        "name": "P00012",
+        "state": "purchase"
+      },
+      "bill": {
+        "id": 37,
+        "name": "BILL/2026/09/0003",
+        "untaxed": 30,
+        "tax": 0,
+        "total": 30
+      },
+      "expected": {
+        "201002": -30,
+        "400001": 30
+      },
+      "actual": {
+        "201002": -30,
+        "400001": 30
+      },
+      "second_run": {
+        "purchaseOrderId": 10,
+        "moveId": 37,
+        "skipped": true
+      }
+    }
+  },
+  "created": {
+    "suppliers": [
+      52,
+      53
+    ],
+    "lists": [
+      4,
+      5,
+      6
+    ],
+    "purchase_orders": [
+      8,
+      9,
+      10
+    ],
+    "bills": [
+      35,
+      36,
+      37
+    ],
+    "refunds": [
+      38,
+      39,
+      40
+    ]
+  },
+  "baseline": {
+    "102011": 0,
+    "500001": 0
+  },
+  "before_reversal": {
+    "102011": 0,
+    "104041": 15,
+    "201002": -225,
+    "400001": 210,
+    "500001": 0
+  },
+  "after_reversal": {
+    "102011": 0,
+    "104041": 0,
+    "201002": 0,
+    "400001": 0,
+    "500001": 0
+  },
+  "accounting_errors": [],
+  "failures": 0,
+  "finished_at": "2026-09-23T08:40:26.693Z"
+}

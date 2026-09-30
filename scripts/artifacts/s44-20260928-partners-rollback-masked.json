@@ -1,0 +1,94 @@
+{
+ "at": "2026-09-28T06:16:46.215Z",
+ "script": "scripts/s44-20260928-partners.mts",
+ "partners": [
+  {
+   "id": 20,
+   "active": true,
+   "x_contact_class": false,
+   "x_review_pending": false,
+   "customer_rank": 1,
+   "x_whatsapp_number": "+966…6376",
+   "x_wa_channel_id": false,
+   "phone": ""
+  },
+  {
+   "id": 46,
+   "active": true,
+   "x_contact_class": false,
+   "x_review_pending": false,
+   "customer_rank": 1,
+   "x_whatsapp_number": "+967…0888",
+   "x_wa_channel_id": [
+    30,
+    "واتساب · عمر · +967…0888"
+   ],
+   "phone": ""
+  },
+  {
+   "id": 47,
+   "active": true,
+   "x_contact_class": false,
+   "x_review_pending": false,
+   "customer_rank": 1,
+   "x_whatsapp_number": "+966…7756",
+   "x_wa_channel_id": [
+    31,
+    "واتساب · يو · +966…7756"
+   ],
+   "phone": ""
+  },
+  {
+   "id": 31,
+   "active": true,
+   "x_contact_class": false,
+   "x_review_pending": false,
+   "customer_rank": 1,
+   "x_whatsapp_number": "",
+   "x_wa_channel_id": [
+    17,
+    "(قديم) واتساب · ابو مكين المعبري · +966…7756"
+   ],
+   "phone": ""
+  },
+  {
+   "id": 50,
+   "active": true,
+   "x_contact_class": "unreviewed",
+   "x_review_pending": false,
+   "customer_rank": 1,
+   "x_whatsapp_number": "+967…6370",
+   "x_wa_channel_id": [
+    33,
+    "واتساب · Not Book · +967…6370"
+   ],
+   "phone": ""
+  }
+ ],
+ "channels": [
+  {
+   "id": 17,
+   "name": "(قديم) واتساب · ابو مكين المعبري · +966…7756",
+   "x_wa_partner_id": 31
+  },
+  {
+   "id": 31,
+   "name": "واتساب · يو · +966…7756",
+   "x_wa_partner_id": 47
+  }
+ ],
+ "moved": {
+  "discuss.channel:x_wa_partner_id": [
+   31
+  ],
+  "x_wa_message:x_partner_id": [
+   52,
+   76,
+   78,
+   80,
+   95,
+   96
+  ]
+ },
+ "note": "full values in backups/s44-20260928-partners-rollback.json (600, outside git)"
+}

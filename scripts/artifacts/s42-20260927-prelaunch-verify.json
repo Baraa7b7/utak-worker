@@ -1,0 +1,82 @@
+{
+ "at": "2026-09-26T21:21:32.801Z",
+ "ok": 14,
+ "total": 14,
+ "counts": {
+  "x_daily_order": 0,
+  "x_daily_order_line": 0,
+  "x_invoice": 0,
+  "x_payment": 0,
+  "x_delivery_route": 0,
+  "x_delivery_stop": 0,
+  "x_purchase_list": 0,
+  "x_supplier_due": 0,
+  "x_supplier_due_line": 0,
+  "x_supplier_payment": 0,
+  "x_daily_price": 0
+ },
+ "figures": {
+  "summaries": {
+   "2026-09-26": {
+    "tomorrow": {
+     "count": 0,
+     "total": 0,
+     "unpriced": 0
+    },
+    "deliveries": {
+     "delivered": 0,
+     "total": 0
+    },
+    "collected": 0,
+    "pending": 0,
+    "coverage": {
+     "profit": 0,
+     "cost": 0,
+     "pct": null
+    },
+    "errors": []
+   },
+   "2026-09-27": {
+    "tomorrow": {
+     "count": 0,
+     "total": 0,
+     "unpriced": 0
+    },
+    "deliveries": {
+     "delivered": 0,
+     "total": 0
+    },
+    "collected": 0,
+    "pending": 0,
+    "coverage": {
+     "profit": 0,
+     "cost": 0,
+     "pct": null
+    },
+    "errors": []
+   }
+  },
+  "ahmed": {
+   "odoo": {
+    "x_sp_due_total": 0,
+    "x_sp_paid_total": 0,
+    "x_sp_remaining": 0
+   },
+   "worker": {
+    "dueH": 0,
+    "paidH": 0,
+    "remainingH": 0
+   }
+  },
+  "dues": {
+   "count": 0,
+   "total": 0
+  },
+  "owed": [],
+  "unpaid": []
+ },
+ "acct": {
+  "moves": 48,
+  "payments": 9
+ }
+}

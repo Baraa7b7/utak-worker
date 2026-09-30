@@ -275,8 +275,9 @@ mockResponses.set("res.partner.search_read", [{ id: 42 }]); // UTAK بوت
   assert("body_is_html=true so styling is preserved", args.body_is_html === true);
   assert("body includes 🤖 آلي prefix", body.includes("🤖 آلي"));
   assert("body includes original text", body.includes("مرحبا يا شريكنا"));
-  assert("body uses green/left-border style",
-    body.includes("border-left") && body.includes("#1E5A41"));
+  // 2026-09-25: the bar is on the start side (RTL) and has no colour of its own.
+  assert("body carries the start-side bar, no fixed colour",
+    body.includes("border-right-style:solid") && !/#[0-9a-f]{3,8}|background|color:/i.test(body));
 }
 
 reset();

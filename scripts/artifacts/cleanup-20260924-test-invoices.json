@@ -1,0 +1,729 @@
+{
+  "at": "2026-09-24T16:38:03.305Z",
+  "dryRun": false,
+  "testInvoices": [
+    {
+      "id": 4,
+      "number": "UTAK-ACCT-TEST-1789968293059",
+      "status": "issued",
+      "total": 3,
+      "date": "2026-09-21",
+      "customer": "اختبار محاسبة",
+      "customerId": 48,
+      "order": 18,
+      "orderState": false,
+      "orderSim": true,
+      "move": {
+        "id": 6,
+        "name": "INV/2026/00001",
+        "state": "posted",
+        "payment_state": "reversed",
+        "residual": 0,
+        "linked": true
+      },
+      "reversedBy": {
+        "id": 11,
+        "name": "RINV/2026/00002",
+        "state": "posted"
+      },
+      "sentToCollector": null,
+      "sentToCustomer": null,
+      "x_is_simulation": true
+    },
+    {
+      "id": 5,
+      "number": "UTAK-ACCT-TEST-1789968341921",
+      "status": "issued",
+      "total": 3,
+      "date": "2026-09-21",
+      "customer": "اختبار محاسبة",
+      "customerId": 48,
+      "order": 19,
+      "orderState": false,
+      "orderSim": true,
+      "move": {
+        "id": 7,
+        "name": "INV/2026/00002",
+        "state": "posted",
+        "payment_state": "reversed",
+        "residual": 0,
+        "linked": true
+      },
+      "reversedBy": {
+        "id": 8,
+        "name": "RINV/2026/00003",
+        "state": "posted"
+      },
+      "sentToCollector": null,
+      "sentToCustomer": null,
+      "x_is_simulation": true
+    },
+    {
+      "id": 6,
+      "number": "UTAK-ACCT-TEST-1789968449449",
+      "status": "issued",
+      "total": 3,
+      "date": "2026-09-21",
+      "customer": "اختبار محاسبة",
+      "customerId": 48,
+      "order": 20,
+      "orderState": false,
+      "orderSim": true,
+      "move": {
+        "id": 9,
+        "name": "INV/2026/00003",
+        "state": "posted",
+        "payment_state": "reversed",
+        "residual": 0,
+        "linked": true
+      },
+      "reversedBy": {
+        "id": 10,
+        "name": "RINV/2026/00001",
+        "state": "posted"
+      },
+      "sentToCollector": null,
+      "sentToCustomer": null,
+      "x_is_simulation": true
+    },
+    {
+      "id": 7,
+      "number": "UTAK-ACCT-TEST-1789968612987",
+      "status": "issued",
+      "total": 3,
+      "date": "2026-09-21",
+      "customer": "اختبار محاسبة",
+      "customerId": 48,
+      "order": 21,
+      "orderState": false,
+      "orderSim": true,
+      "move": {
+        "id": 12,
+        "name": "INV/2026/00004",
+        "state": "posted",
+        "payment_state": "reversed",
+        "residual": 0,
+        "linked": true
+      },
+      "reversedBy": {
+        "id": 13,
+        "name": "RINV/2026/00004",
+        "state": "posted"
+      },
+      "sentToCollector": null,
+      "sentToCustomer": null,
+      "x_is_simulation": true
+    },
+    {
+      "id": 8,
+      "number": "UTAK-ACCT-A-1790150435183",
+      "status": "issued",
+      "total": 12,
+      "date": "2026-09-23",
+      "customer": "اختبار محاسبة",
+      "customerId": 48,
+      "order": 22,
+      "orderState": false,
+      "orderSim": true,
+      "move": {
+        "id": 14,
+        "name": "INV/2026/00005",
+        "state": "posted",
+        "payment_state": "reversed",
+        "residual": 0,
+        "linked": true
+      },
+      "reversedBy": {
+        "id": 16,
+        "name": "RINV/2026/00005",
+        "state": "posted"
+      },
+      "sentToCollector": null,
+      "sentToCustomer": null,
+      "x_is_simulation": true
+    },
+    {
+      "id": 9,
+      "number": "UTAK-ACCT-A-1790150473897",
+      "status": "issued",
+      "total": 12,
+      "date": "2026-09-23",
+      "customer": "اختبار محاسبة",
+      "customerId": 48,
+      "order": 23,
+      "orderState": false,
+      "orderSim": true,
+      "move": {
+        "id": 17,
+        "name": "INV/2026/00006",
+        "state": "posted",
+        "payment_state": "reversed",
+        "residual": 0,
+        "linked": true
+      },
+      "reversedBy": {
+        "id": 24,
+        "name": "RINV/2026/00006",
+        "state": "posted"
+      },
+      "sentToCollector": null,
+      "sentToCustomer": null,
+      "x_is_simulation": true
+    },
+    {
+      "id": 10,
+      "number": "UTAK-ACCT-B-1790150475867",
+      "status": "issued",
+      "total": 10,
+      "date": "2026-09-23",
+      "customer": "اختبار محاسبة",
+      "customerId": 48,
+      "order": 24,
+      "orderState": false,
+      "orderSim": true,
+      "move": {
+        "id": 19,
+        "name": "INV/2026/00007",
+        "state": "posted",
+        "payment_state": "reversed",
+        "residual": 0,
+        "linked": true
+      },
+      "reversedBy": {
+        "id": 25,
+        "name": "RINV/2026/00007",
+        "state": "posted"
+      },
+      "sentToCollector": null,
+      "sentToCustomer": null,
+      "x_is_simulation": true
+    },
+    {
+      "id": 11,
+      "number": "UTAK-ACCT-C48-1790150477606",
+      "status": "issued",
+      "total": 7,
+      "date": "2026-09-23",
+      "customer": "اختبار محاسبة",
+      "customerId": 48,
+      "order": 25,
+      "orderState": false,
+      "orderSim": true,
+      "move": {
+        "id": 21,
+        "name": "INV/2026/00008",
+        "state": "posted",
+        "payment_state": "reversed",
+        "residual": 0,
+        "linked": true
+      },
+      "reversedBy": {
+        "id": 26,
+        "name": "RINV/2026/00008",
+        "state": "posted"
+      },
+      "sentToCollector": null,
+      "sentToCustomer": null,
+      "x_is_simulation": true
+    },
+    {
+      "id": 12,
+      "number": "UTAK-ACCT-CB-1790150478040",
+      "status": "issued",
+      "total": 7,
+      "date": "2026-09-23",
+      "customer": "اختبار محاسبة ب",
+      "customerId": 51,
+      "order": 26,
+      "orderState": false,
+      "orderSim": true,
+      "move": {
+        "id": 22,
+        "name": "INV/2026/00009",
+        "state": "posted",
+        "payment_state": "reversed",
+        "residual": 0,
+        "linked": true
+      },
+      "reversedBy": {
+        "id": 27,
+        "name": "RINV/2026/00009",
+        "state": "posted"
+      },
+      "sentToCollector": null,
+      "sentToCustomer": null,
+      "x_is_simulation": true
+    },
+    {
+      "id": 13,
+      "number": "UTAK-VAT-D-1790151628519",
+      "status": "issued",
+      "total": 115,
+      "date": "2026-10-05",
+      "customer": "اختبار محاسبة",
+      "customerId": 48,
+      "order": 27,
+      "orderState": false,
+      "orderSim": true,
+      "move": {
+        "id": 28,
+        "name": false,
+        "state": "cancel",
+        "payment_state": "not_paid",
+        "residual": 115,
+        "linked": false
+      },
+      "reversedBy": null,
+      "sentToCollector": null,
+      "sentToCustomer": null,
+      "x_is_simulation": true
+    },
+    {
+      "id": 14,
+      "number": "UTAK-VAT-D-1790151738965",
+      "status": "issued",
+      "total": 115,
+      "date": "2026-10-05",
+      "customer": "اختبار محاسبة",
+      "customerId": 48,
+      "order": 28,
+      "orderState": false,
+      "orderSim": true,
+      "move": {
+        "id": 29,
+        "name": false,
+        "state": "cancel",
+        "payment_state": "not_paid",
+        "residual": 115,
+        "linked": false
+      },
+      "reversedBy": null,
+      "sentToCollector": null,
+      "sentToCustomer": null,
+      "x_is_simulation": true
+    },
+    {
+      "id": 15,
+      "number": "UTAK-VAT-E-1790151743613",
+      "status": "issued",
+      "total": 50,
+      "date": "2026-09-30",
+      "customer": "اختبار محاسبة",
+      "customerId": 48,
+      "order": 29,
+      "orderState": false,
+      "orderSim": true,
+      "move": {
+        "id": 30,
+        "name": false,
+        "state": "cancel",
+        "payment_state": "not_paid",
+        "residual": 50,
+        "linked": false
+      },
+      "reversedBy": null,
+      "sentToCollector": null,
+      "sentToCustomer": null,
+      "x_is_simulation": true
+    },
+    {
+      "id": 16,
+      "number": "UTAK-VAT-D-1790151794196",
+      "status": "issued",
+      "total": 115,
+      "date": "2026-10-05",
+      "customer": "اختبار محاسبة",
+      "customerId": 48,
+      "order": 30,
+      "orderState": false,
+      "orderSim": true,
+      "move": {
+        "id": 31,
+        "name": false,
+        "state": "cancel",
+        "payment_state": "not_paid",
+        "residual": 115,
+        "linked": false
+      },
+      "reversedBy": null,
+      "sentToCollector": null,
+      "sentToCustomer": null,
+      "x_is_simulation": true
+    },
+    {
+      "id": 17,
+      "number": "UTAK-VAT-E-1790151798270",
+      "status": "issued",
+      "total": 50,
+      "date": "2026-09-30",
+      "customer": "اختبار محاسبة",
+      "customerId": 48,
+      "order": 31,
+      "orderState": false,
+      "orderSim": true,
+      "move": {
+        "id": 32,
+        "name": false,
+        "state": "cancel",
+        "payment_state": "not_paid",
+        "residual": 50,
+        "linked": false
+      },
+      "reversedBy": null,
+      "sentToCollector": null,
+      "sentToCustomer": null,
+      "x_is_simulation": true
+    },
+    {
+      "id": 18,
+      "number": "UTAK-VAT-E′-1790151799179",
+      "status": "issued",
+      "total": 50,
+      "date": "2026-09-23",
+      "customer": "اختبار محاسبة",
+      "customerId": 48,
+      "order": 32,
+      "orderState": false,
+      "orderSim": true,
+      "move": {
+        "id": 33,
+        "name": "INV/2026/00010",
+        "state": "posted",
+        "payment_state": "reversed",
+        "residual": 0,
+        "linked": true
+      },
+      "reversedBy": {
+        "id": 34,
+        "name": "RINV/2026/00010",
+        "state": "posted"
+      },
+      "sentToCollector": null,
+      "sentToCustomer": null,
+      "x_is_simulation": true
+    }
+  ],
+  "total": 555,
+  "otherUnpaid": [],
+  "testMoves": [
+    {
+      "id": 6,
+      "name": "INV/2026/00001",
+      "ref": "UTAK-ACCT-TEST-1789968293059",
+      "type": "out_invoice",
+      "state": "posted",
+      "payment_state": "reversed",
+      "residual": 0
+    },
+    {
+      "id": 7,
+      "name": "INV/2026/00002",
+      "ref": "UTAK-ACCT-TEST-1789968341921",
+      "type": "out_invoice",
+      "state": "posted",
+      "payment_state": "reversed",
+      "residual": 0
+    },
+    {
+      "id": 8,
+      "name": "RINV/2026/00003",
+      "ref": "Reversal of: INV/2026/00002, acct-20260921 live-verify reversal",
+      "type": "out_refund",
+      "state": "posted",
+      "payment_state": "paid",
+      "residual": 0
+    },
+    {
+      "id": 9,
+      "name": "INV/2026/00003",
+      "ref": "UTAK-ACCT-TEST-1789968449449",
+      "type": "out_invoice",
+      "state": "posted",
+      "payment_state": "reversed",
+      "residual": 0
+    },
+    {
+      "id": 10,
+      "name": "RINV/2026/00001",
+      "ref": "Reversal of: INV/2026/00003, acct-20260921 live-verify reversal",
+      "type": "out_refund",
+      "state": "posted",
+      "payment_state": "paid",
+      "residual": 0
+    },
+    {
+      "id": 11,
+      "name": "RINV/2026/00002",
+      "ref": "Reversal of: INV/2026/00001, orphan cleanup move 6",
+      "type": "out_refund",
+      "state": "posted",
+      "payment_state": "paid",
+      "residual": 0
+    },
+    {
+      "id": 12,
+      "name": "INV/2026/00004",
+      "ref": "UTAK-ACCT-TEST-1789968612987",
+      "type": "out_invoice",
+      "state": "posted",
+      "payment_state": "reversed",
+      "residual": 0
+    },
+    {
+      "id": 13,
+      "name": "RINV/2026/00004",
+      "ref": "Reversal of: INV/2026/00004, acct-20260921 live-verify reversal",
+      "type": "out_refund",
+      "state": "posted",
+      "payment_state": "paid",
+      "residual": 0
+    },
+    {
+      "id": 14,
+      "name": "INV/2026/00005",
+      "ref": "UTAK-ACCT-A-1790150435183",
+      "type": "out_invoice",
+      "state": "posted",
+      "payment_state": "reversed",
+      "residual": 0
+    },
+    {
+      "id": 16,
+      "name": "RINV/2026/00005",
+      "ref": "Reversal of: INV/2026/00005, acct-20260923 live-verify reversal",
+      "type": "out_refund",
+      "state": "posted",
+      "payment_state": "paid",
+      "residual": 0
+    },
+    {
+      "id": 17,
+      "name": "INV/2026/00006",
+      "ref": "UTAK-ACCT-A-1790150473897",
+      "type": "out_invoice",
+      "state": "posted",
+      "payment_state": "reversed",
+      "residual": 0
+    },
+    {
+      "id": 19,
+      "name": "INV/2026/00007",
+      "ref": "UTAK-ACCT-B-1790150475867",
+      "type": "out_invoice",
+      "state": "posted",
+      "payment_state": "reversed",
+      "residual": 0
+    },
+    {
+      "id": 21,
+      "name": "INV/2026/00008",
+      "ref": "UTAK-ACCT-C48-1790150477606",
+      "type": "out_invoice",
+      "state": "posted",
+      "payment_state": "reversed",
+      "residual": 0
+    },
+    {
+      "id": 22,
+      "name": "INV/2026/00009",
+      "ref": "UTAK-ACCT-CB-1790150478040",
+      "type": "out_invoice",
+      "state": "posted",
+      "payment_state": "reversed",
+      "residual": 0
+    },
+    {
+      "id": 24,
+      "name": "RINV/2026/00006",
+      "ref": "Reversal of: INV/2026/00006, acct-20260923 live-verify reversal",
+      "type": "out_refund",
+      "state": "posted",
+      "payment_state": "paid",
+      "residual": 0
+    },
+    {
+      "id": 25,
+      "name": "RINV/2026/00007",
+      "ref": "Reversal of: INV/2026/00007, acct-20260923 live-verify reversal",
+      "type": "out_refund",
+      "state": "posted",
+      "payment_state": "paid",
+      "residual": 0
+    },
+    {
+      "id": 26,
+      "name": "RINV/2026/00008",
+      "ref": "Reversal of: INV/2026/00008, acct-20260923 live-verify reversal",
+      "type": "out_refund",
+      "state": "posted",
+      "payment_state": "paid",
+      "residual": 0
+    },
+    {
+      "id": 27,
+      "name": "RINV/2026/00009",
+      "ref": "Reversal of: INV/2026/00009, acct-20260923 live-verify reversal",
+      "type": "out_refund",
+      "state": "posted",
+      "payment_state": "paid",
+      "residual": 0
+    },
+    {
+      "id": 28,
+      "name": false,
+      "ref": "UTAK-VAT-D-1790151628519",
+      "type": "out_invoice",
+      "state": "cancel",
+      "payment_state": "not_paid",
+      "residual": 115
+    },
+    {
+      "id": 29,
+      "name": false,
+      "ref": "UTAK-VAT-D-1790151738965",
+      "type": "out_invoice",
+      "state": "cancel",
+      "payment_state": "not_paid",
+      "residual": 115
+    },
+    {
+      "id": 30,
+      "name": false,
+      "ref": "UTAK-VAT-E-1790151743613",
+      "type": "out_invoice",
+      "state": "cancel",
+      "payment_state": "not_paid",
+      "residual": 50
+    },
+    {
+      "id": 31,
+      "name": false,
+      "ref": "UTAK-VAT-D-1790151794196",
+      "type": "out_invoice",
+      "state": "cancel",
+      "payment_state": "not_paid",
+      "residual": 115
+    },
+    {
+      "id": 32,
+      "name": false,
+      "ref": "UTAK-VAT-E-1790151798270",
+      "type": "out_invoice",
+      "state": "cancel",
+      "payment_state": "not_paid",
+      "residual": 50
+    },
+    {
+      "id": 33,
+      "name": "INV/2026/00010",
+      "ref": "UTAK-VAT-E′-1790151799179",
+      "type": "out_invoice",
+      "state": "posted",
+      "payment_state": "reversed",
+      "residual": 0
+    },
+    {
+      "id": 34,
+      "name": "RINV/2026/00010",
+      "ref": "Reversal of: INV/2026/00010, tax-20260923 live-verify reversal",
+      "type": "out_refund",
+      "state": "posted",
+      "payment_state": "paid",
+      "residual": 0
+    },
+    {
+      "id": 41,
+      "name": "INV/2026/00011",
+      "ref": "SIM-TEST UTAK-INV-20260923-012",
+      "type": "out_invoice",
+      "state": "posted",
+      "payment_state": "reversed",
+      "residual": 0
+    },
+    {
+      "id": 42,
+      "name": "INV/2026/00012",
+      "ref": "SIM-TEST UTAK-INV-20260923-013",
+      "type": "out_invoice",
+      "state": "posted",
+      "payment_state": "reversed",
+      "residual": 0
+    },
+    {
+      "id": 43,
+      "name": "RINV/2026/00011",
+      "ref": "SIM-TEST UTAK-INV-20260923-012",
+      "type": "out_refund",
+      "state": "posted",
+      "payment_state": "paid",
+      "residual": 0
+    },
+    {
+      "id": 44,
+      "name": "RINV/2026/00012",
+      "ref": "SIM-TEST UTAK-INV-20260923-013",
+      "type": "out_refund",
+      "state": "posted",
+      "payment_state": "paid",
+      "residual": 0
+    },
+    {
+      "id": 45,
+      "name": "INV/2026/00013",
+      "ref": "SIM-TEST UTAK-INV-20260923-012",
+      "type": "out_invoice",
+      "state": "posted",
+      "payment_state": "reversed",
+      "residual": 0
+    },
+    {
+      "id": 46,
+      "name": "INV/2026/00014",
+      "ref": "SIM-TEST UTAK-INV-20260923-013",
+      "type": "out_invoice",
+      "state": "posted",
+      "payment_state": "reversed",
+      "residual": 0
+    },
+    {
+      "id": 47,
+      "name": "INV/2026/00015",
+      "ref": "SIM-TEST UTAK-INV-20260923-014",
+      "type": "out_invoice",
+      "state": "posted",
+      "payment_state": "reversed",
+      "residual": 0
+    },
+    {
+      "id": 50,
+      "name": "RINV/2026/00013",
+      "ref": "SIM-TEST UTAK-INV-20260923-012",
+      "type": "out_refund",
+      "state": "posted",
+      "payment_state": "paid",
+      "residual": 0
+    },
+    {
+      "id": 51,
+      "name": "RINV/2026/00014",
+      "ref": "SIM-TEST UTAK-INV-20260923-013",
+      "type": "out_refund",
+      "state": "posted",
+      "payment_state": "paid",
+      "residual": 0
+    },
+    {
+      "id": 52,
+      "name": "RINV/2026/00015",
+      "ref": "SIM-TEST UTAK-INV-20260923-014",
+      "type": "out_refund",
+      "state": "posted",
+      "payment_state": "paid",
+      "residual": 0
+    }
+  ],
+  "openTestMoves": 0,
+  "collectionAfterFilter": [],
+  "testInCollection": 0,
+  "wrote": []
+}

@@ -1,0 +1,117 @@
+{
+  "started_at": "2026-09-23T08:22:18.690Z",
+  "riyadh_today": "2026-09-23",
+  "cycles": {
+    "D": {
+      "mode": "future-date: post refused by Odoo, draft cancelled",
+      "expected": {
+        "102011": 115,
+        "201017": -15,
+        "500001": -100
+      },
+      "actual_move_lines": {
+        "102011": 115,
+        "201017": -15,
+        "500001": -100
+      },
+      "posted_ledger_delta": {},
+      "move": {
+        "id": 29,
+        "name": false,
+        "state": "cancel",
+        "invoice_date": "2026-10-05",
+        "date": "2026-10-05",
+        "amount_untaxed": 100,
+        "amount_tax": 15,
+        "amount_total": 115,
+        "payment_state": "not_paid",
+        "lines": [
+          {
+            "id": 81,
+            "account_id": [
+              234,
+              "500001 Sales Account"
+            ],
+            "debit": 0,
+            "credit": 100,
+            "display_type": "product",
+            "tax_line_id": false,
+            "tax_ids": [
+              5
+            ],
+            "price_unit": 115,
+            "price_subtotal": 100,
+            "price_total": 115
+          },
+          {
+            "id": 82,
+            "account_id": [
+              121,
+              "201017 VAT Output"
+            ],
+            "debit": 0,
+            "credit": 15,
+            "display_type": "tax",
+            "tax_line_id": [
+              5,
+              "15%"
+            ],
+            "tax_ids": [],
+            "price_unit": 0,
+            "price_subtotal": 0,
+            "price_total": 0
+          },
+          {
+            "id": 83,
+            "account_id": [
+              69,
+              "102011 Accounts Receivable"
+            ],
+            "debit": 115,
+            "credit": 0,
+            "display_type": "payment_term",
+            "tax_line_id": false,
+            "tax_ids": [],
+            "price_unit": 0,
+            "price_subtotal": 0,
+            "price_total": 0
+          }
+        ]
+      }
+    }
+  },
+  "created": {
+    "invoices": [],
+    "x_orders": [
+      28,
+      29
+    ],
+    "x_invoices": [
+      14,
+      15
+    ],
+    "credit_notes": [],
+    "cancelled_drafts": [
+      29
+    ]
+  },
+  "baseline": {
+    "102011": 0,
+    "500001": 0
+  },
+  "pdf": "/Users/baraa7/utak-worker/scripts/artifacts/tax-20260923-invoice-after-cutoff.pdf",
+  "before_reversal": {
+    "102011": 0,
+    "500001": 0
+  },
+  "after_reversal": {
+    "102011": 0,
+    "500001": 0
+  },
+  "accounting_errors": [
+    "[accounting] invoice UTAK-VAT-D-1790151738965 sync failed: odoo HTTP_422: {\"name\": \"odoo.exceptions.UserError\", \"message\": \"Please set the Invoice Date to be either less than or equal to today as per the Asia/Riyadh time zone, since ZATCA does not allow future-dated invoici",
+    "[accounting] invoice UTAK-VAT-E-1790151743613 sync failed: odoo HTTP_422: {\"name\": \"odoo.exceptions.UserError\", \"message\": \"Please set the Invoice Date to be either less than or equal to today as per the Asia/Riyadh time zone, since ZATCA does not allow future-dated invoici"
+  ],
+  "failures": 2,
+  "finished_at": "2026-09-23T08:22:24.553Z"
+}

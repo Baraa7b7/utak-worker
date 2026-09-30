@@ -1,0 +1,26 @@
+{
+  "at": "2026-09-28T06:34:57.768Z",
+  "cases": [
+    {
+      "file": "scripts/artifacts/s44-sim/invoice-vat-before-save.pdf",
+      "checks": {
+        "simplified": true,
+        "orderName": true,
+        "district": true,
+        "noBuyerVat": true,
+        "sellerVat": true
+      }
+    },
+    {
+      "file": "scripts/artifacts/s44-sim/invoice-vat-after-save.pdf",
+      "checks": {
+        "full": true,
+        "legalName": true,
+        "vat": true,
+        "address": true,
+        "sellerVat": true
+      }
+    }
+  ],
+  "ok": true
+}

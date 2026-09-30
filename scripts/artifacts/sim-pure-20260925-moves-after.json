@@ -1,0 +1,61 @@
+{
+  "label": "after",
+  "at": "2026-09-24T20:11:08.224Z",
+  "since_utc": "2026-09-24 17:21:18",
+  "account_move": {
+    "total": 48,
+    "posted": 43,
+    "max_id": 59,
+    "by_type": {
+      "out_invoice": {
+        "posted": 15,
+        "draft": 0,
+        "cancel": 5
+      },
+      "out_refund": {
+        "posted": 15,
+        "draft": 0,
+        "cancel": 0
+      },
+      "in_invoice": {
+        "posted": 4,
+        "draft": 0,
+        "cancel": 0
+      },
+      "in_refund": {
+        "posted": 4,
+        "draft": 0,
+        "cancel": 0
+      },
+      "entry": {
+        "posted": 5,
+        "draft": 0,
+        "cancel": 0
+      }
+    }
+  },
+  "created_after_since": [],
+  "posted_written_after_since": [],
+  "sale_order": {
+    "total": 8,
+    "by_state": {
+      "cancel": 6,
+      "draft": 2
+    },
+    "created_after_since": []
+  },
+  "purchase_order": {
+    "total": 3,
+    "by_state": {
+      "purchase": 3
+    },
+    "created_after_since": []
+  },
+  "account_payment": {
+    "total": 9,
+    "by_state": {
+      "canceled": 9
+    },
+    "created_after_since": []
+  }
+}

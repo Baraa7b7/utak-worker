@@ -1,0 +1,43 @@
+{
+  "src": "/Users/baraa7/Desktop/Utak/ختم الشركة/signture.png",
+  "out": "/Users/baraa7/Desktop/Utak/ختم الشركة/signature-transparent.png",
+  "preview": "/Users/baraa7/utak-worker/scripts/artifacts/brand-20260924-signature-preview.png",
+  "options": {
+    "low": 48,
+    "high": 200,
+    "border": 4,
+    "minSpeck": 40,
+    "pad": 24,
+    "minWidth": 1600
+  },
+  "source": {
+    "width": 1282,
+    "height": 594
+  },
+  "crop": {
+    "x": 43,
+    "y": 230,
+    "width": 1224,
+    "height": 361
+  },
+  "scale": 1.3072,
+  "specksDropped": 0,
+  "output": {
+    "width": 1600,
+    "height": 472
+  },
+  "inkPixels": 79633,
+  "transparentShare": 0.8946,
+  "transparentCheck": {
+    "ok": true,
+    "corners": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "clearShare": 0.8945537605932203,
+    "opaque": 62606,
+    "coloured": 0
+  }
+}

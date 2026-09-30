@@ -1,0 +1,144 @@
+{
+  "at": "2026-09-25T04:33:01.354Z",
+  "report": {
+    "fetched": 62,
+    "by_status": {
+      "APPROVED": 61,
+      "REJECTED": 1
+    },
+    "updated": 62,
+    "created": 0,
+    "missing_in_meta": 0,
+    "missing_in_meta_names": [],
+    "created_names": 0,
+    "duplicate_purposes": {},
+    "errors": []
+  },
+  "controlWrite": [
+    {
+      "ids": [
+        1
+      ],
+      "vals": {
+        "x_sync_requested": false,
+        "x_last_sync_at": "2026-09-25 04:33:01",
+        "x_last_sync_result": "fetched=62 · APPROVED=61 REJECTED=1 · updated=62 · created=0 · missing_in_meta=0"
+      }
+    }
+  ],
+  "templateWritesCaptured": 62,
+  "otherWrites": [],
+  "automation6": {
+    "id": 6,
+    "name": "wa_control.on_sync_requested",
+    "filter_domain": "[[\"x_sync_requested\", \"=\", True]]",
+    "trigger": "on_create_or_write",
+    "trigger_field_ids": [
+      20092
+    ],
+    "action_server_ids": [
+      963
+    ],
+    "active": true
+  },
+  "evals": [
+    {
+      "src": "[[\"x_sync_requested\", \"=\", true]]",
+      "ok": false,
+      "error": "NameError: name 'true' is not defined"
+    },
+    {
+      "src": "[[\"x_sync_requested\", \"=\", True]]",
+      "ok": true,
+      "value": [
+        [
+          "x_sync_requested",
+          "=",
+          true
+        ]
+      ]
+    }
+  ],
+  "controlNow": {
+    "id": 1,
+    "x_sync_requested": false,
+    "x_last_sync_at": false,
+    "x_last_sync_result": false
+  },
+  "afterSync": {
+    "id": 1,
+    "x_sync_requested": false,
+    "x_last_sync_at": "2026-09-25 04:33:01",
+    "x_last_sync_result": "fetched=62 · APPROVED=61 REJECTED=1 · updated=62 · created=0 · missing_in_meta=0"
+  },
+  "firesAfterSync": false,
+  "firesOnButton": true,
+  "serverProof": {
+    "before": {
+      "ok": false,
+      "error": "x_wa_control.write HTTP 500: {\"name\": \"builtins.ValueError\", \"message\": \"NameError(\\\"name 'true' is not defined\\\") while evaluating\\n'[[\\\"x_sync_requested\\\", \\\"=\\\", true]]'\", \"arguments\": [\"NameError(\\\"name 'true' is not defined\\\") while evaluating\\n'[[\\\"x_sync_requested\\\", \\\"=\\\", true]]'\"], \"timestamp\": 1790310171, \"context\": {}, \"debug\": \"Traceback (most recent call last):\\n  File \\\"/home/odoo/src/odoo/saas-19.4/odoo/tools/"
+    },
+    "after": {
+      "ok": true
+    }
+  },
+  "refused": [],
+  "logged": [],
+  "checks": [
+    {
+      "name": "the sync ran against the real Odoo rows (Meta list rebuilt from Odoo)",
+      "ok": true,
+      "detail": "fetched=62"
+    },
+    {
+      "name": "the sync logic itself: no error",
+      "ok": true,
+      "detail": "[]"
+    },
+    {
+      "name": "it ends with ONE write on x_wa_control: x_sync_requested=False, x_last_sync_at, x_last_sync_result",
+      "ok": true,
+      "detail": "[{\"m\":\"write\",\"vals\":{\"x_sync_requested\":false,\"x_last_sync_at\":\"2026-09-25 04:33:01\",\"x_last_sync_result\":\"fetched=62 · APPROVED=61 REJECTED=1 · updated=62 · created=0 · missing_in_meta=0\"}}]"
+    },
+    {
+      "name": "the old filter (JSON true) fails in Odoo's eval: NameError",
+      "ok": true,
+      "detail": "NameError: name 'true' is not defined"
+    },
+    {
+      "name": "automation 6 in Odoo now: [[\"x_sync_requested\", \"=\", True]]",
+      "ok": true,
+      "detail": "{\"id\":6,\"name\":\"wa_control.on_sync_requested\",\"filter_domain\":\"[[\\\"x_sync_requested\\\", \\\"=\\\", True]]\",\"trigger\":\"on_create_or_write\",\"trigger_field_ids\":[20092],\"action_server_ids\":[963],\"active\":true}"
+    },
+    {
+      "name": "the live filter evaluates to a domain (no error)",
+      "ok": true,
+      "detail": "{\"src\":\"[[\\\"x_sync_requested\\\", \\\"=\\\", True]]\",\"ok\":true,\"value\":[[\"x_sync_requested\",\"=\",true]]}"
+    },
+    {
+      "name": "after the sync's own write (x_sync_requested=False): no match → the webhook does not fire again (no loop)",
+      "ok": true,
+      "detail": "{\"id\":1,\"x_sync_requested\":false,\"x_last_sync_at\":\"2026-09-25 04:33:01\",\"x_last_sync_result\":\"fetched=62 · APPROVED=61 REJECTED=1 · updated=62 · created=0 · missing_in_meta=0\"}"
+    },
+    {
+      "name": "Baraa's button (x_sync_requested=True): a match → the webhook fires, as intended",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "server: the same write failed before the fix (HTTP 500 NameError)",
+      "ok": true,
+      "detail": "x_wa_control.write HTTP 500: {\"name\": \"builtins.ValueError\", \"message\": \"NameError(\\\"name 'true' is not defined\\\") while evaluating\\n'[[\\\"x_"
+    },
+    {
+      "name": "server: …and passed after it",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "nothing sent: no Graph POST, no call outside Odoo",
+      "ok": true,
+      "detail": ""
+    }
+  ]
+}

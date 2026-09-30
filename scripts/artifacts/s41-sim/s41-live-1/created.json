@@ -1,0 +1,4287 @@
+{
+ "run": "s41-live-1",
+ "mode": "live",
+ "created": [
+  {
+   "model": "x_wa_message",
+   "ids": [
+    203
+   ],
+   "at": "2026-09-27 02:00"
+  },
+  {
+   "model": "x_supplier_price_request_log",
+   "ids": [
+    28
+   ],
+   "at": "2026-09-27 02:00"
+  },
+  {
+   "model": "x_team_attendance",
+   "ids": [
+    3
+   ],
+   "at": "2026-09-27 02:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    204
+   ],
+   "at": "2026-09-27 02:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    205
+   ],
+   "at": "2026-09-27 02:03"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    206
+   ],
+   "at": "2026-09-27 02:03"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    207
+   ],
+   "at": "2026-09-27 02:03"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    208
+   ],
+   "at": "2026-09-27 02:20"
+  },
+  {
+   "model": "x_daily_price",
+   "ids": [
+    24
+   ],
+   "at": "2026-09-27 02:20"
+  },
+  {
+   "model": "x_daily_price",
+   "ids": [
+    25
+   ],
+   "at": "2026-09-27 02:20"
+  },
+  {
+   "model": "x_price_offer",
+   "ids": [
+    1
+   ],
+   "at": "2026-09-27 02:20"
+  },
+  {
+   "model": "x_price_day",
+   "ids": [
+    5
+   ],
+   "at": "2026-09-27 02:20"
+  },
+  {
+   "model": "x_price_day_line",
+   "ids": [
+    9,
+    10,
+    11,
+    12
+   ],
+   "at": "2026-09-27 02:20"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    209
+   ],
+   "at": "2026-09-27 02:20"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    210
+   ],
+   "at": "2026-09-27 02:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    211
+   ],
+   "at": "2026-09-27 02:45"
+  },
+  {
+   "model": "x_price_offer",
+   "ids": [
+    2
+   ],
+   "at": "2026-09-27 02:45"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    212
+   ],
+   "at": "2026-09-27 02:45"
+  },
+  {
+   "model": "x_price_offer",
+   "ids": [
+    3
+   ],
+   "at": "2026-09-27 02:45"
+  },
+  {
+   "model": "x_price_offer",
+   "ids": [
+    4
+   ],
+   "at": "2026-09-27 02:45"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    213
+   ],
+   "at": "2026-09-27 02:45"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    214
+   ],
+   "at": "2026-09-27 04:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    215
+   ],
+   "at": "2026-09-27 04:20"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    216
+   ],
+   "at": "2026-09-27 04:20"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    217
+   ],
+   "at": "2026-09-27 06:00"
+  },
+  {
+   "model": "x_team_attendance",
+   "ids": [
+    4
+   ],
+   "at": "2026-09-27 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    218
+   ],
+   "at": "2026-09-27 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    219
+   ],
+   "at": "2026-09-27 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    220
+   ],
+   "at": "2026-09-27 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    221
+   ],
+   "at": "2026-09-27 06:02"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    222
+   ],
+   "at": "2026-09-27 06:02"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    223
+   ],
+   "at": "2026-09-27 06:02"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    224
+   ],
+   "at": "2026-09-27 06:02"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    225
+   ],
+   "at": "2026-09-27 06:02"
+  },
+  {
+   "model": "res.partner",
+   "ids": [
+    64
+   ],
+   "at": "2026-09-27 08:10"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    226
+   ],
+   "at": "2026-09-27 08:10"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    227
+   ],
+   "at": "2026-09-27 08:10"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    43
+   ],
+   "at": "2026-09-27 08:10"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    228
+   ],
+   "at": "2026-09-27 08:10"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    236
+   ],
+   "at": "2026-09-27 09:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    76
+   ],
+   "at": "2026-09-27 09:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    39
+   ],
+   "at": "2026-09-27 09:00"
+  },
+  {
+   "model": "x_daily_order_line",
+   "ids": [
+    30
+   ],
+   "at": "2026-09-27 09:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    237
+   ],
+   "at": "2026-09-27 09:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    238
+   ],
+   "at": "2026-09-27 09:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    77
+   ],
+   "at": "2026-09-27 09:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    239
+   ],
+   "at": "2026-09-27 09:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    240
+   ],
+   "at": "2026-09-27 09:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    78
+   ],
+   "at": "2026-09-27 09:00"
+  },
+  {
+   "model": "x_quotation",
+   "ids": [
+    15
+   ],
+   "at": "2026-09-27 09:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    241
+   ],
+   "at": "2026-09-27 09:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    242
+   ],
+   "at": "2026-09-27 09:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    79
+   ],
+   "at": "2026-09-27 09:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    243
+   ],
+   "at": "2026-09-27 09:00"
+  },
+  {
+   "model": "res.partner",
+   "ids": [
+    97
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    244
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    245
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    80
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    40
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "x_daily_order_line",
+   "ids": [
+    31
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    246
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    247
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    81
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    248
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    249
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    250
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    82
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "x_daily_order_line",
+   "ids": [
+    32
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    251
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    252
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    253
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    83
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "x_quotation",
+   "ids": [
+    16
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    254
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    255
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    256
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    257
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    84
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    258
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "res.partner",
+   "ids": [
+    98
+   ],
+   "at": "2026-09-27 17:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    259
+   ],
+   "at": "2026-09-27 17:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    260
+   ],
+   "at": "2026-09-27 17:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    85
+   ],
+   "at": "2026-09-27 17:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    41
+   ],
+   "at": "2026-09-27 17:00"
+  },
+  {
+   "model": "x_daily_order_line",
+   "ids": [
+    33
+   ],
+   "at": "2026-09-27 17:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    261
+   ],
+   "at": "2026-09-27 17:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    262
+   ],
+   "at": "2026-09-27 17:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    86
+   ],
+   "at": "2026-09-27 17:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    263
+   ],
+   "at": "2026-09-27 17:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    264
+   ],
+   "at": "2026-09-27 17:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    87
+   ],
+   "at": "2026-09-27 17:00"
+  },
+  {
+   "model": "x_quotation",
+   "ids": [
+    17
+   ],
+   "at": "2026-09-27 17:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    265
+   ],
+   "at": "2026-09-27 17:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    266
+   ],
+   "at": "2026-09-27 20:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    267
+   ],
+   "at": "2026-09-27 21:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    268
+   ],
+   "at": "2026-09-27 21:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    269
+   ],
+   "at": "2026-09-27 21:08"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    88
+   ],
+   "at": "2026-09-27 21:08"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    270
+   ],
+   "at": "2026-09-27 21:08"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    271
+   ],
+   "at": "2026-09-27 21:08"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    89
+   ],
+   "at": "2026-09-27 21:08"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    42
+   ],
+   "at": "2026-09-27 21:08"
+  },
+  {
+   "model": "x_daily_order_line",
+   "ids": [
+    34
+   ],
+   "at": "2026-09-27 21:08"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    272
+   ],
+   "at": "2026-09-27 21:08"
+  },
+  {
+   "model": "x_purchase_list",
+   "ids": [
+    8
+   ],
+   "at": "2026-09-27 21:15"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    273
+   ],
+   "at": "2026-09-27 21:15"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    274
+   ],
+   "at": "2026-09-27 21:30"
+  },
+  {
+   "model": "x_team_attendance",
+   "ids": [
+    36
+   ],
+   "at": "2026-09-28 02:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    275
+   ],
+   "at": "2026-09-28 02:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    276
+   ],
+   "at": "2026-09-28 02:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    277
+   ],
+   "at": "2026-09-28 02:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    278
+   ],
+   "at": "2026-09-28 02:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    279
+   ],
+   "at": "2026-09-28 02:03"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    280
+   ],
+   "at": "2026-09-28 02:03"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    281
+   ],
+   "at": "2026-09-28 03:30"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    90
+   ],
+   "at": "2026-09-28 03:30"
+  },
+  {
+   "model": "x_delivery_route",
+   "ids": [
+    4
+   ],
+   "at": "2026-09-28 03:30"
+  },
+  {
+   "model": "x_delivery_stop",
+   "ids": [
+    4,
+    5
+   ],
+   "at": "2026-09-28 03:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    282
+   ],
+   "at": "2026-09-28 03:30"
+  },
+  {
+   "model": "x_supplier_due",
+   "ids": [
+    2
+   ],
+   "at": "2026-09-28 03:30"
+  },
+  {
+   "model": "x_supplier_due_line",
+   "ids": [
+    4
+   ],
+   "at": "2026-09-28 03:30"
+  },
+  {
+   "model": "x_supplier_due_line",
+   "ids": [
+    5
+   ],
+   "at": "2026-09-28 03:30"
+  },
+  {
+   "model": "x_supplier_due_line",
+   "ids": [
+    6
+   ],
+   "at": "2026-09-28 03:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    283
+   ],
+   "at": "2026-09-28 03:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    284
+   ],
+   "at": "2026-09-28 03:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    285
+   ],
+   "at": "2026-09-28 03:45"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    286
+   ],
+   "at": "2026-09-28 03:45"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    287
+   ],
+   "at": "2026-09-28 05:30"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    91
+   ],
+   "at": "2026-09-28 05:30"
+  },
+  {
+   "model": "x_invoice",
+   "ids": [
+    25
+   ],
+   "at": "2026-09-28 05:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    288
+   ],
+   "at": "2026-09-28 05:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    289
+   ],
+   "at": "2026-09-28 05:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    290
+   ],
+   "at": "2026-09-28 05:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    291
+   ],
+   "at": "2026-09-28 05:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    292
+   ],
+   "at": "2026-09-28 06:00"
+  },
+  {
+   "model": "x_team_attendance",
+   "ids": [
+    37
+   ],
+   "at": "2026-09-28 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    293
+   ],
+   "at": "2026-09-28 06:00"
+  },
+  {
+   "model": "x_price_day",
+   "ids": [
+    38
+   ],
+   "at": "2026-09-28 06:00"
+  },
+  {
+   "model": "x_price_day_line",
+   "ids": [
+    42,
+    43,
+    44,
+    45
+   ],
+   "at": "2026-09-28 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    294
+   ],
+   "at": "2026-09-28 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    295
+   ],
+   "at": "2026-09-28 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    296
+   ],
+   "at": "2026-09-28 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    297
+   ],
+   "at": "2026-09-28 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    298
+   ],
+   "at": "2026-09-28 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    299
+   ],
+   "at": "2026-09-28 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    300
+   ],
+   "at": "2026-09-28 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    301
+   ],
+   "at": "2026-09-28 06:15"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    92
+   ],
+   "at": "2026-09-28 06:15"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    302
+   ],
+   "at": "2026-09-28 06:15"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    303
+   ],
+   "at": "2026-09-28 06:15"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    304
+   ],
+   "at": "2026-09-28 06:15"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    305
+   ],
+   "at": "2026-09-28 06:15"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    306
+   ],
+   "at": "2026-09-28 08:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    307
+   ],
+   "at": "2026-09-28 11:32"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    308
+   ],
+   "at": "2026-09-28 12:32"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    309
+   ],
+   "at": "2026-09-28 13:10"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    93
+   ],
+   "at": "2026-09-28 13:10"
+  },
+  {
+   "model": "x_invoice",
+   "ids": [
+    26
+   ],
+   "at": "2026-09-28 13:10"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    310
+   ],
+   "at": "2026-09-28 13:10"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    311
+   ],
+   "at": "2026-09-28 13:10"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    312
+   ],
+   "at": "2026-09-28 13:10"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    313
+   ],
+   "at": "2026-09-28 13:10"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    314
+   ],
+   "at": "2026-09-28 13:30"
+  },
+  {
+   "model": "x_payment",
+   "ids": [
+    15
+   ],
+   "at": "2026-09-28 13:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    315
+   ],
+   "at": "2026-09-28 13:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    316
+   ],
+   "at": "2026-09-28 13:30"
+  },
+  {
+   "model": "x_payment",
+   "ids": [
+    16
+   ],
+   "at": "2026-09-28 14:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    317
+   ],
+   "at": "2026-09-28 14:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    318
+   ],
+   "at": "2026-09-28 18:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    319
+   ],
+   "at": "2026-09-28 21:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    320
+   ],
+   "at": "2026-09-30 02:00"
+  },
+  {
+   "model": "x_supplier_price_request_log",
+   "ids": [
+    61
+   ],
+   "at": "2026-09-30 02:00"
+  },
+  {
+   "model": "x_team_attendance",
+   "ids": [
+    38
+   ],
+   "at": "2026-09-30 02:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    321
+   ],
+   "at": "2026-09-30 02:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    322
+   ],
+   "at": "2026-09-30 02:03"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    323
+   ],
+   "at": "2026-09-30 02:03"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    324
+   ],
+   "at": "2026-09-30 02:15"
+  },
+  {
+   "model": "x_daily_price",
+   "ids": [
+    57
+   ],
+   "at": "2026-09-30 02:15"
+  },
+  {
+   "model": "x_daily_price",
+   "ids": [
+    58
+   ],
+   "at": "2026-09-30 02:15"
+  },
+  {
+   "model": "x_price_day",
+   "ids": [
+    39
+   ],
+   "at": "2026-09-30 02:15"
+  },
+  {
+   "model": "x_price_day_line",
+   "ids": [
+    46,
+    47,
+    48,
+    49
+   ],
+   "at": "2026-09-30 02:15"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    325
+   ],
+   "at": "2026-09-30 02:15"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    326
+   ],
+   "at": "2026-09-30 02:40"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    327
+   ],
+   "at": "2026-09-30 02:40"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    328
+   ],
+   "at": "2026-09-30 06:00"
+  },
+  {
+   "model": "x_team_attendance",
+   "ids": [
+    39
+   ],
+   "at": "2026-09-30 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    329
+   ],
+   "at": "2026-09-30 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    330
+   ],
+   "at": "2026-09-30 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    331
+   ],
+   "at": "2026-09-30 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    332
+   ],
+   "at": "2026-09-30 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    333
+   ],
+   "at": "2026-09-30 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    334
+   ],
+   "at": "2026-09-30 09:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    94
+   ],
+   "at": "2026-09-30 09:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    43
+   ],
+   "at": "2026-09-30 09:00"
+  },
+  {
+   "model": "x_daily_order_line",
+   "ids": [
+    35
+   ],
+   "at": "2026-09-30 09:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    335
+   ],
+   "at": "2026-09-30 09:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    336
+   ],
+   "at": "2026-09-30 09:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    95
+   ],
+   "at": "2026-09-30 09:00"
+  },
+  {
+   "model": "x_quotation",
+   "ids": [
+    18
+   ],
+   "at": "2026-09-30 09:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    337
+   ],
+   "at": "2026-09-30 09:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    338
+   ],
+   "at": "2026-09-30 09:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    96
+   ],
+   "at": "2026-09-30 09:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    339
+   ],
+   "at": "2026-09-30 09:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    340
+   ],
+   "at": "2026-09-30 10:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    97
+   ],
+   "at": "2026-09-30 10:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    44
+   ],
+   "at": "2026-09-30 10:00"
+  },
+  {
+   "model": "x_daily_order_line",
+   "ids": [
+    36
+   ],
+   "at": "2026-09-30 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    341
+   ],
+   "at": "2026-09-30 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    342
+   ],
+   "at": "2026-09-30 10:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    98
+   ],
+   "at": "2026-09-30 10:00"
+  },
+  {
+   "model": "x_quotation",
+   "ids": [
+    19
+   ],
+   "at": "2026-09-30 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    343
+   ],
+   "at": "2026-09-30 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    344
+   ],
+   "at": "2026-09-30 10:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    99
+   ],
+   "at": "2026-09-30 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    345
+   ],
+   "at": "2026-09-30 10:00"
+  },
+  {
+   "model": "x_purchase_list",
+   "ids": [
+    9
+   ],
+   "at": "2026-09-30 21:15"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    346
+   ],
+   "at": "2026-09-30 21:15"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    347
+   ],
+   "at": "2026-10-01 02:00"
+  },
+  {
+   "model": "x_supplier_price_request_log",
+   "ids": [
+    62
+   ],
+   "at": "2026-10-01 02:00"
+  },
+  {
+   "model": "x_team_attendance",
+   "ids": [
+    40
+   ],
+   "at": "2026-10-01 02:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    348
+   ],
+   "at": "2026-10-01 02:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    349
+   ],
+   "at": "2026-10-01 02:03"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    350
+   ],
+   "at": "2026-10-01 02:03"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    351
+   ],
+   "at": "2026-10-01 02:03"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    352
+   ],
+   "at": "2026-10-01 02:03"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    353
+   ],
+   "at": "2026-10-01 02:03"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    354
+   ],
+   "at": "2026-10-01 02:03"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    355
+   ],
+   "at": "2026-10-01 02:03"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    356
+   ],
+   "at": "2026-10-01 02:03"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    357
+   ],
+   "at": "2026-10-01 02:03"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    358
+   ],
+   "at": "2026-10-01 02:03"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    359
+   ],
+   "at": "2026-10-01 02:03"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    360
+   ],
+   "at": "2026-10-01 02:03"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    361
+   ],
+   "at": "2026-10-01 02:03"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    362
+   ],
+   "at": "2026-10-01 02:10"
+  },
+  {
+   "model": "x_daily_price",
+   "ids": [
+    59
+   ],
+   "at": "2026-10-01 02:10"
+  },
+  {
+   "model": "x_daily_price",
+   "ids": [
+    60
+   ],
+   "at": "2026-10-01 02:10"
+  },
+  {
+   "model": "x_price_offer",
+   "ids": [
+    34
+   ],
+   "at": "2026-10-01 02:10"
+  },
+  {
+   "model": "x_price_day",
+   "ids": [
+    40
+   ],
+   "at": "2026-10-01 02:10"
+  },
+  {
+   "model": "x_price_day_line",
+   "ids": [
+    50,
+    51,
+    52,
+    53
+   ],
+   "at": "2026-10-01 02:10"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    363
+   ],
+   "at": "2026-10-01 02:10"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    364
+   ],
+   "at": "2026-10-01 02:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    365
+   ],
+   "at": "2026-10-01 02:40"
+  },
+  {
+   "model": "x_price_offer",
+   "ids": [
+    35
+   ],
+   "at": "2026-10-01 02:40"
+  },
+  {
+   "model": "x_price_offer",
+   "ids": [
+    36
+   ],
+   "at": "2026-10-01 02:40"
+  },
+  {
+   "model": "x_price_offer",
+   "ids": [
+    37
+   ],
+   "at": "2026-10-01 02:40"
+  },
+  {
+   "model": "x_price_offer",
+   "ids": [
+    38
+   ],
+   "at": "2026-10-01 02:40"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    366
+   ],
+   "at": "2026-10-01 02:40"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    367
+   ],
+   "at": "2026-10-01 03:30"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    100
+   ],
+   "at": "2026-10-01 03:30"
+  },
+  {
+   "model": "x_delivery_route",
+   "ids": [
+    5
+   ],
+   "at": "2026-10-01 03:30"
+  },
+  {
+   "model": "x_delivery_stop",
+   "ids": [
+    6,
+    7
+   ],
+   "at": "2026-10-01 03:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    368
+   ],
+   "at": "2026-10-01 03:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    369
+   ],
+   "at": "2026-10-01 03:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    370
+   ],
+   "at": "2026-10-01 03:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    371
+   ],
+   "at": "2026-10-01 03:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    372
+   ],
+   "at": "2026-10-01 03:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    373
+   ],
+   "at": "2026-10-01 03:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    374
+   ],
+   "at": "2026-10-01 03:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    375
+   ],
+   "at": "2026-10-01 03:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    376
+   ],
+   "at": "2026-10-01 03:30"
+  },
+  {
+   "model": "x_supplier_due",
+   "ids": [
+    3
+   ],
+   "at": "2026-10-01 03:30"
+  },
+  {
+   "model": "x_supplier_due_line",
+   "ids": [
+    7
+   ],
+   "at": "2026-10-01 03:30"
+  },
+  {
+   "model": "x_supplier_due_line",
+   "ids": [
+    8
+   ],
+   "at": "2026-10-01 03:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    377
+   ],
+   "at": "2026-10-01 03:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    378
+   ],
+   "at": "2026-10-01 04:05"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    379
+   ],
+   "at": "2026-10-01 04:05"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    380
+   ],
+   "at": "2026-10-01 04:05"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    381
+   ],
+   "at": "2026-10-01 04:05"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    382
+   ],
+   "at": "2026-10-01 04:05"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    383
+   ],
+   "at": "2026-10-01 05:30"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    101
+   ],
+   "at": "2026-10-01 05:30"
+  },
+  {
+   "model": "x_invoice",
+   "ids": [
+    27
+   ],
+   "at": "2026-10-01 05:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    384
+   ],
+   "at": "2026-10-01 05:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    385
+   ],
+   "at": "2026-10-01 05:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    386
+   ],
+   "at": "2026-10-01 05:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    387
+   ],
+   "at": "2026-10-01 05:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    388
+   ],
+   "at": "2026-10-01 05:30"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    389
+   ],
+   "at": "2026-10-01 05:50"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    102
+   ],
+   "at": "2026-10-01 05:50"
+  },
+  {
+   "model": "x_invoice",
+   "ids": [
+    28
+   ],
+   "at": "2026-10-01 05:50"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    390
+   ],
+   "at": "2026-10-01 05:50"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    391
+   ],
+   "at": "2026-10-01 05:50"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    392
+   ],
+   "at": "2026-10-01 05:50"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    393
+   ],
+   "at": "2026-10-01 05:50"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    394
+   ],
+   "at": "2026-10-01 06:00"
+  },
+  {
+   "model": "x_team_attendance",
+   "ids": [
+    41
+   ],
+   "at": "2026-10-01 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    395
+   ],
+   "at": "2026-10-01 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    396
+   ],
+   "at": "2026-10-01 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    397
+   ],
+   "at": "2026-10-01 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    398
+   ],
+   "at": "2026-10-01 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    399
+   ],
+   "at": "2026-10-01 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    400
+   ],
+   "at": "2026-10-01 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    401
+   ],
+   "at": "2026-10-01 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    402
+   ],
+   "at": "2026-10-01 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    403
+   ],
+   "at": "2026-10-01 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    404
+   ],
+   "at": "2026-10-01 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    405
+   ],
+   "at": "2026-10-01 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    406
+   ],
+   "at": "2026-10-01 07:59"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    407
+   ],
+   "at": "2026-10-01 07:59"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    408
+   ],
+   "at": "2026-10-01 07:59"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    409
+   ],
+   "at": "2026-10-01 07:59"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    410
+   ],
+   "at": "2026-10-01 07:59"
+  },
+  {
+   "model": "res.partner",
+   "ids": [
+    99
+   ],
+   "at": "2026-10-01 08:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    411
+   ],
+   "at": "2026-10-01 08:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    412
+   ],
+   "at": "2026-10-01 08:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    103
+   ],
+   "at": "2026-10-01 08:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    413
+   ],
+   "at": "2026-10-01 08:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    414
+   ],
+   "at": "2026-10-01 08:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    415
+   ],
+   "at": "2026-10-01 08:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    104
+   ],
+   "at": "2026-10-01 08:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    45
+   ],
+   "at": "2026-10-01 08:00"
+  },
+  {
+   "model": "x_daily_order_line",
+   "ids": [
+    37
+   ],
+   "at": "2026-10-01 08:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    416
+   ],
+   "at": "2026-10-01 08:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    417
+   ],
+   "at": "2026-10-01 08:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    105
+   ],
+   "at": "2026-10-01 08:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    418
+   ],
+   "at": "2026-10-01 08:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    419
+   ],
+   "at": "2026-10-01 08:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    106
+   ],
+   "at": "2026-10-01 08:00"
+  },
+  {
+   "model": "x_quotation",
+   "ids": [
+    20
+   ],
+   "at": "2026-10-01 08:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    420
+   ],
+   "at": "2026-10-01 08:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    421
+   ],
+   "at": "2026-10-01 08:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    107
+   ],
+   "at": "2026-10-01 08:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    422
+   ],
+   "at": "2026-10-01 08:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    423
+   ],
+   "at": "2026-10-01 10:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    108
+   ],
+   "at": "2026-10-01 10:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    46
+   ],
+   "at": "2026-10-01 10:00"
+  },
+  {
+   "model": "x_daily_order_line",
+   "ids": [
+    38
+   ],
+   "at": "2026-10-01 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    424
+   ],
+   "at": "2026-10-01 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    425
+   ],
+   "at": "2026-10-01 10:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    109
+   ],
+   "at": "2026-10-01 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    426
+   ],
+   "at": "2026-10-01 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    427
+   ],
+   "at": "2026-10-01 10:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    110
+   ],
+   "at": "2026-10-01 10:00"
+  },
+  {
+   "model": "x_daily_order_line",
+   "ids": [
+    39
+   ],
+   "at": "2026-10-01 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    428
+   ],
+   "at": "2026-10-01 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    429
+   ],
+   "at": "2026-10-01 10:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    111
+   ],
+   "at": "2026-10-01 10:00"
+  },
+  {
+   "model": "x_quotation",
+   "ids": [
+    21
+   ],
+   "at": "2026-10-01 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    430
+   ],
+   "at": "2026-10-01 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    431
+   ],
+   "at": "2026-10-01 10:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    112
+   ],
+   "at": "2026-10-01 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    432
+   ],
+   "at": "2026-10-01 10:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    433
+   ],
+   "at": "2026-10-01 12:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    434
+   ],
+   "at": "2026-10-01 13:00"
+  },
+  {
+   "model": "x_payment",
+   "ids": [
+    17
+   ],
+   "at": "2026-10-01 13:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    435
+   ],
+   "at": "2026-10-01 13:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    436
+   ],
+   "at": "2026-10-01 13:00"
+  },
+  {
+   "model": "x_payment",
+   "ids": [
+    18
+   ],
+   "at": "2026-10-01 13:20"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    437
+   ],
+   "at": "2026-10-01 13:20"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    438
+   ],
+   "at": "2026-10-01 17:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    113
+   ],
+   "at": "2026-10-01 17:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    47
+   ],
+   "at": "2026-10-01 17:00"
+  },
+  {
+   "model": "x_daily_order_line",
+   "ids": [
+    40
+   ],
+   "at": "2026-10-01 17:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    439
+   ],
+   "at": "2026-10-01 17:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    440
+   ],
+   "at": "2026-10-01 17:00"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    114
+   ],
+   "at": "2026-10-01 17:00"
+  },
+  {
+   "model": "x_quotation",
+   "ids": [
+    22
+   ],
+   "at": "2026-10-01 17:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    441
+   ],
+   "at": "2026-10-01 17:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    442
+   ],
+   "at": "2026-10-01 20:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    443
+   ],
+   "at": "2026-10-01 21:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    444
+   ],
+   "at": "2026-10-01 21:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    445
+   ],
+   "at": "2026-10-01 21:10"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    115
+   ],
+   "at": "2026-10-01 21:10"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    446
+   ],
+   "at": "2026-10-01 21:10"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    447
+   ],
+   "at": "2026-10-01 21:10"
+  },
+  {
+   "model": "x_message_analysis",
+   "ids": [
+    116
+   ],
+   "at": "2026-10-01 21:10"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    48
+   ],
+   "at": "2026-10-01 21:10"
+  },
+  {
+   "model": "x_daily_order_line",
+   "ids": [
+    41
+   ],
+   "at": "2026-10-01 21:10"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    448
+   ],
+   "at": "2026-10-01 21:10"
+  },
+  {
+   "model": "x_purchase_list",
+   "ids": [
+    10
+   ],
+   "at": "2026-10-01 21:15"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    449
+   ],
+   "at": "2026-10-01 21:15"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    450
+   ],
+   "at": "2026-10-01 21:30"
+  }
+ ],
+ "writes": [
+  {
+   "model": "x_team_attendance",
+   "ids": [
+    3
+   ],
+   "fields": [
+    "x_sent_at"
+   ],
+   "at": "2026-09-27 02:00"
+  },
+  {
+   "model": "x_team_attendance",
+   "ids": [
+    3
+   ],
+   "fields": [
+    "x_tapped_at",
+    "x_status"
+   ],
+   "at": "2026-09-27 02:03"
+  },
+  {
+   "model": "x_supplier_price_request_log",
+   "ids": [
+    28
+   ],
+   "fields": [
+    "x_replied_at",
+    "x_prices_received_count",
+    "x_status"
+   ],
+   "at": "2026-09-27 02:20"
+  },
+  {
+   "model": "res.partner",
+   "ids": [
+    30
+   ],
+   "fields": [
+    "x_last_price_submission"
+   ],
+   "at": "2026-09-27 02:20"
+  },
+  {
+   "model": "x_price_day_line",
+   "ids": [
+    9
+   ],
+   "fields": [
+    "x_margin_pct",
+    "x_market_price",
+    "x_market_count",
+    "x_unit_profit",
+    "x_offers",
+    "x_status",
+    "x_reason",
+    "x_sale_price",
+    "x_excluded"
+   ],
+   "at": "2026-09-27 02:45"
+  },
+  {
+   "model": "x_price_day_line",
+   "ids": [
+    11
+   ],
+   "fields": [
+    "x_supplier_id",
+    "x_source_price",
+    "x_cost_price",
+    "x_margin_pct",
+    "x_market_price",
+    "x_market_count",
+    "x_unit_profit",
+    "x_offers",
+    "x_reason"
+   ],
+   "at": "2026-09-27 02:45"
+  },
+  {
+   "model": "x_price_day_line",
+   "ids": [
+    12
+   ],
+   "fields": [
+    "x_supplier_id",
+    "x_source_price",
+    "x_cost_price",
+    "x_margin_pct",
+    "x_market_price",
+    "x_market_count",
+    "x_unit_profit",
+    "x_offers",
+    "x_status",
+    "x_reason",
+    "x_sale_price",
+    "x_excluded"
+   ],
+   "at": "2026-09-27 02:45"
+  },
+  {
+   "model": "x_price_day_line",
+   "ids": [
+    11
+   ],
+   "fields": [
+    "x_decision",
+    "x_manual_price",
+    "x_status",
+    "x_reason",
+    "x_sale_price",
+    "x_excluded",
+    "x_decided_at"
+   ],
+   "at": "2026-09-27 04:20"
+  },
+  {
+   "model": "res.partner",
+   "ids": [
+    30
+   ],
+   "fields": [
+    "x_reliability_score",
+    "x_avg_response_time_minutes"
+   ],
+   "at": "2026-09-27 05:00"
+  },
+  {
+   "model": "res.partner",
+   "ids": [
+    7
+   ],
+   "fields": [
+    "x_reliability_score",
+    "x_avg_response_time_minutes"
+   ],
+   "at": "2026-09-27 05:00"
+  },
+  {
+   "model": "x_team_attendance",
+   "ids": [
+    4
+   ],
+   "fields": [
+    "x_sent_at"
+   ],
+   "at": "2026-09-27 06:00"
+  },
+  {
+   "model": "x_price_day",
+   "ids": [
+    5
+   ],
+   "fields": [
+    "x_state",
+    "x_approved_at",
+    "x_approved_by"
+   ],
+   "at": "2026-09-27 06:00"
+  },
+  {
+   "model": "x_price_day",
+   "ids": [
+    5
+   ],
+   "fields": [
+    "x_state",
+    "x_published_at",
+    "x_publish_report"
+   ],
+   "at": "2026-09-27 06:00"
+  },
+  {
+   "model": "x_team_attendance",
+   "ids": [
+    4
+   ],
+   "fields": [
+    "x_tapped_at",
+    "x_status"
+   ],
+   "at": "2026-09-27 06:02"
+  },
+  {
+   "model": "res.partner",
+   "ids": [
+    64
+   ],
+   "fields": [
+    "x_ai_intent",
+    "x_ai_reason",
+    "x_review_last_msg",
+    "x_review_last_at",
+    "x_review_pending"
+   ],
+   "at": "2026-09-27 08:10"
+  },
+  {
+   "model": "res.partner",
+   "ids": [
+    64
+   ],
+   "fields": [
+    "x_contact_class",
+    "x_review_pending",
+    "x_review_last_msg",
+    "x_review_last_at"
+   ],
+   "at": "2026-09-27 09:00"
+  },
+  {
+   "model": "res.partner",
+   "ids": [
+    64
+   ],
+   "fields": [
+    "x_delivery_latitude",
+    "x_delivery_longitude",
+    "x_delivery_map_url",
+    "x_delivery_neighborhood"
+   ],
+   "at": "2026-09-27 09:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    39
+   ],
+   "fields": [
+    "x_delivery_latitude",
+    "x_delivery_longitude",
+    "x_delivery_map_url",
+    "x_delivery_neighborhood"
+   ],
+   "at": "2026-09-27 09:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    39
+   ],
+   "fields": [
+    "x_delivery_latitude",
+    "x_delivery_longitude",
+    "x_delivery_map_url",
+    "x_delivery_neighborhood"
+   ],
+   "at": "2026-09-27 09:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    39
+   ],
+   "fields": [
+    "x_state"
+   ],
+   "at": "2026-09-27 09:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    39
+   ],
+   "fields": [
+    "x_state",
+    "x_confirmed_at"
+   ],
+   "at": "2026-09-27 09:00"
+  },
+  {
+   "model": "res.partner",
+   "ids": [
+    97
+   ],
+   "fields": [
+    "x_contact_class",
+    "x_review_pending",
+    "x_review_last_msg",
+    "x_review_last_at"
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "res.partner",
+   "ids": [
+    97
+   ],
+   "fields": [
+    "x_delivery_neighborhood"
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    40
+   ],
+   "fields": [
+    "x_delivery_neighborhood"
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    40
+   ],
+   "fields": [
+    "x_delivery_neighborhood"
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    40
+   ],
+   "fields": [
+    "x_state"
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "res.partner",
+   "ids": [
+    97
+   ],
+   "fields": [
+    "x_delivery_latitude",
+    "x_delivery_longitude",
+    "x_delivery_map_url",
+    "x_delivery_neighborhood"
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    40
+   ],
+   "fields": [
+    "x_state",
+    "x_confirmed_at"
+   ],
+   "at": "2026-09-27 10:00"
+  },
+  {
+   "model": "res.partner",
+   "ids": [
+    98
+   ],
+   "fields": [
+    "x_contact_class",
+    "x_review_pending",
+    "x_review_last_msg",
+    "x_review_last_at"
+   ],
+   "at": "2026-09-27 17:00"
+  },
+  {
+   "model": "res.partner",
+   "ids": [
+    98
+   ],
+   "fields": [
+    "x_delivery_latitude",
+    "x_delivery_longitude",
+    "x_delivery_map_url",
+    "x_delivery_neighborhood"
+   ],
+   "at": "2026-09-27 17:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    41
+   ],
+   "fields": [
+    "x_delivery_latitude",
+    "x_delivery_longitude",
+    "x_delivery_map_url",
+    "x_delivery_neighborhood"
+   ],
+   "at": "2026-09-27 17:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    41
+   ],
+   "fields": [
+    "x_delivery_latitude",
+    "x_delivery_longitude",
+    "x_delivery_map_url",
+    "x_delivery_neighborhood"
+   ],
+   "at": "2026-09-27 17:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    41
+   ],
+   "fields": [
+    "x_state"
+   ],
+   "at": "2026-09-27 17:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    41
+   ],
+   "fields": [
+    "x_state"
+   ],
+   "at": "2026-09-27 21:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    42
+   ],
+   "fields": [
+    "x_delivery_latitude",
+    "x_delivery_longitude",
+    "x_delivery_map_url",
+    "x_delivery_neighborhood"
+   ],
+   "at": "2026-09-27 21:08"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    39,
+    40
+   ],
+   "fields": [
+    "x_state"
+   ],
+   "at": "2026-09-27 21:15"
+  },
+  {
+   "model": "x_purchase_list",
+   "ids": [
+    8
+   ],
+   "fields": [
+    "x_status",
+    "x_sent_to_ahmad_at"
+   ],
+   "at": "2026-09-27 21:15"
+  },
+  {
+   "model": "x_purchase_list",
+   "ids": [
+    8
+   ],
+   "fields": [
+    "x_status",
+    "x_ahmad_confirmed_at"
+   ],
+   "at": "2026-09-28 03:30"
+  },
+  {
+   "model": "x_daily_order_line",
+   "ids": [
+    30,
+    31,
+    32
+   ],
+   "fields": [
+    "x_status"
+   ],
+   "at": "2026-09-28 03:30"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    39,
+    40
+   ],
+   "fields": [
+    "x_state"
+   ],
+   "at": "2026-09-28 03:30"
+  },
+  {
+   "model": "x_delivery_stop",
+   "ids": [
+    4
+   ],
+   "fields": [
+    "x_delivery_note_number",
+    "x_delivery_note_url"
+   ],
+   "at": "2026-09-28 03:30"
+  },
+  {
+   "model": "x_delivery_stop",
+   "ids": [
+    5
+   ],
+   "fields": [
+    "x_delivery_note_number",
+    "x_delivery_note_url"
+   ],
+   "at": "2026-09-28 03:30"
+  },
+  {
+   "model": "x_purchase_list",
+   "ids": [
+    8
+   ],
+   "fields": [
+    "x_tax_invoice",
+    "x_tax_invoice_filename",
+    "x_tax_invoice_at"
+   ],
+   "at": "2026-09-28 03:45"
+  },
+  {
+   "model": "x_delivery_stop",
+   "ids": [
+    4
+   ],
+   "fields": [
+    "x_status",
+    "x_delivered_at"
+   ],
+   "at": "2026-09-28 05:30"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    39
+   ],
+   "fields": [
+    "x_state",
+    "x_delivered_at"
+   ],
+   "at": "2026-09-28 05:30"
+  },
+  {
+   "model": "x_delivery_route",
+   "ids": [
+    4
+   ],
+   "fields": [
+    "x_stops_completed",
+    "x_status",
+    "x_completed_at"
+   ],
+   "at": "2026-09-28 05:30"
+  },
+  {
+   "model": "x_daily_order_line",
+   "ids": [
+    30
+   ],
+   "fields": [
+    "x_unit_price",
+    "x_subtotal"
+   ],
+   "at": "2026-09-28 05:30"
+  },
+  {
+   "model": "x_invoice",
+   "ids": [
+    25
+   ],
+   "fields": [
+    "x_invoice_sent_at"
+   ],
+   "at": "2026-09-28 05:30"
+  },
+  {
+   "model": "x_invoice",
+   "ids": [
+    25
+   ],
+   "fields": [
+    "x_sent_to_customer_at"
+   ],
+   "at": "2026-09-28 05:30"
+  },
+  {
+   "model": "x_invoice",
+   "ids": [
+    25
+   ],
+   "fields": [
+    "x_sent_to_collector_at"
+   ],
+   "at": "2026-09-28 05:30"
+  },
+  {
+   "model": "x_team_attendance",
+   "ids": [
+    37
+   ],
+   "fields": [
+    "x_sent_at"
+   ],
+   "at": "2026-09-28 06:00"
+  },
+  {
+   "model": "x_price_day",
+   "ids": [
+    38
+   ],
+   "fields": [
+    "x_state"
+   ],
+   "at": "2026-09-28 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    294
+   ],
+   "fields": [
+    "x_echo_status"
+   ],
+   "at": "2026-09-28 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    295
+   ],
+   "fields": [
+    "x_echo_status"
+   ],
+   "at": "2026-09-28 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    294
+   ],
+   "fields": [
+    "x_status",
+    "x_meta_message_id",
+    "x_processed_at",
+    "x_echo_status",
+    "x_partner_id",
+    "x_source"
+   ],
+   "at": "2026-09-28 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    295
+   ],
+   "fields": [
+    "x_status",
+    "x_meta_message_id",
+    "x_processed_at",
+    "x_echo_status",
+    "x_partner_id",
+    "x_source"
+   ],
+   "at": "2026-09-28 06:00"
+  },
+  {
+   "model": "x_team_attendance",
+   "ids": [
+    37
+   ],
+   "fields": [
+    "x_tapped_at",
+    "x_status"
+   ],
+   "at": "2026-09-28 06:00"
+  },
+  {
+   "model": "x_delivery_stop",
+   "ids": [
+    5
+   ],
+   "fields": [
+    "x_status",
+    "x_issue_note",
+    "x_delivered_at"
+   ],
+   "at": "2026-09-28 06:15"
+  },
+  {
+   "model": "x_delivery_stop",
+   "ids": [
+    5
+   ],
+   "fields": [
+    "x_status",
+    "x_issue_note",
+    "x_delivered_at"
+   ],
+   "at": "2026-09-28 06:15"
+  },
+  {
+   "model": "x_delivery_stop",
+   "ids": [
+    5
+   ],
+   "fields": [
+    "x_status",
+    "x_delivered_at"
+   ],
+   "at": "2026-09-28 13:10"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    40
+   ],
+   "fields": [
+    "x_state",
+    "x_delivered_at"
+   ],
+   "at": "2026-09-28 13:10"
+  },
+  {
+   "model": "x_delivery_route",
+   "ids": [
+    4
+   ],
+   "fields": [
+    "x_stops_completed",
+    "x_status",
+    "x_completed_at"
+   ],
+   "at": "2026-09-28 13:10"
+  },
+  {
+   "model": "x_daily_order_line",
+   "ids": [
+    31
+   ],
+   "fields": [
+    "x_unit_price",
+    "x_subtotal"
+   ],
+   "at": "2026-09-28 13:10"
+  },
+  {
+   "model": "x_daily_order_line",
+   "ids": [
+    32
+   ],
+   "fields": [
+    "x_unit_price",
+    "x_subtotal"
+   ],
+   "at": "2026-09-28 13:10"
+  },
+  {
+   "model": "x_invoice",
+   "ids": [
+    26
+   ],
+   "fields": [
+    "x_invoice_sent_at"
+   ],
+   "at": "2026-09-28 13:10"
+  },
+  {
+   "model": "x_invoice",
+   "ids": [
+    26
+   ],
+   "fields": [
+    "x_sent_to_customer_at"
+   ],
+   "at": "2026-09-28 13:10"
+  },
+  {
+   "model": "x_invoice",
+   "ids": [
+    26
+   ],
+   "fields": [
+    "x_sent_to_collector_at"
+   ],
+   "at": "2026-09-28 13:10"
+  },
+  {
+   "model": "x_invoice",
+   "ids": [
+    25
+   ],
+   "fields": [
+    "x_payment_id",
+    "x_status"
+   ],
+   "at": "2026-09-28 13:30"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    39
+   ],
+   "fields": [
+    "x_state"
+   ],
+   "at": "2026-09-28 13:30"
+  },
+  {
+   "model": "x_payment",
+   "ids": [
+    15
+   ],
+   "fields": [
+    "x_studio_char_1_1",
+    "x_studio_datetime_1_1",
+    "x_studio_char_2"
+   ],
+   "at": "2026-09-28 13:30"
+  },
+  {
+   "model": "x_invoice",
+   "ids": [
+    26
+   ],
+   "fields": [
+    "x_payment_id"
+   ],
+   "at": "2026-09-28 14:00"
+  },
+  {
+   "model": "x_payment",
+   "ids": [
+    16
+   ],
+   "fields": [
+    "x_studio_char_1_1",
+    "x_studio_datetime_1_1",
+    "x_studio_char_2"
+   ],
+   "at": "2026-09-28 14:00"
+  },
+  {
+   "model": "x_supplier_price_request_log",
+   "ids": [
+    61
+   ],
+   "fields": [
+    "x_replied_at",
+    "x_prices_received_count",
+    "x_status"
+   ],
+   "at": "2026-09-30 02:15"
+  },
+  {
+   "model": "res.partner",
+   "ids": [
+    30
+   ],
+   "fields": [
+    "x_last_price_submission"
+   ],
+   "at": "2026-09-30 02:15"
+  },
+  {
+   "model": "x_team_attendance",
+   "ids": [
+    39
+   ],
+   "fields": [
+    "x_sent_at"
+   ],
+   "at": "2026-09-30 06:00"
+  },
+  {
+   "model": "x_price_day",
+   "ids": [
+    39
+   ],
+   "fields": [
+    "x_state"
+   ],
+   "at": "2026-09-30 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    330
+   ],
+   "fields": [
+    "x_echo_status"
+   ],
+   "at": "2026-09-30 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    331
+   ],
+   "fields": [
+    "x_echo_status"
+   ],
+   "at": "2026-09-30 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    330
+   ],
+   "fields": [
+    "x_status",
+    "x_meta_message_id",
+    "x_processed_at",
+    "x_echo_status",
+    "x_partner_id",
+    "x_source"
+   ],
+   "at": "2026-09-30 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    331
+   ],
+   "fields": [
+    "x_status",
+    "x_meta_message_id",
+    "x_processed_at",
+    "x_echo_status",
+    "x_partner_id",
+    "x_source"
+   ],
+   "at": "2026-09-30 06:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    43
+   ],
+   "fields": [
+    "x_delivery_latitude",
+    "x_delivery_longitude",
+    "x_delivery_map_url",
+    "x_delivery_neighborhood"
+   ],
+   "at": "2026-09-30 09:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    43
+   ],
+   "fields": [
+    "x_state"
+   ],
+   "at": "2026-09-30 09:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    43
+   ],
+   "fields": [
+    "x_state",
+    "x_confirmed_at"
+   ],
+   "at": "2026-09-30 09:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    44
+   ],
+   "fields": [
+    "x_delivery_latitude",
+    "x_delivery_longitude",
+    "x_delivery_map_url",
+    "x_delivery_neighborhood"
+   ],
+   "at": "2026-09-30 10:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    44
+   ],
+   "fields": [
+    "x_state"
+   ],
+   "at": "2026-09-30 10:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    44
+   ],
+   "fields": [
+    "x_state",
+    "x_confirmed_at"
+   ],
+   "at": "2026-09-30 10:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    43,
+    44
+   ],
+   "fields": [
+    "x_state"
+   ],
+   "at": "2026-09-30 21:15"
+  },
+  {
+   "model": "x_purchase_list",
+   "ids": [
+    9
+   ],
+   "fields": [
+    "x_status",
+    "x_sent_to_ahmad_at"
+   ],
+   "at": "2026-09-30 21:15"
+  },
+  {
+   "model": "x_team_attendance",
+   "ids": [
+    40
+   ],
+   "fields": [
+    "x_sent_at"
+   ],
+   "at": "2026-10-01 02:00"
+  },
+  {
+   "model": "x_team_attendance",
+   "ids": [
+    40
+   ],
+   "fields": [
+    "x_tapped_at",
+    "x_status"
+   ],
+   "at": "2026-10-01 02:03"
+  },
+  {
+   "model": "x_supplier_price_request_log",
+   "ids": [
+    62
+   ],
+   "fields": [
+    "x_replied_at",
+    "x_prices_received_count",
+    "x_status"
+   ],
+   "at": "2026-10-01 02:10"
+  },
+  {
+   "model": "res.partner",
+   "ids": [
+    30
+   ],
+   "fields": [
+    "x_last_price_submission"
+   ],
+   "at": "2026-10-01 02:10"
+  },
+  {
+   "model": "x_price_day_line",
+   "ids": [
+    50
+   ],
+   "fields": [
+    "x_margin_pct",
+    "x_market_price",
+    "x_market_count",
+    "x_unit_profit",
+    "x_offers",
+    "x_status",
+    "x_reason",
+    "x_sale_price",
+    "x_excluded"
+   ],
+   "at": "2026-10-01 02:40"
+  },
+  {
+   "model": "x_price_day_line",
+   "ids": [
+    51
+   ],
+   "fields": [
+    "x_margin_pct",
+    "x_market_price",
+    "x_market_count",
+    "x_unit_profit",
+    "x_offers",
+    "x_sale_price"
+   ],
+   "at": "2026-10-01 02:40"
+  },
+  {
+   "model": "x_price_day_line",
+   "ids": [
+    52
+   ],
+   "fields": [
+    "x_supplier_id",
+    "x_source_price",
+    "x_cost_price",
+    "x_margin_pct",
+    "x_market_price",
+    "x_market_count",
+    "x_unit_profit",
+    "x_offers",
+    "x_status",
+    "x_reason",
+    "x_sale_price",
+    "x_excluded"
+   ],
+   "at": "2026-10-01 02:40"
+  },
+  {
+   "model": "x_price_day_line",
+   "ids": [
+    53
+   ],
+   "fields": [
+    "x_supplier_id",
+    "x_source_price",
+    "x_cost_price",
+    "x_margin_pct",
+    "x_market_price",
+    "x_market_count",
+    "x_unit_profit",
+    "x_offers",
+    "x_reason"
+   ],
+   "at": "2026-10-01 02:40"
+  },
+  {
+   "model": "x_purchase_list",
+   "ids": [
+    9
+   ],
+   "fields": [
+    "x_status",
+    "x_ahmad_confirmed_at"
+   ],
+   "at": "2026-10-01 03:30"
+  },
+  {
+   "model": "x_daily_order_line",
+   "ids": [
+    35,
+    36
+   ],
+   "fields": [
+    "x_status"
+   ],
+   "at": "2026-10-01 03:30"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    43,
+    44
+   ],
+   "fields": [
+    "x_state"
+   ],
+   "at": "2026-10-01 03:30"
+  },
+  {
+   "model": "x_delivery_stop",
+   "ids": [
+    6
+   ],
+   "fields": [
+    "x_delivery_note_number",
+    "x_delivery_note_url",
+    "x_dn_sent_at"
+   ],
+   "at": "2026-10-01 03:30"
+  },
+  {
+   "model": "x_delivery_stop",
+   "ids": [
+    7
+   ],
+   "fields": [
+    "x_delivery_note_number",
+    "x_delivery_note_url",
+    "x_dn_sent_at"
+   ],
+   "at": "2026-10-01 03:30"
+  },
+  {
+   "model": "x_price_day_line",
+   "ids": [
+    53
+   ],
+   "fields": [
+    "x_decision",
+    "x_manual_price",
+    "x_status",
+    "x_reason",
+    "x_sale_price",
+    "x_excluded",
+    "x_decided_at"
+   ],
+   "at": "2026-10-01 04:05"
+  },
+  {
+   "model": "x_delivery_stop",
+   "ids": [
+    6
+   ],
+   "fields": [
+    "x_status",
+    "x_delivered_at"
+   ],
+   "at": "2026-10-01 05:30"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    43
+   ],
+   "fields": [
+    "x_state",
+    "x_delivered_at"
+   ],
+   "at": "2026-10-01 05:30"
+  },
+  {
+   "model": "x_delivery_route",
+   "ids": [
+    5
+   ],
+   "fields": [
+    "x_stops_completed",
+    "x_status",
+    "x_completed_at"
+   ],
+   "at": "2026-10-01 05:30"
+  },
+  {
+   "model": "x_daily_order_line",
+   "ids": [
+    35
+   ],
+   "fields": [
+    "x_unit_price",
+    "x_subtotal"
+   ],
+   "at": "2026-10-01 05:30"
+  },
+  {
+   "model": "x_invoice",
+   "ids": [
+    27
+   ],
+   "fields": [
+    "x_invoice_sent_at"
+   ],
+   "at": "2026-10-01 05:30"
+  },
+  {
+   "model": "x_invoice",
+   "ids": [
+    27
+   ],
+   "fields": [
+    "x_sent_to_customer_at"
+   ],
+   "at": "2026-10-01 05:30"
+  },
+  {
+   "model": "x_invoice",
+   "ids": [
+    27
+   ],
+   "fields": [
+    "x_sent_to_collector_at"
+   ],
+   "at": "2026-10-01 05:30"
+  },
+  {
+   "model": "x_delivery_stop",
+   "ids": [
+    7
+   ],
+   "fields": [
+    "x_status",
+    "x_delivered_at"
+   ],
+   "at": "2026-10-01 05:50"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    44
+   ],
+   "fields": [
+    "x_state",
+    "x_delivered_at"
+   ],
+   "at": "2026-10-01 05:50"
+  },
+  {
+   "model": "x_delivery_route",
+   "ids": [
+    5
+   ],
+   "fields": [
+    "x_stops_completed",
+    "x_status",
+    "x_completed_at"
+   ],
+   "at": "2026-10-01 05:50"
+  },
+  {
+   "model": "x_daily_order_line",
+   "ids": [
+    36
+   ],
+   "fields": [
+    "x_unit_price",
+    "x_subtotal"
+   ],
+   "at": "2026-10-01 05:50"
+  },
+  {
+   "model": "x_invoice",
+   "ids": [
+    28
+   ],
+   "fields": [
+    "x_invoice_sent_at"
+   ],
+   "at": "2026-10-01 05:50"
+  },
+  {
+   "model": "x_invoice",
+   "ids": [
+    28
+   ],
+   "fields": [
+    "x_sent_to_customer_at"
+   ],
+   "at": "2026-10-01 05:50"
+  },
+  {
+   "model": "x_invoice",
+   "ids": [
+    28
+   ],
+   "fields": [
+    "x_sent_to_collector_at"
+   ],
+   "at": "2026-10-01 05:50"
+  },
+  {
+   "model": "x_price_day",
+   "ids": [
+    40
+   ],
+   "fields": [
+    "x_state",
+    "x_approved_at",
+    "x_approved_by"
+   ],
+   "at": "2026-10-01 06:00"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    398
+   ],
+   "fields": [
+    "x_echo_status"
+   ],
+   "at": "2026-10-01 06:00"
+  },
+  {
+   "model": "x_price_day",
+   "ids": [
+    40
+   ],
+   "fields": [
+    "x_state",
+    "x_published_at",
+    "x_publish_report"
+   ],
+   "at": "2026-10-01 06:00"
+  },
+  {
+   "model": "res.partner",
+   "ids": [
+    99
+   ],
+   "fields": [
+    "x_ai_intent",
+    "x_ai_reason",
+    "x_review_last_msg",
+    "x_review_last_at",
+    "x_review_pending"
+   ],
+   "at": "2026-10-01 08:00"
+  },
+  {
+   "model": "res.partner",
+   "ids": [
+    99
+   ],
+   "fields": [
+    "x_contact_class",
+    "x_review_pending"
+   ],
+   "at": "2026-10-01 08:00"
+  },
+  {
+   "model": "res.partner",
+   "ids": [
+    99
+   ],
+   "fields": [
+    "x_delivery_latitude",
+    "x_delivery_longitude",
+    "x_delivery_map_url",
+    "x_delivery_neighborhood"
+   ],
+   "at": "2026-10-01 08:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    45
+   ],
+   "fields": [
+    "x_delivery_latitude",
+    "x_delivery_longitude",
+    "x_delivery_map_url",
+    "x_delivery_neighborhood"
+   ],
+   "at": "2026-10-01 08:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    45
+   ],
+   "fields": [
+    "x_delivery_latitude",
+    "x_delivery_longitude",
+    "x_delivery_map_url",
+    "x_delivery_neighborhood"
+   ],
+   "at": "2026-10-01 08:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    45
+   ],
+   "fields": [
+    "x_state"
+   ],
+   "at": "2026-10-01 08:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    45
+   ],
+   "fields": [
+    "x_state",
+    "x_confirmed_at"
+   ],
+   "at": "2026-10-01 08:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    46
+   ],
+   "fields": [
+    "x_delivery_latitude",
+    "x_delivery_longitude",
+    "x_delivery_map_url",
+    "x_delivery_neighborhood"
+   ],
+   "at": "2026-10-01 10:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    46
+   ],
+   "fields": [
+    "x_state"
+   ],
+   "at": "2026-10-01 10:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    46
+   ],
+   "fields": [
+    "x_state",
+    "x_confirmed_at"
+   ],
+   "at": "2026-10-01 10:00"
+  },
+  {
+   "model": "x_invoice",
+   "ids": [
+    27
+   ],
+   "fields": [
+    "x_payment_id",
+    "x_status"
+   ],
+   "at": "2026-10-01 13:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    43
+   ],
+   "fields": [
+    "x_state"
+   ],
+   "at": "2026-10-01 13:00"
+  },
+  {
+   "model": "x_payment",
+   "ids": [
+    17
+   ],
+   "fields": [
+    "x_studio_char_1_1",
+    "x_studio_datetime_1_1",
+    "x_studio_char_2"
+   ],
+   "at": "2026-10-01 13:00"
+  },
+  {
+   "model": "x_invoice",
+   "ids": [
+    28
+   ],
+   "fields": [
+    "x_payment_id"
+   ],
+   "at": "2026-10-01 13:20"
+  },
+  {
+   "model": "x_payment",
+   "ids": [
+    18
+   ],
+   "fields": [
+    "x_studio_char_1_1",
+    "x_studio_datetime_1_1",
+    "x_studio_char_2"
+   ],
+   "at": "2026-10-01 13:20"
+  },
+  {
+   "model": "x_wa_message",
+   "ids": [
+    398
+   ],
+   "fields": [
+    "x_status",
+    "x_meta_message_id",
+    "x_processed_at",
+    "x_echo_status",
+    "x_partner_id",
+    "x_source"
+   ],
+   "at": "2026-10-01 17:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    47
+   ],
+   "fields": [
+    "x_delivery_latitude",
+    "x_delivery_longitude",
+    "x_delivery_map_url",
+    "x_delivery_neighborhood"
+   ],
+   "at": "2026-10-01 17:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    47
+   ],
+   "fields": [
+    "x_state"
+   ],
+   "at": "2026-10-01 17:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    47
+   ],
+   "fields": [
+    "x_state"
+   ],
+   "at": "2026-10-01 21:00"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    48
+   ],
+   "fields": [
+    "x_delivery_latitude",
+    "x_delivery_longitude",
+    "x_delivery_map_url",
+    "x_delivery_neighborhood"
+   ],
+   "at": "2026-10-01 21:10"
+  },
+  {
+   "model": "x_daily_order",
+   "ids": [
+    45,
+    46
+   ],
+   "fields": [
+    "x_state"
+   ],
+   "at": "2026-10-01 21:15"
+  },
+  {
+   "model": "x_purchase_list",
+   "ids": [
+    10
+   ],
+   "fields": [
+    "x_status",
+    "x_sent_to_ahmad_at"
+   ],
+   "at": "2026-10-01 21:15"
+  }
+ ]
+}

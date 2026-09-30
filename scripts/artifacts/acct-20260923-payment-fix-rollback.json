@@ -1,0 +1,49 @@
+{
+  "taken_at": "2026-09-23T07:55:56.517Z",
+  "lines": [
+    {
+      "id": 3,
+      "name": "Manual Payment",
+      "journal_id": [
+        13,
+        "Bank"
+      ],
+      "payment_type": "inbound",
+      "payment_account_id": false,
+      "journal_code": "BNK1"
+    },
+    {
+      "id": 4,
+      "name": "Manual Payment",
+      "journal_id": [
+        13,
+        "Bank"
+      ],
+      "payment_type": "outbound",
+      "payment_account_id": false,
+      "journal_code": "BNK1"
+    },
+    {
+      "id": 5,
+      "name": "Manual Payment",
+      "journal_id": [
+        19,
+        "كاش السائق"
+      ],
+      "payment_type": "inbound",
+      "payment_account_id": false,
+      "journal_code": "CSHD"
+    },
+    {
+      "id": 6,
+      "name": "Manual Payment",
+      "journal_id": [
+        19,
+        "كاش السائق"
+      ],
+      "payment_type": "outbound",
+      "payment_account_id": false,
+      "journal_code": "CSHD"
+    }
+  ]
+}

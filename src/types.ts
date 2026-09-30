@@ -61,6 +61,7 @@ export interface OdooPartner {
   supplier_rank?: number;
   customer_rank?: number;
   x_whatsapp_number?: string;
+  x_contact_class?: string | false;   // STATUS § 30 / § 31 (read by findCustomerByWhatsApp)
 }
 
 export interface ClassifyResult {
@@ -98,9 +99,14 @@ export interface ExtractedOrderItem {
 export interface SupplierPriceItem {
   product_id: number;
   packaging_id: number;
+  /** 0 when the item carries only a market price (§ 40 ب). */
   cost_price: number;
   actual_weight_kg: number | null;
   notes: string | null;
+  /** § 40 ب — a second price the message labels as the market's («سوق»), when given. */
+  market_price?: number | null;
+  /** § 40 ب — the quantity the message says is available, when given. */
+  available_qty?: number | null;
 }
 
 export interface SupplierPricesExtract {
@@ -141,15 +147,18 @@ export interface WhatsAppTemplateRow {
 // v4 — team roles & orchestration
 // ============================================================
 
-export type TeamRole = "customer" | "driver" | "collector" | "warehouse";
+// 2026-09-25 (STATUS § 31) — the codes of x_employee_role, read from
+// hr.employee.x_utak_role_ids («أدوار UTAK»). "admin" = «مدير».
+export type TeamRole = "customer" | "driver" | "collector" | "warehouse" | "admin";
 
 export interface TeamMember {
-  id: number;
+  id: number;                      // the employee's Work Contact (res.partner: the WhatsApp chat)
+  employeeId?: number;             // hr.employee (STATUS § 31)
   name: string;
   x_whatsapp_number: string;
   x_role: TeamRole;                // primary/queried role (backward compat)
-  x_role_codes?: TeamRole[];       // all roles from x_role_ids many2many (v8+)
-  x_neighborhoods?: number[];      // ids of x_neighborhood
+  x_role_codes?: TeamRole[];       // all roles («أدوار UTAK» on hr.employee)
+  x_neighborhoods?: number[];      // ids of x_neighborhood («أحياء التوصيل» on hr.employee)
 }
 
 // A row in the aggregated purchase list Ahmad receives at 21:15
@@ -160,6 +169,13 @@ export interface PurchaseListItem {
   packaging_name: string;
   total_quantity: number;
   order_ids: number[];          // orders contributing to this line
+  // 2026-09-23 — purchase → accounting. What was actually paid per packaging
+  // unit (tax-included when the supplier is VAT-registered). Pre-filled at
+  // 21:15 from that day's x_daily_price.x_price_sar, editable in Odoo before
+  // the list is closed. null = unknown → no purchase.order, owner alerted.
+  unit_price?: number | null;
+  /** Supplier whose x_daily_price filled unit_price (informational). */
+  price_supplier_id?: number | null;
 }
 
 // A confirmed order line as pulled for aggregation

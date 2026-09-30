@@ -1,0 +1,300 @@
+{
+  "label": "after",
+  "at": "2026-09-25T16:04:22.573Z",
+  "products": [
+    {
+      "id": 1,
+      "name": "Booking Fees",
+      "list_price": 50,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 2,
+      "name": "Standard delivery",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 71,
+      "name": "طماطم",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 72,
+      "name": "خيار",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 73,
+      "name": "بطاطس",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 74,
+      "name": "بصل",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 75,
+      "name": "جزر",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 76,
+      "name": "كوسا",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 77,
+      "name": "باذنجان",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 78,
+      "name": "فلفل رومي",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 79,
+      "name": "فلفل حار",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 80,
+      "name": "ثوم",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 81,
+      "name": "ليمون",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 82,
+      "name": "قرع",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 83,
+      "name": "ملفوف",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 84,
+      "name": "قرنبيط",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 85,
+      "name": "بامية",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 86,
+      "name": "فاصوليا",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 87,
+      "name": "فجل",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 88,
+      "name": "لفت",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 89,
+      "name": "خس",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 90,
+      "name": "جرجير",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 91,
+      "name": "بقدونس",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 92,
+      "name": "كزبرة",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 93,
+      "name": "نعناع",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 94,
+      "name": "شبت",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 95,
+      "name": "سبانخ",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 96,
+      "name": "تفاح",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 97,
+      "name": "موز أمريكي",
+      "list_price": 60,
+      "standard_price": 44,
+      "active": true
+    },
+    {
+      "id": 98,
+      "name": "برتقال",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 99,
+      "name": "عنب",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 100,
+      "name": "رمان وسط",
+      "list_price": 17,
+      "standard_price": 13,
+      "active": true
+    },
+    {
+      "id": 101,
+      "name": "مانجو",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 102,
+      "name": "أناناس",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 103,
+      "name": "فراولة",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 104,
+      "name": "بطيخ (بالحبة)",
+      "list_price": 8,
+      "standard_price": 5,
+      "active": true
+    },
+    {
+      "id": 105,
+      "name": "افوكادو",
+      "list_price": 50,
+      "standard_price": 45,
+      "active": true
+    },
+    {
+      "id": 107,
+      "name": "رمان صغير",
+      "list_price": 11.5,
+      "standard_price": 9,
+      "active": true
+    },
+    {
+      "id": 108,
+      "name": "رمان كبير",
+      "list_price": 27,
+      "standard_price": 22,
+      "active": true
+    },
+    {
+      "id": 109,
+      "name": "موز هندي",
+      "list_price": 55,
+      "standard_price": 45,
+      "active": true
+    },
+    {
+      "id": 110,
+      "name": "بضاعة مشتراة (وسيط)",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    },
+    {
+      "id": 111,
+      "name": "بضاعة مباعة (وسيط)",
+      "list_price": 0,
+      "standard_price": 0,
+      "active": true
+    }
+  ]
+}

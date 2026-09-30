@@ -1,0 +1,189 @@
+{
+ "at": "2026-09-25T01:29:04.802Z",
+ "customerRows": 7,
+ "allRoles": [
+  {
+   "id": 1,
+   "x_code": "driver",
+   "x_active": true
+  },
+  {
+   "id": 2,
+   "x_code": "warehouse",
+   "x_active": true
+  },
+  {
+   "id": 3,
+   "x_code": "collector",
+   "x_active": true
+  },
+  {
+   "id": 4,
+   "x_code": "admin",
+   "x_active": true
+  },
+  {
+   "id": 5,
+   "x_code": "customer",
+   "x_active": false
+  },
+  {
+   "id": 6,
+   "x_code": "customer",
+   "x_active": false
+  },
+  {
+   "id": 7,
+   "x_code": "customer",
+   "x_active": false
+  },
+  {
+   "id": 8,
+   "x_code": "customer",
+   "x_active": false
+  },
+  {
+   "id": 9,
+   "x_code": "customer",
+   "x_active": false
+  },
+  {
+   "id": 10,
+   "x_code": "customer",
+   "x_active": false
+  },
+  {
+   "id": 11,
+   "x_code": "customer",
+   "x_active": false
+  }
+ ],
+ "rows": [
+  {
+   "id": 5,
+   "x_name": "Customer",
+   "x_code": "customer",
+   "x_active": false,
+   "create_date": "2026-09-20 22:05:50",
+   "partners": [
+    {
+     "id": 45,
+     "name": "Bara.a - U TAK",
+     "active": true,
+     "x_whatsapp_number": "+966505154962",
+     "customer_rank": 1,
+     "x_contact_class": false,
+     "create_date": "2026-09-20 22:05:50"
+    }
+   ]
+  },
+  {
+   "id": 6,
+   "x_name": "Customer",
+   "x_code": "customer",
+   "x_active": false,
+   "create_date": "2026-09-20 22:11:26",
+   "partners": [
+    {
+     "id": 46,
+     "name": "عمر",
+     "active": true,
+     "x_whatsapp_number": "+967775180888",
+     "customer_rank": 1,
+     "x_contact_class": false,
+     "create_date": "2026-09-20 22:11:27"
+    }
+   ]
+  },
+  {
+   "id": 7,
+   "x_name": "Customer",
+   "x_code": "customer",
+   "x_active": false,
+   "create_date": "2026-09-20 22:13:53",
+   "partners": [
+    {
+     "id": 47,
+     "name": "يو",
+     "active": true,
+     "x_whatsapp_number": "+966509617756",
+     "customer_rank": 1,
+     "x_contact_class": false,
+     "create_date": "2026-09-20 22:13:53"
+    }
+   ]
+  },
+  {
+   "id": 8,
+   "x_name": "Customer",
+   "x_code": "customer",
+   "x_active": false,
+   "create_date": "2026-09-21 07:43:06",
+   "partners": [
+    {
+     "id": 49,
+     "name": "ابو محمد الوصابي",
+     "active": false,
+     "x_whatsapp_number": "+966534523051",
+     "customer_rank": 1,
+     "x_contact_class": "unreviewed",
+     "create_date": "2026-09-21 07:43:06"
+    }
+   ]
+  },
+  {
+   "id": 9,
+   "x_name": "Customer",
+   "x_code": "customer",
+   "x_active": false,
+   "create_date": "2026-09-21 08:23:04",
+   "partners": [
+    {
+     "id": 50,
+     "name": "Not Book",
+     "active": true,
+     "x_whatsapp_number": "+967700036370",
+     "customer_rank": 1,
+     "x_contact_class": "unreviewed",
+     "create_date": "2026-09-21 08:23:04"
+    }
+   ]
+  },
+  {
+   "id": 10,
+   "x_name": "Customer",
+   "x_code": "customer",
+   "x_active": false,
+   "create_date": "2026-09-23 12:33:55",
+   "partners": [
+    {
+     "id": 54,
+     "name": "الياف",
+     "active": false,
+     "x_whatsapp_number": "+966581840436",
+     "customer_rank": 1,
+     "x_contact_class": "unreviewed",
+     "create_date": "2026-09-23 12:33:57"
+    }
+   ]
+  },
+  {
+   "id": 11,
+   "x_name": "Customer",
+   "x_code": "customer",
+   "x_active": false,
+   "create_date": "2026-09-24 13:49:43",
+   "partners": [
+    {
+     "id": 59,
+     "name": "𐙚 𝓑𝓾𝓫𝓫𝓵𝓮𝓼 𐙚",
+     "active": false,
+     "x_whatsapp_number": "+966570540176",
+     "customer_rank": 1,
+     "x_contact_class": "unreviewed",
+     "create_date": "2026-09-24 13:49:44"
+    }
+   ]
+  }
+ ]
+}

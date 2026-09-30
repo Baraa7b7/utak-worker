@@ -1,0 +1,29 @@
+{
+  "before": {
+    "file": "/Users/baraa7/Desktop/Utak/logos kit/svg/utak-avatar-light.svg",
+    "background": true
+  },
+  "after": {
+    "svg": "/Users/baraa7/Desktop/Utak/logos kit/svg/utak-icon-color.svg",
+    "background": false,
+    "png": "/Users/baraa7/Desktop/Utak/logos kit/png/utak-icon-color-transparent.png",
+    "width": 1406,
+    "height": 1739,
+    "bytes": 42246,
+    "cornerAlpha": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "transparent": true,
+    "transparentShare": 0.5652874356757411,
+    "opaque": 1054284,
+    "opaqueOffBrand": 0,
+    "opaqueColours": {
+      "#E07B39": 128164,
+      "#1E5A41": 926120
+    }
+  },
+  "preview": "/Users/baraa7/utak-worker/scripts/artifacts/brand-20260924-logo-preview.png"
+}

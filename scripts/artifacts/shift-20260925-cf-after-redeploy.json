@@ -1,0 +1,24 @@
+{
+  "label": "after-redeploy",
+  "at": "2026-09-25T04:39:47.878Z",
+  "prodSchedules": [],
+  "simSchedules": [
+    "0 14 * * *",
+    "0 15 * * *",
+    "0 17 * * *",
+    "0 18 * * *",
+    "0 2 * * *",
+    "0 23 * * *",
+    "0 3 * * *",
+    "0 5 * * *",
+    "15 18 * * *",
+    "*/5 * * * *"
+  ],
+  "simVars": {
+    "ACCOUNTING_SYNC": "false",
+    "SIM_ALLOWLIST": "+966505154962,+966571777704,+966530399474,+966545816832",
+    "PILOT_MODE": "true",
+    "SIMULATION_MODE": "false",
+    "OWNER_WINDOW_OPEN_AT": "06:00"
+  }
+}

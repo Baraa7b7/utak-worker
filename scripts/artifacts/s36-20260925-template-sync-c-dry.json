@@ -1,0 +1,766 @@
+{
+  "at": "2026-09-25T18:57:43.122Z",
+  "meta": 66,
+  "odoo": 66,
+  "hasTextFields": true,
+  "changes": [
+    {
+      "id": 85,
+      "name": "utak_update_owner",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "يوجد تحديث تشغيلي على حساب يو تاك بتاريخ {{1}}: {{2}}. اضغط «عرض التحديث» للتفاصيل."
+        },
+        "x_buttons_text": {
+          "odoo": false,
+          "meta": "عرض التحديث"
+        }
+      }
+    },
+    {
+      "id": 84,
+      "name": "utak_update_supplier",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "يوجد تحديث على طلب التوريد بتاريخ {{1}}: {{2}}. اضغط «عرض التحديث» للتفاصيل."
+        },
+        "x_buttons_text": {
+          "odoo": false,
+          "meta": "عرض التحديث"
+        }
+      }
+    },
+    {
+      "id": 83,
+      "name": "utak_update_team",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "يوجد تحديث على مهامك في وردية {{1}}: {{2}}. اضغط «عرض التحديث» للتفاصيل."
+        },
+        "x_buttons_text": {
+          "odoo": false,
+          "meta": "عرض التحديث"
+        }
+      }
+    },
+    {
+      "id": 82,
+      "name": "utak_update_customer",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "يوجد تحديث على حسابك لدى يو تاك رقم {{1}}: {{2}}. اضغط «عرض التحديث» للتفاصيل."
+        },
+        "x_buttons_text": {
+          "odoo": false,
+          "meta": "عرض التحديث"
+        }
+      }
+    },
+    {
+      "id": 81,
+      "name": "utak_purchase_list_remind_v2",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "تحديث حالة مهمة في يو تاك: قائمة الشراء رقم {{1}} المسندة إليك ليوم {{2}}، وعدد أصنافها {{3}}، حالتها الآن «بانتظار التأكيد». عند إنجاز المهمة اضغط «تم الشراء» لتحديث حالتها، أو رد على هذه الرسالة إن وُجدت مشكلة في التنفيذ."
+        },
+        "x_buttons_text": {
+          "odoo": false,
+          "meta": "تم الشراء"
+        }
+      }
+    },
+    {
+      "id": 80,
+      "name": "utak_owner_alert_v3",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "إشعار آلي من نظام يو تاك بشأن عمليات حسابك، سُجّل بتاريخ {{1}}: {{2}}. يصلك هذا الإشعار بصفتك مالك الحساب، وتفاصيله محفوظة في سجل النظام."
+        }
+      }
+    },
+    {
+      "id": 79,
+      "name": "utak_purchase_list_remind_v1",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "تذكير من يو تاك: قائمة شراء يوم {{1}} لم يُضغط فيها على «تم الشراء» حتى الآن، وعدد أصنافها {{2}}. يرجى الضغط على الزر أدناه بعد إتمام الشراء، أو الرد على هذه الرسالة إن وُجدت مشكلة."
+        },
+        "x_buttons_text": {
+          "odoo": false,
+          "meta": "تم الشراء"
+        }
+      }
+    },
+    {
+      "id": 78,
+      "name": "utak_order_confirm_remind_v1",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "تذكير من يو تاك: طلبك رقم {{1}} لسه ما تأكد، ويُلغى تلقائياً الساعة {{2}}. اضغط «تأكيد الطلب» عشان يدخل طلبات اليوم، أو «إلغاء» لو ما تحتاجه."
+        },
+        "x_buttons_text": {
+          "odoo": false,
+          "meta": "تأكيد الطلب\nإلغاء"
+        }
+      }
+    },
+    {
+      "id": 77,
+      "name": "utak_quotation_pdf_v1",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "مرحباً {{1}}، مرفق عرض السعر رقم {{2}} من يو تاك بتاريخ {{3}}، بإجمالي {{4}} ريال. الأسعار سارية حتى موعد إقفال الطلبات في يوم الإصدار، ولأي استفسار يسعدنا ردكم على هذه الرسالة."
+        }
+      }
+    },
+    {
+      "id": 76,
+      "name": "utak_pay_remind_v3",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "تذكير من يو تاك: عزيزنا {{1}}، يوجد على حسابكم مبلغ مستحق قدره {{2}} ريال. نأمل التكرم بسداده في أقرب وقت، ولأي استفسار يسعدنا ردكم على هذه الرسالة."
+        }
+      }
+    },
+    {
+      "id": 75,
+      "name": "utak_standing_remind_v2",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "مساء الخير {{1}}، قائمتك الثابتة عند يو تاك جاهزة لطلب بكرة. تحب نرسلها مثل ما هي، أو تعدّل عليها؟"
+        },
+        "x_buttons_text": {
+          "odoo": false,
+          "meta": "تمام أرسلوها\nأبغى أعدّل"
+        }
+      }
+    },
+    {
+      "id": 74,
+      "name": "utak_shift_start_v2",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "مرحباً {{1}}، مهامك في يو تاك لهذا اليوم جاهزة. اضغط زر «بدء الدوام» أدناه لاستلام التفاصيل والمواقع."
+        },
+        "x_buttons_text": {
+          "odoo": false,
+          "meta": "بدء الدوام"
+        }
+      }
+    },
+    {
+      "id": 73,
+      "name": "utak_owner_alert_v2",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "تنبيه تشغيلي من نظام يو تاك: {{1}} — يرجى مراجعة التفاصيل واتخاذ الإجراء المناسب."
+        }
+      }
+    },
+    {
+      "id": 72,
+      "name": "utak_supplier_ask_v2",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "صباح الخير {{1}}، معك يو تاك. نحتاج أسعارك اليوم لهالأصناف: {{2}}. يا ليت ترد بسعر كل صنف وتعبئته (مثال: طماطم كرتون 25 ريال)، والله يعطيك العافية."
+        }
+      }
+    },
+    {
+      "id": 68,
+      "name": "utak_po_quality_issue",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "لدينا ملاحظة جودة على طلب الشراء رقم {{1}} المورَّد إلى يو تاك، والتفاصيل: {{2}}. نحتاج نتفق معك على طريقة المعالجة"
+        }
+      }
+    },
+    {
+      "id": 69,
+      "name": "utak_order_service_notice",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "تنبيه بخصوص توصيل طلبك رقم {{1}} لدى يو تاك: {{2}}. نعتذر عن أي إزعاج، ونحن متاحون للرد على أي استفسار"
+        }
+      }
+    },
+    {
+      "id": 70,
+      "name": "utak_followup_po",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "السلام عليكم {{1}}، لدينا تحديث بخصوص طلب الشراء رقم {{2}} من يو تاك. نرجو الرد على هذه الرسالة حتى نكمل معك التفاصيل. شكراً لك"
+        }
+      }
+    },
+    {
+      "id": 71,
+      "name": "utak_followup_order",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "مرحباً {{1}}، لدينا تحديث بخصوص طلبك رقم {{2}} لدى يو تاك. نرجو الرد على هذه الرسالة حتى نكمل معك التفاصيل. شكراً لك"
+        }
+      }
+    },
+    {
+      "id": 47,
+      "name": "utak_po_confirmed",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "لديك طلب شراء جديد من يو تاك رقم {{1}}. البنود المطلوبة: {{2}}. موعد الاستلام {{3}}. نرجو التأكيد باختيار أحد الأزرار أدناه"
+        },
+        "x_buttons_text": {
+          "odoo": false,
+          "meta": "تأكيد\nلا أستطيع"
+        }
+      }
+    },
+    {
+      "id": 48,
+      "name": "utak_supplier_price_nudge",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "أهلاً {{1}}، لم تصلنا أسعارك اليوم بعد. نحتاجها قبل الساعة {{2}} لو سمحت"
+        }
+      }
+    },
+    {
+      "id": 49,
+      "name": "utak_quality_issue",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "ملاحظة جودة على توريد {{1}}: {{2}}. نحتاج نتفق على المعالجة"
+        }
+      }
+    },
+    {
+      "id": 50,
+      "name": "utak_po_changed",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "تعديل على طلب الشراء رقم {{1}}: {{2}}. نرجو التأكيد"
+        },
+        "x_buttons_text": {
+          "odoo": false,
+          "meta": "تأكيد"
+        }
+      }
+    },
+    {
+      "id": 51,
+      "name": "utak_reactivate",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "اشتقنا لك {{1}}! عندنا اليوم {{2}}. اطلب الآن ويوصلك بكرة"
+        }
+      }
+    },
+    {
+      "id": 52,
+      "name": "utak_service_notice",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "تنبيه: {{1}} بتاريخ {{2}}. نعتذر عن أي إزعاج"
+        }
+      }
+    },
+    {
+      "id": 53,
+      "name": "utak_welcome",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "أهلاً {{1}}، تم تفعيل حسابك في يو تاك. اطلب مباشرة من هنا، وآخر موعد للطلب يومياً الساعة {{2}}. حياك"
+        }
+      }
+    },
+    {
+      "id": 54,
+      "name": "utak_complaint_resolved",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "تمت معالجة ملاحظتك على طلب رقم {{1}}: {{2}}. نشكرك على إبلاغنا"
+        }
+      }
+    },
+    {
+      "id": 55,
+      "name": "utak_complaint_received",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "استلمنا ملاحظتك على طلب رقم {{1}}، وسنعود لك خلال {{2}}. يو تاك"
+        }
+      }
+    },
+    {
+      "id": 56,
+      "name": "utak_payment_received",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "استلمنا دفعتك بمبلغ {{1}} ريال على فاتورة {{2}}. شكراً لك"
+        }
+      }
+    },
+    {
+      "id": 57,
+      "name": "utak_payment_reminder",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "تذكير ودي: فاتورة رقم {{1}} بمبلغ {{2}} ريال مستحقة بتاريخ {{3}}. شاكرين تعاونك"
+        }
+      }
+    },
+    {
+      "id": 58,
+      "name": "utak_invoice_ready",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "فاتورة طلبك رقم {{1}} بمبلغ {{2}} ريال، وتاريخ الاستحقاق {{3}}. شكراً لتعاملك مع يو تاك"
+        }
+      }
+    },
+    {
+      "id": 59,
+      "name": "utak_order_cutoff",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "تذكير: آخر موعد لطلبات الغد الساعة {{1}}. أرسل طلبك الآن لضمان التوصيل"
+        }
+      }
+    },
+    {
+      "id": 60,
+      "name": "utak_delivered",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "تم تسليم طلبك رقم {{1}}. إذا فيه أي ملاحظة على الجودة رد علينا خلال اليوم"
+        }
+      }
+    },
+    {
+      "id": 61,
+      "name": "utak_out_for_delivery",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "طلبك رقم {{1}} في الطريق إليك الآن مع {{2}}. يو تاك"
+        }
+      }
+    },
+    {
+      "id": 62,
+      "name": "utak_delivery_delay",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "نعتذر عن تأخر طلبك رقم {{1}}، والوصول المتوقع {{2}}. نقدّر صبرك"
+        }
+      }
+    },
+    {
+      "id": 63,
+      "name": "utak_item_shortage",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "نعتذر، الصنف {{1}} غير متوفر اليوم في طلبك رقم {{2}}. البديل المقترح: {{3}}. اختر من الأزرار أدناه"
+        },
+        "x_buttons_text": {
+          "odoo": false,
+          "meta": "موافق على البديل\nبدون بديل"
+        }
+      }
+    },
+    {
+      "id": 64,
+      "name": "utak_order_update",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "تحديث على طلبك رقم {{1}}: {{2}}. لأي استفسار رد على هذه الرسالة"
+        }
+      }
+    },
+    {
+      "id": 65,
+      "name": "utak_order_confirmed",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "تم تأكيد طلبك رقم {{1}}، والتوصيل {{2}}. شكراً لاختيارك يو تاك"
+        }
+      }
+    },
+    {
+      "id": 66,
+      "name": "utak_followup_supplier",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "السلام عليكم {{1}}، نحتاج نتواصل معك بخصوص {{2}}. نرجو الرد على هذه الرسالة. يو تاك"
+        }
+      }
+    },
+    {
+      "id": 67,
+      "name": "utak_followup_customer",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "مرحباً {{1}}، لدينا تحديث بخصوص {{2}}. نرجو الرد على هذه الرسالة لنكمل معك. فريق يو تاك"
+        }
+      }
+    },
+    {
+      "id": 46,
+      "name": "utak_supplier_confirm_v1",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "شكراً {{1}} 🌿\n\nاستلمنا أسعارك لـ {{2}} صنف اليوم. سنعتمدها لطلبات اليوم.\n\nلو تحتاج تعديل، اضغط \"تعديل الأسعار\" أو رد \"تعديل\"."
+        },
+        "x_buttons_text": {
+          "odoo": false,
+          "meta": "تعديل الأسعار\nتوقف اليوم\nشكراً"
+        }
+      }
+    },
+    {
+      "id": 25,
+      "name": "utak_shift_start",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "مساء الخير {{1}}، مهام يو تاك لليوم جاهزة. اضغط الزر أدناه لبدء الدوام واستلام التفاصيل."
+        },
+        "x_buttons_text": {
+          "odoo": false,
+          "meta": "بدء الدوام"
+        }
+      }
+    },
+    {
+      "id": 24,
+      "name": "utak_owner_alert",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "تنبيه تشغيلي من نظام يو تاك:\n{{1}}\nيرجى مراجعة التفاصيل واتخاذ الإجراء المناسب."
+        }
+      }
+    },
+    {
+      "id": 23,
+      "name": "utak_invoice_pdf_v1",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "هلا {{1}} 🌿\nفاتورتك رقم {{2}} بتاريخ {{3}}\nالإجمالي: {{4}} ريال\nالتفاصيل الكاملة بالفاتورة المرفقة.\nيعطيك العافية — UTAK 💚\nUTAK | يو تاك"
+        }
+      }
+    },
+    {
+      "id": 19,
+      "name": "utak_invoice_customer_v2",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "مرحباً {{1}}،\n\n🧾 فاتورتك من UTAK\nرقم الفاتورة: {{2}}\n\n{{3}}\n\nالإجمالي: {{4}} ر.س\n\nشكراً لتعاملكم معنا 🌿"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "name": "utak_purchase_list_v2",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "🌅 صباح الخير {{1}}،\n\nقائمة شراء اليوم {{2}}:\n\n{{3}}\n\nإجمالي الأصناف: {{4}}\n\nاضغط الزر لما تخلص الشراء 👇"
+        },
+        "x_buttons_text": {
+          "odoo": false,
+          "meta": "تم الشراء\nمشكلة"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "name": "utak_driver_stop",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "📦 توصيلة #{{1}}\n\nالعميل: {{2}}\nالحي: {{3}}\nالعنوان: {{4}}\n\nالأصناف:\n{{5}}\n\nلما توصل، اضغط تم التسليم 👇"
+        },
+        "x_buttons_text": {
+          "odoo": false,
+          "meta": "تم التسليم\nمشكلة"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "name": "utak_driver_dispatch",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "🚚 صباح الخير {{1}}،\n\nمسارك اليوم {{2}}:\n\n{{3}}\n\nإجمالي التوصيلات: {{4}}\n\nراح تجيك رسالة مستقلة لكل توصيلة، اضغط تم التسليم على كل واحدة بعد ما تخلصها."
+        }
+      }
+    },
+    {
+      "id": 10,
+      "name": "utak_collection_request",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "💰 طلب تحصيل\n\nالعميل: {{1}}\nالحي: {{2}}\nالفاتورة: {{3}}\nالمبلغ: {{4}} ر.س\n\nاختر طريقة التحصيل 👇"
+        },
+        "x_buttons_text": {
+          "odoo": false,
+          "meta": "نقد\nتحويل"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "name": "utak_supplier_daily_ask",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "🌅 صباح الخير،\n\nنبغى أسعار اليوم لهذي الأصناف:\n\n{{1}}\n\nرد بأسعارك (مثال: طماطم كرتون 25 ريال). شكراً 🌿"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "name": "utak_collection_summary",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "📋 قائمة تحصيل اليوم {{1}}:\n\n{{2}}\n\nإجمالي مطلوب: {{3}} ر.س\nعدد الفواتير: {{4}}\n\nلما تحصّل من أي عميل، افتح رسالة الفاتورة واضغط زر التحصيل."
+        }
+      }
+    },
+    {
+      "id": 42,
+      "name": "utak_v2_collection",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "كشف التحصيل جاهز يا {{1}} الله يوفقك\n\nعدد العملاء: {{2}}\nالمبلغ الإجمالي: {{3}} ريال"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "name": "utak_v2_summary",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "ملخص اليوم جاهز\n\nطلبات: {{1}}\nتوصيلات: {{2}}\nإجمالي: {{3}} ريال\n\nتفاصيل أكثر في لوحة القيادة."
+        }
+      }
+    },
+    {
+      "id": 12,
+      "name": "utak_v2_commission",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "كشف عمولتك جاهز يا {{1}} يعطيك العافية\n\nالفترة: {{2}}\nالإجمالي: {{3}} ريال"
+        }
+      }
+    },
+    {
+      "id": 43,
+      "name": "utak_v2_purchase",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "صباح الخير يا {{1}} قائمتك جاهزة\n\nقائمة مشتريات اليوم:\nعدد الأصناف: {{2}}\n\nالله يعطيك العافية."
+        }
+      }
+    },
+    {
+      "id": 6,
+      "name": "utak_v2_loading",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "تم تحميل البضاعة بنجاح\n\nعدد الأصناف: {{1}}\nعدد العملاء: {{2}}\n\nجاهز للانطلاق؟"
+        },
+        "x_buttons_text": {
+          "odoo": false,
+          "meta": "تمام جاهز\nفيه نقص"
+        }
+      }
+    },
+    {
+      "id": 44,
+      "name": "utak_v2_driver_route",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "صباح الخير يا {{1}} مسارك جاهز\n\nعدد التوصيلات: {{2}}\n\nالله يوفقك ويسهّل دربك."
+        }
+      }
+    },
+    {
+      "id": 20,
+      "name": "utak_v2_pay_remind",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "تذكير ودي يا {{1}} الله يحفظك\n\nعندك مبلغ {{2}} ريال مستحق.\nنتمنى تسوية المبلغ في أقرب وقت عشان نقدر نستمر بالخدمة بدون انقطاع."
+        }
+      }
+    },
+    {
+      "id": 21,
+      "name": "utak_v2_inactive",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "وحشتنا يا {{1}} والله\n\nصار لك فترة ما طلبت. لو تبي ترجع قائمتك أو عندك أي استفسار، حنا هنا!"
+        },
+        "x_buttons_text": {
+          "odoo": false,
+          "meta": "أبغى أطلب\nعندي ملاحظة"
+        }
+      }
+    },
+    {
+      "id": 15,
+      "name": "utak_v2_daily_remind",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "مساء الخير {{1}} يسعد مساك\n\nقائمتك الثابتة جاهزة لبكرة. تبي نرسلها زي ما هي ولا تبي تعدّل؟"
+        },
+        "x_buttons_text": {
+          "odoo": false,
+          "meta": "تمام أرسلوها\nأبغى أعدّل"
+        }
+      }
+    },
+    {
+      "id": 16,
+      "name": "utak_v2_order_confirm",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "تم استلام طلبك يا {{1}} بنجاح\n\nعدد الأصناف: {{2}}\nالتوصيل: {{3}}\n\nبنأكد لك قبل التحميل إن شاء الله."
+        }
+      }
+    },
+    {
+      "id": 14,
+      "name": "utak_v2_welcome",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "هلا والله {{1}} نورت\n\nأنا من فريق UTAK — نوصّل لك خضار وفواكه طازجة كل يوم لباب محلك.\n\nكيف نقدر نخدمك؟"
+        },
+        "x_buttons_text": {
+          "odoo": false,
+          "meta": "أبغى أطلب\nأبغى أعرف أكثر"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "name": "utak_driver_collection",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "مرحبا {{1}} وصلت طلبية {{2}} ولا لا؟\n\nالمبلغ المطلوب: {{3}} ريال"
+        },
+        "x_buttons_text": {
+          "odoo": false,
+          "meta": "تم التسليم\nفيه مشكلة"
+        }
+      }
+    },
+    {
+      "id": 22,
+      "name": "utak_feedback",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "مرحبا {{1}} كيف كانت تجربتك مع آخر طلب؟ رأيك يهمنا عشان نطوّر لك الخدمة"
+        },
+        "x_buttons_text": {
+          "odoo": false,
+          "meta": "ممتازة\nتحتاج تحسين"
+        }
+      }
+    },
+    {
+      "id": 17,
+      "name": "utak_delivery_incoming",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "مرحبا {{1}} طلبك في الطريق\n\nالسائق: {{2}}\nالوصول المتوقع: {{3}} تقريباً"
+        }
+      }
+    },
+    {
+      "id": 18,
+      "name": "utak_delivery_done",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "تم توصيل طلبك يا {{1}} بنجاح\n\nنتمنى كل شي يعجبك. لو فيه أي ملاحظة لا تتردد!"
+        },
+        "x_buttons_text": {
+          "odoo": false,
+          "meta": "كل شي تمام\nعندي ملاحظة"
+        }
+      }
+    },
+    {
+      "id": 45,
+      "name": "hello_world",
+      "fields": {
+        "x_body_text": {
+          "odoo": false,
+          "meta": "Hello World\nWelcome and congratulations!! This message demonstrates your ability to send a WhatsApp message notification from the Cloud API, hosted by Meta. Thank you for taking the time to test with us.\nWhatsApp Business Platform sample message"
+        }
+      }
+    }
+  ],
+  "missingInOdoo": [],
+  "missingInMeta": []
+}

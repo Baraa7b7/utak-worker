@@ -1,0 +1,97 @@
+{
+  "script": "scripts/cleanup-20260924-test-invoices.mjs",
+  "createdAt": "2026-09-24T16:38:03.192Z",
+  "before": [
+    {
+      "model": "x_invoice",
+      "id": 4,
+      "number": "UTAK-ACCT-TEST-1789968293059",
+      "x_is_simulation": true
+    },
+    {
+      "model": "x_invoice",
+      "id": 5,
+      "number": "UTAK-ACCT-TEST-1789968341921",
+      "x_is_simulation": true
+    },
+    {
+      "model": "x_invoice",
+      "id": 6,
+      "number": "UTAK-ACCT-TEST-1789968449449",
+      "x_is_simulation": true
+    },
+    {
+      "model": "x_invoice",
+      "id": 7,
+      "number": "UTAK-ACCT-TEST-1789968612987",
+      "x_is_simulation": true
+    },
+    {
+      "model": "x_invoice",
+      "id": 8,
+      "number": "UTAK-ACCT-A-1790150435183",
+      "x_is_simulation": true
+    },
+    {
+      "model": "x_invoice",
+      "id": 9,
+      "number": "UTAK-ACCT-A-1790150473897",
+      "x_is_simulation": true
+    },
+    {
+      "model": "x_invoice",
+      "id": 10,
+      "number": "UTAK-ACCT-B-1790150475867",
+      "x_is_simulation": true
+    },
+    {
+      "model": "x_invoice",
+      "id": 11,
+      "number": "UTAK-ACCT-C48-1790150477606",
+      "x_is_simulation": true
+    },
+    {
+      "model": "x_invoice",
+      "id": 12,
+      "number": "UTAK-ACCT-CB-1790150478040",
+      "x_is_simulation": true
+    },
+    {
+      "model": "x_invoice",
+      "id": 13,
+      "number": "UTAK-VAT-D-1790151628519",
+      "x_is_simulation": true
+    },
+    {
+      "model": "x_invoice",
+      "id": 14,
+      "number": "UTAK-VAT-D-1790151738965",
+      "x_is_simulation": true
+    },
+    {
+      "model": "x_invoice",
+      "id": 15,
+      "number": "UTAK-VAT-E-1790151743613",
+      "x_is_simulation": true
+    },
+    {
+      "model": "x_invoice",
+      "id": 16,
+      "number": "UTAK-VAT-D-1790151794196",
+      "x_is_simulation": true
+    },
+    {
+      "model": "x_invoice",
+      "id": 17,
+      "number": "UTAK-VAT-E-1790151798270",
+      "x_is_simulation": true
+    },
+    {
+      "model": "x_invoice",
+      "id": 18,
+      "number": "UTAK-VAT-E′-1790151799179",
+      "x_is_simulation": true
+    }
+  ],
+  "wrote": []
+}

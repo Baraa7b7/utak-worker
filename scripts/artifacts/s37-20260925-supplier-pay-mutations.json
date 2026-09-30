@@ -1,0 +1,452 @@
+{
+  "at": "2026-09-28T06:51:58.459Z",
+  "caught": 56,
+  "total": 56,
+  "results": [
+    {
+      "name": "the due takes another supplier's price",
+      "caught": true,
+      "fails": [
+        "✗ his own latest price of that day (26, not 24.5, not the other supplier's 22)",
+        "✗ the due = Σ quantity × his price: 3 × 26 + 2 × 45 = 168.00 — 15600",
+        "✗ SUP: 168.00, one line «بلا سعر» — {\"x_name\":\"مورد الخضار — 2026-09-26 — قائمة #10007\",\"x_supplier_id\":701,\"x_purchase_list_id\":10007,\"x_date\":\"2026-09-26\",\"x_amount\":156,\"x_unpriced_count\":1,\"x_is_simulation\":true,\"id\":10008}",
+        "✗ …lines: tomato 3 × 26 = 78.00 from his price row; potato «بلا سعر» 0 with a note"
+      ]
+    },
+    {
+      "name": "the due takes another day's price",
+      "caught": true,
+      "fails": [
+        "✗ an outlier (pending) is still his price; yesterday's and a failed extraction are not",
+        "✗ the due = Σ quantity × his price: 3 × 26 + 2 × 45 = 168.00 — 20400",
+        "✗ …the line without a price is «بلا سعر» and counts 0"
+      ]
+    },
+    {
+      "name": "the due takes a failed extraction",
+      "caught": true,
+      "fails": [
+        "✗ an outlier (pending) is still his price; yesterday's and a failed extraction are not",
+        "✗ the due = Σ quantity × his price: 3 × 26 + 2 × 45 = 168.00 — 19600",
+        "✗ …the line without a price is «بلا سعر» and counts 0",
+        "✗ SUP: 168.00, one line «بلا سعر» — {\"x_name\":\"مورد الخضار — 2026-09-26 — قائمة #10007\",\"x_supplier_id\":701,\"x_purchase_list_id\":10007,\"x_date\":\"2026-09-26\",\"x_amount\":196,\"x_unpriced_count\":0,\"x_is_simulation\":true,\"id\":10008}"
+      ]
+    },
+    {
+      "name": "the due takes the oldest price, not the latest",
+      "caught": true,
+      "fails": [
+        "✗ his own latest price of that day (26, not 24.5, not the other supplier's 22)",
+        "✗ the due = Σ quantity × his price: 3 × 26 + 2 × 45 = 168.00 — 16350",
+        "✗ SUP: 168.00, one line «بلا سعر» — {\"x_name\":\"مورد الخضار — 2026-09-26 — قائمة #10007\",\"x_supplier_id\":701,\"x_purchase_list_id\":10007,\"x_date\":\"2026-09-26\",\"x_amount\":163.5,\"x_unpriced_count\":1,\"x_is_simulation\":true,\"id\":10008}",
+        "✗ …lines: tomato 3 × 26 = 78.00 from his price row; potato «بلا سعر» 0 with a note"
+      ]
+    },
+    {
+      "name": "a line without a price not marked «بلا سعر»",
+      "caught": true,
+      "fails": [
+        "✗ …the line without a price is «بلا سعر» and counts 0",
+        "✗ SUP: 168.00, one line «بلا سعر» — {\"x_name\":\"مورد الخضار — 2026-09-26 — قائمة #10007\",\"x_supplier_id\":701,\"x_purchase_list_id\":10007,\"x_date\":\"2026-09-26\",\"x_amount\":168,\"x_unpriced_count\":0,\"x_is_simulation\":true,\"id\":10008}",
+        "✗ …lines: tomato 3 × 26 = 78.00 from his price row; potato «بلا سعر» 0 with a note",
+        "✗ one important alert to Baraa: the list, the supplier, the item, and the item with no supplier — {\"messaging_product\":\"whatsapp\",\"to\":\"966500000001\",\"type\":\"text\",\"text\":{\"body\":\"⚠️ مستحقات الموردين — قائمة الشراء #10007 (26 سبتمبر 2026): أسطر «بلا سعر» لم تُحسب في المستحق:\\n• بلا مورد: خيار (فلين) × 1\\nأدخل سعر المورد لذلك اليوم في «الأسعار اليومية»، وتُحسب تلقائياً (أو «🔄 إعادة حساب المستحقات» في 💵 دفع الموردين).\"}}"
+      ]
+    },
+    {
+      "name": "the item's supplier ignores price_supplier_id",
+      "caught": true,
+      "fails": [
+        "✗ the item's supplier: the one it was priced from, else the list's, else none"
+      ]
+    },
+    {
+      "name": "no «بلا سعر» alert",
+      "caught": true,
+      "fails": [
+        "✗ one important alert to Baraa: the list, the supplier, the item, and the item with no supplier",
+        "✗ the same again: unchanged, no second alert",
+        "✗ …no new alert (nothing without a price now)"
+      ]
+    },
+    {
+      "name": "the «بلا سعر» alert repeats on every change",
+      "caught": true,
+      "fails": [
+        "✗ …no new alert (nothing without a price now)"
+      ]
+    },
+    {
+      "name": "a recomputation adds lines instead of updating them",
+      "caught": true,
+      "fails": [
+        "✗ a price that arrives later: the tick recomputes — 168 + 4 × 12 = 216.00, nothing «بلا سعر»",
+        "✗ …in place: the same line, no new line, nothing deleted"
+      ]
+    },
+    {
+      "name": "an unconfirmed list gets dues",
+      "caught": true,
+      "fails": [
+        "✗ a list not confirmed (sent): no due"
+      ]
+    },
+    {
+      "name": "the tick races the tap (no 2-minute grace)",
+      "caught": true,
+      "fails": [
+        "✗ the tick: a list confirmed under 2 minutes ago is left to the tap",
+        "✗ …and taken 3 minutes later"
+      ]
+    },
+    {
+      "name": "the confirmed list's dues not built at «تم الشراء»",
+      "caught": true,
+      "fails": [
+        "✗ …and the confirmed list's dues are built at once"
+      ]
+    },
+    {
+      "name": "pending payments counted as paid",
+      "caught": true,
+      "fails": [
+        "✗ a pending and a rejected payment are not paid",
+        "✗ paying more than the remaining is accepted: approved, «رصيد دائن», remaining −34.00",
+        "✗ …Baraa is alerted with the figures (paid 250.00 > due 216.00 by 34.00) — {\"messaging_product\":\"whatsapp\",\"to\":\"966500000001\",\"type\":\"text\",\"text\":{\"body\":\"⚠️ «رصيد دائن» لدى المورد مورد الخضار\\nالدفعة SP-2026-0004 بمبلغ 150.00 ر.س جعلت المدفوع المعتمد 300.00 ر.س أكبر من المستحق 216.00 ر.س بـ 84.00 ر.س.\"}}",
+        "✗ …Baraa's alert: the supplier, the amount, the reference, the remaining (216.00 before it) and the excess — {\"messaging_product\":\"whatsapp\",\"to\":\"966500000001\",\"type\":\"text\",\"text\":{\"body\":\"💵 دفعة نقدية من أحمد بانتظار اعتمادك\\nالمورد: مورد الخضار\\nالمبلغ: 1500.50 ر.س\\nالمرجع: SP-2026-0001\\nالمتبقي للمورد قبلها: -1284.50 ر.س\\n⚠️ تزيد عن المتبقي بـ 2785.00 ر.س، فإن اعتُمدت تُعلَّم «رصيد دائن».\\nاعتمدها أو ارفضها من UTAK ← 💵 دفع الموردين (دفعات الموردين). ومعها صورة الإيصال.\"}}"
+      ]
+    },
+    {
+      "name": "an overpayment not marked «رصيد دائن»",
+      "caught": true,
+      "fails": [
+        "✗ paying more than the remaining is accepted: approved, «رصيد دائن», remaining −34.00",
+        "✗ …Baraa is alerted with the figures (paid 250.00 > due 216.00 by 34.00)",
+        "✗ …the row: x_settled_at, the notice «نصاً», remaining −284.00 «رصيد دائن»"
+      ]
+    },
+    {
+      "name": "the supplier sees a negative remaining",
+      "caught": true,
+      "fails": [
+        "✗ …the supplier's notice says remaining 0.00 (never negative) — تم تسجيل دفعة لك من يو تاك بمبلغ 150.00 ر.س بتاريخ 26 سبتمبر 2026، رقم المرجع SP-2026-0004. الرصيد المتبقي لك: -34.00 ر.س.",
+        "✗ the text is the template's text, filled",
+        "✗ inside his window: the text — تم تسجيل دفعة لك من يو تاك بمبلغ 1500.00 ر.س بتاريخ 26 سبتمبر 2026، رقم المرجع SP-2026-0001. الرصيد المتبقي لك: -1284.00 ر.س.",
+        "✗ …and reaches him as text at his next message"
+      ]
+    },
+    {
+      "name": "a pending payment is settled (notice before the approval)",
+      "caught": true,
+      "fails": [
+        "✗ pending: nothing happens (no notice, no line to the member)",
+        "✗ approved: settled — the supplier's notice and the member's line",
+        "✗ …the row: x_settled_at, the notice «نصاً», remaining −284.00 «رصيد دائن»",
+        "✗ op=created on Omar's pending payment → 202, nothing sent"
+      ]
+    },
+    {
+      "name": "settled twice (no x_settled_at, no claim)",
+      "caught": true,
+      "fails": [
+        "✗ settled once: a second call does nothing"
+      ]
+    },
+    {
+      "name": "a rejected payment notifies the supplier",
+      "caught": true,
+      "fails": [
+        "✗ rejected: the member is told with the reason — ✅ اعتمد براء دفعتك SP-2026-0002: مورد الخضار بمبلغ 70.00 ر.س.",
+        "✗ …and the supplier gets nothing"
+      ]
+    },
+    {
+      "name": "the member not told of a rejection",
+      "caught": true,
+      "fails": [
+        "✗ rejected: the member is told with the reason — ✅ اعتمد براء دفعتك SP-2026-0001: مورد الخضار بمبلغ 500.00 ر.س."
+      ]
+    },
+    {
+      "name": "the rejection without its reason",
+      "caught": true,
+      "fails": [
+        "✗ rejected: the member is told with the reason — ❌ رفض براء دفعتك SP-2026-0002: مورد الخضار بمبلغ 70.00 ر.س."
+      ]
+    },
+    {
+      "name": "the member not told of an approval",
+      "caught": true,
+      "fails": [
+        "✗ approved: settled — the supplier's notice and the member's line"
+      ]
+    },
+    {
+      "name": "no template outside the window (text or held only)",
+      "caught": true,
+      "fails": [
+        "✗ outside it, APPROVED / UTILITY: utak_supplier_payment_sent [1500.00, 26 سبتمبر 2026, SP-2026-0001, 0.00]",
+        "✗ a normal payment: approved, counted (paid 100.00, remaining 116.00 — the marked 60 out too), outside the window → utak_supplier_payment_sent — {\"r3\":{\"action\":\"approved\",\"id\":10027,\"ref\":\"SP-2026-0005\",\"remaining\":\"116.00\",\"overpaid\":false,\"notice\":\"محفوظ حتى رسالته (خارج نافذة 24 ساعة ولا قالب معتمد)\"}}"
+      ]
+    },
+    {
+      "name": "the notice not critical (no «فتح المحادثة» when held)",
+      "caught": true,
+      "fails": [
+        "✗ …a critical purpose: its «فتح المحادثة» was tried (no usable template → a «skipped» row)",
+        "✗ the purposes are registered (the notice critical, the member's line not)"
+      ]
+    },
+    {
+      "name": "a trial's notice goes as the untagged template",
+      "caught": true,
+      "fails": [
+        "✗ a trial's notice outside the window: no template (it cannot carry the tag) — held, tagged"
+      ]
+    },
+    {
+      "name": "the trial tag not applied",
+      "caught": true,
+      "fails": [
+        "✗ a trial tag: the supplier's text and the member's line start with it",
+        "✗ a trial's notice outside the window: no template (it cannot carry the tag) — held, tagged"
+      ]
+    },
+    {
+      "name": "Omar's payment created approved",
+      "caught": true,
+      "fails": [
+        "✗ the photo: a pending cash payment by the member, from WhatsApp, with the receipt — {\"x_supplier_id\":701,\"x_amount\":1500.5,\"x_method\":\"cash\",\"x_channel\":\"whatsapp\",\"x_state\":\"approved\",\"x_recorded_by\":601,\"x_date\":\"2026-09-26\",\"x_source_wamid\":\"wamid.IN0.8263213130950537\",\"x_receipt\":\"/9j/4AEC/9k=\",\"x_receipt_filename\":\"إيصال-2026-09-26.jpg\",\"x_is_simulation\":true,\"id\":10045,\"x_name\":\"SP-2026-0001\"}",
+        "✗ …Baraa's alert: the supplier, the amount, the reference, the remaining (216.00 before it) and the excess — {\"messaging_product\":\"whatsapp\",\"to\":\"966500000001\",\"type\":\"text\",\"text\":{\"body\":\"💵 دفعة نقدية من أحمد بانتظار اعتمادك\\nالمورد: مورد الخضار\\nالمبلغ: 1500.50 ر.س\\nالمرجع: SP-2026-0001\\nالمتبقي للمورد قبلها: -1284.50 ر.س\\n⚠️ تزيد عن المتبقي بـ 2785.00 ر.س، فإن اعتُمدت تُعلَّم «رصيد دائن».\\nاعتمدها أو ارفضها من UTAK ← 💵 دفع الموردين (دفعات الموردين). ومعها صورة الإيصال.\"}}"
+      ]
+    },
+    {
+      "name": "the receipt not stored",
+      "caught": true,
+      "fails": [
+        "✗ the photo: a pending cash payment by the member, from WhatsApp, with the receipt — {\"x_supplier_id\":701,\"x_amount\":1500.5,\"x_method\":\"cash\",\"x_channel\":\"whatsapp\",\"x_state\":\"pending\",\"x_recorded_by\":601,\"x_date\":\"2026-09-26\",\"x_source_wamid\":\"wamid.IN0.077898961988631\",\"x_is_simulation\":true,\"id\":10045,\"x_name\":\"SP-2026-0001\",\"x_receipt\":\"undefined\"}"
+      ]
+    },
+    {
+      "name": "Baraa's alert without the remaining",
+      "caught": true,
+      "fails": [
+        "✗ …Baraa's alert: the supplier, the amount, the reference, the remaining (216.00 before it) and the excess — {\"messaging_product\":\"whatsapp\",\"to\":\"966500000001\",\"type\":\"text\",\"text\":{\"body\":\"💵 دفعة نقدية من أحمد بانتظار اعتمادك\\nالمورد: مورد الخضار\\nالمبلغ: 1500.50 ر.س\\nالمرجع: SP-2026-0001\\n⚠️ تزيد عن المتبقي بـ 1284.50 ر.س، فإن اعتُمدت تُعلَّم «رصيد دائن».\\nاعتمدها أو ارفضها من UTAK ← 💵 دفع الموردين (دفعات الموردين). ومعها صورة الإيصال.\"}}"
+      ]
+    },
+    {
+      "name": "the amount accepts «1,500» (commas dropped)",
+      "caught": true,
+      "fails": [
+        "✗ anything else is refused: words, commas, a currency, a sign, zero, three decimals, too large — [\"1,500\"]",
+        "✗ anything but a number is refused with the clear line (4 ×), nothing recorded — [\"⚠️ المبلغ لازم يكون رقماً فقط أكبر من صفر، بلا حروف ولا فواصل، مثل 1500 أو 1500.50. اكتب المبلغ مرة ثانية (أو «إلغاء»).\",\"المبلغ: 1500.00 ر.س لـ مورد الخضار (نقداً).\\nأرسل صورة الإيصال الآن، أو اضغط «تخطي».\",\"أرسل صورة الإيصال، أو اضغط «تخطي» (أو اكتب «إلغاء»).\",\"أرسل صورة الإيصال، أو اضغط «تخطي» (أو اكتب «إلغاء»).\"]",
+        "✗ the amount (Arabic digits) → «أرسل صورة الإيصال … أو «تخطي»» with the button — {\"messaging_product\":\"whatsapp\",\"to\":\"966500000601\",\"type\":\"interactive\",\"interactive\":{\"type\":\"button\",\"body\":{\"text\":\"أرسل صورة الإيصال، أو اضغط «تخطي» (أو اكتب «إلغاء»).\"},\"action\":{\"buttons\":[{\"type\":\"reply\",\"reply\":{\"id\":\"sp_skip_receipt\",\"title\":\"تخطي\"}}]}}}",
+        "✗ the photo: a pending cash payment by the member, from WhatsApp, with the receipt — {\"x_supplier_id\":701,\"x_amount\":1500,\"x_method\":\"cash\",\"x_channel\":\"whatsapp\",\"x_state\":\"pending\",\"x_recorded_by\":601,\"x_date\":\"2026-09-26\",\"x_source_wamid\":\"wamid.IN0.4673173199382671\",\"x_receipt\":\"/9j/4AEC/9k=\",\"x_receipt_filename\":\"إيصال-2026-09-26.jpg\",\"x_is_simulation\":true,\"id\":10045,\"x_name\":\"SP-2026-0001\"}"
+      ]
+    },
+    {
+      "name": "the amount refuses Arabic digits",
+      "caught": true,
+      "fails": [
+        "✗ a number is accepted (Western or Arabic digits, one decimal point, two decimals) — [[\"1500\",150000],[\"1500.5\",150050],[\"1500.50\",150050],[\"١٥٠٠\",null],[\"١٥٠٠٫٥\",null],[\" 250 \",25000],[\"0.75\",75]]",
+        "✗ the amount (Arabic digits) → «أرسل صورة الإيصال … أو «تخطي»» with the button — {\"messaging_product\":\"whatsapp\",\"to\":\"966500000601\",\"type\":\"text\",\"text\":{\"body\":\"⚠️ المبلغ لازم يكون رقماً فقط أكبر من صفر، بلا حروف ولا فواصل، مثل 1500 أو 1500.50. اكتب المبلغ مرة ثانية (أو «إلغاء»).\"}}",
+        "✗ a text while the receipt is awaited: the reminder with «تخطي»"
+      ]
+    },
+    {
+      "name": "a driver may record a payment",
+      "caught": true,
+      "fails": [
+        "✗ …and his tap is refused"
+      ]
+    },
+    {
+      "name": "a supplier outside today's list accepted",
+      "caught": true,
+      "fails": [
+        "✗ a supplier not on today's list is refused"
+      ]
+    },
+    {
+      "name": "more than three suppliers as buttons (no list)",
+      "caught": true,
+      "fails": [
+        "✗ more than three suppliers: a list message (the sent list's suppliers too) — {\"type\":\"button\",\"body\":{\"text\":\"💵 دفعت لمورد — اختر المورد من قائمة شراء اليوم:\"},\"action\":{\"buttons\":[{\"type\":\"reply\",\"reply\":{\"id\":\"sp_sup_704\",\"title\":\"مورد ٣\"}},{\"type\":\"reply\",\"reply\":{\"id\":\"sp_sup_705\",\"title\":\"مورد ٤\"}},{\"type\":\"reply\",\"reply\":{\"id\":\"sp_sup_701\",\"title\":\"مورد الخضار\"}}]}}"
+      ]
+    },
+    {
+      "name": "«إلغاء» ignored",
+      "caught": true,
+      "fails": [
+        "✗ «إلغاء»: nothing recorded",
+        "✗ a photo outside the flow: no payment, no reply",
+        "✗ after the flow expired, «100» is not a payment"
+      ]
+    },
+    {
+      "name": "the receipt photo not handled (team media)",
+      "caught": true,
+      "fails": []
+    },
+    {
+      "name": "the team's line without «💵 دفعت لمورد»",
+      "caught": true,
+      "fails": [
+        "✗ the purchase role writes: the usual line with «💵 دفعت لمورد» — {\"messaging_product\":\"whatsapp\",\"to\":\"966500000601\",\"type\":\"text\",\"text\":{\"body\":\"مرحبا أحمد 👋 استخدم الأزرار عشان نأكد الحالة.\"}}",
+        "✗ the collection role too"
+      ]
+    },
+    {
+      "name": "«تم الشراء» without «💵 دفعت لمورد»",
+      "caught": true,
+      "fails": [
+        "✗ «تم الشراء»: the reply carries «💵 دفعت لمورد» — {\"messaging_product\":\"whatsapp\",\"to\":\"966500000601\",\"type\":\"text\",\"text\":{\"body\":\"تمام 👍 تم إرسال المسارات لـ 0 سواق (0 توصيلة).\\n📸 أرسل صورة فاتورة الشراء الضريبية\"}}"
+      ]
+    },
+    {
+      "name": "the hook without its token check",
+      "caught": true,
+      "fails": [
+        "✗ no token → 401"
+      ]
+    },
+    {
+      "name": "the tick settles at once (races the webhook)",
+      "caught": true,
+      "fails": [
+        "✗ the tick: a decision under 3 minutes old is left to its webhook",
+        "✗ …settled after 3 minutes (a lost webhook)"
+      ]
+    },
+    {
+      "name": "the tick never settles a lost webhook",
+      "caught": true,
+      "fails": [
+        "✗ …settled after 3 minutes (a lost webhook)"
+      ]
+    },
+    {
+      "name": "Odoo: «اعتماد» on any state",
+      "caught": true,
+      "fails": [
+        "✗ Odoo «اعتماد»: pending → approved (by him); a second time refused"
+      ]
+    },
+    {
+      "name": "Odoo: «رفض» without a reason",
+      "caught": true,
+      "fails": [
+        "✗ Odoo «رفض»: refused without a reason, done with one"
+      ]
+    },
+    {
+      "name": "Odoo: Baraa's payment left pending",
+      "caught": true,
+      "fails": [
+        "✗ Odoo on create (Baraa in Odoo): approved at once, channel Odoo, decided by him, recorded by his partner — [\"ok\",\"SP-2026-0002\",\"pending\",\"odoo\",null,3]"
+      ]
+    },
+    {
+      "name": "Odoo: the amount not kept to two decimals",
+      "caught": true,
+      "fails": [
+        "✗ Odoo on create (WhatsApp): SP-2026-0001, pending, today's date, amount to 2 decimals — [\"ok\",\"SP-2026-0001\",\"pending\",true,1500.505]"
+      ]
+    },
+    {
+      "name": "Odoo: the lock does not watch the amount",
+      "caught": true,
+      "fails": [
+        "✗ the lock watches the business fields (state, amount, supplier, reason …), not the worker's"
+      ]
+    },
+    {
+      "name": "the dues read account.move",
+      "caught": true,
+      "fails": [
+        "✗ this whole run never touched account.move / account.payment (not even a read) — [\"account.move.search_count\"]",
+        "✗ src/supplier-pay.ts names neither model outside its comments"
+      ]
+    },
+    {
+      "name": "a simulation due / payment counted in the balance",
+      "caught": true,
+      "fails": [
+        "✗ the balance leaves the simulation due (168) and payment (150) out: due 216.00, paid 0, remaining 216.00 — {\"dueH\":38400,\"paidH\":15000,\"remainingH\":23400}",
+        "✗ …a simulation overpayment is no «رصيد دائن» (SUP2: due 50.00, paid 0, remaining 50.00) — {\"dueH\":5000,\"paidH\":50000,\"remainingH\":-45000}",
+        "✗ a normal payment: approved, counted (paid 100.00, remaining 116.00 — the marked 60 out too), outside the window → utak_supplier_payment_sent — {\"r3\":{\"action\":\"approved\",\"id\":10027,\"ref\":\"SP-2026-0005\",\"remaining\":\"34.00\",\"overpaid\":false,\"notice\":\"بالقالب utak_supplier_payment_sent 10:00\"},\"t\":{\"messaging_product\":\"whatsapp\",\"to\":\"966500000701\",\"type\":\"template\",\"template\":{\"name\":\"utak_supplier_payment_sent\",\"language\":{\"code\":\"ar\"},\"components\":[{\"type\":\"body\",\"parameters\":[{\"type\":\"text\",\"text\":\"100.00\"},{\"type\":\"text\",\"text\":\"26 سبتمبر 2026\"},{\"type\":\"text\",\"text\":\"SP-2026-0005\"},{\"type\":\"text\",\"text\":\"34.00\"}]}]}}}",
+        "✗ …inside his window: the text, as before"
+      ]
+    },
+    {
+      "name": "a simulation list builds dues and alerts",
+      "caught": true,
+      "fails": [
+        "✗ a simulation list: no due built, no «بلا سعر» alert, the skip in the log — {\"r\":{\"action\":\"synced\",\"listId\":10016,\"day\":\"2026-09-26\",\"dues\":[{\"supplierId\":701,\"amount\":\"216.00\",\"unpriced\":0},{\"supplierId\":702,\"amount\":\"50.00\",\"unpriced\":0}],\"unpriced\":0,\"noSupplier\":1,\"alerted\":true},\"lines\":[\"[gateway] sent purpose=owner_alert to=…0001 via=text\",\"[supplier-pay] dues list=10016 2026-09-26 [{\\\"supplierId\\\":701,\\\"amount\\\":\\\"216.00\\\",\\\"unpriced\\\":0},{\\\"supplierId\\\":702,\\\"amount\\\":\\\"50.00\\\",\\\"unpriced\\\":0}] unpriced=0 noSupplier=1\"]}",
+        "✗ the balance leaves the simulation due (168) and payment (150) out: due 216.00, paid 0, remaining 216.00 — {\"dueH\":43200,\"paidH\":0,\"remainingH\":43200}",
+        "✗ …a simulation overpayment is no «رصيد دائن» (SUP2: due 50.00, paid 0, remaining 50.00) — {\"dueH\":10000,\"paidH\":0,\"remainingH\":10000}",
+        "✗ Odoo's computes (python3, the same rows): 216 / 0 / 216 — the worker's sums — [432,0,432]"
+      ]
+    },
+    {
+      "name": "the tick / refresh takes a simulation list",
+      "caught": true,
+      "fails": [
+        "✗ …the tick and «🔄 إعادة حساب المستحقات» leave it out, the real list is still synced"
+      ]
+    },
+    {
+      "name": "Omar's picker offers a simulation list's supplier",
+      "caught": true,
+      "fails": [
+        "✗ Omar's picker: a supplier only on a simulation list is not «today's»"
+      ]
+    },
+    {
+      "name": "a simulation payment settled like a real one",
+      "caught": true,
+      "fails": [
+        "✗ a simulation payment, approved, outside the window with the template APPROVED / UTILITY: nothing to Meta, nothing held, no alert — {\"action\":\"approved\",\"id\":10018,\"ref\":\"SP-2026-0001\",\"remaining\":\"216.00\",\"overpaid\":false,\"notice\":\"محجوب: SimulationPayment: دفعة محاكاة SP-2026-0001 (x_utak_simulation): لا إشعار للمورد ولا القالب utak_supplier_payment_sent\"}",
+        "✗ …settled «لا إشعار للمورد (محاكاة)», and the skip in the log naming the template — [gateway] skip purpose=supplier_payment_sent to=…0701 — دفعة محاكاة SP-2026-0001 (x_utak_simulation): لا إشعار للمورد ولا القالب utak_supplier_payment_sent | [supplier-pay] approved SP-2026-0001 remaining=216.00 overpaid=false notice=محجوب: SimulationPayment: دفعة محاكاة SP-2026-0001 (x_utak_simulation): لا إشعار للمورد ولا القالب utak_supplier_payment_sent to=…0701",
+        "✗ …Omar's simulation payment, inside both windows: no text to the supplier, no line to Omar"
+      ]
+    },
+    {
+      "name": "the gateway lets a simulation notice through",
+      "caught": true,
+      "fails": [
+        "✗ the gateway: its notice (text, the template as fallback) naming a simulation payment → refused, nothing sent, the skip in the log — [gateway] sent purpose=supplier_payment_sent to=…0701 via=template:utak_supplier_payment_sent | [record] Discuss line row=10023 to=…0701 failed — retried by the */5 tick [wa-inbox] admin partner not found for x",
+        "✗ …a manual send from Odoo of utak_supplier_payment_sent with that reference → refused",
+        "✗ …held, then marked: at the supplier's next message the flush refuses it — not sent, its row «skipped» with the reason — {\"sent\":1,\"expired\":0,\"putBack\":0,\"dropped\":0}",
+        "✗ …Odoo unreachable for the check → refused, nothing sent"
+      ]
+    },
+    {
+      "name": "the gateway fails open when Odoo cannot say",
+      "caught": true,
+      "fails": [
+        "✗ …Odoo unreachable for the check → refused, nothing sent"
+      ]
+    },
+    {
+      "name": "the gateway checks only the purpose (not the template by row)",
+      "caught": true,
+      "fails": [
+        "✗ …a manual send from Odoo of utak_supplier_payment_sent with that reference → refused"
+      ]
+    },
+    {
+      "name": "Odoo's due compute counts a simulation due",
+      "caught": true,
+      "fails": [
+        "✗ Odoo's computes (python3, the same rows): 216 / 0 / 216 — the worker's sums — [384,0,216]"
+      ]
+    },
+    {
+      "name": "Odoo's remaining compute counts a simulation payment",
+      "caught": true,
+      "fails": [
+        "✗ Odoo's computes (python3, the same rows): 216 / 0 / 216 — the worker's sums — [216,0,66]"
+      ]
+    }
+  ]
+}

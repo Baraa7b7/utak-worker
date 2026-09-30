@@ -1,0 +1,23 @@
+{
+  "script": "scripts/s34-20260925-odoo.mjs",
+  "createdAt": "2026-09-25T14:53:39.148Z",
+  "selectionsCreated": {
+    "conv_open_customer": 4043,
+    "conv_open_team": 4044,
+    "conv_open_supplier": 4045,
+    "conv_open_owner": 4046,
+    "customer_payment_received": 4047
+  },
+  "rowsCreated": [
+    82,
+    83,
+    84,
+    85
+  ],
+  "receiptBefore": {
+    "x_purpose": "other",
+    "x_meta_status": "APPROVED",
+    "x_category": "UTILITY",
+    "x_param_count": 2
+  }
+}

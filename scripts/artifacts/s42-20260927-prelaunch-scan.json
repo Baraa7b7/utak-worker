@@ -1,0 +1,791 @@
+{
+ "at": "2026-09-26T21:20:02.629Z",
+ "today": "2026-09-27",
+ "models": {
+  "x_daily_order": {
+   "hasIsSimulation": true,
+   "hasUtakSimulation": true,
+   "toMark": 0,
+   "ids": [],
+   "unmarkedNoRule": null
+  },
+  "x_daily_order_line": {
+   "hasIsSimulation": true,
+   "hasUtakSimulation": true,
+   "toMark": 8,
+   "ids": [
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16
+   ],
+   "unmarkedNoRule": null
+  },
+  "x_invoice": {
+   "hasIsSimulation": true,
+   "hasUtakSimulation": true,
+   "toMark": 0,
+   "ids": [],
+   "unmarkedNoRule": null
+  },
+  "x_payment": {
+   "hasIsSimulation": true,
+   "hasUtakSimulation": true,
+   "toMark": 0,
+   "ids": [],
+   "unmarkedNoRule": null
+  },
+  "x_delivery_route": {
+   "hasIsSimulation": true,
+   "hasUtakSimulation": true,
+   "toMark": 0,
+   "ids": [],
+   "unmarkedNoRule": null
+  },
+  "x_delivery_stop": {
+   "hasIsSimulation": true,
+   "hasUtakSimulation": true,
+   "toMark": 0,
+   "ids": [],
+   "unmarkedNoRule": null
+  },
+  "x_purchase_list": {
+   "hasIsSimulation": true,
+   "hasUtakSimulation": true,
+   "toMark": 1,
+   "ids": [
+    3
+   ],
+   "unmarkedNoRule": null
+  },
+  "x_supplier_due": {
+   "hasIsSimulation": true,
+   "hasUtakSimulation": true,
+   "toMark": 0,
+   "ids": [],
+   "unmarkedNoRule": null
+  },
+  "x_supplier_due_line": {
+   "hasIsSimulation": true,
+   "hasUtakSimulation": true,
+   "toMark": 0,
+   "ids": [],
+   "unmarkedNoRule": null
+  },
+  "x_supplier_payment": {
+   "hasIsSimulation": true,
+   "hasUtakSimulation": true,
+   "toMark": 0,
+   "ids": [],
+   "unmarkedNoRule": null
+  },
+  "x_price_day": {
+   "hasIsSimulation": false,
+   "hasUtakSimulation": true,
+   "toMark": 0,
+   "ids": [],
+   "unmarkedNoRule": 2
+  },
+  "x_price_day_line": {
+   "hasIsSimulation": false,
+   "hasUtakSimulation": true,
+   "toMark": 0,
+   "ids": [],
+   "unmarkedNoRule": 8
+  },
+  "x_daily_price": {
+   "hasIsSimulation": true,
+   "hasUtakSimulation": true,
+   "toMark": 13,
+   "ids": [
+    4,
+    5,
+    6,
+    7,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23
+   ],
+   "unmarkedNoRule": null
+  },
+  "x_price_offer": {
+   "hasIsSimulation": false,
+   "hasUtakSimulation": true,
+   "toMark": 0,
+   "ids": [],
+   "unmarkedNoRule": 0
+  },
+  "x_team_attendance": {
+   "hasIsSimulation": false,
+   "hasUtakSimulation": true,
+   "toMark": 0,
+   "ids": [],
+   "unmarkedNoRule": 2
+  },
+  "x_wa_message": {
+   "hasIsSimulation": false,
+   "hasUtakSimulation": true,
+   "toMark": 0,
+   "ids": [],
+   "unmarkedNoRule": 169
+  }
+ },
+ "sp": {
+  "payments": [
+   {
+    "id": 1,
+    "x_name": "SP-2026-0001",
+    "x_utak_simulation": true,
+    "x_is_simulation": true,
+    "x_state": "approved"
+   },
+   {
+    "id": 2,
+    "x_name": "SP-2026-0002",
+    "x_utak_simulation": true,
+    "x_is_simulation": true,
+    "x_state": "rejected"
+   },
+   {
+    "id": 3,
+    "x_name": "SP-2026-0003",
+    "x_utak_simulation": true,
+    "x_is_simulation": true,
+    "x_state": "approved"
+   }
+  ],
+  "dateRanges": [
+   {
+    "id": 1,
+    "date_from": "2026-01-01",
+    "date_to": "2026-12-31",
+    "number_next_actual": 4
+   }
+  ],
+  "realPayments": []
+ },
+ "numbers": {
+  "invoicesTodayOrLater": [
+   {
+    "id": 13,
+    "x_invoice_number": "UTAK-VAT-D-1790151628519",
+    "x_invoice_date": "2026-10-05",
+    "x_utak_simulation": true
+   },
+   {
+    "id": 14,
+    "x_invoice_number": "UTAK-VAT-D-1790151738965",
+    "x_invoice_date": "2026-10-05",
+    "x_utak_simulation": true
+   },
+   {
+    "id": 15,
+    "x_invoice_number": "UTAK-VAT-E-1790151743613",
+    "x_invoice_date": "2026-09-30",
+    "x_utak_simulation": true
+   },
+   {
+    "id": 16,
+    "x_invoice_number": "UTAK-VAT-D-1790151794196",
+    "x_invoice_date": "2026-10-05",
+    "x_utak_simulation": true
+   },
+   {
+    "id": 17,
+    "x_invoice_number": "UTAK-VAT-E-1790151798270",
+    "x_invoice_date": "2026-09-30",
+    "x_utak_simulation": true
+   },
+   {
+    "id": 25,
+    "x_invoice_number": "SIM41-UTAK-INV-20260928-001",
+    "x_invoice_date": "2026-09-28",
+    "x_utak_simulation": true
+   },
+   {
+    "id": 26,
+    "x_invoice_number": "SIM41-UTAK-INV-20260928-002",
+    "x_invoice_date": "2026-09-28",
+    "x_utak_simulation": true
+   },
+   {
+    "id": 27,
+    "x_invoice_number": "SIM41-UTAK-INV-20261001-001",
+    "x_invoice_date": "2026-10-01",
+    "x_utak_simulation": true
+   },
+   {
+    "id": 28,
+    "x_invoice_number": "SIM41-UTAK-INV-20261001-002",
+    "x_invoice_date": "2026-10-01",
+    "x_utak_simulation": true
+   },
+   {
+    "id": 29,
+    "x_invoice_number": "SIM41-UTAK-INV-20260928-001",
+    "x_invoice_date": "2026-09-28",
+    "x_utak_simulation": true
+   },
+   {
+    "id": 30,
+    "x_invoice_number": "SIM41-UTAK-INV-20260928-002",
+    "x_invoice_date": "2026-09-28",
+    "x_utak_simulation": true
+   },
+   {
+    "id": 31,
+    "x_invoice_number": "SIM41-UTAK-INV-20261001-001",
+    "x_invoice_date": "2026-10-01",
+    "x_utak_simulation": true
+   },
+   {
+    "id": 32,
+    "x_invoice_number": "SIM41-UTAK-INV-20261001-002",
+    "x_invoice_date": "2026-10-01",
+    "x_utak_simulation": true
+   }
+  ],
+  "invoiceRepeatRisk": [],
+  "quotationsToday": []
+ },
+ "sequences": [
+  {
+   "id": 1,
+   "name": "Payment",
+   "code": "account.payment",
+   "prefix": "PAY",
+   "number_next_actual": 5,
+   "implementation": "standard",
+   "use_date_range": false
+  },
+  {
+   "id": 2,
+   "name": "Group Payments Number Sequence",
+   "code": false,
+   "prefix": "GROUP/%(range_year)s/",
+   "number_next_actual": 1,
+   "implementation": "no_gap",
+   "use_date_range": true
+  },
+  {
+   "id": 3,
+   "name": "Sales Order",
+   "code": "sale.order",
+   "prefix": "S",
+   "number_next_actual": 15,
+   "implementation": "standard",
+   "use_date_range": false
+  },
+  {
+   "id": 4,
+   "name": "utakfresh Sequence in",
+   "code": false,
+   "prefix": "WH/IN/",
+   "number_next_actual": 5,
+   "implementation": "standard",
+   "use_date_range": false
+  },
+  {
+   "id": 5,
+   "name": "utakfresh Sequence out",
+   "code": false,
+   "prefix": "WH/OUT/",
+   "number_next_actual": 1,
+   "implementation": "standard",
+   "use_date_range": false
+  },
+  {
+   "id": 6,
+   "name": "utakfresh Sequence picking",
+   "code": false,
+   "prefix": "WH/PICK/",
+   "number_next_actual": 1,
+   "implementation": "standard",
+   "use_date_range": false
+  },
+  {
+   "id": 7,
+   "name": "utakfresh Sequence packing",
+   "code": false,
+   "prefix": "WH/PACK/",
+   "number_next_actual": 1,
+   "implementation": "standard",
+   "use_date_range": false
+  },
+  {
+   "id": 8,
+   "name": "utakfresh Sequence quality control",
+   "code": false,
+   "prefix": "WH/QC/",
+   "number_next_actual": 1,
+   "implementation": "standard",
+   "use_date_range": false
+  },
+  {
+   "id": 9,
+   "name": "utakfresh Sequence storage",
+   "code": false,
+   "prefix": "WH/STOR/",
+   "number_next_actual": 1,
+   "implementation": "standard",
+   "use_date_range": false
+  },
+  {
+   "id": 10,
+   "name": "utakfresh Sequence internal",
+   "code": false,
+   "prefix": "WH/INT/",
+   "number_next_actual": 1,
+   "implementation": "standard",
+   "use_date_range": false
+  },
+  {
+   "id": 11,
+   "name": "utakfresh Sequence cross dock",
+   "code": false,
+   "prefix": "WH/XD/",
+   "number_next_actual": 1,
+   "implementation": "standard",
+   "use_date_range": false
+  },
+  {
+   "id": 12,
+   "name": "utakfresh Sequence scrap",
+   "code": "stock.scrap",
+   "prefix": "SP/",
+   "number_next_actual": 1,
+   "implementation": "standard",
+   "use_date_range": false
+  },
+  {
+   "id": 13,
+   "name": "Stock orderpoint",
+   "code": "stock.orderpoint",
+   "prefix": "OP/",
+   "number_next_actual": 1,
+   "implementation": "standard",
+   "use_date_range": false
+  },
+  {
+   "id": 14,
+   "name": "Picking INT",
+   "code": "stock.picking",
+   "prefix": "INT/",
+   "number_next_actual": 1,
+   "implementation": "standard",
+   "use_date_range": false
+  },
+  {
+   "id": 15,
+   "name": "Serial Numbers",
+   "code": "stock.lot.serial",
+   "prefix": "",
+   "number_next_actual": 1,
+   "implementation": "standard",
+   "use_date_range": false
+  },
+  {
+   "id": 16,
+   "name": "Packages",
+   "code": "stock.package",
+   "prefix": "PACK",
+   "number_next_actual": 1,
+   "implementation": "standard",
+   "use_date_range": false
+  },
+  {
+   "id": 17,
+   "name": "Purchase Order",
+   "code": "purchase.order",
+   "prefix": "P",
+   "number_next_actual": 13,
+   "implementation": "standard",
+   "use_date_range": false
+  },
+  {
+   "id": 19,
+   "name": "Lead Mining Request",
+   "code": "crm.iap.lead.mining.request",
+   "prefix": "LMR",
+   "number_next_actual": 1,
+   "implementation": "standard",
+   "use_date_range": false
+  },
+  {
+   "id": 20,
+   "name": "Delivery Note",
+   "code": "delivery.note.wizard",
+   "prefix": "D",
+   "number_next_actual": 1,
+   "implementation": "standard",
+   "use_date_range": false
+  },
+  {
+   "id": 21,
+   "name": "UTAK — مرجع دفعات الموردين",
+   "code": "utak.supplier.payment",
+   "prefix": "SP-%(range_year)s-",
+   "number_next_actual": 1,
+   "implementation": "no_gap",
+   "use_date_range": true
+  }
+ ],
+ "numbers31": [
+  {
+   "id": 1,
+   "name": "شركة يوتاك ذات مسؤولية محدودة",
+   "number": "+058…0467",
+   "created": "2026-08-24 05:58:13",
+   "active": true,
+   "x_wa_allowed": false,
+   "class": null,
+   "lastMessage": null
+  },
+  {
+   "id": 2,
+   "name": "OdooBot",
+   "number": "",
+   "created": "2026-08-24 05:58:13",
+   "active": false,
+   "x_wa_allowed": false,
+   "class": null,
+   "lastMessage": null
+  },
+  {
+   "id": 4,
+   "name": "Public user",
+   "number": "",
+   "created": "2026-08-24 05:58:13",
+   "active": false,
+   "x_wa_allowed": false,
+   "class": null,
+   "lastMessage": null
+  },
+  {
+   "id": 5,
+   "name": "Portal User Template",
+   "number": "",
+   "created": "2026-08-24 05:58:13",
+   "active": false,
+   "x_wa_allowed": false,
+   "class": null,
+   "lastMessage": null
+  },
+  {
+   "id": 6,
+   "name": "Odoo AI",
+   "number": "",
+   "created": "2026-08-24 05:58:13",
+   "active": false,
+   "x_wa_allowed": false,
+   "class": null,
+   "lastMessage": null
+  },
+  {
+   "id": 7,
+   "name": "براء - اختبار",
+   "number": "+966…0099",
+   "created": "2026-08-27 05:28:14",
+   "active": true,
+   "x_wa_allowed": false,
+   "class": null,
+   "lastMessage": null
+  },
+  {
+   "id": 10,
+   "name": "محمد المحصّل - اختبار",
+   "number": "+966…0002",
+   "created": "2026-08-29 10:53:28",
+   "active": false,
+   "x_wa_allowed": false,
+   "class": null,
+   "lastMessage": {
+    "at": "2026-09-23 15:00:58",
+    "direction": "out",
+    "kind": "text"
+   }
+  },
+  {
+   "id": 16,
+   "name": "Not Book",
+   "number": "+967…6370",
+   "created": "2026-09-10 19:44:37",
+   "active": false,
+   "x_wa_allowed": false,
+   "class": null,
+   "lastMessage": null
+  },
+  {
+   "id": 17,
+   "name": "عمر",
+   "number": "+967…0888",
+   "created": "2026-09-11 16:16:49",
+   "active": false,
+   "x_wa_allowed": false,
+   "class": null,
+   "lastMessage": null
+  },
+  {
+   "id": 18,
+   "name": "🤍",
+   "number": "+967…5736",
+   "created": "2026-09-11 19:04:50",
+   "active": false,
+   "x_wa_allowed": false,
+   "class": null,
+   "lastMessage": null
+  },
+  {
+   "id": 19,
+   "name": "سفر ونقل",
+   "number": "+966…3466",
+   "created": "2026-09-12 16:27:27",
+   "active": false,
+   "x_wa_allowed": false,
+   "class": "unreviewed",
+   "lastMessage": null
+  },
+  {
+   "id": 20,
+   "name": "PILOT-عميل-حي-العليا-316376",
+   "number": "+966…6376",
+   "created": "2026-09-12 19:11:56",
+   "active": true,
+   "x_wa_allowed": false,
+   "class": null,
+   "lastMessage": null
+  },
+  {
+   "id": 22,
+   "name": "[SIM] Verify Pricing Supplier",
+   "number": "",
+   "created": "2026-09-13 02:53:50",
+   "active": true,
+   "x_wa_allowed": false,
+   "class": null,
+   "lastMessage": null
+  },
+  {
+   "id": 24,
+   "name": "[SIM] Verify Pricing Supplier #zerfzj",
+   "number": "",
+   "created": "2026-09-13 06:03:29",
+   "active": true,
+   "x_wa_allowed": false,
+   "class": null,
+   "lastMessage": null
+  },
+  {
+   "id": 26,
+   "name": "[SIM] Verify Pricing Supplier #2doyit",
+   "number": "",
+   "created": "2026-09-15 07:56:53",
+   "active": true,
+   "x_wa_allowed": false,
+   "class": null,
+   "lastMessage": null
+  },
+  {
+   "id": 29,
+   "name": "[SIM] Verify Pricing Supplier #2fj8if",
+   "number": "",
+   "created": "2026-09-15 08:48:25",
+   "active": true,
+   "x_wa_allowed": false,
+   "class": null,
+   "lastMessage": null
+  },
+  {
+   "id": 31,
+   "name": "ابو مكين المعبري",
+   "number": "+966…7756",
+   "created": "2026-09-17 14:30:09",
+   "active": true,
+   "x_wa_allowed": false,
+   "class": null,
+   "lastMessage": {
+    "at": "2026-09-19 14:14:47",
+    "direction": "out",
+    "kind": "document"
+   }
+  },
+  {
+   "id": 35,
+   "name": "TEMP-item4-A",
+   "number": "+966…9901",
+   "created": "2026-09-17 19:10:53",
+   "active": false,
+   "x_wa_allowed": false,
+   "class": null,
+   "lastMessage": null
+  },
+  {
+   "id": 36,
+   "name": "TEMP-item4-B",
+   "number": "+966…9902",
+   "created": "2026-09-17 19:10:58",
+   "active": false,
+   "x_wa_allowed": false,
+   "class": null,
+   "lastMessage": null
+  },
+  {
+   "id": 41,
+   "name": "ماجد المجهلي",
+   "number": "+967…5609",
+   "created": "2026-09-20 03:03:13",
+   "active": true,
+   "x_wa_allowed": false,
+   "class": null,
+   "lastMessage": {
+    "at": "2026-09-20 03:03:28",
+    "direction": false,
+    "kind": false
+   }
+  },
+  {
+   "id": 42,
+   "name": "UTAK بوت",
+   "number": "",
+   "created": "2026-09-20 03:35:56",
+   "active": true,
+   "x_wa_allowed": false,
+   "class": null,
+   "lastMessage": null
+  },
+  {
+   "id": 46,
+   "name": "عمر",
+   "number": "+967…0888",
+   "created": "2026-09-20 22:11:27",
+   "active": true,
+   "x_wa_allowed": false,
+   "class": null,
+   "lastMessage": {
+    "at": "2026-09-21 05:00:50",
+    "direction": "in",
+    "kind": "text"
+   }
+  },
+  {
+   "id": 47,
+   "name": "يو",
+   "number": "+966…7756",
+   "created": "2026-09-20 22:13:53",
+   "active": true,
+   "x_wa_allowed": false,
+   "class": null,
+   "lastMessage": {
+    "at": "2026-09-21 13:58:37",
+    "direction": "out",
+    "kind": "text"
+   }
+  },
+  {
+   "id": 48,
+   "name": "اختبار محاسبة",
+   "number": "",
+   "created": "2026-09-21 05:24:08",
+   "active": false,
+   "x_wa_allowed": false,
+   "class": null,
+   "lastMessage": null
+  },
+  {
+   "id": 49,
+   "name": "ابو محمد الوصابي",
+   "number": "+966…3051",
+   "created": "2026-09-21 07:43:06",
+   "active": false,
+   "x_wa_allowed": false,
+   "class": "unreviewed",
+   "lastMessage": {
+    "at": "2026-09-25 11:10:06",
+    "direction": "in",
+    "kind": "document"
+   }
+  },
+  {
+   "id": 50,
+   "name": "Not Book",
+   "number": "+967…6370",
+   "created": "2026-09-21 08:23:04",
+   "active": true,
+   "x_wa_allowed": false,
+   "class": "unreviewed",
+   "lastMessage": {
+    "at": "2026-09-22 05:00:53",
+    "direction": "out",
+    "kind": "template"
+   }
+  },
+  {
+   "id": 51,
+   "name": "اختبار محاسبة ب",
+   "number": "",
+   "created": "2026-09-23 08:00:35",
+   "active": false,
+   "x_wa_allowed": false,
+   "class": null,
+   "lastMessage": null
+  },
+  {
+   "id": 52,
+   "name": "[SIM] مورد اختبار شراء — بلا رقم ضريبي",
+   "number": "",
+   "created": "2026-09-23 08:40:13",
+   "active": false,
+   "x_wa_allowed": false,
+   "class": null,
+   "lastMessage": null
+  },
+  {
+   "id": 53,
+   "name": "[SIM] مورد اختبار شراء — مسجل ضريبياً",
+   "number": "",
+   "created": "2026-09-23 08:40:14",
+   "active": false,
+   "x_wa_allowed": false,
+   "class": null,
+   "lastMessage": null
+  },
+  {
+   "id": 54,
+   "name": "الياف",
+   "number": "+966…0436",
+   "created": "2026-09-23 12:33:57",
+   "active": false,
+   "x_wa_allowed": false,
+   "class": "unreviewed",
+   "lastMessage": {
+    "at": "2026-09-24 05:01:19",
+    "direction": "out",
+    "kind": "template"
+   }
+  },
+  {
+   "id": 59,
+   "name": "𐙚 𝓑𝓾𝓫𝓫𝓵𝓮𝓼 𐙚",
+   "number": "+966…0176",
+   "created": "2026-09-24 13:49:44",
+   "active": false,
+   "x_wa_allowed": false,
+   "class": "unreviewed",
+   "lastMessage": {
+    "at": "2026-09-24 13:49:59",
+    "direction": "out",
+    "kind": "text"
+   }
+  }
+ ]
+}

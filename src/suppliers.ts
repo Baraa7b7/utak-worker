@@ -3,17 +3,26 @@
 // - handleSupplierReply:      called by index.ts when a known supplier writes in.
 // - updateSupplierReliabilityScores: 05:00 cron, recomputes x_reliability_score.
 // - openOrderingWindow:       06:00 cron, sets the KV flag + pings Baraa if late.
+// 2026-09-25 (WA-SCENARIOS م5 / م6 / م7):
+// - nudgeLateSuppliers:          05:00 cron, ONE reminder to a still-silent supplier.
+// - alertSuppliersWithoutPrices: 21:15 cron, one owner alert per still-silent supplier.
+// - handleSupplierMedia / a reply with no readable price: «وصلتنا» + owner alert, no price.
+// - handleSupplierButton:        the confirmation's «تعديل الأسعار» / «توقف اليوم» / «شكراً».
 
 import type { Env } from "./config";
+import { joinCapped } from "./wa-params";
 import {
   DEFAULT_OPS_MARGIN_PCT,
   DEFAULT_PROFIT_MARGIN_PCT,
+  ORDERING_HOURS_OPEN,
   ORDERING_OPEN_KEY,
   ORDERING_OPEN_TTL_SECONDS,
   TMPL_SUPPLIER_ASK,
   TMPL_SUPPLIER_CONFIRM,
+  TMPL_SUPPLIER_PRICE_NUDGE,
+  PRICE_OUTLIER_RATIO,
 } from "./config";
-import type { OdooPartner, SupplierLogRow } from "./types";
+import type { OdooPartner, SupplierLogRow, SupplierPriceItem } from "./types";
 import {
   call,
   createDailyPrice,
@@ -21,6 +30,8 @@ import {
   fetchSupplierCatalog,
   getActivePricingConfig,
   getActiveSuppliersForAsk,
+  getLastSupplierPrice,
+  getLatestSupplierLog,
   getPartnerNames,
   getRecentSupplierLogs,
   getSupplierPendingLog,
@@ -28,16 +39,66 @@ import {
   updateSupplierLog,
   writePartner,
 } from "./odoo";
-import { sendTemplate, sendText } from "./meta";
-import { sendOwnerAlert } from "./templates";
+import { textContent } from "./meta";
+import { gatewayDecision, sendViaGateway } from "./wa-gateway";
+import { cutoffLabel, sendOwnerAlert, sendTemplateByPurpose, supplierAskParams, SUPPLIER_ASK_LEGACY } from "./templates";
 import { extractSupplierPrices } from "./claude";
-import { riyadhDateKey } from "./hours";
-import { logWaMessage } from "./wa-message-send";
+import { odooUtcToRiyadhHHMM, riyadhDateKey, riyadhHHMM, riyadhMinutes } from "./hours";
+import { isSkippedDuplicate } from "./auto-send-guard";
 
 const nowOdoo = (): string => new Date().toISOString().replace("T", " ").slice(0, 19);
 
 const isTemplateApproved = (metaId: string | undefined | null): boolean =>
   !!metaId && typeof metaId === "string" && !metaId.startsWith("PENDING_");
+
+// ============================================================
+// 2026-09-25 (م6) — replies the bot cannot read as prices, and no guessed price
+// ============================================================
+
+/** Sent to a supplier whose message (free text, voice, image …) holds no readable price. */
+export const SUPPLIER_ACK_TEXT = "وصلتنا رسالتك في يو تاك، والفريق بيراجعها ويرد عليك 🌿";
+
+/** Every number written in a message (Arabic-Indic digits, «٫» and thousands commas normalised). */
+export function numbersInText(text: string): number[] {
+  const s = String(text ?? "")
+    .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[\u06f0-\u06f9]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
+    .replace(/\u066b/g, ".")
+    .replace(/(\d),(?=\d{3}(?!\d))/g, "$1");
+  return [...s.matchAll(/\d+(?:\.\d+)?/g)].map((m) => Number(m[0]));
+}
+
+/**
+ * No guessed price is ever saved: an extracted price stays only when its
+ * product is one this supplier supplies, its packaging belongs to that
+ * product, and its number is written in the message itself. The rest is
+ * dropped (and reported to the owner), never stored.
+ */
+export function checkExtractedPrices(
+  prices: SupplierPriceItem[],
+  products: Array<{ id: number }>,
+  packagings: Array<{ id: number; product_id: number }>,
+  text: string,
+): { kept: SupplierPriceItem[]; dropped: Array<{ item: SupplierPriceItem; reason: string }> } {
+  const productIds = new Set(products.map((p) => p.id));
+  const written = numbersInText(text);
+  const kept: SupplierPriceItem[] = [];
+  const dropped: Array<{ item: SupplierPriceItem; reason: string }> = [];
+  for (const p of prices) {
+    if (!productIds.has(p.product_id)) dropped.push({ item: p, reason: "صنف لا يورّده" });
+    else if (!packagings.some((k) => k.id === p.packaging_id && k.product_id === p.product_id)) dropped.push({ item: p, reason: "تعبئة لا تخص الصنف" });
+    else if (!written.some((n) => Math.abs(n - p.cost_price) < 0.005)) dropped.push({ item: p, reason: "السعر غير مكتوب في الرسالة" });
+    else kept.push(p);
+  }
+  return { kept, dropped };
+}
+
+/** An outlier: the new price differs from the last one by PRICE_OUTLIER_RATIO or more, either way. */
+export function isPriceOutlier(last: number, next: number): boolean {
+  if (!(last > 0) || !(next > 0)) return false;
+  return Math.max(last, next) / Math.min(last, next) >= PRICE_OUTLIER_RATIO;
+}
+
 
 // ============================================================
 // 02:00 Riyadh — ask all active suppliers
@@ -49,7 +110,9 @@ export async function askAllSuppliersForPrices(env: Env): Promise<void> {
     return;
   }
 
-  const tmpl = await getTemplateByPurpose(env, TMPL_SUPPLIER_ASK);
+  // 2026-09-25 — the params follow the template the purpose resolves to:
+  // legacy utak_supplier_daily_ask = [list], utak_supplier_ask_v2 = [name, list].
+  const tmpl = await getTemplateByPurpose(env, TMPL_SUPPLIER_ASK, (name) => supplierAskParams(name, "", "").length);
   if (!tmpl) {
     console.warn("[cron 02:00] template supplier_ask not registered in x_whatsapp_template");
     return;
@@ -88,6 +151,7 @@ export async function askAllSuppliersForPrices(env: Env): Promise<void> {
   let failed = 0;
   let skippedEmpty = 0;
   let skippedNoIntersection = 0;
+  let skippedDuplicate = 0;
   for (const s of suppliers) {
     try {
       // Intersection: supplier's supplied ids ∩ active-for-sale ids
@@ -118,21 +182,37 @@ export async function askAllSuppliersForPrices(env: Env): Promise<void> {
       // and truncate the joined list to 900 chars so the parameter always
       // passes Meta's validation, whatever the operator happens to have
       // stored as a product name in Odoo.
-      const productList = productNames
-        .join("، ")
-        .replace(/[\r\n\t]+/g, " ")
-        .replace(/ {2,}/g, " ")
-        .trim()
-        .slice(0, 900);
+      // ت6 (2026-09-24): the cut falls between two names, never inside one,
+      // and says how many were left out («وغيرها (N)»).
+      // 2026-09-25 — the v2 template's text is longer and also carries the
+      // supplier name, so its list gets a smaller cap (body + params ≤ 1024).
+      const supplierName = String(s.name || "").replace(/\s+/g, " ").trim();
+      const legacy = tmpl.x_meta_template_id === SUPPLIER_ASK_LEGACY;
+      const productList = joinCapped(
+        productNames.map((n) => String(n).replace(/[\r\n\t]+/g, " ").replace(/ {2,}/g, " ").trim()),
+        legacy ? 900 : Math.max(400, 780 - supplierName.length),
+        "، ",
+        (n) => `وغيرها (${n})`,
+      ).text;
 
+      // STATUS § 33 — the resolved row goes to the gateway, which sends it only
+      // if Meta approved it as UTILITY (the legacy utak_supplier_daily_ask is
+      // MARKETING and is never used for this operational ask).
+      const res = await sendViaGateway(env, {
+        purpose: TMPL_SUPPLIER_ASK,
+        to: s.x_whatsapp_number,
+        content: { kind: "template", row: tmpl, params: supplierAskParams(tmpl.x_meta_template_id, supplierName, productList) },
+      });
+      if (await isSkippedDuplicate(res)) {
+        // Same job already asked this supplier today — not a failure and
+        // not a new ask, so no log row.
+        skippedDuplicate++;
+        console.warn(`[cron 02:00] supplier ${s.id} skipped duplicate (already asked today)`);
+        continue;
+      }
+      // The ask log is written after the send (was before) so a refused
+      // duplicate never leaves a stray pending row behind.
       const logId = await createSupplierAskLog(env, s.id);
-      const res = await sendTemplate(
-        env,
-        s.x_whatsapp_number,
-        tmpl.x_meta_template_id,
-        tmpl.x_language || "ar",
-        [productList],
-      );
       if (!res.ok) {
         const body = (await res.text()).slice(0, 200);
         console.error(`[cron 02:00] supplier ${s.id} template send failed`, res.status, body);
@@ -142,23 +222,16 @@ export async function askAllSuppliersForPrices(env: Env): Promise<void> {
       }
       sent++;
       console.log(`[cron 02:00] asked supplier ${s.id} (${s.name}) log=${logId}`);
-      // Item 2c (2026-09-18) — surface the 02:00 supplier fan-out in the
-      // UTAK «رسائل واتساب» tab. Best-effort passive log; a failure here
-      // never breaks the cron. Send logic + timing are unchanged.
-      await logWaMessage(env, {
-        partnerId: s.id,
-        direction: "out",
-        kind: "template",
-        body: `[supplier_ask] ${productList}`,
-        status: "sent",
-      });
+      // 2026-09-23 — the manual logWaMessage that used to follow here wrote
+      // a second x_wa_message row for the same send: the gateway's echo
+      // already logs it (with the wamid). Removed; one row per send.
     } catch (e) {
       failed++;
       console.error(`[cron 02:00] supplier ${s.id} error`, (e as Error)?.message);
     }
   }
   console.log(
-    `[cron 02:00] done. asked=${sent} failed=${failed} skipped_empty=${skippedEmpty} skipped_no_intersection=${skippedNoIntersection} total=${suppliers.length}`,
+    `[cron 02:00] done. asked=${sent} failed=${failed} skipped_empty=${skippedEmpty} skipped_no_intersection=${skippedNoIntersection} skipped_duplicate=${skippedDuplicate} total=${suppliers.length}`,
   );
 }
 
@@ -206,25 +279,31 @@ export async function handleSupplierReply(
         x_status: "replied",
       });
     }
-    await alertOwner(env, `⚠️ فشل استخراج الأسعار من "${supplier.name}"\n\n${trunc(messageText, 400)}`);
-    return "استلمنا رسالتك — نراجعها ونرد عليك خلال دقائق 🌿";
+    await alertOwner(env, `⚠️ فشل استخراج الأسعار من "${supplier.name}"، ولم يُحفظ أي سعر.\n\n${trunc(messageText, 400)}`);
+    return SUPPLIER_ACK_TEXT;
   }
 
-  if (!extract.prices.length) {
+  // 2026-09-25 (م6) — only prices the message really states.
+  // § 40 ب — and a number with «سوق» beside it is a market observation, not
+  // his purchase price (checkOfferItems; checkExtractedPrices is the same rule
+  // for the purchase price alone).
+  const { checkOfferItems, saveOffer } = await import("./price-sources");
+  const check = checkOfferItems(extract.prices, products, packagings, messageText, "supplier");
+  if (!check.kept.length) {
     if (pendingLog) {
       await updateSupplierLog(env, pendingLog.id, {
         x_replied_at: nowOdoo(),
         x_status: "replied",
       });
     }
-    // Only ping Baraa if it looks like a genuine attempt (not just a greeting)
-    if (messageText.trim().length > 15) {
-      await alertOwner(
-        env,
-        `⚠️ رد المورد "${supplier.name}" وصل بس ما قدرنا نستخرج أسعار:\n\n${trunc(messageText, 400)}`,
-      );
-    }
-    return "استلمنا رسالتك — لو تكرمت أرسل الأسعار بصيغة: الصنف، التعبئة، السعر 🙏";
+    // Free text, a greeting, a bare number: «وصلتنا» to the supplier and the
+    // text to the owner right away (was: «أرسل بصيغة…», and an alert only
+    // above 15 characters). Nothing is saved.
+    await alertOwner(
+      env,
+      `🤔 رد من المورد "${supplier.name}" ما فهمناه كأسعار، ولم يُحفظ أي سعر${check.dropped.length ? ` (استُبعد ${check.dropped.length} سعراً مخمَّناً)` : ""}. رددنا بأن الفريق بيراجعه.\n\nالنص: ${trunc(messageText, 600)}`,
+    );
+    return SUPPLIER_ACK_TEXT;
   }
 
   // Compute sale price using active pricing config
@@ -238,12 +317,21 @@ export async function handleSupplierReply(
   // after the loop. Prior behaviour swallowed each failure with a bare
   // console.error, letting a partially-broken supplier reply look successful.
   const productNameById = new Map(products.map((pr) => [pr.id, pr.name]));
+  const packagingNameById = new Map(packagings.map((k) => [k.id, k.name]));
   const failed: Array<{ product_id: number; product_name: string; reason: string }> = [];
   let created = 0;
-  for (const p of extract.prices) {
-    const sale = round2(p.cost_price * opsMul * profitMul);
+  for (const k of check.kept) {
+    const p = { ...k.item, cost_price: k.purchase ?? 0 };
     try {
-      await createDailyPrice(env, {
+      let saved = false;
+      let dailyId: number | null = null;
+      if (k.purchase !== undefined) {
+      const sale = round2(p.cost_price * opsMul * profitMul);
+      // 2026-09-25 — an outlier is saved and used, marked for review, and
+      // the owner hears of it at once (one alert per price, not batched).
+      const last = await getLastSupplierPrice(env, supplier.id, p.product_id, p.packaging_id).catch(() => null);
+      const outlier = !!last && isPriceOutlier(last.price, p.cost_price);
+      dailyId = await createDailyPrice(env, {
         supplier_id: supplier.id,
         product_id: p.product_id,
         packaging_id: p.packaging_id,
@@ -252,8 +340,27 @@ export async function handleSupplierReply(
         actual_weight_kg: p.actual_weight_kg,
         source_message_id: messageId,
         raw_reply: messageText,
+        extraction_status: outlier ? "pending" : "extracted",
       });
-      created++;
+      saved = true;
+      if (outlier && last) {
+        const pct = Math.round(((p.cost_price - last.price) / last.price) * 100);
+        await alertOwner(
+          env,
+          `⚠️ سعر شاذ من المورد "${supplier.name}": ${productNameById.get(p.product_id) ?? p.product_id} (${packagingNameById.get(p.packaging_id) ?? p.packaging_id})\nآخر سعر: ${last.price} ريال${last.date ? ` (${last.date})` : ""}\nالسعر الجديد: ${p.cost_price} ريال (${pct > 0 ? "+" : ""}${pct}%)\nحُفظ ويُستخدم، وعُلّم للمراجعة (x_extraction_status = pending). لم يُرفض.`,
+        );
+      }
+      }
+      // § 40 ب — his market observation («سوق» beside the number) and the
+      // available quantity: an x_price_offer row, with his price row of this item.
+      if (k.market !== undefined || k.qty !== undefined) {
+        await saveOffer(env, {
+          partnerId: supplier.id, productId: p.product_id, packagingId: p.packaging_id,
+          market: k.market, qty: k.qty, dailyPriceId: dailyId, messageId, text: messageText,
+        });
+        saved = true;
+      }
+      if (saved) created++;
     } catch (e) {
       const reason = (e as Error)?.message ?? String(e);
       console.error("[supplier reply] createDailyPrice failed", reason);
@@ -272,7 +379,18 @@ export async function handleSupplierReply(
         `⚠️ فشل تخزين ${failed.length} سعر من رد "${supplier.name}":`,
         list,
         ``,
-        `نجح ${created} من أصل ${extract.prices.length}. راجع log الـ worker لتفاصيل الأخطاء.`,
+        `نجح ${created} من أصل ${check.kept.length}. راجع log الـ worker لتفاصيل الأخطاء.`,
+      ].join("\n"),
+    );
+  }
+  if (check.dropped.length > 0) {
+    await alertOwner(
+      env,
+      [
+        `⚠️ من رد المورد "${supplier.name}" حُفظ ${created} سعراً، واستُبعد ${check.dropped.length} لأنه غير واضح في الرسالة (لم يُحفظ):`,
+        ...check.dropped.map((d) => `• ${productNameById.get(d.item.product_id) ?? `صنف ${d.item.product_id}`} ${[d.item.cost_price, d.item.market_price ?? 0].filter((n) => n > 0).join(" / ")}: ${d.reason}`),
+        ``,
+        `النص: ${trunc(messageText, 400)}`,
       ].join("\n"),
     );
   }
@@ -287,25 +405,200 @@ export async function handleSupplierReply(
 
   await writePartner(env, supplier.id, { x_last_price_submission: nowOdoo() });
 
-  // Approved-template confirmation, if available
-  const conf = await getTemplateByPurpose(env, TMPL_SUPPLIER_CONFIRM);
-  if (conf && isTemplateApproved(conf.x_meta_template_id) && supplier.x_whatsapp_number) {
+  // 2026-09-25 (STATUS § 35) — «💰 أسعار اليوم» follows the prices at once
+  // (the */5 tick would within five minutes). Never blocks the reply.
+  if (created > 0) {
     try {
-      const res = await sendTemplate(
-        env,
-        supplier.x_whatsapp_number,
-        conf.x_meta_template_id,
-        conf.x_language || "ar",
-        [String(created)],
-      );
-      if (res.ok) return ""; // template already delivered — no extra text
-      console.warn("[supplier reply] confirm template failed", res.status);
+      const { refreshPriceDay } = await import("./prices");
+      await refreshPriceDay(env);
     } catch (e) {
-      console.warn("[supplier reply] confirm template exception", (e as Error)?.message);
+      console.warn("[supplier reply] prices refresh failed", (e as Error)?.message);
     }
   }
 
-  return `تمام، استلمنا ${created} صنف بأسعار اليوم. الله يعطيك العافية 🌿`;
+  // Approved-template confirmation, if available. 2026-09-24 —
+  // utak_supplier_confirm_v1 is «شكراً {{1}} … لـ {{2}} صنف»: two variables.
+  // 2026-09-25 (م7) — its three buttons now carry payloads (supplierButtonAction).
+  const thanks = `تمام، استلمنا ${created} صنف بأسعار اليوم. الله يعطيك العافية 🌿`;
+  if (supplier.x_whatsapp_number) {
+    // STATUS § 33 — one gateway request: the template with its buttons, else
+    // the thank-you text (the supplier just wrote, so the window is open). No
+    // second message after Meta refuses the first.
+    try {
+      await sendTemplateByPurpose(env, supplier.x_whatsapp_number, TMPL_SUPPLIER_CONFIRM,
+        [supplier.name || "", String(created)], SUPPLIER_CONFIRM_BUTTONS, undefined,
+        { fallback: [textContent(thanks)] });
+      return "";
+    } catch (e) {
+      console.warn("[supplier reply] confirm send exception", (e as Error)?.message);
+    }
+  }
+
+  return thanks;
+}
+
+// ============================================================
+// 2026-09-25 (م6) — a supplier's voice note / image / document
+// ============================================================
+
+const MEDIA_KIND: Record<string, string> = {
+  audio: "رسالة صوتية", image: "صورة", video: "فيديو", document: "مستند", sticker: "ملصق",
+};
+
+/**
+ * No speech-to-text, no OCR: «وصلتنا» to the supplier, the ask log marked
+ * replied, and the owner told at once. No price is saved from media.
+ */
+export async function handleSupplierMedia(
+  env: Env,
+  supplier: { id: number; name: string },
+  msg: { type: string; from: string; text?: string },
+): Promise<string> {
+  const log = await getSupplierPendingLog(env, supplier.id).catch(() => null);
+  if (log) await updateSupplierLog(env, log.id, { x_replied_at: nowOdoo(), x_status: "replied" }).catch(() => {});
+  const kind = MEDIA_KIND[msg.type] ?? `رسالة (${msg.type})`;
+  await alertOwner(
+    env,
+    `${msg.type === "audio" ? "🎤" : "📎"} ${kind} من المورد "${supplier.name}" (${msg.from}): لا تُقرأ آلياً، ولم يُحفظ أي سعر. رددنا بأن الفريق بيراجعها؛ افتح محادثته في Discuss.${msg.text ? `\n\nالنص المرفق: ${trunc(msg.text, 400)}` : ""}`,
+  );
+  return SUPPLIER_ACK_TEXT;
+}
+
+// ============================================================
+// 2026-09-25 (م7) — the confirmation template's three buttons
+// ============================================================
+
+/** utak_supplier_confirm_v1 buttons, in template order: «تعديل الأسعار», «توقف اليوم», «شكراً». */
+export const SUPPLIER_BUTTON = { edit: "supplier_edit", stop: "supplier_stop", thanks: "supplier_thanks" } as const;
+const SUPPLIER_CONFIRM_BUTTONS = [
+  { index: 0, payload: SUPPLIER_BUTTON.edit },
+  { index: 1, payload: SUPPLIER_BUTTON.stop },
+  { index: 2, payload: SUPPLIER_BUTTON.thanks },
+];
+export const SUPPLIER_EDIT_TEXT = "تمام، أرسل الأسعار المعدلة بنفس الصيغة (الصنف، التعبئة، السعر)، ونعتمد الأحدث.";
+export const SUPPLIER_STOP_TEXT = "تمام، سجّلنا توقفك اليوم. الله يعطيك العافية.";
+export type SupplierButton = "edit" | "stop" | "thanks";
+
+/**
+ * A tap on the confirmation's buttons. By payload, or by the button text for
+ * confirmations sent before the payloads existed. Null for anything else.
+ */
+export function supplierButtonAction(msg: { type: string; buttonId?: string; text?: string }): SupplierButton | null {
+  if (msg.type !== "button" && msg.type !== "interactive") return null;
+  const id = String(msg.buttonId ?? "");
+  const t = String(msg.text ?? "").trim();
+  if (id === SUPPLIER_BUTTON.edit || t === "تعديل الأسعار") return "edit";
+  if (id === SUPPLIER_BUTTON.stop || t === "توقف اليوم") return "stop";
+  if (id === SUPPLIER_BUTTON.thanks || t === "شكراً" || t === "شكرا") return "thanks";
+  return null;
+}
+
+/**
+ * «تعديل الأسعار» → ask for the corrected prices (the newest is used);
+ * «توقف اليوم» → noted on the latest ask log (x_name) + the owner alerted once
+ * per day; «شكراً» → no reply. None of them reaches the price extractor.
+ */
+export async function handleSupplierButton(
+  env: Env,
+  supplier: { id: number; name: string },
+  action: SupplierButton,
+): Promise<string> {
+  if (action === "thanks") return "";
+  if (action === "edit") return SUPPLIER_EDIT_TEXT;
+  const key = `supplier_stop:${supplier.id}:${riyadhDateKey()}`;
+  if (await env.MSG_DEDUP.get(key)) return SUPPLIER_STOP_TEXT; // a second tap: no second alert
+  const at = riyadhHHMM();
+  await env.MSG_DEDUP.put(key, at, { expirationTtl: 2 * 24 * 3600 });
+  const log = await getLatestSupplierLog(env, supplier.id).catch(() => null);
+  if (log) {
+    await updateSupplierLog(env, log.id, {
+      x_name: `توقف اليوم ${at}`,
+      ...(log.x_replied_at ? {} : { x_replied_at: nowOdoo(), x_status: "replied" }),
+    }).catch((e) => console.warn("[supplier stop] log write failed", (e as Error)?.message));
+  }
+  await alertOwner(
+    env,
+    `⛔ المورد "${supplier.name}" ضغط «توقف اليوم» الساعة ${at}${log ? `، وسُجّل على طلب الأسعار #${log.id}` : ""}. أسعاره المستلمة اليوم باقية كما هي.`,
+  );
+  return SUPPLIER_STOP_TEXT;
+}
+
+// ============================================================
+// 2026-09-25 (م5) — a supplier who has not sent prices
+// ============================================================
+
+/** Today's (Riyadh) ask logs still waiting for a reply. «no_reply» = the ask never reached him (ت13). */
+async function silentAskLogs(env: Env): Promise<SupplierLogRow[]> {
+  const hours = riyadhMinutes() / 60 + 0.1;
+  return (await getRecentSupplierLogs(env, hours)).filter((l) => l.x_status === "sent" && !l.x_replied_at && Array.isArray(l.x_supplier_id));
+}
+const nudgeKey = (logId: number) => `supplier_nudge:${logId}`;
+
+/**
+ * 05:00 Riyadh (3h after the 02:00 ask) — ONE reminder to each supplier whose
+ * ask is still unanswered: utak_supplier_price_nudge «… نحتاجها قبل الساعة
+ * 6:00 صباحاً». The KV key is taken before the send, so a re-run, a retry or
+ * a failed send never makes a second reminder. Without a mapped template the
+ * reminder goes as text inside the 24h window only.
+ */
+export async function nudgeLateSuppliers(env: Env): Promise<{ nudged: number; skipped: number }> {
+  const logs = await silentAskLogs(env);
+  let nudged = 0, skipped = 0;
+  const ids = [...new Set(logs.map((l) => (l.x_supplier_id as [number, string])[0]))];
+  const partners = ids.length
+    ? await call<Array<{ id: number; name: string; x_whatsapp_number: string | false }>>(env, "res.partner", "read", {
+        ids, fields: ["id", "name", "x_whatsapp_number"],
+      })
+    : [];
+  const byId = new Map(partners.map((p) => [p.id, p]));
+  const needBy = cutoffLabel(ORDERING_HOURS_OPEN);
+  for (const l of logs) {
+    const p = byId.get((l.x_supplier_id as [number, string])[0]);
+    if (!p?.x_whatsapp_number || (await env.MSG_DEDUP.get(nudgeKey(l.id)))) { skipped++; continue; }
+    await env.MSG_DEDUP.put(nudgeKey(l.id), riyadhHHMM(), { expirationTtl: 2 * 24 * 3600 });
+    try {
+      const name = String(p.name || "").replace(/\s+/g, " ").trim();
+      // STATUS § 33 — the approved template, else the same reminder as text
+      // inside the supplier's window (held for it otherwise, until the day ends).
+      const r = await sendTemplateByPurpose(env, p.x_whatsapp_number, TMPL_SUPPLIER_PRICE_NUDGE, [name, needBy], [], undefined,
+        { fallback: [textContent(`تذكير من يو تاك: ما وصلتنا أسعارك اليوم للحين، نحتاجها قبل الساعة ${needBy} لو سمحت.`)] });
+      const d = gatewayDecision(r);
+      if (d?.action === "template" || d?.action === "session") nudged++;
+      else {
+        if (d?.action === "held") console.warn(`[supplier nudge] ${p.name}: held until they write — ${d.reason}`);
+        skipped++;
+      }
+    } catch (e) {
+      skipped++;
+      console.error(`[supplier nudge] ${p.name} failed`, (e as Error)?.message);
+    }
+  }
+  console.log(`[cron 05:00] supplier nudge: nudged=${nudged} skipped=${skipped} silent=${logs.length}`);
+  return { nudged, skipped };
+}
+
+/**
+ * 21:15 Riyadh, when the purchase list is built — one owner alert per supplier
+ * still silent (not batched), once per ask. His items go on the list without
+ * a price from him today.
+ */
+export async function alertSuppliersWithoutPrices(env: Env): Promise<{ alerted: number }> {
+  const logs = await silentAskLogs(env);
+  let alerted = 0;
+  const now = riyadhHHMM();
+  for (const l of logs) {
+    const key = `supplier_noprice_alert:${l.id}`;
+    if (await env.MSG_DEDUP.get(key)) continue;
+    await env.MSG_DEDUP.put(key, now, { expirationTtl: 2 * 24 * 3600 });
+    const nudgedAt = await env.MSG_DEDUP.get(nudgeKey(l.id));
+    await alertOwner(
+      env,
+      `⚠️ المورد "${(l.x_supplier_id as [number, string])[1]}" لم يرسل أسعار اليوم حتى بناء قائمة الشراء (${now}). طُلبت منه الساعة ${odooUtcToRiyadhHHMM(l.x_sent_at)}، و${nudgedAt ? `ذُكّر مرة واحدة الساعة ${nudgedAt}` : "لم يُرسل له تذكير"}. أصنافه في القائمة بلا سعر منه اليوم.`,
+    );
+    alerted++;
+  }
+  console.log(`[cron 21:15] suppliers without prices: alerted=${alerted} silent=${logs.length}`);
+  return { alerted };
 }
 
 // ============================================================

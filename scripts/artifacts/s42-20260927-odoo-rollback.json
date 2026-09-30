@@ -1,0 +1,10 @@
+{
+  "script": "scripts/s42-20260927-odoo.mjs",
+  "createdAt": "2026-09-26T20:57:21.175Z",
+  "created": {
+    "cashMarketPartner": 104
+  },
+  "before": {
+    "cashMarketPartner": "absent"
+  }
+}

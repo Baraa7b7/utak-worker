@@ -1,0 +1,24 @@
+{
+  "label": "s34-before-deploy",
+  "at": "2026-09-25T15:01:30.960Z",
+  "prodSchedules": [],
+  "simSchedules": [
+    "*/5 * * * *",
+    "0 14 * * *",
+    "0 15 * * *",
+    "0 17 * * *",
+    "0 18 * * *",
+    "0 2 * * *",
+    "0 23 * * *",
+    "0 3 * * *",
+    "0 5 * * *",
+    "15 18 * * *"
+  ],
+  "simVars": {
+    "ACCOUNTING_SYNC": "false",
+    "OWNER_WINDOW_OPEN_AT": "06:00",
+    "PILOT_MODE": "true",
+    "SIM_ALLOWLIST": "+966505154962,+966571777704,+966530399474,+966545816832",
+    "SIMULATION_MODE": "false"
+  }
+}

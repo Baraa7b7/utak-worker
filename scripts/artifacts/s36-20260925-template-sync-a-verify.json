@@ -1,0 +1,18 @@
+{
+  "at": "2026-09-25T18:47:24.404Z",
+  "meta": 66,
+  "odoo": 66,
+  "hasTextFields": false,
+  "changes": [],
+  "missingInOdoo": [],
+  "missingInMeta": [],
+  "ok": true,
+  "control": [
+    {
+      "id": 1,
+      "x_sync_requested": false,
+      "x_last_sync_at": "2026-09-25 18:47:23",
+      "x_last_sync_result": "fetched=66 · PENDING=3 APPROVED=62 REJECTED=1 · updated=66 · created=0 · missing_in_meta=0"
+    }
+  ]
+}

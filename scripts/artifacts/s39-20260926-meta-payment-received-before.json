@@ -1,0 +1,34 @@
+{
+  "label": "before",
+  "at": "2026-09-26T06:33:20.500Z",
+  "meta": [
+    {
+      "id": "2164551181106533",
+      "language": "ar",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null,
+      "quality": "UNKNOWN",
+      "body": "استلمنا دفعتك بمبلغ {{1}} ريال على فاتورة {{2}}. شكراً لك",
+      "variables": 2,
+      "example": [
+        "540",
+        "12345"
+      ],
+      "buttons": []
+    }
+  ],
+  "odoo": [
+    {
+      "id": 56,
+      "x_meta_template_id": "utak_payment_received",
+      "x_language": "ar",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_purpose": "customer_payment_received",
+      "x_param_count": 2,
+      "x_body_text": "استلمنا دفعتك بمبلغ {{1}} ريال على فاتورة {{2}}. شكراً لك"
+    }
+  ]
+}

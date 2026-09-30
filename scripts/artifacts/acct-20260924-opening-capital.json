@@ -1,0 +1,55 @@
+{
+  "created_at": "2026-09-23T21:50:47.219Z",
+  "ref": "UTAK-OPENING-CAPITAL",
+  "date": "2026-09-24",
+  "before": {
+    "opening_entries": [],
+    "balance_sheet": {
+      "assets": 0,
+      "cash": 0,
+      "liabilities": 0,
+      "equity": 0,
+      "earnings": 0
+    }
+  },
+  "created": {
+    "move": {
+      "id": 59,
+      "name": "MISC/2026/09/0001",
+      "state": "posted",
+      "date": "2026-09-24"
+    },
+    "lines": [
+      {
+        "id": 154,
+        "account_id": [
+          247,
+          "101001 Bank"
+        ],
+        "debit": 25000,
+        "credit": 0,
+        "name": "إيداع رأس المال المدفوع في حساب البنك"
+      },
+      {
+        "id": 155,
+        "account_id": [
+          256,
+          "300010 رأس المال المدفوع"
+        ],
+        "debit": 0,
+        "credit": 25000,
+        "name": "رأس المال المدفوع — مساهمة الشركاء"
+      }
+    ]
+  },
+  "after": {
+    "balance_sheet": {
+      "assets": 25000,
+      "cash": 25000,
+      "liabilities": 0,
+      "equity": 25000,
+      "earnings": 0
+    }
+  },
+  "rollback": "Not automatic. A real entry: undo only by an explicit reversal in Odoo (Accounting → the entry → Reverse), by Baraa's decision."
+}

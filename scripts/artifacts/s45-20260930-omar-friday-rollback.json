@@ -1,0 +1,157 @@
+{
+  "at": "2026-09-30T13:46:22.826Z",
+  "employee": {
+    "id": 4,
+    "name": "عمر المجهلي",
+    "resource_calendar_id": [
+      3,
+      "UTAK — عمر"
+    ],
+    "resource_id": [
+      4,
+      "عمر المجهلي"
+    ],
+    "x_utak_attendance": true,
+    "x_utak_role_ids": [
+      1,
+      2,
+      3
+    ]
+  },
+  "calendar": {
+    "id": 3,
+    "name": "UTAK — عمر",
+    "company_id": [
+      1,
+      "شركة يوتاك ذات مسؤولية محدودة"
+    ],
+    "attendance_ids": [
+      20,
+      21,
+      22,
+      23,
+      24,
+      25
+    ]
+  },
+  "resourcesOnIt": [
+    {
+      "id": 4,
+      "name": "عمر المجهلي"
+    }
+  ],
+  "employeesOnIt": [
+    {
+      "id": 4,
+      "name": "عمر المجهلي"
+    }
+  ],
+  "companyCalendar": [
+    1,
+    "40 hours/week"
+  ],
+  "linesBefore": [
+    {
+      "id": 20,
+      "calendar_id": [
+        3,
+        "UTAK — عمر"
+      ],
+      "dayofweek": "5",
+      "hour_from": 2,
+      "hour_to": 12,
+      "day_period": "full_day",
+      "duration_based": false,
+      "date": false,
+      "recurrency": false,
+      "sequence": 10
+    },
+    {
+      "id": 21,
+      "calendar_id": [
+        3,
+        "UTAK — عمر"
+      ],
+      "dayofweek": "6",
+      "hour_from": 2,
+      "hour_to": 12,
+      "day_period": "full_day",
+      "duration_based": false,
+      "date": false,
+      "recurrency": false,
+      "sequence": 11
+    },
+    {
+      "id": 22,
+      "calendar_id": [
+        3,
+        "UTAK — عمر"
+      ],
+      "dayofweek": "0",
+      "hour_from": 2,
+      "hour_to": 12,
+      "day_period": "full_day",
+      "duration_based": false,
+      "date": false,
+      "recurrency": false,
+      "sequence": 12
+    },
+    {
+      "id": 23,
+      "calendar_id": [
+        3,
+        "UTAK — عمر"
+      ],
+      "dayofweek": "1",
+      "hour_from": 2,
+      "hour_to": 12,
+      "day_period": "full_day",
+      "duration_based": false,
+      "date": false,
+      "recurrency": false,
+      "sequence": 13
+    },
+    {
+      "id": 24,
+      "calendar_id": [
+        3,
+        "UTAK — عمر"
+      ],
+      "dayofweek": "2",
+      "hour_from": 2,
+      "hour_to": 12,
+      "day_period": "full_day",
+      "duration_based": false,
+      "date": false,
+      "recurrency": false,
+      "sequence": 14
+    },
+    {
+      "id": 25,
+      "calendar_id": [
+        3,
+        "UTAK — عمر"
+      ],
+      "dayofweek": "3",
+      "hour_from": 2,
+      "hour_to": 12,
+      "day_period": "full_day",
+      "duration_based": false,
+      "date": false,
+      "recurrency": false,
+      "sequence": 15
+    }
+  ],
+  "plan": {
+    "calendar_id": 3,
+    "dayofweek": "4",
+    "hour_from": 2,
+    "hour_to": 12,
+    "day_period": "full_day",
+    "duration_based": false,
+    "recurrency": false,
+    "sequence": 16
+  },
+  "createdLineId": 32,
+  "note": "--rollback removes createdLineId"
+}

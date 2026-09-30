@@ -1,0 +1,131 @@
+{
+  "mode": "guards",
+  "today": "2026-09-25",
+  "at": "2026-09-25T16:03:56.507Z",
+  "lineEdit": {
+    "label": "edit a published line",
+    "refused": true,
+    "error": "x_price_day_line.write HTTP 422: {\"name\": \"odoo.exceptions.UserError\", \"message\": \"أسعار هذا اليوم معتمدة ومقفلة. «إلغاء الاعتماد» متاح قبل النشر فقط.\", \"arguments\": [\"أسعار هذا اليوم معتمدة ومقفلة. «إلغاء الاعتماد» متاح قبل النشر فقط.\"], \"timestamp\": 1790352237, \"context\": {\"exception_class\": \"base"
+  },
+  "unapprove": {
+    "label": "«إلغاء الاعتماد» after publication",
+    "refused": true,
+    "error": "ir.actions.server.run HTTP 422: {\"name\": \"odoo.exceptions.UserError\", \"message\": \"نُشرت الأسعار للعملاء، فلا يُلغى اعتمادها.\", \"arguments\": [\"نُشرت الأسعار للعملاء، فلا يُلغى اعتمادها.\"], \"timestamp\": 1790352237, \"context\": {}, \"debug\": \"Traceback (most recent call last):\\n  File \\\"/home/odoo/src/od"
+  },
+  "secondDay": {
+    "label": "a second record for today",
+    "refused": true,
+    "error": "x_price_day.create HTTP 422: {\"name\": \"odoo.exceptions.UserError\", \"message\": \"يوجد سجل «أسعار اليوم» لتاريخ 2026-09-25 من قبل.\", \"arguments\": [\"يوجد سجل «أسعار اليوم» لتاريخ 2026-09-25 من قبل.\"], \"timestamp\": 1790352237, \"context\": {\"exception_class\": \"base_automation\", \"base_automation\": {\"id\": 21"
+  },
+  "after": {
+    "id": 1,
+    "x_name": "أسعار اليوم 2026-09-25",
+    "x_state": "published",
+    "x_approved_by": [
+      2,
+      "albaraa abdulwahab"
+    ],
+    "x_approved_at": "2026-09-25 16:01:58",
+    "x_published_at": "2026-09-25 16:01:58",
+    "x_publish_report": "نُشر 2026-09-25 16:01:58 UTC: 3 صنف في 1 رسالة، لـ 4 عميل.\nنصاً 0، ومحفوظة 0، ومحجوبة (القائمة/الحارس) 4، ولم تُرسل 0، ورفضها Meta 0.\nمستبعد بلا هامش: رمان وسط."
+  },
+  "linesAfter": [
+    {
+      "id": 1,
+      "x_product_tmpl_id": [
+        73,
+        "[UTAK-VEG-003] بطاطس"
+      ],
+      "x_packaging_id": [
+        6,
+        "كرتون · 10 كيلو"
+      ],
+      "x_supplier_id": [
+        7,
+        "براء - اختبار"
+      ],
+      "x_offers": "براء - اختبار 18",
+      "x_source_price": 18,
+      "x_cost_price": 18,
+      "x_is_outlier": false,
+      "x_outlier_ok": false,
+      "x_margin_pct": 12.5,
+      "x_sale_price": 20.25,
+      "x_excluded": false,
+      "x_blocked": false
+    },
+    {
+      "id": 2,
+      "x_product_tmpl_id": [
+        72,
+        "[UTAK-VEG-002] خيار"
+      ],
+      "x_packaging_id": [
+        3,
+        "جرم · 8 كيلو"
+      ],
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_offers": "أحمد حسان 45 (شاذ)",
+      "x_source_price": 45,
+      "x_cost_price": 45,
+      "x_is_outlier": true,
+      "x_outlier_ok": true,
+      "x_margin_pct": 15,
+      "x_sale_price": 51.75,
+      "x_excluded": false,
+      "x_blocked": false
+    },
+    {
+      "id": 3,
+      "x_product_tmpl_id": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "x_packaging_id": [
+        37,
+        "كرتون"
+      ],
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_offers": "أحمد حسان 13",
+      "x_source_price": 13,
+      "x_cost_price": 13,
+      "x_is_outlier": false,
+      "x_outlier_ok": false,
+      "x_margin_pct": 0,
+      "x_sale_price": 0,
+      "x_excluded": true,
+      "x_blocked": false
+    },
+    {
+      "id": 4,
+      "x_product_tmpl_id": [
+        71,
+        "[UTAK-VEG-001] طماطم"
+      ],
+      "x_packaging_id": [
+        1,
+        "فلين · 5 كيلو"
+      ],
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_offers": "براء - اختبار 24 · أحمد حسان 26",
+      "x_source_price": 26,
+      "x_cost_price": 26,
+      "x_is_outlier": false,
+      "x_outlier_ok": false,
+      "x_margin_pct": 20,
+      "x_sale_price": 31.2,
+      "x_excluded": false,
+      "x_blocked": false
+    }
+  ],
+  "days": 1
+}

@@ -1,0 +1,215 @@
+{
+  "script": "scripts/s45-20260930-owner-templates.mjs",
+  "created": {
+    "utak_owner_daily_summary_v1": {
+      "at": "2026-09-30T13:32:25.641Z",
+      "http": 200,
+      "response": {
+        "id": "1610912117193617",
+        "status": "PENDING",
+        "category": "UTILITY"
+      },
+      "payload": {
+        "name": "utak_owner_daily_summary_v1",
+        "language": "ar",
+        "category": "UTILITY",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "ملخص عمليات يو تاك ليوم {{1}}\n\nطلبات: {{2}}\nتوصيلات: {{3}}\nإجمالي: {{4}} ريال\n\nتفاصيل أكثر في لوحة القيادة.",
+            "example": {
+              "body_text": [
+                [
+                  "30 سبتمبر 2026",
+                  "5 مؤكدة لـ 1 أكتوبر 2026 بإجمالي 1250.00 ريال",
+                  "4 مسلَّمة من 5",
+                  "المحصَّل اليوم 800.00 والمعلَّق 450.00 · تغطية التكاليف 34% بربح 170.00 من 496.53"
+                ]
+              ]
+            }
+          },
+          {
+            "type": "BUTTONS",
+            "buttons": [
+              {
+                "type": "QUICK_REPLY",
+                "text": "تم الاطلاع"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "utak_owner_price_review_v1": {
+      "at": "2026-09-30T13:32:08.319Z",
+      "http": 200,
+      "response": {
+        "id": "28443958348618504",
+        "status": "PENDING",
+        "category": "UTILITY"
+      },
+      "payload": {
+        "name": "utak_owner_price_review_v1",
+        "language": "ar",
+        "category": "UTILITY",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "أسعار يو تاك ليوم {{1}}: {{2}} صنف بانتظار قرارك قبل 06:00.",
+            "example": {
+              "body_text": [
+                [
+                  "1 أكتوبر 2026",
+                  "3"
+                ]
+              ]
+            }
+          },
+          {
+            "type": "BUTTONS",
+            "buttons": [
+              {
+                "type": "QUICK_REPLY",
+                "text": "عرض الاستثناءات"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "checks": [
+    {
+      "atRiyadh": "2026-09-30 16:31",
+      "status": {
+        "utak_owner_daily_summary_v1": null,
+        "utak_owner_price_review_v1": null
+      }
+    },
+    {
+      "atRiyadh": "2026-09-30 16:32",
+      "status": {
+        "utak_owner_daily_summary_v1": null,
+        "utak_owner_price_review_v1": {
+          "id": "28443958348618504",
+          "status": "PENDING",
+          "category": "UTILITY",
+          "previous_category": null,
+          "rejected_reason": null
+        }
+      }
+    },
+    {
+      "atRiyadh": "2026-09-30 16:32",
+      "status": {
+        "utak_owner_daily_summary_v1": {
+          "id": "1610912117193617",
+          "status": "PENDING",
+          "category": "UTILITY",
+          "previous_category": null,
+          "rejected_reason": null
+        },
+        "utak_owner_price_review_v1": {
+          "id": "28443958348618504",
+          "status": "PENDING",
+          "category": "UTILITY",
+          "previous_category": null,
+          "rejected_reason": null
+        }
+      }
+    },
+    {
+      "atRiyadh": "2026-09-30 16:32",
+      "status": {
+        "utak_owner_daily_summary_v1": {
+          "id": "1610912117193617",
+          "status": "PENDING",
+          "category": "UTILITY",
+          "previous_category": null,
+          "rejected_reason": null
+        },
+        "utak_owner_price_review_v1": {
+          "id": "28443958348618504",
+          "status": "PENDING",
+          "category": "UTILITY",
+          "previous_category": null,
+          "rejected_reason": null
+        }
+      }
+    },
+    {
+      "atRiyadh": "2026-09-30 16:42",
+      "status": {
+        "utak_owner_daily_summary_v1": {
+          "id": "1610912117193617",
+          "status": "PENDING",
+          "category": "UTILITY",
+          "previous_category": null,
+          "rejected_reason": null
+        },
+        "utak_owner_price_review_v1": {
+          "id": "28443958348618504",
+          "status": "PENDING",
+          "category": "UTILITY",
+          "previous_category": null,
+          "rejected_reason": null
+        }
+      }
+    },
+    {
+      "atRiyadh": "2026-09-30 16:52",
+      "status": {
+        "utak_owner_daily_summary_v1": {
+          "id": "1610912117193617",
+          "status": "APPROVED",
+          "category": "UTILITY",
+          "previous_category": null,
+          "rejected_reason": null
+        },
+        "utak_owner_price_review_v1": {
+          "id": "28443958348618504",
+          "status": "APPROVED",
+          "category": "MARKETING",
+          "previous_category": "UTILITY",
+          "rejected_reason": null
+        }
+      }
+    },
+    {
+      "atRiyadh": "2026-09-30 17:00",
+      "status": {
+        "utak_owner_daily_summary_v1": {
+          "id": "1610912117193617",
+          "status": "APPROVED",
+          "category": "UTILITY",
+          "previous_category": null,
+          "rejected_reason": null
+        },
+        "utak_owner_price_review_v1": {
+          "id": "28443958348618504",
+          "status": "APPROVED",
+          "category": "MARKETING",
+          "previous_category": "UTILITY",
+          "rejected_reason": null
+        }
+      }
+    }
+  ],
+  "status": {
+    "utak_owner_daily_summary_v1": {
+      "id": "1610912117193617",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "previous_category": null,
+      "rejected_reason": null
+    },
+    "utak_owner_price_review_v1": {
+      "id": "28443958348618504",
+      "status": "APPROVED",
+      "category": "MARKETING",
+      "previous_category": "UTILITY",
+      "rejected_reason": null
+    }
+  },
+  "statusAtRiyadh": "2026-09-30 17:00"
+}

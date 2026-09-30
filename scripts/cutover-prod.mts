@@ -300,9 +300,12 @@ const deploy = (env: "sim" | "prod") => {
 
 // ---------------------------------------------------------------- the s42 re-mark
 const markStep = (args: string[]) => {
-  const r = spawnSync("node", ["--experimental-strip-types", "--experimental-loader=./tests/loader.mjs", "scripts/s42-20260927-prelaunch-mark.mts", ...args], { cwd: root, encoding: "utf8", timeout: 600_000 });
+  const r = spawnSync("node", ["--experimental-strip-types", "--experimental-loader=./tests/loader.mjs", "scripts/s42-20260927-prelaunch-mark.mts", ...args], { cwd: root, encoding: "utf8", timeout: 600_000, maxBuffer: 64 * 1024 * 1024 });
   const lines = `${r.stdout ?? ""}`.split("\n").filter((l) => l.trim() && !/HTTP 429|retry/.test(l));
-  return { ok: r.status === 0, lines };
+  // § 45 ز — the first --apply (18:29) failed its verify with no ✗ and nothing on stdout to say why: keep stderr's tail
+  const errTail = `${r.stderr ?? ""}`.split("\n").filter((l) => l.trim() && !/ExperimentalWarning|--import|trace-warnings|HTTP 429|retry in/.test(l)).slice(-3);
+  const why = [r.error ? String(r.error.message ?? r.error) : "", r.signal ? `signal ${r.signal}` : "", r.status !== null && r.status !== 0 ? `exit ${r.status}` : "", ...errTail].filter(Boolean);
+  return { ok: r.status === 0, lines, why };
 };
 
 // ================================================================ --rollback
@@ -584,11 +587,19 @@ try {
   await new Promise((r) => setTimeout(r, 90_000));
   const rbName = `cutover-prod-${runId}-remark-rollback.json`;
   const b = markStep(["backup", `--rb=${rbName}`]);
-  if (!b.ok) throw new Error(`re-mark backup: ${b.lines.slice(-2).join(" ")}`);
+  if (!b.ok) throw new Error(`re-mark backup: ${[...b.lines.slice(-2), ...b.why].join(" ")}`);
   const m = markStep(["mark", "--apply", `--rb=${rbName}`]);
-  if (!m.ok) throw new Error(`re-mark: ${m.lines.slice(-2).join(" ")}`);
-  const v = markStep(["verify", `--rb=${rbName}`, `--expect-moves=${acct0.moves}`, `--expect-payments=${acct0.payments}`]);
-  if (!v.ok) throw new Error(`re-mark verify: ${v.lines.filter((l) => l.includes("✗")).join(" | ").slice(0, 400)}`);
+  if (!m.ok) throw new Error(`re-mark: ${[...m.lines.slice(-2), ...m.why].join(" ")}`);
+  const vArgs = ["verify", `--rb=${rbName}`, `--expect-moves=${acct0.moves}`, `--expect-payments=${acct0.payments}`];
+  let v = markStep(vArgs);
+  // § 45 ز — a verify that fails with no ✗ is the process, not the data (an Odoo hiccup): twice more, 30 s apart.
+  // A ✗ (a real mismatch) rolls back at once, as before.
+  for (let i = 0; i < 2 && !v.ok && !v.lines.some((l) => l.includes("✗")); i++) {
+    log(`   … re-mark verify failed with no ✗ (${v.why.join(" | ").slice(0, 200) || "no reason printed"}) — again in 30 s`);
+    await new Promise((r) => setTimeout(r, 30_000));
+    v = markStep(vArgs);
+  }
+  if (!v.ok) throw new Error(`re-mark verify: ${[...v.lines.filter((l) => l.includes("✗")), ...v.why].join(" | ").slice(0, 400)}`);
   stepLog["3ب"] = { mark: m.lines, verify: v.lines.at(-1), rollback: `scripts/artifacts/${rbName}` };
   log(`✓ 3ب. re-mark: ${m.lines.filter((l) => /←|→/.test(l)).length} change(s), ${v.lines.at(-1)}`);
 } catch (e) { await fail("3ب", e); }

@@ -1,0 +1,16 @@
+{
+  "before": {
+    "callback_url": "https://utak-worker-sim.utak-business.workers.dev/webhook",
+    "fields": [
+      "account_review_update",
+      "account_update",
+      "calls",
+      "message_template_status_update",
+      "messages",
+      "security"
+    ],
+    "active": true
+  },
+  "phoneBefore": "https://utak-worker-sim.utak-business.workers.dev/webhook",
+  "at": "2026-09-30 18:29:14"
+}

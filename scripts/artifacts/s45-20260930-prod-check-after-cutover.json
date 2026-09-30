@@ -1,0 +1,45 @@
+{
+  "label": "after-cutover",
+  "atRiyadh": "2026-09-30 20:12",
+  "prod": {
+    "version": "7b77f150-dc76-494f-9a86-7f77bca9acfc",
+    "deployedAt": "2026-09-30T15:47:20.583193Z",
+    "schedules": [
+      "0 14 * * *",
+      "0 15 * * *",
+      "0 17 * * *",
+      "0 18 * * *",
+      "0 2 * * *",
+      "0 23 * * *",
+      "0 3 * * *",
+      "0 5 * * *",
+      "15 18 * * *",
+      "2,7,12,17,22,27,32,37,42,47,52,57 * * * *",
+      "30 18 * * *",
+      "*/5 * * * *"
+    ],
+    "health": {
+      "status": 200,
+      "state": "ok",
+      "odoo": "connected (apikey)",
+      "mode": null
+    },
+    "challenge": "مطابق"
+  },
+  "sim": {
+    "version": "298e2b17-f8a3-45e6-b46a-86157eac1be6",
+    "deployedAt": "2026-09-30T15:45:23.546529Z",
+    "schedules": [],
+    "health": {
+      "status": 200,
+      "state": "ok",
+      "odoo": "connected (apikey)",
+      "mode": null
+    },
+    "challenge": "مطابق"
+  },
+  "metaSubscription": {
+    "callback": "https://utak-worker.utak-business.workers.dev/webhook",
+    "active": true
+  }
+}

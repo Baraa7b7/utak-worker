@@ -1,0 +1,479 @@
+{
+  "run": "dry-202609301630",
+  "mode": "dry-run",
+  "startedRiyadh": "2026-09-30 16:30:13",
+  "window": {
+    "riyadh": "2026-09-30 16:30:21",
+    "inWindow": false
+  },
+  "git": {
+    "branch": "sim-harness",
+    "head": "08c5694",
+    "originMain": "6147f39",
+    "dirty": []
+  },
+  "cloudflare": {
+    "prodSchedules": [],
+    "simSchedules": [
+      "0 14 * * *",
+      "0 15 * * *",
+      "0 17 * * *",
+      "0 18 * * *",
+      "0 2 * * *",
+      "0 23 * * *",
+      "0 3 * * *",
+      "0 5 * * *",
+      "15 18 * * *",
+      "2,7,12,17,22,27,32,37,42,47,52,57 * * * *",
+      "30 18 * * *",
+      "*/5 * * * *"
+    ],
+    "prodVersion": "109030aa",
+    "simVersion": "5451b16d"
+  },
+  "odooPlan": [
+    {
+      "model": "ir.actions.server",
+      "id": 1001,
+      "name": "utak.prices.approve_webhook",
+      "field": "webhook_url",
+      "before": "https://utak-worker-sim.utak-business.workers.dev/odoo/hook/prices?token=***&op=approved",
+      "after": "https://utak-worker.utak-business.workers.dev/odoo/hook/prices?token=***&op=approved",
+      "links": [
+        {
+          "path": "/odoo/hook/prices",
+          "expects": "ODOO_HOOK_TOKEN",
+          "token": "غير مطابق → قيمة الملف"
+        }
+      ],
+      "beforeSha": "6ad230fd81e997af",
+      "afterSha": "dab4cbee14d435b8"
+    },
+    {
+      "model": "ir.actions.server",
+      "id": 1012,
+      "name": "utak.sp.created_webhook",
+      "field": "webhook_url",
+      "before": "https://utak-worker-sim.utak-business.workers.dev/odoo/hook/supplier-pay?token=***&op=created",
+      "after": "https://utak-worker.utak-business.workers.dev/odoo/hook/supplier-pay?token=***&op=created",
+      "links": [
+        {
+          "path": "/odoo/hook/supplier-pay",
+          "expects": "ODOO_HOOK_TOKEN",
+          "token": "غير مطابق → قيمة الملف"
+        }
+      ],
+      "beforeSha": "fda6fa2a1f70c10c",
+      "afterSha": "2f9c19ccb119c9cc"
+    },
+    {
+      "model": "ir.actions.server",
+      "id": 1014,
+      "name": "utak.sp.decided_webhook_approve",
+      "field": "webhook_url",
+      "before": "https://utak-worker-sim.utak-business.workers.dev/odoo/hook/supplier-pay?token=***&op=decided",
+      "after": "https://utak-worker.utak-business.workers.dev/odoo/hook/supplier-pay?token=***&op=decided",
+      "links": [
+        {
+          "path": "/odoo/hook/supplier-pay",
+          "expects": "ODOO_HOOK_TOKEN",
+          "token": "غير مطابق → قيمة الملف"
+        }
+      ],
+      "beforeSha": "26aeec49a716fe29",
+      "afterSha": "a2e8d0de97257a3a"
+    },
+    {
+      "model": "ir.actions.server",
+      "id": 1017,
+      "name": "utak.sp.decided_webhook_reject",
+      "field": "webhook_url",
+      "before": "https://utak-worker-sim.utak-business.workers.dev/odoo/hook/supplier-pay?token=***&op=decided",
+      "after": "https://utak-worker.utak-business.workers.dev/odoo/hook/supplier-pay?token=***&op=decided",
+      "links": [
+        {
+          "path": "/odoo/hook/supplier-pay",
+          "expects": "ODOO_HOOK_TOKEN",
+          "token": "غير مطابق → قيمة الملف"
+        }
+      ],
+      "beforeSha": "26aeec49a716fe29",
+      "afterSha": "a2e8d0de97257a3a"
+    },
+    {
+      "model": "ir.actions.server",
+      "id": 957,
+      "name": "Send Receipt Webhook",
+      "field": "webhook_url",
+      "before": "https://utak-worker-sim.utak-business.workers.dev/internal/receipt-issue?token=***",
+      "after": "https://utak-worker.utak-business.workers.dev/internal/receipt-issue?token=***",
+      "links": [
+        {
+          "path": "/internal/receipt-issue",
+          "expects": "INTERNAL_WEBHOOK_SECRET",
+          "token": "غير مطابق → قيمة الملف"
+        }
+      ],
+      "beforeSha": "219f00b4f4008dda",
+      "afterSha": "db2fb6c5037a5d34"
+    },
+    {
+      "model": "ir.actions.server",
+      "id": 941,
+      "name": "UTAK: Issue & Send Quotation",
+      "field": "webhook_url",
+      "before": "https://utak-worker-sim.utak-business.workers.dev/internal/quotation-issue?token=***",
+      "after": "https://utak-worker.utak-business.workers.dev/internal/quotation-issue?token=***",
+      "links": [
+        {
+          "path": "/internal/quotation-issue",
+          "expects": "INTERNAL_WEBHOOK_SECRET",
+          "token": "غير مطابق → قيمة الملف"
+        }
+      ],
+      "beforeSha": "7f7e3aa950aa5d95",
+      "afterSha": "47b9fbb6bfc1c39a"
+    },
+    {
+      "model": "ir.actions.server",
+      "id": 982,
+      "name": "official-doc.ai_draft_webhook",
+      "field": "webhook_url",
+      "before": "https://utak-worker-sim.utak-business.workers.dev/internal/official-doc/ai-draft?token=***",
+      "after": "https://utak-worker.utak-business.workers.dev/internal/official-doc/ai-draft?token=***",
+      "links": [
+        {
+          "path": "/internal/official-doc/ai-draft",
+          "expects": "INTERNAL_WEBHOOK_SECRET",
+          "token": "غير مطابق → قيمة الملف"
+        }
+      ],
+      "beforeSha": "3c6703a5b9290249",
+      "afterSha": "04812d07d8323dc7"
+    },
+    {
+      "model": "ir.actions.server",
+      "id": 981,
+      "name": "official-doc.issue_webhook",
+      "field": "webhook_url",
+      "before": "https://utak-worker-sim.utak-business.workers.dev/internal/official-doc/issue?token=***",
+      "after": "https://utak-worker.utak-business.workers.dev/internal/official-doc/issue?token=***",
+      "links": [
+        {
+          "path": "/internal/official-doc/issue",
+          "expects": "INTERNAL_WEBHOOK_SECRET",
+          "token": "غير مطابق → قيمة الملف"
+        }
+      ],
+      "beforeSha": "54c63e20a0b2d388",
+      "afterSha": "de859a54890df324"
+    },
+    {
+      "model": "ir.actions.server",
+      "id": 980,
+      "name": "official-doc.preview_webhook",
+      "field": "webhook_url",
+      "before": "https://utak-worker-sim.utak-business.workers.dev/internal/official-doc/preview?token=***",
+      "after": "https://utak-worker.utak-business.workers.dev/internal/official-doc/preview?token=***",
+      "links": [
+        {
+          "path": "/internal/official-doc/preview",
+          "expects": "INTERNAL_WEBHOOK_SECRET",
+          "token": "غير مطابق → قيمة الملف"
+        }
+      ],
+      "beforeSha": "b59ce6bf921c9cb8",
+      "afterSha": "7c8b65b8f1db2924"
+    },
+    {
+      "model": "ir.actions.server",
+      "id": 968,
+      "name": "quotation.manual_pdf_build",
+      "field": "webhook_url",
+      "before": "https://utak-worker-sim.utak-business.workers.dev/internal/quotation-issue?token=***",
+      "after": "https://utak-worker.utak-business.workers.dev/internal/quotation-issue?token=***",
+      "links": [
+        {
+          "path": "/internal/quotation-issue",
+          "expects": "INTERNAL_WEBHOOK_SECRET",
+          "token": "غير مطابق → قيمة الملف"
+        }
+      ],
+      "beforeSha": "7f7e3aa950aa5d95",
+      "afterSha": "47b9fbb6bfc1c39a"
+    },
+    {
+      "model": "ir.actions.server",
+      "id": 969,
+      "name": "quotation.manual_wa_send",
+      "field": "webhook_url",
+      "before": "https://utak-worker-sim.utak-business.workers.dev/internal/quotation-wa-send?token=***",
+      "after": "https://utak-worker.utak-business.workers.dev/internal/quotation-wa-send?token=***",
+      "links": [
+        {
+          "path": "/internal/quotation-wa-send",
+          "expects": "ODOO_HOOK_TOKEN",
+          "token": "غير مطابق → قيمة الملف"
+        }
+      ],
+      "beforeSha": "9f736abf0d6e65c0",
+      "afterSha": "7c819dc7c992d50d"
+    },
+    {
+      "model": "ir.actions.server",
+      "id": 971,
+      "name": "sale.quotation.pdf_download",
+      "field": "code",
+      "before": "action = {\n    'type': 'ir.actions.act_url',\n    'url': 'https://utak-worker-sim.utak-business.workers.dev/internal/sale-quotation-pdf?id=' + str(record.id) + '&token=***',\n    'target': 'new',\n}",
+      "after": "action = {\n    'type': 'ir.actions.act_url',\n    'url': 'https://utak-worker.utak-business.workers.dev/internal/sale-quotation-pdf?id=' + str(record.id) + '&token=***',\n    'target': 'new',\n}",
+      "links": [
+        {
+          "path": "/internal/sale-quotation-pdf",
+          "expects": "SALE_PDF_DOWNLOAD_TOKEN",
+          "token": "غير مطابق → قيمة الملف"
+        }
+      ],
+      "beforeSha": "257164b8407d3716",
+      "afterSha": "ca2748aa4726aee8"
+    },
+    {
+      "model": "ir.actions.server",
+      "id": 970,
+      "name": "sale.quotation.wa_send",
+      "field": "webhook_url",
+      "before": "https://utak-worker-sim.utak-business.workers.dev/internal/sale-quotation-wa-send?token=***",
+      "after": "https://utak-worker.utak-business.workers.dev/internal/sale-quotation-wa-send?token=***",
+      "links": [
+        {
+          "path": "/internal/sale-quotation-wa-send",
+          "expects": "ODOO_HOOK_TOKEN",
+          "token": "غير مطابق → قيمة الملف"
+        }
+      ],
+      "beforeSha": "3e20c55c6c488fa9",
+      "afterSha": "f5926453687aad64"
+    },
+    {
+      "model": "ir.actions.server",
+      "id": 974,
+      "name": "utak.invoice.pdf_download",
+      "field": "code",
+      "before": "action = {\n    'type': 'ir.actions.act_url',\n    'url': 'https://utak-worker-sim.utak-business.workers.dev/internal/invoice-pdf?id=' + str(record.id) + '&token=***',\n    'target': 'new',\n}",
+      "after": "action = {\n    'type': 'ir.actions.act_url',\n    'url': 'https://utak-worker.utak-business.workers.dev/internal/invoice-pdf?id=' + str(record.id) + '&token=***',\n    'target': 'new',\n}",
+      "links": [
+        {
+          "path": "/internal/invoice-pdf",
+          "expects": "SALE_PDF_DOWNLOAD_TOKEN",
+          "token": "غير مطابق → قيمة الملف"
+        }
+      ],
+      "beforeSha": "c86ec5a4a275010d",
+      "afterSha": "035d97d3dd688cca"
+    },
+    {
+      "model": "ir.actions.server",
+      "id": 1004,
+      "name": "utak.prices.refresh_webhook",
+      "field": "webhook_url",
+      "before": "https://utak-worker-sim.utak-business.workers.dev/odoo/hook/prices?token=***&op=refresh",
+      "after": "https://utak-worker.utak-business.workers.dev/odoo/hook/prices?token=***&op=refresh",
+      "links": [
+        {
+          "path": "/odoo/hook/prices",
+          "expects": "ODOO_HOOK_TOKEN",
+          "token": "غير مطابق → قيمة الملف"
+        }
+      ],
+      "beforeSha": "de7616eab19836b7",
+      "afterSha": "0188a3e30e25d6fc"
+    },
+    {
+      "model": "ir.actions.server",
+      "id": 975,
+      "name": "utak.purchase.pdf_download",
+      "field": "code",
+      "before": "action = {\n    'type': 'ir.actions.act_url',\n    'url': 'https://utak-worker-sim.utak-business.workers.dev/internal/purchase-order-pdf?id=' + str(record.id) + '&token=***',\n    'target': 'new',\n}",
+      "after": "action = {\n    'type': 'ir.actions.act_url',\n    'url': 'https://utak-worker.utak-business.workers.dev/internal/purchase-order-pdf?id=' + str(record.id) + '&token=***',\n    'target': 'new',\n}",
+      "links": [
+        {
+          "path": "/internal/purchase-order-pdf",
+          "expects": "SALE_PDF_DOWNLOAD_TOKEN",
+          "token": "غير مطابق → قيمة الملف"
+        }
+      ],
+      "beforeSha": "a03f987b842e7069",
+      "afterSha": "ec4fad25d8b3b130"
+    },
+    {
+      "model": "ir.actions.server",
+      "id": 1021,
+      "name": "utak.sp.refresh_dues_webhook",
+      "field": "webhook_url",
+      "before": "https://utak-worker-sim.utak-business.workers.dev/odoo/hook/supplier-pay?token=***&op=refresh",
+      "after": "https://utak-worker.utak-business.workers.dev/odoo/hook/supplier-pay?token=***&op=refresh",
+      "links": [
+        {
+          "path": "/odoo/hook/supplier-pay",
+          "expects": "ODOO_HOOK_TOKEN",
+          "token": "غير مطابق → قيمة الملف"
+        }
+      ],
+      "beforeSha": "e130d7b073dc10e3",
+      "afterSha": "4de0edbf4f8c6a8c"
+    },
+    {
+      "model": "ir.actions.server",
+      "id": 997,
+      "name": "utak.team_roster.hook ← hr.employee",
+      "field": "webhook_url",
+      "before": "https://utak-worker-sim.utak-business.workers.dev/odoo/hook/team-roster?token=***",
+      "after": "https://utak-worker.utak-business.workers.dev/odoo/hook/team-roster?token=***",
+      "links": [
+        {
+          "path": "/odoo/hook/team-roster",
+          "expects": "ODOO_HOOK_TOKEN",
+          "token": "غير مطابق → قيمة الملف"
+        }
+      ],
+      "beforeSha": "b525efc43dfd087e",
+      "afterSha": "2bfa671f10ad43d2"
+    },
+    {
+      "model": "ir.actions.server",
+      "id": 998,
+      "name": "utak.team_roster.hook ← resource.calendar.attendance",
+      "field": "webhook_url",
+      "before": "https://utak-worker-sim.utak-business.workers.dev/odoo/hook/team-roster?token=***",
+      "after": "https://utak-worker.utak-business.workers.dev/odoo/hook/team-roster?token=***",
+      "links": [
+        {
+          "path": "/odoo/hook/team-roster",
+          "expects": "ODOO_HOOK_TOKEN",
+          "token": "غير مطابق → قيمة الملف"
+        }
+      ],
+      "beforeSha": "b525efc43dfd087e",
+      "afterSha": "2bfa671f10ad43d2"
+    },
+    {
+      "model": "ir.actions.server",
+      "id": 999,
+      "name": "utak.team_roster.hook ← resource.calendar.leaves",
+      "field": "webhook_url",
+      "before": "https://utak-worker-sim.utak-business.workers.dev/odoo/hook/team-roster?token=***",
+      "after": "https://utak-worker.utak-business.workers.dev/odoo/hook/team-roster?token=***",
+      "links": [
+        {
+          "path": "/odoo/hook/team-roster",
+          "expects": "ODOO_HOOK_TOKEN",
+          "token": "غير مطابق → قيمة الملف"
+        }
+      ],
+      "beforeSha": "b525efc43dfd087e",
+      "afterSha": "2bfa671f10ad43d2"
+    },
+    {
+      "model": "ir.actions.server",
+      "id": 963,
+      "name": "wa_control.sync_webhook",
+      "field": "webhook_url",
+      "before": "https://utak-worker-sim.utak-business.workers.dev/odoo/hook/wa-template-sync?token=***",
+      "after": "https://utak-worker.utak-business.workers.dev/odoo/hook/wa-template-sync?token=***",
+      "links": [
+        {
+          "path": "/odoo/hook/wa-template-sync",
+          "expects": "ODOO_HOOK_TOKEN",
+          "token": "غير مطابق → قيمة الملف"
+        }
+      ],
+      "beforeSha": "12b4591b08cfca37",
+      "afterSha": "87d92f51331937d3"
+    },
+    {
+      "model": "ir.actions.server",
+      "id": 985,
+      "name": "wa_inbox.partner_title_webhook",
+      "field": "webhook_url",
+      "before": "https://utak-worker-sim.utak-business.workers.dev/odoo/hook/wa-inbox-partner?token=***",
+      "after": "https://utak-worker.utak-business.workers.dev/odoo/hook/wa-inbox-partner?token=***",
+      "links": [
+        {
+          "path": "/odoo/hook/wa-inbox-partner",
+          "expects": "ODOO_HOOK_TOKEN",
+          "token": "غير مطابق → قيمة الملف"
+        }
+      ],
+      "beforeSha": "fb3064970f48620a",
+      "afterSha": "19632f973ede37e3"
+    },
+    {
+      "model": "ir.actions.server",
+      "id": 979,
+      "name": "wa_inbox.reply_webhook",
+      "field": "webhook_url",
+      "before": "https://utak-worker-sim.utak-business.workers.dev/odoo/hook/wa-inbox?token=***",
+      "after": "https://utak-worker.utak-business.workers.dev/odoo/hook/wa-inbox?token=***",
+      "links": [
+        {
+          "path": "/odoo/hook/wa-inbox",
+          "expects": "ODOO_HOOK_TOKEN",
+          "token": "غير مطابق → قيمة الملف"
+        }
+      ],
+      "beforeSha": "9c6966d1280e2662",
+      "afterSha": "d1ec3e487ed12697"
+    },
+    {
+      "model": "ir.actions.server",
+      "id": 967,
+      "name": "wa_message.send_webhook",
+      "field": "webhook_url",
+      "before": "https://utak-worker-sim.utak-business.workers.dev/odoo/hook/wa?token=***",
+      "after": "https://utak-worker.utak-business.workers.dev/odoo/hook/wa?token=***",
+      "links": [
+        {
+          "path": "/odoo/hook/wa",
+          "expects": "ODOO_HOOK_TOKEN",
+          "token": "غير مطابق → قيمة الملف"
+        }
+      ],
+      "beforeSha": "88f4641294e4c16f",
+      "afterSha": "f2b7b6a857da2582"
+    }
+  ],
+  "acctBefore": {
+    "moves": 52,
+    "payments": 10
+  },
+  "simKvQueues": {
+    "wa_q:v1:": [
+      {
+        "key": "wa_q:v1:index",
+        "items": []
+      }
+    ],
+    "pending_loc:": [
+      {
+        "key": "pending_loc:+966…6832",
+        "items": [
+          {
+            "purpose": "market_price_ask"
+          },
+          {
+            "purpose": "market_price_ask"
+          }
+        ]
+      }
+    ],
+    "cpay_open:": [],
+    "cpay:v1:": []
+  },
+  "remarkDry": [
+    "= SP date range #1 already at 1",
+    "dry-run: nothing written (add --apply)"
+  ],
+  "realPartnersNeverMarked": [
+    31,
+    105
+  ]
+}

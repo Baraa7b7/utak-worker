@@ -110,21 +110,7 @@ preview_id = "b423e1498d624696ac10ed101c621742"
 #   "30 18 * * *"   # 21:30 Riyadh — 2026-09-26 (STATUS § 38, م17): Baraa's daily summary
 # ------------------------------------------------------------
 [triggers]
-# 2026-09-30 18:45 (STATUS § 43 و) — the cutover: the twelve crons, as they were on [env.sim.triggers].
-crons = [
-  "0 23 * * *",   # 02:00 Riyadh — v3: ask all active suppliers for daily prices
-  "0 2 * * *",    # 05:00 Riyadh — v3: recompute supplier reliability scores
-  "0 3 * * *",    # 06:00 Riyadh — v3: open ordering flag + missing-supplier alert
-  "0 17 * * *",   # 20:00 Riyadh — 2026-09-24 (ح3): remind unconfirmed orders before the 21:00 cutoff
-  "0 18 * * *",   # 21:00 Riyadh — v4: close unconfirmed orders (+ notify each customer)
-  "15 18 * * *",  # 21:15 Riyadh — v4: aggregate + dispatch purchase list to warehouse
-  "0 15 * * *",   # 18:00 Riyadh — v5: daily collection summary
-  "0 14 * * *",   # 17:00 Riyadh — v6.1: standing-order reminders
-  "0 5 * * *",    # 08:00 Riyadh — v7: daily outreach (feedback, pay_remind, inactive)
-  "*/5 * * * *",  # every 5 min — 2026-09-25 (STATUS § 29): team attendance — «بدء الدوام» at each shift time, +30 reminder, +60 absent, Baraa's window template at OWNER_WINDOW_OPEN_AT
-  "2,7,12,17,22,27,32,37,42,47,52,57 * * * *",  # every 5 min, 2 min after attendance — 2026-09-26 (STATUS § 38, م12): driver's end of shift from his schedule — end −30 stops left, end +30 Baraa's alert
-  "30 18 * * *"   # 21:30 Riyadh — 2026-09-26 (STATUS § 38, م17): Baraa's daily summary (after the 21:00 close and the 21:15 list)
-]
+crons = []
 
 # ------------------------------------------------------------
 # R2: invoice PDF archive (added 2026-09-05)
@@ -181,20 +167,20 @@ name = "utak-worker-sim"
 # be reset to crons = [] to prevent sim + prod duplicate cron work on the same
 # Odoo tenant.
 [env.sim.triggers]
-# 2026-09-30 18:45 (STATUS § 43 و) — the cutover: sim's twelve moved to prod's [triggers]. Were:
-#  "0 23 * * *",   # 02:00 Riyadh — v3: ask all active suppliers for daily prices
-#  "0 2 * * *",    # 05:00 Riyadh — v3: recompute supplier reliability scores
-#  "0 3 * * *",    # 06:00 Riyadh — v3: open ordering flag + missing-supplier alert
-#  "0 17 * * *",   # 20:00 Riyadh — 2026-09-24 (ح3): remind unconfirmed orders before the 21:00 cutoff
-#  "0 18 * * *",   # 21:00 Riyadh — v4: close unconfirmed orders (+ notify each customer)
-#  "15 18 * * *",  # 21:15 Riyadh — v4: aggregate + dispatch purchase list to warehouse
-#  "0 15 * * *",   # 18:00 Riyadh — v5: daily collection summary
-#  "0 14 * * *",   # 17:00 Riyadh — v6.1: standing-order reminders
-#  "0 5 * * *",    # 08:00 Riyadh — v7: daily outreach (feedback, pay_remind, inactive)
-#  "*/5 * * * *",  # every 5 min — 2026-09-25 (STATUS § 29): team attendance — «بدء الدوام» at each shift time, +30 reminder, +60 absent, Baraa's window template at OWNER_WINDOW_OPEN_AT
-#  "2,7,12,17,22,27,32,37,42,47,52,57 * * * *",  # every 5 min, 2 min after attendance — 2026-09-26 (STATUS § 38, م12): driver's end of shift from his schedule — end −30 stops left, end +30 Baraa's alert
-#  "30 18 * * *"   # 21:30 Riyadh — 2026-09-26 (STATUS § 38, م17): Baraa's daily summary (after the 21:00 close and the 21:15 list)
-crons = []
+crons = [
+  "0 23 * * *",   # 02:00 Riyadh — v3: ask all active suppliers for daily prices
+  "0 2 * * *",    # 05:00 Riyadh — v3: recompute supplier reliability scores
+  "0 3 * * *",    # 06:00 Riyadh — v3: open ordering flag + missing-supplier alert
+  "0 17 * * *",   # 20:00 Riyadh — 2026-09-24 (ح3): remind unconfirmed orders before the 21:00 cutoff
+  "0 18 * * *",   # 21:00 Riyadh — v4: close unconfirmed orders (+ notify each customer)
+  "15 18 * * *",  # 21:15 Riyadh — v4: aggregate + dispatch purchase list to warehouse
+  "0 15 * * *",   # 18:00 Riyadh — v5: daily collection summary
+  "0 14 * * *",   # 17:00 Riyadh — v6.1: standing-order reminders
+  "0 5 * * *",    # 08:00 Riyadh — v7: daily outreach (feedback, pay_remind, inactive)
+  "*/5 * * * *",  # every 5 min — 2026-09-25 (STATUS § 29): team attendance — «بدء الدوام» at each shift time, +30 reminder, +60 absent, Baraa's window template at OWNER_WINDOW_OPEN_AT
+  "2,7,12,17,22,27,32,37,42,47,52,57 * * * *",  # every 5 min, 2 min after attendance — 2026-09-26 (STATUS § 38, م12): driver's end of shift from his schedule — end −30 stops left, end +30 Baraa's alert
+  "30 18 * * *"   # 21:30 Riyadh — 2026-09-26 (STATUS § 38, م17): Baraa's daily summary (after the 21:00 close and the 21:15 list)
+]
 
 [env.sim.vars]
 WORKER_ORIGIN        = "https://utak-worker-sim.utak-business.workers.dev"

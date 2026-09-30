@@ -619,7 +619,21 @@ export function exceptionText(day: string, l: DayLine, deadline: string): string
  * More than EXCEPTIONS_MANY exceptions: one message with the count and the
  * review screen's link instead (once a day).
  */
-export async function notifyPriceExceptions(env: Env, now: number = Date.now()): Promise<{ action: string; sent?: number; count?: number }> {
+export async function notifyPriceExceptions(env: Env, now: number = Date.now()): Promise<{ action: string; sent?: number; count?: number; review?: string }> {
+  const out = await sendPriceExceptions(env, now);
+  // § 45 ب — his window closed and exceptions held: utak_owner_price_review_v1, once a day (src/owner-window.ts)
+  if (out.count) {
+    const { notifyPriceReview } = await import("./owner-window");
+    const review = await notifyPriceReview(env, riyadhDateKey(new Date(now)), out.count, now).catch((e) => {
+      console.warn("[prices] price review template failed", (e as Error)?.message);
+      return "error";
+    });
+    if (review) return { ...out, review };
+  }
+  return out;
+}
+
+async function sendPriceExceptions(env: Env, now: number): Promise<{ action: string; sent?: number; count?: number }> {
   const day = riyadhDateKey(new Date(now));
   const m = riyadhMinutes(new Date(now));
   const dl = pricesDeadlineMinutes(env).minutes;

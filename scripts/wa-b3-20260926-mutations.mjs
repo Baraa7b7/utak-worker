@@ -113,9 +113,10 @@ const M = [
     "    if (l.x_status === \"unavailable\") continue;\n", ""]], T],
   ["م17: one unreadable figure stops the summary", [[OS,
     "    try { return await fn(); } catch (e) {", "    try { return await fn(); } finally { void 0; } { const e = null as unknown;"]], T],
+  // § 45 ب — the summary's options moved to named values (text, v2, template 1): same mutation
   ["م17: the template even inside his window", [[OS,
-    "    content: textContent(summaryText(figures)),\n    fallback: [{ kind: \"template\", purpose: T.OWNER_SUMMARY, params: summaryParams(figures) }],",
-    "    content: { kind: \"template\", purpose: T.OWNER_SUMMARY, params: summaryParams(figures) },\n    fallback: [textContent(summaryText(figures))],"]], T],
+    "    content: night?.first ? night.option : text,\n    fallback: night?.first ? [text, v2] : night ? [night.option, v2] : [v2],",
+    "    content: v2,\n    fallback: [text],"]], T],
   ["م17: pending ignores the payments", [[OS,
     "Math.max(0, round2((Number(i.x_total) || 0) - (paid.get(i.id) ?? 0)))", "Math.max(0, round2(Number(i.x_total) || 0))"]], T],
   ["م17: pending takes future-dated invoices", [[OS,

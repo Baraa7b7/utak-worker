@@ -127,6 +127,10 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // request's expiresAt). Not critical: § 34's list is Baraa's, and his opener
   // (utak_update_owner) is MARKETING anyway.
   owner_price_exception: op("استثناء أسعار اليوم", false, { untilMinute: 6 * 60 }),
+  // § 45 ب — utak_owner_price_review_v1: «N صنف بانتظار قرارك قبل 06:00» with
+  // «عرض الاستثناءات», once per price day while his window is closed.
+  // Template only (never held).
+  owner_price_review: op("قالب استثناءات الأسعار"),
   owner_window: op("نافذة المالك 06:00"),
   // ---- § 34: «فتح المحادثة» — one UTILITY template per recipient category,
   // sent when a critical message is held (src/wa-opener.ts). Template only:

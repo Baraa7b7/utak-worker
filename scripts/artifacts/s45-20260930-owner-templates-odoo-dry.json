@@ -1,0 +1,57 @@
+{
+  "at": "2026-09-30T14:02:03.536Z",
+  "plan": [
+    {
+      "name": "utak_owner_daily_summary_v1",
+      "meta": {
+        "status": "APPROVED",
+        "category": "UTILITY"
+      },
+      "before": null,
+      "op": "create",
+      "vals": {
+        "x_meta_template_id": "utak_owner_daily_summary_v1",
+        "x_language": "ar",
+        "x_purpose": "other",
+        "x_meta_id": "1610912117193617",
+        "x_meta_status": "APPROVED",
+        "x_category": "UTILITY",
+        "x_body": "ملخص عمليات يو تاك ليوم {{1}}\n\nطلبات: {{2}}\nتوصيلات: {{3}}\nإجمالي: {{4}} ريال\n\nتفاصيل أكثر في لوحة القيادة.",
+        "x_param_count": 4,
+        "x_buttons": "[0] QUICK_REPLY — تم الاطلاع",
+        "x_body_text": "ملخص عمليات يو تاك ليوم {{1}}\n\nطلبات: {{2}}\nتوصيلات: {{3}}\nإجمالي: {{4}} ريال\n\nتفاصيل أكثر في لوحة القيادة.",
+        "x_buttons_text": "تم الاطلاع",
+        "x_last_synced": "2026-09-30 14:02:02",
+        "x_missing_in_meta": false,
+        "x_label_ar": "ملخص عمليات اليوم (للمالك) بزر «تم الاطلاع»",
+        "x_name": "ملخص عمليات اليوم (للمالك) بزر «تم الاطلاع»"
+      }
+    },
+    {
+      "name": "utak_owner_price_review_v1",
+      "meta": {
+        "status": "APPROVED",
+        "category": "MARKETING"
+      },
+      "before": null,
+      "op": "create",
+      "vals": {
+        "x_meta_template_id": "utak_owner_price_review_v1",
+        "x_language": "ar",
+        "x_purpose": "other",
+        "x_meta_id": "28443958348618504",
+        "x_meta_status": "APPROVED",
+        "x_category": "MARKETING",
+        "x_body": "أسعار يو تاك ليوم {{1}}: {{2}} صنف بانتظار قرارك قبل 06:00.",
+        "x_param_count": 2,
+        "x_buttons": "[0] QUICK_REPLY — عرض الاستثناءات",
+        "x_body_text": "أسعار يو تاك ليوم {{1}}: {{2}} صنف بانتظار قرارك قبل 06:00.",
+        "x_buttons_text": "عرض الاستثناءات",
+        "x_last_synced": "2026-09-30 14:02:03",
+        "x_missing_in_meta": false,
+        "x_label_ar": "استثناءات أسعار اليوم (للمالك) بزر «عرض الاستثناءات»",
+        "x_name": "استثناءات أسعار اليوم (للمالك) بزر «عرض الاستثناءات»"
+      }
+    }
+  ]
+}

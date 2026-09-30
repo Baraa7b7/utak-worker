@@ -33,12 +33,19 @@
 // issued with; coverage % = profit ÷ daily_operating_cost(today) × 100. In the
 // text: a fourth line «تغطية تكاليف اليوم: X% (ربح Y من Z)». In the template:
 // the same, short, at the end of {{3}} on the same line (its «ريال» follows).
+//
+// § 45 ب (2026-09-30) — utak_owner_daily_summary_v1 (src/owner-window.ts):
+// once Meta approved it, the template outside his window is it — «ملخص
+// عمليات يو تاك ليوم {{1}}» + these three variables + «تم الاطلاع», whose tap
+// opens his window for the night — and utak_v2_summary only after it. His
+// window open now but closing before tomorrow's 06:00: it goes in place of
+// the text (the text has no button). Not approved: exactly as before.
 
 import type { Env } from "./config";
 import { profitVatRate } from "./config";
 import { call, getLatestSalePrice } from "./odoo";
 import { textContent } from "./meta";
-import { gatewayDecision, sendViaGateway } from "./wa-gateway";
+import { gatewayDecision, sendViaGateway, type GwTemplate } from "./wa-gateway";
 import { T } from "./templates";
 import { withAutoSendJob } from "./auto-send-guard";
 import { claimButton } from "./button-lock";
@@ -46,6 +53,7 @@ import { riyadhDateKey, riyadhDayMinuteMs, toOdooUtc } from "./hours";
 import { arabicDate } from "./wa-params";
 import { SIM_FIELD } from "./supplier-pay";
 import { dailyOperatingCost, readPricingSettings } from "./operating-cost";
+import { summaryNightOption } from "./owner-window";
 
 /** The sim cron of the summary (wrangler.toml [env.sim.triggers], src/auto-send-guard.ts CRON_JOB): 21:30 Riyadh. */
 export const OWNER_SUMMARY_CRON = "30 18 * * *";
@@ -304,11 +312,16 @@ export async function sendOwnerSummary(rawEnv: Env, nowMs: number = Date.now()):
   const claim = await claimButton(env, `owner_summary:${day}`, CLAIM_TTL);
   if (!claim.claimed) return { day, action: "sent_before" };
   const figures = await readSummaryFigures(env, nowMs);
+  const params = summaryParams(figures);
+  const text = textContent(summaryText(figures));
+  const v2: GwTemplate = { kind: "template", purpose: T.OWNER_SUMMARY, params };
+  // § 45 ب — template 1 (with «تم الاطلاع») before utak_v2_summary; first when his window closes tonight
+  const night = await summaryNightOption(env, day, params, nowMs);
   const r = await sendViaGateway(env, {
     purpose: T.OWNER_SUMMARY,
     to: env.OWNER_WHATSAPP,
-    content: textContent(summaryText(figures)),
-    fallback: [{ kind: "template", purpose: T.OWNER_SUMMARY, params: summaryParams(figures) }],
+    content: night?.first ? night.option : text,
+    fallback: night?.first ? [text, v2] : night ? [night.option, v2] : [v2],
   });
   const d = gatewayDecision(r);
   return { day, action: d?.action ?? `status_${r.status}`, figures };

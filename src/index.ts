@@ -2502,9 +2502,15 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         // 2026-09-25 (STATUS § 29) — his daily «بدء الدوام» only opens the 24h
         // window (the inbound itself did that); one line says so. Nothing is
         // recorded about him.
+        const { isOwnerWindowPayload, ownerWindowButtonReply } = await import("./owner-window");
         if ((msg.type === "interactive" || msg.type === "button") && msg.buttonId === "shift_start") {
           const { ownerWindowAck } = await import("./attendance");
           await sendText(env, msg.from, ownerWindowAck(), { ctx, purpose: "owner_alert" });
+        } else if ((msg.type === "interactive" || msg.type === "button") && isOwnerWindowPayload(msg.buttonId)) {
+          // § 45 ب — «تم الاطلاع» (the 21:30 summary) / «عرض الاستثناءات» (the price review): the tap
+          // opened his window and the flush above sent what was held; one line, nothing else.
+          const r = ownerWindowButtonReply(msg.buttonId!, flushed?.sent ?? 0);
+          if (r) await sendText(env, msg.from, r, { ctx, purpose: "owner_alert" });
         } else if ((msg.type === "interactive" || msg.type === "button") && /^pexc_[mse]_\d+$/.test(msg.buttonId ?? "")) {
           // § 40 ج — his decision on a price exception: «اعتمد بسعر السوق» / «لا تنشر» / «عدّل».
           const { handlePriceExceptionButton } = await import("./prices");

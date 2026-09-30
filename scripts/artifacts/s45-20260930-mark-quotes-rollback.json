@@ -1,0 +1,77 @@
+{
+  "at": "2026-09-30T15:27:45.808Z",
+  "before": [
+    {
+      "id": 4,
+      "x_quotation_number": "UTAK-Q-20260911-001",
+      "x_order_id": [
+        5,
+        false
+      ],
+      "x_sent_at": "2026-09-11 17:59:43",
+      "x_customer_response": "pending",
+      "x_is_simulation": false,
+      "x_utak_simulation": false
+    },
+    {
+      "id": 5,
+      "x_quotation_number": "UTAK-Q-20260913-001",
+      "x_order_id": [
+        6,
+        false
+      ],
+      "x_sent_at": "2026-09-13 02:53:50",
+      "x_customer_response": "pending",
+      "x_is_simulation": true,
+      "x_utak_simulation": false
+    },
+    {
+      "id": 6,
+      "x_quotation_number": "UTAK-Q-20260913-002",
+      "x_order_id": [
+        7,
+        false
+      ],
+      "x_sent_at": "2026-09-13 02:53:50",
+      "x_customer_response": "pending",
+      "x_is_simulation": true,
+      "x_utak_simulation": false
+    },
+    {
+      "id": 7,
+      "x_quotation_number": "UTAK-Q-20260913-003",
+      "x_order_id": [
+        8,
+        false
+      ],
+      "x_sent_at": "2026-09-13 06:03:31",
+      "x_customer_response": "pending",
+      "x_is_simulation": true,
+      "x_utak_simulation": false
+    },
+    {
+      "id": 8,
+      "x_quotation_number": "UTAK-Q-20260913-004",
+      "x_order_id": [
+        9,
+        false
+      ],
+      "x_sent_at": "2026-09-13 06:03:31",
+      "x_customer_response": "pending",
+      "x_is_simulation": true,
+      "x_utak_simulation": false
+    },
+    {
+      "id": 12,
+      "x_quotation_number": "UTAK-Q-20260915-004",
+      "x_order_id": [
+        13,
+        false
+      ],
+      "x_sent_at": "2026-09-15 08:55:30",
+      "x_customer_response": "pending",
+      "x_is_simulation": true,
+      "x_utak_simulation": false
+    }
+  ]
+}

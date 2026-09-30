@@ -5,6 +5,10 @@
 //
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs scripts/cutover-prod.mts            dry run
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs scripts/cutover-prod.mts --apply    the cutover
+//   node --experimental-strip-types --experimental-loader=./tests/loader.mjs scripts/cutover-prod.mts --apply --now
+//                                                                             § 45 ز (Baraa, 2026-09-30 18:2x): the cutover outside
+//                                                                             22:35–01:40, on his word, after the read-only gate
+//                                                                             scripts/s45-20260930-cutover-precheck.mjs passed
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs scripts/cutover-prod.mts --rollback [--apply]
 //                                                                             undo the last --apply run from its rollback files
 //
@@ -68,6 +72,8 @@ import { evaluateWindow, mergeWindowRecords, windowRecordUntil, type WindowRecor
 
 const APPLY = process.argv.includes("--apply");
 const ROLLBACK = process.argv.includes("--rollback");
+/** § 45 ز — Baraa moved the cutover to now (he approves now, not tonight): the window check is waived, and said so. */
+const NOW_FLAG = process.argv.includes("--now");
 const root = new URL("../", import.meta.url);
 const rel = (p: string) => new URL(p, root);
 const log = (...a: unknown[]) => console.log(...a);
@@ -378,8 +384,9 @@ const need = (cond: unknown, what: string) => { if (!cond) problems.push(what); 
 log(`§ 43 cutover — ${APPLY ? "APPLY" : "dry run"} — ${riyadh()} Riyadh`);
 log("\n[preflight]");
 const minute = riyadhMinutes();
-report.window = { riyadh: riyadh(), inWindow: inWindow(minute) };
-if (APPLY) need(inWindow(minute), `the start time ${riyadh().slice(11, 16)} is inside 22:35–01:40 Riyadh`);
+report.window = { riyadh: riyadh(), inWindow: inWindow(minute), waivedByNow: NOW_FLAG };
+if (APPLY && NOW_FLAG) log(`  · the window 22:35–01:40 waived by --now (§ 45 ز, Baraa): start ${riyadh().slice(11, 16)}`);
+else if (APPLY) need(inWindow(minute), `the start time ${riyadh().slice(11, 16)} is inside 22:35–01:40 Riyadh`);
 else log(`  · the window 22:35–01:40: now ${riyadh().slice(11, 16)} → ${inWindow(minute) ? "inside" : "outside"} (a dry run runs any time)`);
 
 const git = (...a: string[]) => spawnSync("git", a, { cwd: root, encoding: "utf8" }).stdout.trim();

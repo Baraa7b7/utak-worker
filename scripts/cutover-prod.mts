@@ -110,10 +110,18 @@ const report: Record<string, unknown> = { run: runDir.pathname.split("/").slice(
 
 // ---------------------------------------------------------------- Cloudflare
 spawnSync("npx", ["wrangler", "whoami"], { cwd: root, encoding: "utf8" }); // refreshes the OAuth token
-const cfToken = (/oauth_token\s*=\s*"([^"]+)"/.exec(readFileSync(`${homedir()}/Library/Preferences/.wrangler/config/default.toml`, "utf8")) ?? [])[1];
-if (!cfToken) throw new Error("no wrangler oauth_token");
+// § 45 ز — read on every call, never cached: `wrangler deploy` (steps 3 and 4) renews the OAuth token and the
+// old one stops working at once (the 18:36 run: step 4's schedules read, and every Cloudflare rollback after
+// it, «Authentication error» — the rollback of 4, 3 and 2ب left undone until --rollback ran with the new token).
+const WRANGLER_CFG = `${homedir()}/Library/Preferences/.wrangler/config/default.toml`;
+const cfToken = (): string => {
+  const t = (/oauth_token\s*=\s*"([^"]+)"/.exec(readFileSync(WRANGLER_CFG, "utf8")) ?? [])[1];
+  if (!t) throw new Error("no wrangler oauth_token");
+  return t;
+};
+cfToken();
 const cf = async (path: string, init: RequestInit = {}) => {
-  const r = await fetch(`https://api.cloudflare.com/client/v4${path}`, { ...init, headers: { Authorization: `Bearer ${cfToken}`, "Content-Type": "application/json", ...(init.headers ?? {}) } });
+  const r = await fetch(`https://api.cloudflare.com/client/v4${path}`, { ...init, headers: { Authorization: `Bearer ${cfToken()}`, "Content-Type": "application/json", ...(init.headers ?? {}) } });
   const j: any = await r.json();
   if (!j.success) throw new Error(`Cloudflare ${path}: ${JSON.stringify(j.errors).slice(0, 300)}`);
   return j.result;
@@ -133,14 +141,14 @@ const redeployVersion = async (name: string, versionId: string, why: string) => 
 const sameSet = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((x) => b.includes(x));
 const invocationsSince = async (sinceIso: string) => {
   const q = `query($a:String!,$s:Time!){viewer{accounts(filter:{accountTag:$a}){workersInvocationsScheduled(limit:200,filter:{datetime_geq:$s},orderBy:[datetime_ASC]){scriptName cron status datetime}}}}`;
-  const r = await fetch("https://api.cloudflare.com/client/v4/graphql", { method: "POST", headers: { Authorization: `Bearer ${cfToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ query: q, variables: { a: account, s: sinceIso } }) });
+  const r = await fetch("https://api.cloudflare.com/client/v4/graphql", { method: "POST", headers: { Authorization: `Bearer ${cfToken()}`, "Content-Type": "application/json" }, body: JSON.stringify({ query: q, variables: { a: account, s: sinceIso } }) });
   const j: any = await r.json();
   if (j.errors) throw new Error(`analytics: ${JSON.stringify(j.errors).slice(0, 200)}`);
   return (j.data?.viewer?.accounts?.[0]?.workersInvocationsScheduled ?? []) as Array<{ scriptName: string; cron: string; status: string; datetime: string }>;
 };
 const kvUrl = (ns: string, key: string) => `https://api.cloudflare.com/client/v4/accounts/${account}/storage/kv/namespaces/${ns}/values/${encodeURIComponent(key)}`;
 const kvGet = async (key: string, ns: string = SIM_KV): Promise<string | null> => {
-  const r = await fetch(kvUrl(ns, key), { headers: { Authorization: `Bearer ${cfToken}` } });
+  const r = await fetch(kvUrl(ns, key), { headers: { Authorization: `Bearer ${cfToken()}` } });
   if (r.status === 404) return null;
   if (!r.ok) throw new Error(`KV get ${ns.slice(0, 6)} ${key.split(":").slice(0, 2).join(":")}: HTTP ${r.status}`);
   return r.text();
@@ -149,7 +157,7 @@ const kvKeys = async (prefix: string, ns: string = SIM_KV): Promise<string[]> =>
   const out: string[] = [];
   let cursor = "";
   do {
-    const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/storage/kv/namespaces/${ns}/keys?prefix=${encodeURIComponent(prefix)}&limit=1000${cursor ? `&cursor=${cursor}` : ""}`, { headers: { Authorization: `Bearer ${cfToken}` } });
+    const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/storage/kv/namespaces/${ns}/keys?prefix=${encodeURIComponent(prefix)}&limit=1000${cursor ? `&cursor=${cursor}` : ""}`, { headers: { Authorization: `Bearer ${cfToken()}` } });
     const j: any = await r.json();
     if (!j.success) throw new Error(`KV list ${ns.slice(0, 6)} ${prefix}: ${JSON.stringify(j.errors).slice(0, 200)}`);
     out.push(...(j.result ?? []).map((k: any) => k.name));
@@ -159,12 +167,12 @@ const kvKeys = async (prefix: string, ns: string = SIM_KV): Promise<string[]> =>
 };
 /** § 45 هـ — a KV write with an absolute expiry (unix seconds). */
 const kvPut = async (ns: string, key: string, value: string, expirationMs: number) => {
-  const r = await fetch(`${kvUrl(ns, key)}?expiration=${Math.ceil(expirationMs / 1000)}`, { method: "PUT", headers: { Authorization: `Bearer ${cfToken}`, "Content-Type": "text/plain" }, body: value });
+  const r = await fetch(`${kvUrl(ns, key)}?expiration=${Math.ceil(expirationMs / 1000)}`, { method: "PUT", headers: { Authorization: `Bearer ${cfToken()}`, "Content-Type": "text/plain" }, body: value });
   const j: any = await r.json().catch(() => ({}));
   if (!r.ok || !j.success) throw new Error(`KV put ${ns.slice(0, 6)} ${key.split(":").slice(0, 2).join(":")}: HTTP ${r.status} ${JSON.stringify(j.errors ?? "").slice(0, 160)}`);
 };
 const kvDelete = async (ns: string, key: string) => {
-  const r = await fetch(kvUrl(ns, key), { method: "DELETE", headers: { Authorization: `Bearer ${cfToken}` } });
+  const r = await fetch(kvUrl(ns, key), { method: "DELETE", headers: { Authorization: `Bearer ${cfToken()}` } });
   if (!r.ok && r.status !== 404) throw new Error(`KV delete ${ns.slice(0, 6)}: HTTP ${r.status}`);
 };
 const parseWin = (raw: string | null): WindowRecord | null => {
@@ -292,6 +300,7 @@ function tomlProdFilled(toml: string, lines: string, stamp: string): string {
 const deploy = (env: "sim" | "prod") => {
   const args = ["wrangler", "deploy", ...(env === "sim" ? ["--env", "sim"] : [])];
   const r = spawnSync("npx", args, { cwd: root, encoding: "utf8", timeout: 240_000 });
+  spawnSync("npx", ["wrangler", "whoami"], { cwd: root, encoding: "utf8" }); // the token is renewed on disk; cfToken() reads it
   const outText = `${r.stdout ?? ""}\n${r.stderr ?? ""}`;
   const version = (/Current Version ID:\s*([0-9a-f-]{36})/.exec(outText) ?? [])[1] ?? null;
   if (r.status !== 0 || !version) throw new Error(`wrangler deploy ${env}: exit ${r.status}${version ? "" : ", no version id"} — ${outText.split("\n").filter((l) => /error|✘/i.test(l)).slice(0, 3).join(" | ").slice(0, 300)}`);

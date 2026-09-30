@@ -1,0 +1,33 @@
+{
+  "run": "rollback-202609301840",
+  "mode": "rollback",
+  "startedRiyadh": "2026-09-30 18:40:12",
+  "of": "apply-202609301836",
+  "done": [
+    {
+      "step": "4 prod crons",
+      "ok": true,
+      "detail": "prod schedules [], version cdc852da"
+    },
+    {
+      "step": "3 sim crons",
+      "ok": true,
+      "detail": "sim schedules 12, version 8e2c014a"
+    },
+    {
+      "step": "2ب windows",
+      "ok": true,
+      "detail": "2 prod KV window key(s) back"
+    },
+    {
+      "step": "2 Odoo",
+      "ok": true,
+      "detail": "24 records restored (sha256 verified)"
+    },
+    {
+      "step": "1 Meta",
+      "ok": true,
+      "detail": "subscription callback → https://utak-worker-sim.utak-business.workers.dev/webhook"
+    }
+  ]
+}

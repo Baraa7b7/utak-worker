@@ -430,6 +430,9 @@ console.log("\n[هـ] the 24h windows move with the cutover: sim's KV → prod's
   assert("…the windows step copies wa_win:v1:* from sim's KV into prod's, merged and read back", cut.includes('const WIN_PREFIX = "wa_win:v1:";') && cut.includes("mergeWindowRecords(sim, parseWin(prodBefore))")
     && cut.includes("await kvPut(PROD_KV, w.key, JSON.stringify(w.merged), w.until);") && cut.includes("prod KV window key(s) not as written"));
   assert("…and a failure rolls it back with the steps before it", cut.includes('completed.includes("2ب") ? rb.s2b : null') && cut.includes('read("step2b-windows-rollback.json")'));
+  // § 45 ز — wrangler deploy renews the OAuth token: never a cached one (the 18:36 run's step 4 and its rollback)
+  assert("the Cloudflare token is read on every call, never cached", /const cfToken = \(\): string =>/.test(cut) && !/Bearer \$\{cfToken\}[^(]/.test(cut) && (cut.match(/Bearer \$\{cfToken\(\)\}/g) ?? []).length >= 6);
+  assert("a re-mark verify that fails with no ✗ is tried again, and stderr's tail is kept", cut.includes("re-mark verify failed with no ✗") && cut.includes("const errTail = "));
   const win = readFileSync(new URL("../src/wa-window.ts", import.meta.url), "utf8");
   assert("the gateway's window source is the worker's own KV first (why the copy is needed)", /Source: KV `wa_win:v1:<digits>`/.test(win) && win.includes("const rec = await readRecord(env, to);\n  if (rec) return evaluateWindow(rec, now, \"kv\");"));
 }

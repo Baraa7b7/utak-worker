@@ -1,0 +1,305 @@
+name = "utak-worker"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+
+# ------------------------------------------------------------
+# Non-secret vars — safe to commit.
+# Update if Meta rolls Graph API version or if Odoo hostname changes.
+# ------------------------------------------------------------
+[vars]
+WORKER_ORIGIN = "https://utak-worker.utak-business.workers.dev"
+META_PHONE_NUMBER_ID = "1351691708016803"
+META_WABA_ID         = "2144001136512196"
+META_GRAPH_VERSION   = "v22.0"                     # bump when Meta deprecates
+
+ODOO_URL   = "https://utakfresh.odoo.com"
+ODOO_DB    = "utakfresh"
+ODOO_LOGIN = "admin@utakfresh.com"                          # Odoo user email used ONLY for session-auth fallback
+
+CLAUDE_MODEL_CLASSIFY = "claude-haiku-4-5-20251001"
+CLAUDE_MODEL_REPLY    = "claude-sonnet-5"
+
+# v3: Baraa's phone for supplier failure alerts + missing-supplier morning summary
+OWNER_WHATSAPP = "+966505154962"
+
+# 2026-09-27 (STATUS § 42 د) — the launch combination, from the code
+# (src/config.ts runtimeMode / isRecipientAllowed / isTestMode, and
+# src/screening.ts): every number is accepted, an unclassified one goes to
+# «📋 مراجعة الأرقام» with one alert to Baraa, a classified customer is served.
+#   SIMULATION_MODE "false" — real sends to Meta (fetchMeta / the gateway).
+#   PILOT_MODE      "false" — not the pilot: no x_is_simulation stamp on new
+#                   rows, and no allowlist required. "true" would refuse every
+#                   number outside SIM_ALLOWLIST (and demand one).
+#   SIM_ALLOWLIST   unset   — isRecipientAllowed: unset = every recipient;
+#                   x_wa_allowed is then never consulted (the 31 numbers of
+#                   § 27 stay off and do not need it).
+#   (the full-day simulation's run id is never set in this file, § 41 و)
+#   ACCOUNTING_SYNC "true"  — locked decision (Baraa): sale.order / invoice /
+#                   account.payment / purchase bills on the shared tenant.
+#   OWNER_WINDOW_OPEN_AT "06:00" — Baraa's daily «بدء الدوام», as on sim.
+# tests/s42.test.mts [د] proves it: a new number → review + Baraa's alert (not
+# refused), a classified customer → the full reply, PILOT_MODE=true → refused.
+SIMULATION_MODE      = "false"
+PILOT_MODE           = "false"
+ACCOUNTING_SYNC      = "true"
+OWNER_WINDOW_OPEN_AT = "06:00"
+
+# ------------------------------------------------------------
+# KV: message dedup, 24h TTL
+# Create with:  wrangler kv namespace create MSG_DEDUP
+#               wrangler kv namespace create MSG_DEDUP --preview
+# Paste the returned IDs below.
+# ------------------------------------------------------------
+[[kv_namespaces]]
+binding    = "MSG_DEDUP"
+id         = "1e77d51cf1154af1aef076d1d31905a6"
+preview_id = "b423e1498d624696ac10ed101c621742"
+
+# ------------------------------------------------------------
+# Secrets — NEVER commit. Set via:
+#   wrangler secret put META_APP_SECRET
+#   wrangler secret put META_ACCESS_TOKEN
+#   wrangler secret put META_VERIFY_TOKEN
+#   wrangler secret put ODOO_API_KEY
+#   wrangler secret put ANTHROPIC_API_KEY
+# ------------------------------------------------------------
+
+# ------------------------------------------------------------
+# v3 — Cron triggers (Cloudflare Workers Free tier: up to 3 cron routes)
+# Riyadh is UTC+3 (no DST).
+# ------------------------------------------------------------
+# ⚠️ prod crons موقوفة نهائياً في هذا الملف — قرار 2026-09-16
+#    (مؤكَّد بصرياً من لوحة Cloudflare يوم 2026-09-21: "No cron triggers configured").
+#    ⚠️ تصحيح 2026-09-23: ذلك التأكيد كان خاطئاً. نشر prod 5c138821
+#    (2026-09-20 22:18 UTC) سبق commit 872202f الذي فرّغ القائمة، فسجّل
+#    الثمانية على utak-worker. كل مهمة آلية جرت مرتين (prod + sim) من
+#    2026-09-20 23:00 UTC. فُرّغت جدولة prod عبر Cloudflare API في
+#    2026-09-23 (نسخة الاسترجاع: scripts/artifacts/cron-20260923-prod-schedules-rollback.json).
+#    للتحقق دائماً: GET /accounts/<id>/workers/scripts/utak-worker/schedules
+#
+# لماذا فارغة: التشغيل الحقيقي للـpilot يجري على utak-worker-sim مع
+# PILOT_MODE=true وSIM_ALLOWLIST محدودة. جدولة prod أُوقفت يدوياً من
+# Cloudflare dashboard، لكن أي `wrangler deploy` مستقبلي (بدون --env) كان
+# سيعيد كتابة الثمانية من هذا الملف — فتشتغل المهام مرتين على نفس Odoo
+# tenant ونفس رقم واتساب، ونسخة prod بلا PILOT_MODE وبلا SIM_ALLOWLIST أي
+# ترسل لكل الأرقام. تفريغ crons هنا يجعل الإيقاف دائماً في الملف نفسه،
+# فأي redeploy لاحق لا يعيد الجدولة عرَضياً.
+#
+# متى تُعاد: عند الانتقال الحقيقي إلى prod (نهاية الـpilot). الخطوات مرتبة
+# ولا تُقلَب:
+#   1) أوقف [env.sim.triggers] أولاً بجعلها crons = []، ثم انشر sim
+#      (wrangler deploy --env sim). هذا يوقف جدولة sim قبل تفعيل جدولة prod.
+#   2) تحقّق من Cloudflare dashboard و`wrangler tail utak-worker-sim` أن
+#      utak-worker-sim لم يعد يشغّل الكرونات.
+#   3) انسخ المواعيد العشرة من الكتلة المحفوظة أدناه إلى crons = [ ... ]
+#      هنا حرفياً (بنفس التعليقات).
+#   4) `wrangler deploy` (بدون --env) لإعادة تفعيل جدولة prod.
+#
+# المواعيد المحفوظة للاستعادة (بنسخ ولصق حرفياً — لا تعدّل بدون سبب؛ صارت تسعة في 2026-09-24، وعشرة في 2026-09-25، واثنا عشر في 2026-09-26):
+#   "0 23 * * *",   # 02:00 Riyadh — v3: ask all active suppliers for daily prices
+#   "0 2 * * *",    # 05:00 Riyadh — v3: recompute supplier reliability scores
+#   "0 3 * * *",    # 06:00 Riyadh — v3: open ordering flag + missing-supplier alert
+#   "0 17 * * *",   # 20:00 Riyadh — 2026-09-24 (ح3): unconfirmed-order reminder
+#   "0 18 * * *",   # 21:00 Riyadh — v4: close unconfirmed orders
+#   "15 18 * * *",  # 21:15 Riyadh — v4: aggregate + dispatch purchase list to warehouse
+#   "0 15 * * *",   # 18:00 Riyadh — v5: daily collection summary
+#   "0 14 * * *",   # 17:00 Riyadh — v6.1: standing-order reminders
+#   "0 5 * * *",    # 08:00 Riyadh — v7: daily outreach (feedback, pay_remind, inactive)
+#   "*/5 * * * *",  # every 5 min — 2026-09-25 (STATUS § 29): team attendance («بدء الدوام»)
+#   "2,7,12,17,22,27,32,37,42,47,52,57 * * * *",  # every 5 min — 2026-09-26 (STATUS § 38, م12): driver's end-of-shift follow-up
+#   "30 18 * * *"   # 21:30 Riyadh — 2026-09-26 (STATUS § 38, م17): Baraa's daily summary
+# ------------------------------------------------------------
+[triggers]
+crons = []
+
+# ------------------------------------------------------------
+# R2: invoice PDF archive (added 2026-09-05)
+# ------------------------------------------------------------
+[[r2_buckets]]
+binding     = "INVOICES_BUCKET"
+bucket_name = "utak-invoices"
+
+# ------------------------------------------------------------
+# D1 (2026-09-27, STATUS § 42 د) — prod's own database, nothing shared with
+# sim's utak-worker-sim-db. The binding keeps the code's name SIM_DB (src/wa-
+# status.ts wa_status_log — «الحالة لا تنزل», § 37 أ; sim_outbound is written
+# only under SIMULATION_MODE=true). Created with `wrangler d1 create
+# utak-worker-db`; every schema/*.sql applied once, in order:
+#   npx wrangler d1 execute utak-worker-db --file=./schema/sim_outbound.sql --remote
+#   npx wrangler d1 execute utak-worker-db --file=./schema/wa_status_log.sql --remote
+#   npx wrangler d1 execute utak-worker-db --file=./schema/is_simulation.sql --remote
+# ------------------------------------------------------------
+[[d1_databases]]
+binding       = "SIM_DB"
+database_name = "utak-worker-db"
+database_id   = "25c09c09-7ffe-44cc-a30c-24dbcbde08af"
+
+# ============================================================
+# [env.sim] — isolated simulation deployment.
+#
+# Deploys as a SEPARATE worker `utak-worker-sim` with its own KV, D1, R2.
+# The production `utak-worker` above is UNTOUCHED — nothing in this block
+# affects it. Runs the exact same code with SIMULATION_MODE flipped on;
+# fetchMeta() in src/meta.ts intercepts every outbound Meta call and writes
+# to the sim_outbound D1 table instead of hitting graph.facebook.com.
+#
+# Deploy with:  wrangler deploy --env sim
+# Tail with:    wrangler tail utak-worker-sim
+#
+# Cron triggers deliberately omitted — sim jobs are driven manually via
+# POST /sim/trigger?job=<name> so a whole day can be compressed into minutes.
+#
+# Required one-time setup on this Cloudflare account:
+#   wrangler kv namespace create SIM_MSG_DEDUP --env sim
+#   wrangler kv namespace create SIM_MSG_DEDUP --env sim --preview
+#   wrangler d1 create utak-worker-sim-db
+#   wrangler d1 execute utak-worker-sim-db --file=./schema/sim_outbound.sql --env=sim --remote
+#   wrangler r2 bucket create utak-invoices-sim
+# then paste the returned KV ids and D1 database_id below.
+# ============================================================
+[env.sim]
+name = "utak-worker-sim"
+
+# مفعّلة على sim لأن crons الإنتاج أُوقفت يدوياً من Dashboard طوال الـpilot — قرار 2026-09-16
+# Mirror of the top-level [triggers] block verbatim. Prod's own triggers stay
+# defined in wrangler.toml but are paused on the Cloudflare dashboard for the
+# pilot window; when the dashboard toggle is flipped back on, this block must
+# be reset to crons = [] to prevent sim + prod duplicate cron work on the same
+# Odoo tenant.
+[env.sim.triggers]
+# 2026-09-30 18:36 (STATUS § 43 و) — the cutover: sim's twelve moved to prod's [triggers]. Were:
+#  "0 23 * * *",   # 02:00 Riyadh — v3: ask all active suppliers for daily prices
+#  "0 2 * * *",    # 05:00 Riyadh — v3: recompute supplier reliability scores
+#  "0 3 * * *",    # 06:00 Riyadh — v3: open ordering flag + missing-supplier alert
+#  "0 17 * * *",   # 20:00 Riyadh — 2026-09-24 (ح3): remind unconfirmed orders before the 21:00 cutoff
+#  "0 18 * * *",   # 21:00 Riyadh — v4: close unconfirmed orders (+ notify each customer)
+#  "15 18 * * *",  # 21:15 Riyadh — v4: aggregate + dispatch purchase list to warehouse
+#  "0 15 * * *",   # 18:00 Riyadh — v5: daily collection summary
+#  "0 14 * * *",   # 17:00 Riyadh — v6.1: standing-order reminders
+#  "0 5 * * *",    # 08:00 Riyadh — v7: daily outreach (feedback, pay_remind, inactive)
+#  "*/5 * * * *",  # every 5 min — 2026-09-25 (STATUS § 29): team attendance — «بدء الدوام» at each shift time, +30 reminder, +60 absent, Baraa's window template at OWNER_WINDOW_OPEN_AT
+#  "2,7,12,17,22,27,32,37,42,47,52,57 * * * *",  # every 5 min, 2 min after attendance — 2026-09-26 (STATUS § 38, م12): driver's end of shift from his schedule — end −30 stops left, end +30 Baraa's alert
+#  "30 18 * * *"   # 21:30 Riyadh — 2026-09-26 (STATUS § 38, م17): Baraa's daily summary (after the 21:00 close and the 21:15 list)
+crons = []
+
+[env.sim.vars]
+WORKER_ORIGIN        = "https://utak-worker-sim.utak-business.workers.dev"
+META_PHONE_NUMBER_ID = "1351691708016803"
+META_WABA_ID         = "2144001136512196"
+META_GRAPH_VERSION   = "v22.0"
+ODOO_URL             = "https://utakfresh.odoo.com"     # same Odoo — sim rows carry x_is_simulation=true
+ODOO_DB              = "utakfresh"
+ODOO_LOGIN           = "admin@utakfresh.com"
+CLAUDE_MODEL_CLASSIFY = "claude-haiku-4-5-20251001"
+CLAUDE_MODEL_REPLY    = "claude-sonnet-5"
+OWNER_WHATSAPP        = "+966505154962"
+# 2026-09-16 — PILOT_MODE on the sim worker itself (no separate [env.pilot]
+# deploy). runtimeMode() treats SIMULATION_MODE=true AND PILOT_MODE=true as
+# mutually-exclusive misconfig; SIMULATION_MODE is therefore flipped off so
+# fetchMeta actually reaches Meta for the pilot round. isTestMode() still
+# returns true via PILOT_MODE, so odoo.ts::call keeps stamping
+# x_is_simulation=true on new rows and /sim/purge can clean them up.
+SIMULATION_MODE       = "false"                         # the switch fetchMeta() reads
+PILOT_MODE            = "true"                          # real Meta sends restricted to SIM_ALLOWLIST
+# 2026-09-25 (STATUS § 27، sim محاكاة خالصة) — أرقام براء والفريق فقط، أرقام
+# كاملة بلا بادئة: براء، أحمد حسان، عثمان عبدالوهاب، عمر المجهلي.
+# كانت "+966505154962,+966536251307,+966571777704" (قرار 2026-09-16)، وأُزيل
+# +966536251307 («عميل pilot»، لا شريك له في Odoo). الخانة x_wa_allowed على
+# الشريك بابٌ ثانٍ في fetchMeta، وصارت على أرقام الفريق وحدها
+# (scripts/sim-pure-20260925-wa-allowed.mjs).
+SIM_ALLOWLIST         = "+966505154962,+966571777704,+966530399474,+966545816832"
+
+# 2026-09-21 — accounting parallel-write. tenant مشترك مع prod، فأي قيد مُرحَّل
+# هو قيد حقيقي يدخل الإقرار الضريبي.
+# 2026-09-25 (STATUS § 27، القرار «أ» في § 23) — مطفأ على sim: لا أمر بيع ولا
+# أمر شراء ولا قيد ولا دفعة من sim. x_invoice وx_payment يصدران كما هما.
+# التراجع: "true" ثم wrangler deploy --env sim.
+ACCOUNTING_SYNC       = "false"
+
+# 2026-09-25 (STATUS § 29) — Riyadh time of Baraa's daily «بدء الدوام» template
+# (utak_shift_start_v2): it only opens his 24h window so owner alerts reach him
+# as text (utak_owner_alert is MARKETING and Meta drops it with 131049).
+# STATUS § 32: a fixed time every day — the team's schedules do not move it
+# (his tap keeps the window open 24h, over the next dawn's alerts too).
+# Change the time here, then wrangler deploy --env sim.
+OWNER_WINDOW_OPEN_AT  = "06:00"
+
+# Secrets on the sim worker (set once, mirrored from prod plus one new):
+#   wrangler secret put META_APP_SECRET       --env sim
+#   wrangler secret put META_ACCESS_TOKEN     --env sim
+#   wrangler secret put META_VERIFY_TOKEN     --env sim
+#   wrangler secret put ODOO_API_KEY          --env sim
+#   wrangler secret put ANTHROPIC_API_KEY     --env sim
+#   wrangler secret put SIM_SECRET            --env sim   # NEW: gates /sim/* endpoints
+
+[[env.sim.kv_namespaces]]
+binding    = "MSG_DEDUP"
+id         = "998122f32d7b46c2a45cf01acec3cb0e"
+preview_id = "c23e6070ddfb419d83f2700d382b41c9"
+
+[[env.sim.d1_databases]]
+binding       = "SIM_DB"
+database_name = "utak-worker-sim-db"
+database_id   = "f0631ac1-9659-4d5c-bc35-05797afe50c7"
+
+[[env.sim.r2_buckets]]
+binding     = "INVOICES_BUCKET"
+bucket_name = "utak-invoices-sim"
+
+# ============================================================
+# [env.pilot] — real Meta sends, restricted to SIM_ALLOWLIST
+#
+# The middle tier between sim (no real sends) and prod (open to everyone).
+# Purpose: run one live day against Baraa's personal circle before opening
+# to real customers. PILOT_MODE=true + a non-empty SIM_ALLOWLIST are BOTH
+# required — the runtime refuses to send otherwise.
+#
+# A pilot deploy is a THIRD worker; it does not touch prod or sim. Same
+# schema/D1 setup pattern as sim (create your own kv/d1/r2 names).
+# ============================================================
+[env.pilot]
+name = "utak-worker-pilot"
+
+# CRITICAL: pilot sends REAL Meta messages. Inheriting the prod crons would
+# fire the same daily jobs on the same Meta phone number = duplicate live
+# sends to real customers. This block prevents that. Keep [] until pilot day.
+[env.pilot.triggers]
+crons = []
+
+[env.pilot.vars]
+WORKER_ORIGIN        = "https://utak-worker-pilot.utak-business.workers.dev"
+META_PHONE_NUMBER_ID = "1351691708016803"
+META_WABA_ID         = "2144001136512196"
+META_GRAPH_VERSION   = "v22.0"
+ODOO_URL             = "https://utakfresh.odoo.com"
+ODOO_DB              = "utakfresh"
+ODOO_LOGIN           = "admin@utakfresh.com"
+CLAUDE_MODEL_CLASSIFY = "claude-haiku-4-5-20251001"
+CLAUDE_MODEL_REPLY    = "claude-sonnet-5"
+OWNER_WHATSAPP        = "+966505154962"
+PILOT_MODE            = "true"
+# REQUIRED: at least Baraa's number, plus any test partners.
+SIM_ALLOWLIST         = "+966505154962"
+
+# Secrets on the pilot worker (mirror prod plus SIM_SECRET for /sim/mode):
+#   wrangler secret put META_APP_SECRET       --env pilot
+#   wrangler secret put META_ACCESS_TOKEN     --env pilot
+#   wrangler secret put META_VERIFY_TOKEN     --env pilot
+#   wrangler secret put ODOO_API_KEY          --env pilot
+#   wrangler secret put ANTHROPIC_API_KEY     --env pilot
+#   wrangler secret put SIM_SECRET            --env pilot
+
+[[env.pilot.kv_namespaces]]
+binding    = "MSG_DEDUP"
+id         = "PASTE_PILOT_KV_ID_HERE"
+preview_id = "PASTE_PILOT_KV_PREVIEW_ID_HERE"
+
+# Pilot does not need D1 (no sim_outbound capture in pilot mode).
+# If /sim/inject is desired for controlled walkthroughs, provision D1 as
+# in [env.sim] — captureOutbound only runs when SIMULATION_MODE=true, so
+# the binding sits unused otherwise.
+
+[[env.pilot.r2_buckets]]
+binding     = "INVOICES_BUCKET"
+bucket_name = "utak-invoices-pilot"
+

@@ -1,0 +1,45 @@
+{
+  "label": "after-failed-step4",
+  "atRiyadh": "2026-09-30 18:39",
+  "prod": {
+    "version": "22d13def-7839-4d04-8707-827df7a2f9e1",
+    "deployedAt": "2026-09-30T15:38:54.408233Z",
+    "schedules": [
+      "0 14 * * *",
+      "0 15 * * *",
+      "0 17 * * *",
+      "0 18 * * *",
+      "0 2 * * *",
+      "0 23 * * *",
+      "0 3 * * *",
+      "0 5 * * *",
+      "15 18 * * *",
+      "2,7,12,17,22,27,32,37,42,47,52,57 * * * *",
+      "30 18 * * *",
+      "*/5 * * * *"
+    ],
+    "health": {
+      "status": 200,
+      "state": "ok",
+      "odoo": "connected (apikey)",
+      "mode": null
+    },
+    "challenge": "مطابق"
+  },
+  "sim": {
+    "version": "e9d377ad-e587-4bc0-9aeb-905a1856eb2c",
+    "deployedAt": "2026-09-30T15:36:58.943814Z",
+    "schedules": [],
+    "health": {
+      "status": 200,
+      "state": "ok",
+      "odoo": "connected (apikey)",
+      "mode": null
+    },
+    "challenge": "مطابق"
+  },
+  "metaSubscription": {
+    "callback": "https://utak-worker-sim.utak-business.workers.dev/webhook",
+    "active": true
+  }
+}

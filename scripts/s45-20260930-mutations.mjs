@@ -90,6 +90,22 @@ const M = [
   ["ب", "a held exception stale before 06:00", [[PR,
     "  const expiresAt = riyadhDayMinuteMs(day, dl);\n  const deadline = hhmm(dl);",
     "  const expiresAt = riyadhDayMinuteMs(day, dl - 10);\n  const deadline = hhmm(dl);"]], T],
+  // ---------------------------------------------------------------- ج Omar on seven days: a planted «Friday off» is caught
+  ["ج", "a hard-coded Friday off in the schedule reader (every path)", [["src/team-roster.ts",
+    "  const wd = String(odooWeekday(day));\n  return lines.filter((a) => {",
+    "  const wd = String(odooWeekday(day));\n  if (wd === \"4\") return [];\n  return lines.filter((a) => {"]], T],
+  ["ج", "a hard-coded Friday off in the operating cost's working days", [["src/operating-cost.ts",
+    "  for (let d = from; d <= to; d = addDays(d, 1)) if (linesOn(s.lines, s.calendarId, d).length > 0) n++;",
+    "  for (let d = from; d <= to; d = addDays(d, 1)) if (linesOn(s.lines, s.calendarId, d).length > 0 && new Date(`${d}T12:00:00Z`).getUTCDay() !== 5) n++;"]], T],
+  ["ج", "a hard-coded Friday off for the day's own share", [["src/operating-cost.ts",
+    "  return linesOn(s.lines, s.calendarId, day).length > 0;\n}",
+    "  return linesOn(s.lines, s.calendarId, day).length > 0 && new Date(`${day}T12:00:00Z`).getUTCDay() !== 5;\n}"]], T],
+  ["ج", "the next shift skips Friday (the list held until Saturday)", [["src/team-roster.ts",
+    "export function nextShiftStart(roster: Roster, m: RosterMember, fromMs: number): { day: string; startMin: number; ms: number } | null {",
+    "export function nextShiftStart(roster: Roster, m: RosterMember, fromMs: number): { day: string; startMin: number; ms: number } | null {\n  if (new Date(fromMs + 3 * 3600_000).getUTCDay() === 4) fromMs += 24 * 3600_000;"]], T],
+  ["ج", "the driver's follow-up skips Friday", [["src/driver-followup.ts",
+    "        if (plan.kind === \"work\") steps.push(",
+    "        if (plan.kind === \"work\" && new Date(`${day}T12:00:00Z`).getUTCDay() !== 5) steps.push("]], T],
 ];
 
 const want = new Set(process.argv.slice(2));

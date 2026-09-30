@@ -58,9 +58,12 @@ const COMPANY = 1;
 // Odoo dayofweek: Monday "0" … Sunday "6". Saturday → Thursday; Friday ("4") has no line.
 const SAT_THU = ["5", "6", "0", "1", "2", "3"];
 const FRIDAY = "4";
+// § 45 ج (2026-09-30): Omar works seven days — his Friday line (#32, 02:00–12:00) was added by
+// scripts/s45-20260930-omar-friday.mjs. The days are per schedule now, so --verify expects it
+// (and a fresh --apply would create it); Othman stays Saturday → Thursday.
 const SCHEDULES = [
-  { key: "omar", employee: 4, contact: 9, employeeName: "عمر المجهلي", name: "UTAK — عمر", from: 2, to: 12 },
-  { key: "othman", employee: 5, contact: 15, employeeName: "عثمان عبدالوهاب", name: "UTAK — عثمان", from: 6, to: 16 },
+  { key: "omar", employee: 4, contact: 9, employeeName: "عمر المجهلي", name: "UTAK — عمر", from: 2, to: 12, days: [...SAT_THU, FRIDAY] },
+  { key: "othman", employee: 5, contact: 15, employeeName: "عثمان عبدالوهاب", name: "UTAK — عثمان", from: 6, to: 16, days: SAT_THU },
 ];
 const SAMPLES = [
   { employee: 2, name: "Emma Granger" },
@@ -203,8 +206,8 @@ async function verify() {
     if (!cal) continue;
     push(`«${s.name}»: active, fixed, company ${COMPANY}`, cal.active === true && cal.calendar_type === "fixed" && m2o(cal.company_id) === COMPANY, `${cal.active}/${cal.calendar_type}/${m2o(cal.company_id)}`);
     const l = lines.filter((x) => m2o(x.calendar_id) === cal.id);
-    push(`«${s.name}»: six lines, Saturday → Thursday`, l.length === 6 && JSON.stringify(l.map((x) => x.dayofweek).sort()) === JSON.stringify([...SAT_THU].sort()), l.map((x) => x.dayofweek).join(","));
-    push(`«${s.name}»: no Friday line`, !l.some((x) => x.dayofweek === FRIDAY));
+    push(`«${s.name}»: ${s.days.length} lines, ${s.days.includes(FRIDAY) ? "every day" : "Saturday → Thursday"}`, l.length === s.days.length && JSON.stringify(l.map((x) => x.dayofweek).sort()) === JSON.stringify([...s.days].sort()), l.map((x) => x.dayofweek).join(","));
+    push(`«${s.name}»: ${s.days.includes(FRIDAY) ? "a Friday line (§ 45)" : "no Friday line"}`, l.some((x) => x.dayofweek === FRIDAY) === s.days.includes(FRIDAY));
     push(`«${s.name}»: every line ${hh(s.from)}–${hh(s.to)} with clock times (not duration-based, no date, no recurrence)`,
       l.every((x) => x.hour_from === s.from && x.hour_to === s.to && x.duration_based === false && !x.date && !x.recurrency),
       l.map((x) => `${x.dayofweek}:${hh(x.hour_from)}-${hh(x.hour_to)}${x.duration_based ? "(duration)" : ""}`).join(" "));
@@ -275,7 +278,7 @@ for (const s of SCHEDULES) {
   if (e.tz !== TZ || v?.tz !== TZ || r?.tz !== TZ) throw new Error(`${s.employeeName}: time zone ${e.tz}/${v?.tz}/${r?.tz}, expected ${TZ} everywhere — stop`);
   const mine = existingCals.filter((x) => x.name === s.name);
   if (mine.length) plan.push(`«${s.name}» exists already (${mine.map((x) => x.id).join(",")}) — reuse only if the rollback file created it`);
-  else plan.push(`create resource.calendar «${s.name}» (fixed, company ${COMPANY}) with ${SAT_THU.length} lines ${hh(s.from)}–${hh(s.to)}: Sat, Sun, Mon, Tue, Wed, Thu; Friday no line`);
+  else plan.push(`create resource.calendar «${s.name}» (fixed, company ${COMPANY}) with ${s.days.length} lines ${hh(s.from)}–${hh(s.to)}: Sat, Sun, Mon, Tue, Wed, Thu${s.days.includes(FRIDAY) ? ", Fri" : "; Friday no line"}`);
   plan.push(`hr.employee ${s.employee} (${s.employeeName}): resource_calendar_id ${JSON.stringify(e.resource_calendar_id)} → «${s.name}», x_utak_attendance ${e.x_utak_attendance} → true (tz ${e.tz} kept)`);
 }
 // 3. samples
@@ -311,7 +314,7 @@ console.log(`\nsnapshot → ${RB}`);
 // 1. the schedules
 rb.created.calendars = {};
 for (const s of SCHEDULES) {
-  const lines = SAT_THU.map((d, i) => [0, 0, { dayofweek: d, hour_from: s.from, hour_to: s.to, sequence: 10 + i }]);
+  const lines = s.days.map((d, i) => [0, 0, { dayofweek: d, hour_from: s.from, hour_to: s.to, sequence: 10 + i }]);
   const [id] = await call("resource.calendar", "create", {
     vals_list: [{ name: s.name, calendar_type: "fixed", company_id: COMPANY, attendance_ids: lines }],
   }, { probe: [["name", "=", s.name]] });
@@ -319,8 +322,8 @@ for (const s of SCHEDULES) {
   console.log(`created resource.calendar ${id} «${s.name}»`);
   // Odoo must not have added its default lines next to ours
   const got = await readLines([id]);
-  const bad = got.filter((l) => !(SAT_THU.includes(l.dayofweek) && l.hour_from === s.from && l.hour_to === s.to && l.duration_based === false));
-  if (got.length !== SAT_THU.length || bad.length) throw new Error(`«${s.name}» lines are not as planned: ${JSON.stringify(got)} — stop (rollback archives it)`);
+  const bad = got.filter((l) => !(s.days.includes(l.dayofweek) && l.hour_from === s.from && l.hour_to === s.to && l.duration_based === false));
+  if (got.length !== s.days.length || bad.length) throw new Error(`«${s.name}» lines are not as planned: ${JSON.stringify(got)} — stop (rollback archives it)`);
 }
 // 2. link + attendance on
 rb.created.linked = {};

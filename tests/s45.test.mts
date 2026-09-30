@@ -320,6 +320,94 @@ console.log("\n[ب] the owner guard lets template 2 through; the purpose is know
   assert("the owner guard lets owner_price_review through", GW.gatewayDecision(r)?.action === "template", JSON.stringify(GW.gatewayDecision(r)));
 }
 
+// ================================================================ [ج] Omar on seven days
+const OC = await import("../src/operating-cost.ts");
+const ATT = await import("../src/attendance.ts");
+const ROS = await import("../src/team-roster.ts");
+const DRVF = await import("../src/driver-followup.ts");
+const DRV = 603, DRV_PHONE = "966500000603";
+const THU = "2026-10-01", FRI = "2026-10-02";
+/** «UTAK — عمر» on the tenant before § 45: Saturday–Thursday 02:00–12:00 (Odoo: Monday 0 … Sunday 6). */
+const SAT_THU: Array<[number, number, number]> = [[5, 2, 12], [6, 2, 12], [0, 2, 12], [1, 2, 12], [2, 2, 12], [3, 2, 12]];
+/** … and since § 45 ج: the same plus Friday (4) 02:00–12:00. */
+const SEVEN: Array<[number, number, number]> = [...SAT_THU, [4, 2, 12]];
+function omarEnv(riyadh: string, schedule = SEVEN): any {
+  const env = reset(); clearTemplateCache(); setRiyadh(riyadh); rejected.length = 0;
+  seed("res.partner", { id: DRV, name: "عمر المجهلي", x_whatsapp_number: "+" + DRV_PHONE });
+  const cal = workSchedule(schedule, { name: "UTAK — عمر" });
+  employee(DRV, [71, 72, 73], { x_utak_attendance: true, resource_calendar_id: cal });
+  seed("x_whatsapp_template", { x_purpose: "team_shift_start", x_meta_template_id: "utak_shift_start_v2", x_language: "ar", x_meta_status: "APPROVED", x_param_count: 1, x_category: "UTILITY" });
+  return env;
+}
+/** The real cost lines of 10-01 (x_operating_cost #2–#11, § 44 / 09-30): 7 monthly = 10335, yearly 11000, daily 83 + 50. */
+function realCosts(): void {
+  const line = (name: string, f: string, amount: number) => seed("x_operating_cost", { x_name: name, x_cost_type: "variable", x_frequency: f, x_amount: amount, x_date_from: "2026-10-01", x_date_to: false, x_utak_simulation: false });
+  line("إيجار الباص المبرد", "monthly", 5000); line("الديزل", "monthly", 1000); line("راتب عمر", "monthly", 4000);
+  line("تأمينات عمر (أخطار مهنية 2%)", "monthly", 80); line("اشتراك Odoo", "monthly", 80); line("Claude API", "monthly", 75);
+  line("الرصيد والاتصالات", "monthly", 100); line("تجديد هوية/إقامة عمر", "yearly", 11000);
+  line("رسوم دخول السوق", "daily", 83); line("العربية", "daily", 50);
+}
+
+console.log("\n[ج] the operating cost: a Friday line makes October 31 working days and 2026 365 — the cost lines unchanged");
+{
+  const env = omarEnv(`${THU} 10:00`); realCosts();
+  const thu = await quiet(() => OC.dailyOperatingCost(env, THU));
+  const fri = await quiet(() => OC.dailyOperatingCost(env, FRI));
+  assert("Thursday 10-01: 496.52 (10335 ÷ 31 + 11000 ÷ 365 + 133), October 31 days, 2026 365", thu.total === 496.52 && thu.monthWorkingDays === 31 && thu.yearWorkingDays === 365, JSON.stringify({ t: thu.total, m: thu.monthWorkingDays, y: thu.yearWorkingDays }));
+  assert("Friday 10-02: a working day, the same 496.52", fri.workingDay === true && fri.total === 496.52, JSON.stringify({ t: fri.total, w: fri.workingDay }));
+  const env6 = omarEnv(`${THU} 10:00`, SAT_THU); realCosts();
+  const thu6 = await quiet(() => OC.dailyOperatingCost(env6, THU));
+  const fri6 = await quiet(() => OC.dailyOperatingCost(env6, FRI));
+  assert("(before § 45, Saturday–Thursday: 565.64 on Thursday, 133 on Friday — the schedule alone makes the difference)", thu6.total === 565.64 && fri6.total === 133 && fri6.workingDay === false, `${thu6.total} ${fri6.total}`);
+}
+
+console.log("\n[ج] Friday is a working day for Omar everywhere: his plan, «بدء الدوام» 02:00, the list after Thursday's shift");
+{
+  const env = omarEnv(`${FRI} 00:00`);
+  const roster = await quiet(() => ROS.fetchRoster(env));
+  const m = ROS.memberByPartner(roster, DRV)!;
+  const p = ROS.dayPlan(roster, m, FRI);
+  assert("Friday 10-02: «يوم عمل» 02:00–12:00", p.kind === "work" && p.startMin === 120 && p.endMin === 720, JSON.stringify(p));
+  assert("…not a day off (the driver's follow-up reads the same plan)", !DRVF.isOffToday(p));
+}
+{
+  const env = omarEnv(`${FRI} 02:00`); closeOwnerWindow(env);
+  await quiet(() => ATT.runAttendanceTick(env));
+  const s = sentTo(DRV_PHONE).filter((b: any) => tplName(b) === "utak_shift_start_v2");
+  assert("Friday 02:00: «بدء الدوام» (utak_shift_start_v2) to Omar", s.length === 1, JSON.stringify(sentTo(DRV_PHONE)));
+}
+{
+  const env = omarEnv(`${THU} 21:15`); closeOwnerWindow(env); openWindow(env, OWNER);
+  const h = await quiet(() => ATT.holdForTask(env, DRV, { kind: "purchase_list", label: "قائمة الشراء" }));
+  const a = ownerMsgs().map(textOf).find((t) => t.includes("بعد دوامه")) ?? "";
+  assert("Thursday 21:15, the purchase list: held after his shift until «الجمعة 02:00» (not Saturday)", h.hold && h.phase === "after" && h.next === "الجمعة 02:00", JSON.stringify(h));
+  assert("…and Baraa's one alert names Friday 02:00", a.includes("(الجمعة 02:00)") && !a.includes("السبت"), a);
+  const env6 = omarEnv(`${THU} 21:15`, SAT_THU);
+  const h6 = await quiet(() => ATT.holdForTask(env6, DRV, { kind: "purchase_list", label: "قائمة الشراء" }));
+  assert("(before § 45: «السبت 02:00»)", h6.next === "السبت 02:00", JSON.stringify(h6));
+}
+
+console.log("\n[ج] the driver's follow-up on Friday: 11:30 and 12:30, no «راحة» alert");
+{
+  const env = omarEnv(`${FRI} 11:20`);
+  const emp = [...table("hr.employee").values()].find((e: any) => e.work_contact_id === DRV)!.id;
+  seed("x_team_attendance", { x_employee_id: emp, x_date: FRI, x_status: "present", x_sent_at: `${THU} 23:00:00`, x_tapped_at: `${THU} 23:01:00`, x_reminder_sent: false });
+  const route = seed("x_delivery_route", { x_driver_id: DRV, x_date: THU, x_status: "dispatched", x_dispatched_at: `${THU} 19:30:00`, x_total_stops: 1, x_stops_completed: 0 });
+  const order = seed("x_daily_order", { x_customer_id: 501, x_state: "in_delivery", x_order_date: THU, x_created_via: "whatsapp", x_total_amount: 0 });
+  seed("x_delivery_stop", { x_route_id: route, x_order_id: order, x_sequence: 10, x_status: "pending" });
+  openWindow(env, DRV_PHONE, 60);
+  const tick = async (hm: string) => { setRiyadh(`${FRI} ${hm}`); return quiet(() => DRVF.runDriverFollowupTick(env)); };
+  await tick("11:27");
+  assert("11:27: nothing yet", sentTo(DRV_PHONE).length === 0 && ownerMsgs().length === 0);
+  await tick("11:32");
+  assert("11:32 (end − 30): the reminder to Omar with his open stop", sentTo(DRV_PHONE).filter((b: any) => b.type === "text").length === 1, JSON.stringify(sentTo(DRV_PHONE)));
+  await tick("12:32");
+  const al = ownerMsgs().map(textOf);
+  assert("12:32 (end + 30): Baraa's end-of-shift alert", al.length === 1 && al[0].includes("عمر المجهلي"), JSON.stringify(al));
+  await tick("18:02");
+  assert("18:00: no «يوم راحته» / «إجازة» alert (Friday is his working day)", !ownerMsgs().map(textOf).some((t) => /راحته|إجازة/.test(t)) && ownerMsgs().length === 1, JSON.stringify(ownerMsgs().map(textOf)));
+}
+
 // ================================================================ schema gate
 console.log("\n[س] every Odoo call used real fields and selection values");
 assert("no field / value the tenant does not have", rejected.length === 0, rejected.slice(0, 5).join(" | "));

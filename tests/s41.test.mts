@@ -276,6 +276,10 @@ console.log("\n[أ] the discount guard: the order's profit net of VAT, the disco
   table("x_pricing_config").get(1)!.x_planned_stops = 10;
   const d2 = await quiet(() => OP.orderDiscount(env, { day: "2026-10-01", lines: [line(20)], vatRate: async () => 15 }));
   assert("10 planned stops (50): applied, 10.43, profit after 91.31", d2.applied && d2.amount === 10.43 && d2.profitAfter === 91.31, JSON.stringify(d2));
+  // the discount comes off the UNROUNDED profit, then one rounding: 22 × (30 ÷ 1.15 − 21) = 111.9130… − 13.21 ÷ 1.15 = 100.4261 → 100.43
+  // (rounded first it would be 111.91 − 11.4870 = 100.42)
+  const d22 = await quiet(() => OP.orderDiscount(env, { day: "2026-10-01", lines: [line(22)], vatRate: async () => 15 }));
+  assert("22 cartons: profit 111.91, after the discount 100.43 (taken off before the rounding)", d22.applied && d22.profitBefore === 111.91 && d22.profitAfter === 100.43, JSON.stringify(d22));
   table("res.partner").get(AHMED)!.x_vat_registered = false;
   const d3 = await quiet(() => OP.orderDiscount(env, { day: "2026-10-01", lines: [line(20)], vatRate: async () => 15 }));
   assert("Ahmed not registered: the same 101.74, after the discount 91.31 (the registration changes nothing)",
@@ -516,7 +520,8 @@ console.log("\n[سعر] the invoice at 05:00 (before 06:00's list): the order's 
   const qd = await quiet(() => Q.buildQuotationPDFDataFromOdoo(env, q));
   assert("its quotation rebuilt today (lines without a written price): the order's day's 30 too, not today's 33", qd?.items[0]?.price === 30 && qd?.subtotal === 150, JSON.stringify(qd?.items));
   assert("today's own orders still get today's price (33)", (await quiet(() => getLatestSalePrice(env, 1, 11))).price === 33);
-  dp(2, 21, AHMED, 40, "2026-09-28");
+  // § 47 أ — a supplier row as the worker writes it (its x_sale_price beside the purchase price): only that counts
+  seed("x_daily_price", { x_product_tmpl_id: 2, x_packaging_id: 21, x_supplier_id: AHMED, x_price_sar: 29, x_sale_price: 40, x_date: "2026-09-28", x_extraction_status: "extracted" });
   const fut = await quiet(() => getLatestSalePrice(env, 2, 21, "2026-09-26"));
   assert("the stale fallback never takes a later day's price (09-28 for 09-26 → missing)", fut.price === 0 && fut.source === "missing", JSON.stringify(fut));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));

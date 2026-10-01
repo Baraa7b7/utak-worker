@@ -1,0 +1,123 @@
+{
+  "at": "2026-10-01T03:16:56.398Z",
+  "menu": {
+    "id": 523,
+    "name": "WhatsApp",
+    "active": true,
+    "group_ids": []
+  },
+  "modules": [
+    {
+      "id": 1516,
+      "name": "whatsapp",
+      "state": "installed"
+    },
+    {
+      "id": 1517,
+      "name": "whatsapp_account",
+      "state": "installed"
+    },
+    {
+      "id": 1518,
+      "name": "whatsapp_account_followup",
+      "state": "installed"
+    },
+    {
+      "id": 1519,
+      "name": "whatsapp_calendar",
+      "state": "installed"
+    },
+    {
+      "id": 1520,
+      "name": "whatsapp_crm",
+      "state": "installed"
+    },
+    {
+      "id": 1521,
+      "name": "whatsapp_delivery",
+      "state": "uninstalled"
+    },
+    {
+      "id": 1522,
+      "name": "whatsapp_event",
+      "state": "uninstalled"
+    },
+    {
+      "id": 1524,
+      "name": "whatsapp_identifiers",
+      "state": "installed"
+    },
+    {
+      "id": 1545,
+      "name": "whatsapp_oauth",
+      "state": "uninstalled"
+    },
+    {
+      "id": 1525,
+      "name": "whatsapp_payment",
+      "state": "installed"
+    },
+    {
+      "id": 1526,
+      "name": "whatsapp_pos",
+      "state": "uninstalled"
+    },
+    {
+      "id": 1527,
+      "name": "whatsapp_pos_self_order",
+      "state": "uninstalled"
+    },
+    {
+      "id": 1528,
+      "name": "whatsapp_sale",
+      "state": "installed"
+    },
+    {
+      "id": 1529,
+      "name": "whatsapp_sign",
+      "state": "installed"
+    },
+    {
+      "id": 1530,
+      "name": "whatsapp_stock",
+      "state": "installed"
+    },
+    {
+      "id": 1531,
+      "name": "whatsapp_website_sale",
+      "state": "uninstalled"
+    },
+    {
+      "id": 1523,
+      "name": "whatsapp_hr_referral",
+      "state": "uninstalled"
+    }
+  ],
+  "found": [],
+  "models": [
+    "whatsapp.account",
+    "whatsapp.template",
+    "whatsapp.preview",
+    "whatsapp.composer",
+    "whatsapp.partner.bsuid",
+    "whatsapp.message",
+    "whatsapp.template.button",
+    "whatsapp.template.variable"
+  ],
+  "counts": {
+    "whatsapp.account": 1,
+    "whatsapp.template": 10,
+    "whatsapp.message": 0
+  },
+  "automationsScanned": 24,
+  "automationActionsScanned": 22,
+  "srcHits": [],
+  "customFieldsOn": 0,
+  "customFieldsTo": 0,
+  "serverActions": [
+    "#903 WhatsApp : Resend failed Messages (code, whatsapp.message, whatsapp.ir_actions_server_resend_whatsapp_queue)",
+    "#904 WhatsApp : Send In Queue Messages (code, whatsapp.message, whatsapp.ir_cron_send_whatsapp_queue_ir_actions_server)"
+  ],
+  "viewsScanned": 23,
+  "utakWindows": 33
+}

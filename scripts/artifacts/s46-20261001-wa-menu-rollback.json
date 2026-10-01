@@ -1,0 +1,29 @@
+{
+  "script": "scripts/s46-20261001-wa-menu.mjs",
+  "createdAt": "2026-10-01T03:16:54.183Z",
+  "before": {
+    "id": 523,
+    "name": "WhatsApp",
+    "active": true,
+    "group_ids": []
+  },
+  "modules": {
+    "whatsapp": "installed",
+    "whatsapp_account": "installed",
+    "whatsapp_account_followup": "installed",
+    "whatsapp_calendar": "installed",
+    "whatsapp_crm": "installed",
+    "whatsapp_delivery": "uninstalled",
+    "whatsapp_event": "uninstalled",
+    "whatsapp_identifiers": "installed",
+    "whatsapp_oauth": "uninstalled",
+    "whatsapp_payment": "installed",
+    "whatsapp_pos": "uninstalled",
+    "whatsapp_pos_self_order": "uninstalled",
+    "whatsapp_sale": "installed",
+    "whatsapp_sign": "installed",
+    "whatsapp_stock": "installed",
+    "whatsapp_website_sale": "uninstalled",
+    "whatsapp_hr_referral": "uninstalled"
+  }
+}

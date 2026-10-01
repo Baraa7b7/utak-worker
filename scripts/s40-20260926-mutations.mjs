@@ -87,7 +87,7 @@ const M = [
   ["ب", "a source without the flag read", [[PS,
     "  if (!emp && !src.partners.some((p) => p.partnerId === who.partnerId && !p.supplier)) return null;\n", ""]], T],
   ["ب", "no market outlier", [[PS,
-    "  const mOut = isOutlier(lastM, o.market);", "  const mOut = false;"]], T],
+    "  const mOut = isOutlier(lastM, o.market, o.ratio);", "  const mOut = false;"]], T],
   ["ب", "a simulation offer as the outlier reference", [[PS,
     "[f, \">\", 0], [SIM_FIELD, \"!=\", true]],", "[f, \">\", 0]],"]], T],
   ["ب", "Ahmed's «سوق» number saved as his purchase price", [["src/suppliers.ts",

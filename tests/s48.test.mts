@@ -33,6 +33,12 @@ const ZP = await import("../src/zero-price.ts");
 const PS = await import("../src/price-sources.ts");
 // @ts-ignore — plain .mjs helper
 const VW = await import("../scripts/lib/s48-odoo-views.mjs");
+// @ts-ignore — plain .mjs helper
+const UI = await import("../scripts/lib/s48-ui.mjs");
+const PL = await import("../src/places.ts");
+const PSU = await import("../src/product-setup.ts");
+const OW = await import("../src/owner-window.ts");
+const SP = await import("../src/supplier-pay.ts");
 
 const ITEM = { productId: 1, productName: "طماطم", packagingId: 11, packagingName: "كرتون" };
 const offer = (o: Record<string, unknown>) => ({ kind: "market", price: 0, outlier: false, partnerId: 1, sourceName: "م", productId: 1, packagingId: 11, model: "po", rowId: 1, ...o }) as any;
@@ -468,6 +474,296 @@ console.log("\n[د] a source's reply inside the window that gives no price (2026
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 
+// ================================================================ [و] «💲 التسعير»: the places, the screens, the settings
+console.log("\n[و] the places: every text of the worker names the screens of «💲 التسعير»");
+{
+  assert("the five screens, under «💲 التسعير»", PL.PLACE_TODAY === "«💲 التسعير» ← «📊 اليوم»" && PL.PLACE_DAYS === "«💲 التسعير» ← «📅 الأيام السابقة»" && PL.PLACE_SOURCES === "«💲 التسعير» ← «📥 عروض المصادر»" && PL.PLACE_PRODUCTS === "«💲 التسعير» ← «📦 الأصناف»" && PL.PLACE_SETTINGS === "«💲 التسعير» ← «⚙️ الإعدادات»");
+  assert("…the same names as the menu the setup script writes", UI.MENU.root === PL.PRICING_MENU && [UI.MENU.today, UI.MENU.days, UI.MENU.sources, UI.MENU.products, UI.MENU.settings].every((n: string, i: number) => [PL.PLACE_TODAY, PL.PLACE_DAYS, PL.PLACE_SOURCES, PL.PLACE_PRODUCTS, PL.PLACE_SETTINGS][i] === `«${UI.MENU.root}» ← «${n}»`));
+  const OLD = ["💰 أسعار اليوم", "📊 لوحة التسعير", "⚙️ إعدادات التسعير", "💰 التكاليف التشغيلية", "«الأسعار اليومية»", "عروض المصادر اليومية", "معاملات التسعير", "«سجل أسعار الأيام»", "طلبات الأسعار اليومية"];
+  const files = readdirSync(new URL("../src/", import.meta.url)).filter((f) => f.endsWith(".ts"));
+  const hits = files.flatMap((f) => { const code = stripComments(srcOf(f)); return OLD.filter((o) => code.includes(o)).map((o) => `${f}: ${o}`); });
+  assert(`no text of the worker (${files.length} files, comments apart) names a pricing place of before § 48`, hits.length === 0, hits.join(" | "));
+  assert("the hidden menus are the eleven pricing menus of before", UI.OLD_MENUS.length === 11 && JSON.stringify(UI.OLD_MENUS.map((m: any) => m[0]).sort((a: number, b: number) => a - b)) === JSON.stringify([535, 537, 553, 555, 556, 572, 573, 577, 578, 579, 581]));
+
+  // the texts as they go out
+  const env = fresh(`${DAY} 06:00`); cost(500); dp(3, 31, 18);
+  await quiet(() => PR.refreshPriceDay(env));
+  await quiet(() => PR.runPricesTick(env, Date.now()));
+  const missed = ownerTexts().find((x) => x.startsWith("⏰ أسعار اليوم")) ?? "";
+  assert("06:00, nothing approved: Baraa is sent to «💲 التسعير» ← «📊 اليوم» for «نشر المعتمد الآن»", dayOf().x_state === "missed" && missed.includes(`«نشر المعتمد الآن» في ${PL.PLACE_TODAY}`), missed);
+  const late = await quiet(() => PR.handlePriceExceptionButton(env, `pexc_p_${lineFor(3).id}`));
+  assert("a decision on the missed day: «انشر من «💲 التسعير» ← «📊 اليوم» بزر «نشر المعتمد الآن»»", late.includes(`السجل «فات الموعد»: انشر من ${PL.PLACE_TODAY} بزر «نشر المعتمد الآن».`), late);
+  assert("the review reminder that finds nothing", OW.PRICE_REVIEW_NOTHING_TEXT.endsWith(`التفاصيل في ${PL.PLACE_TODAY}.`));
+  assert("the board's note when «الكراتين المتوقعة» is empty names «⚙️ الإعدادات»", PB.boardShare(500, null, { days: 0, average: null }).note.includes(`فارغة في ${PL.PLACE_SETTINGS}`));
+  const alert = PSU.newProductAlert({ id: 9, name: "صنف", default_code: false, categ_id: false, x_supplier_ids: [], x_is_active_for_sale: false, x_name_en: false, create_date: "2026-10-03 00:00:00" }, ["المورد"]);
+  assert("the «🆕 صنف جديد» alert ends with where to complete it: «📦 الأصناف»", alert.split("\n").at(-1) === `أكمله من ${PL.PLACE_PRODUCTS}.`, alert);
+  assert("a supplier due without its price points at «📥 عروض المصادر»", /أدخل سعر المورد لذلك اليوم في \$\{PLACE_SOURCES\} \(ردود الشراء\)/.test(srcOf("supplier-pay.ts")) && typeof SP.syncSupplierDues === "function");
+  const docs = readFileSync(new URL("../docs/OPERATING-DAY.md", import.meta.url), "utf8");
+  const docHits = ["UTAK ← 💰 أسعار اليوم", "UTAK ← 📊 لوحة التسعير", "UTAK ← ⚙️ إعدادات التسعير", "عروض المصادر اليومية", "في «💰 أسعار اليوم»", "من **💰 أسعار اليوم**"].filter((o) => docs.includes(o));
+  assert("the operating-day guide names the five screens and no old pricing place", [UI.MENU.root, UI.MENU.today, UI.MENU.days, UI.MENU.sources, UI.MENU.products, UI.MENU.settings].every((n: string) => docs.includes(n)) && docHits.length === 0, docHits.join(" | "));
+}
+
+console.log("\n[و] the confirmation of «نشر المعتمد الآن»: how many customers the day would reach");
+{
+  const env = fresh(`${DAY} 04:00`); cost(500);
+  seed("res.partner", { id: 891, name: "مطعم الوادي 2", customer_rank: 1, x_whatsapp_number: "+966500000891" });
+  seed("res.partner", { id: 892, name: "موقوف", customer_rank: 1, x_whatsapp_number: "+966500000892", x_wa_marketing_optout: true });
+  dp(1, 11, 20); market(1, 11, 34.5);
+  await quiet(() => PR.refreshPriceDay(env));
+  const n = (await quiet(() => PR.priceRecipients(env))).length;
+  assert(`the engine writes the publication's own count on the day (${n}: the opted-out customer is not one)`, n === 3 && dayOf().x_n_recipients === n, JSON.stringify(dayOf()));
+  seed("res.partner", { id: 893, name: "عميل جديد", customer_rank: 1, x_whatsapp_number: "+966500000893" });
+  await quiet(() => PR.rewriteBoard(env, dayOf().id));
+  assert("…and «🔄» / a decision's board rewrite brings it up to date (4)", dayOf().x_n_recipients === 4);
+  const dry = await quiet(() => PR.rewriteBoard(env, dayOf().id, { dry: true }));
+  assert("a dry rewrite counts nothing and writes nothing", !("x_n_recipients" in (dry.header ?? {})));
+  const cf = String(UI.confirmForm({ approve: 1002 }));
+  assert("the confirmation shows the two numbers and the names, says it sends for real, and carries the only button that publishes", cf.includes('name="x_n_publishable"') && cf.includes('name="x_n_recipients"') && cf.includes('name="x_publish_names"') && cf.includes("رسائل واتساب فعلية") && /<button name="1002" type="action"[^>]*invisible="not x_n_publishable"/.test(cf) && cf.includes('special="cancel"'));
+  const A = { refresh: 1004, confirm: 1038, unapprove: 1003, approve: 1002, prev: 1033, next: 1034, openDay: 1032, openSources: 1037, days: 1009, products: 1041, settings: 1027, purchaseList: 1039, marketList: 1040, packagings: 1042, profitGraph: 1043 };
+  const df = String(UI.dayForm(A));
+  assert("the day's screen: «نشر المعتمد الآن» opens the confirmation (never the approval itself)", /<button name="1038" type="action" string="نشر المعتمد الآن"/.test(df) && !df.includes('name="1002"') && /<button name="1004" type="action" string="🔄 إعادة الحساب"/.test(df));
+  assert("…the day before and after, «اليوم» when it is another day, and the other four screens one tap away", df.includes('name="1033"') && df.includes('name="1034"') && /<button name="1032" type="action" string="اليوم"[^>]*invisible="x_is_today"/.test(df) && [1009, 1037, 1041, 1027].every((id) => new RegExp(`<button name="${id}" type="action" string="[^"]+" class="btn btn-link`).test(df)));
+  assert("…the header: the date and the state, the day's cost, the carton share and the comparison at 500, the counts, the approval and publication times, the explanation", ["x_date", "x_state", "x_op_cost", "x_op_share", "x_op_share_500", "x_n_green", "x_n_yellow", "x_n_red", "x_n_none", "x_approved_at", "x_published_at"].every((f) => df.includes(`name="${f}"`)) && df.includes(VW.DAY_NOTE));
+  assert("…no record today: a clear note; another day: «هذا يوم سابق»", /invisible="not context.get\('utak_no_today'\)">لا يوجد سجل أسعار لليوم بعد/.test(df) && /invisible="x_is_today or context.get\('utak_no_today'\)">هذا يوم سابق/.test(df));
+  const cols = [...String(UI.LINE_LIST).matchAll(/<field name="(\w+)"(?![^>]*column_invisible)/g)].map((m) => m[1]);
+  assert("…the lines' table, in the order asked: الصنف، التعبئة، الشراء، المصدر، السوق، المشاهدات، بدون خسارة، المقترح، البيع، الربح / المعاينة، (اللوحة)، الحالة، السبب، قرار براء، السعر المعدّل",
+    JSON.stringify(cols) === JSON.stringify(["x_product_tmpl_id", "x_packaging_id", "x_cost_show", "x_supplier_id", "x_market_show", "x_market_count", "x_even_show", "x_suggested_show", "x_sale_show", "x_profit_show", "x_board_status", "x_status", "x_reason", "x_decision", "x_manual_price", "x_offers"]), JSON.stringify(cols));
+  assert("…«قرار براء» and «السعر المعدّل» are the only cells he can write, in the row itself", /<list editable="bottom" create="0" delete="0"/.test(UI.LINE_LIST) && /<field name="x_decision" string="قرار براء"\/>/.test(UI.LINE_LIST) && /<field name="x_manual_price" string="السعر المعدّل" invisible=/.test(UI.LINE_LIST)
+    && [...String(UI.LINE_LIST).matchAll(/<field name="(x_(?:product_tmpl_id|packaging_id|supplier_id|market_count|board_status|status|reason|offers))"[^>]*>/g)].every((m) => m[0].includes('readonly="1"')));
+  assert("…on a phone: cards (the status in words, a coloured side border, «—» texts, no table to scroll sideways)", /mode="list,kanban"/.test(df) && UI.LINE_CARD.includes("border-start border-5") && ["x_cost_show", "x_market_show", "x_even_show", "x_suggested_show", "x_sale_show", "x_profit_show", "x_manual_show", "x_board_status", "x_status", "x_decision"].every((f) => UI.LINE_CARD.includes(`name="${f}"`)) && !/widget="badge"/.test(UI.LINE_CARD));
+  assert("…and the preview set apart on the card too (italics)", /fst-italic/.test(UI.LINE_CARD) && /!record\.x_sale_price\.raw_value and record\.x_preview_sale\.raw_value/.test(UI.LINE_CARD));
+  assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
+}
+
+console.log("\n[و] «نسبة السعر الشاذ» is a setting");
+{
+  const env = fresh(`${DAY} 03:10`); cost(500);
+  assert("the settings give 1.5 when the record carries none", (await quiet(() => OC.readPricingSettings(env, DAY)))?.outlierRatio === 1.5);
+  table("x_pricing_config").get(1)!.x_outlier_ratio = 2;
+  assert("…Baraa's 2", (await quiet(() => OC.readPricingSettings(env, DAY)))?.outlierRatio === 2 && (await quiet(() => OC.readOutlierRatio(env, DAY))) === 2);
+  table("x_pricing_config").get(1)!.x_outlier_ratio = 0.5;
+  assert("…a value not above 1 is not a ratio: 1.5", (await quiet(() => OC.readPricingSettings(env, DAY)))?.outlierRatio === 1.5);
+  table("x_pricing_config").get(1)!.x_is_active = false;
+  assert("…no settings record: 1.5, never a throw", (await quiet(() => OC.readOutlierRatio(env, DAY))) === 1.5);
+  table("x_pricing_config").get(1)!.x_is_active = true;
+  assert("isPriceOutlier takes the ratio: 20 → 35 is an outlier at 1.5, not at 2; 20 → 40 is one at 2", SUP.isPriceOutlier(20, 35) && SUP.isPriceOutlier(20, 35, 1.5) && !SUP.isPriceOutlier(20, 35, 2) && SUP.isPriceOutlier(20, 40, 2) && SUP.isPriceOutlier(40, 20, 2));
+  // Ahmed's last price 20, today's 35
+  const sup = { ...table("res.partner").get(AHMED)!, id: AHMED } as any;
+  const one = (p: number, m: number | null = null) => ({ prices: [{ product_id: 1, packaging_id: 11, cost_price: p, market_price: m, available_qty: null, actual_weight_kg: null, notes: null }], unrecognized: [] });
+  seed("x_daily_price", { x_product_tmpl_id: 1, x_packaging_id: 11, x_supplier_id: AHMED, x_price_sar: 20, x_date: "2026-10-02", x_extraction_status: "extracted" });
+  table("x_pricing_config").get(1)!.x_outlier_ratio = 2;
+  setExtract(one(35));
+  await quiet(() => SUP.handleSupplierReply(env, sup, "طماطم 35", "wamid.R1"));
+  const r1 = rows("x_daily_price").at(-1) as any;
+  assert("the supplier's 20 → 35 with the ratio at 2: saved «extracted», no outlier alert", r1.x_price_sar === 35 && r1.x_extraction_status === "extracted" && !ownerTexts().some((x) => x.includes("سعر شاذ")), JSON.stringify(r1));
+  table("x_pricing_config").get(1)!.x_outlier_ratio = 1.5;
+  setExtract(one(60));
+  await quiet(() => SUP.handleSupplierReply(env, sup, "طماطم 60", "wamid.R2"));
+  const r2 = rows("x_daily_price").at(-1) as any;
+  assert("35 → 60 with the ratio at 1.5: «pending» and the alert", r2.x_price_sar === 60 && r2.x_extraction_status === "pending" && ownerTexts().some((x) => x.includes("سعر شاذ")), JSON.stringify(r2));
+  // Omar's market observation: his last 24, today's 40
+  seed("x_price_offer", { x_product_tmpl_id: 2, x_packaging_id: 21, x_source_partner_id: DRIVER, x_date: "2026-10-02", x_purchase_price: 0, x_market_price: 24, x_purchase_outlier: false, x_market_outlier: false, x_status: "valid", x_utak_simulation: false });
+  const a1 = await quiet(() => PS.saveOffer(env, { partnerId: DRIVER, productId: 2, packagingId: 21, market: 40, text: "خيار 40" }, DAY));
+  const a2 = await quiet(() => PS.saveOffer(env, { partnerId: DRIVER, productId: 2, packagingId: 21, market: 70, text: "خيار 70", ratio: 2 }, DAY));
+  assert("a market observation 24 → 40 is an outlier at the default 1.5; 40 → 70 is not one at 2", a1.outlier === true && a2.outlier === false, JSON.stringify([a1, a2]));
+  table("x_pricing_config").get(1)!.x_outlier_ratio = 2;
+  await PS.writeMarketAskMarker(env, DRIVER_PHONE, DAY, Date.now());
+  setExtract({ prices: [{ product_id: 2, packaging_id: 21, cost_price: 41, market_price: null, available_qty: null, actual_weight_kg: null, notes: null }], unrecognized: [] });
+  await quiet(() => PS.tryMarketReply(env, { partnerId: DRIVER, name: "عمر المجهلي" }, `+${DRIVER_PHONE}`, "خيار 41", "wamid.R3"));
+  const last = rows("x_price_offer").at(-1) as any;
+  assert("…and his reply reads the settings' ratio (41 after 70: ÷ 1.71 — valid at 2, it would be «شاذ» at 1.5)", last.x_market_price === 41 && last.x_status === "valid" && last.x_market_outlier === false, JSON.stringify(last));
+  setExtract(null);
+  assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
+}
+
+console.log("\n[و] «📦 الأصناف»: «ناقص» is the rule of the «🆕 صنف جديد» alert (the Python Odoo computes against the worker's own function)");
+{
+  const cats: Array<{ id: number; name: string; parent: number | false }> = [{ id: 1, name: "Goods", parent: false }, { id: 5, name: "فواكه", parent: false }, { id: 6, name: "خضار", parent: false }, { id: 51, name: "حمضيات", parent: 5 }];
+  type P = { id: number; categ: number | false; suppliers: number[]; afs: boolean; en: string | false; packs: Array<{ id: number; type: string; kg: number; def: boolean; seq: number }> };
+  const products: P[] = [
+    { id: 1, categ: false, suppliers: [], afs: false, en: false, packs: [] },                                                       // everything missing
+    { id: 2, categ: 5, suppliers: [30], afs: true, en: "Pomegranate", packs: [{ id: 21, type: "carton", kg: 10, def: true, seq: 10 }] }, // complete
+    { id: 3, categ: 51, suppliers: [30], afs: true, en: "Orange", packs: [{ id: 31, type: "carton", kg: 8, def: true, seq: 10 }] },      // a child category; the temporary 8 kg
+    { id: 4, categ: 1, suppliers: [30], afs: true, en: "Avocado", packs: [{ id: 41, type: "carton", kg: 4, def: true, seq: 0 }] },       // Goods is not a produce category
+    { id: 5, categ: 5, suppliers: [30], afs: true, en: "Pomegranate L", packs: [{ id: 51, type: "carton", kg: 0, def: true, seq: 0 }] },  // «كرتون» بلا وزن (the pomegranates of the tenant)
+    { id: 6, categ: 6, suppliers: [30], afs: true, en: "Watermelon", packs: [{ id: 61, type: "piece", kg: 0, def: true, seq: 10 }, { id: 62, type: "carton", kg: 8, def: false, seq: 20 }] }, // by the piece: no weight needed; the 8 kg carton is not the default
+    { id: 7, categ: 6, suppliers: [], afs: false, en: " ", packs: [{ id: 72, type: "bag", kg: 0, def: false, seq: 20 }, { id: 71, type: "bag", kg: 8, def: false, seq: 10 }] }, // no default: the first by sequence (a bag of 8 is not «temporary»)
+    { id: 8, categ: 5, suppliers: [30], afs: true, en: "Tomato", packs: [{ id: 81, type: "foam", kg: 0, def: true, seq: 10 }] },
+    { id: 9, categ: 5, suppliers: [30], afs: true, en: "Banana", packs: [{ id: 91, type: "carton", kg: 8, def: false, seq: 10 }, { id: 92, type: "carton", kg: 13, def: true, seq: 20 }] }, // the default is the second by sequence
+  ];
+  const PY = `
+import json, sys
+code = sys.argv[1]; pack_code = sys.argv[2]; cats = json.loads(sys.argv[3]); products = json.loads(sys.argv[4])
+class Cat:
+    def __init__(s, d): s.id = d['id']; s.name = d['name']; s.parent_id = False
+class RS(list):
+    def sorted(s, key=None): return RS(sorted(s, key=key))
+    def filtered(s, f): return RS([x for x in s if f(x)])
+    def __getitem__(s, i):
+        r = list.__getitem__(s, i)
+        return RS(r) if isinstance(i, slice) else r
+    def __or__(s, o): return s if len(s) else o
+    def __getattr__(s, n):
+        if len(s) == 1: return getattr(list.__getitem__(s, 0), n)
+        raise AttributeError(n)
+class Pack:
+    def __init__(s, d): s.id = d['id']; s.x_type = d['type']; s.x_approx_weight_kg = d['kg']; s.x_is_default = d['def']; s.x_sequence = d['seq']
+class Prod:
+    def __init__(s, d, cmap):
+        s.id = d['id']; s.categ_id = cmap.get(d['categ']) or False; s.x_supplier_ids = d['suppliers']; s.x_is_active_for_sale = d['afs']; s.x_name_en = d['en']
+        s.x_packaging_ids = RS([Pack(k) for k in d['packs']]); s.out = {}
+    def __setitem__(s, k, v): s.out[k] = v
+cmap = {c['id']: Cat(c) for c in cats}
+for c in cats:
+    if c['parent']: cmap[c['id']].parent_id = cmap[c['parent']]
+res = []
+for d in products:
+    p = Prod(d, cmap)
+    exec(code, {'self': [p]}); exec(pack_code, {'self': [p]})
+    pk = p.out['x_pack_id']
+    res.append({'missing': p.out['x_missing'], 'pack': (pk[0].id if len(pk) else False)})
+print(json.dumps(res, ensure_ascii=False))`;
+  const out = JSON.parse(execFileSync("python3", ["-c", PY, UI.MISSING_CODE, UI.PACK_CODE, JSON.stringify(cats), JSON.stringify(products)], { encoding: "utf8" }));
+  const catMap = new Map(cats.map((c) => [c.id, { id: c.id, name: c.name, parent_id: c.parent }]));
+  const L = UI.MISSING_LABEL;
+  // the worker's words → the list's short labels (the same items, in the same order)
+  const short = (m: string) => m.startsWith("الفئة") ? L.category : m === "المورد" ? L.supplier : m === "«نشط للبيع»" ? L.forSale : m.startsWith("التعبئة") ? L.noPack : m.startsWith("وزن الكرتون") ? L.tempWeight : m.startsWith("وزن التعبئة") ? L.noWeight : m === "الاسم بالإنجليزي" ? L.english : `?${m}`;
+  const worker = products.map((p) => {
+    const packs = [...p.packs].sort((a, b) => a.seq - b.seq || a.id - b.id).map((k) => ({ x_product_tmpl_id: p.id, x_type: k.type, x_approx_weight_kg: k.kg, x_is_default: k.def, id: k.id }));
+    const m = PSU.missingOnProduct({ id: p.id, name: "x", default_code: "UTAK-X", categ_id: p.categ, x_supplier_ids: p.suppliers, x_is_active_for_sale: p.afs, x_name_en: p.en, create_date: "" } as any, packs as any, catMap as any);
+    return { missing: m.map(short).join("، ") || false, pack: ((packs.find((k) => k.x_is_default) ?? packs[0]) as any)?.id ?? false };
+  });
+  assert("the Python of «الناقص» and of «التعبئة الافتراضية» gives, product by product, what the worker's missingOnProduct gives", JSON.stringify(out) === JSON.stringify(worker), JSON.stringify({ out, worker }));
+  assert("…everything missing on an empty card", out[0].missing === [L.category, L.supplier, L.forSale, L.noPack, L.english].join("، "));
+  assert("…a complete product: nothing (the filter «ناقص» leaves it out)", out[1].missing === false && out[1].pack === 21);
+  assert("…a child of «فواكه» is a produce category; the temporary 8 kg carton is missing its weight", out[2].missing === L.tempWeight);
+  assert("…«Goods» is not a produce category", out[3].missing === L.category);
+  assert("…a carton, a bag or a foam box with no weight (the tenant's pomegranates): «وزن التعبئة» — the alert's rule gained it too", out[4].missing === L.noWeight && out[7].missing === L.noWeight && PSU.WEIGHED_TYPES.join() === "carton,bag,foam");
+  assert("…sold by the piece: no weight asked; the 8 kg carton that is not the default does not count", out[5].missing === false && out[5].pack === 61);
+  assert("…no default packaging: the first by sequence", out[6].pack === 71 && out[6].missing === [L.supplier, L.forSale, L.english].join("، "));
+  assert("…the default packaging is the one marked default, wherever it stands (13 kg, complete) — not the first (the 8 kg carton)", out[8].pack === 92 && out[8].missing === false);
+  const list = String(UI.productsList({ packagings: 1042 }, true)), search = String(UI.productsSearch([5, 6, 7]));
+  assert("the list is edited in place: «نشط للبيع», the category, the supplier, the packaging's type and weight; «الناقص» read-only", /<list[^>]*editable="bottom"/.test(list) && ["categ_id", "x_is_active_for_sale", "x_supplier_ids", "x_pack_type", "x_pack_weight"].every((f) => new RegExp(`<field name="${f}"(?![^>]*readonly="1")`).test(list)) && /<field name="x_missing" string="الناقص" readonly="1"\/>/.test(list));
+  assert("the filter «ناقص» reads the same field", /<filter name="f_missing" string="ناقص" domain="\[\('x_missing', '!=', False\)\]"\/>/.test(search));
+  assert("the list is the produce: the three categories, a product without a category, or a UTAK-FRT / VEG / LEAF reference — never a service", UI.productsDomain([5, 6, 7]) === "[('type', '!=', 'service'), '|', '|', '|', '|', ('categ_id', 'child_of', [5, 6, 7]), ('categ_id', '=', False), ('default_code', '=like', 'UTAK-FRT-%'), ('default_code', '=like', 'UTAK-VEG-%'), ('default_code', '=like', 'UTAK-LEAF-%')]");
+}
+
+console.log("\n[و] the screens' own Python: «📊 اليوم» opens today's record, else the last day with its note, and never creates one");
+{
+  const PY = `
+import json, sys, datetime
+import datetime as _dt
+codes = json.loads(sys.argv[1]); cases = json.loads(sys.argv[2])
+class UserError(Exception): pass
+class Rec:
+    def __init__(s, d): s.__dict__.update(d); s.x_date = datetime.date.fromisoformat(d['x_date']); s.written = None
+    def __bool__(s): return True
+    def write(s, vals): s.written = vals
+class RS(list):
+    def write(s, vals):
+        for r in s: r.write(vals)
+    @property
+    def id(s): return list.__getitem__(s, 0).id
+    @property
+    def x_date(s): return list.__getitem__(s, 0).x_date
+class Model:
+    def __init__(s, rows): s.rows = rows; s.created = 0
+    def create(s, vals): s.created += 1
+    def search(s, domain, order='id', limit=None):
+        ops = {'=': lambda a, b: a == b, '<': lambda a, b: a < b, '>': lambda a, b: a > b, '<=': lambda a, b: a <= b, '>=': lambda a, b: a >= b, '!=': lambda a, b: a != b}
+        def ok(r, dom):
+            st = []
+            for t in reversed(dom):
+                if t == '|': a = st.pop(); b = st.pop(); st.append(a or b)
+                else:
+                    try: st.append(ops[t[1]](getattr(r, t[0]), t[2]))
+                    except TypeError: st.append(False)   # an empty field against a date: no match, as in Odoo
+            return all(st)
+        out = [r for r in s.rows if ok(r, domain)]
+        for part in reversed([p.strip() for p in order.split(',')]):
+            f = part.split()[0]; out.sort(key=lambda r: getattr(r, f), reverse=part.endswith('desc'))
+        return RS(out[:limit] if limit else out)
+class Env:
+    def __init__(s, models, ctx): s.models = models; s.context = ctx
+    def __getitem__(s, n): return s.models[n]
+res = []
+for c in cases:
+    class FixedDT(datetime.datetime):
+        @classmethod
+        def now(cls): return datetime.datetime.fromisoformat(c['utc'])
+    class DT: datetime = FixedDT; timedelta = _dt.timedelta; date = _dt.date; time = _dt.time
+    days = Model([Rec(d) for d in c.get('days', [])]); costs = Model([Rec(dict(x_date='2000-01-01', **k)) for k in c.get('costs', [])]); cfgs = Model([Rec(dict(x_date='2000-01-01', **k)) for k in c.get('configs', [])])
+    for k in cfgs.rows:
+        k.x_active_from = datetime.date.fromisoformat(k.x_active_from); k.x_active_to = datetime.date.fromisoformat(k.x_active_to) if k.x_active_to else False
+    env = Env({'x_price_day': days, 'x_operating_cost': costs, 'x_pricing_config': cfgs}, c.get('context', {}))
+    g = {'env': env, 'datetime': DT, 'UserError': UserError, 'record': next((r for r in days.rows if r.id == c.get('record')), None)}
+    try:
+        exec(codes[c['code']], g)
+        a = g['action']
+        res.append({'res_id': a.get('res_id'), 'views': a.get('views'), 'target': a.get('target'), 'context': a.get('context'), 'name': a.get('name'), 'model': a.get('res_model'), 'domain': str(a.get('domain')), 'created': days.created, 'attached': [k.id for k in costs.rows if k.written]})
+    except UserError as e:
+        res.append({'error': str(e), 'created': days.created})
+print(json.dumps(res, ensure_ascii=False))`;
+  const V = { day: 2834, sources: 2874, confirm: 2873, settings: 2855, purchaseList: 2875, purchaseSearch: 2876, marketList: 2877, marketSearch: 2878 };
+  const codes = { open: UI.openDayCode(V), openSources: UI.openDayCode({ ...V, forceSources: true }), prev: UI.stepDayCode(V, "prev"), next: UI.stepDayCode(V, "next"), confirm: UI.confirmCode(V), settings: UI.settingsCode(V), purchase: UI.sourcesListCode(V, "purchase"), market: UI.sourcesListCode(V, "market") };
+  const days = [
+    { id: 48, x_date: "2026-09-29", x_utak_simulation: false, x_state: "published" }, { id: 49, x_date: "2026-09-30", x_utak_simulation: true, x_state: "draft" },
+    { id: 50, x_date: "2026-10-01", x_utak_simulation: false, x_state: "missed" }, { id: 51, x_date: "2026-10-01", x_utak_simulation: true, x_state: "draft" },
+  ];
+  const cases = [
+    { code: "open", utc: "2026-10-01T10:00:00", days },                                             // 13:00 Riyadh: today's record
+    { code: "open", utc: "2026-10-01T22:30:00", days },                                             // 01:30 Riyadh of 10-02: no record yet
+    { code: "open", utc: "2026-10-01T10:00:00", days: [] },
+    { code: "open", utc: "2026-10-01T10:00:00", days, context: { utak_view: "sources" } },
+    { code: "openSources", utc: "2026-10-01T10:00:00", days },
+    { code: "prev", utc: "2026-10-01T10:00:00", days, record: 50 },
+    { code: "next", utc: "2026-10-01T10:00:00", days, record: 48 },
+    { code: "next", utc: "2026-10-01T10:00:00", days, record: 50 },
+    { code: "prev", utc: "2026-10-01T10:00:00", days, record: 50, context: { utak_view: "sources" } },
+    { code: "confirm", utc: "2026-10-01T10:00:00", days, record: 50 },
+    { code: "confirm", utc: "2026-10-01T10:00:00", days, record: 48 },
+    { code: "settings", utc: "2026-10-01T10:00:00", days, configs: [{ id: 1, x_is_active: true, x_active_from: "2026-08-29", x_active_to: false }], costs: [{ id: 2, x_config_id: 1 }, { id: 12, x_config_id: false }] },
+    { code: "purchase", utc: "2026-10-01T10:00:00", days, record: 50 },
+    { code: "market", utc: "2026-10-01T10:00:00", days, record: 50 },
+  ];
+  const r = JSON.parse(execFileSync("python3", ["-c", PY, JSON.stringify(codes), JSON.stringify(cases)], { encoding: "utf8" }));
+  assert("today's real record (#50, never the simulation's #51) on the one screen, no note", r[0].res_id === 50 && JSON.stringify(r[0].views) === "[[2834, \"form\"]]".replace(/ /g, "") && r[0].context.utak_no_today === false && r[0].target === "current" && r[0].model === "x_price_day", JSON.stringify(r[0]));
+  assert("no record for today (01:30 of the next day): the last real day (#50), with the note «لا يوجد سجل أسعار لليوم»", r[1].res_id === 50 && r[1].context.utak_no_today === true);
+  assert("…and no record is ever created by opening the screen", r.every((x: any) => x.created === 0) && !/\.create\(/.test(Object.values(codes).join("\n")));
+  assert("no day at all: a plain message, not an empty screen", /لا يوجد سجل أسعار بعد/.test(r[2].error ?? ""));
+  assert("«📥 عروض المصادر» opens the same day on its own screen (the menu's action, and «اليوم» pressed inside it)", r[3].views[0][0] === 2874 && r[4].views[0][0] === 2874 && r[4].res_id === 50 && r[3].context.utak_view === "sources" && r[4].name === UI.MENU.sources);
+  assert("the day before / after skip the simulation's days (#50 ← #48 → #50), and stay on the screen they were pressed on", r[5].res_id === 48 && r[6].res_id === 50 && r[5].views[0][0] === 2834 && r[8].res_id === 48 && r[8].views[0][0] === 2874 && r[5].context.utak_no_today === false);
+  assert("…no day after the last one: «لا يوم بعد …»", /لا يوم بعد 2026-10-01/.test(r[7].error ?? ""));
+  assert("«نشر المعتمد الآن» on a missed day: the confirmation, as a dialog on that record", r[9].res_id === 50 && r[9].target === "new" && r[9].views[0][0] === 2873);
+  assert("…on a published day: refused", /لا يُنشر إلا سجل «مسودة» أو «فات الموعد»/.test(r[10].error ?? ""));
+  assert("«⚙️ الإعدادات» opens the active record, and a cost line created elsewhere is attached to it first", r[11].res_id === 1 && r[11].views[0][0] === 2855 && JSON.stringify(r[11].attached) === "[12]");
+  assert("«فتح مجمّعة بالمصدر»: that day's rows, grouped by source, the simulation filtered out by default", r[12].model === "x_daily_price" && /x_date/.test(r[12].domain) && r[12].context.search_default_g_source === 1 && r[12].context.search_default_f_real === 1 && r[12].context.default_x_date === "2026-10-01" && r[13].model === "x_price_offer" && r[13].context.search_default_f_real === 1);
+  // the three small computes
+  const PY2 = `
+import json, sys, datetime
+import datetime as _dt
+codes = json.loads(sys.argv[1])
+class L:
+    def __init__(s, n, st, ex, sale): s.x_name = n; s.x_status = st; s.x_excluded = ex; s.x_sale_price = sale
+class RS(list):
+    def filtered(s, f): return RS([x for x in s if f(x)])
+class D:
+    def __init__(s, date, lines): s.x_date = date; s.x_line_ids = RS(lines); s.out = {}
+    def __setitem__(s, k, v): s.out[k] = v
+class FixedDT(datetime.datetime):
+    @classmethod
+    def now(cls): return datetime.datetime(2026, 10, 1, 22, 30)
+class DT: datetime = FixedDT; timedelta = _dt.timedelta
+lines = [L('رمان كبير', 'manual', False, 31.5), L('رمان وسط', 'auto', False, 24), L('موز', 'exception', True, 0), L('خيار', 'manual', True, 20), L('بصل', 'unpublished', True, 0)]
+a = D(datetime.date(2026, 10, 2), lines); b = D(datetime.date(2026, 10, 1), []); c = D(False, [])
+for d in (a, b, c):
+    for code in codes: exec(code, {'self': [d], 'datetime': DT})
+print(json.dumps([a.out, b.out, c.out], ensure_ascii=False))`;
+  const k = JSON.parse(execFileSync("python3", ["-c", PY2, JSON.stringify([UI.IS_TODAY_CODE, UI.N_PUBLISHABLE_CODE, UI.PUBLISH_NAMES_CODE])], { encoding: "utf8" }));
+  assert("«سجل اليوم» is the Riyadh day (22:30 UTC of 10-01 is 10-02)", k[0].x_is_today === true && k[1].x_is_today === false && k[2].x_is_today === false);
+  assert("«الأصناف التي ستُنشر»: approved (automatically or by Baraa), not left out, with a price — 2 of the 5 — and their names with their prices", k[0].x_n_publishable === 2 && k[0].x_publish_names === "رمان كبير 31.50، رمان وسط 24.00" && k[1].x_n_publishable === 0 && k[1].x_publish_names === "—", JSON.stringify(k));
+}
+
 // ================================================================ [س]
 console.log("\n[س] schema");
 assert("no Odoo field or value outside the schema in the whole run", rejected.length === 0, rejected.join(" | "));
@@ -475,7 +771,7 @@ assert("no Odoo field or value outside the schema in the whole run", rejected.le
   const f = FIX[FIX.length - 1];
   assert("the § 48 fixture (read-only fields_get) names x_min_profit_sar, the preview, x_manual_for and the «—» texts", f.x_pricing_config.includes("x_min_profit_sar") && ["x_preview_sale", "x_preview_profit", "x_manual_for", ...VW.DISPLAY_FIELDS].every((n: string) => f.x_price_day_line.includes(n)));
   assert("…and still x_min_margin_pct: hidden, not deleted", f.x_pricing_config.includes("x_min_margin_pct"));
-  void readdirSync; void ownerTexts;
+  assert("…and the fields of «💲 التسعير»: x_n_recipients, x_outlier_ratio, the cost lines, «الناقص»", f.x_price_day.includes("x_n_recipients") && f.x_price_day.includes("x_src_purchase_ids") && f.x_pricing_config.includes("x_outlier_ratio") && f.x_pricing_config.includes("x_cost_line_ids") && f.x_operating_cost.includes("x_config_id") && ["x_missing", "x_pack_id", "x_pack_weight"].every((n) => f["product.template"].includes(n)));
 }
 
 done();

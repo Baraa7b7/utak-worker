@@ -26,6 +26,7 @@
 //   • «عرض الاستثناءات» → the flush was the answer; one line only when
 //     nothing was waiting.
 
+import { PLACE_TODAY } from "./places";
 import type { Env } from "./config";
 import { call } from "./odoo";
 import { TEMPLATE_CANDIDATE_FIELDS, type TemplateCandidate } from "./template-pick";
@@ -43,7 +44,7 @@ export const PRICE_REVIEW_PAYLOAD = "owner_price_review";
 /** The gateway purpose of template 2 (src/wa-purposes.ts, the owner guard). */
 export const PRICE_REVIEW_PURPOSE = "owner_price_review";
 export const SUMMARY_ACK_TEXT = "تم ✅، تنبيهات الليلة تصلك مباشرة";
-export const PRICE_REVIEW_NOTHING_TEXT = "لا استثناءات أسعار محفوظة لك الآن: قرّرتها، أو فات موعد 06:00. التفاصيل في «💰 أسعار اليوم».";
+export const PRICE_REVIEW_NOTHING_TEXT = `لا استثناءات أسعار محفوظة لك الآن: قرّرتها، أو فات موعد 06:00. التفاصيل في ${PLACE_TODAY}.`;
 const EXCEPTION_PURPOSE = "owner_price_exception";
 const REVIEW_TTL = 26 * 3600;
 /** The once-per-price-day claim of template 2 (button-lock key). */

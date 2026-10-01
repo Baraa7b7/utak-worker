@@ -61,6 +61,7 @@ import {
 import { loadPriceSources, MARKET_ASK_MINUTE, MARKET_REPLY_WINDOW_MIN } from "./price-sources";
 import { readPricingSettings } from "./operating-cost";
 import { BOARD_LINE_FIELDS, boardHeader, boardLine, boardShare, fallbackSale, readBoardInputs, type BoardStatus, type FloorInputs } from "./pricing-board";
+import { PLACE_TODAY } from "./places";
 
 export const PRICE_DAY_MODEL = "x_price_day";
 export const PRICE_LINE_MODEL = "x_price_day_line";
@@ -354,9 +355,9 @@ export async function refreshPriceDay(env: Env, opts: { day?: string; force?: bo
     counts.unpublished++;
   }
   if (creates.length) await call<number[]>(env, PRICE_LINE_MODEL, "create", { vals_list: creates });
-  // § 46 أ — the board's header on the day (never blocks the engine)
+  // § 46 أ — the board's header on the day (never blocks the engine); § 48 و — and how many customers a publication would reach
   try {
-    await call(env, PRICE_DAY_MODEL, "write", { ids: [rec.id], vals: boardHeader(share, board, now) });
+    await call(env, PRICE_DAY_MODEL, "write", { ids: [rec.id], vals: { ...boardHeader(share, board, now), ...(await recipientsCount(env)) } });
   } catch (e) {
     console.warn(`[prices] ${day}: the board header was not written`, (e as Error)?.message);
   }
@@ -424,6 +425,21 @@ async function syncFallbackSale(env: Env, day: string, offers: Array<{ model: st
   return written;
 }
 
+/**
+ * § 48 و — «نشر المعتمد الآن» asks before it sends: its confirmation shows how
+ * many customers the day's prices would reach. The count is the publication's
+ * own list (priceRecipients), written on the day with the board's header.
+ * Nothing written when it cannot be read (the last count stays).
+ */
+async function recipientsCount(env: Env): Promise<{ x_n_recipients?: number }> {
+  try {
+    return { x_n_recipients: (await priceRecipients(env)).length };
+  } catch (e) {
+    console.warn("[prices] the recipients could not be counted", (e as Error)?.message);
+    return {};
+  }
+}
+
 export interface BoardReport { day: string; dayId: number; lines: number; updated: number; counts: Record<BoardStatus, number> }
 
 /**
@@ -456,7 +472,7 @@ export async function rewriteBoard(env: Env, dayId: number, opts: { now?: number
     updated++;
     if (!opts.dry) await call(env, PRICE_LINE_MODEL, "write", { ids: [l.id], vals });
   }
-  const header = boardHeader(share, values.map((v) => v.x_board_status as BoardStatus), now);
+  const header = { ...boardHeader(share, values.map((v) => v.x_board_status as BoardStatus), now), ...(opts.dry ? {} : await recipientsCount(env)) };
   if (!opts.dry) await call(env, PRICE_DAY_MODEL, "write", { ids: [dayId], vals: header });
   return { day, dayId, lines: lines.length, updated, counts, ...(opts.dry ? { values, header } : {}) };
 }
@@ -655,7 +671,7 @@ export async function publishPriceDay(env: Env, dayId: number, opts: { ctx?: Exe
     for (const part of copy) await sendOwnerMessage(penv, part, OWNER_PRICES_PURPOSE);
     // § 40 ج — one line: how many exceptions went unpublished for want of a decision
     if (undecided.length) {
-      await sendOwnerAlert(penv, `⏰ لم يُنشر اليوم ${undecided.length} ${undecided.length === 1 ? "صنف" : "أصناف"}: استثناء بلا قرار حتى النشر. التفاصيل في «💰 أسعار اليوم».`);
+      await sendOwnerAlert(penv, `⏰ لم يُنشر اليوم ${undecided.length} ${undecided.length === 1 ? "صنف" : "أصناف"}: استثناء بلا قرار حتى النشر. التفاصيل في ${PLACE_TODAY}.`);
     }
     const report = [
       `نُشر ${nowOdoo(now)} UTC${day.x_approved_at && !approvedByHand(day) ? " (اعتماد تلقائي)" : ""}. الأصناف: ${published.length}، والرسائل لكل عميل: ${parts.length}، والعملاء: ${recipients.length}.`,
@@ -730,7 +746,7 @@ export async function checkPricesDeadline(env: Env, now: number = Date.now()): P
   await sendOwnerAlert(env, [
     `⏰ أسعار اليوم (${arabicDate(day)}) لم تُنشر حتى ${hh}: لا صنف معتمد (تلقائياً أو منك).`,
     anyPrice ? `الأصناف: ${lines.length} (استثناء بلا قرار: ${exc}، ولم يُنشر: ${skip}).` : "لم يصل سعر من المصادر اليوم.",
-    "لا تُعاد أسعار أمس. قرارك ثم «نشر المعتمد الآن» في «💰 أسعار اليوم» ينشر عادي.",
+    `لا تُعاد أسعار أمس. قرارك ثم «نشر المعتمد الآن» في ${PLACE_TODAY} ينشر عادي.`,
   ].join("\n"));
   await finishButton(env, claim);
   return { action: "missed", day, dayId: target.id };
@@ -904,7 +920,7 @@ async function decidable(env: Env, lineId: number): Promise<{ l?: DayLine; day?:
   if (l.x_decision) return { l, day, why: `القرار مسجّل مسبقاً على ${lineName(l)}: ${DECISION_LABEL[l.x_decision as Decision]}.` };
   return { l, day };
 }
-const missedTail = (day: DayRecord) => day.x_state === "missed" ? " السجل «فات الموعد»: انشر من «💰 أسعار اليوم» ← «نشر المعتمد الآن»." : "";
+const missedTail = (day: DayRecord) => day.x_state === "missed" ? ` السجل «فات الموعد»: انشر من ${PLACE_TODAY} بزر «نشر المعتمد الآن».` : "";
 
 /** The payload of an exception's choice (a reply button or a list row). */
 export const PRICE_EXCEPTION_PAYLOAD = /^pexc_([mspe])_(\d+)$/;

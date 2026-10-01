@@ -90,10 +90,10 @@ export function checkExtractedPrices(
   return { kept, dropped };
 }
 
-/** An outlier: the new price differs from the last one by PRICE_OUTLIER_RATIO or more, either way. */
-export function isPriceOutlier(last: number, next: number): boolean {
+/** An outlier: the new price differs from the last one by `ratio` or more, either way («نسبة السعر الشاذ» of the settings, § 48 و; PRICE_OUTLIER_RATIO by default). */
+export function isPriceOutlier(last: number, next: number, ratio: number = PRICE_OUTLIER_RATIO): boolean {
   if (!(last > 0) || !(next > 0)) return false;
-  return Math.max(last, next) / Math.min(last, next) >= PRICE_OUTLIER_RATIO;
+  return Math.max(last, next) / Math.min(last, next) >= ratio;
 }
 
 
@@ -315,6 +315,9 @@ export async function handleSupplierReply(
     console.warn("[suppliers] the day's floor inputs could not be read — no fallback sale price", (e as Error)?.message);
     return null;
   });
+  // § 48 و — «نسبة السعر الشاذ» of the settings (1.5 when it cannot be read)
+  const { readOutlierRatio } = await import("./operating-cost");
+  const outlierRatio = await readOutlierRatio(env, riyadhDateKey());
 
   // sim-harness (2026-09-13): capture per-price failures and alert once
   // after the loop. Prior behaviour swallowed each failure with a bare
@@ -333,7 +336,7 @@ export async function handleSupplierReply(
       // 2026-09-25 — an outlier is saved and used, marked for review, and
       // the owner hears of it at once (one alert per price, not batched).
       const last = await getLastSupplierPrice(env, supplier.id, p.product_id, p.packaging_id).catch(() => null);
-      const outlier = !!last && isPriceOutlier(last.price, p.cost_price);
+      const outlier = !!last && isPriceOutlier(last.price, p.cost_price, outlierRatio);
       dailyId = await createDailyPrice(env, {
         supplier_id: supplier.id,
         product_id: p.product_id,
@@ -359,7 +362,7 @@ export async function handleSupplierReply(
       if (k.market !== undefined || k.qty !== undefined) {
         await saveOffer(env, {
           partnerId: supplier.id, productId: p.product_id, packagingId: p.packaging_id,
-          market: k.market, qty: k.qty, dailyPriceId: dailyId, messageId, text: messageText,
+          market: k.market, qty: k.qty, dailyPriceId: dailyId, messageId, text: messageText, ratio: outlierRatio,
         });
         saved = true;
       }

@@ -52,6 +52,7 @@ import { claimButton, finishButton } from "./button-lock";
 import { fnv1a } from "./auto-send-guard";
 import { arabicDate, maskPhone } from "./wa-params";
 import { riyadhDateKey } from "./hours";
+import { PLACE_SOURCES, PLACE_TODAY } from "./places";
 import type { RouterReply } from "./router";
 import type { TeamMember } from "./types";
 import { CASH_MARKET_NAME, CASH_MARKET_REF, findCashMarketSupplier, marketWinners, winnerKey, type MarketWinners } from "./cash-market";
@@ -434,7 +435,7 @@ export async function syncSupplierDues(env: Env, listId: number, opts: { force?:
         x_daily_price_id: l.priceId ?? false,
         x_note: l.noPrice ? "بلا سعر: لا سعر من هذا المورد لهذا الصنف في ذلك اليوم"
           : [
-              l.marketBy ? `سعر شراء ${l.marketBy} المكتوب من السوق (فاز بسعر الشراء في «أسعار اليوم»)` : "",
+              l.marketBy ? `سعر شراء ${l.marketBy} المكتوب من السوق (فاز بسعر الشراء في ${PLACE_TODAY})` : "",
               l.vatH > 0 ? `المستحق = الكمية × السعر + ضريبة ${VAT_RATE_PCT}% (${money(l.vatH)} ر.س): المورد مسجل والسعر بدون ضريبة` : "",
             ].filter(Boolean).join(" · ") || false,
       };
@@ -480,7 +481,7 @@ export async function syncSupplierDues(env: Env, listId: number, opts: { force?:
       await sendOwnerAlert(env, tagged(env.TRIAL_TAG, [
         `⚠️ مستحقات الموردين — قائمة الشراء #${listId} (${arabicDate(day)}): أسطر «بلا سعر» لم تُحسب في المستحق:`,
         ...lines,
-        "أدخل سعر المورد لذلك اليوم في «الأسعار اليومية»، وتُحسب تلقائياً (أو «🔄 إعادة حساب المستحقات» في 💵 دفع الموردين).",
+        `أدخل سعر المورد لذلك اليوم في ${PLACE_SOURCES} (ردود الشراء)، وتُحسب تلقائياً (أو «🔄 إعادة حساب المستحقات» في 💵 دفع الموردين).`,
       ].join("\n")));
       await finishButton(env, claim, 30 * 24 * 3600);
       alerted = true;

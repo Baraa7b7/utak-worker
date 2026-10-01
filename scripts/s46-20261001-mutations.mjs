@@ -104,7 +104,7 @@ const M = [
   ["أ", "§ 47: the engine's line computed without the carton share", [[PR,
     "      vatRatePct: vat.ratePct, opShare: share.share, minProfit: settings.minProfit,\n    });", "      vatRatePct: vat.ratePct, opShare: null, minProfit: settings.minProfit,\n    });"]], TA],
   ["أ", "the header not written by the engine", [[PR,
-    "    await call(env, PRICE_DAY_MODEL, \"write\", { ids: [rec.id], vals: boardHeader(share, board, now) });", "    void boardHeader;"]], TA],
+    "    await call(env, PRICE_DAY_MODEL, \"write\", { ids: [rec.id], vals: { ...boardHeader(share, board, now), ...(await recipientsCount(env)) } });", "    void boardHeader;"]], TA],
   ["أ", "no board after a decision", [[PR,
     "    await rewriteBoard(env, dayId, { now });", "    void dayId;"]], TA],
   ["أ", "a dry rewrite writes the lines", [[PR,

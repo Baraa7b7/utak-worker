@@ -1,0 +1,369 @@
+{
+  "script": "scripts/s48-20261001-ui.mjs",
+  "createdAt": "2026-10-01T10:50:31.662Z",
+  "created": {
+    "irDefaults": [
+      32,
+      33
+    ],
+    "fields": [
+      20797,
+      20799,
+      20801,
+      20803,
+      20805,
+      20807,
+      20809,
+      20811,
+      20813,
+      20815,
+      20817,
+      20823,
+      20826,
+      20829,
+      20832
+    ],
+    "views": {
+      "dayGraph": 2872,
+      "confirm": 2873,
+      "sources": 2874,
+      "purchaseList": 2875,
+      "purchaseSearch": 2876,
+      "marketList": 2877,
+      "marketSearch": 2878,
+      "products": 2879,
+      "productsSearch": 2880
+    },
+    "actions": {
+      "openSources": 1037,
+      "confirm": 1038,
+      "purchaseList": 1039,
+      "marketList": 1040
+    },
+    "windows": {
+      "products": 1041,
+      "packagings": 1042,
+      "profitGraph": 1043
+    },
+    "menus": {
+      "root": 582,
+      "today": 583,
+      "days": 584,
+      "sources": 585,
+      "products": 586,
+      "settings": 587
+    }
+  },
+  "before": {
+    "views": {
+      "purchaseList": {
+        "id": 2875,
+        "arch": "<list><field name=\"display_name\"/></list>"
+      },
+      "purchaseSearch": {
+        "id": 2876,
+        "arch": "<search><field name=\"display_name\"/></search>"
+      },
+      "marketList": {
+        "id": 2877,
+        "arch": "<list><field name=\"display_name\"/></list>"
+      },
+      "marketSearch": {
+        "id": 2878,
+        "arch": "<search><field name=\"display_name\"/></search>"
+      },
+      "dayGraph": {
+        "id": 2872,
+        "arch": "<graph><field name=\"display_name\"/></graph>"
+      },
+      "dayList": {
+        "id": 2835,
+        "arch": "<list string=\"سجل أسعار الأيام\" default_order=\"x_date desc\" create=\"0\" delete=\"0\" decoration-success=\"x_state == 'published'\" decoration-danger=\"x_state == 'missed'\" decoration-info=\"x_state == 'approved'\">\n  <field name=\"x_date\"/>\n  <field name=\"x_state\"/>\n  <field name=\"x_approved_by\"/>\n  <field name=\"x_approved_at\"/>\n  <field name=\"x_published_at\"/>\n</list>"
+      },
+      "confirm": {
+        "id": 2873,
+        "arch": "<form><sheet><field name=\"display_name\"/></sheet></form>"
+      },
+      "sources": {
+        "id": 2874,
+        "arch": "<form><sheet><field name=\"display_name\"/></sheet></form>"
+      },
+      "day": {
+        "id": 2834,
+        "arch": "<form string=\"أسعار اليوم\" create=\"0\" delete=\"0\">\n  <header>\n    <button name=\"1002\" type=\"action\" string=\"نشر المعتمد الآن\" class=\"btn-primary\" invisible=\"x_state not in ('draft', 'missed')\" confirm=\"نشر الأصناف المعتمدة (تلقائياً أو منك) للعملاء الآن؟ الاستثناءات بلا قرار لا تُنشر.\"/>\n    <button name=\"1003\" type=\"action\" string=\"إلغاء الاعتماد\" invisible=\"x_state != 'approved'\"/>\n    <button name=\"1004\" type=\"action\" string=\"🔄 إعادة الحساب\" invisible=\"x_state not in ('draft', 'missed')\"/>\n    <field name=\"x_state\" widget=\"statusbar\" statusbar_visible=\"draft,approved,published\"/>\n  </header>\n  <sheet>\n    <div class=\"oe_title\"><h1><field name=\"x_name\" readonly=\"1\"/></h1></div>\n    <group>\n      <group><field name=\"x_date\" readonly=\"1\"/><field name=\"x_approved_by\" readonly=\"1\"/></group>\n      <group><field name=\"x_approved_at\" readonly=\"1\"/><field name=\"x_published_at\" readonly=\"1\"/></group>\n    </group>\n    <div class=\"text-muted mb-2\">الشراء خام بدون ضريبة. التكلفة الكاملة = الشراء + التالف (نسبة التالف × الشراء) + حصة الكرتون من تكلفة التشغيل. «بدون خسارة» = التكلفة الكاملة × 1.15. «المقترح» = (التكلفة الكاملة + الربح الأدنى للكرتون) × 1.15، لأعلى لأقرب نصف ريال. القاعدة: سعر البيع = سعر السوق متى بلغ المقترح، وغير ذلك استثناء بقرارك. «معاينة» = ما يربحه الصنف لو بيع بالمقترح، وليست سعراً معتمداً.</div>\n    <field name=\"x_line_ids\" readonly=\"x_state not in ('draft', 'missed')\">\n      <list editable=\"bottom\" create=\"0\" delete=\"0\" decoration-danger=\"x_status == 'exception'\" decoration-success=\"x_status == 'manual'\" decoration-muted=\"x_status == 'unpublished'\">\n        <field name=\"x_sequence\" column_invisible=\"1\"/>\n        <field name=\"x_product_tmpl_id\" readonly=\"1\"/>\n        <field name=\"x_packaging_id\" readonly=\"1\"/>\n        <field name=\"x_cost_price\" string=\"الشراء\" readonly=\"1\"/>\n        <field name=\"x_supplier_id\" string=\"من\" readonly=\"1\" optional=\"show\"/>\n        <field name=\"x_market_price\" column_invisible=\"1\"/>\n        <field name=\"x_sale_price\" column_invisible=\"1\"/>\n        <field name=\"x_preview_sale\" column_invisible=\"1\"/>\n        <field name=\"x_market_show\" string=\"السوق\"/>\n        <field name=\"x_market_count\" string=\"المشاهدات\" readonly=\"1\"/>\n        <field name=\"x_even_show\" string=\"بدون خسارة\"/>\n        <field name=\"x_suggested_show\" string=\"المقترح\"/>\n        <field name=\"x_sale_show\" string=\"البيع\"/>\n        <field name=\"x_profit_show\" string=\"الربح / المعاينة\" decoration-it=\"not x_sale_price and x_preview_sale\"/>\n        <field name=\"x_status\" readonly=\"1\"/>\n        <field name=\"x_reason\" readonly=\"1\"/>\n        <field name=\"x_decision\"/>\n        <field name=\"x_manual_price\" invisible=\"x_decision != 'edit' and not x_manual_price\"/>\n        <field name=\"x_offers\" readonly=\"1\" optional=\"hide\"/>\n      </list>\n    </field>\n    <group string=\"تقرير النشر\" invisible=\"not x_publish_report\">\n      <field name=\"x_publish_report\" nolabel=\"1\" readonly=\"1\" colspan=\"2\"/>\n    </group>\n  </sheet>\n</form>"
+      },
+      "products": {
+        "id": 2879,
+        "arch": "<list><field name=\"display_name\"/></list>"
+      },
+      "productsSearch": {
+        "id": 2880,
+        "arch": "<search><field name=\"display_name\"/></search>"
+      },
+      "settings": {
+        "id": 2855,
+        "arch": "<form string=\"إعدادات التسعير\" create=\"0\" delete=\"0\">\n  <sheet>\n    <div class=\"oe_title\"><h1>⚙️ إعدادات التسعير</h1></div>\n    <group>\n      <group string=\"التسعير اليومي\">\n        <field name=\"x_waste_pct\"/>\n        <field name=\"x_min_profit_sar\"/>\n        <field name=\"x_min_order_sar\"/>\n        <field name=\"x_planned_stops\"/>\n        <field name=\"x_expected_cartons\"/>\n      </group>\n      <group string=\"السجل\">\n        <field name=\"x_name\" readonly=\"1\"/>\n        <field name=\"x_active_from\" readonly=\"1\"/>\n      </group>\n    </group>\n    <div class=\"text-muted\">سعر الشراء يُدخَل بدون ضريبة. سعر البيع = سعر السوق لليوم متى بلغ «السعر المربح المقترح» = (الشراء + التالف + حصة الكرتون + الربح الأدنى للكرتون) × 1.15، مقرَّباً لأعلى لأقرب نصف ريال. الاستثناءات (بلا شراء، بلا سوق، سوق أقل من السعر المربح، سعر شاذ) تصل براء، وغيرها يُعتمد ويُنشر تلقائياً في موعد النشر. السعر الاحتياطي حين لا يُنشر اليوم = السعر المربح المقترح. «عدد المحطات» فارغ = لا خصم كمية.</div>\n    <separator string=\"شرائح خصم الكمية\"/>\n    <field name=\"x_tier_ids\" nolabel=\"1\">\n      <list editable=\"bottom\" default_order=\"x_sequence, x_amount_from\" decoration-muted=\"not x_active\">\n        <field name=\"x_sequence\" widget=\"handle\"/>\n        <field name=\"x_amount_from\"/>\n        <field name=\"x_amount_to\"/>\n        <field name=\"x_discount_pct\"/>\n        <field name=\"x_active\" widget=\"boolean_toggle\"/>\n      </list>\n    </field>\n    <div class=\"text-muted\">الخصم على مجموع الطلب قبل الضريبة، بنسبة الشريحة التي يقع فيها المجموع («إلى» فارغ = بلا حد). لا خصم إذا صار ربح الطلب بعده أقل من (تكلفة اليوم ÷ عدد المحطات)، ولا خصم إطلاقاً والمحطات فارغة.</div>\n  </sheet>\n</form>"
+      }
+    },
+    "actions": {
+      "openDay": {
+        "id": 1032,
+        "code": "Day = env['x_price_day']\ntoday = (datetime.datetime.now() + datetime.timedelta(hours=3)).date()\nrec = Day.search([('x_date', '=', today), ('x_utak_simulation', '=', False)], order='id', limit=1)\nif not rec:\n    rec = Day.search([('x_date', '<', today), ('x_utak_simulation', '=', False)], order='x_date desc, id desc', limit=1)\nif not rec:\n    raise UserError('لا يوجد سجل «أسعار اليوم» بعد.')\naction = {'type': 'ir.actions.act_window', 'name': 'لوحة التسعير', 'res_model': 'x_price_day', 'res_id': rec.id, 'view_mode': 'form', 'views': [[2871, 'form']], 'target': 'current'}"
+      },
+      "openDayOld": {
+        "id": 1008,
+        "code": "now = datetime.datetime.now() + datetime.timedelta(hours=3)\ntoday = now.date()\nrec = env['x_price_day'].search([('x_date', '=', today)], limit=1)\nif not rec:\n    rec = env['x_price_day'].create({'x_date': today, 'x_name': 'أسعار اليوم %s' % today.strftime('%Y-%m-%d'), 'x_state': 'draft'})\naction = {'type': 'ir.actions.act_window', 'name': 'أسعار اليوم', 'res_model': 'x_price_day', 'res_id': rec.id, 'view_mode': 'form', 'views': [[2834, 'form']], 'target': 'current'}"
+      },
+      "prev": {
+        "id": 1033,
+        "code": "Day = env['x_price_day']\nrec = Day.search([('x_date', '<', record.x_date), ('x_utak_simulation', '=', False)], order='x_date desc, id desc', limit=1)\nif not rec:\n    raise UserError('لا يوم قبل %s.' % record.x_date)\naction = {'type': 'ir.actions.act_window', 'name': 'لوحة التسعير', 'res_model': 'x_price_day', 'res_id': rec.id, 'view_mode': 'form', 'views': [[2871, 'form']], 'target': 'current'}"
+      },
+      "next": {
+        "id": 1034,
+        "code": "Day = env['x_price_day']\nrec = Day.search([('x_date', '>', record.x_date), ('x_utak_simulation', '=', False)], order='x_date asc, id asc', limit=1)\nif not rec:\n    raise UserError('لا يوم بعد %s.' % record.x_date)\naction = {'type': 'ir.actions.act_window', 'name': 'لوحة التسعير', 'res_model': 'x_price_day', 'res_id': rec.id, 'view_mode': 'form', 'views': [[2871, 'form']], 'target': 'current'}"
+      },
+      "settings": {
+        "id": 1027,
+        "code": "now = datetime.datetime.now() + datetime.timedelta(hours=3)\ntoday = now.date()\nrec = env['x_pricing_config'].search([('x_is_active', '=', True), ('x_active_from', '<=', today), '|', ('x_active_to', '=', False), ('x_active_to', '>=', today)], order='x_active_from desc, id desc', limit=1)\nif not rec:\n    raise UserError('لا يوجد إعداد تسعير فعّال اليوم.')\naction = {'type': 'ir.actions.act_window', 'name': 'إعدادات التسعير', 'res_model': 'x_pricing_config', 'res_id': rec.id, 'view_mode': 'form', 'views': [[2855, 'form']], 'target': 'current'}"
+      }
+    },
+    "windows": {
+      "days": {
+        "id": 1009,
+        "vals": {
+          "view_mode": "list,form",
+          "domain": false
+        }
+      }
+    },
+    "config": {
+      "id": 1,
+      "x_outlier_ratio": 0,
+      "x_min_profit_sar": 2,
+      "x_waste_pct": 5,
+      "x_expected_cartons": 250
+    },
+    "costLinks": [
+      {
+        "id": 1,
+        "x_config_id": false
+      },
+      {
+        "id": 2,
+        "x_config_id": false
+      },
+      {
+        "id": 3,
+        "x_config_id": false
+      },
+      {
+        "id": 4,
+        "x_config_id": false
+      },
+      {
+        "id": 5,
+        "x_config_id": false
+      },
+      {
+        "id": 6,
+        "x_config_id": false
+      },
+      {
+        "id": 7,
+        "x_config_id": false
+      },
+      {
+        "id": 8,
+        "x_config_id": false
+      },
+      {
+        "id": 9,
+        "x_config_id": false
+      },
+      {
+        "id": 10,
+        "x_config_id": false
+      },
+      {
+        "id": 11,
+        "x_config_id": false
+      }
+    ],
+    "costs": [
+      {
+        "id": 1,
+        "x_name": "السيارة والسائق (شامل)",
+        "x_cost_type": "variable",
+        "x_frequency": "daily",
+        "x_amount": 500,
+        "x_date_from": "2026-10-01",
+        "x_date_to": "2026-09-30",
+        "x_utak_simulation": false
+      },
+      {
+        "id": 2,
+        "x_name": "إيجار الباص المبرد",
+        "x_cost_type": "fixed",
+        "x_frequency": "monthly",
+        "x_amount": 5000,
+        "x_date_from": "2026-10-01",
+        "x_date_to": false,
+        "x_utak_simulation": false
+      },
+      {
+        "id": 3,
+        "x_name": "الديزل",
+        "x_cost_type": "variable",
+        "x_frequency": "monthly",
+        "x_amount": 1000,
+        "x_date_from": "2026-10-01",
+        "x_date_to": false,
+        "x_utak_simulation": false
+      },
+      {
+        "id": 4,
+        "x_name": "راتب عمر",
+        "x_cost_type": "fixed",
+        "x_frequency": "monthly",
+        "x_amount": 4000,
+        "x_date_from": "2026-10-01",
+        "x_date_to": false,
+        "x_utak_simulation": false
+      },
+      {
+        "id": 5,
+        "x_name": "تأمينات عمر (أخطار مهنية 2%)",
+        "x_cost_type": "fixed",
+        "x_frequency": "monthly",
+        "x_amount": 80,
+        "x_date_from": "2026-10-01",
+        "x_date_to": false,
+        "x_utak_simulation": false
+      },
+      {
+        "id": 6,
+        "x_name": "اشتراك Odoo",
+        "x_cost_type": "fixed",
+        "x_frequency": "monthly",
+        "x_amount": 80,
+        "x_date_from": "2026-10-01",
+        "x_date_to": false,
+        "x_utak_simulation": false
+      },
+      {
+        "id": 7,
+        "x_name": "Claude API",
+        "x_cost_type": "variable",
+        "x_frequency": "monthly",
+        "x_amount": 75,
+        "x_date_from": "2026-10-01",
+        "x_date_to": false,
+        "x_utak_simulation": false
+      },
+      {
+        "id": 8,
+        "x_name": "الرصيد والاتصالات",
+        "x_cost_type": "fixed",
+        "x_frequency": "monthly",
+        "x_amount": 100,
+        "x_date_from": "2026-10-01",
+        "x_date_to": false,
+        "x_utak_simulation": false
+      },
+      {
+        "id": 9,
+        "x_name": "تجديد هوية/إقامة عمر",
+        "x_cost_type": "fixed",
+        "x_frequency": "yearly",
+        "x_amount": 11000,
+        "x_date_from": "2026-10-01",
+        "x_date_to": false,
+        "x_utak_simulation": false
+      },
+      {
+        "id": 10,
+        "x_name": "رسوم دخول السوق",
+        "x_cost_type": "variable",
+        "x_frequency": "daily",
+        "x_amount": 83,
+        "x_date_from": "2026-10-01",
+        "x_date_to": false,
+        "x_utak_simulation": false
+      },
+      {
+        "id": 11,
+        "x_name": "العربية",
+        "x_cost_type": "variable",
+        "x_frequency": "daily",
+        "x_amount": 50,
+        "x_date_from": "2026-10-01",
+        "x_date_to": false,
+        "x_utak_simulation": false
+      }
+    ],
+    "menus": [
+      {
+        "id": 572,
+        "name": "💰 أسعار اليوم",
+        "active": true
+      },
+      {
+        "id": 581,
+        "name": "📊 لوحة التسعير",
+        "active": true
+      },
+      {
+        "id": 577,
+        "name": "💰 التكاليف التشغيلية",
+        "active": true
+      },
+      {
+        "id": 578,
+        "name": "⚙️ إعدادات التسعير",
+        "active": true
+      },
+      {
+        "id": 537,
+        "name": "معاملات التسعير",
+        "active": true
+      },
+      {
+        "id": 553,
+        "name": "طلبات الأسعار اليومية",
+        "active": true
+      },
+      {
+        "id": 555,
+        "name": "الأصناف",
+        "active": true
+      },
+      {
+        "id": 535,
+        "name": "الأسعار اليومية",
+        "active": true
+      },
+      {
+        "id": 556,
+        "name": "التغليف",
+        "active": true
+      },
+      {
+        "id": 579,
+        "name": "عروض المصادر اليومية",
+        "active": true
+      },
+      {
+        "id": 573,
+        "name": "سجل أسعار الأيام",
+        "active": true
+      }
+    ]
+  },
+  "replaced": [
+    {
+      "field": "product.template.x_pack_id",
+      "id": 20819,
+      "why": "not stored: Odoo refuses a related field through it"
+    }
+  ]
+}

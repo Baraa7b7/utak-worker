@@ -44,6 +44,7 @@ import { profitVatRate } from "./config";
 import { call } from "./odoo";
 import { dailyOperatingCost, readPricingSettings } from "./operating-cost";
 import { DEFAULT_MIN_PROFIT_SAR, priceFloor } from "./pricing-engine";
+import { PLACE_SETTINGS } from "./places";
 
 export type BoardStatus = "green" | "yellow" | "red" | "none";
 export type ShareBasis = "expected" | "actual";
@@ -87,7 +88,7 @@ export function boardShare(cost: number | null, expected: number | null, actual:
   const cartons = useActual ? (actual.average as number) : exp;
   const notes: string[] = [];
   if (cost === null) notes.push(`تكلفة اليوم تعذّرت${costReason ? ` (${costReason})` : ""}: الحالة ⚪ لما لا يخسر على البضاعة.`);
-  if (cartons === null) notes.push("«الكراتين المتوقعة يومياً» فارغة في «⚙️ إعدادات التسعير»: لا حصة تشغيل.");
+  if (cartons === null) notes.push(`«الكراتين المتوقعة يومياً» فارغة في ${PLACE_SETTINGS}: لا حصة تشغيل.`);
   return {
     cost, expected: exp, basis, cartons,
     share: cost !== null && cartons !== null ? round2(cost / cartons) : null,

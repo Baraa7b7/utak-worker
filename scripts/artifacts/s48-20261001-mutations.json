@@ -1,0 +1,1305 @@
+{
+  "at": "2026-10-01T11:04:05.173Z",
+  "caught": 129,
+  "total": 129,
+  "results": [
+    {
+      "part": "أ",
+      "name": "the suggested price by the percentage of § 47 (full cost × 1.05 × 1.15)",
+      "caught": true,
+      "fails": [
+        "✗ رمان كبير: الشراء 22 ← التكلفة الكاملة 25.09 ← بدون خسارة 28.85 (لم يتغير) ← المقترح 31.50 — {\"netPurchase\":22,\"waste\":1.1,\"fullCost\":25.09,\"breakEven\":28.85,\"suggested\":30.5}",
+        "✗ رمان وسط: الشراء 16 ← التكلفة الكاملة 18.79 ← بدون خسارة 21.61 (لم يتغير) ← المقترح 24.00 — {\"netPurchase\":16,\"waste\":0.8,\"fullCost\":18.79,\"breakEven\":21.61,\"suggested\":23}",
+        "✗ رمان صغير: الشراء 12 ← التكلفة الكاملة 14.59 ← بدون خسارة 16.78 (لم يتغير) ← المقترح 19.50 — {\"netPurchase\":12,\"waste\":0.6,\"fullCost\":14.59,\"breakEven\":16.78,\"suggested\":18}",
+        "✗ موز أمريكي: الشراء 22 ← التكلفة الكاملة 25.09 ← بدون خسارة 28.85 (لم يتغير) ← المقترح 31.50 — {\"netPurchase\":22,\"waste\":1.1,\"fullCost\":25.09,\"breakEven\":28.85,\"suggested\":30.5}"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the minimum profit added after the VAT",
+      "caught": true,
+      "fails": [
+        "✗ رمان كبير: الشراء 22 ← التكلفة الكاملة 25.09 ← بدون خسارة 28.85 (لم يتغير) ← المقترح 31.50 — {\"netPurchase\":22,\"waste\":1.1,\"fullCost\":25.09,\"breakEven\":28.85,\"suggested\":31}",
+        "✗ رمان صغير: الشراء 12 ← التكلفة الكاملة 14.59 ← بدون خسارة 16.78 (لم يتغير) ← المقترح 19.50 — {\"netPurchase\":12,\"waste\":0.6,\"fullCost\":14.59,\"breakEven\":16.78,\"suggested\":19}",
+        "✗ موز أمريكي: الشراء 22 ← التكلفة الكاملة 25.09 ← بدون خسارة 28.85 (لم يتغير) ← المقترح 31.50 — {\"netPurchase\":22,\"waste\":1.1,\"fullCost\":25.09,\"breakEven\":28.85,\"suggested\":31}",
+        "✗ (25.09 + 2) × 1.15 = 31.1535 → up to 31.50 — not 25.09 × 1.05 × 1.15 = 30.30 → 30.50 of § 47"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the minimum profit doubled",
+      "caught": true,
+      "fails": [
+        "✗ رمان كبير: الشراء 22 ← التكلفة الكاملة 25.09 ← بدون خسارة 28.85 (لم يتغير) ← المقترح 31.50 — {\"netPurchase\":22,\"waste\":1.1,\"fullCost\":25.09,\"breakEven\":28.85,\"suggested\":33.5}",
+        "✗ رمان وسط: الشراء 16 ← التكلفة الكاملة 18.79 ← بدون خسارة 21.61 (لم يتغير) ← المقترح 24.00 — {\"netPurchase\":16,\"waste\":0.8,\"fullCost\":18.79,\"breakEven\":21.61,\"suggested\":26.5}",
+        "✗ رمان صغير: الشراء 12 ← التكلفة الكاملة 14.59 ← بدون خسارة 16.78 (لم يتغير) ← المقترح 19.50 — {\"netPurchase\":12,\"waste\":0.6,\"fullCost\":14.59,\"breakEven\":16.78,\"suggested\":21.5}",
+        "✗ موز أمريكي: الشراء 22 ← التكلفة الكاملة 25.09 ← بدون خسارة 28.85 (لم يتغير) ← المقترح 31.50 — {\"netPurchase\":22,\"waste\":1.1,\"fullCost\":25.09,\"breakEven\":28.85,\"suggested\":33.5}"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "a negative amount lowers the suggested price below the break-even",
+      "caught": true,
+      "fails": [
+        "✗ an amount of 0 (or below): the break-even rounded up (26.45 → 26.50), never below it",
+        "✗ an amount of 0 (or below): the break-even rounded up (26.45 → 26.50), never below it"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the suggested price rounded to the nearest half riyal, not up",
+      "caught": true,
+      "fails": [
+        "✗ رمان كبير: الشراء 22 ← التكلفة الكاملة 25.09 ← بدون خسارة 28.85 (لم يتغير) ← المقترح 31.50 — {\"netPurchase\":22,\"waste\":1.1,\"fullCost\":25.09,\"breakEven\":28.85,\"suggested\":31}",
+        "✗ رمان صغير: الشراء 12 ← التكلفة الكاملة 14.59 ← بدون خسارة 16.78 (لم يتغير) ← المقترح 19.50 — {\"netPurchase\":12,\"waste\":0.6,\"fullCost\":14.59,\"breakEven\":16.78,\"suggested\":19}",
+        "✗ موز أمريكي: الشراء 22 ← التكلفة الكاملة 25.09 ← بدون خسارة 28.85 (لم يتغير) ← المقترح 31.50 — {\"netPurchase\":22,\"waste\":1.1,\"fullCost\":25.09,\"breakEven\":28.85,\"suggested\":31}",
+        "✗ (25.09 + 2) × 1.15 = 31.1535 → up to 31.50 — not 25.09 × 1.05 × 1.15 = 30.30 → 30.50 of § 47"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the suggested price rounded up to a whole riyal",
+      "caught": true,
+      "fails": [
+        "✗ رمان كبير: الشراء 22 ← التكلفة الكاملة 25.09 ← بدون خسارة 28.85 (لم يتغير) ← المقترح 31.50 — {\"netPurchase\":22,\"waste\":1.1,\"fullCost\":25.09,\"breakEven\":28.85,\"suggested\":32}",
+        "✗ رمان صغير: الشراء 12 ← التكلفة الكاملة 14.59 ← بدون خسارة 16.78 (لم يتغير) ← المقترح 19.50 — {\"netPurchase\":12,\"waste\":0.6,\"fullCost\":14.59,\"breakEven\":16.78,\"suggested\":20}",
+        "✗ موز أمريكي: الشراء 22 ← التكلفة الكاملة 25.09 ← بدون خسارة 28.85 (لم يتغير) ← المقترح 31.50 — {\"netPurchase\":22,\"waste\":1.1,\"fullCost\":25.09,\"breakEven\":28.85,\"suggested\":32}",
+        "✗ (25.09 + 2) × 1.15 = 31.1535 → up to 31.50 — not 25.09 × 1.05 × 1.15 = 30.30 → 30.50 of § 47"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the default minimum profit is 5",
+      "caught": true,
+      "fails": [
+        "✗ a settings record without the value: the default, 2 riyals",
+        "✗ a settings record without the value: the default, 2 riyals"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "«الهامش الأدنى ٪» still read from the settings",
+      "caught": true,
+      "fails": [
+        "✗ …and nothing asks Odoo for it",
+        "✗ no code of the price flow names x_min_margin_pct or a margin percent",
+        "✗ …and nothing asks Odoo for it",
+        "✗ no code of the price flow names x_min_margin_pct or a margin percent"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the minimum profit read from «الهامش الأدنى ٪»",
+      "caught": true,
+      "fails": [
+        "✗ no code of the price flow names x_min_margin_pct or a margin percent",
+        "✗ no code of the price flow names x_min_margin_pct or a margin percent"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "a market price equal to the suggested price is an exception",
+      "caught": true,
+      "fails": [
+        "✗ «الهامش الأدنى ٪» set to 50 on the record: nothing is recomputed, no number moves",
+        "✗ market 29 = the suggested 29.00 → automatic at 29",
+        "✗ «الهامش الأدنى ٪» set to 50 on the record: nothing is recomputed, no number moves",
+        "✗ market 29 = the suggested 29.00 → automatic at 29"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "an automatic line sells at the suggested price, not the market price",
+      "caught": true,
+      "fails": [
+        "✗ market 40 → published at 40 (the market price, never lowered to the suggested one)",
+        "✗ a published day: the published market price (34.50) comes first — {\"price\":29,\"source\":\"today\",\"price_date\":\"2026-10-03\",\"age_days\":0}",
+        "✗ …and an item left out of the publication (an exception without a decision) sells at its suggested price (26.50) — {\"price\":26.5,\"source\":\"today\",\"price_date\":\"2026-10-03\",\"age_days\":0}",
+        "✗ on the day — tomato, approved automatically: no preview — {\"x_day_id\":10016,\"x_name\":\"طماطم — كرتون\",\"x_sequence\":1,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_net_purchase\":20,\"x_waste_cost\":1,\"x_op_share\":2,\"x_full_cost\":23,\"x_break_even\":26.45,\"x_suggested_price\":29,\"x_board_sale\":29,\"x_net_sale\":25.22,\"x_real_profit\":2.22,\"x_board_status\":\"green\",\"x_preview_sale\":0,\"x_preview_profit\":0,\"x_supplier_id\":801,\"x_daily_price_id\":10009,\"x_default_price_id\":10009,\"x_source_price\":20,\"x_cost_price\":20,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":72.5,\"x_market_price\":34.5,\"x_market_count\":1,\"x_unit_profit\":9,\"x_offers\":\"أحمد حسان: شراء 20 · عمر المجهلي: سوق 34.50\",\"x_status\":\"auto\",\"x_reason\":false,\"x_sale_price\":29,\"x_excluded\":false,\"x_blocked\":false,\"id\":10017}"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "a change of «الربح الأدنى للكرتون» does not recompute the day",
+      "caught": true,
+      "fails": [
+        "✗ «الربح الأدنى للكرتون» raised to 4: the next run recomputes (27 × 1.15 = 31.05 → 31.50) and the line is an exception — {\"x_day_id\":10011,\"x_name\":\"طماطم — كرتون\",\"x_sequence\":1,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_net_purchase\":20,\"x_waste_cost\":1,\"x_op_share\":2,\"x_full_cost\":23,\"x_break_even\":26.45,\"x_suggested_price\":29,\"x_board_sale\":29,\"x_net_sale\":25.22,\"x_real_profit\":2.22,\"x_board_status\":\"green\",\"x_preview_sale\":0,\"x_preview_profit\":0,\"x_supplier_id\":801,\"x_daily_price_id\":10009,\"x_default_price_id\":10009,\"x_source_price\":20,\"x_cost_price\":20,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":45,\"x_market_price\":29,\"x_market_count\":1,\"x_unit_profit\":4.22,\"x_offers\":\"أحمد حسان: شراء 20 · عمر المجهلي: سوق 29\",\"x_status\":\"auto\",\"x_reason\":false,\"x_sale_price\":29,\"x_excluded\":false,\"x_blocked\":false,\"id\":10012}",
+        "✗ «الربح الأدنى للكرتون» raised to 4: the next run recomputes (27 × 1.15 = 31.05 → 31.50) and the line is an exception"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the supplier row's fallback is the purchase × 1.38 again",
+      "caught": true,
+      "fails": [
+        "✗ Ahmed answers «طماطم 20»: the row is CREATED with x_sale_price = 29.00 (the suggested price), not 20 × 1.15 × 1.20 = 27.60 — [{\"x_supplier_id\":801,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_date\":\"2026-10-03\",\"x_price_sar\":20,\"x_sale_price\":27.6,\"x_source_message_id\":\"wamid.S48a\",\"x_raw_reply\":\"طماطم 20\",\"x_extraction_status\":\"extracted\",\"x_is_simulation\":true}]",
+        "✗ the day's cost cannot be read: the price is saved, with NO fallback (created with 0) — never a guessed one — [{\"x_supplier_id\":801,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_date\":\"2026-10-03\",\"x_price_sar\":20,\"x_sale_price\":27.6,\"x_source_message_id\":\"wamid.S48b\",\"x_raw_reply\":\"طماطم 20\",\"x_extraction_status\":\"extracted\",\"x_is_simulation\":true}]",
+        "✗ Ahmed answers «طماطم 20»: the row is CREATED with x_sale_price = 29.00 (the suggested price), not 20 × 1.15 × 1.20 = 27.60",
+        "✗ the day's cost cannot be read: the price is saved, with NO fallback (created with 0) — never a guessed one"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "no floor inputs: the fallback is a guessed purchase × 1.38",
+      "caught": true,
+      "fails": [
+        "✗ no carton share, no settings, no purchase price: 0 (no fallback)",
+        "✗ no carton share, no settings, no purchase price: 0 (no fallback)"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "no carton share: the fallback is the purchase price itself",
+      "caught": true,
+      "fails": [
+        "✗ no carton share, no settings, no purchase price: 0 (no fallback)",
+        "✗ the day's cost cannot be read: the price is saved, with NO fallback (created with 0) — never a guessed one — [{\"x_supplier_id\":801,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_date\":\"2026-10-03\",\"x_price_sar\":20,\"x_sale_price\":20,\"x_source_message_id\":\"wamid.S48b\",\"x_raw_reply\":\"طماطم 20\",\"x_extraction_status\":\"extracted\",\"x_is_simulation\":true}]",
+        "✗ «الكراتين المتوقعة» emptied (no carton share): the fallback is removed (0), not left at an old number",
+        "✗ no carton share, no settings, no purchase price: 0 (no fallback)"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the fallback ignores the settings' minimum profit",
+      "caught": true,
+      "fails": [
+        "✗ Ahmed answers «طماطم 20»: the row is CREATED with x_sale_price = 29.00 (the suggested price), not 20 × 1.15 × 1.20 = 27.60 — [{\"x_supplier_id\":801,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_date\":\"2026-10-03\",\"x_price_sar\":20,\"x_sale_price\":26.5,\"x_source_message_id\":\"wamid.S48a\",\"x_raw_reply\":\"طماطم 20\",\"x_extraction_status\":\"extracted\",\"x_is_simulation\":true}]",
+        "✗ dayFloorInputs: the day's waste 5 %, share 2.00, minimum profit 2, VAT 15 — {\"wastePct\":5,\"opShare\":2,\"minProfit\":0,\"vatRatePct\":15}",
+        "✗ Ahmed answers «طماطم 20»: the row is CREATED with x_sale_price = 29.00 (the suggested price), not 20 × 1.15 × 1.20 = 27.60",
+        "✗ dayFloorInputs: the day's waste 5 %, share 2.00, minimum profit 2, VAT 15"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the fallback made without the VAT",
+      "caught": true,
+      "fails": [
+        "✗ Ahmed answers «طماطم 20»: the row is CREATED with x_sale_price = 29.00 (the suggested price), not 20 × 1.15 × 1.20 = 27.60 — [{\"x_supplier_id\":801,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_date\":\"2026-10-03\",\"x_price_sar\":20,\"x_sale_price\":25,\"x_source_message_id\":\"wamid.S48a\",\"x_raw_reply\":\"طماطم 20\",\"x_extraction_status\":\"extracted\",\"x_is_simulation\":true}]",
+        "✗ dayFloorInputs: the day's waste 5 %, share 2.00, minimum profit 2, VAT 15 — {\"wastePct\":5,\"opShare\":2,\"minProfit\":2,\"vatRatePct\":null}",
+        "✗ Ahmed answers «طماطم 20»: the row is CREATED with x_sale_price = 29.00 (the suggested price), not 20 × 1.15 × 1.20 = 27.60",
+        "✗ dayFloorInputs: the day's waste 5 %, share 2.00, minimum profit 2, VAT 15"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the engine does not keep the supplier rows' fallback in step",
+      "caught": true,
+      "fails": [
+        "✗ a row typed in Odoo gets its fallback: 20 → 29.00 — {\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_supplier_id\":801,\"x_price_sar\":20,\"x_date\":\"2026-10-03\",\"x_extraction_status\":\"extracted\",\"id\":10009}",
+        "✗ a row carrying the old purchase × 1.38 (35.88) is corrected: 26 → 36.00 (an outlier «pending» row too)",
+        "✗ a value typed over the fallback is put back at the next run (29.00)",
+        "✗ the day's cost doubles (share 4.00): the fallback follows the suggested price (27 × 1.15 = 31.05 → 31.50)"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "a row that already carries a fallback is never corrected",
+      "caught": true,
+      "fails": [
+        "✗ a row carrying the old purchase × 1.38 (35.88) is corrected: 26 → 36.00 (an outlier «pending» row too)",
+        "✗ a value typed over the fallback is put back at the next run (29.00)",
+        "✗ the day's cost doubles (share 4.00): the fallback follows the suggested price (27 × 1.15 = 31.05 → 31.50)",
+        "✗ «الكراتين المتوقعة» emptied (no carton share): the fallback is removed (0), not left at an old number"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "no suggested price: the old fallback stays on the row",
+      "caught": true,
+      "fails": [
+        "✗ «الكراتين المتوقعة» emptied (no carton share): the fallback is removed (0), not left at an old number",
+        "✗ «الكراتين المتوقعة» emptied (no carton share): the fallback is removed (0), not left at an old number"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the row's stored fallback is not in the engine's fingerprint",
+      "caught": true,
+      "fails": [
+        "✗ a value typed over the fallback is put back at the next run (29.00)",
+        "✗ a value typed over the fallback is put back at the next run (29.00)"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the fingerprint kept is the one before the rows were written (the next tick recomputes)",
+      "caught": true,
+      "fails": [
+        "✗ «الهامش الأدنى ٪» set to 50 on the record: nothing is recomputed, no number moves",
+        "✗ the next tick: nothing changed («unchanged») — {\"day\":\"2026-10-03\",\"action\":\"refreshed\",\"dayId\":10013,\"state\":\"draft\",\"created\":0,\"updated\":0,\"lines\":4,\"excluded\":4,\"counts\":{\"auto\":0,\"exception\":4,\"manual\":0,\"unpublished\":0}}",
+        "✗ «الهامش الأدنى ٪» set to 50 on the record: nothing is recomputed, no number moves",
+        "✗ the next tick: nothing changed («unchanged»)"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the engine writes a simulation row's fallback",
+      "caught": true,
+      "fails": [
+        "✗ a simulation row is never read or written (16 / 22.08 as they were)",
+        "✗ the day's cost doubles (share 4.00): the fallback follows the suggested price (27 × 1.15 = 31.05 → 31.50)",
+        "✗ a simulation row is never read or written (16 / 22.08 as they were)",
+        "✗ the day's cost doubles (share 4.00): the fallback follows the suggested price (27 × 1.15 = 31.05 → 31.50)"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the quotation does not take the day's line's suggested price",
+      "caught": true,
+      "fails": [
+        "✗ tomato: the day's line's suggested price (29.00, from the lowest purchase 20), not the supplier row's own (23 → 32.50) — {\"price\":0,\"source\":\"missing\",\"price_date\":null,\"age_days\":null}",
+        "✗ potato, bought by Omar alone (no supplier row): its line's suggested 26.50 — it had no fallback before § 48 — {\"price\":0,\"source\":\"missing\",\"price_date\":null,\"age_days\":null}",
+        "✗ …and an item left out of the publication (an exception without a decision) sells at its suggested price (26.50) — {\"price\":0,\"source\":\"missing\",\"price_date\":null,\"age_days\":null}",
+        "✗ a quotation that day takes the suggested 31.50 (the fallback: the day is not published) — {\"price\":0,\"source\":\"missing\",\"price_date\":null,\"age_days\":null}"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "a line with a purchase price and no suggested price falls back to an older price",
+      "caught": true,
+      "fails": [
+        "✗ a purchase price today (Omar's, no supplier row) whose suggested price cannot be made: «missing» — never yesterday's 23.46 — {\"price\":23.46,\"source\":\"stale\",\"price_date\":\"2026-10-02\",\"age_days\":1}",
+        "✗ a purchase price today (Omar's, no supplier row) whose suggested price cannot be made: «missing» — never yesterday's 23.46"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "a simulation day's line is a price",
+      "caught": true,
+      "fails": [
+        "✗ a simulation row and a simulation day's line are nothing: not a price (24 / 22.08), and not «a purchase price today» either — yesterday's real 28, «stale» — {\"price\":24,\"source\":\"today\",\"price_date\":\"2026-10-03\",\"age_days\":0}",
+        "✗ a simulation row and a simulation day's line are nothing: not a price (24 / 22.08), and not «a purchase price today» either — yesterday's real 28, «stale»"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "a purchase price today without a fallback takes an older day's price",
+      "caught": true,
+      "fails": [
+        "✗ …and a row of today with a purchase price and no fallback (no line yet either): «missing», not yesterday's 34.50 — {\"price\":34.5,\"source\":\"stale\",\"price_date\":\"2026-10-02\",\"age_days\":1}",
+        "✗ …and a row of today with a purchase price and no fallback (no line yet either): «missing», not yesterday's 34.50"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "a simulation row counts as today's purchase price",
+      "caught": true,
+      "fails": [
+        "✗ a simulation row and a simulation day's line are nothing: not a price (24 / 22.08), and not «a purchase price today» either — yesterday's real 28, «stale» — {\"price\":0,\"source\":\"missing\",\"price_date\":null,\"age_days\":null}",
+        "✗ a simulation row and a simulation day's line are nothing: not a price (24 / 22.08), and not «a purchase price today» either — yesterday's real 28, «stale»"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "an approved line keeps a preview",
+      "caught": true,
+      "fails": [
+        "✗ an approved line has no preview: its real profit is the number (2.30, 🟢) — {\"x_net_purchase\":22,\"x_waste_cost\":1.1,\"x_op_share\":1.99,\"x_full_cost\":25.09,\"x_break_even\":28.85,\"x_suggested_price\":31.5,\"x_board_sale\":31.5,\"x_net_sale\":27.39,\"x_real_profit\":2.3,\"x_board_status\":\"green\",\"x_preview_sale\":31.5,\"x_preview_profit\":2.3}",
+        "✗ on the day — tomato, approved automatically: no preview — {\"x_day_id\":10016,\"x_name\":\"طماطم — كرتون\",\"x_sequence\":1,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_net_purchase\":20,\"x_waste_cost\":1,\"x_op_share\":2,\"x_full_cost\":23,\"x_break_even\":26.45,\"x_suggested_price\":29,\"x_board_sale\":34.5,\"x_net_sale\":30,\"x_real_profit\":7,\"x_board_status\":\"green\",\"x_preview_sale\":29,\"x_preview_profit\":2.22,\"x_supplier_id\":801,\"x_daily_price_id\":10009,\"x_default_price_id\":10009,\"x_source_price\":20,\"x_cost_price\":20,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":72.5,\"x_market_price\":34.5,\"x_market_count\":1,\"x_unit_profit\":9,\"x_offers\":\"أحمد حسان: شراء 20 · عمر المجهلي: سوق 34.50\",\"x_status\":\"auto\",\"x_reason\":false,\"x_sale_price\":34.5,\"x_excluded\":false,\"x_blocked\":false,\"id\":10017}",
+        "✗ «اعتمد بالسعر المربح» on it: the preview becomes the real profit (41.00, +2.15, 🟢) and leaves — {\"x_day_id\":10016,\"x_name\":\"بصل — جرم\",\"x_sequence\":4,\"x_product_tmpl_id\":4,\"x_packaging_id\":41,\"x_net_purchase\":30,\"x_waste_cost\":1.5,\"x_op_share\":2,\"x_full_cost\":33.5,\"x_break_even\":38.53,\"x_suggested_price\":41,\"x_board_sale\":41,\"x_net_sale\":35.65,\"x_real_profit\":2.15,\"x_board_status\":\"green\",\"x_preview_sale\":41,\"x_preview_profit\":2.15,\"x_supplier_id\":801,\"x_daily_price_id\":10015,\"x_default_price_id\":10015,\"x_source_price\":30,\"x_cost_price\":30,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 30\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بالسعر المربح\",\"x_sale_price\":41,\"x_excluded\":false,\"x_blocked\":false,\"id\":10020,\"x_decision\":\"profit\",\"x_manual_price\":41,\"x_manual_for\":\"profit\",\"x_decided_at\":\"2026-10-03 01:00:00\"}",
+        "✗ طماطم — كرتون: البيع 31.50 = المقترح، «معتمد يدوياً»، والربح الحقيقي 2.30 🟢 — {\"x_day_id\":10009,\"x_name\":\"طماطم — كرتون\",\"x_sequence\":1,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_net_purchase\":22,\"x_waste_cost\":1.1,\"x_op_share\":1.99,\"x_full_cost\":25.09,\"x_break_even\":28.85,\"x_suggested_price\":31.5,\"x_board_sale\":31.5,\"x_net_sale\":27.39,\"x_real_profit\":2.3,\"x_board_status\":\"green\",\"x_preview_sale\":31.5,\"x_preview_profit\":2.3,\"x_supplier_id\":801,\"x_daily_price_id\":10010,\"x_default_price_id\":10010,\"x_source_price\":22,\"x_cost_price\":22,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 22\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بالسعر المربح\",\"x_sale_price\":31.5,\"x_excluded\":false,\"x_blocked\":false,\"id\":10013,\"x_decision\":\"profit\",\"x_decided_at\":\"2026-10-01 10:00:00\",\"x_manual_price\":31.5,\"x_manual_for\":\"profit\"}"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "no preview at all",
+      "caught": true,
+      "fails": [
+        "✗ no approved price, no market: the preview at the suggested 31.50 → 31.50 ÷ 1.15 − 25.09 = 2.30 — {\"x_net_purchase\":22,\"x_waste_cost\":1.1,\"x_op_share\":1.99,\"x_full_cost\":25.09,\"x_break_even\":28.85,\"x_suggested_price\":31.5,\"x_board_sale\":0,\"x_net_sale\":0,\"x_real_profit\":0,\"x_board_status\":\"none\",\"x_preview_sale\":0,\"x_preview_profit\":0}",
+        "✗ an exception with a market price: the real profit and status keep their meaning (at the market price: −2.30, 🔴), the preview beside them (36.00 → +2.00) — {\"x_net_purchase\":26,\"x_waste_cost\":1.3,\"x_op_share\":2,\"x_full_cost\":29.3,\"x_break_even\":33.7,\"x_suggested_price\":36,\"x_board_sale\":31.05,\"x_net_sale\":27,\"x_real_profit\":-2.3,\"x_board_status\":\"red\",\"x_preview_sale\":0,\"x_preview_profit\":0}",
+        "✗ …cucumber, an exception: its preview 36.00 / +2.00, its real card still the market's (🔴 −2.30) — {\"x_day_id\":10016,\"x_name\":\"خيار — جرم\",\"x_sequence\":2,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_net_purchase\":26,\"x_waste_cost\":1.3,\"x_op_share\":2,\"x_full_cost\":29.3,\"x_break_even\":33.7,\"x_suggested_price\":36,\"x_board_sale\":31.05,\"x_net_sale\":27,\"x_real_profit\":-2.3,\"x_board_status\":\"red\",\"x_preview_sale\":0,\"x_preview_profit\":0,\"x_supplier_id\":801,\"x_daily_price_id\":10011,\"x_default_price_id\":10011,\"x_source_price\":26,\"x_cost_price\":26,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":19.42,\"x_market_price\":31.05,\"x_market_count\":1,\"x_unit_profit\":-0.3,\"x_offers\":\"أحمد حسان: شراء 26 · عمر المجهلي: سوق 31.05\",\"x_status\":\"exception\",\"x_reason\":\"سعر السوق 31.05 أقل من السعر المربح 36\",\"x_sale_price\":0,\"x_excluded\":true,\"x_blocked\":false,\"id\":10018}",
+        "✗ …onion, no market price: the preview (30 + 1.5 + 2 = 33.50 → 41.00, +2.15), ⚪ and real profit 0 — {\"x_day_id\":10016,\"x_name\":\"بصل — جرم\",\"x_sequence\":4,\"x_product_tmpl_id\":4,\"x_packaging_id\":41,\"x_net_purchase\":30,\"x_waste_cost\":1.5,\"x_op_share\":2,\"x_full_cost\":33.5,\"x_break_even\":38.53,\"x_suggested_price\":41,\"x_board_sale\":0,\"x_net_sale\":0,\"x_real_profit\":0,\"x_board_status\":\"none\",\"x_preview_sale\":0,\"x_preview_profit\":0,\"x_supplier_id\":801,\"x_daily_price_id\":10015,\"x_default_price_id\":10015,\"x_source_price\":30,\"x_cost_price\":30,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 30\",\"x_status\":\"exception\",\"x_reason\":\"لا سعر سوق\",\"x_sale_price\":0,\"x_excluded\":true,\"x_blocked\":false,\"id\":10020}"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the preview's profit made from the market price",
+      "caught": true,
+      "fails": [
+        "✗ no approved price, no market: the preview at the suggested 31.50 → 31.50 ÷ 1.15 − 25.09 = 2.30 — {\"x_net_purchase\":22,\"x_waste_cost\":1.1,\"x_op_share\":1.99,\"x_full_cost\":25.09,\"x_break_even\":28.85,\"x_suggested_price\":31.5,\"x_board_sale\":0,\"x_net_sale\":0,\"x_real_profit\":0,\"x_board_status\":\"none\",\"x_preview_sale\":31.5,\"x_preview_profit\":-25.09}",
+        "✗ an exception with a market price: the real profit and status keep their meaning (at the market price: −2.30, 🔴), the preview beside them (36.00 → +2.00) — {\"x_net_purchase\":26,\"x_waste_cost\":1.3,\"x_op_share\":2,\"x_full_cost\":29.3,\"x_break_even\":33.7,\"x_suggested_price\":36,\"x_board_sale\":31.05,\"x_net_sale\":27,\"x_real_profit\":-2.3,\"x_board_status\":\"red\",\"x_preview_sale\":36,\"x_preview_profit\":-2.3}",
+        "✗ …cucumber, an exception: its preview 36.00 / +2.00, its real card still the market's (🔴 −2.30) — {\"x_day_id\":10016,\"x_name\":\"خيار — جرم\",\"x_sequence\":2,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_net_purchase\":26,\"x_waste_cost\":1.3,\"x_op_share\":2,\"x_full_cost\":29.3,\"x_break_even\":33.7,\"x_suggested_price\":36,\"x_board_sale\":31.05,\"x_net_sale\":27,\"x_real_profit\":-2.3,\"x_board_status\":\"red\",\"x_preview_sale\":36,\"x_preview_profit\":-2.3,\"x_supplier_id\":801,\"x_daily_price_id\":10011,\"x_default_price_id\":10011,\"x_source_price\":26,\"x_cost_price\":26,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":19.42,\"x_market_price\":31.05,\"x_market_count\":1,\"x_unit_profit\":-0.3,\"x_offers\":\"أحمد حسان: شراء 26 · عمر المجهلي: سوق 31.05\",\"x_status\":\"exception\",\"x_reason\":\"سعر السوق 31.05 أقل من السعر المربح 36\",\"x_sale_price\":0,\"x_excluded\":true,\"x_blocked\":false,\"id\":10018}",
+        "✗ …onion, no market price: the preview (30 + 1.5 + 2 = 33.50 → 41.00, +2.15), ⚪ and real profit 0 — {\"x_day_id\":10016,\"x_name\":\"بصل — جرم\",\"x_sequence\":4,\"x_product_tmpl_id\":4,\"x_packaging_id\":41,\"x_net_purchase\":30,\"x_waste_cost\":1.5,\"x_op_share\":2,\"x_full_cost\":33.5,\"x_break_even\":38.53,\"x_suggested_price\":41,\"x_board_sale\":0,\"x_net_sale\":0,\"x_real_profit\":0,\"x_board_status\":\"none\",\"x_preview_sale\":41,\"x_preview_profit\":-33.5,\"x_supplier_id\":801,\"x_daily_price_id\":10015,\"x_default_price_id\":10015,\"x_source_price\":30,\"x_cost_price\":30,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 30\",\"x_status\":\"exception\",\"x_reason\":\"لا سعر سوق\",\"x_sale_price\":0,\"x_excluded\":true,\"x_blocked\":false,\"id\":10020}"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the preview's profit without taking the VAT out",
+      "caught": true,
+      "fails": [
+        "✗ no approved price, no market: the preview at the suggested 31.50 → 31.50 ÷ 1.15 − 25.09 = 2.30 — {\"x_net_purchase\":22,\"x_waste_cost\":1.1,\"x_op_share\":1.99,\"x_full_cost\":25.09,\"x_break_even\":28.85,\"x_suggested_price\":31.5,\"x_board_sale\":0,\"x_net_sale\":0,\"x_real_profit\":0,\"x_board_status\":\"none\",\"x_preview_sale\":31.5,\"x_preview_profit\":6.41}",
+        "✗ an exception with a market price: the real profit and status keep their meaning (at the market price: −2.30, 🔴), the preview beside them (36.00 → +2.00) — {\"x_net_purchase\":26,\"x_waste_cost\":1.3,\"x_op_share\":2,\"x_full_cost\":29.3,\"x_break_even\":33.7,\"x_suggested_price\":36,\"x_board_sale\":31.05,\"x_net_sale\":27,\"x_real_profit\":-2.3,\"x_board_status\":\"red\",\"x_preview_sale\":36,\"x_preview_profit\":6.7}",
+        "✗ …cucumber, an exception: its preview 36.00 / +2.00, its real card still the market's (🔴 −2.30) — {\"x_day_id\":10016,\"x_name\":\"خيار — جرم\",\"x_sequence\":2,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_net_purchase\":26,\"x_waste_cost\":1.3,\"x_op_share\":2,\"x_full_cost\":29.3,\"x_break_even\":33.7,\"x_suggested_price\":36,\"x_board_sale\":31.05,\"x_net_sale\":27,\"x_real_profit\":-2.3,\"x_board_status\":\"red\",\"x_preview_sale\":36,\"x_preview_profit\":6.7,\"x_supplier_id\":801,\"x_daily_price_id\":10011,\"x_default_price_id\":10011,\"x_source_price\":26,\"x_cost_price\":26,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":19.42,\"x_market_price\":31.05,\"x_market_count\":1,\"x_unit_profit\":-0.3,\"x_offers\":\"أحمد حسان: شراء 26 · عمر المجهلي: سوق 31.05\",\"x_status\":\"exception\",\"x_reason\":\"سعر السوق 31.05 أقل من السعر المربح 36\",\"x_sale_price\":0,\"x_excluded\":true,\"x_blocked\":false,\"id\":10018}",
+        "✗ …onion, no market price: the preview (30 + 1.5 + 2 = 33.50 → 41.00, +2.15), ⚪ and real profit 0 — {\"x_day_id\":10016,\"x_name\":\"بصل — جرم\",\"x_sequence\":4,\"x_product_tmpl_id\":4,\"x_packaging_id\":41,\"x_net_purchase\":30,\"x_waste_cost\":1.5,\"x_op_share\":2,\"x_full_cost\":33.5,\"x_break_even\":38.53,\"x_suggested_price\":41,\"x_board_sale\":0,\"x_net_sale\":0,\"x_real_profit\":0,\"x_board_status\":\"none\",\"x_preview_sale\":41,\"x_preview_profit\":7.5,\"x_supplier_id\":801,\"x_daily_price_id\":10015,\"x_default_price_id\":10015,\"x_source_price\":30,\"x_cost_price\":30,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 30\",\"x_status\":\"exception\",\"x_reason\":\"لا سعر سوق\",\"x_sale_price\":0,\"x_excluded\":true,\"x_blocked\":false,\"id\":10020}"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the preview's sale is the break-even, not the suggested price",
+      "caught": true,
+      "fails": [
+        "✗ no approved price, no market: the preview at the suggested 31.50 → 31.50 ÷ 1.15 − 25.09 = 2.30 — {\"x_net_purchase\":22,\"x_waste_cost\":1.1,\"x_op_share\":1.99,\"x_full_cost\":25.09,\"x_break_even\":28.85,\"x_suggested_price\":31.5,\"x_board_sale\":0,\"x_net_sale\":0,\"x_real_profit\":0,\"x_board_status\":\"none\",\"x_preview_sale\":28.85,\"x_preview_profit\":2.3}",
+        "✗ an exception with a market price: the real profit and status keep their meaning (at the market price: −2.30, 🔴), the preview beside them (36.00 → +2.00) — {\"x_net_purchase\":26,\"x_waste_cost\":1.3,\"x_op_share\":2,\"x_full_cost\":29.3,\"x_break_even\":33.7,\"x_suggested_price\":36,\"x_board_sale\":31.05,\"x_net_sale\":27,\"x_real_profit\":-2.3,\"x_board_status\":\"red\",\"x_preview_sale\":33.7,\"x_preview_profit\":2}",
+        "✗ …cucumber, an exception: its preview 36.00 / +2.00, its real card still the market's (🔴 −2.30) — {\"x_day_id\":10016,\"x_name\":\"خيار — جرم\",\"x_sequence\":2,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_net_purchase\":26,\"x_waste_cost\":1.3,\"x_op_share\":2,\"x_full_cost\":29.3,\"x_break_even\":33.7,\"x_suggested_price\":36,\"x_board_sale\":31.05,\"x_net_sale\":27,\"x_real_profit\":-2.3,\"x_board_status\":\"red\",\"x_preview_sale\":33.7,\"x_preview_profit\":2,\"x_supplier_id\":801,\"x_daily_price_id\":10011,\"x_default_price_id\":10011,\"x_source_price\":26,\"x_cost_price\":26,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":19.42,\"x_market_price\":31.05,\"x_market_count\":1,\"x_unit_profit\":-0.3,\"x_offers\":\"أحمد حسان: شراء 26 · عمر المجهلي: سوق 31.05\",\"x_status\":\"exception\",\"x_reason\":\"سعر السوق 31.05 أقل من السعر المربح 36\",\"x_sale_price\":0,\"x_excluded\":true,\"x_blocked\":false,\"id\":10018}",
+        "✗ …onion, no market price: the preview (30 + 1.5 + 2 = 33.50 → 41.00, +2.15), ⚪ and real profit 0 — {\"x_day_id\":10016,\"x_name\":\"بصل — جرم\",\"x_sequence\":4,\"x_product_tmpl_id\":4,\"x_packaging_id\":41,\"x_net_purchase\":30,\"x_waste_cost\":1.5,\"x_op_share\":2,\"x_full_cost\":33.5,\"x_break_even\":38.53,\"x_suggested_price\":41,\"x_board_sale\":0,\"x_net_sale\":0,\"x_real_profit\":0,\"x_board_status\":\"none\",\"x_preview_sale\":38.53,\"x_preview_profit\":2.15,\"x_supplier_id\":801,\"x_daily_price_id\":10015,\"x_default_price_id\":10015,\"x_source_price\":30,\"x_cost_price\":30,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 30\",\"x_status\":\"exception\",\"x_reason\":\"لا سعر سوق\",\"x_sale_price\":0,\"x_excluded\":true,\"x_blocked\":false,\"id\":10020}"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the real profit of an unapproved line is made from the suggested price (the preview takes its place)",
+      "caught": true,
+      "fails": [
+        "✗ …cucumber, an exception: its preview 36.00 / +2.00, its real card still the market's (🔴 −2.30) — {\"x_day_id\":10016,\"x_name\":\"خيار — جرم\",\"x_sequence\":2,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_net_purchase\":26,\"x_waste_cost\":1.3,\"x_op_share\":2,\"x_full_cost\":29.3,\"x_break_even\":33.7,\"x_suggested_price\":36,\"x_board_sale\":36,\"x_net_sale\":31.3,\"x_real_profit\":2,\"x_board_status\":\"green\",\"x_preview_sale\":36,\"x_preview_profit\":2,\"x_supplier_id\":801,\"x_daily_price_id\":10011,\"x_default_price_id\":10011,\"x_source_price\":26,\"x_cost_price\":26,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":19.42,\"x_market_price\":31.05,\"x_market_count\":1,\"x_unit_profit\":-0.3,\"x_offers\":\"أحمد حسان: شراء 26 · عمر المجهلي: سوق 31.05\",\"x_status\":\"exception\",\"x_reason\":\"سعر السوق 31.05 أقل من السعر المربح 36\",\"x_sale_price\":0,\"x_excluded\":true,\"x_blocked\":false,\"id\":10018}",
+        "✗ …onion, no market price: the preview (30 + 1.5 + 2 = 33.50 → 41.00, +2.15), ⚪ and real profit 0 — {\"x_day_id\":10016,\"x_name\":\"بصل — جرم\",\"x_sequence\":4,\"x_product_tmpl_id\":4,\"x_packaging_id\":41,\"x_net_purchase\":30,\"x_waste_cost\":1.5,\"x_op_share\":2,\"x_full_cost\":33.5,\"x_break_even\":38.53,\"x_suggested_price\":41,\"x_board_sale\":41,\"x_net_sale\":35.65,\"x_real_profit\":2.15,\"x_board_status\":\"green\",\"x_preview_sale\":41,\"x_preview_profit\":2.15,\"x_supplier_id\":801,\"x_daily_price_id\":10015,\"x_default_price_id\":10015,\"x_source_price\":30,\"x_cost_price\":30,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 30\",\"x_status\":\"exception\",\"x_reason\":\"لا سعر سوق\",\"x_sale_price\":0,\"x_excluded\":true,\"x_blocked\":false,\"id\":10020}",
+        "✗ …cucumber, an exception: its preview 36.00 / +2.00, its real card still the market's (🔴 −2.30)",
+        "✗ …onion, no market price: the preview (30 + 1.5 + 2 = 33.50 → 41.00, +2.15), ⚪ and real profit 0"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the engine's approved line still gets a preview",
+      "caught": true,
+      "fails": [
+        "✗ on the day — tomato, approved automatically: no preview — {\"x_day_id\":10016,\"x_name\":\"طماطم — كرتون\",\"x_sequence\":1,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_net_purchase\":20,\"x_waste_cost\":1,\"x_op_share\":2,\"x_full_cost\":23,\"x_break_even\":26.45,\"x_suggested_price\":29,\"x_board_sale\":34.5,\"x_net_sale\":30,\"x_real_profit\":7,\"x_board_status\":\"green\",\"x_preview_sale\":29,\"x_preview_profit\":2.22,\"x_supplier_id\":801,\"x_daily_price_id\":10009,\"x_default_price_id\":10009,\"x_source_price\":20,\"x_cost_price\":20,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":72.5,\"x_market_price\":34.5,\"x_market_count\":1,\"x_unit_profit\":9,\"x_offers\":\"أحمد حسان: شراء 20 · عمر المجهلي: سوق 34.50\",\"x_status\":\"auto\",\"x_reason\":false,\"x_sale_price\":34.5,\"x_excluded\":false,\"x_blocked\":false,\"id\":10017}",
+        "✗ طماطم — كرتون: البيع 31.50 = المقترح، «معتمد يدوياً»، والربح الحقيقي 2.30 🟢 — {\"x_day_id\":10009,\"x_name\":\"طماطم — كرتون\",\"x_sequence\":1,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_net_purchase\":22,\"x_waste_cost\":1.1,\"x_op_share\":1.99,\"x_full_cost\":25.09,\"x_break_even\":28.85,\"x_suggested_price\":31.5,\"x_board_sale\":31.5,\"x_net_sale\":27.39,\"x_real_profit\":2.3,\"x_board_status\":\"green\",\"x_preview_sale\":31.5,\"x_preview_profit\":2.3,\"x_supplier_id\":801,\"x_daily_price_id\":10010,\"x_default_price_id\":10010,\"x_source_price\":22,\"x_cost_price\":22,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 22\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بالسعر المربح\",\"x_sale_price\":31.5,\"x_excluded\":false,\"x_blocked\":false,\"id\":10013,\"x_decision\":\"profit\",\"x_decided_at\":\"2026-10-01 10:00:00\",\"x_manual_price\":31.5,\"x_manual_for\":\"profit\"}",
+        "✗ خيار — جرم: البيع 24.00 = المقترح، «معتمد يدوياً»، والربح الحقيقي 2.08 🟢 — {\"x_day_id\":10009,\"x_name\":\"خيار — جرم\",\"x_sequence\":2,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_net_purchase\":16,\"x_waste_cost\":0.8,\"x_op_share\":1.99,\"x_full_cost\":18.79,\"x_break_even\":21.61,\"x_suggested_price\":24,\"x_board_sale\":24,\"x_net_sale\":20.87,\"x_real_profit\":2.08,\"x_board_status\":\"green\",\"x_preview_sale\":24,\"x_preview_profit\":2.08,\"x_supplier_id\":801,\"x_daily_price_id\":10011,\"x_default_price_id\":10011,\"x_source_price\":16,\"x_cost_price\":16,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 16\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بالسعر المربح\",\"x_sale_price\":24,\"x_excluded\":false,\"x_blocked\":false,\"id\":10014,\"x_decision\":\"profit\",\"x_decided_at\":\"2026-10-01 10:00:00\",\"x_manual_price\":24,\"x_manual_for\":\"profit\"}",
+        "✗ بطاطس — كرتون: البيع 19.50 = المقترح، «معتمد يدوياً»، والربح الحقيقي 2.37 🟢 — {\"x_day_id\":10009,\"x_name\":\"بطاطس — كرتون\",\"x_sequence\":3,\"x_product_tmpl_id\":3,\"x_packaging_id\":31,\"x_net_purchase\":12,\"x_waste_cost\":0.6,\"x_op_share\":1.99,\"x_full_cost\":14.59,\"x_break_even\":16.78,\"x_suggested_price\":19.5,\"x_board_sale\":19.5,\"x_net_sale\":16.96,\"x_real_profit\":2.37,\"x_board_status\":\"green\",\"x_preview_sale\":19.5,\"x_preview_profit\":2.37,\"x_supplier_id\":801,\"x_daily_price_id\":10012,\"x_default_price_id\":10012,\"x_source_price\":12,\"x_cost_price\":12,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 12\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بالسعر المربح\",\"x_sale_price\":19.5,\"x_excluded\":false,\"x_blocked\":false,\"id\":10015,\"x_decision\":\"profit\",\"x_decided_at\":\"2026-10-01 10:00:00\",\"x_manual_price\":19.5,\"x_manual_for\":\"profit\"}"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "a stored approved line still gets a preview (after a decision)",
+      "caught": true,
+      "fails": [
+        "✗ «اعتمد بالسعر المربح» on it: the preview becomes the real profit (41.00, +2.15, 🟢) and leaves — {\"x_day_id\":10016,\"x_name\":\"بصل — جرم\",\"x_sequence\":4,\"x_product_tmpl_id\":4,\"x_packaging_id\":41,\"x_net_purchase\":30,\"x_waste_cost\":1.5,\"x_op_share\":2,\"x_full_cost\":33.5,\"x_break_even\":38.53,\"x_suggested_price\":41,\"x_board_sale\":41,\"x_net_sale\":35.65,\"x_real_profit\":2.15,\"x_board_status\":\"green\",\"x_preview_sale\":41,\"x_preview_profit\":2.15,\"x_supplier_id\":801,\"x_daily_price_id\":10015,\"x_default_price_id\":10015,\"x_source_price\":30,\"x_cost_price\":30,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 30\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بالسعر المربح\",\"x_sale_price\":41,\"x_excluded\":false,\"x_blocked\":false,\"id\":10020,\"x_decision\":\"profit\",\"x_manual_price\":41,\"x_manual_for\":\"profit\",\"x_decided_at\":\"2026-10-03 01:00:00\"}",
+        "✗ «اعتمد بالسعر المربح» on it: the preview becomes the real profit (41.00, +2.15, 🟢) and leaves"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the preview is not among the board's fields",
+      "caught": true,
+      "fails": [
+        "✗ the two fields are the board's own (written with it)",
+        "✗ «اعتمد بالسعر المربح» on it: the preview becomes the real profit (41.00, +2.15, 🟢) and leaves — {\"x_day_id\":10016,\"x_name\":\"بصل — جرم\",\"x_sequence\":4,\"x_product_tmpl_id\":4,\"x_packaging_id\":41,\"x_net_purchase\":30,\"x_waste_cost\":1.5,\"x_op_share\":2,\"x_full_cost\":33.5,\"x_break_even\":38.53,\"x_suggested_price\":41,\"x_board_sale\":41,\"x_net_sale\":35.65,\"x_real_profit\":2.15,\"x_board_status\":\"green\",\"x_preview_sale\":41,\"x_preview_profit\":2.15,\"x_supplier_id\":801,\"x_daily_price_id\":10015,\"x_default_price_id\":10015,\"x_source_price\":30,\"x_cost_price\":30,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 30\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بالسعر المربح\",\"x_sale_price\":41,\"x_excluded\":false,\"x_blocked\":false,\"id\":10020,\"x_decision\":\"profit\",\"x_manual_price\":41,\"x_manual_for\":\"profit\",\"x_decided_at\":\"2026-10-03 01:00:00\"}",
+        "✗ طماطم — كرتون: البيع 31.50 = المقترح، «معتمد يدوياً»، والربح الحقيقي 2.30 🟢 — {\"x_day_id\":10009,\"x_name\":\"طماطم — كرتون\",\"x_sequence\":1,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_net_purchase\":22,\"x_waste_cost\":1.1,\"x_op_share\":1.99,\"x_full_cost\":25.09,\"x_break_even\":28.85,\"x_suggested_price\":31.5,\"x_board_sale\":31.5,\"x_net_sale\":27.39,\"x_real_profit\":2.3,\"x_board_status\":\"green\",\"x_preview_sale\":31.5,\"x_preview_profit\":2.3,\"x_supplier_id\":801,\"x_daily_price_id\":10010,\"x_default_price_id\":10010,\"x_source_price\":22,\"x_cost_price\":22,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 22\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بالسعر المربح\",\"x_sale_price\":31.5,\"x_excluded\":false,\"x_blocked\":false,\"id\":10013,\"x_decision\":\"profit\",\"x_decided_at\":\"2026-10-01 10:00:00\",\"x_manual_price\":31.5,\"x_manual_for\":\"profit\"}",
+        "✗ خيار — جرم: البيع 24.00 = المقترح، «معتمد يدوياً»، والربح الحقيقي 2.08 🟢 — {\"x_day_id\":10009,\"x_name\":\"خيار — جرم\",\"x_sequence\":2,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_net_purchase\":16,\"x_waste_cost\":0.8,\"x_op_share\":1.99,\"x_full_cost\":18.79,\"x_break_even\":21.61,\"x_suggested_price\":24,\"x_board_sale\":24,\"x_net_sale\":20.87,\"x_real_profit\":2.08,\"x_board_status\":\"green\",\"x_preview_sale\":24,\"x_preview_profit\":2.08,\"x_supplier_id\":801,\"x_daily_price_id\":10011,\"x_default_price_id\":10011,\"x_source_price\":16,\"x_cost_price\":16,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 16\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بالسعر المربح\",\"x_sale_price\":24,\"x_excluded\":false,\"x_blocked\":false,\"id\":10014,\"x_decision\":\"profit\",\"x_decided_at\":\"2026-10-01 10:00:00\",\"x_manual_price\":24,\"x_manual_for\":\"profit\"}"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "a line leaving the catalog keeps the board of its old approved price (no preview)",
+      "caught": true,
+      "fails": [
+        "✗ an approved line whose product leaves the catalog («لم يُنشر»): no sale price any more, and its preview back at once (41.00, +2.15) — {\"x_day_id\":10016,\"x_name\":\"بصل — جرم\",\"x_sequence\":4,\"x_product_tmpl_id\":4,\"x_packaging_id\":41,\"x_net_purchase\":30,\"x_waste_cost\":1.5,\"x_op_share\":2,\"x_full_cost\":33.5,\"x_break_even\":38.53,\"x_suggested_price\":41,\"x_board_sale\":41,\"x_net_sale\":35.65,\"x_real_profit\":2.15,\"x_board_status\":\"green\",\"x_preview_sale\":0,\"x_preview_profit\":0,\"x_supplier_id\":801,\"x_daily_price_id\":10015,\"x_default_price_id\":10015,\"x_source_price\":30,\"x_cost_price\":30,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 30\",\"x_status\":\"unpublished\",\"x_reason\":\"ليس في الكتالوج النشط اليوم\",\"x_sale_price\":0,\"x_excluded\":true,\"x_blocked\":false,\"id\":10020,\"x_decision\":\"profit\",\"x_manual_price\":41,\"x_manual_for\":\"profit\",\"x_decided_at\":\"2026-10-03 01:00:00\"}",
+        "✗ an approved line whose product leaves the catalog («لم يُنشر»): no sale price any more, and its preview back at once (41.00, +2.15)"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "a missing value shows 0.00",
+      "caught": true,
+      "fails": [
+        "✗ an empty line: «—» everywhere, never 0.00 — {\"x_market_show\":\"0.00\",\"x_sale_show\":\"0.00\",\"x_profit_show\":\"—\",\"x_manual_show\":\"0.00\",\"x_cost_show\":\"0.00\",\"x_even_show\":\"0.00\",\"x_suggested_show\":\"0.00\"}",
+        "✗ a purchase price and nothing else: السوق «—», البيع «—», السعر المعدّل «—», and «معاينة 2.30» — {\"x_market_show\":\"0.00\",\"x_sale_show\":\"0.00\",\"x_profit_show\":\"معاينة 2.30\",\"x_manual_show\":\"0.00\",\"x_cost_show\":\"22.00\",\"x_even_show\":\"28.85\",\"x_suggested_show\":\"31.50\"}",
+        "✗ an approved line: the numbers with two decimals, the real profit, no «معاينة» — {\"x_market_show\":\"0.00\",\"x_sale_show\":\"31.50\",\"x_profit_show\":\"2.30\",\"x_manual_show\":\"31.50\",\"x_cost_show\":\"22.00\",\"x_even_show\":\"28.85\",\"x_suggested_show\":\"31.50\"}",
+        "✗ an exception with a market price: the market price shown, the sale «—», the preview — not the market's loss — {\"x_market_show\":\"31.05\",\"x_sale_show\":\"0.00\",\"x_profit_show\":\"معاينة 2.00\",\"x_manual_show\":\"0.00\",\"x_cost_show\":\"26.00\",\"x_even_show\":\"0.00\",\"x_suggested_show\":\"0.00\"}"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the preview shown without the word «معاينة»",
+      "caught": true,
+      "fails": [
+        "✗ a purchase price and nothing else: السوق «—», البيع «—», السعر المعدّل «—», and «معاينة 2.30» — {\"x_market_show\":\"—\",\"x_sale_show\":\"—\",\"x_profit_show\":\"2.30\",\"x_manual_show\":\"—\",\"x_cost_show\":\"22.00\",\"x_even_show\":\"28.85\",\"x_suggested_show\":\"31.50\"}",
+        "✗ an exception with a market price: the market price shown, the sale «—», the preview — not the market's loss — {\"x_market_show\":\"31.05\",\"x_sale_show\":\"—\",\"x_profit_show\":\"2.00\",\"x_manual_show\":\"—\",\"x_cost_show\":\"26.00\",\"x_even_show\":\"—\",\"x_suggested_show\":\"—\"}",
+        "✗ a purchase price and nothing else: السوق «—», البيع «—», السعر المعدّل «—», and «معاينة 2.30»",
+        "✗ an exception with a market price: the market price shown, the sale «—», the preview — not the market's loss"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "an unapproved line shows the market's profit, not its preview",
+      "caught": true,
+      "fails": [
+        "✗ an exception with a market price: the market price shown, the sale «—», the preview — not the market's loss — {\"x_market_show\":\"31.05\",\"x_sale_show\":\"—\",\"x_profit_show\":\"-2.30\",\"x_manual_show\":\"—\",\"x_cost_show\":\"26.00\",\"x_even_show\":\"—\",\"x_suggested_show\":\"—\"}",
+        "✗ an exception with a market price: the market price shown, the sale «—», the preview — not the market's loss"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "a line with neither shows 0.00",
+      "caught": true,
+      "fails": [
+        "✗ an empty line: «—» everywhere, never 0.00 — {\"x_market_show\":\"—\",\"x_sale_show\":\"—\",\"x_profit_show\":\"0.00\",\"x_manual_show\":\"—\",\"x_cost_show\":\"—\",\"x_even_show\":\"—\",\"x_suggested_show\":\"—\"}",
+        "✗ a market price without a purchase price: no profit and no preview («—») — {\"x_market_show\":\"30.00\",\"x_sale_show\":\"—\",\"x_profit_show\":\"0.00\",\"x_manual_show\":\"—\",\"x_cost_show\":\"—\",\"x_even_show\":\"—\",\"x_suggested_show\":\"—\"}",
+        "✗ an empty line: «—» everywhere, never 0.00",
+        "✗ a market price without a purchase price: no profit and no preview («—»)"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "«معاينة» not set apart (no italics)",
+      "caught": true,
+      "fails": [
+        "✗ «معاينة» is set apart: the word itself, and italics on the cell of a line without an approved price",
+        "✗ «معاينة» is set apart: the word itself, and italics on the cell of a line without an approved price"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the day's list shows the raw market number (0.00)",
+      "caught": true,
+      "fails": [
+        "✗ the day's list shows the texts (السوق، البيع، الربح / المعاينة) and not the raw 0.00 numbers",
+        "✗ the day's list shows the texts (السوق، البيع، الربح / المعاينة) and not the raw 0.00 numbers"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "«السعر المعدّل» shows 0.00 on every line",
+      "caught": true,
+      "fails": [
+        "✗ «السعر المعدّل» is an input of «سعر معدّل»: empty (not 0.00) on a line that carries no price",
+        "✗ «السعر المعدّل» is an input of «سعر معدّل»: empty (not 0.00) on a line that carries no price"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the explanation still says the percentage",
+      "caught": true,
+      "fails": [
+        "✗ the explanation at the top is the real formula: the raw purchase, the waste, the carton share, the minimum profit, the rule, the preview — الشراء خام بدون ضريبة. التكلفة الكاملة = الشراء + التالف (نسبة التالف × الشراء) + حصة الكرتون من تكلفة التشغيل. «بدون خسارة» = التكلفة الكاملة × 1.15. «المقترح» = التكلفة الكاملة × (1 + الهامش الأدنى ٪) × 1.15، لأعلى لأقرب نصف ريال. القاعدة: سعر البيع = سعر السوق متى بلغ المقترح، وغير ذلك استثناء بقرارك. «معاينة» = ما يربحه الصنف لو بيع بالمقترح، وليست سعراً معتمداً.",
+        "✗ no screen text of § 48 says «الهامش الأدنى ٪» as a rule",
+        "✗ the explanation at the top is the real formula: the raw purchase, the waste, the carton share, the minimum profit, the rule, the preview",
+        "✗ no screen text of § 48 says «الهامش الأدنى ٪» as a rule"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "a «فات الموعد» day is not computed by the engine",
+      "caught": true,
+      "fails": []
+    },
+    {
+      "part": "د",
+      "name": "the tick does not apply a decision taken in Odoo",
+      "caught": true,
+      "fails": [
+        "✗ 13:00 is outside the engine's hours («outside»), yet the day is recomputed for the waiting decision — {\"marketAsk\":{\"action\":\"after\"},\"refresh\":{\"day\":\"2026-10-01\",\"action\":\"outside\"},\"exceptions\":{\"action\":\"outside\"},\"deadline\":{\"action\":\"after_window\",\"day\":\"2026-10-01\"}}",
+        "✗ …the line is approved at 31.50, «وقت القرار» written, the day still missed, nothing sent — {\"x_day_id\":10009,\"x_name\":\"طماطم — كرتون\",\"x_sequence\":1,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_net_purchase\":22,\"x_waste_cost\":1.1,\"x_op_share\":1.99,\"x_full_cost\":25.09,\"x_break_even\":28.85,\"x_suggested_price\":31.5,\"x_board_sale\":0,\"x_net_sale\":0,\"x_real_profit\":0,\"x_board_status\":\"none\",\"x_preview_sale\":31.5,\"x_preview_profit\":2.3,\"x_supplier_id\":801,\"x_daily_price_id\":10010,\"x_default_price_id\":10010,\"x_source_price\":22,\"x_cost_price\":22,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 22\",\"x_status\":\"exception\",\"x_reason\":\"لا سعر سوق\",\"x_sale_price\":0,\"x_excluded\":true,\"x_blocked\":false,\"id\":10013,\"x_decision\":\"profit\"}",
+        "✗ the next tick: nothing waiting, no day recomputed, no write",
+        "✗ a decision on YESTERDAY's missed day is applied too (24.00)"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the tick recomputes an approved / published day for a decision",
+      "caught": true,
+      "fails": [
+        "✗ a published day and a simulation day are never recomputed for a decision — [{\"day\":\"2026-10-03\",\"action\":\"locked\",\"dayId\":10009,\"state\":\"published\"}]",
+        "✗ the tick's one read: a decision, no «وقت القرار», a draft or missed real day, today or yesterday — [[\"x_decision\",\"!=\",false],[\"x_decided_at\",\"=\",false],[\"x_day_id.x_utak_simulation\",\"!=\",true],[\"x_day_id.x_date\",\">=\",\"2026-10-02\"],[\"x_day_id.x_date\",\"<=\",\"2026-10-03\"]]",
+        "✗ a published day and a simulation day are never recomputed for a decision",
+        "✗ the tick's one read: a decision, no «وقت القرار», a draft or missed real day, today or yesterday"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the tick recomputes for a decision on a simulation day",
+      "caught": true,
+      "fails": [
+        "✗ a published day and a simulation day are never recomputed for a decision — [{\"day\":\"2026-10-03\",\"action\":\"locked\",\"dayId\":10009,\"state\":\"published\"}]",
+        "✗ the tick's one read: a decision, no «وقت القرار», a draft or missed real day, today or yesterday — [[\"x_decision\",\"!=\",false],[\"x_decided_at\",\"=\",false],[\"x_day_id.x_state\",\"in\",[\"draft\",\"missed\"]],[\"x_day_id.x_date\",\">=\",\"2026-10-02\"],[\"x_day_id.x_date\",\"<=\",\"2026-10-03\"]]",
+        "✗ a published day and a simulation day are never recomputed for a decision",
+        "✗ the tick's one read: a decision, no «وقت القرار», a draft or missed real day, today or yesterday"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the tick recomputes the day every five minutes (a decision already seen)",
+      "caught": true,
+      "fails": [
+        "✗ the next tick: nothing waiting, no day recomputed, no write — [{\"day\":\"2026-10-01\",\"action\":\"refreshed\",\"dayId\":10009,\"state\":\"missed\",\"created\":0,\"updated\":0,\"lines\":4,\"excluded\":3,\"counts\":{\"auto\":0,\"exception\":3,\"manual\":1,\"unpublished\":0}}]",
+        "✗ the tick's one read: a decision, no «وقت القرار», a draft or missed real day, today or yesterday — [[\"x_decision\",\"!=\",false],[\"x_day_id.x_state\",\"in\",[\"draft\",\"missed\"]],[\"x_day_id.x_utak_simulation\",\"!=\",true],[\"x_day_id.x_date\",\">=\",\"2026-10-02\"],[\"x_day_id.x_date\",\"<=\",\"2026-10-03\"]]",
+        "✗ …and is marked seen, so the tick does not recompute the day again every five minutes",
+        "✗ the next tick: nothing waiting, no day recomputed, no write"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the tick looks a week back",
+      "caught": true,
+      "fails": [
+        "✗ …an older day (two days back) is left to «🔄 إعادة الحساب»: the tick does not look further than yesterday",
+        "✗ the tick's one read: a decision, no «وقت القرار», a draft or missed real day, today or yesterday — [[\"x_decision\",\"!=\",false],[\"x_decided_at\",\"=\",false],[\"x_day_id.x_state\",\"in\",[\"draft\",\"missed\"]],[\"x_day_id.x_utak_simulation\",\"!=\",true],[\"x_day_id.x_date\",\">=\",\"2026-09-26\"],[\"x_day_id.x_date\",\"<=\",\"2026-10-03\"]]",
+        "✗ …an older day (two days back) is left to «🔄 إعادة الحساب»: the tick does not look further than yesterday",
+        "✗ the tick's one read: a decision, no «وقت القرار», a draft or missed real day, today or yesterday"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the tick looks at today alone",
+      "caught": true,
+      "fails": [
+        "✗ a decision on YESTERDAY's missed day is applied too (24.00) — []",
+        "✗ the tick's one read: a decision, no «وقت القرار», a draft or missed real day, today or yesterday — [[\"x_decision\",\"!=\",false],[\"x_decided_at\",\"=\",false],[\"x_day_id.x_state\",\"in\",[\"draft\",\"missed\"]],[\"x_day_id.x_utak_simulation\",\"!=\",true],[\"x_day_id.x_date\",\">=\",\"2026-10-03\"],[\"x_day_id.x_date\",\"<=\",\"2026-10-03\"]]",
+        "✗ a decision on YESTERDAY's missed day is applied too (24.00)",
+        "✗ the tick's one read: a decision, no «وقت القرار», a draft or missed real day, today or yesterday"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "a decision on a line outside the catalog is never marked seen",
+      "caught": true,
+      "fails": [
+        "✗ …and is marked seen, so the tick does not recompute the day again every five minutes",
+        "✗ …and is marked seen, so the tick does not recompute the day again every five minutes"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "a decision chosen in Odoo is not stamped with its time",
+      "caught": true,
+      "fails": [
+        "✗ طماطم — كرتون: البيع 31.50 = المقترح، «معتمد يدوياً»، والربح الحقيقي 2.30 🟢 — {\"x_day_id\":10009,\"x_name\":\"طماطم — كرتون\",\"x_sequence\":1,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_net_purchase\":22,\"x_waste_cost\":1.1,\"x_op_share\":1.99,\"x_full_cost\":25.09,\"x_break_even\":28.85,\"x_suggested_price\":31.5,\"x_board_sale\":31.5,\"x_net_sale\":27.39,\"x_real_profit\":2.3,\"x_board_status\":\"green\",\"x_preview_sale\":0,\"x_preview_profit\":0,\"x_supplier_id\":801,\"x_daily_price_id\":10010,\"x_default_price_id\":10010,\"x_source_price\":22,\"x_cost_price\":22,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 22\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بالسعر المربح\",\"x_sale_price\":31.5,\"x_excluded\":false,\"x_blocked\":false,\"id\":10013,\"x_decision\":\"profit\",\"x_manual_price\":31.5,\"x_manual_for\":\"profit\"}",
+        "✗ خيار — جرم: البيع 24.00 = المقترح، «معتمد يدوياً»، والربح الحقيقي 2.08 🟢 — {\"x_day_id\":10009,\"x_name\":\"خيار — جرم\",\"x_sequence\":2,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_net_purchase\":16,\"x_waste_cost\":0.8,\"x_op_share\":1.99,\"x_full_cost\":18.79,\"x_break_even\":21.61,\"x_suggested_price\":24,\"x_board_sale\":24,\"x_net_sale\":20.87,\"x_real_profit\":2.08,\"x_board_status\":\"green\",\"x_preview_sale\":0,\"x_preview_profit\":0,\"x_supplier_id\":801,\"x_daily_price_id\":10011,\"x_default_price_id\":10011,\"x_source_price\":16,\"x_cost_price\":16,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 16\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بالسعر المربح\",\"x_sale_price\":24,\"x_excluded\":false,\"x_blocked\":false,\"id\":10014,\"x_decision\":\"profit\",\"x_manual_price\":24,\"x_manual_for\":\"profit\"}",
+        "✗ بطاطس — كرتون: البيع 19.50 = المقترح، «معتمد يدوياً»، والربح الحقيقي 2.37 🟢 — {\"x_day_id\":10009,\"x_name\":\"بطاطس — كرتون\",\"x_sequence\":3,\"x_product_tmpl_id\":3,\"x_packaging_id\":31,\"x_net_purchase\":12,\"x_waste_cost\":0.6,\"x_op_share\":1.99,\"x_full_cost\":14.59,\"x_break_even\":16.78,\"x_suggested_price\":19.5,\"x_board_sale\":19.5,\"x_net_sale\":16.96,\"x_real_profit\":2.37,\"x_board_status\":\"green\",\"x_preview_sale\":0,\"x_preview_profit\":0,\"x_supplier_id\":801,\"x_daily_price_id\":10012,\"x_default_price_id\":10012,\"x_source_price\":12,\"x_cost_price\":12,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 12\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بالسعر المربح\",\"x_sale_price\":19.5,\"x_excluded\":false,\"x_blocked\":false,\"id\":10015,\"x_decision\":\"profit\",\"x_manual_price\":19.5,\"x_manual_for\":\"profit\"}",
+        "✗ …the line is approved at 31.50, «وقت القرار» written, the day still missed, nothing sent — {\"x_day_id\":10009,\"x_name\":\"طماطم — كرتون\",\"x_sequence\":1,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_net_purchase\":22,\"x_waste_cost\":1.1,\"x_op_share\":1.99,\"x_full_cost\":25.09,\"x_break_even\":28.85,\"x_suggested_price\":31.5,\"x_board_sale\":31.5,\"x_net_sale\":27.39,\"x_real_profit\":2.3,\"x_board_status\":\"green\",\"x_preview_sale\":0,\"x_preview_profit\":0,\"x_supplier_id\":801,\"x_daily_price_id\":10010,\"x_default_price_id\":10010,\"x_source_price\":22,\"x_cost_price\":22,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 22\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بالسعر المربح\",\"x_sale_price\":31.5,\"x_excluded\":false,\"x_blocked\":false,\"id\":10013,\"x_decision\":\"profit\",\"x_manual_price\":31.5,\"x_manual_for\":\"profit\"}"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "a decision inherits the price fixed for another decision",
+      "caught": true,
+      "fails": [
+        "✗ …a price fixed for «profit» counts for «profit» alone",
+        "✗ the publication's check reads the same rule",
+        "✗ changed to «اعتمد بسعر السوق»: approved at the market price 23 — NOT at the 26.50 fixed for the other decision — {\"x_day_id\":10015,\"x_name\":\"بطاطس — كرتون\",\"x_sequence\":3,\"x_product_tmpl_id\":3,\"x_packaging_id\":31,\"x_net_purchase\":18,\"x_waste_cost\":0.9,\"x_op_share\":2,\"x_full_cost\":20.9,\"x_break_even\":24.04,\"x_suggested_price\":26.5,\"x_board_sale\":26.5,\"x_net_sale\":23.04,\"x_real_profit\":2.14,\"x_board_status\":\"green\",\"x_preview_sale\":0,\"x_preview_profit\":0,\"x_supplier_id\":801,\"x_daily_price_id\":10013,\"x_default_price_id\":10013,\"x_source_price\":18,\"x_cost_price\":18,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":27.78,\"x_market_price\":23,\"x_market_count\":1,\"x_unit_profit\":1.1,\"x_offers\":\"أحمد حسان: شراء 18 · عمر المجهلي: سوق 23\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بسعر السوق\",\"x_sale_price\":26.5,\"x_excluded\":false,\"x_blocked\":false,\"id\":10018,\"x_decision\":\"market\",\"x_decided_at\":\"2026-10-03 02:00:00\",\"x_manual_price\":26.5,\"x_manual_for\":\"market\"}",
+        "✗ …the stale fixed price is removed, so the publication's check agrees (23)"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "a price fixed before § 48 (no mark) is dropped",
+      "caught": true,
+      "fails": [
+        "✗ …a price fixed before § 48 (no mark) is the decision's, as it was",
+        "✗ a market price fixed before § 48 (no mark) stays his (33), and gets its mark",
+        "✗ …a price fixed before § 48 (no mark) is the decision's, as it was",
+        "✗ a market price fixed before § 48 (no mark) stays his (33), and gets its mark"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "«سعر معدّل» loses his number when it was fixed for another decision",
+      "caught": true,
+      "fails": [
+        "✗ fixedPrice: «سعر معدّل» is his number whatever it was fixed for",
+        "✗ fixedPrice: «سعر معدّل» is his number whatever it was fixed for"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the engine reads the raw «السعر المعدّل», whatever it was fixed for",
+      "caught": true,
+      "fails": [
+        "✗ changed to «اعتمد بسعر السوق»: approved at the market price 23 — NOT at the 26.50 fixed for the other decision — {\"x_day_id\":10015,\"x_name\":\"بطاطس — كرتون\",\"x_sequence\":3,\"x_product_tmpl_id\":3,\"x_packaging_id\":31,\"x_net_purchase\":18,\"x_waste_cost\":0.9,\"x_op_share\":2,\"x_full_cost\":20.9,\"x_break_even\":24.04,\"x_suggested_price\":26.5,\"x_board_sale\":26.5,\"x_net_sale\":23.04,\"x_real_profit\":2.14,\"x_board_status\":\"green\",\"x_preview_sale\":0,\"x_preview_profit\":0,\"x_supplier_id\":801,\"x_daily_price_id\":10013,\"x_default_price_id\":10013,\"x_source_price\":18,\"x_cost_price\":18,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":27.78,\"x_market_price\":23,\"x_market_count\":1,\"x_unit_profit\":1.1,\"x_offers\":\"أحمد حسان: شراء 18 · عمر المجهلي: سوق 23\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بسعر السوق\",\"x_sale_price\":26.5,\"x_excluded\":false,\"x_blocked\":false,\"id\":10018,\"x_decision\":\"market\",\"x_decided_at\":\"2026-10-03 02:00:00\",\"x_manual_price\":26.5,\"x_manual_for\":\"market\"}",
+        "✗ …the stale fixed price is removed, so the publication's check agrees (23)",
+        "✗ …changed to «اعتمد بالسعر المربح»: the suggested 26.50, not his 31",
+        "✗ changed to «اعتمد بسعر السوق»: approved at the market price 23 — NOT at the 26.50 fixed for the other decision"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the publication's check reads the raw «السعر المعدّل»",
+      "caught": true,
+      "fails": [
+        "✗ the publication's check reads the same rule",
+        "✗ the publication's check reads the same rule"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the stale fixed price stays on a line changed to «اعتمد بسعر السوق»",
+      "caught": true,
+      "fails": [
+        "✗ …the stale fixed price is removed, so the publication's check agrees (23)",
+        "✗ …the stale fixed price is removed, so the publication's check agrees (23)"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "a market price fixed before § 48 gets no mark",
+      "caught": true,
+      "fails": [
+        "✗ a market price fixed before § 48 (no mark) stays his (33), and gets its mark",
+        "✗ a market price fixed before § 48 (no mark) stays his (33), and gets its mark"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the price fixed for «profit» carries no mark",
+      "caught": true,
+      "fails": [
+        "✗ طماطم — كرتون: البيع 31.50 = المقترح، «معتمد يدوياً»، والربح الحقيقي 2.30 🟢 — {\"x_day_id\":10009,\"x_name\":\"طماطم — كرتون\",\"x_sequence\":1,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_net_purchase\":22,\"x_waste_cost\":1.1,\"x_op_share\":1.99,\"x_full_cost\":25.09,\"x_break_even\":28.85,\"x_suggested_price\":31.5,\"x_board_sale\":31.5,\"x_net_sale\":27.39,\"x_real_profit\":2.3,\"x_board_status\":\"green\",\"x_preview_sale\":0,\"x_preview_profit\":0,\"x_supplier_id\":801,\"x_daily_price_id\":10010,\"x_default_price_id\":10010,\"x_source_price\":22,\"x_cost_price\":22,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 22\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بالسعر المربح\",\"x_sale_price\":31.5,\"x_excluded\":false,\"x_blocked\":false,\"id\":10013,\"x_decision\":\"profit\",\"x_decided_at\":\"2026-10-01 10:00:00\",\"x_manual_price\":31.5}",
+        "✗ خيار — جرم: البيع 24.00 = المقترح، «معتمد يدوياً»، والربح الحقيقي 2.08 🟢 — {\"x_day_id\":10009,\"x_name\":\"خيار — جرم\",\"x_sequence\":2,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_net_purchase\":16,\"x_waste_cost\":0.8,\"x_op_share\":1.99,\"x_full_cost\":18.79,\"x_break_even\":21.61,\"x_suggested_price\":24,\"x_board_sale\":24,\"x_net_sale\":20.87,\"x_real_profit\":2.08,\"x_board_status\":\"green\",\"x_preview_sale\":0,\"x_preview_profit\":0,\"x_supplier_id\":801,\"x_daily_price_id\":10011,\"x_default_price_id\":10011,\"x_source_price\":16,\"x_cost_price\":16,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 16\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بالسعر المربح\",\"x_sale_price\":24,\"x_excluded\":false,\"x_blocked\":false,\"id\":10014,\"x_decision\":\"profit\",\"x_decided_at\":\"2026-10-01 10:00:00\",\"x_manual_price\":24}",
+        "✗ بطاطس — كرتون: البيع 19.50 = المقترح، «معتمد يدوياً»، والربح الحقيقي 2.37 🟢 — {\"x_day_id\":10009,\"x_name\":\"بطاطس — كرتون\",\"x_sequence\":3,\"x_product_tmpl_id\":3,\"x_packaging_id\":31,\"x_net_purchase\":12,\"x_waste_cost\":0.6,\"x_op_share\":1.99,\"x_full_cost\":14.59,\"x_break_even\":16.78,\"x_suggested_price\":19.5,\"x_board_sale\":19.5,\"x_net_sale\":16.96,\"x_real_profit\":2.37,\"x_board_status\":\"green\",\"x_preview_sale\":0,\"x_preview_profit\":0,\"x_supplier_id\":801,\"x_daily_price_id\":10012,\"x_default_price_id\":10012,\"x_source_price\":12,\"x_cost_price\":12,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 12\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بالسعر المربح\",\"x_sale_price\":19.5,\"x_excluded\":false,\"x_blocked\":false,\"id\":10015,\"x_decision\":\"profit\",\"x_decided_at\":\"2026-10-01 10:00:00\",\"x_manual_price\":19.5}",
+        "✗ «اعتمد بالسعر المربح» in Odoo: approved at 26.50, the price fixed for «profit»"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "«اعتمد بالسعر المربح» chosen in Odoo: the suggested price of that run is not kept",
+      "caught": true,
+      "fails": [
+        "✗ طماطم — كرتون: البيع 31.50 = المقترح، «معتمد يدوياً»، والربح الحقيقي 2.30 🟢 — {\"x_day_id\":10009,\"x_name\":\"طماطم — كرتون\",\"x_sequence\":1,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_net_purchase\":22,\"x_waste_cost\":1.1,\"x_op_share\":1.99,\"x_full_cost\":25.09,\"x_break_even\":28.85,\"x_suggested_price\":31.5,\"x_board_sale\":31.5,\"x_net_sale\":27.39,\"x_real_profit\":2.3,\"x_board_status\":\"green\",\"x_preview_sale\":0,\"x_preview_profit\":0,\"x_supplier_id\":801,\"x_daily_price_id\":10010,\"x_default_price_id\":10010,\"x_source_price\":22,\"x_cost_price\":22,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 22\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بالسعر المربح\",\"x_sale_price\":31.5,\"x_excluded\":false,\"x_blocked\":false,\"id\":10013,\"x_decision\":\"profit\",\"x_decided_at\":\"2026-10-01 10:00:00\",\"x_manual_for\":\"profit\"}",
+        "✗ خيار — جرم: البيع 24.00 = المقترح، «معتمد يدوياً»، والربح الحقيقي 2.08 🟢 — {\"x_day_id\":10009,\"x_name\":\"خيار — جرم\",\"x_sequence\":2,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_net_purchase\":16,\"x_waste_cost\":0.8,\"x_op_share\":1.99,\"x_full_cost\":18.79,\"x_break_even\":21.61,\"x_suggested_price\":24,\"x_board_sale\":24,\"x_net_sale\":20.87,\"x_real_profit\":2.08,\"x_board_status\":\"green\",\"x_preview_sale\":0,\"x_preview_profit\":0,\"x_supplier_id\":801,\"x_daily_price_id\":10011,\"x_default_price_id\":10011,\"x_source_price\":16,\"x_cost_price\":16,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 16\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بالسعر المربح\",\"x_sale_price\":24,\"x_excluded\":false,\"x_blocked\":false,\"id\":10014,\"x_decision\":\"profit\",\"x_decided_at\":\"2026-10-01 10:00:00\",\"x_manual_for\":\"profit\"}",
+        "✗ بطاطس — كرتون: البيع 19.50 = المقترح، «معتمد يدوياً»، والربح الحقيقي 2.37 🟢 — {\"x_day_id\":10009,\"x_name\":\"بطاطس — كرتون\",\"x_sequence\":3,\"x_product_tmpl_id\":3,\"x_packaging_id\":31,\"x_net_purchase\":12,\"x_waste_cost\":0.6,\"x_op_share\":1.99,\"x_full_cost\":14.59,\"x_break_even\":16.78,\"x_suggested_price\":19.5,\"x_board_sale\":19.5,\"x_net_sale\":16.96,\"x_real_profit\":2.37,\"x_board_status\":\"green\",\"x_preview_sale\":0,\"x_preview_profit\":0,\"x_supplier_id\":801,\"x_daily_price_id\":10012,\"x_default_price_id\":10012,\"x_source_price\":12,\"x_cost_price\":12,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 12\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بالسعر المربح\",\"x_sale_price\":19.5,\"x_excluded\":false,\"x_blocked\":false,\"id\":10015,\"x_decision\":\"profit\",\"x_decided_at\":\"2026-10-01 10:00:00\",\"x_manual_for\":\"profit\"}",
+        "✗ «اعتمد بالسعر المربح» in Odoo: approved at 26.50, the price fixed for «profit»"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "«سعر معدّل» carries no mark",
+      "caught": true,
+      "fails": [
+        "✗ «سعر معدّل» 31: approved at 31, marked «edit»",
+        "✗ …changed to «اعتمد بالسعر المربح»: the suggested 26.50, not his 31",
+        "✗ «سعر معدّل» 31: approved at 31, marked «edit»",
+        "✗ …changed to «اعتمد بالسعر المربح»: the suggested 26.50, not his 31"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the fixed price stays when the decision is removed or «لا تنشر»",
+      "caught": true,
+      "fails": [
+        "✗ «لا تنشر»: not published, and the price fixed by the worker goes with the decision",
+        "✗ the decision removed: an exception again (sale 0, its preview back), the fixed price gone — {\"x_day_id\":10015,\"x_name\":\"بطاطس — كرتون\",\"x_sequence\":3,\"x_product_tmpl_id\":3,\"x_packaging_id\":31,\"x_net_purchase\":18,\"x_waste_cost\":0.9,\"x_op_share\":2,\"x_full_cost\":20.9,\"x_break_even\":24.04,\"x_suggested_price\":26.5,\"x_board_sale\":23,\"x_net_sale\":20,\"x_real_profit\":-0.9,\"x_board_status\":\"yellow\",\"x_preview_sale\":26.5,\"x_preview_profit\":2.14,\"x_supplier_id\":801,\"x_daily_price_id\":10013,\"x_default_price_id\":10013,\"x_source_price\":18,\"x_cost_price\":18,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":27.78,\"x_market_price\":23,\"x_market_count\":1,\"x_unit_profit\":1.1,\"x_offers\":\"أحمد حسان: شراء 18 · عمر المجهلي: سوق 23\",\"x_status\":\"exception\",\"x_reason\":\"سعر السوق 23 أقل من السعر المربح 26.50\",\"x_sale_price\":0,\"x_excluded\":true,\"x_blocked\":false,\"id\":10018,\"x_decision\":false,\"x_decided_at\":\"2026-10-03 02:00:00\",\"x_manual_price\":26.5,\"x_manual_for\":\"profit\"}",
+        "✗ «لا تنشر»: not published, and the price fixed by the worker goes with the decision",
+        "✗ the decision removed: an exception again (sale 0, its preview back), the fixed price gone"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the fixed price stays on «لا تنشر»",
+      "caught": true,
+      "fails": [
+        "✗ «لا تنشر»: not published, and the price fixed by the worker goes with the decision",
+        "✗ «لا تنشر»: not published, and the price fixed by the worker goes with the decision"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "a price Baraa typed with no decision is wiped by the engine",
+      "caught": true,
+      "fails": [
+        "✗ a price typed with no decision is left as typed (no decision → still an exception)",
+        "✗ a price typed with no decision is left as typed (no decision → still an exception)"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the WhatsApp «اعتمد بالسعر المربح» writes no mark",
+      "caught": true,
+      "fails": [
+        "✗ potato (no market): approved by hand at the suggested 26.50 — {\"r1\":\"✅ بطاطس: يُنشر بالسعر المربح 26.50 ر.س.\",\"p1\":{\"x_day_id\":10015,\"x_name\":\"بطاطس — كرتون\",\"x_sequence\":3,\"x_product_tmpl_id\":3,\"x_packaging_id\":31,\"x_net_purchase\":18,\"x_waste_cost\":0.9,\"x_op_share\":2,\"x_full_cost\":20.9,\"x_break_even\":24.04,\"x_suggested_price\":26.5,\"x_board_sale\":26.5,\"x_net_sale\":23.04,\"x_real_profit\":2.14,\"x_board_status\":\"green\",\"x_preview_sale\":0,\"x_preview_profit\":0,\"x_supplier_id\":801,\"x_daily_price_id\":10013,\"x_default_price_id\":10013,\"x_source_price\":18,\"x_cost_price\":18,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":0,\"x_market_count\":0,\"x_unit_profit\":0,\"x_offers\":\"أحمد حسان: شراء 18\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بالسعر المربح\",\"x_sale_price\":26.5,\"x_excluded\":false,\"x_blocked\":false,\"id\":10018,\"x_decision\":\"profit\",\"x_manual_price\":26.5,\"x_decided_at\":\"2026-10-03 01:00:00\"}}",
+        "✗ potato (no market): approved by hand at the suggested 26.50"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "a simulation row of the day is read by the engine",
+      "caught": true,
+      "fails": [
+        "✗ «الهامش الأدنى ٪» set to 50 on the record: nothing is recomputed, no number moves",
+        "✗ «الربح الأدنى للكرتون» raised to 4: the next run recomputes (27 × 1.15 = 31.05 → 31.50) and the line is an exception — {\"x_day_id\":10011,\"x_name\":\"طماطم — كرتون\",\"x_sequence\":1,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_net_purchase\":0,\"x_waste_cost\":0,\"x_op_share\":2,\"x_full_cost\":0,\"x_break_even\":0,\"x_suggested_price\":0,\"x_board_sale\":29,\"x_net_sale\":25.22,\"x_real_profit\":0,\"x_board_status\":\"none\",\"x_preview_sale\":0,\"x_preview_profit\":0,\"x_supplier_id\":false,\"x_daily_price_id\":false,\"x_default_price_id\":false,\"x_source_price\":0,\"x_cost_price\":0,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":0,\"x_market_price\":29,\"x_market_count\":1,\"x_unit_profit\":0,\"x_offers\":\"عمر المجهلي: سوق 29\",\"x_status\":\"exception\",\"x_reason\":\"لا سعر شراء\",\"x_sale_price\":0,\"x_excluded\":true,\"x_blocked\":false,\"id\":10012}",
+        "✗ the 04:00 exception message carries the new suggested price (29) and the break-even (26.45) — ⚠️ استثناء في أسعار اليوم (3 أكتوبر 2026)",
+        "✗ …and its «اعتمد بالسعر المربح» choice the same number"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "a source's unreadable reply is an ordinary message again (no alert, «استخدم الأزرار»)",
+      "caught": true,
+      "fails": [
+        "✗ he is told how to write it (the product's full name, then the price) — not «استخدم الأزرار» — null",
+        "✗ he is told how to write it (the product's full name, then the price) — not «استخدم الأزرار»"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the unreadable reply: Baraa is not told",
+      "caught": true,
+      "fails": [
+        "✗ Baraa gets ONE alert with the text itself: nothing was saved — []",
+        "✗ the same message delivered twice: no second alert",
+        "✗ a message with no number in it stays an ordinary message (no alert)",
+        "✗ outside the 90 minutes: not read as prices, no alert"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the unreadable reply: the alert repeats with every delivery of the message",
+      "caught": true,
+      "fails": [
+        "✗ the same message delivered twice: no second alert",
+        "✗ a message with no number in it stays an ordinary message (no alert)",
+        "✗ outside the 90 minutes: not read as prices, no alert",
+        "✗ the same message delivered twice: no second alert"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "a message without a number raises the alert",
+      "caught": true,
+      "fails": [
+        "✗ a message with no number in it stays an ordinary message (no alert)",
+        "✗ outside the 90 minutes: not read as prices, no alert",
+        "✗ a message with no number in it stays an ordinary message (no alert)",
+        "✗ outside the 90 minutes: not read as prices, no alert"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "Arabic-Indic digits are not seen as a number",
+      "caught": true,
+      "fails": [
+        "✗ he is told how to write it (the product's full name, then the price) — not «استخدم الأزرار» — null",
+        "✗ Baraa gets ONE alert with the text itself: nothing was saved — []",
+        "✗ the same message delivered twice: no second alert",
+        "✗ a message with no number in it stays an ordinary message (no alert)"
+      ]
+    },
+    {
+      "part": "د",
+      "name": "the alert does not carry his text",
+      "caught": true,
+      "fails": [
+        "✗ Baraa gets ONE alert with the text itself: nothing was saved — [\"🤔 رد من «عمر المجهلي» على طلب أسعار السوق لم نفهمه كأسعار، ولم يُحفظ أي سعر. طلبنا منه كتابة اسم الصنف كاملاً.\"]",
+        "✗ Baraa gets ONE alert with the text itself: nothing was saved"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "the missed-day alert still sends Baraa to «💰 أسعار اليوم»",
+      "caught": true,
+      "fails": [
+        "✗ no text of the worker (78 files, comments apart) names a pricing place of before § 48 — prices.ts: 💰 أسعار اليوم",
+        "✗ 06:00, nothing approved: Baraa is sent to «💲 التسعير» ← «📊 اليوم» for «نشر المعتمد الآن» — ⏰ أسعار اليوم (3 أكتوبر 2026) لم تُنشر حتى 06:00: لا صنف معتمد (تلقائياً أو منك).",
+        "✗ no text of the worker (78 files, comments apart) names a pricing place of before § 48",
+        "✗ 06:00, nothing approved: Baraa is sent to «💲 التسعير» ← «📊 اليوم» for «نشر المعتمد الآن»"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "the late-decision reply names the old place",
+      "caught": true,
+      "fails": [
+        "✗ no text of the worker (78 files, comments apart) names a pricing place of before § 48 — prices.ts: 💰 أسعار اليوم",
+        "✗ a decision on the missed day: «انشر من «💲 التسعير» ← «📊 اليوم» بزر «نشر المعتمد الآن»» — ✅ بطاطس: يُنشر بالسعر المربح 26.50 ر.س. السجل «فات الموعد»: انشر من «💰 أسعار اليوم» ← «نشر المعتمد الآن».",
+        "✗ no text of the worker (78 files, comments apart) names a pricing place of before § 48",
+        "✗ a decision on the missed day: «انشر من «💲 التسعير» ← «📊 اليوم» بزر «نشر المعتمد الآن»»"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "the screen's name is not under «💲 التسعير»",
+      "caught": true,
+      "fails": [
+        "✗ the five screens, under «💲 التسعير»",
+        "✗ …the same names as the menu the setup script writes",
+        "✗ the five screens, under «💲 التسعير»",
+        "✗ …the same names as the menu the setup script writes"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "«📊 اليوم» is named «💰 أسعار اليوم»",
+      "caught": true,
+      "fails": [
+        "✗ the five screens, under «💲 التسعير»",
+        "✗ …the same names as the menu the setup script writes",
+        "✗ no text of the worker (78 files, comments apart) names a pricing place of before § 48 — places.ts: 💰 أسعار اليوم",
+        "✗ the five screens, under «💲 التسعير»"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "the settings' place is the old «⚙️ إعدادات التسعير»",
+      "caught": true,
+      "fails": [
+        "✗ no text of the worker (78 files, comments apart) names a pricing place of before § 48 — pricing-board.ts: ⚙️ إعدادات التسعير",
+        "✗ the board's note when «الكراتين المتوقعة» is empty names «⚙️ الإعدادات»",
+        "✗ no text of the worker (78 files, comments apart) names a pricing place of before § 48",
+        "✗ the board's note when «الكراتين المتوقعة» is empty names «⚙️ الإعدادات»"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "the review reminder names the old place",
+      "caught": true,
+      "fails": [
+        "✗ no text of the worker (78 files, comments apart) names a pricing place of before § 48 — owner-window.ts: 💰 أسعار اليوم",
+        "✗ the review reminder that finds nothing",
+        "✗ no text of the worker (78 files, comments apart) names a pricing place of before § 48",
+        "✗ the review reminder that finds nothing"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "the new-product alert does not say where to complete it",
+      "caught": true,
+      "fails": [
+        "✗ the «🆕 صنف جديد» alert ends with where to complete it: «📦 الأصناف» — 🆕 صنف جديد: صنف (بلا رقم مرجعي)",
+        "✗ the «🆕 صنف جديد» alert ends with where to complete it: «📦 الأصناف»"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "a supplier due without a price points at the old «الأسعار اليومية»",
+      "caught": true,
+      "fails": [
+        "✗ no text of the worker (78 files, comments apart) names a pricing place of before § 48 — supplier-pay.ts: «الأسعار اليومية»",
+        "✗ a supplier due without its price points at «📥 عروض المصادر»",
+        "✗ no text of the worker (78 files, comments apart) names a pricing place of before § 48",
+        "✗ a supplier due without its price points at «📥 عروض المصادر»"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "the engine does not write the recipients' count",
+      "caught": true,
+      "fails": [
+        "✗ the engine writes the publication's own count on the day (3: the opted-out customer is not one) — {\"x_date\":\"2026-10-03\",\"x_name\":\"أسعار اليوم 2026-10-03\",\"x_state\":\"draft\",\"id\":10011,\"x_op_cost\":500,\"x_op_expected\":250,\"x_op_cartons\":250,\"x_op_basis\":\"expected\",\"x_op_share\":2,\"x_op_share_500\":1,\"x_n_green\":1,\"x_n_yellow\":0,\"x_n_red\":0,\"x_n_none\":3,\"x_board_note\":false,\"x_board_at\":\"2026-10-03 01:00:00\"}",
+        "✗ the engine writes the publication's own count on the day (3: the opted-out customer is not one)"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "a board rewrite does not bring the recipients' count up to date",
+      "caught": true,
+      "fails": [
+        "✗ …and «🔄» / a decision's board rewrite brings it up to date (4)",
+        "✗ …and «🔄» / a decision's board rewrite brings it up to date (4)"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "the recipients' count is every customer (the opted-out too)",
+      "caught": true,
+      "fails": [
+        "✗ the engine writes the publication's own count on the day (3: the opted-out customer is not one) — {\"x_date\":\"2026-10-03\",\"x_name\":\"أسعار اليوم 2026-10-03\",\"x_state\":\"draft\",\"id\":10011,\"x_op_cost\":500,\"x_op_expected\":250,\"x_op_cartons\":250,\"x_op_basis\":\"expected\",\"x_op_share\":2,\"x_op_share_500\":1,\"x_n_green\":1,\"x_n_yellow\":0,\"x_n_red\":0,\"x_n_none\":3,\"x_board_note\":false,\"x_board_at\":\"2026-10-03 01:00:00\",\"x_n_recipients\":4}",
+        "✗ …and «🔄» / a decision's board rewrite brings it up to date (4)",
+        "✗ the engine writes the publication's own count on the day (3: the opted-out customer is not one)",
+        "✗ …and «🔄» / a decision's board rewrite brings it up to date (4)"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "the outlier ratio is not read from the settings",
+      "caught": true,
+      "fails": [
+        "✗ …Baraa's 2",
+        "✗ the supplier's 20 → 35 with the ratio at 2: saved «extracted», no outlier alert — {\"x_supplier_id\":801,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_date\":\"2026-10-03\",\"x_price_sar\":35,\"x_sale_price\":47,\"x_source_message_id\":\"wamid.R1\",\"x_raw_reply\":\"طماطم 35\",\"x_extraction_status\":\"pending\",\"x_is_simulation\":true,\"id\":10010}",
+        "✗ …and his reply reads the settings' ratio (41 after 70: ÷ 1.71 — valid at 2, it would be «شاذ» at 1.5) — {\"x_name\":\"2026-10-03 · 2/21\",\"x_date\":\"2026-10-03\",\"x_source_partner_id\":603,\"x_source_employee_id\":7603,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_purchase_price\":0,\"x_market_price\":41,\"x_available_qty\":0,\"x_status\":\"outlier\",\"x_purchase_outlier\":false,\"x_market_outlier\":true,\"x_daily_price_id\":false,\"x_source_message_id\":\"wamid.R3\",\"x_raw_text\":\"خيار 41\",\"id\":10025}",
+        "✗ …Baraa's 2"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "a ratio not above 1 is taken as it is",
+      "caught": true,
+      "fails": [
+        "✗ …a value not above 1 is not a ratio: 1.5",
+        "✗ …a value not above 1 is not a ratio: 1.5"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "no settings record: the ratio is 0 (every price an outlier)",
+      "caught": true,
+      "fails": [
+        "✗ …no settings record: 1.5, never a throw",
+        "✗ …no settings record: 1.5, never a throw"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "the supplier's outlier ignores the settings' ratio",
+      "caught": true,
+      "fails": [
+        "✗ the supplier's 20 → 35 with the ratio at 2: saved «extracted», no outlier alert — {\"x_supplier_id\":801,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_date\":\"2026-10-03\",\"x_price_sar\":35,\"x_sale_price\":47,\"x_source_message_id\":\"wamid.R1\",\"x_raw_reply\":\"طماطم 35\",\"x_extraction_status\":\"pending\",\"x_is_simulation\":true,\"id\":10010}",
+        "✗ the supplier's 20 → 35 with the ratio at 2: saved «extracted», no outlier alert"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "isPriceOutlier ignores the ratio it is given",
+      "caught": true,
+      "fails": [
+        "✗ isPriceOutlier takes the ratio: 20 → 35 is an outlier at 1.5, not at 2; 20 → 40 is one at 2",
+        "✗ the supplier's 20 → 35 with the ratio at 2: saved «extracted», no outlier alert — {\"x_supplier_id\":801,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_date\":\"2026-10-03\",\"x_price_sar\":35,\"x_sale_price\":47,\"x_source_message_id\":\"wamid.R1\",\"x_raw_reply\":\"طماطم 35\",\"x_extraction_status\":\"pending\",\"x_is_simulation\":true,\"id\":10010}",
+        "✗ isPriceOutlier takes the ratio: 20 → 35 is an outlier at 1.5, not at 2; 20 → 40 is one at 2",
+        "✗ the supplier's 20 → 35 with the ratio at 2: saved «extracted», no outlier alert"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "a market observation's outlier ignores the ratio",
+      "caught": true,
+      "fails": [
+        "✗ a market observation 24 → 40 is an outlier at the default 1.5; 40 → 70 is not one at 2 — [{\"id\":10022,\"outlier\":true},{\"id\":10023,\"outlier\":true}]",
+        "✗ …and his reply reads the settings' ratio (41 after 70: ÷ 1.71 — valid at 2, it would be «شاذ» at 1.5) — {\"x_name\":\"2026-10-03 · 2/21\",\"x_date\":\"2026-10-03\",\"x_source_partner_id\":603,\"x_source_employee_id\":7603,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_purchase_price\":0,\"x_market_price\":41,\"x_available_qty\":0,\"x_status\":\"outlier\",\"x_purchase_outlier\":false,\"x_market_outlier\":true,\"x_daily_price_id\":false,\"x_source_message_id\":\"wamid.R3\",\"x_raw_text\":\"خيار 41\",\"id\":10024}",
+        "✗ a market observation 24 → 40 is an outlier at the default 1.5; 40 → 70 is not one at 2",
+        "✗ …and his reply reads the settings' ratio (41 after 70: ÷ 1.71 — valid at 2, it would be «شاذ» at 1.5)"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "a source's reply does not pass the settings' ratio",
+      "caught": true,
+      "fails": [
+        "✗ …and his reply reads the settings' ratio (41 after 70: ÷ 1.71 — valid at 2, it would be «شاذ» at 1.5) — {\"x_name\":\"2026-10-03 · 2/21\",\"x_date\":\"2026-10-03\",\"x_source_partner_id\":603,\"x_source_employee_id\":7603,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_purchase_price\":0,\"x_market_price\":41,\"x_available_qty\":0,\"x_status\":\"outlier\",\"x_purchase_outlier\":false,\"x_market_outlier\":true,\"x_daily_price_id\":false,\"x_source_message_id\":\"wamid.R3\",\"x_raw_text\":\"خيار 41\",\"id\":10024}",
+        "✗ …and his reply reads the settings' ratio (41 after 70: ÷ 1.71 — valid at 2, it would be «شاذ» at 1.5)"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "a weighed packaging without a weight is not «missing» for the alert",
+      "caught": true,
+      "fails": [
+        "✗ the Python of «الناقص» and of «التعبئة الافتراضية» gives, product by product, what the worker's missingOnProduct gives — {\"out\":[{\"missing\":\"الفئة، المورد، نشط للبيع، التعبئة، الاسم بالإنجليزي\",\"pack\":false},{\"missing\":false,\"pack\":21},{\"missing\":\"وزن الكرتون (8 مؤقت)\",\"pack\":31},{\"missing\":\"الفئة\",\"pack\":41},{\"missing\":\"وزن التعبئة\",\"pack\":51},{\"missing\":false,\"pack\":61},{\"missing\":\"المورد، نشط للبيع، الاسم بالإنجليزي\",\"pack\":71},{\"missing\":\"وزن التعبئة\",\"pack\":81},{\"missing\":false,\"pack\":92}],\"worker\":[{\"missing\":\"الفئة، المورد، نشط للبيع، التعبئة، الاسم بالإنجليزي\",\"pack\":false},{\"missing\":false,\"pack\":21},{\"missing\":\"وزن الكرتون (8 مؤقت)\",\"pack\":31},{\"missing\":\"الفئة\",\"pack\":41},{\"missing\":false,\"pack\":51},{\"missing\":false,\"pack\":61},{\"missing\":\"المورد، نشط للبيع، الاسم بالإنجليزي\",\"pack\":71},{\"missing\":false,\"pack\":81},{\"missing\":false,\"pack\":92}]}",
+        "✗ the Python of «الناقص» and of «التعبئة الافتراضية» gives, product by product, what the worker's missingOnProduct gives"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "a packaging sold by the piece is asked for a weight",
+      "caught": true,
+      "fails": [
+        "✗ the Python of «الناقص» and of «التعبئة الافتراضية» gives, product by product, what the worker's missingOnProduct gives — {\"out\":[{\"missing\":\"الفئة، المورد، نشط للبيع، التعبئة، الاسم بالإنجليزي\",\"pack\":false},{\"missing\":false,\"pack\":21},{\"missing\":\"وزن الكرتون (8 مؤقت)\",\"pack\":31},{\"missing\":\"الفئة\",\"pack\":41},{\"missing\":\"وزن التعبئة\",\"pack\":51},{\"missing\":false,\"pack\":61},{\"missing\":\"المورد، نشط للبيع، الاسم بالإنجليزي\",\"pack\":71},{\"missing\":\"وزن التعبئة\",\"pack\":81},{\"missing\":false,\"pack\":92}],\"worker\":[{\"missing\":\"الفئة، المورد، نشط للبيع، التعبئة، الاسم بالإنجليزي\",\"pack\":false},{\"missing\":false,\"pack\":21},{\"missing\":\"وزن الكرتون (8 مؤقت)\",\"pack\":31},{\"missing\":\"الفئة\",\"pack\":41},{\"missing\":\"وزن التعبئة\",\"pack\":51},{\"missing\":\"وزن التعبئة\",\"pack\":61},{\"missing\":\"المورد، نشط للبيع، الاسم بالإنجليزي\",\"pack\":71},{\"missing\":\"وزن التعبئة\",\"pack\":81},{\"missing\":false,\"pack\":92}]}",
+        "✗ …a carton, a bag or a foam box with no weight (the tenant's pomegranates): «وزن التعبئة» — the alert's rule gained it too",
+        "✗ the Python of «الناقص» and of «التعبئة الافتراضية» gives, product by product, what the worker's missingOnProduct gives",
+        "✗ …a carton, a bag or a foam box with no weight (the tenant's pomegranates): «وزن التعبئة» — the alert's rule gained it too"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "«الناقص» in Odoo does not ask for the supplier",
+      "caught": true,
+      "fails": [
+        "✗ the Python of «الناقص» and of «التعبئة الافتراضية» gives, product by product, what the worker's missingOnProduct gives — {\"out\":[{\"missing\":\"الفئة، نشط للبيع، التعبئة، الاسم بالإنجليزي\",\"pack\":false},{\"missing\":false,\"pack\":21},{\"missing\":\"وزن الكرتون (8 مؤقت)\",\"pack\":31},{\"missing\":\"الفئة\",\"pack\":41},{\"missing\":\"وزن التعبئة\",\"pack\":51},{\"missing\":false,\"pack\":61},{\"missing\":\"نشط للبيع، الاسم بالإنجليزي\",\"pack\":71},{\"missing\":\"وزن التعبئة\",\"pack\":81},{\"missing\":false,\"pack\":92}],\"worker\":[{\"missing\":\"الفئة، المورد، نشط للبيع، التعبئة، الاسم بالإنجليزي\",\"pack\":false},{\"missing\":false,\"pack\":21},{\"missing\":\"وزن الكرتون (8 مؤقت)\",\"pack\":31},{\"missing\":\"الفئة\",\"pack\":41},{\"missing\":\"وزن التعبئة\",\"pack\":51},{\"missing\":false,\"pack\":61},{\"missing\":\"المورد، نشط للبيع، الاسم بالإنجليزي\",\"pack\":71},{\"missing\":\"وزن التعبئة\",\"pack\":81},{\"missing\":false,\"pack\":92}]}",
+        "✗ …everything missing on an empty card",
+        "✗ …no default packaging: the first by sequence",
+        "✗ the Python of «الناقص» and of «التعبئة الافتراضية» gives, product by product, what the worker's missingOnProduct gives"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "«الناقص» in Odoo takes any category as a produce category",
+      "caught": true,
+      "fails": [
+        "✗ the Python of «الناقص» and of «التعبئة الافتراضية» gives, product by product, what the worker's missingOnProduct gives — {\"out\":[{\"missing\":\"الفئة، المورد، نشط للبيع، التعبئة، الاسم بالإنجليزي\",\"pack\":false},{\"missing\":false,\"pack\":21},{\"missing\":\"وزن الكرتون (8 مؤقت)\",\"pack\":31},{\"missing\":false,\"pack\":41},{\"missing\":\"وزن التعبئة\",\"pack\":51},{\"missing\":false,\"pack\":61},{\"missing\":\"المورد، نشط للبيع، الاسم بالإنجليزي\",\"pack\":71},{\"missing\":\"وزن التعبئة\",\"pack\":81},{\"missing\":false,\"pack\":92}],\"worker\":[{\"missing\":\"الفئة، المورد، نشط للبيع، التعبئة، الاسم بالإنجليزي\",\"pack\":false},{\"missing\":false,\"pack\":21},{\"missing\":\"وزن الكرتون (8 مؤقت)\",\"pack\":31},{\"missing\":\"الفئة\",\"pack\":41},{\"missing\":\"وزن التعبئة\",\"pack\":51},{\"missing\":false,\"pack\":61},{\"missing\":\"المورد، نشط للبيع، الاسم بالإنجليزي\",\"pack\":71},{\"missing\":\"وزن التعبئة\",\"pack\":81},{\"missing\":false,\"pack\":92}]}",
+        "✗ …«Goods» is not a produce category",
+        "✗ the Python of «الناقص» and of «التعبئة الافتراضية» gives, product by product, what the worker's missingOnProduct gives",
+        "✗ …«Goods» is not a produce category"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "«الناقص» in Odoo does not walk up to the parent category",
+      "caught": true,
+      "fails": [
+        "✗ the Python of «الناقص» and of «التعبئة الافتراضية» gives, product by product, what the worker's missingOnProduct gives — {\"out\":[{\"missing\":\"الفئة، المورد، نشط للبيع، التعبئة، الاسم بالإنجليزي\",\"pack\":false},{\"missing\":false,\"pack\":21},{\"missing\":\"الفئة، وزن الكرتون (8 مؤقت)\",\"pack\":31},{\"missing\":\"الفئة\",\"pack\":41},{\"missing\":\"وزن التعبئة\",\"pack\":51},{\"missing\":false,\"pack\":61},{\"missing\":\"المورد، نشط للبيع، الاسم بالإنجليزي\",\"pack\":71},{\"missing\":\"وزن التعبئة\",\"pack\":81},{\"missing\":false,\"pack\":92}],\"worker\":[{\"missing\":\"الفئة، المورد، نشط للبيع، التعبئة، الاسم بالإنجليزي\",\"pack\":false},{\"missing\":false,\"pack\":21},{\"missing\":\"وزن الكرتون (8 مؤقت)\",\"pack\":31},{\"missing\":\"الفئة\",\"pack\":41},{\"missing\":\"وزن التعبئة\",\"pack\":51},{\"missing\":false,\"pack\":61},{\"missing\":\"المورد، نشط للبيع، الاسم بالإنجليزي\",\"pack\":71},{\"missing\":\"وزن التعبئة\",\"pack\":81},{\"missing\":false,\"pack\":92}]}",
+        "✗ …a child of «فواكه» is a produce category; the temporary 8 kg carton is missing its weight",
+        "✗ the Python of «الناقص» and of «التعبئة الافتراضية» gives, product by product, what the worker's missingOnProduct gives",
+        "✗ …a child of «فواكه» is a produce category; the temporary 8 kg carton is missing its weight"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "«الناقص» in Odoo misses a carton without a weight",
+      "caught": true,
+      "fails": [
+        "✗ the Python of «الناقص» and of «التعبئة الافتراضية» gives, product by product, what the worker's missingOnProduct gives — {\"out\":[{\"missing\":\"الفئة، المورد، نشط للبيع، التعبئة، الاسم بالإنجليزي\",\"pack\":false},{\"missing\":false,\"pack\":21},{\"missing\":\"وزن الكرتون (8 مؤقت)\",\"pack\":31},{\"missing\":\"الفئة\",\"pack\":41},{\"missing\":false,\"pack\":51},{\"missing\":false,\"pack\":61},{\"missing\":\"المورد، نشط للبيع، الاسم بالإنجليزي\",\"pack\":71},{\"missing\":false,\"pack\":81},{\"missing\":false,\"pack\":92}],\"worker\":[{\"missing\":\"الفئة، المورد، نشط للبيع، التعبئة، الاسم بالإنجليزي\",\"pack\":false},{\"missing\":false,\"pack\":21},{\"missing\":\"وزن الكرتون (8 مؤقت)\",\"pack\":31},{\"missing\":\"الفئة\",\"pack\":41},{\"missing\":\"وزن التعبئة\",\"pack\":51},{\"missing\":false,\"pack\":61},{\"missing\":\"المورد، نشط للبيع، الاسم بالإنجليزي\",\"pack\":71},{\"missing\":\"وزن التعبئة\",\"pack\":81},{\"missing\":false,\"pack\":92}]}",
+        "✗ …a carton, a bag or a foam box with no weight (the tenant's pomegranates): «وزن التعبئة» — the alert's rule gained it too",
+        "✗ the Python of «الناقص» and of «التعبئة الافتراضية» gives, product by product, what the worker's missingOnProduct gives",
+        "✗ …a carton, a bag or a foam box with no weight (the tenant's pomegranates): «وزن التعبئة» — the alert's rule gained it too"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "«الناقص» in Odoo counts a bag of 8 kg as the temporary carton",
+      "caught": true,
+      "fails": [
+        "✗ the Python of «الناقص» and of «التعبئة الافتراضية» gives, product by product, what the worker's missingOnProduct gives — {\"out\":[{\"missing\":\"الفئة، المورد، نشط للبيع، التعبئة، الاسم بالإنجليزي\",\"pack\":false},{\"missing\":false,\"pack\":21},{\"missing\":\"وزن الكرتون (8 مؤقت)\",\"pack\":31},{\"missing\":\"الفئة\",\"pack\":41},{\"missing\":\"وزن التعبئة\",\"pack\":51},{\"missing\":false,\"pack\":61},{\"missing\":\"المورد، نشط للبيع، وزن الكرتون (8 مؤقت)، الاسم بالإنجليزي\",\"pack\":71},{\"missing\":\"وزن التعبئة\",\"pack\":81},{\"missing\":false,\"pack\":92}],\"worker\":[{\"missing\":\"الفئة، المورد، نشط للبيع، التعبئة، الاسم بالإنجليزي\",\"pack\":false},{\"missing\":false,\"pack\":21},{\"missing\":\"وزن الكرتون (8 مؤقت)\",\"pack\":31},{\"missing\":\"الفئة\",\"pack\":41},{\"missing\":\"وزن التعبئة\",\"pack\":51},{\"missing\":false,\"pack\":61},{\"missing\":\"المورد، نشط للبيع، الاسم بالإنجليزي\",\"pack\":71},{\"missing\":\"وزن التعبئة\",\"pack\":81},{\"missing\":false,\"pack\":92}]}",
+        "✗ …no default packaging: the first by sequence",
+        "✗ the Python of «الناقص» and of «التعبئة الافتراضية» gives, product by product, what the worker's missingOnProduct gives",
+        "✗ …no default packaging: the first by sequence"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "«الناقص» in Odoo looks at any packaging, not the default one",
+      "caught": true,
+      "fails": [
+        "✗ the Python of «الناقص» and of «التعبئة الافتراضية» gives, product by product, what the worker's missingOnProduct gives — {\"out\":[{\"missing\":\"الفئة، المورد، نشط للبيع، التعبئة، الاسم بالإنجليزي\",\"pack\":false},{\"missing\":false,\"pack\":21},{\"missing\":\"وزن الكرتون (8 مؤقت)\",\"pack\":31},{\"missing\":\"الفئة\",\"pack\":41},{\"missing\":\"وزن التعبئة\",\"pack\":51},{\"missing\":false,\"pack\":61},{\"missing\":\"المورد، نشط للبيع، الاسم بالإنجليزي\",\"pack\":71},{\"missing\":\"وزن التعبئة\",\"pack\":81},{\"missing\":\"وزن الكرتون (8 مؤقت)\",\"pack\":92}],\"worker\":[{\"missing\":\"الفئة، المورد، نشط للبيع، التعبئة، الاسم بالإنجليزي\",\"pack\":false},{\"missing\":false,\"pack\":21},{\"missing\":\"وزن الكرتون (8 مؤقت)\",\"pack\":31},{\"missing\":\"الفئة\",\"pack\":41},{\"missing\":\"وزن التعبئة\",\"pack\":51},{\"missing\":false,\"pack\":61},{\"missing\":\"المورد، نشط للبيع، الاسم بالإنجليزي\",\"pack\":71},{\"missing\":\"وزن التعبئة\",\"pack\":81},{\"missing\":false,\"pack\":92}]}",
+        "✗ …the default packaging is the one marked default, wherever it stands (13 kg, complete) — not the first (the 8 kg carton)",
+        "✗ the Python of «الناقص» and of «التعبئة الافتراضية» gives, product by product, what the worker's missingOnProduct gives",
+        "✗ …the default packaging is the one marked default, wherever it stands (13 kg, complete) — not the first (the 8 kg carton)"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "the default packaging of the list is the first one, default or not",
+      "caught": true,
+      "fails": [
+        "✗ the Python of «الناقص» and of «التعبئة الافتراضية» gives, product by product, what the worker's missingOnProduct gives — {\"out\":[{\"missing\":\"الفئة، المورد، نشط للبيع، التعبئة، الاسم بالإنجليزي\",\"pack\":false},{\"missing\":false,\"pack\":21},{\"missing\":\"وزن الكرتون (8 مؤقت)\",\"pack\":31},{\"missing\":\"الفئة\",\"pack\":41},{\"missing\":\"وزن التعبئة\",\"pack\":51},{\"missing\":false,\"pack\":61},{\"missing\":\"المورد، نشط للبيع، الاسم بالإنجليزي\",\"pack\":71},{\"missing\":\"وزن التعبئة\",\"pack\":81},{\"missing\":false,\"pack\":91}],\"worker\":[{\"missing\":\"الفئة، المورد، نشط للبيع، التعبئة، الاسم بالإنجليزي\",\"pack\":false},{\"missing\":false,\"pack\":21},{\"missing\":\"وزن الكرتون (8 مؤقت)\",\"pack\":31},{\"missing\":\"الفئة\",\"pack\":41},{\"missing\":\"وزن التعبئة\",\"pack\":51},{\"missing\":false,\"pack\":61},{\"missing\":\"المورد، نشط للبيع، الاسم بالإنجليزي\",\"pack\":71},{\"missing\":\"وزن التعبئة\",\"pack\":81},{\"missing\":false,\"pack\":92}]}",
+        "✗ …the default packaging is the one marked default, wherever it stands (13 kg, complete) — not the first (the 8 kg carton)",
+        "✗ the Python of «الناقص» and of «التعبئة الافتراضية» gives, product by product, what the worker's missingOnProduct gives",
+        "✗ …the default packaging is the one marked default, wherever it stands (13 kg, complete) — not the first (the 8 kg carton)"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "the filter «ناقص» is not the same field",
+      "caught": true,
+      "fails": [
+        "✗ the filter «ناقص» reads the same field",
+        "✗ the filter «ناقص» reads the same field"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "the products' list shows the services too",
+      "caught": true,
+      "fails": [
+        "✗ the list is the produce: the three categories, a product without a category, or a UTAK-FRT / VEG / LEAF reference — never a service",
+        "✗ the list is the produce: the three categories, a product without a category, or a UTAK-FRT / VEG / LEAF reference — never a service"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "«📊 اليوم» creates today's record when it is missing",
+      "caught": true,
+      "fails": [
+        "✗ …and no record is ever created by opening the screen",
+        "✗ …and no record is ever created by opening the screen"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "«📊 اليوم» opens the simulation's record of the day",
+      "caught": true,
+      "fails": [
+        "✗ today's real record (#50, never the simulation's #51) on the one screen, no note — {\"res_id\":51,\"views\":[[2834,\"form\"]],\"target\":\"current\",\"context\":{\"utak_no_today\":false,\"utak_view\":\"day\"},\"name\":\"📊 اليوم\",\"model\":\"x_price_day\",\"domain\":\"None\",\"created\":0,\"attached\":[]}",
+        "✗ «📥 عروض المصادر» opens the same day on its own screen (the menu's action, and «اليوم» pressed inside it)",
+        "✗ today's real record (#50, never the simulation's #51) on the one screen, no note",
+        "✗ «📥 عروض المصادر» opens the same day on its own screen (the menu's action, and «اليوم» pressed inside it)"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "no record today: the last day opens without its note",
+      "caught": true,
+      "fails": [
+        "✗ no record for today (01:30 of the next day): the last real day (#50), with the note «لا يوجد سجل أسعار لليوم»",
+        "✗ no record for today (01:30 of the next day): the last real day (#50), with the note «لا يوجد سجل أسعار لليوم»"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "the day is the UTC day, not Riyadh's",
+      "caught": true,
+      "fails": [
+        "✗ no record for today (01:30 of the next day): the last real day (#50), with the note «لا يوجد سجل أسعار لليوم»",
+        "✗ «سجل اليوم» is the Riyadh day (22:30 UTC of 10-01 is 10-02)",
+        "✗ no record for today (01:30 of the next day): the last real day (#50), with the note «لا يوجد سجل أسعار لليوم»",
+        "✗ «سجل اليوم» is the Riyadh day (22:30 UTC of 10-01 is 10-02)"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "the day before / after stops on a simulation day",
+      "caught": true,
+      "fails": [
+        "✗ the day before / after skip the simulation's days (#50 ← #48 → #50), and stay on the screen they were pressed on",
+        "✗ the day before / after skip the simulation's days (#50 ← #48 → #50), and stay on the screen they were pressed on"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "the day before / after leaves the sources screen for the day's",
+      "caught": true,
+      "fails": [
+        "✗ the day before / after skip the simulation's days (#50 ← #48 → #50), and stay on the screen they were pressed on",
+        "✗ the day before / after skip the simulation's days (#50 ← #48 → #50), and stay on the screen they were pressed on"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "«نشر المعتمد الآن» is confirmed on a published day too",
+      "caught": true,
+      "fails": [
+        "✗ …on a published day: refused",
+        "✗ …on a published day: refused"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "the confirmation opens as a full page, not a dialog",
+      "caught": true,
+      "fails": [
+        "✗ «نشر المعتمد الآن» on a missed day: the confirmation, as a dialog on that record",
+        "✗ «نشر المعتمد الآن» on a missed day: the confirmation, as a dialog on that record"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "«نشر المعتمد الآن» publishes at one tap (no confirmation)",
+      "caught": true,
+      "fails": [
+        "✗ the day's screen: «نشر المعتمد الآن» opens the confirmation (never the approval itself)",
+        "✗ the day's screen: «نشر المعتمد الآن» opens the confirmation (never the approval itself)"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "the confirmation does not name the customers",
+      "caught": true,
+      "fails": [
+        "✗ the confirmation shows the two numbers and the names, says it sends for real, and carries the only button that publishes",
+        "✗ the confirmation shows the two numbers and the names, says it sends for real, and carries the only button that publishes"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "the confirmation does not say it sends for real",
+      "caught": true,
+      "fails": [
+        "✗ the confirmation shows the two numbers and the names, says it sends for real, and carries the only button that publishes",
+        "✗ the confirmation shows the two numbers and the names, says it sends for real, and carries the only button that publishes"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "the confirmation's button shows with nothing to publish",
+      "caught": true,
+      "fails": [
+        "✗ the confirmation shows the two numbers and the names, says it sends for real, and carries the only button that publishes",
+        "✗ the confirmation shows the two numbers and the names, says it sends for real, and carries the only button that publishes"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "an excluded line counts among the items to publish",
+      "caught": true,
+      "fails": [
+        "✗ «الأصناف التي ستُنشر»: approved (automatically or by Baraa), not left out, with a price — 2 of the 5 — and their names with their prices — [{\"x_is_today\":true,\"x_n_publishable\":3,\"x_publish_names\":\"رمان كبير 31.50، رمان وسط 24.00، خيار 20.00\"},{\"x_is_today\":false,\"x_n_publishable\":0,\"x_publish_names\":\"—\"},{\"x_is_today\":false,\"x_n_publishable\":0,\"x_publish_names\":\"—\"}]",
+        "✗ «الأصناف التي ستُنشر»: approved (automatically or by Baraa), not left out, with a price — 2 of the 5 — and their names with their prices"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "an exception counts among the items to publish",
+      "caught": true,
+      "fails": [
+        "✗ «الأصناف التي ستُنشر»: approved (automatically or by Baraa), not left out, with a price — 2 of the 5 — and their names with their prices — [{\"x_is_today\":true,\"x_n_publishable\":3,\"x_publish_names\":\"رمان كبير 31.50، رمان وسط 24.00، موز 0.00\"},{\"x_is_today\":false,\"x_n_publishable\":0,\"x_publish_names\":\"—\"},{\"x_is_today\":false,\"x_n_publishable\":0,\"x_publish_names\":\"—\"}]",
+        "✗ «الأصناف التي ستُنشر»: approved (automatically or by Baraa), not left out, with a price — 2 of the 5 — and their names with their prices"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "the settings do not attach a cost line created elsewhere",
+      "caught": true,
+      "fails": [
+        "✗ «⚙️ الإعدادات» opens the active record, and a cost line created elsewhere is attached to it first",
+        "✗ «⚙️ الإعدادات» opens the active record, and a cost line created elsewhere is attached to it first"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "«قرار براء» cannot be chosen in the row",
+      "caught": true,
+      "fails": [
+        "✗ …«قرار براء» and «السعر المعدّل» are the only cells he can write, in the row itself",
+        "✗ …«قرار براء» and «السعر المعدّل» are the only cells he can write, in the row itself"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "the lines' table shows the raw sale number (0.00)",
+      "caught": true,
+      "fails": [
+        "✗ …the lines' table, in the order asked: الصنف، التعبئة، الشراء، المصدر، السوق، المشاهدات، بدون خسارة، المقترح، البيع، الربح / المعاينة، (اللوحة)، الحالة، السبب، قرار براء، السعر المعدّل — [\"x_product_tmpl_id\",\"x_packaging_id\",\"x_cost_show\",\"x_supplier_id\",\"x_market_show\",\"x_market_count\",\"x_even_show\",\"x_suggested_show\",\"x_sale_price\",\"x_profit_show\",\"x_board_status\",\"x_status\",\"x_reason\",\"x_decision\",\"x_manual_price\",\"x_offers\"]",
+        "✗ …the lines' table, in the order asked: الصنف، التعبئة، الشراء، المصدر، السوق، المشاهدات، بدون خسارة، المقترح، البيع، الربح / المعاينة، (اللوحة)، الحالة، السبب، قرار براء، السعر المعدّل"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "the phone gets the table, not cards",
+      "caught": true,
+      "fails": [
+        "✗ …on a phone: cards (the status in words, a coloured side border, «—» texts, no table to scroll sideways)",
+        "✗ …on a phone: cards (the status in words, a coloured side border, «—» texts, no table to scroll sideways)"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "the card's preview is not set apart",
+      "caught": true,
+      "fails": [
+        "✗ …and the preview set apart on the card too (italics)",
+        "✗ …and the preview set apart on the card too (italics)"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "the card uses a filled badge for the status",
+      "caught": true,
+      "fails": [
+        "✗ …on a phone: cards (the status in words, a coloured side border, «—» texts, no table to scroll sideways)",
+        "✗ …on a phone: cards (the status in words, a coloured side border, «—» texts, no table to scroll sideways)"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "the day's screen has no note for a day that is not today",
+      "caught": true,
+      "fails": [
+        "✗ …no record today: a clear note; another day: «هذا يوم سابق»",
+        "✗ …no record today: a clear note; another day: «هذا يوم سابق»"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "an old pricing menu stays visible",
+      "caught": true,
+      "fails": [
+        "✗ the hidden menus are the eleven pricing menus of before",
+        "✗ the hidden menus are the eleven pricing menus of before"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "the menu's name differs from the worker's texts",
+      "caught": true,
+      "fails": [
+        "✗ …the same names as the menu the setup script writes",
+        "✗ the operating-day guide names the five screens and no old pricing place",
+        "✗ …the same names as the menu the setup script writes",
+        "✗ the operating-day guide names the five screens and no old pricing place"
+      ]
+    },
+    {
+      "part": "و",
+      "name": "the guide still sends Baraa to «💰 أسعار اليوم»",
+      "caught": true,
+      "fails": [
+        "✗ the operating-day guide names the five screens and no old pricing place — من **💰 أسعار اليوم**",
+        "✗ the operating-day guide names the five screens and no old pricing place"
+      ]
+    }
+  ]
+}

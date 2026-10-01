@@ -19,13 +19,15 @@
 // «💲 التسعير» ← «⚙️ الإعدادات», § 48): x_waste_pct, x_min_order_sar,
 // x_planned_stops (empty / 0 = none), — § 46 أ — x_expected_cartons (the carton
 // share of the board), and — § 48 أ — x_min_profit_sar «الربح الأدنى للكرتون
-// (ريال)» (the suggested profitable price). § 47's x_min_margin_pct «الهامش
-// الأدنى ٪» stays on the record, hidden, and is read by nothing.
+// (ريال)» (the suggested profitable price), and — § 48 و — x_outlier_ratio
+// «نسبة السعر الشاذ». § 47's x_min_margin_pct «الهامش الأدنى ٪» stays on the
+// record, hidden, and is read by nothing.
 
 import type { Env } from "./config";
 import { call } from "./odoo";
 import { LINE_FIELDS, linesOn, loadRoster, toCalendarLine, type CalendarLine } from "./team-roster";
 import { riyadhDateKey } from "./hours";
+import { PRICE_OUTLIER_RATIO } from "./config";
 import { DEFAULT_MIN_PROFIT_SAR } from "./pricing-engine";
 
 export const COST_MODEL = "x_operating_cost";
@@ -159,13 +161,15 @@ export interface PricingSettings {
   expectedCartons: number | null;
   /** § 48 أ — الربح الأدنى للكرتون (ريال), added to the full net cost (the suggested profitable price); DEFAULT_MIN_PROFIT_SAR when the record carries none. */
   minProfit: number;
+  /** § 48 و — نسبة السعر الشاذ: a price that moved this many times (or more) from the same source's last one, either way, is an outlier. PRICE_OUTLIER_RATIO (1.5) when the record carries none, or a value that is not above 1. */
+  outlierRatio: number;
 }
 
 /** The active x_pricing_config on `day` (the one the menu opens). Null when none. Throws on Odoo trouble. */
 export async function readPricingSettings(env: Env, day: string = riyadhDateKey()): Promise<PricingSettings | null> {
-  const [r] = await call<Array<{ id: number; x_waste_pct: number | false; x_min_order_sar: number | false; x_planned_stops: number | false; x_expected_cartons: number | false; x_min_profit_sar?: number | false }>>(env, CONFIG_MODEL, "search_read", {
+  const [r] = await call<Array<{ id: number; x_waste_pct: number | false; x_min_order_sar: number | false; x_planned_stops: number | false; x_expected_cartons: number | false; x_min_profit_sar?: number | false; x_outlier_ratio?: number | false }>>(env, CONFIG_MODEL, "search_read", {
     domain: [["x_is_active", "=", true], ["x_active_from", "<=", day], "|", ["x_active_to", "=", false], ["x_active_to", ">=", day]],
-    fields: ["id", "x_waste_pct", "x_min_order_sar", "x_planned_stops", "x_expected_cartons", "x_min_profit_sar"],
+    fields: ["id", "x_waste_pct", "x_min_order_sar", "x_planned_stops", "x_expected_cartons", "x_min_profit_sar", "x_outlier_ratio"],
     order: "x_active_from desc, id desc",
     limit: 1,
   });
@@ -179,5 +183,16 @@ export async function readPricingSettings(env: Env, day: string = riyadhDateKey(
     plannedStops: stops > 0 ? Math.floor(stops) : null,
     expectedCartons: cartons > 0 ? Math.floor(cartons) : null,
     minProfit: typeof r.x_min_profit_sar === "number" ? Math.max(0, r.x_min_profit_sar) : DEFAULT_MIN_PROFIT_SAR,
+    outlierRatio: typeof r.x_outlier_ratio === "number" && r.x_outlier_ratio > 1 ? r.x_outlier_ratio : PRICE_OUTLIER_RATIO,
   };
+}
+
+/** § 48 و — «نسبة السعر الشاذ» of the day's settings; the default when they cannot be read (an offer is never lost for it). */
+export async function readOutlierRatio(env: Env, day: string = riyadhDateKey()): Promise<number> {
+  try {
+    return (await readPricingSettings(env, day))?.outlierRatio ?? PRICE_OUTLIER_RATIO;
+  } catch (e) {
+    console.warn("[pricing] the outlier ratio could not be read — the default", (e as Error)?.message);
+    return PRICE_OUTLIER_RATIO;
+  }
 }

@@ -25,6 +25,7 @@
 import type { Env } from "./config";
 import { handleVerify, verifySignature, parseWebhook, sendText, sendButtons } from "./meta";
 import { seenBefore, markSeen } from "./dedup";
+import { PLACE_TODAY } from "./places";
 import {
   ensureLocationFields,
   findOrCreateCustomer,
@@ -2536,7 +2537,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           const { handlePriceExceptionButton } = await import("./prices");
           const r = await handlePriceExceptionButton(env, msg.buttonId!).catch((e) => {
             console.warn("[prices] exception button failed", (e as Error)?.message);
-            return "تعذّر تسجيل القرار الآن. جرّب بعد قليل، أو قرّر من «💰 أسعار اليوم».";
+            return `تعذّر تسجيل القرار الآن. جرّب بعد قليل، أو قرّر من ${PLACE_TODAY}.`;
           });
           if (r) await sendText(env, msg.from, r, { ctx, purpose: "owner_alert" });
         } else if (msg.type === "text" && msg.text) {

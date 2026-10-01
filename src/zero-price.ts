@@ -22,6 +22,7 @@ import type { Env } from "./config";
 import { getLatestSalePrice, getOrderForInvoicing } from "./odoo";
 import { claimButton, finishButton, releaseButton } from "./button-lock";
 import { riyadhDateKey } from "./hours";
+import { PLACE_TODAY } from "./places";
 
 export const PRICE_REVIEW_TEXT = "نراجع السعر وأرد عليك 🌿";
 /** A held invoice is retried this long, then dropped from the list (the alert stays in Baraa's chat). */
@@ -83,7 +84,7 @@ export async function quotationZeroGuard(env: Env, orderId: number): Promise<str
       `🚫 عرض سعر لم يُرسل — الطلب #${orderId} (${found.customer || "عميل"}): صنف بسعر صفر أو بلا سعر:`,
       ...found.zero.map(label),
       `أُبلغ العميل «نراجع السعر وأرد عليك»، والطلب باقٍ مفتوحاً.`,
-      `صحّح السعر في Odoo («سعر يدوي للوحدة» على سطر الطلب، أو سعر اليوم)، ثم يكتب العميل «خلاص» أو أرسل العرض من Odoo.`,
+      `صحّح السعر في Odoo («سعر يدوي للوحدة» على سطر الطلب، أو سعر اليوم في ${PLACE_TODAY})، ثم يكتب العميل «خلاص» أو أرسل العرض من Odoo.`,
     ].join("\n"));
     await finishButton(env, claim, 26 * 3600);
   }

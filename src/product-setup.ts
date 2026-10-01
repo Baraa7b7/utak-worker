@@ -16,11 +16,14 @@
 import type { Env } from "./config";
 import { call } from "./odoo";
 import { claimButton, finishButton, releaseButton } from "./button-lock";
+import { PLACE_PRODUCTS } from "./places";
 
 export const NEW_FLAG = "x_utak_new";
 /** The categories that give a reference (the category itself or one of its parents). */
 export const REF_CATEGORIES = ["فواكه", "خضار", "ورقيات"];
 export const TEMP_CARTON_KG = 8;
+/** § 48 و — the packagings sold by weight: one without a weight is missing it («حبة» and «فرط» carry none). */
+export const WEIGHED_TYPES = ["carton", "bag", "foam"];
 export const ALERT_AFTER_MIN = 10;
 export const PRODUCT_SETUP_JOB = "product_setup";
 
@@ -59,6 +62,8 @@ export function missingOnProduct(p: NewProduct, packs: Packaging[], cats: Map<nu
   const def = packs.find((k) => k.x_is_default) ?? packs[0];
   if (!def) out.push("التعبئة (لا تعبئة للصنف)");
   else if (def.x_type === "carton" && Number(def.x_approx_weight_kg) === TEMP_CARTON_KG) out.push(`وزن الكرتون (القيمة المؤقتة ${TEMP_CARTON_KG} كجم)`);
+  // § 48 و — a weighed packaging with no weight at all («كرتون» بلا وزن): the same list as the «ناقص» filter of «📦 الأصناف»
+  else if (WEIGHED_TYPES.includes(String(def.x_type || "")) && !(Number(def.x_approx_weight_kg) > 0)) out.push("وزن التعبئة (بلا وزن)");
   if (!String(p.x_name_en || "").trim()) out.push("الاسم بالإنجليزي");
   return out;
 }
@@ -69,6 +74,7 @@ export function newProductAlert(p: NewProduct, missing: string[]): string {
     `جُهّز تلقائياً: الضرائب، والتعبئة الافتراضية «كرتون»، وهو غير نشط للبيع.`,
     `الناقص:`,
     ...missing.map((m) => `• ${m}`),
+    `أكمله من ${PLACE_PRODUCTS}.`,
   ].join("\n");
 }
 

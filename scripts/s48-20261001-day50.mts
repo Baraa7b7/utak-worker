@@ -55,7 +55,8 @@ const LINE_ENGINE = new Set([
   "x_net_purchase", "x_waste_cost", "x_op_share", "x_full_cost", "x_break_even", "x_suggested_price", "x_board_sale", "x_net_sale", "x_real_profit", "x_board_status",
   "x_preview_sale", "x_preview_profit", "x_manual_price", "x_manual_for", "x_decided_at",
 ]);
-const DAY_BOARD = /^x_(op_cost|op_expected|op_cartons|op_basis|op_share|op_share_500|n_green|n_yellow|n_red|n_none|board_note|board_at)$/;
+// § 48 و — and how many customers a publication would reach (the confirmation of «نشر المعتمد الآن» shows it)
+const DAY_BOARD = /^x_(op_cost|op_expected|op_cartons|op_basis|op_share|op_share_500|n_green|n_yellow|n_red|n_none|board_note|board_at|n_recipients)$/;
 let dayLineIds = new Set<number>();
 let dayRowIds = new Set<number>();
 const writes: string[] = [];
@@ -95,7 +96,7 @@ const PR = await import("../src/prices.ts");
 const pause = (ms = 1500) => new Promise((r) => setTimeout(r, ms));
 const money = (n: unknown) => (Number(n) || 0).toFixed(2);
 
-const DAY_FIELDS = ["id", "x_date", "x_state", "x_name", "x_approved_at", "x_approved_by", "x_published_at", "x_publish_report", "x_utak_simulation", "x_op_cost", "x_op_expected", "x_op_cartons", "x_op_basis", "x_op_share", "x_op_share_500", "x_n_green", "x_n_yellow", "x_n_red", "x_n_none", "x_board_note", "x_board_at", "write_date"];
+const DAY_FIELDS = ["id", "x_date", "x_state", "x_name", "x_approved_at", "x_approved_by", "x_published_at", "x_publish_report", "x_utak_simulation", "x_op_cost", "x_op_expected", "x_op_cartons", "x_op_basis", "x_op_share", "x_op_share_500", "x_n_green", "x_n_yellow", "x_n_red", "x_n_none", "x_board_note", "x_board_at", "x_n_recipients", "x_n_publishable", "x_publish_names", "write_date"];
 const LINE_FIELDS = ["id", "x_name", "x_sequence", "x_product_tmpl_id", "x_packaging_id", "x_decision", "x_utak_simulation", ...LINE_ENGINE, "x_market_show", "x_sale_show", "x_profit_show", "x_manual_show", "write_date"];
 const DP_FIELDS = ["id", "x_supplier_id", "x_product_tmpl_id", "x_packaging_id", "x_date", "x_price_sar", "x_sale_price", "x_extraction_status", "x_utak_simulation", "x_source_message_id", "write_date"];
 const readDay = async () => (await call<any[]>(env, "x_price_day", "read", { ids: [DAY_ID], fields: DAY_FIELDS }))[0];
@@ -141,6 +142,11 @@ if (VERIFY) {
   const realLines = lines.filter((l) => !l.x_utak_simulation);
   const greens = realLines.filter((l) => l.x_board_status === "green").length, nones = realLines.filter((l) => l.x_board_status === "none").length;
   check(`رأس اليوم: تكلفة 496.52، وحصة الكرتون 1.99 على 250، والأصناف 🟢 ${greens} · ⚪ ${nones}`, day.x_op_cost === 496.52 && day.x_op_share === 1.99 && day.x_op_expected === 250 && day.x_n_green === greens && day.x_n_none === nones && day.x_n_yellow === 0 && day.x_n_red === 0 && greens + nones === realLines.length, JSON.stringify({ c: day.x_op_cost, s: day.x_op_share, n: [day.x_n_green, day.x_n_yellow, day.x_n_red, day.x_n_none] }));
+  // § 48 و — what the confirmation of «نشر المعتمد الآن» would say (nothing is published here)
+  const { priceRecipients } = await import("../src/prices.ts");
+  const recipients = await priceRecipients(env);
+  check(`تأكيد «نشر المعتمد الآن» سيذكر: ${day.x_n_publishable} أصناف (${day.x_publish_names}) إلى ${day.x_n_recipients} عملاء`, day.x_n_publishable === realLines.filter((l) => (l.x_status === "auto" || l.x_status === "manual") && !l.x_excluded && l.x_sale_price > 0).length && day.x_n_recipients === recipients.length && recipients.length > 0, JSON.stringify({ p: day.x_n_publishable, r: day.x_n_recipients, list: recipients.map((r) => r.id) }));
+  await pause();
   // the fallback of the day's real rows = the suggested price; the simulation rows as they were
   for (const e of EXPECTED) {
     const r = real().find((x) => id0(x.x_product_tmpl_id) === e.product && id0(x.x_packaging_id) === e.packaging);
@@ -193,7 +199,8 @@ for (const p of products) console.log(`الصنف #${p.id} ${p.name}: «نشط �
 for (const l of lines) console.log(`السطر #${l.id} ${l.x_name}: الشراء ${l.x_cost_price} · المقترح ${l.x_suggested_price} · البيع ${l.x_sale_price} · ${l.x_status} «${l.x_reason}» · قرار براء ${l.x_decision || "—"} (وقت القرار ${l.x_decided_at || "—"}) · السعر المعدّل ${l.x_manual_price} · آخر كتابة ${l.write_date} UTC`);
 for (const r of dps) console.log(`x_daily_price #${r.id}: ${r.x_product_tmpl_id?.[1]} ${r.x_price_sar} · احتياطي ${r.x_sale_price} · ${r.x_utak_simulation ? "محاكاة (مستبعد)" : "حقيقي"}`);
 // § 47's rule fixed 30.50 / 23.00 / 18.00 only if «🔄» ran on the old code after 12:51: then «السعر المعدّل» holds the old number
-const stale = lines.filter((l) => l.x_decision === "profit" && Number(l.x_manual_price) > 0);
+// (a price this script's own run fixed carries its mark «profit» and is the expected suggested price: a re-run is a no-op on it)
+const stale = lines.filter((l) => l.x_decision === "profit" && Number(l.x_manual_price) > 0 && !(l.x_manual_for === "profit" && EXPECTED.some((e) => e.product === id0(l.x_product_tmpl_id) && e.suggested === l.x_manual_price)));
 if (stale.length) throw new Error(`a profit line already carries a fixed price (${stale.map((l) => `#${l.id} ${l.x_manual_price}`).join(", ")}): «🔄 إعادة الحساب» ran on the old rule meanwhile — stop and decide`);
 writeFileSync(art("plan"), JSON.stringify({ at: new Date().toISOString(), day, lines, dailyPrices: dps, products }, null, 2) + "\n");
 

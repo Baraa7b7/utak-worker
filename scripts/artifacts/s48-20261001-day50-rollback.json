@@ -492,7 +492,7 @@
     "dayId": 50,
     "state": "missed",
     "created": 0,
-    "updated": 4,
+    "updated": 0,
     "lines": 4,
     "excluded": 0,
     "counts": {
@@ -503,14 +503,6 @@
     }
   },
   "writes": [
-    "x_daily_price.write [69] {\"x_sale_price\":31.5}",
-    "x_daily_price.write [70] {\"x_sale_price\":24}",
-    "x_daily_price.write [71] {\"x_sale_price\":19.5}",
-    "x_daily_price.write [72] {\"x_sale_price\":31.5}",
-    "x_price_day_line.write [92] {\"x_suggested_price\":31.5,\"x_board_sale\":31.5,\"x_net_sale\":27.39,\"x_real_profit\":2.3,\"x_board_status\":\"green\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بالسعر المربح\",\"x_sale_price\":31.5,\"x_excluded\":false,\"x_decided_at\":\"2026-10-01 10:28:31\",\"x_manual_price\":31.5,\"x_manual_for\":\"profit\"}",
-    "x_price_day_line.write [89] {\"x_suggested_price\":24,\"x_board_sale\":24,\"x_net_sale\":20.87,\"x_real_profit\":2.08,\"x_board_status\":\"green\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بالسعر المربح\",\"x_sale_price\":24,\"x_excluded\":false,\"x_decided_at\":\"2026-10-01 10:28:31\",\"x_manual_price\":24,\"x_manual_for\":\"profit\"}",
-    "x_price_day_line.write [90] {\"x_suggested_price\":19.5,\"x_board_sale\":19.5,\"x_net_sale\":16.96,\"x_real_profit\":2.37,\"x_board_status\":\"green\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بالسعر المربح\",\"x_sale_price\":19.5,\"x_excluded\":false,\"x_decided_at\":\"2026-10-01 10:28:31\",\"x_manual_price\":19.5,\"x_manual_for\":\"profit\"}",
-    "x_price_day_line.write [91] {\"x_suggested_price\":31.5,\"x_board_sale\":31.5,\"x_net_sale\":27.39,\"x_real_profit\":2.3,\"x_board_status\":\"green\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بالسعر المربح\",\"x_sale_price\":31.5,\"x_excluded\":false,\"x_decided_at\":\"2026-10-01 10:28:31\",\"x_manual_price\":31.5,\"x_manual_for\":\"profit\"}",
-    "x_price_day.write [50] {\"x_op_cost\":496.52,\"x_op_expected\":250,\"x_op_cartons\":250,\"x_op_basis\":\"expected\",\"x_op_share\":1.99,\"x_op_share_500\":0.99,\"x_n_green\":4,\"x_n_yellow\":0,\"x_n_red\":0,\"x_n_none\":0,\"x_board_note\":false,\"x_board_at\":\"2026-10-01 10:28:31\"}"
+    "x_price_day.write [50] {\"x_op_cost\":496.52,\"x_op_expected\":250,\"x_op_cartons\":250,\"x_op_basis\":\"expected\",\"x_op_share\":1.99,\"x_op_share_500\":0.99,\"x_n_green\":4,\"x_n_yellow\":0,\"x_n_red\":0,\"x_n_none\":0,\"x_board_note\":false,\"x_board_at\":\"2026-10-01 11:01:20\",\"x_n_recipients\":2}"
   ]
 }

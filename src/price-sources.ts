@@ -200,8 +200,8 @@ export function checkOfferItems(
 
 // ---------------------------------------------------------------- the offer rows
 
-const isOutlier = (last: number | null, next: number | undefined): boolean =>
-  !!last && last > 0 && !!next && next > 0 && Math.max(last, next) / Math.min(last, next) >= PRICE_OUTLIER_RATIO;
+const isOutlier = (last: number | null, next: number | undefined, ratio: number = PRICE_OUTLIER_RATIO): boolean =>
+  !!last && last > 0 && !!next && next > 0 && Math.max(last, next) / Math.min(last, next) >= ratio;
 
 /** The source's last earlier value of this kind for the product + packaging (x_price_offer), simulation left out. */
 export async function lastOfferValue(env: Env, partnerId: number, productId: number, packagingId: number, kind: PriceKind): Promise<number | null> {
@@ -226,13 +226,15 @@ export interface OfferWrite {
   text: string;
   /** a supplier's purchase outlier is decided by § 26 (x_daily_price «pending»). */
   purchaseOutlier?: boolean;
+  /** § 48 و — «نسبة السعر الشاذ» of the settings; PRICE_OUTLIER_RATIO when absent. */
+  ratio?: number;
 }
 /** One x_price_offer row, the outliers decided against the same source's last values. Returns [id, outlier]. */
 export async function saveOffer(env: Env, o: OfferWrite, day: string = riyadhDateKey()): Promise<{ id: number; outlier: boolean }> {
   const lastP = o.purchase !== undefined && o.purchaseOutlier === undefined ? await lastOfferValue(env, o.partnerId, o.productId, o.packagingId, "purchase") : null;
   const lastM = o.market !== undefined ? await lastOfferValue(env, o.partnerId, o.productId, o.packagingId, "market") : null;
-  const pOut = o.purchaseOutlier ?? isOutlier(lastP, o.purchase);
-  const mOut = isOutlier(lastM, o.market);
+  const pOut = o.purchaseOutlier ?? isOutlier(lastP, o.purchase, o.ratio);
+  const mOut = isOutlier(lastM, o.market, o.ratio);
   const [id] = await call<number[]>(env, OFFER_MODEL, "create", {
     vals_list: [{
       x_name: `${day} · ${o.productId}/${o.packagingId}`,
@@ -445,6 +447,9 @@ export async function handleMarketReply(
     return { saved: 0, reply: MARKET_UNREAD_TEXT };
   }
   const day = riyadhDateKey(new Date(nowMs));
+  // § 48 و — «نسبة السعر الشاذ» of the settings (1.5 when it cannot be read)
+  const { readOutlierRatio } = await import("./operating-cost");
+  const ratio = await readOutlierRatio(env, day);
   let saved = 0;
   // § 41 و (the live run) — an offer Odoo refused (HTTP 429 after the retries)
   // was dropped while the reply said «وصلتنا (3 صنف)»: Omar's avocado 60 on
@@ -454,7 +459,7 @@ export async function handleMarketReply(
     try {
       await saveOffer(env, {
         partnerId: src.partnerId, employeeId: src.employeeId ?? null, productId: k.product_id, packagingId: k.packaging_id,
-        purchase: k.purchase, market: k.market, qty: k.qty, messageId, text,
+        purchase: k.purchase, market: k.market, qty: k.qty, messageId, text, ratio,
       }, day);
       saved++;
     } catch (e) {

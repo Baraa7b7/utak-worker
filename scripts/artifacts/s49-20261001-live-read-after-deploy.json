@@ -1,0 +1,149 @@
+{
+  "atRiyadh": "2026-10-01 16:24",
+  "today": "2026-10-01",
+  "validList": null,
+  "days": [
+    {
+      "id": 50,
+      "x_date": "2026-10-01",
+      "x_state": "missed",
+      "x_published_at": false
+    },
+    {
+      "id": 49,
+      "x_date": "2026-09-30",
+      "x_state": "missed",
+      "x_published_at": false
+    },
+    {
+      "id": 48,
+      "x_date": "2026-09-29",
+      "x_state": "missed",
+      "x_published_at": false
+    },
+    {
+      "id": 47,
+      "x_date": "2026-09-28",
+      "x_state": "missed",
+      "x_published_at": false
+    }
+  ],
+  "settings": {
+    "configId": 1,
+    "wastePct": 5,
+    "minOrder": 0,
+    "plannedStops": 15,
+    "expectedCartons": 250,
+    "minProfit": 2,
+    "outlierRatio": 1.5
+  },
+  "sources": {
+    "partners": [
+      {
+        "id": 30,
+        "name": "أحمد حسان",
+        "supplier": true,
+        "role": "purchase"
+      }
+    ],
+    "employees": [
+      {
+        "id": 4,
+        "partnerId": 9,
+        "name": "عمر المجهلي",
+        "role": "market"
+      }
+    ]
+  },
+  "offers": [
+    {
+      "kind": "purchase",
+      "price": 22,
+      "outlier": false,
+      "partnerId": 30,
+      "sourceName": "أحمد حسان",
+      "productId": 108,
+      "packagingId": 44,
+      "model": "dp",
+      "rowId": 69,
+      "saleStored": 31.5
+    },
+    {
+      "kind": "purchase",
+      "price": 16,
+      "outlier": false,
+      "partnerId": 30,
+      "sourceName": "أحمد حسان",
+      "productId": 100,
+      "packagingId": 37,
+      "model": "dp",
+      "rowId": 70,
+      "saleStored": 24
+    },
+    {
+      "kind": "purchase",
+      "price": 12,
+      "outlier": false,
+      "partnerId": 30,
+      "sourceName": "أحمد حسان",
+      "productId": 107,
+      "packagingId": 43,
+      "model": "dp",
+      "rowId": 71,
+      "saleStored": 19.5
+    },
+    {
+      "kind": "purchase",
+      "price": 22,
+      "outlier": false,
+      "partnerId": 30,
+      "sourceName": "أحمد حسان",
+      "productId": 97,
+      "packagingId": 33,
+      "model": "dp",
+      "rowId": 72,
+      "saleStored": 31.5
+    }
+  ],
+  "unconfirmed": [],
+  "lastOrder": {
+    "brief": {
+      "id": 58,
+      "state": "confirmed",
+      "date": "2026-10-02",
+      "customerId": 103,
+      "hasLocation": true,
+      "lineIds": [
+        53
+      ],
+      "createdVia": "whatsapp",
+      "priceDate": "",
+      "awaitingPrices": false
+    },
+    "price_date": null,
+    "lines": 1
+  },
+  "waiting": [],
+  "requests": [
+    "x_price_day.search_read",
+    "x_price_day.search_read",
+    "x_price_day.search_read",
+    "x_pricing_config.search_read",
+    "hr.employee.search_read",
+    "res.partner.search_read",
+    "res.partner.read",
+    "res.partner.read",
+    "x_daily_price.search_read",
+    "x_price_offer.search_read",
+    "x_daily_order.search_read",
+    "x_daily_order.search_read",
+    "x_daily_order.search_read",
+    "x_daily_order.read",
+    "x_daily_order.read",
+    "res.partner.read",
+    "x_daily_order_line.read",
+    "x_pricing_config.search_read",
+    "x_daily_order.search_read",
+    "x_purchase_list.search_read"
+  ]
+}

@@ -22,8 +22,10 @@
 //   • full cost      = net purchase + waste + the carton's share of the day's
 //     operating cost (src/pricing-board.ts);
 //   • «أقل سعر بيع بدون خسارة» = full cost × 1.15 (VAT-inclusive);
-//   • «السعر المربح المقترح»   = full cost × (1 + «الهامش الأدنى ٪» ÷ 100) × 1.15,
-//     rounded UP to the nearest 0.5 riyal (VAT-inclusive).
+//   • «السعر المربح المقترح»   = (full cost + «الربح الأدنى للكرتون») × 1.15,
+//     rounded UP to the nearest 0.5 riyal (VAT-inclusive). § 48 أ: the minimum
+//     profit is a fixed amount in riyals a carton (2 on the settings record),
+//     no longer a percentage of the cost («الهامش الأدنى ٪» is read nowhere).
 // The rule of a line:
 //   1. market ≥ the suggested price → approved automatically at the market
 //      price, as before;
@@ -59,6 +61,8 @@ export interface EngineOffer {
   /** "dp" = x_daily_price (a supplier's purchase), "po" = x_price_offer */
   model: "dp" | "po";
   rowId: number;
+  /** § 48 ب — a "dp" row's stored fallback sale price (x_sale_price), kept = the suggested price of its purchase price by the engine. */
+  saleStored?: number;
 }
 export interface EngineItem {
   productId: number;
@@ -122,8 +126,8 @@ export const NO_VAT: VatContext = { ratePct: null };
 
 // ---------------------------------------------------------------- the profitable price (§ 47 ب)
 
-/** «الهامش الأدنى ٪» when the settings record carries none. */
-export const DEFAULT_MIN_MARGIN_PCT = 5;
+/** § 48 أ — «الربح الأدنى للكرتون (ريال)» when the settings record carries none. */
+export const DEFAULT_MIN_PROFIT_SAR = 2;
 /** The suggested price is rounded up to this step (riyals). */
 export const SUGGESTED_STEP = 0.5;
 
@@ -143,7 +147,7 @@ export interface PriceFloor {
   fullCost: number;
   /** full cost × 1.15; null when the carton share cannot be read. */
   breakEven: number | null;
-  /** full cost × (1 + margin) × 1.15, rounded up to 0.5; null when the carton share cannot be read. */
+  /** (full cost + the minimum profit a carton) × 1.15, rounded up to 0.5; null when the carton share cannot be read. */
   suggested: number | null;
 }
 
@@ -152,7 +156,7 @@ export interface PriceFloor {
  * as the board shows it (whole halalas, half up), and the next is made from
  * the rounded one. Null without a purchase price. Pure.
  */
-export function priceFloor(a: { purchase: number | null; wastePct: number; opShare: number | null; vatRatePct: number | null; minMarginPct: number }): PriceFloor | null {
+export function priceFloor(a: { purchase: number | null; wastePct: number; opShare: number | null; vatRatePct: number | null; minProfit: number }): PriceFloor | null {
   if (a.purchase === null || !(a.purchase > 0)) return null;
   const netH = halalas(a.purchase);
   const wasteH = Math.round((netH * Math.max(0, a.wastePct)) / 100);
@@ -163,13 +167,14 @@ export function priceFloor(a: { purchase: number | null; wastePct: number; opSha
   return {
     ...base,
     breakEven: Math.round((fullH * vat) / 100) / 100,
-    suggested: ceilToStep((fullH * (100 + Math.max(0, a.minMarginPct)) * vat) / 1e6),
+    // § 48 أ — a fixed profit in riyals on top of the full cost, then the VAT
+    suggested: ceilToStep(((fullH + halalas(Math.max(0, a.minProfit))) * vat) / 1e4),
   };
 }
 
-/** The inputs of the profitable price on a day: the carton share (null = it cannot be read) and «الهامش الأدنى ٪». */
-export interface FloorContext { opShare: number | null; minMarginPct: number }
-export const NO_FLOOR: FloorContext = { opShare: null, minMarginPct: DEFAULT_MIN_MARGIN_PCT };
+/** The inputs of the profitable price on a day: the carton share (null = it cannot be read) and «الربح الأدنى للكرتون» (riyals). */
+export interface FloorContext { opShare: number | null; minProfit: number }
+export const NO_FLOOR: FloorContext = { opShare: null, minProfit: DEFAULT_MIN_PROFIT_SAR };
 
 /** For display only: (market − purchase) ÷ purchase × 100 (= the Odoo compute of product.template.x_margin_view). */
 export function displayMarginPct(purchase: number, market: number): number {
@@ -204,8 +209,9 @@ export function offersLine(offers: EngineOffer[]): string {
 
 /**
  * The rule, for every item. Pure. `vat` (§ 41 أ): the unit profit net of VAT
- * from the cutoff. `floor` (§ 47 ب): the carton share and the minimum margin
- * the suggested price is made from; without a share the rule before § 47.
+ * from the cutoff. `floor` (§ 47 ب, § 48 أ): the carton share and the minimum
+ * profit a carton the suggested price is made from; without a share the rule
+ * before § 47.
  */
 export function computePricing(items: EngineItem[], offers: EngineOffer[], wastePct: number, vat: VatContext = NO_VAT, floor: FloorContext = NO_FLOOR): PricingLine[] {
   const latest = latestPerSource(offers);
@@ -219,7 +225,7 @@ export function computePricing(items: EngineItem[], offers: EngineOffer[], waste
     const market = median(markets.map((o) => o.price));
     const profit = purchase !== null && market !== null
       ? round2(vatProfit(market, purchase, wastePct, vat.ratePct)) : null;
-    const fl = priceFloor({ purchase, wastePct, opShare: floor.opShare, vatRatePct: vat.ratePct, minMarginPct: floor.minMarginPct });
+    const fl = priceFloor({ purchase, wastePct, opShare: floor.opShare, vatRatePct: vat.ratePct, minProfit: floor.minProfit });
     const suggested = fl?.suggested ?? null;
     const outlier = { purchase: !!p?.outlier, market: markets.some((o) => o.outlier) };
     const exceptions: ExceptionCode[] = [];
@@ -277,14 +283,29 @@ export function lineVerdict(p: PricingLine, decision: Decision | null, manualPri
 }
 
 /**
+ * § 48 د — the price fixed for the line's decision. «سعر معدّل»: his own number.
+ * «اعتمد بسعر السوق» / «اعتمد بالسعر المربح»: the price fixed when that decision
+ * was taken counts for THAT decision alone (x_manual_for; empty = fixed before
+ * § 48, taken as the decision's) — a decision changed in Odoo afterwards does
+ * not inherit the other decision's price. 0 = none.
+ */
+export function fixedPrice(l: { x_decision?: string | false; x_manual_price?: number; x_manual_for?: string | false }): number {
+  const price = Number(l.x_manual_price) || 0;
+  if (!(price > 0)) return 0;
+  if (l.x_decision === "market" || l.x_decision === "profit") return !l.x_manual_for || l.x_manual_for === l.x_decision ? price : 0;
+  return price;
+}
+
+/**
  * The sale price a stored line must carry (the publication checks it): auto →
  * market; manual → the decided price, else — «اعتمد بالسعر المربح» chosen in
  * Odoo without a price — the line's suggested price, else the market price.
  */
-export function saleRule(l: { x_status: string | false; x_market_price: number; x_manual_price: number; x_decision?: string | false; x_suggested_price?: number }): number {
+export function saleRule(l: { x_status: string | false; x_market_price: number; x_manual_price: number; x_decision?: string | false; x_suggested_price?: number; x_manual_for?: string | false }): number {
   if (l.x_status === "auto") return round2(Number(l.x_market_price) || 0);
   if (l.x_status === "manual") {
-    if (Number(l.x_manual_price) > 0) return round2(Number(l.x_manual_price));
+    const fixed = fixedPrice(l);
+    if (fixed > 0) return round2(fixed);
     if (l.x_decision === "profit") return round2(Number(l.x_suggested_price) || 0);
     return round2(Number(l.x_market_price) || 0);
   }
@@ -304,9 +325,9 @@ export async function readDayOffers(env: Env, day: string, sources: PriceSources
     ...sources.partners.map((p) => [p.partnerId, p.name] as [number, string]),
     ...sources.employees.map((e) => [e.partnerId, e.name] as [number, string]),
   ]);
-  const dp = await call<Array<{ id: number; x_supplier_id: M2O; x_product_tmpl_id: M2O; x_packaging_id: M2O; x_price_sar: number; x_extraction_status: string | false }>>(env, "x_daily_price", "search_read", {
+  const dp = await call<Array<{ id: number; x_supplier_id: M2O; x_product_tmpl_id: M2O; x_packaging_id: M2O; x_price_sar: number; x_sale_price?: number | false; x_extraction_status: string | false }>>(env, "x_daily_price", "search_read", {
     domain: [["x_date", "=", day], ["x_price_sar", ">", 0], ["x_extraction_status", "!=", "failed"], ["x_supplier_id", "in", ids], ["x_utak_simulation", "!=", true]],
-    fields: ["id", "x_supplier_id", "x_product_tmpl_id", "x_packaging_id", "x_price_sar", "x_extraction_status"],
+    fields: ["id", "x_supplier_id", "x_product_tmpl_id", "x_packaging_id", "x_price_sar", "x_sale_price", "x_extraction_status"],
     order: "id asc", limit: 2000,
   });
   const po = await call<Array<{ id: number; x_source_partner_id: M2O; x_product_tmpl_id: M2O; x_packaging_id: M2O; x_purchase_price: number; x_market_price: number; x_purchase_outlier: boolean; x_market_outlier: boolean }>>(env, "x_price_offer", "search_read", {
@@ -318,7 +339,7 @@ export async function readDayOffers(env: Env, day: string, sources: PriceSources
   for (const r of dp) {
     const [pid, pname] = m2o(r.x_supplier_id);
     out.push({ kind: "purchase", price: Number(r.x_price_sar), outlier: r.x_extraction_status === "pending", partnerId: pid, sourceName: names.get(pid) ?? pname,
-      productId: m2o(r.x_product_tmpl_id)[0], packagingId: m2o(r.x_packaging_id)[0], model: "dp", rowId: r.id });
+      productId: m2o(r.x_product_tmpl_id)[0], packagingId: m2o(r.x_packaging_id)[0], model: "dp", rowId: r.id, saleStored: Number(r.x_sale_price) || 0 });
   }
   for (const r of po) {
     const [pid, pname] = m2o(r.x_source_partner_id);

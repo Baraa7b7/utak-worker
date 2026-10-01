@@ -51,7 +51,7 @@ const FX = [
   // STATUS § 41 — «مسجل في الضريبة» on the sources, x_utak_simulation on the per-day models
   "./fixtures-odoo-fields-20260926-s41.json",
   "./fixtures-odoo-fields-20260928-s44.json", // § 44: x_vat_status / x_legal_name / x_vat_ask_count on res.partner (the invoice reads them), the purchase side (last: it wins)
-  "./fixtures-odoo-fields-20261001-s47.json", // § 46 + § 47: the pricing board's fields on x_price_day / x_price_day_line, x_expected_cartons, product.template.x_utak_new, x_min_margin_pct, x_break_even / x_suggested_price, x_decision «profit» (last: it wins)
+  "./fixtures-odoo-fields-20261001-s48.json", // § 46 + § 47: the pricing board's fields on x_price_day / x_price_day_line, x_expected_cartons, product.template.x_utak_new, x_min_margin_pct, x_break_even / x_suggested_price, x_decision «profit» (last: it wins)
 ].map(load);
 const REAL: Record<string, string[]> = Object.assign({}, ...FX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FX.map((f) => f._selections));
@@ -374,7 +374,10 @@ console.log("\n[5] quotations and invoices: today's published price first");
   market(1, 11, 30);
   table("x_daily_price").get(rows("x_daily_price")[0].id)!.x_sale_price = 34.5; // § 26's own computed price
   await quiet(() => refreshPriceDay(env));
-  assert("not published yet → as before (the supplier row's sale price)", (await quiet(() => getLatestSalePrice(env, 1, 11))).price === 34.5);
+  // § 48 ب — the fallback of a day not published is the suggested profitable price. This world has no «الكراتين
+  // المتوقعة» (no carton share): no suggested price, so NO fallback — the 34.5 typed on the row is not a price
+  const before = await quiet(() => getLatestSalePrice(env, 1, 11));
+  assert("not published yet, and the suggested price cannot be made → no fallback («missing»), the row's typed price put back to 0", before.price === 0 && before.source === "missing" && rows("x_daily_price")[0].x_sale_price === 0, JSON.stringify(before));
   approveInOdoo(dayRec()!.id);
   await quiet(() => publishPriceDay(env, dayRec()!.id));
   const p = await quiet(() => getLatestSalePrice(env, 1, 11));

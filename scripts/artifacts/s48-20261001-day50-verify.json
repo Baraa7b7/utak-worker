@@ -1,0 +1,224 @@
+{
+  "at": "2026-10-01T10:29:04.479Z",
+  "ok": 28,
+  "bad": 0,
+  "day": {
+    "id": 50,
+    "state": "missed",
+    "cost": 496.52,
+    "share": 1.99,
+    "counts": [
+      4,
+      0,
+      0,
+      0
+    ],
+    "at": "2026-10-01 10:28:31"
+  },
+  "products": [
+    {
+      "id": 108,
+      "name": "رمان كبير",
+      "forSale": true,
+      "write_date": "2026-09-23 08:13:51"
+    },
+    {
+      "id": 100,
+      "name": "رمان وسط",
+      "forSale": true,
+      "write_date": "2026-09-23 08:13:51"
+    },
+    {
+      "id": 107,
+      "name": "رمان صغير",
+      "forSale": true,
+      "write_date": "2026-09-23 08:13:51"
+    },
+    {
+      "id": 97,
+      "name": "موز أمريكي",
+      "forSale": true,
+      "write_date": "2026-10-01 09:51:36"
+    }
+  ],
+  "lines": [
+    {
+      "name": "رمان كبير",
+      "line": 91,
+      "purchase": 22,
+      "full": 25.09,
+      "even": 28.85,
+      "suggested": 31.5,
+      "sale": 31.5,
+      "status": "manual",
+      "reason": "براء: اعتمد بالسعر المربح",
+      "decision": "profit",
+      "profit": 2.3,
+      "board": "green",
+      "preview": [
+        0,
+        0
+      ],
+      "shows": [
+        "—",
+        "31.50",
+        "2.30",
+        "31.50"
+      ]
+    },
+    {
+      "name": "رمان وسط",
+      "line": 89,
+      "purchase": 16,
+      "full": 18.79,
+      "even": 21.61,
+      "suggested": 24,
+      "sale": 24,
+      "status": "manual",
+      "reason": "براء: اعتمد بالسعر المربح",
+      "decision": "profit",
+      "profit": 2.08,
+      "board": "green",
+      "preview": [
+        0,
+        0
+      ],
+      "shows": [
+        "—",
+        "24.00",
+        "2.08",
+        "24.00"
+      ]
+    },
+    {
+      "name": "رمان صغير",
+      "line": 90,
+      "purchase": 12,
+      "full": 14.59,
+      "even": 16.78,
+      "suggested": 19.5,
+      "sale": 19.5,
+      "status": "manual",
+      "reason": "براء: اعتمد بالسعر المربح",
+      "decision": "profit",
+      "profit": 2.37,
+      "board": "green",
+      "preview": [
+        0,
+        0
+      ],
+      "shows": [
+        "—",
+        "19.50",
+        "2.37",
+        "19.50"
+      ]
+    },
+    {
+      "name": "موز أمريكي",
+      "line": 92,
+      "purchase": 22,
+      "full": 25.09,
+      "even": 28.85,
+      "suggested": 31.5,
+      "sale": 31.5,
+      "status": "manual",
+      "reason": "براء: اعتمد بالسعر المربح",
+      "decision": "profit",
+      "profit": 2.3,
+      "board": "green",
+      "preview": [
+        0,
+        0
+      ],
+      "shows": [
+        "—",
+        "31.50",
+        "2.30",
+        "31.50"
+      ]
+    }
+  ],
+  "dailyPrices": [
+    {
+      "id": 59,
+      "product": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "price": 16,
+      "sale": 22.08,
+      "sim": true
+    },
+    {
+      "id": 60,
+      "product": [
+        105,
+        "[UTAK-FRT-010] افوكادو"
+      ],
+      "price": 52,
+      "sale": 71.76,
+      "sim": true
+    },
+    {
+      "id": 67,
+      "product": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "price": 16,
+      "sale": 22.08,
+      "sim": true
+    },
+    {
+      "id": 68,
+      "product": [
+        105,
+        "[UTAK-FRT-010] افوكادو"
+      ],
+      "price": 52,
+      "sale": 71.76,
+      "sim": true
+    },
+    {
+      "id": 69,
+      "product": [
+        108,
+        "[UTAK-FRT-012] رمان كبير"
+      ],
+      "price": 22,
+      "sale": 31.5,
+      "sim": false
+    },
+    {
+      "id": 70,
+      "product": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "price": 16,
+      "sale": 24,
+      "sim": false
+    },
+    {
+      "id": 71,
+      "product": [
+        107,
+        "[UTAK-FRT-011] رمان صغير"
+      ],
+      "price": 12,
+      "sale": 19.5,
+      "sim": false
+    },
+    {
+      "id": 72,
+      "product": [
+        97,
+        "[UTAK-FRT-002] موز أمريكي"
+      ],
+      "price": 22,
+      "sale": 31.5,
+      "sim": false
+    }
+  ]
+}

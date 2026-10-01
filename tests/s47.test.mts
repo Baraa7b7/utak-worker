@@ -13,6 +13,12 @@
 //   [ج] the numbers of 2026-10-01 (share 1.99, margin 5 %), and no new-product alert for a product
 //       whose flag is off.
 //
+// § 48 (2026-10-01) — re-based on the fixed minimum profit a carton: the suggested price is (full cost
+// + «الربح الأدنى للكرتون» 2) × 1.15 rounded up to 0.5, no longer full cost × 1.05 × 1.15 (with the kit's
+// share of 2.00: tomato 29.00, cucumber 36.00, potato 26.50; on 10-01: 31.50 / 24.00 / 19.50), and on
+// the fallback of § 48 ب (a purchase price today without a fallback is «missing», never an older
+// day's price). The rule itself — the market price once it reaches the suggested price — is § 47's.
+//
 // In-memory Odoo + captured Graph (tests/wa-harness.mts, tests/s46-kit.mts). No network, no send.
 //
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/s47.test.mts
@@ -37,7 +43,7 @@ const worker = (await import("../src/index.ts")).default;
 const offer = (o: Record<string, unknown>) => ({ kind: "market", price: 0, outlier: false, partnerId: 1, sourceName: "م", productId: 1, packagingId: 11, model: "po", rowId: 1, ...o }) as any;
 const ITEM = { productId: 1, productName: "طماطم", packagingId: 11, packagingName: "كرتون" };
 const VAT = { ratePct: 15 };
-const FLOOR = { opShare: 2, minMarginPct: 5 };
+const FLOOR = { opShare: 2, minProfit: 2 };
 /** Omar's «شراء» / «سوق» of the day (an x_price_offer row of the employee's Work Contact). */
 const omar = (product: number, packaging: number, o: { purchase?: number; market?: number; outlier?: boolean }, day = DAY) =>
   seed("x_price_offer", { x_product_tmpl_id: product, x_packaging_id: packaging, x_source_partner_id: DRIVER, x_date: day, x_purchase_price: o.purchase ?? 0, x_market_price: o.market ?? 0, x_purchase_outlier: false, x_market_outlier: o.outlier === true, x_status: o.outlier ? "outlier" : "valid", x_utak_simulation: false });
@@ -50,7 +56,7 @@ const choiceIds = (b: any): string[] => b?.interactive?.type === "list"
 // ================================================================ [أ] the purchase price is net
 console.log("\n[أ] the board: the purchase price as written, registered or not (nothing ÷ 1.15)");
 {
-  const b = PB.boardLine({ purchase: 22, sale: 0, wastePct: 5, vatRatePct: 15, opShare: 1.99, minMarginPct: 5 });
+  const b = PB.boardLine({ purchase: 22, sale: 0, wastePct: 5, vatRatePct: 15, opShare: 1.99, minProfit: 2 });
   assert("net purchase = the number as it is (22), not 22 ÷ 1.15 = 19.13", b.x_net_purchase === 22 && b.x_waste_cost === 1.1 && b.x_full_cost === 25.09, JSON.stringify(b));
   assert("boardLine has no «registered» input any more: the same call is every source's", !("registered" in ({ purchase: 22, sale: 0, wastePct: 5, vatRatePct: 15, opShare: 1.99 } as PB.BoardLineInput)));
   for (const registered of [true, false]) {
@@ -150,7 +156,10 @@ console.log("\n[أ] a purchase price is never a sale price; the free texts that 
   row("2026-10-02", 28);
   row(DAY);                                                 // and one more purchase-only row today, newer than yesterday's
   const stale = await quiet(() => OD.getLatestSalePrice(env, 3, 31, DAY));
-  assert("…the fallback skips it: yesterday's row with a sale price (28, «stale»)", stale.price === 28 && stale.source === "stale" && stale.price_date === "2026-10-02", JSON.stringify(stale));
+  assert("…and no older day's price takes its place (§ 48 ب): a purchase price today without a fallback is «missing», yesterday's 28 is not used", stale.price === 0 && stale.source === "missing", JSON.stringify(stale));
+  seed("x_daily_price", { x_product_tmpl_id: 4, x_packaging_id: 41, x_supplier_id: AHMED, x_price_sar: 20, x_sale_price: 28, x_date: "2026-10-02", x_extraction_status: "extracted" });
+  const old = await quiet(() => OD.getLatestSalePrice(env, 4, 41, DAY));
+  assert("…a product nobody priced today still takes its latest price («stale», 28 of yesterday), as before", old.price === 28 && old.source === "stale" && old.price_date === "2026-10-02", JSON.stringify(old));
   row(DAY, 30.36);
   row(DAY);                                                 // a newer row of today, again with a purchase price alone
   const got = await quiet(() => OD.getLatestSalePrice(env, 3, 31, DAY));
@@ -165,46 +174,46 @@ console.log("\n[أ] a purchase price is never a sale price; the free texts that 
 // ================================================================ [ب] the profitable price
 console.log("\n[ب] «أقل سعر بيع بدون خسارة» and «السعر المربح المقترح»");
 {
-  const f = EN.priceFloor({ purchase: 20, wastePct: 5, opShare: 2, vatRatePct: 15, minMarginPct: 5 })!;
+  const f = EN.priceFloor({ purchase: 20, wastePct: 5, opShare: 2, vatRatePct: 15, minProfit: 2 })!;
   assert("full cost = 20 + 1 + 2 = 23", f.netPurchase === 20 && f.waste === 1 && f.fullCost === 23, JSON.stringify(f));
   assert("the break-even = 23 × 1.15 = 26.45 (VAT-inclusive)", f.breakEven === 26.45);
-  assert("the suggested price = 23 × 1.05 × 1.15 = 27.77 → up to 28.00", f.suggested === 28);
+  assert("the suggested price = (23 + 2) × 1.15 = 28.75 → up to 29.00", f.suggested === 29);
   assert("rounded UP to the nearest half riyal: 30.296 → 30.50, 23.01 → 23.50, 17.62 → 18.00", EN.ceilToStep(30.296) === 30.5 && EN.ceilToStep(23.01) === 23.5 && EN.ceilToStep(17.62) === 18);
   assert("…a price already on a step stays (23.00, 30.50), float noise does not push it up", EN.ceilToStep(23) === 23 && EN.ceilToStep(30.5) === 30.5 && EN.ceilToStep(23.0000004) === 23 && EN.SUGGESTED_STEP === 0.5);
-  assert("halala rounding half up: 20.90 × 1.15 = 24.035 → 24.04", EN.priceFloor({ purchase: 18, wastePct: 5, opShare: 2, vatRatePct: 15, minMarginPct: 5 })!.breakEven === 24.04);
-  const m10 = EN.priceFloor({ purchase: 20, wastePct: 5, opShare: 2, vatRatePct: 15, minMarginPct: 10 })!;
-  const m0 = EN.priceFloor({ purchase: 20, wastePct: 5, opShare: 2, vatRatePct: 15, minMarginPct: 0 })!;
-  assert("the margin is on the full net cost: 10 % → 23 × 1.10 × 1.15 = 29.10 → 29.50; 0 % → 26.45 → 26.50", m10.suggested === 29.5 && m0.suggested === 26.5 && m10.breakEven === 26.45);
-  const pre = EN.priceFloor({ purchase: 20, wastePct: 5, opShare: 2, vatRatePct: null, minMarginPct: 5 })!;
-  assert("before the VAT cutoff nothing is multiplied by 1.15: break-even 23, suggested 24.15 → 24.50", pre.breakEven === 23 && pre.suggested === 24.5);
-  const noShare = EN.priceFloor({ purchase: 20, wastePct: 5, opShare: null, vatRatePct: 15, minMarginPct: 5 })!;
+  assert("halala rounding half up: 20.90 × 1.15 = 24.035 → 24.04", EN.priceFloor({ purchase: 18, wastePct: 5, opShare: 2, vatRatePct: 15, minProfit: 2 })!.breakEven === 24.04);
+  const m10 = EN.priceFloor({ purchase: 20, wastePct: 5, opShare: 2, vatRatePct: 15, minProfit: 3 })!;
+  const m0 = EN.priceFloor({ purchase: 20, wastePct: 5, opShare: 2, vatRatePct: 15, minProfit: 0 })!;
+  assert("the minimum profit is riyals on top of the full net cost: 3 → (23 + 3) × 1.15 = 29.90 → 30.00; 0 → 26.45 → 26.50", m10.suggested === 30 && m0.suggested === 26.5 && m10.breakEven === 26.45);
+  const pre = EN.priceFloor({ purchase: 20, wastePct: 5, opShare: 2, vatRatePct: null, minProfit: 2 })!;
+  assert("before the VAT cutoff nothing is multiplied by 1.15: break-even 23, suggested 23 + 2 = 25.00", pre.breakEven === 23 && pre.suggested === 25);
+  const noShare = EN.priceFloor({ purchase: 20, wastePct: 5, opShare: null, vatRatePct: 15, minProfit: 2 })!;
   assert("the carton share unreadable: no break-even and no suggested price (never from a guessed cost)", noShare.breakEven === null && noShare.suggested === null && noShare.fullCost === 21);
-  assert("no purchase price: nothing", EN.priceFloor({ purchase: null, wastePct: 5, opShare: 2, vatRatePct: 15, minMarginPct: 5 }) === null && EN.priceFloor({ purchase: 0, wastePct: 5, opShare: 2, vatRatePct: 15, minMarginPct: 5 }) === null);
-  const b = PB.boardLine({ purchase: 20, sale: 28, wastePct: 5, vatRatePct: 15, opShare: 2, minMarginPct: 5 });
-  assert("the board's line carries the same two numbers (26.45, 28.00)", b.x_break_even === 26.45 && b.x_suggested_price === 28 && (PB.BOARD_LINE_FIELDS as readonly string[]).includes("x_break_even") && (PB.BOARD_LINE_FIELDS as readonly string[]).includes("x_suggested_price"));
-  const none = PB.boardLine({ purchase: null, sale: 28, wastePct: 5, vatRatePct: 15, opShare: 2, minMarginPct: 5 });
+  assert("no purchase price: nothing", EN.priceFloor({ purchase: null, wastePct: 5, opShare: 2, vatRatePct: 15, minProfit: 2 }) === null && EN.priceFloor({ purchase: 0, wastePct: 5, opShare: 2, vatRatePct: 15, minProfit: 2 }) === null);
+  const b = PB.boardLine({ purchase: 20, sale: 28, wastePct: 5, vatRatePct: 15, opShare: 2, minProfit: 2 });
+  assert("the board's line carries the same two numbers (26.45, 29.00)", b.x_break_even === 26.45 && b.x_suggested_price === 29 && (PB.BOARD_LINE_FIELDS as readonly string[]).includes("x_break_even") && (PB.BOARD_LINE_FIELDS as readonly string[]).includes("x_suggested_price"));
+  const none = PB.boardLine({ purchase: null, sale: 28, wastePct: 5, vatRatePct: 15, opShare: 2, minProfit: 2 });
   assert("…0 on a line without a purchase price", none.x_break_even === 0 && none.x_suggested_price === 0);
 }
 
-console.log("\n[ب] «الهامش الأدنى ٪» in the settings (default 5)");
+console.log("\n[ب] «الربح الأدنى للكرتون» in the settings (default 2; § 48 أ — it took the place of «الهامش الأدنى ٪»)");
 {
   const env = fresh(`${DAY} 03:00`);
-  assert("readPricingSettings: 5 on the record", (await quiet(() => OC.readPricingSettings(env, DAY)))?.minMarginPct === 5);
-  table("x_pricing_config").get(1)!.x_min_margin_pct = 12.5;
-  assert("…Baraa's 12.5", (await quiet(() => OC.readPricingSettings(env, DAY)))?.minMarginPct === 12.5);
-  table("x_pricing_config").get(1)!.x_min_margin_pct = 0;
-  assert("…his 0 is 0 (the break-even, rounded up)", (await quiet(() => OC.readPricingSettings(env, DAY)))?.minMarginPct === 0);
-  delete (table("x_pricing_config").get(1) as any).x_min_margin_pct;
-  assert("…a record without the value: the default 5", (await quiet(() => OC.readPricingSettings(env, DAY)))?.minMarginPct === 5 && EN.DEFAULT_MIN_MARGIN_PCT === 5);
+  assert("readPricingSettings: 2 on the record", (await quiet(() => OC.readPricingSettings(env, DAY)))?.minProfit === 2);
+  table("x_pricing_config").get(1)!.x_min_profit_sar = 3.5;
+  assert("…Baraa's 3.5", (await quiet(() => OC.readPricingSettings(env, DAY)))?.minProfit === 3.5);
+  table("x_pricing_config").get(1)!.x_min_profit_sar = 0;
+  assert("…his 0 is 0 (the break-even, rounded up)", (await quiet(() => OC.readPricingSettings(env, DAY)))?.minProfit === 0);
+  delete (table("x_pricing_config").get(1) as any).x_min_profit_sar;
+  assert("…a record without the value: the default 2", (await quiet(() => OC.readPricingSettings(env, DAY)))?.minProfit === 2 && EN.DEFAULT_MIN_PROFIT_SAR === 2);
   const env2 = fresh(`${DAY} 03:00`); cost(500);
-  dp(1, 11, 20); market(1, 11, 28);
+  dp(1, 11, 20); market(1, 11, 29);
   await quiet(() => PR.refreshPriceDay(env2));
-  assert("at 5 %: tomato (suggested 28.00, market 28) is automatic", lineFor(1).x_status === "auto" && lineFor(1).x_suggested_price === 28);
-  table("x_pricing_config").get(1)!.x_min_margin_pct = 10;
+  assert("at 2 riyals: tomato (suggested 29.00, market 29) is automatic", lineFor(1).x_status === "auto" && lineFor(1).x_suggested_price === 29);
+  table("x_pricing_config").get(1)!.x_min_profit_sar = 3;
   const r = await quiet(() => PR.refreshPriceDay(env2));
-  assert("Baraa raises it to 10 %: the next run recomputes (suggested 29.50) and the same line is an exception", r.action === "refreshed" && lineFor(1).x_suggested_price === 29.5 && lineFor(1).x_status === "exception" && lineFor(1).x_reason === "سعر السوق 28 أقل من السعر المربح 29.50", JSON.stringify(lineFor(1)));
+  assert("Baraa raises it to 3: the next run recomputes (suggested 30.00) and the same line is an exception", r.action === "refreshed" && lineFor(1).x_suggested_price === 30 && lineFor(1).x_status === "exception" && lineFor(1).x_reason === "سعر السوق 29 أقل من السعر المربح 30", JSON.stringify(lineFor(1)));
   const w = await quiet(() => PR.rewriteBoard(env2, dayOf().id));
-  assert("…and the board rewritten from the stored line («🔄» after a decision) keeps the same 29.50 (the settings' margin, not the default)", w.updated === 0 && lineFor(1).x_suggested_price === 29.5 && lineFor(1).x_break_even === 26.45, JSON.stringify(w));
+  assert("…and the board rewritten from the stored line («🔄» after a decision) keeps the same 30.00 (the settings' amount, not the default)", w.updated === 0 && lineFor(1).x_suggested_price === 30 && lineFor(1).x_break_even === 26.45, JSON.stringify(w));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 
@@ -212,27 +221,27 @@ console.log("\n[ب] the four cases of the engine (the rule, pure)");
 {
   const run = (offers: any[], floor: any = FLOOR) => EN.computePricing([ITEM], offers, 5, VAT, floor)[0];
   const p20 = offer({ kind: "purchase", price: 20, model: "dp", partnerId: AHMED });
-  const c1 = run([p20, offer({ price: 28 })]);
-  assert("(1) market 28 ≥ the suggested 28.00 → no exception, sale = the market price", c1.exceptions.length === 0 && c1.sale === 28 && c1.suggested === 28 && c1.breakEven === 26.45 && c1.fullCost === 23, JSON.stringify(c1));
-  assert("…and the verdict: automatic at the market price", JSON.stringify(EN.lineVerdict(c1, null, 0)) === JSON.stringify({ status: "auto", sale: 28, excluded: false, reason: "" }));
+  const c1 = run([p20, offer({ price: 29 })]);
+  assert("(1) market 29 ≥ the suggested 29.00 → no exception, sale = the market price", c1.exceptions.length === 0 && c1.sale === 29 && c1.suggested === 29 && c1.breakEven === 26.45 && c1.fullCost === 23, JSON.stringify(c1));
+  assert("…and the verdict: automatic at the market price", JSON.stringify(EN.lineVerdict(c1, null, 0)) === JSON.stringify({ status: "auto", sale: 29, excluded: false, reason: "" }));
   const c1b = run([p20, offer({ price: 40 })]);
-  assert("…a market price well above it is published as it is (40, not the suggested 28)", c1b.exceptions.length === 0 && EN.lineVerdict(c1b, null, 0).sale === 40);
-  const c2 = run([p20, offer({ price: 27.5 })]);
-  assert("(2) market 27.50 < 28.00 → an exception «سعر السوق 27.50 أقل من السعر المربح 28»", c2.exceptions.join() === "below_profit" && c2.reason === "سعر السوق 27.50 أقل من السعر المربح 28" && EN.lineVerdict(c2, null, 0).status === "exception", JSON.stringify(c2));
+  assert("…a market price well above it is published as it is (40, not the suggested 29)", c1b.exceptions.length === 0 && EN.lineVerdict(c1b, null, 0).sale === 40);
+  const c2 = run([p20, offer({ price: 28.5 })]);
+  assert("(2) market 28.50 < 29.00 → an exception «سعر السوق 28.50 أقل من السعر المربح 29»", c2.exceptions.join() === "below_profit" && c2.reason === "سعر السوق 28.50 أقل من السعر المربح 29" && EN.lineVerdict(c2, null, 0).status === "exception", JSON.stringify(c2));
   assert("…a market price above the break-even (26.45) but below the suggested price is still an exception (it was automatic before § 47)", c2.unitProfit !== null && c2.unitProfit > 0);
   const c3 = run([p20]);
-  assert("(3) no market price, a purchase price → an exception that carries the suggested price", c3.exceptions.join() === "no_market" && c3.suggested === 28 && c3.sale === null, JSON.stringify(c3));
+  assert("(3) no market price, a purchase price → an exception that carries the suggested price", c3.exceptions.join() === "no_market" && c3.suggested === 29 && c3.sale === null, JSON.stringify(c3));
   const c4 = run([offer({ price: 28 })]);
   assert("(4) no purchase price → «لا سعر شراء», no suggested price, as before", c4.exceptions.join() === "no_purchase" && c4.suggested === null && c4.breakEven === null && c4.fullCost === null, JSON.stringify(c4));
   const out = run([p20, offer({ price: 30, outlier: true })]);
   assert("an outlier stays an exception even above the suggested price", out.exceptions.join() === "outlier");
-  const noShare = run([p20, offer({ price: 24 })], { opShare: null, minMarginPct: 5 });
+  const noShare = run([p20, offer({ price: 24 })], { opShare: null, minProfit: 2 });
   assert("the carton share unreadable: the rule before § 47 (24 ÷ 1.15 − 21 = −0.13 → «ربح الوحدة ≤ 0»), no suggested price", noShare.exceptions.join() === "no_profit" && noShare.suggested === null, JSON.stringify(noShare));
   // the decisions
-  assert("«اعتمد بالسعر المربح» → approved by hand at the suggested price", JSON.stringify(EN.lineVerdict(c3, "profit", 0)) === JSON.stringify({ status: "manual", sale: 28, excluded: false, reason: "براء: اعتمد بالسعر المربح" }));
+  assert("«اعتمد بالسعر المربح» → approved by hand at the suggested price", JSON.stringify(EN.lineVerdict(c3, "profit", 0)) === JSON.stringify({ status: "manual", sale: 29, excluded: false, reason: "براء: اعتمد بالسعر المربح" }));
   assert("…at the price he saw when he decided (stored), not a later one", EN.lineVerdict(c3, "profit", 27.5).sale === 27.5);
   assert("…without any suggested price (no purchase): the decision cannot apply — still an exception", EN.lineVerdict(c4, "profit", 0).status === "exception");
-  assert("«اعتمد بسعر السوق» / «لا تنشر» / «عدّل» as before", EN.lineVerdict(c2, "market", 0).sale === 27.5 && EN.lineVerdict(c2, "skip", 0).status === "unpublished" && EN.lineVerdict(c2, "edit", 31).sale === 31);
+  assert("«اعتمد بسعر السوق» / «لا تنشر» / «عدّل» as before", EN.lineVerdict(c2, "market", 0).sale === 28.5 && EN.lineVerdict(c2, "skip", 0).status === "unpublished" && EN.lineVerdict(c2, "edit", 31).sale === 31);
   assert("the publication's check: a «profit» line carries its decided price, else the line's suggested price",
     EN.saleRule({ x_status: "manual", x_market_price: 0, x_manual_price: 28, x_decision: "profit", x_suggested_price: 29 }) === 28
     && EN.saleRule({ x_status: "manual", x_market_price: 0, x_manual_price: 0, x_decision: "profit", x_suggested_price: 28 }) === 28
@@ -244,9 +253,9 @@ console.log("\n[ب] the four cases of the engine (the rule, pure)");
 function fourCases(riyadh = `${DAY} 04:00`): any {
   const env = fresh(riyadh); cost(500);
   seed("res.partner", { id: 891, name: "مطعم الوادي 2", customer_rank: 1, x_whatsapp_number: "+966500000891" });
-  dp(1, 11, 20); market(1, 11, 28);        // suggested 28.00 → automatic at 28
-  dp(2, 21, 26); market(2, 21, 34);        // full 29.30 → suggested 35.50 > 34
-  dp(3, 31, 18);                           // full 20.90 → suggested 25.50, no market
+  dp(1, 11, 20); market(1, 11, 29);        // suggested 29.00 → automatic at 29
+  dp(2, 21, 26); market(2, 21, 34);        // full 29.30 → suggested 36.00 > 34
+  dp(3, 31, 18);                           // full 20.90 → suggested 26.50, no market
   market(4, 41, 30);                       // no purchase
   return env;
 }
@@ -256,20 +265,20 @@ console.log("\n[ب] the engine on the day, and the exception's message and choic
   const env = fourCases();
   await quiet(() => PR.refreshPriceDay(env));
   const t = lineFor(1), c = lineFor(2), p = lineFor(3), o = lineFor(4);
-  assert("(1) tomato: automatic at the market price 28 (🟢)", t.x_status === "auto" && t.x_sale_price === 28 && t.x_suggested_price === 28 && t.x_break_even === 26.45 && !t.x_excluded, JSON.stringify(t));
-  assert("(2) cucumber: an exception, «سعر السوق 34 أقل من السعر المربح 35.50»", c.x_status === "exception" && c.x_sale_price === 0 && c.x_excluded === true && c.x_reason === "سعر السوق 34 أقل من السعر المربح 35.50" && c.x_suggested_price === 35.5 && c.x_break_even === 33.7, JSON.stringify(c));
-  assert("(3) potato: an exception «لا سعر سوق» carrying the suggested 25.50 (and the break-even 24.04); ⚪ on the board", p.x_status === "exception" && p.x_reason === "لا سعر سوق" && p.x_suggested_price === 25.5 && p.x_break_even === 24.04 && p.x_board_status === "none" && p.x_full_cost === 20.9, JSON.stringify(p));
+  assert("(1) tomato: automatic at the market price 29 (🟢)", t.x_status === "auto" && t.x_sale_price === 29 && t.x_suggested_price === 29 && t.x_break_even === 26.45 && !t.x_excluded, JSON.stringify(t));
+  assert("(2) cucumber: an exception, «سعر السوق 34 أقل من السعر المربح 36»", c.x_status === "exception" && c.x_sale_price === 0 && c.x_excluded === true && c.x_reason === "سعر السوق 34 أقل من السعر المربح 36" && c.x_suggested_price === 36 && c.x_break_even === 33.7, JSON.stringify(c));
+  assert("(3) potato: an exception «لا سعر سوق» carrying the suggested 26.50 (and the break-even 24.04); ⚪ on the board", p.x_status === "exception" && p.x_reason === "لا سعر سوق" && p.x_suggested_price === 26.5 && p.x_break_even === 24.04 && p.x_board_status === "none" && p.x_full_cost === 20.9, JSON.stringify(p));
   assert("(4) onion: «لا سعر شراء», no suggested price", o.x_status === "exception" && o.x_reason === "لا سعر شراء" && o.x_suggested_price === 0 && o.x_break_even === 0, JSON.stringify(o));
   const n = await quiet(() => PR.notifyPriceExceptions(env));
   assert("04:00: one message per exception (3), none for the automatic line", n.action === "sent" && n.sent === 3 && excMsgs().length === 3 && !msgOf("طماطم"), JSON.stringify(n));
   const cm = msgOf("خيار"), pm = msgOf("بطاطس"), om = msgOf("بصل");
-  assert("(2) the message names both numbers: the market price 34 and the suggested 35.50", /الشراء \(بدون ضريبة\): 26 · السوق: 34/.test(cm.interactive.body.text) && /السعر المربح المقترح: 35\.50 · أقل سعر بيع بدون خسارة: 33\.70/.test(cm.interactive.body.text) && /قرارك قبل 06:00/.test(cm.interactive.body.text), cm.interactive.body.text);
+  assert("(2) the message names both numbers: the market price 34 and the suggested 36", /الشراء \(بدون ضريبة\): 26 · السوق: 34/.test(cm.interactive.body.text) && /السعر المربح المقترح: 36 · أقل سعر بيع بدون خسارة: 33\.70/.test(cm.interactive.body.text) && /قرارك قبل 06:00/.test(cm.interactive.body.text), cm.interactive.body.text);
   assert("(2) four choices → ONE list message under «القرار»: «اعتمد بالسعر المربح», «اعتمد بسعر السوق», «لا تنشر», «عدّل»",
     cm.interactive.type === "list" && cm.interactive.action.button === "القرار" && JSON.stringify(choiceIds(cm)) === JSON.stringify([`pexc_p_${c.id}`, `pexc_m_${c.id}`, `pexc_s_${c.id}`, `pexc_e_${c.id}`])
     && JSON.stringify(cm.interactive.action.sections[0].rows.map((r: any) => r.title)) === JSON.stringify(["اعتمد بالسعر المربح", "اعتمد بسعر السوق", "لا تنشر", "عدّل"]), JSON.stringify(cm.interactive.action));
-  assert("…each price beside its row (35.50 ر.س, 34 ر.س)", cm.interactive.action.sections[0].rows[0].description === "35.50 ر.س" && cm.interactive.action.sections[0].rows[1].description === "34 ر.س");
+  assert("…each price beside its row (36 ر.س, 34 ر.س)", cm.interactive.action.sections[0].rows[0].description === "36 ر.س" && cm.interactive.action.sections[0].rows[1].description === "34 ر.س");
   assert("(3) the message carries the suggested price; three reply buttons: «اعتمد بالسعر المربح» / «لا تنشر» / «عدّل»",
-    /السعر المربح المقترح: 25\.50/.test(pm.interactive.body.text) && /السوق: —/.test(pm.interactive.body.text) && pm.interactive.type === "button"
+    /السعر المربح المقترح: 26\.50/.test(pm.interactive.body.text) && /السوق: —/.test(pm.interactive.body.text) && pm.interactive.type === "button"
     && JSON.stringify(choiceIds(pm)) === JSON.stringify([`pexc_p_${p.id}`, `pexc_s_${p.id}`, `pexc_e_${p.id}`]) && pm.interactive.action.buttons[0].reply.title === "اعتمد بالسعر المربح", JSON.stringify(pm.interactive));
   assert("(4) no purchase: the buttons as before («اعتمد بسعر السوق» / «لا تنشر» / «عدّل»), no suggested line", JSON.stringify(choiceIds(om)) === JSON.stringify([`pexc_m_${o.id}`, `pexc_s_${o.id}`, `pexc_e_${o.id}`]) && !/السعر المربح المقترح/.test(om.interactive.body.text), om.interactive.body.text);
   assert("the new title fits a reply button (≤ 20 characters) and a list row (≤ 24)", PR.PROFIT_BUTTON_TITLE === "اعتمد بالسعر المربح" && [...PR.PROFIT_BUTTON_TITLE].length <= 20);
@@ -304,16 +313,16 @@ console.log("\n[ب] «اعتمد بالسعر المربح»: the tap, the lock,
   assert("on a line without a purchase price: refused, nothing written", /لا سعر مربح مقترح لـ بصل/.test(r0) && !lineFor(4).x_decision, r0);
   const r1 = await quiet(() => PR.handlePriceExceptionButton(env, `pexc_p_${p.id}`));
   const p1 = lineFor(3);
-  assert("potato (no market): approved by hand at the suggested 25.50", /بطاطس: يُنشر بالسعر المربح 25\.50 ر\.س/.test(r1) && p1.x_decision === "profit" && p1.x_manual_price === 25.5 && p1.x_status === "manual" && p1.x_sale_price === 25.5 && p1.x_excluded === false && p1.x_reason === "براء: اعتمد بالسعر المربح" && !!p1.x_decided_at, JSON.stringify({ r1, p1 }));
-  assert("…its card follows at once: sale 25.50, net sale 22.17, real profit 22.17 − 20.90 = 1.27 → 🟢", p1.x_board_sale === 25.5 && p1.x_net_sale === 22.17 && p1.x_real_profit === 1.27 && p1.x_board_status === "green", JSON.stringify(p1));
-  // the cucumber (market 34, above its break-even 33.70, below its suggested 35.50) is 🟢 on the board and still an exception
+  assert("potato (no market): approved by hand at the suggested 26.50", /بطاطس: يُنشر بالسعر المربح 26\.50 ر\.س/.test(r1) && p1.x_decision === "profit" && p1.x_manual_price === 26.5 && p1.x_manual_for === "profit" && p1.x_status === "manual" && p1.x_sale_price === 26.5 && p1.x_excluded === false && p1.x_reason === "براء: اعتمد بالسعر المربح" && !!p1.x_decided_at, JSON.stringify({ r1, p1 }));
+  assert("…its card follows at once: sale 26.50, net sale 23.04, real profit 23.04 − 20.90 = 2.14 → 🟢 (and no preview: the line is approved)", p1.x_board_sale === 26.5 && p1.x_net_sale === 23.04 && p1.x_real_profit === 2.14 && p1.x_board_status === "green" && p1.x_preview_sale === 0 && p1.x_preview_profit === 0, JSON.stringify(p1));
+  // the cucumber (market 34, above its break-even 33.70, below its suggested 36.00) is 🟢 on the board and still an exception
   assert("…and the header's counts: 🟢 3 (tomato, cucumber at the market price, potato) · ⚪ 1 (onion)", dayOf().x_n_green === 3 && dayOf().x_n_none === 1 && lineFor(2).x_board_status === "green" && lineFor(2).x_status === "exception", JSON.stringify(dayOf()));
   const r2 = await quiet(() => PR.handlePriceExceptionButton(env, `pexc_s_${p.id}`));
   assert("a second choice on the same line → «القرار مسجّل مسبقاً: اعتمد بالسعر المربح», unchanged", /القرار مسجّل مسبقاً على بطاطس: اعتمد بالسعر المربح/.test(r2) && lineFor(3).x_decision === "profit", r2);
   table("x_operating_cost").forEach((r: any) => { r.x_amount = 1000; });
   await quiet(() => PR.refreshPriceDay(env, { force: true }));
   const p2 = lineFor(3);
-  assert("the cost rises (the suggested price becomes 28.00): his decided 25.50 stays the sale price", p2.x_status === "manual" && p2.x_sale_price === 25.5 && p2.x_suggested_price === 28 && p2.x_manual_price === 25.5, JSON.stringify(p2));
+  assert("the cost rises (the suggested price becomes 29.00): his decided 26.50 stays the sale price", p2.x_status === "manual" && p2.x_sale_price === 26.5 && p2.x_suggested_price === 29 && p2.x_manual_price === 26.5, JSON.stringify(p2));
   // through /webhook: a list row's tap arrives as list_reply
   const c = lineFor(2);
   graph.length = 0;
@@ -341,36 +350,36 @@ console.log("\n[ب] the decision from Odoo («قرار براء» = «اعتمد
   table("x_price_day_line").get(lineFor(3).id)!.x_decision = "profit";          // chosen in the form, «السعر المعدّل» left empty
   await quiet(() => PR.refreshPriceDay(env, { force: true }));                     // «🔄 إعادة الحساب»
   const p = lineFor(3);
-  assert("the engine applies it: approved by hand at the suggested 25.50", p.x_status === "manual" && p.x_sale_price === 25.5 && p.x_reason === "براء: اعتمد بالسعر المربح" && !p.x_excluded && !!p.x_decided_at, JSON.stringify(p));
-  assert("…and keeps that 25.50 as his price («السعر المعدّل»): a later cost change does not move a decided line", p.x_manual_price === 25.5);
+  assert("the engine applies it: approved by hand at the suggested 26.50", p.x_status === "manual" && p.x_sale_price === 26.5 && p.x_reason === "براء: اعتمد بالسعر المربح" && !p.x_excluded && !!p.x_decided_at, JSON.stringify(p));
+  assert("…and keeps that 26.50 as his price («السعر المعدّل», fixed for «profit»): a later cost change does not move a decided line", p.x_manual_price === 26.5 && p.x_manual_for === "profit");
   table("x_operating_cost").forEach((r: any) => { r.x_amount = 1000; });
   await quiet(() => PR.refreshPriceDay(env, { force: true }));
-  assert("…the cost rises (suggested 28.00): still approved at 25.50", lineFor(3).x_sale_price === 25.5 && lineFor(3).x_suggested_price === 28 && lineFor(3).x_status === "manual", JSON.stringify(lineFor(3)));
+  assert("…the cost rises (suggested 29.00): still approved at 26.50", lineFor(3).x_sale_price === 26.5 && lineFor(3).x_suggested_price === 29 && lineFor(3).x_status === "manual", JSON.stringify(lineFor(3)));
   table("x_operating_cost").forEach((r: any) => { r.x_amount = 500; });
   await quiet(() => PR.refreshPriceDay(env, { force: true }));
   setRiyadh(`${DAY} 06:00`);
   const tick = await quiet(() => PR.runPricesTick(env, Date.now()));
   const list = JSON.stringify(heldFor(env, "966500000891"));
-  assert("06:00: published — tomato at the market 28 and potato at the suggested 25.50", (tick.deadline as any)?.action === "auto_published" && dayOf().x_state === "published" && /• طماطم \(كرتون\): 28 ر.س/.test(list) && /• بطاطس \(كرتون\): 25\.50 ر.س/.test(list), list.slice(0, 400));
+  assert("06:00: published — tomato at the market 29 and potato at the suggested 26.50", (tick.deadline as any)?.action === "auto_published" && dayOf().x_state === "published" && /• طماطم \(كرتون\): 29 ر.س/.test(list) && /• بطاطس \(كرتون\): 26\.50 ر.س/.test(list), list.slice(0, 400));
   assert("…the undecided exceptions (cucumber, onion) are not published, as before, and Baraa gets the one line", !/خيار|بصل/.test(list) && lineFor(2).x_status === "unpublished" && /استثناء بلا قرار عند النشر/.test(String(lineFor(2).x_reason)) && ownerTexts().filter((x) => x.startsWith("⏰ لم يُنشر اليوم 2 أصناف")).length === 1, JSON.stringify(ownerTexts().slice(-3)));
   const price = await quiet(() => OD.getLatestSalePrice(env, 3, 31));
-  assert("the quotation / invoice price of potato: today's published 25.50", price.price === 25.5 && price.source === "today", JSON.stringify(price));
+  assert("the quotation / invoice price of potato: today's published 26.50", price.price === 26.5 && price.source === "today", JSON.stringify(price));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 
 // ================================================================ [ج] the numbers of 2026-10-01, and the new-product alert
-console.log("\n[ج] 2026-10-01: share 1.99 (496.52 ÷ 250), waste 5 %, margin 5 %");
+console.log("\n[ج] 2026-10-01: share 1.99 (496.52 ÷ 250), waste 5 %, minimum profit 2 riyals a carton (§ 48 أ)");
 {
   const share = PB.boardShare(496.52, 250, { days: 0, average: null }).share;
   const want: Array<[string, number, number, number, number, number]> = [
-    ["رمان كبير", 22, 1.1, 25.09, 28.85, 30.5],
-    ["رمان وسط", 16, 0.8, 18.79, 21.61, 23],
-    ["رمان صغير", 12, 0.6, 14.59, 16.78, 18],
-    ["موز أمريكي", 22, 1.1, 25.09, 28.85, 30.5],
+    ["رمان كبير", 22, 1.1, 25.09, 28.85, 31.5],
+    ["رمان وسط", 16, 0.8, 18.79, 21.61, 24],
+    ["رمان صغير", 12, 0.6, 14.59, 16.78, 19.5],
+    ["موز أمريكي", 22, 1.1, 25.09, 28.85, 31.5],
   ];
   assert("the carton share: 1.99", share === 1.99);
   for (const [name, purchase, waste, full, even, suggested] of want) {
-    const b = PB.boardLine({ purchase, sale: 0, wastePct: 5, vatRatePct: 15, opShare: share, minMarginPct: 5 });
+    const b = PB.boardLine({ purchase, sale: 0, wastePct: 5, vatRatePct: 15, opShare: share, minProfit: 2 });
     assert(`${name}: الشراء ${purchase} · التالف ${waste} · التكلفة الكاملة ${full} · أقل سعر بدون خسارة ${even} · المقترح ${suggested} · ⚪ بلا سوق`,
       b.x_net_purchase === purchase && b.x_waste_cost === waste && b.x_full_cost === full && b.x_break_even === even && b.x_suggested_price === suggested && b.x_board_status === "none" && b.x_real_profit === 0, JSON.stringify(b));
   }
@@ -387,8 +396,8 @@ console.log("\n[ج] 2026-10-01: share 1.99 (496.52 ÷ 250), waste 5 %, margin 5 
   const r = await quiet(() => PR.refreshPriceDay(env, { day: "2026-10-01", force: true }));
   const t = lineFor(1, "2026-10-01"), b = table("x_price_day_line").get(banana) as any;
   assert("a «فات الموعد» day is still computed by the engine, and stays «فات الموعد»", r.action === "refreshed" && dayOf("2026-10-01").x_state === "missed" && !odooLog.some((x) => x.model === "x_price_day" && "x_state" in (x.body?.vals ?? {})), JSON.stringify(r));
-  assert("its line with a purchase price and no market: an exception «لا سعر سوق», the two numbers written, ⚪", t.x_cost_price === 22 && t.x_status === "exception" && t.x_reason === "لا سعر سوق" && t.x_full_cost === 25.09 && t.x_break_even === 28.85 && t.x_suggested_price === 30.5 && t.x_board_status === "none", JSON.stringify(t));
-  assert("the line of a product not for sale keeps its purchase price and gets the same numbers («لم يُنشر»)", b.x_cost_price === 22 && b.x_status === "unpublished" && b.x_full_cost === 25.09 && b.x_break_even === 28.85 && b.x_suggested_price === 30.5 && b.x_board_status === "none", JSON.stringify(b));
+  assert("its line with a purchase price and no market: an exception «لا سعر سوق», the two numbers written, ⚪", t.x_cost_price === 22 && t.x_status === "exception" && t.x_reason === "لا سعر سوق" && t.x_full_cost === 25.09 && t.x_break_even === 28.85 && t.x_suggested_price === 31.5 && t.x_board_status === "none", JSON.stringify(t));
+  assert("the line of a product not for sale keeps its purchase price and gets the same numbers («لم يُنشر»)", b.x_cost_price === 22 && b.x_status === "unpublished" && b.x_full_cost === 25.09 && b.x_break_even === 28.85 && b.x_suggested_price === 31.5 && b.x_board_status === "none", JSON.stringify(b));
   assert("…and nothing is sent by a recompute (no exception message outside 04:00–06:00, no publication)", graph.length === 0 && heldFor(env, OWNER).length === 0);
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
@@ -418,7 +427,7 @@ console.log("\n[س] schema, and the wiring");
 assert("no Odoo field or value outside the schema in the whole run", rejected.length === 0, rejected.join(" | "));
 {
   const f = FIX[FIX.length - 1];
-  assert("the § 47 fixture (read-only fields_get) names x_min_margin_pct, x_break_even, x_suggested_price", f.x_pricing_config.includes("x_min_margin_pct") && f.x_price_day_line.includes("x_break_even") && f.x_price_day_line.includes("x_suggested_price"));
+  assert("the fixture (read-only fields_get) still names x_min_margin_pct (nothing deleted), x_break_even, x_suggested_price", f.x_pricing_config.includes("x_min_margin_pct") && f.x_price_day_line.includes("x_break_even") && f.x_price_day_line.includes("x_suggested_price"));
   assert("…and «profit» among the decisions", JSON.stringify(f._selections["x_price_day_line.x_decision"]) === '["market","skip","edit","profit"]');
   const idx = readFileSync(new URL("../src/index.ts", import.meta.url), "utf8");
   assert("the owner's branch routes pexc_p_ to the price decision (a reply button or a list row)", /\/\^pexc_\[mspe\]_\\d\+\$\/\.test\(msg\.buttonId/.test(idx) && PR.PRICE_EXCEPTION_PAYLOAD.test("pexc_p_12") && !PR.PRICE_EXCEPTION_PAYLOAD.test("pexc_x_12"));

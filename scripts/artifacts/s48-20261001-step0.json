@@ -1,0 +1,70 @@
+{
+  "label": "s48-step0 (scripts/s47-20261001-step0.mjs, read-only)",
+  "atRiyadh": "2026-10-01 12:57",
+  "prod": {
+    "version": "7792abbd-7ea4-4ef8-afb7-cb37d15b081f",
+    "deployedAt": "2026-10-01T09:07:33.458602Z",
+    "schedules": [
+      "0 14 * * *",
+      "0 15 * * *",
+      "0 17 * * *",
+      "0 18 * * *",
+      "0 2 * * *",
+      "0 23 * * *",
+      "0 3 * * *",
+      "0 5 * * *",
+      "15 18 * * *",
+      "2,7,12,17,22,27,32,37,42,47,52,57 * * * *",
+      "30 18 * * *",
+      "*/5 * * * *"
+    ],
+    "health": {
+      "status": 200,
+      "state": "ok",
+      "odoo": "connected (apikey)"
+    }
+  },
+  "sim": {
+    "version": "57ebf92a-4909-40d6-b090-2a99cc1fc28d",
+    "deployedAt": "2026-10-01T09:06:30.529728Z",
+    "schedules": [],
+    "health": {
+      "status": 200,
+      "state": "ok",
+      "odoo": "connected (apikey)"
+    }
+  },
+  "metaPhoneWebhook": {
+    "application": "https://utak-worker.utak-business.workers.dev/webhook"
+  },
+  "odoo": {
+    "prod": [
+      "ir.actions.server #1001 utak.prices.approve_webhook (webhook_url)",
+      "ir.actions.server #1012 utak.sp.created_webhook (webhook_url)",
+      "ir.actions.server #1014 utak.sp.decided_webhook_approve (webhook_url)",
+      "ir.actions.server #1017 utak.sp.decided_webhook_reject (webhook_url)",
+      "ir.actions.server #957 Send Receipt Webhook (webhook_url)",
+      "ir.actions.server #941 UTAK: Issue & Send Quotation (webhook_url)",
+      "ir.actions.server #982 official-doc.ai_draft_webhook (webhook_url)",
+      "ir.actions.server #981 official-doc.issue_webhook (webhook_url)",
+      "ir.actions.server #980 official-doc.preview_webhook (webhook_url)",
+      "ir.actions.server #968 quotation.manual_pdf_build (webhook_url)",
+      "ir.actions.server #969 quotation.manual_wa_send (webhook_url)",
+      "ir.actions.server #971 sale.quotation.pdf_download (code)",
+      "ir.actions.server #970 sale.quotation.wa_send (webhook_url)",
+      "ir.actions.server #974 utak.invoice.pdf_download (code)",
+      "ir.actions.server #1004 utak.prices.refresh_webhook (webhook_url)",
+      "ir.actions.server #975 utak.purchase.pdf_download (code)",
+      "ir.actions.server #1021 utak.sp.refresh_dues_webhook (webhook_url)",
+      "ir.actions.server #997 utak.team_roster.hook ← hr.employee (webhook_url)",
+      "ir.actions.server #998 utak.team_roster.hook ← resource.calendar.attendance (webhook_url)",
+      "ir.actions.server #999 utak.team_roster.hook ← resource.calendar.leaves (webhook_url)",
+      "ir.actions.server #963 wa_control.sync_webhook (webhook_url)",
+      "ir.actions.server #985 wa_inbox.partner_title_webhook (webhook_url)",
+      "ir.actions.server #979 wa_inbox.reply_webhook (webhook_url)",
+      "ir.actions.server #967 wa_message.send_webhook (webhook_url)"
+    ],
+    "sim": []
+  },
+  "odooProdActions": 24
+}

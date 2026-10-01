@@ -2475,7 +2475,12 @@ export async function getLatestSalePrice(
    * published (06:00) — and took the delivery day's: nothing published yet →
    * that day's supplier row or the latest price ever. § 47 أ: only a row's
    * x_sale_price counts — its purchase price (net of VAT) is never the sale
-   * price. Default: today (Riyadh).
+   * price. § 48 ب: the fallback of a day that is not published is «السعر
+   * المربح المقترح» — the day's line carries it (the lowest purchase price of
+   * the day, whoever the source), and a supplier row carries the one of its
+   * own purchase price; a purchase price whose suggested price cannot be made
+   * (the carton share «تعذّر») has NO fallback: «missing», never an older
+   * day's price. Default: today (Riyadh).
    */
   day?: string,
 ): Promise<SalePriceLookup> {
@@ -2500,6 +2505,28 @@ export async function getLatestSalePrice(
     if (p > 0) return { price: p, source: "today", price_date: today, age_days: 0 };
   } catch (e) {
     console.warn("[price] published lookup failed — supplier price", (e as Error)?.message);
+  }
+  // § 48 ب — not published (the day, or this item on it): the suggested
+  // profitable price of the day's line. A line with a purchase price and no
+  // suggested price (the carton share cannot be read): no fallback at all.
+  try {
+    const [line] = await call<Array<{ x_suggested_price?: number | false; x_cost_price?: number | false }>>(env, "x_price_day_line", "search_read", {
+      domain: [
+        ["x_day_id.x_date", "=", today],
+        ["x_day_id.x_utak_simulation", "!=", true],
+        ["x_utak_simulation", "!=", true],
+        ["x_product_tmpl_id", "=", productId],
+        ["x_packaging_id", "=", packagingId],
+      ],
+      fields: ["x_suggested_price", "x_cost_price"],
+      order: "id desc",
+      limit: 1,
+    });
+    const suggested = Number(line?.x_suggested_price ?? 0);
+    if (suggested > 0) return { price: suggested, source: "today", price_date: today, age_days: 0 };
+    if (Number(line?.x_cost_price ?? 0) > 0) return { price: 0, source: "missing", price_date: null, age_days: null };
+  } catch (e) {
+    console.warn("[price] the day's line lookup failed — supplier price", (e as Error)?.message);
   }
   type Row = { x_sale_price: number | false; x_date: string | false };
   // § 47 أ — a purchase price is never a sale price: x_price_sar is net of VAT
@@ -2526,6 +2553,22 @@ export async function getLatestSalePrice(
       return { price, source: "today", price_date: today, age_days: 0 };
     }
   }
+  // § 48 ب — a purchase price today and no fallback on its row (the suggested
+  // price could not be made): no price, never an older day's — the zero-price
+  // guard stops the order.
+  const bare = await call<Array<{ id: number }>>(env, "x_daily_price", "search_read", {
+    domain: [
+      ["x_product_tmpl_id", "=", productId],
+      ["x_packaging_id", "=", packagingId],
+      ["x_date", "=", today],
+      ["x_price_sar", ">", 0],
+      ["x_extraction_status", "!=", "failed"],
+      ["x_utak_simulation", "!=", true],
+    ],
+    fields: ["id"],
+    limit: 1,
+  });
+  if (bare.length) return { price: 0, source: "missing", price_date: null, age_days: null };
   // Fallback: most recent price ever (kept — only tagged, not removed), up to
   // the day asked (§ 41: a later day's price is not this order's).
   const fallback = await call<Row[]>(env, "x_daily_price", "search_read", {

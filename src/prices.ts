@@ -34,6 +34,14 @@
 // each line carries «أقل سعر بيع بدون خسارة» and «السعر المربح المقترح»: the
 // engine's rule and the exception's fourth choice read them.
 //
+// § 48 — the suggested price = (full cost + «الربح الأدنى للكرتون») × 1.15
+// rounded up to 0.5; the engine keeps every supplier row's fallback sale price
+// (x_daily_price.x_sale_price) = the suggested price of its purchase price; a
+// line without an approved price carries a preview at the suggested price; and
+// a decision taken in Odoo («قرار براء») is applied by the tick within five
+// minutes on a draft or a missed day, «🔄 إعادة الحساب» pressed or not — the
+// day's state is never changed by it and nothing is sent.
+//
 // Nothing here writes list_price or standard_price.
 
 import type { Env } from "./config";
@@ -48,11 +56,11 @@ import { arabicDate, maskPhone } from "./wa-params";
 import { riyadhDateKey, riyadhDayMinuteMs, riyadhMinutes } from "./hours";
 import { waDigits } from "./wa-window";
 import {
-  computePricing, lineVerdict, readActiveItems, readDayOffers, saleRule, type Decision, type LineStatus,
+  computePricing, fixedPrice, lineVerdict, readActiveItems, readDayOffers, saleRule, type Decision, type LineStatus, type LineVerdict,
 } from "./pricing-engine";
 import { loadPriceSources, MARKET_ASK_MINUTE, MARKET_REPLY_WINDOW_MIN } from "./price-sources";
 import { readPricingSettings } from "./operating-cost";
-import { BOARD_LINE_FIELDS, boardHeader, boardLine, boardShare, readBoardInputs, type BoardStatus } from "./pricing-board";
+import { BOARD_LINE_FIELDS, boardHeader, boardLine, boardShare, fallbackSale, readBoardInputs, type BoardStatus, type FloorInputs } from "./pricing-board";
 
 export const PRICE_DAY_MODEL = "x_price_day";
 export const PRICE_LINE_MODEL = "x_price_day_line";
@@ -128,6 +136,8 @@ export interface DayLine {
   x_decision: Decision | false;
   x_manual_price: number;
   x_decided_at: string | false;
+  /** § 48 د — the decision x_manual_price was fixed for by the worker (market / profit / edit); empty = none, or fixed before § 48. */
+  x_manual_for?: string | false;
   // § 46 أ — «📊 لوحة التسعير» (src/pricing-board.ts)
   x_net_purchase?: number;
   x_waste_cost?: number;
@@ -140,13 +150,16 @@ export interface DayLine {
   x_net_sale?: number;
   x_real_profit?: number;
   x_board_status?: BoardStatus | false;
+  // § 48 ج — the preview of a line without an approved price (0 = none)
+  x_preview_sale?: number;
+  x_preview_profit?: number;
 }
 
 const DAY_FIELDS = ["id", "x_date", "x_state", "x_name", "x_approved_at", "x_approved_by", "x_published_at"];
 const LINE_FIELDS = [
   "id", "x_sequence", "x_product_tmpl_id", "x_packaging_id", "x_supplier_id", "x_daily_price_id", "x_default_price_id",
   "x_source_price", "x_cost_price", "x_is_outlier", "x_outlier_ok", "x_margin_pct", "x_sale_price", "x_excluded", "x_blocked", "x_offers",
-  "x_market_price", "x_market_count", "x_unit_profit", "x_status", "x_reason", "x_decision", "x_manual_price", "x_decided_at",
+  "x_market_price", "x_market_count", "x_unit_profit", "x_status", "x_reason", "x_decision", "x_manual_price", "x_decided_at", "x_manual_for",
   ...BOARD_LINE_FIELDS,
 ];
 
@@ -248,21 +261,27 @@ export async function refreshPriceDay(env: Env, opts: { day?: string; force?: bo
   // § 46 أ — the day's cost over the cartons: the board, and (§ 47 ب) the suggested profitable price of the rule
   const inputs = await readBoardInputs(env, day, now, !!opts.force);
   const share = boardShare(inputs.cost, settings.expectedCartons, inputs.actual, inputs.costReason);
-  const plan = computePricing(items, offers, settings.wastePct, vat, { opShare: share.share, minMarginPct: settings.minMarginPct });
+  const floor: FloorInputs = { wastePct: settings.wastePct, opShare: share.share, minProfit: settings.minProfit, vatRatePct: vat.ratePct };
+  const plan = computePricing(items, offers, settings.wastePct, vat, { opShare: share.share, minProfit: settings.minProfit });
   const rec = found ?? (await ensureDay(env, day));
   const lines = await readLines(env, rec.id);
-  const fp = fnv1a(JSON.stringify([
-    rec.id, rec.x_state, settings.wastePct, settings.minMarginPct, vat.ratePct, [...sources.partnerIds].sort((a, b) => a - b),
+  // the inputs' fingerprint (the stored fallback of a supplier row is one of them: a value typed over it is put back)
+  const fingerprint = () => fnv1a(JSON.stringify([
+    rec.id, rec.x_state, settings.wastePct, settings.minProfit, vat.ratePct, [...sources.partnerIds].sort((a, b) => a - b),
     [share.cost, share.cartons, share.basis, share.expected],
-    offers.map((o) => [o.model, o.rowId, o.kind, o.price, o.outlier, o.partnerId]),
+    offers.map((o) => [o.model, o.rowId, o.kind, o.price, o.outlier, o.partnerId, o.saleStored ?? 0]),
     items.map((i) => [i.productId, i.packagingId]),
-    lines.filter((l) => l.x_decision || Number(l.x_manual_price) > 0).map((l) => [lineKey(l), l.x_decision || "", Number(l.x_manual_price) || 0]),
+    lines.filter((l) => l.x_decision || Number(l.x_manual_price) > 0).map((l) => [lineKey(l), l.x_decision || "", Number(l.x_manual_price) || 0, l.x_manual_for || ""]),
   ]));
   if (!opts.force) {
     try {
-      if ((await env.MSG_DEDUP.get(fpKey(day))) === fp) return { day, action: "unchanged", dayId: rec.id, state: rec.x_state };
+      if ((await env.MSG_DEDUP.get(fpKey(day))) === fingerprint()) return { day, action: "unchanged", dayId: rec.id, state: rec.x_state };
     } catch { /* recompute */ }
   }
+  // § 48 ب — the fallback sale price of every supplier row of the day = the suggested price of its purchase price
+  await syncFallbackSale(env, day, offers, floor);
+  // …and the fingerprint kept is the one of the rows as they are now (the next tick is «unchanged»)
+  const fp = fingerprint();
   const byKey = new Map(lines.map((l) => [lineKey(l), l]));
   const creates: Array<Record<string, unknown>> = [];
   const counts: Record<LineStatus, number> = { auto: 0, exception: 0, manual: 0, unpublished: 0 };
@@ -272,13 +291,16 @@ export async function refreshPriceDay(env: Env, opts: { day?: string; force?: bo
   for (const p of plan) {
     const l = byKey.get(p.key);
     const decision = (l?.x_decision || null) as Decision | null;
-    const v = lineVerdict(p, decision, Number(l?.x_manual_price) || 0);
+    // § 48 د — the price fixed for THIS decision (a decision changed in Odoo does not inherit another's)
+    const fixed = l ? fixedPrice(l) : 0;
+    const v = lineVerdict(p, decision, fixed);
     counts[v.status]++;
     const src = p.purchaseOffer;
-    // § 46 أ — the board's sale is the approved price, else the market price (the rule: sale = market)
+    // § 46 أ — the board's sale is the approved price, else the market price (the rule: sale = market);
+    // § 48 ج — without an approved price the line also carries the preview at the suggested price
     const b = boardLine({
-      purchase: p.purchase, sale: v.sale > 0 ? v.sale : p.market, wastePct: settings.wastePct,
-      vatRatePct: vat.ratePct, opShare: share.share, minMarginPct: settings.minMarginPct,
+      purchase: p.purchase, sale: v.sale > 0 ? v.sale : p.market, approved: v.sale > 0, wastePct: settings.wastePct,
+      vatRatePct: vat.ratePct, opShare: share.share, minProfit: settings.minProfit,
     });
     board.push(b.x_board_status);
     const want: Record<string, unknown> = {
@@ -309,9 +331,7 @@ export async function refreshPriceDay(env: Env, opts: { day?: string; force?: bo
       continue;
     }
     if (decision && !l.x_decided_at) want.x_decided_at = nowOdoo(now);
-    // § 47 ب — «اعتمد بالسعر المربح» chosen in Odoo without a price: the suggested price of this run is
-    // kept as his price (as the WhatsApp tap keeps the one he saw), so a later cost change does not move it
-    if (decision === "profit" && v.status === "manual" && !(Number(l.x_manual_price) > 0)) want.x_manual_price = v.sale;
+    Object.assign(want, keptPrice(l, decision, v, fixed));
     const vals = changed(l, want);
     if (Object.keys(vals).length) {
       await call(env, PRICE_LINE_MODEL, "write", { ids: [l.id], vals });
@@ -321,9 +341,12 @@ export async function refreshPriceDay(env: Env, opts: { day?: string; force?: bo
   const planned = new Set(plan.map((p) => p.key));
   for (const l of lines) {
     if (planned.has(lineKey(l))) continue;
-    const b = storedBoardLine(l, settings.wastePct, vat.ratePct, share.share, settings.minMarginPct);
+    // the line leaves with no sale price: its board is the one of an unapproved line (the market price, the preview)
+    const b = storedBoardLine({ ...l, x_sale_price: 0 }, settings.wastePct, vat.ratePct, share.share, settings.minProfit);
     board.push(b.x_board_status);
     const vals = changed(l, { x_status: "unpublished", x_reason: "ليس في الكتالوج النشط اليوم", x_sale_price: 0, x_excluded: true, ...b });
+    // § 48 د — a decision taken in Odoo on such a line is seen once (the tick does not ask for the day again)
+    if (l.x_decision && !l.x_decided_at) vals.x_decided_at = nowOdoo(now);
     if (Object.keys(vals).length) {
       await call(env, PRICE_LINE_MODEL, "write", { ids: [l.id], vals });
       updated++;
@@ -347,13 +370,58 @@ export async function refreshPriceDay(env: Env, opts: { day?: string; force?: bo
 
 // ---------------------------------------------------------------- the board (§ 46 أ)
 
-/** A stored line on the board: its purchase (net as written), its approved sale price else its market price. */
-function storedBoardLine(l: DayLine, wastePct: number, vatRatePct: number | null, opShare: number | null, minMarginPct: number) {
+/** A stored line on the board: its purchase (net as written), its approved sale price else its market price (then with the preview, § 48 ج). */
+function storedBoardLine(l: DayLine, wastePct: number, vatRatePct: number | null, opShare: number | null, minProfit: number) {
   return boardLine({
     purchase: Number(l.x_cost_price) || 0,
     sale: Number(l.x_sale_price) > 0 ? Number(l.x_sale_price) : Number(l.x_market_price) || 0,
-    wastePct, vatRatePct, opShare, minMarginPct,
+    approved: Number(l.x_sale_price) > 0,
+    wastePct, vatRatePct, opShare, minProfit,
   });
+}
+
+/**
+ * § 47 ب / § 48 د — what the engine keeps of the price of a decision.
+ *   • «اعتمد بالسعر المربح» without a price fixed for it (chosen in Odoo): the
+ *     suggested price of this run becomes his price (as the WhatsApp tap keeps
+ *     the one he saw), so a later cost change does not move it;
+ *   • «اعتمد بسعر السوق» chosen in Odoo follows the day's market price, as
+ *     before; a price fixed for ANOTHER decision is dropped, never inherited;
+ *   • the decision removed, or «لا تنشر»: a price the worker fixed for an
+ *     earlier decision goes with it (a number Baraa typed himself stays).
+ */
+function keptPrice(l: DayLine, decision: Decision | null, v: LineVerdict, fixed: number): Record<string, unknown> {
+  const stale = !(fixed > 0) && Number(l.x_manual_price) > 0;
+  if (decision === "profit" && v.status === "manual") return { ...(fixed > 0 ? {} : { x_manual_price: v.sale }), x_manual_for: "profit" };
+  if (decision === "market" && v.status === "manual") return stale ? { x_manual_price: 0, x_manual_for: false } : fixed > 0 ? { x_manual_for: "market" } : {};
+  if (decision === "edit" && v.status === "manual") return { x_manual_for: "edit" };
+  if ((!decision || decision === "skip") && l.x_manual_for) return { x_manual_price: 0, x_manual_for: false };
+  return {};
+}
+
+/**
+ * § 48 ب — every supplier row of the day (x_daily_price of a source) carries,
+ * as its fallback sale price, the suggested profitable price of its own
+ * purchase price — what a quotation takes when the day is not published. 0
+ * when the suggested price cannot be made (the carton share «تعذّر»): no
+ * fallback, and the zero-price guard stops the order. Only a row whose stored
+ * value differs is written. Never blocks the engine.
+ */
+async function syncFallbackSale(env: Env, day: string, offers: Array<{ model: string; rowId: number; kind: string; price: number; saleStored?: number }>, floor: FloorInputs): Promise<number> {
+  let written = 0;
+  for (const o of offers) {
+    if (o.model !== "dp" || o.kind !== "purchase") continue;
+    const want = fallbackSale(o.price, floor);
+    if (Math.abs((o.saleStored ?? 0) - want) < 0.0001) continue;
+    try {
+      await call(env, "x_daily_price", "write", { ids: [o.rowId], vals: { x_sale_price: want } });
+      o.saleStored = want;
+      written++;
+    } catch (e) {
+      console.warn(`[prices] ${day}: the fallback sale price of x_daily_price ${o.rowId} was not written`, (e as Error)?.message);
+    }
+  }
+  return written;
 }
 
 export interface BoardReport { day: string; dayId: number; lines: number; updated: number; counts: Record<BoardStatus, number> }
@@ -380,7 +448,7 @@ export async function rewriteBoard(env: Env, dayId: number, opts: { now?: number
   const values: Array<Record<string, unknown>> = [];
   let updated = 0;
   for (const l of lines) {
-    const b = storedBoardLine(l, settings.wastePct, vatRatePct, share.share, settings.minMarginPct);
+    const b = storedBoardLine(l, settings.wastePct, vatRatePct, share.share, settings.minProfit);
     counts[b.x_board_status]++;
     values.push({ id: l.id, name: `${lineName(l)}${Array.isArray(l.x_packaging_id) ? ` — ${l.x_packaging_id[1]}` : ""}`, purchase: Number(l.x_cost_price) || 0, ...b });
     const vals = changed(l, { ...b });
@@ -856,14 +924,14 @@ export async function handlePriceExceptionButton(env: Env, payload: string, now:
     // § 47 ب — the suggested profitable price the line carries (the number his message showed)
     const suggested = Math.round((Number(l.x_suggested_price) || 0) * 100) / 100;
     if (!(suggested > 0)) return `لا سعر مربح مقترح لـ ${name} اليوم (لا سعر شراء، أو تكلفة اليوم لا تُقرأ): اختر «لا تنشر» أو «عدّل».`;
-    const ok = await decide(env, l, { x_decision: "profit", x_manual_price: suggested, x_status: "manual", x_reason: "براء: اعتمد بالسعر المربح", x_sale_price: suggested, x_excluded: false }, now);
+    const ok = await decide(env, l, { x_decision: "profit", x_manual_price: suggested, x_manual_for: "profit", x_status: "manual", x_reason: "براء: اعتمد بالسعر المربح", x_sale_price: suggested, x_excluded: false }, now);
     if (ok) await boardAfterDecision(env, day.id, now);
     return ok ? `✅ ${name}: يُنشر بالسعر المربح ${money(suggested)} ر.س.${missedTail(day)}` : `القرار مسجّل مسبقاً على ${name}.`;
   }
   if (mm[1] === "m") {
     const market = Math.round((Number(l.x_market_price) || 0) * 100) / 100;
     if (!(market > 0)) return `لا سعر سوق لـ ${name} اليوم: اختر «لا تنشر» أو «عدّل».`;
-    const ok = await decide(env, l, { x_decision: "market", x_manual_price: market, x_status: "manual", x_reason: "براء: اعتمد بسعر السوق", x_sale_price: market, x_excluded: false }, now);
+    const ok = await decide(env, l, { x_decision: "market", x_manual_price: market, x_manual_for: "market", x_status: "manual", x_reason: "براء: اعتمد بسعر السوق", x_sale_price: market, x_excluded: false }, now);
     if (ok) await boardAfterDecision(env, day.id, now);
     return ok ? `✅ ${name}: يُنشر بسعر السوق ${money(market)} ر.س.${missedTail(day)}` : `القرار مسجّل مسبقاً على ${name}.`;
   }
@@ -895,7 +963,7 @@ export async function handlePriceEditReply(env: Env, text: string, now: number =
   await env.MSG_DEDUP.delete(editKey(env)).catch(() => {});
   if (why || !l || !day) return why ?? null;
   const price = Math.round(nums[0] * 100) / 100;
-  const ok = await decide(env, l, { x_decision: "edit", x_manual_price: price, x_status: "manual", x_reason: "براء: سعر معدّل", x_sale_price: price, x_excluded: false }, now);
+  const ok = await decide(env, l, { x_decision: "edit", x_manual_price: price, x_manual_for: "edit", x_status: "manual", x_reason: "براء: سعر معدّل", x_sale_price: price, x_excluded: false }, now);
   if (ok) await boardAfterDecision(env, day.id, now);
   return ok ? `✅ ${lineName(l)}: يُنشر بـ ${money(price)} ر.س.${missedTail(day)}` : `القرار مسجّل مسبقاً على ${lineName(l)}.`;
 }
@@ -908,6 +976,42 @@ export interface PricesTick {
   exceptions?: { action: string } | { error: string };
   deadline?: DeadlineReport | { error: string };
   publish?: PublishReport | { error: string };
+  /** § 48 د — the days recomputed because a decision taken in Odoo was waiting. */
+  decisions?: RefreshReport[] | { error: string };
+}
+
+/** A decision taken in Odoo is looked for on the days from this many days back (today, yesterday). */
+export const ODOO_DECISION_DAYS_BACK = 1;
+
+/**
+ * § 48 د — «قرار براء» chosen in Odoo on a line is applied by the engine: the
+ * line carries a decision and no «وقت القرار» (the engine writes it when it
+ * sees the decision; the WhatsApp tap writes it itself). The engine runs by
+ * itself only from 02:00 to the end of the publication window, and
+ * «🔄 إعادة الحساب» may not have been pressed after the decision was saved
+ * (2026-10-01: the four decisions of day #50 were saved at 12:51 and nothing
+ * computed them). So every tick looks for such a line on a draft or a missed
+ * real day of today or yesterday, and recomputes that day — its lines, its
+ * board. The day's state is not written and nothing is sent: a missed day
+ * stays missed, and is published only by «نشر المعتمد الآن».
+ */
+export async function applyOdooDecisions(env: Env, now: number = Date.now()): Promise<RefreshReport[]> {
+  const today = riyadhDateKey(new Date(now));
+  const from = riyadhDateKey(new Date(now - ODOO_DECISION_DAYS_BACK * 24 * 3600_000));
+  const waiting = await call<Array<{ id: number; x_day_id: [number, string] | false }>>(env, PRICE_LINE_MODEL, "search_read", {
+    domain: [
+      ["x_decision", "!=", false], ["x_decided_at", "=", false],
+      ["x_day_id.x_state", "in", ["draft", "missed"]], ["x_day_id.x_utak_simulation", "!=", true],
+      ["x_day_id.x_date", ">=", from], ["x_day_id.x_date", "<=", today],
+    ],
+    fields: ["id", "x_day_id"], order: "id asc", limit: 200,
+  });
+  const dayIds = [...new Set(waiting.map((l) => m2oId(l.x_day_id)).filter(Boolean))];
+  if (!dayIds.length) return [];
+  const recs = await call<DayRecord[]>(env, PRICE_DAY_MODEL, "read", { ids: dayIds, fields: ["id", "x_date", "x_state"] });
+  const out: RefreshReport[] = [];
+  for (const day of [...new Set(recs.map((r) => r.x_date))].sort()) out.push(await refreshPriceDay(env, { day, now, force: true }));
+  return out;
 }
 
 /**
@@ -930,6 +1034,8 @@ export async function runPricesTick(env: Env, now: number = Date.now(), ctx?: Ex
   } catch (e) { out.refresh = { error: (e as Error)?.message ?? String(e) }; }
   try { out.exceptions = await notifyPriceExceptions(env, now); } catch (e) { out.exceptions = { error: (e as Error)?.message ?? String(e) }; }
   try { out.deadline = await checkPricesDeadline(env, now); } catch (e) { out.deadline = { error: (e as Error)?.message ?? String(e) }; }
+  // § 48 د — a decision taken in Odoo and not yet seen by the engine (outside its hours, or «🔄 إعادة الحساب» not pressed)
+  try { out.decisions = await applyOdooDecisions(env, now); } catch (e) { out.decisions = { error: (e as Error)?.message ?? String(e) }; }
   // § 41 ب — the daily «عدد المحطات اليومية المخطط فارغ» alert (§ 40 د) was
   // removed: the quantity discount stays off while the field is empty.
   try {

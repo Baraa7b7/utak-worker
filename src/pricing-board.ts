@@ -13,8 +13,8 @@
 //     delivery days (the basis is written on the day);
 //   • full cost     = net purchase + waste + carton share;
 //   • § 47 ب — «أقل سعر بيع بدون خسارة» = full cost × 1.15, and «السعر المربح
-//     المقترح» = full cost × (1 + «الهامش الأدنى ٪» ÷ 100) × 1.15 rounded up to
-//     0.5 riyal, both VAT-inclusive (priceFloor, src/pricing-engine.ts: the
+//     المقترح» = (full cost + «الربح الأدنى للكرتون», § 48 أ) × 1.15 rounded up
+//     to 0.5 riyal, both VAT-inclusive (priceFloor, src/pricing-engine.ts: the
 //     engine's rule reads the same numbers);
 //   • net sale      = sale ÷ 1.15 from the cutoff (the sale = the approved
 //     price, else the market price);
@@ -25,14 +25,25 @@
 // Every amount is rounded to two decimals as shown, and the sums are made from
 // the rounded amounts: a card always adds up.
 //
+// § 48 ج — the preview: a line WITHOUT an approved sale price (an exception, «لم
+// يُنشر») that has a suggested price also carries, in two fields of their own,
+// what it would sell for and earn at that price (x_preview_sale,
+// x_preview_profit = suggested ÷ 1.15 − full cost). The real profit and the
+// status keep their meaning (the approved price, else the market price).
+//
+// § 48 ب — the fallback sale price of a purchase price (a supplier's row, when
+// the day is not published) is the suggested price itself: dayFloorInputs /
+// fallbackSale, the same priceFloor.
+//
 // The day carries the header: the day's cost, the expected cartons, the carton
 // share and its basis, the share were the cartons COMPARE_CARTONS, and the
 // number of 🟢 🟡 🔴 ⚪ lines.
 
 import type { Env } from "./config";
+import { profitVatRate } from "./config";
 import { call } from "./odoo";
-import { dailyOperatingCost } from "./operating-cost";
-import { DEFAULT_MIN_MARGIN_PCT, priceFloor } from "./pricing-engine";
+import { dailyOperatingCost, readPricingSettings } from "./operating-cost";
+import { DEFAULT_MIN_PROFIT_SAR, priceFloor } from "./pricing-engine";
 
 export type BoardStatus = "green" | "yellow" | "red" | "none";
 export type ShareBasis = "expected" | "actual";
@@ -92,13 +103,15 @@ export interface BoardLineInput {
   purchase: number | null;
   /** The approved sale price, else the market price (VAT-inclusive from the cutoff); null / 0 = none. */
   sale: number | null;
+  /** § 48 ج — is `sale` an approved price (automatic or Baraa's)? False / absent: the line gets the preview. */
+  approved?: boolean;
   wastePct: number;
   /** 15 from the cutoff, null before it. */
   vatRatePct: number | null;
   /** The carton share; null = it cannot be read. */
   opShare: number | null;
-  /** § 47 ب — «الهامش الأدنى ٪» of the settings. */
-  minMarginPct?: number;
+  /** § 48 أ — «الربح الأدنى للكرتون (ريال)» of the settings. */
+  minProfit?: number;
 }
 export interface BoardLineValues {
   x_net_purchase: number;
@@ -113,6 +126,10 @@ export interface BoardLineValues {
   x_net_sale: number;
   x_real_profit: number;
   x_board_status: BoardStatus;
+  /** § 48 ج — the preview of a line without an approved price: the suggested price (0 = no preview). */
+  x_preview_sale: number;
+  /** § 48 ج — what the line would earn at the suggested price: suggested ÷ 1.15 − full cost (0 = no preview). */
+  x_preview_profit: number;
 }
 
 /** One line of the board. Pure. */
@@ -120,7 +137,7 @@ export function boardLine(i: BoardLineInput): BoardLineValues {
   const d = i.vatRatePct ? 1 + i.vatRatePct / 100 : 1;
   const hasSale = i.sale !== null && i.sale > 0;
   // § 47 أ — the purchase is net as written; the floor is the engine's own (priceFloor)
-  const fl = priceFloor({ purchase: i.purchase, wastePct: i.wastePct, opShare: i.opShare, vatRatePct: i.vatRatePct, minMarginPct: i.minMarginPct ?? DEFAULT_MIN_MARGIN_PCT });
+  const fl = priceFloor({ purchase: i.purchase, wastePct: i.wastePct, opShare: i.opShare, vatRatePct: i.vatRatePct, minProfit: i.minProfit ?? DEFAULT_MIN_PROFIT_SAR });
   const hasPurchase = fl !== null;
   const netPurchase = fl?.netPurchase ?? 0;
   const waste = fl?.waste ?? 0;
@@ -138,14 +155,19 @@ export function boardLine(i: BoardLineInput): BoardLineValues {
     else if (i.opShare === null) status = "none";
     else status = realProfit > 0 ? "green" : "yellow";
   }
+  // § 48 ج — no approved price on the line, and a suggested one: what it would earn at the suggested price
+  const suggested = fl?.suggested ?? 0;
+  const preview = i.approved !== true && suggested > 0;
   return {
     x_net_purchase: netPurchase, x_waste_cost: waste, x_op_share: opShare, x_full_cost: fullCost,
-    x_break_even: fl?.breakEven ?? 0, x_suggested_price: fl?.suggested ?? 0,
+    x_break_even: fl?.breakEven ?? 0, x_suggested_price: suggested,
     x_board_sale: sale, x_net_sale: netSale, x_real_profit: realProfit, x_board_status: status,
+    x_preview_sale: preview ? suggested : 0,
+    x_preview_profit: preview ? round2(round2(suggested / d) - fullCost) : 0,
   };
 }
 
-export const BOARD_LINE_FIELDS = ["x_net_purchase", "x_waste_cost", "x_op_share", "x_full_cost", "x_break_even", "x_suggested_price", "x_board_sale", "x_net_sale", "x_real_profit", "x_board_status"] as const;
+export const BOARD_LINE_FIELDS = ["x_net_purchase", "x_waste_cost", "x_op_share", "x_full_cost", "x_break_even", "x_suggested_price", "x_board_sale", "x_net_sale", "x_real_profit", "x_board_status", "x_preview_sale", "x_preview_profit"] as const;
 
 /** The day's header: the cost, the share and its basis, the comparison, the counts. */
 export function boardHeader(share: BoardShare, statuses: BoardStatus[], nowMs: number): Record<string, unknown> {
@@ -243,4 +265,34 @@ export async function readBoardInputs(env: Env, day: string, nowMs: number = Dat
     try { await env.MSG_DEDUP.put(inputsKey(day), JSON.stringify({ ...out, at: nowMs }), { expirationTtl: BOARD_INPUT_TTL_SEC }); } catch { /* next run reads again */ }
   }
   return out;
+}
+
+// ---------------------------------------------------------------- the fallback sale price (§ 48 ب)
+
+/** What a purchase price must sell for on a day: the settings, the carton share and the VAT rate of that day. */
+export interface FloorInputs { wastePct: number; opShare: number | null; minProfit: number; vatRatePct: number | null }
+
+/**
+ * The floor inputs of `day` (the settings, the day's cost over the cartons —
+ * readBoardInputs, kept in KV as for the engine). Null when the day has no
+ * active settings record. Throws on Odoo trouble (the caller then saves no
+ * fallback price).
+ */
+export async function dayFloorInputs(env: Env, day: string, nowMs: number = Date.now()): Promise<FloorInputs | null> {
+  const settings = await readPricingSettings(env, day);
+  if (!settings) return null;
+  const inputs = await readBoardInputs(env, day, nowMs);
+  const share = boardShare(inputs.cost, settings.expectedCartons, inputs.actual, inputs.costReason);
+  return { wastePct: settings.wastePct, opShare: share.share, minProfit: settings.minProfit, vatRatePct: profitVatRate(day) };
+}
+
+/**
+ * § 48 ب — the fallback sale price of a purchase price = «السعر المربح
+ * المقترح» of that purchase price. 0 = none: no purchase price, or the carton
+ * share cannot be read (then the zero-price guard keeps the item out of a
+ * quotation and an invoice — never a guessed price). Pure.
+ */
+export function fallbackSale(purchase: number, f: FloorInputs | null): number {
+  if (!f) return 0;
+  return priceFloor({ purchase, wastePct: f.wastePct, opShare: f.opShare, vatRatePct: f.vatRatePct, minProfit: f.minProfit })?.suggested ?? 0;
 }

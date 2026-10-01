@@ -54,6 +54,17 @@ export const marketUnsavedText = (names: string[], none = false): string =>
   none ? `⚠️ ما انحفظت أسعارك الآن (${names.join("، ")}). أرسلها مرة ثانية بعد دقيقة لو سمحت 🙏`
     : `⚠️ ما انحفظ: ${names.join("، ")}. أرسله مرة ثانية لو سمحت 🙏`;
 
+/**
+ * § 48 د — a reply inside the window that carries a number and gave no price
+ * (2026-10-01 05:39, Omar: «شراء رمان ١١ / موز أمريكي ٤٤» — «رمان» is three
+ * products, and the banana was not for sale: nothing was kept, he was answered
+ * «استخدم الأزرار», and nobody knew his prices were lost).
+ */
+export const MARKET_UNREAD_TEXT = "ما قدرنا نقرأ الأسعار من رسالتك 🌿 اكتب في كل سطر اسم الصنف كاملاً ثم السعر، مثل «رمان كبير 26»، ولسعر الشراء «رمان كبير 26 شراء 22».";
+export const marketUnreadAlert = (name: string, text: string, dropped: number): string =>
+  `🤔 رد من «${name}» على طلب أسعار السوق لم نفهمه كأسعار، ولم يُحفظ أي سعر${dropped ? ` (استُبعد ${dropped})` : ""}. طلبنا منه كتابة اسم الصنف كاملاً.\n\nالنص: ${text.length > 600 ? `${text.slice(0, 600)}…` : text}`;
+const hasNumber = (text: string): boolean => /[0-9٠-٩۰-۹]/.test(text);
+
 // ---------------------------------------------------------------- «سوق» / «شراء» beside a number
 
 /** supplier: a purchase price unless «سوق» is beside it. observer (Omar): a market observation unless «شراء» is. */
@@ -418,7 +429,21 @@ export async function handleMarketReply(
     return null;
   }
   const check = checkOfferItems(items, products, packagings, text, "observer");
-  if (!check.kept.length) return null;
+  if (!check.kept.length) {
+    // § 48 د — no number in it: an ordinary message. A number and no price kept: Baraa is told, once
+    if (!hasNumber(text)) return null;
+    const claim = await claimButton(env, `mask_unread:${messageId}`, 26 * 60 * 60);
+    if (claim.claimed) {
+      try {
+        const { sendOwnerAlert } = await import("./templates");
+        await sendOwnerAlert(env, marketUnreadAlert(src.name, text, check.dropped.length));
+      } catch (e) {
+        console.warn("[market-reply] the unread alert failed", (e as Error)?.message);
+      }
+      await finishButton(env, claim, 26 * 60 * 60);
+    }
+    return { saved: 0, reply: MARKET_UNREAD_TEXT };
+  }
   const day = riyadhDateKey(new Date(nowMs));
   let saved = 0;
   // § 41 و (the live run) — an offer Odoo refused (HTTP 429 after the retries)

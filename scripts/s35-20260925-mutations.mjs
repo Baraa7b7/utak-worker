@@ -40,7 +40,7 @@ const M = [
   ["refresh: an approved day is rebuilt", [[PR,
     "  if (found && (found.x_state === \"approved\" || found.x_state === \"published\")) {", "  if (false) {"]], T],
   ["refresh: no fingerprint (every tick rewrites)", [[PR,
-    "      if ((await env.MSG_DEDUP.get(fpKey(day))) === fp) return", "      if (false) return"]], T],
+    "      if ((await env.MSG_DEDUP.get(fpKey(day))) === fingerprint()) return", "      if (false) return"]], T],
   // ---- publish
   ["publish: a draft is published", [[PR,
     "  if (day.x_state !== \"approved\") return { action: \"not_approved\"", "  if (false) return { action: \"not_approved\""]], T],

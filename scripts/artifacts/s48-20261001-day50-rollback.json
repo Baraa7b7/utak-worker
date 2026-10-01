@@ -1,0 +1,516 @@
+{
+  "script": "scripts/s48-20261001-day50.mts",
+  "createdAt": "2026-10-01T10:28:31.157Z",
+  "before": {
+    "day": {
+      "id": 50,
+      "x_date": "2026-10-01",
+      "x_state": "missed",
+      "x_name": "أسعار اليوم 2026-10-01",
+      "x_approved_at": false,
+      "x_approved_by": false,
+      "x_published_at": false,
+      "x_publish_report": false,
+      "x_utak_simulation": false,
+      "x_op_cost": 496.52,
+      "x_op_expected": 250,
+      "x_op_cartons": 250,
+      "x_op_basis": "expected",
+      "x_op_share": 1.99,
+      "x_op_share_500": 0.99,
+      "x_n_green": 0,
+      "x_n_yellow": 0,
+      "x_n_red": 0,
+      "x_n_none": 4,
+      "x_board_note": false,
+      "x_board_at": "2026-10-01 08:57:25",
+      "write_date": "2026-10-01 09:51:05"
+    },
+    "lines": [
+      {
+        "id": 89,
+        "x_name": "رمان وسط — كرتون",
+        "x_sequence": 1,
+        "x_product_tmpl_id": [
+          100,
+          "[UTAK-FRT-005] رمان وسط"
+        ],
+        "x_packaging_id": [
+          37,
+          "كرتون"
+        ],
+        "x_decision": "profit",
+        "x_utak_simulation": false,
+        "x_supplier_id": [
+          30,
+          "أحمد حسان"
+        ],
+        "x_daily_price_id": [
+          70,
+          false
+        ],
+        "x_default_price_id": [
+          70,
+          false
+        ],
+        "x_source_price": 16,
+        "x_cost_price": 16,
+        "x_is_outlier": false,
+        "x_outlier_ok": false,
+        "x_margin_pct": 0,
+        "x_market_price": 0,
+        "x_market_count": 0,
+        "x_unit_profit": 0,
+        "x_offers": "أحمد حسان: شراء 16",
+        "x_status": "exception",
+        "x_reason": "لا سعر سوق",
+        "x_sale_price": 0,
+        "x_excluded": true,
+        "x_blocked": false,
+        "x_net_purchase": 16,
+        "x_waste_cost": 0.8,
+        "x_op_share": 1.99,
+        "x_full_cost": 18.79,
+        "x_break_even": 21.61,
+        "x_suggested_price": 23,
+        "x_board_sale": 0,
+        "x_net_sale": 0,
+        "x_real_profit": 0,
+        "x_board_status": "none",
+        "x_preview_sale": 0,
+        "x_preview_profit": 0,
+        "x_manual_price": 0,
+        "x_manual_for": false,
+        "x_decided_at": false,
+        "x_market_show": "—",
+        "x_sale_show": "—",
+        "x_profit_show": "—",
+        "x_manual_show": "—",
+        "write_date": "2026-10-01 09:51:05"
+      },
+      {
+        "id": 90,
+        "x_name": "رمان صغير — كرتون",
+        "x_sequence": 2,
+        "x_product_tmpl_id": [
+          107,
+          "[UTAK-FRT-011] رمان صغير"
+        ],
+        "x_packaging_id": [
+          43,
+          "كرتون"
+        ],
+        "x_decision": "profit",
+        "x_utak_simulation": false,
+        "x_supplier_id": [
+          30,
+          "أحمد حسان"
+        ],
+        "x_daily_price_id": [
+          71,
+          false
+        ],
+        "x_default_price_id": [
+          71,
+          false
+        ],
+        "x_source_price": 12,
+        "x_cost_price": 12,
+        "x_is_outlier": false,
+        "x_outlier_ok": false,
+        "x_margin_pct": 0,
+        "x_market_price": 0,
+        "x_market_count": 0,
+        "x_unit_profit": 0,
+        "x_offers": "أحمد حسان: شراء 12",
+        "x_status": "exception",
+        "x_reason": "لا سعر سوق",
+        "x_sale_price": 0,
+        "x_excluded": true,
+        "x_blocked": false,
+        "x_net_purchase": 12,
+        "x_waste_cost": 0.6,
+        "x_op_share": 1.99,
+        "x_full_cost": 14.59,
+        "x_break_even": 16.78,
+        "x_suggested_price": 18,
+        "x_board_sale": 0,
+        "x_net_sale": 0,
+        "x_real_profit": 0,
+        "x_board_status": "none",
+        "x_preview_sale": 0,
+        "x_preview_profit": 0,
+        "x_manual_price": 0,
+        "x_manual_for": false,
+        "x_decided_at": false,
+        "x_market_show": "—",
+        "x_sale_show": "—",
+        "x_profit_show": "—",
+        "x_manual_show": "—",
+        "write_date": "2026-10-01 09:51:05"
+      },
+      {
+        "id": 91,
+        "x_name": "رمان كبير — كرتون",
+        "x_sequence": 3,
+        "x_product_tmpl_id": [
+          108,
+          "[UTAK-FRT-012] رمان كبير"
+        ],
+        "x_packaging_id": [
+          44,
+          "كرتون"
+        ],
+        "x_decision": "profit",
+        "x_utak_simulation": false,
+        "x_supplier_id": [
+          30,
+          "أحمد حسان"
+        ],
+        "x_daily_price_id": [
+          69,
+          false
+        ],
+        "x_default_price_id": [
+          69,
+          false
+        ],
+        "x_source_price": 22,
+        "x_cost_price": 22,
+        "x_is_outlier": false,
+        "x_outlier_ok": false,
+        "x_margin_pct": 0,
+        "x_market_price": 0,
+        "x_market_count": 0,
+        "x_unit_profit": 0,
+        "x_offers": "أحمد حسان: شراء 22",
+        "x_status": "exception",
+        "x_reason": "لا سعر سوق",
+        "x_sale_price": 0,
+        "x_excluded": true,
+        "x_blocked": false,
+        "x_net_purchase": 22,
+        "x_waste_cost": 1.1,
+        "x_op_share": 1.99,
+        "x_full_cost": 25.09,
+        "x_break_even": 28.85,
+        "x_suggested_price": 30.5,
+        "x_board_sale": 0,
+        "x_net_sale": 0,
+        "x_real_profit": 0,
+        "x_board_status": "none",
+        "x_preview_sale": 0,
+        "x_preview_profit": 0,
+        "x_manual_price": 0,
+        "x_manual_for": false,
+        "x_decided_at": false,
+        "x_market_show": "—",
+        "x_sale_show": "—",
+        "x_profit_show": "—",
+        "x_manual_show": "—",
+        "write_date": "2026-10-01 09:51:05"
+      },
+      {
+        "id": 92,
+        "x_name": "موز أمريكي — كرتون · 14 كيلو",
+        "x_sequence": 4,
+        "x_product_tmpl_id": [
+          97,
+          "[UTAK-FRT-002] موز أمريكي"
+        ],
+        "x_packaging_id": [
+          33,
+          "كرتون · 14 كيلو"
+        ],
+        "x_decision": "profit",
+        "x_utak_simulation": false,
+        "x_supplier_id": [
+          30,
+          "أحمد حسان"
+        ],
+        "x_daily_price_id": [
+          72,
+          false
+        ],
+        "x_default_price_id": [
+          72,
+          false
+        ],
+        "x_source_price": 22,
+        "x_cost_price": 22,
+        "x_is_outlier": false,
+        "x_outlier_ok": false,
+        "x_margin_pct": 0,
+        "x_market_price": 0,
+        "x_market_count": 0,
+        "x_unit_profit": 0,
+        "x_offers": "أحمد حسان: شراء 22",
+        "x_status": "unpublished",
+        "x_reason": "ليس في الكتالوج النشط اليوم",
+        "x_sale_price": 0,
+        "x_excluded": true,
+        "x_blocked": false,
+        "x_net_purchase": 22,
+        "x_waste_cost": 1.1,
+        "x_op_share": 1.99,
+        "x_full_cost": 25.09,
+        "x_break_even": 28.85,
+        "x_suggested_price": 30.5,
+        "x_board_sale": 0,
+        "x_net_sale": 0,
+        "x_real_profit": 0,
+        "x_board_status": "none",
+        "x_preview_sale": 0,
+        "x_preview_profit": 0,
+        "x_manual_price": 0,
+        "x_manual_for": false,
+        "x_decided_at": false,
+        "x_market_show": "—",
+        "x_sale_show": "—",
+        "x_profit_show": "—",
+        "x_manual_show": "—",
+        "write_date": "2026-10-01 09:51:05"
+      }
+    ],
+    "dailyPrices": [
+      {
+        "id": 59,
+        "x_supplier_id": [
+          30,
+          "أحمد حسان"
+        ],
+        "x_product_tmpl_id": [
+          100,
+          "[UTAK-FRT-005] رمان وسط"
+        ],
+        "x_packaging_id": [
+          37,
+          "كرتون"
+        ],
+        "x_date": "2026-10-01",
+        "x_price_sar": 16,
+        "x_sale_price": 22.08,
+        "x_extraction_status": "extracted",
+        "x_utak_simulation": true,
+        "x_source_message_id": "wamid.S41IN179080980000044",
+        "write_date": "2026-09-26 15:45:51"
+      },
+      {
+        "id": 60,
+        "x_supplier_id": [
+          30,
+          "أحمد حسان"
+        ],
+        "x_product_tmpl_id": [
+          105,
+          "[UTAK-FRT-010] افوكادو"
+        ],
+        "x_packaging_id": [
+          47,
+          "كرتون · 4 كيلو"
+        ],
+        "x_date": "2026-10-01",
+        "x_price_sar": 52,
+        "x_sale_price": 71.76,
+        "x_extraction_status": "extracted",
+        "x_utak_simulation": true,
+        "x_source_message_id": "wamid.S41IN179080980000044",
+        "write_date": "2026-09-26 15:45:51"
+      },
+      {
+        "id": 67,
+        "x_supplier_id": [
+          30,
+          "أحمد حسان"
+        ],
+        "x_product_tmpl_id": [
+          100,
+          "[UTAK-FRT-005] رمان وسط"
+        ],
+        "x_packaging_id": [
+          37,
+          "كرتون"
+        ],
+        "x_date": "2026-10-01",
+        "x_price_sar": 16,
+        "x_sale_price": 22.08,
+        "x_extraction_status": "extracted",
+        "x_utak_simulation": true,
+        "x_source_message_id": "wamid.S41INS41LIVE3179080980000044",
+        "write_date": "2026-09-26 16:13:44"
+      },
+      {
+        "id": 68,
+        "x_supplier_id": [
+          30,
+          "أحمد حسان"
+        ],
+        "x_product_tmpl_id": [
+          105,
+          "[UTAK-FRT-010] افوكادو"
+        ],
+        "x_packaging_id": [
+          47,
+          "كرتون · 4 كيلو"
+        ],
+        "x_date": "2026-10-01",
+        "x_price_sar": 52,
+        "x_sale_price": 71.76,
+        "x_extraction_status": "extracted",
+        "x_utak_simulation": true,
+        "x_source_message_id": "wamid.S41INS41LIVE3179080980000044",
+        "write_date": "2026-09-26 16:13:44"
+      },
+      {
+        "id": 69,
+        "x_supplier_id": [
+          30,
+          "أحمد حسان"
+        ],
+        "x_product_tmpl_id": [
+          108,
+          "[UTAK-FRT-012] رمان كبير"
+        ],
+        "x_packaging_id": [
+          44,
+          "كرتون"
+        ],
+        "x_date": "2026-10-01",
+        "x_price_sar": 22,
+        "x_sale_price": 30.36,
+        "x_extraction_status": "extracted",
+        "x_utak_simulation": false,
+        "x_source_message_id": "manual:s47-20261001",
+        "write_date": "2026-10-01 08:57:22"
+      },
+      {
+        "id": 70,
+        "x_supplier_id": [
+          30,
+          "أحمد حسان"
+        ],
+        "x_product_tmpl_id": [
+          100,
+          "[UTAK-FRT-005] رمان وسط"
+        ],
+        "x_packaging_id": [
+          37,
+          "كرتون"
+        ],
+        "x_date": "2026-10-01",
+        "x_price_sar": 16,
+        "x_sale_price": 22.08,
+        "x_extraction_status": "extracted",
+        "x_utak_simulation": false,
+        "x_source_message_id": "manual:s47-20261001",
+        "write_date": "2026-10-01 08:57:23"
+      },
+      {
+        "id": 71,
+        "x_supplier_id": [
+          30,
+          "أحمد حسان"
+        ],
+        "x_product_tmpl_id": [
+          107,
+          "[UTAK-FRT-011] رمان صغير"
+        ],
+        "x_packaging_id": [
+          43,
+          "كرتون"
+        ],
+        "x_date": "2026-10-01",
+        "x_price_sar": 12,
+        "x_sale_price": 16.56,
+        "x_extraction_status": "extracted",
+        "x_utak_simulation": false,
+        "x_source_message_id": "manual:s47-20261001",
+        "write_date": "2026-10-01 08:57:23"
+      },
+      {
+        "id": 72,
+        "x_supplier_id": [
+          30,
+          "أحمد حسان"
+        ],
+        "x_product_tmpl_id": [
+          97,
+          "[UTAK-FRT-002] موز أمريكي"
+        ],
+        "x_packaging_id": [
+          33,
+          "كرتون · 14 كيلو"
+        ],
+        "x_date": "2026-10-01",
+        "x_price_sar": 22,
+        "x_sale_price": 30.36,
+        "x_extraction_status": "extracted",
+        "x_utak_simulation": false,
+        "x_source_message_id": "manual:s47-20261001",
+        "write_date": "2026-10-01 08:57:24"
+      }
+    ],
+    "products": [
+      {
+        "id": 108,
+        "name": "رمان كبير",
+        "x_is_active_for_sale": true,
+        "sale_ok": true,
+        "active": true,
+        "write_date": "2026-09-23 08:13:51"
+      },
+      {
+        "id": 100,
+        "name": "رمان وسط",
+        "x_is_active_for_sale": true,
+        "sale_ok": true,
+        "active": true,
+        "write_date": "2026-09-23 08:13:51"
+      },
+      {
+        "id": 107,
+        "name": "رمان صغير",
+        "x_is_active_for_sale": true,
+        "sale_ok": true,
+        "active": true,
+        "write_date": "2026-09-23 08:13:51"
+      },
+      {
+        "id": 97,
+        "name": "موز أمريكي",
+        "x_is_active_for_sale": true,
+        "sale_ok": true,
+        "active": true,
+        "write_date": "2026-10-01 09:51:36"
+      }
+    ]
+  },
+  "appliedAt": "2026-10-01T10:28:32.189Z",
+  "engine": {
+    "day": "2026-10-01",
+    "action": "refreshed",
+    "dayId": 50,
+    "state": "missed",
+    "created": 0,
+    "updated": 4,
+    "lines": 4,
+    "excluded": 0,
+    "counts": {
+      "auto": 0,
+      "exception": 0,
+      "manual": 4,
+      "unpublished": 0
+    }
+  },
+  "writes": [
+    "x_daily_price.write [69] {\"x_sale_price\":31.5}",
+    "x_daily_price.write [70] {\"x_sale_price\":24}",
+    "x_daily_price.write [71] {\"x_sale_price\":19.5}",
+    "x_daily_price.write [72] {\"x_sale_price\":31.5}",
+    "x_price_day_line.write [92] {\"x_suggested_price\":31.5,\"x_board_sale\":31.5,\"x_net_sale\":27.39,\"x_real_profit\":2.3,\"x_board_status\":\"green\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بالسعر المربح\",\"x_sale_price\":31.5,\"x_excluded\":false,\"x_decided_at\":\"2026-10-01 10:28:31\",\"x_manual_price\":31.5,\"x_manual_for\":\"profit\"}",
+    "x_price_day_line.write [89] {\"x_suggested_price\":24,\"x_board_sale\":24,\"x_net_sale\":20.87,\"x_real_profit\":2.08,\"x_board_status\":\"green\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بالسعر المربح\",\"x_sale_price\":24,\"x_excluded\":false,\"x_decided_at\":\"2026-10-01 10:28:31\",\"x_manual_price\":24,\"x_manual_for\":\"profit\"}",
+    "x_price_day_line.write [90] {\"x_suggested_price\":19.5,\"x_board_sale\":19.5,\"x_net_sale\":16.96,\"x_real_profit\":2.37,\"x_board_status\":\"green\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بالسعر المربح\",\"x_sale_price\":19.5,\"x_excluded\":false,\"x_decided_at\":\"2026-10-01 10:28:31\",\"x_manual_price\":19.5,\"x_manual_for\":\"profit\"}",
+    "x_price_day_line.write [91] {\"x_suggested_price\":31.5,\"x_board_sale\":31.5,\"x_net_sale\":27.39,\"x_real_profit\":2.3,\"x_board_status\":\"green\",\"x_status\":\"manual\",\"x_reason\":\"براء: اعتمد بالسعر المربح\",\"x_sale_price\":31.5,\"x_excluded\":false,\"x_decided_at\":\"2026-10-01 10:28:31\",\"x_manual_price\":31.5,\"x_manual_for\":\"profit\"}",
+    "x_price_day.write [50] {\"x_op_cost\":496.52,\"x_op_expected\":250,\"x_op_cartons\":250,\"x_op_basis\":\"expected\",\"x_op_share\":1.99,\"x_op_share_500\":0.99,\"x_n_green\":4,\"x_n_yellow\":0,\"x_n_red\":0,\"x_n_none\":0,\"x_board_note\":false,\"x_board_at\":\"2026-10-01 10:28:31\"}"
+  ]
+}

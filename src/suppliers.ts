@@ -12,8 +12,6 @@
 import type { Env } from "./config";
 import { joinCapped } from "./wa-params";
 import {
-  DEFAULT_OPS_MARGIN_PCT,
-  DEFAULT_PROFIT_MARGIN_PCT,
   ORDERING_HOURS_OPEN,
   ORDERING_OPEN_KEY,
   ORDERING_OPEN_TTL_SECONDS,
@@ -28,7 +26,6 @@ import {
   createDailyPrice,
   createSupplierAskLog,
   fetchSupplierCatalog,
-  getActivePricingConfig,
   getActiveSuppliersForAsk,
   getLastSupplierPrice,
   getLatestSupplierLog,
@@ -306,12 +303,18 @@ export async function handleSupplierReply(
     return SUPPLIER_ACK_TEXT;
   }
 
-  // Compute sale price using active pricing config
-  const cfg = await getActivePricingConfig(env);
-  const opsPct = cfg?.x_operations_margin_percent ?? DEFAULT_OPS_MARGIN_PCT;
-  const profitPct = cfg?.x_profit_margin_percent ?? DEFAULT_PROFIT_MARGIN_PCT;
-  const opsMul = 1 + opsPct / 100;
-  const profitMul = 1 + profitPct / 100;
+  // § 48 ب — the row's fallback sale price (what a quotation takes when the day
+  // is not published) = «السعر المربح المقترح» of its purchase price: (purchase
+  // + waste + the carton share + the minimum profit a carton) × 1.15, rounded
+  // up to 0.5 — no longer purchase × 1.15 × 1.20 of the old margins. When the
+  // suggested price cannot be made (no settings, the day's cost «تعذّر»): 0 =
+  // no fallback, and the zero-price guard stops the order. The engine keeps it
+  // in step afterwards (src/prices.ts syncFallbackSale).
+  const { dayFloorInputs, fallbackSale } = await import("./pricing-board");
+  const floorInputs = await dayFloorInputs(env, riyadhDateKey()).catch((e) => {
+    console.warn("[suppliers] the day's floor inputs could not be read — no fallback sale price", (e as Error)?.message);
+    return null;
+  });
 
   // sim-harness (2026-09-13): capture per-price failures and alert once
   // after the loop. Prior behaviour swallowed each failure with a bare
@@ -326,7 +329,7 @@ export async function handleSupplierReply(
       let saved = false;
       let dailyId: number | null = null;
       if (k.purchase !== undefined) {
-      const sale = round2(p.cost_price * opsMul * profitMul);
+      const sale = fallbackSale(p.cost_price, floorInputs);
       // 2026-09-25 — an outlier is saved and used, marked for review, and
       // the owner hears of it at once (one alert per price, not batched).
       const last = await getLastSupplierPrice(env, supplier.id, p.product_id, p.packaging_id).catch(() => null);

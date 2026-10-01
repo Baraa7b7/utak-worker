@@ -1,0 +1,62 @@
+{
+  "script": "scripts/s48-20261001-odoo.mjs",
+  "createdAt": "2026-10-01T10:16:37.658Z",
+  "created": {
+    "fields": [
+      20775,
+      20777,
+      20779,
+      20781,
+      20783,
+      20785,
+      20787,
+      20789,
+      20791,
+      20793,
+      20795
+    ],
+    "irDefault": 31
+  },
+  "before": {
+    "views": {
+      "settings": {
+        "id": 2855,
+        "arch": "<form string=\"إعدادات التسعير\" create=\"0\" delete=\"0\">\n  <sheet>\n    <div class=\"oe_title\"><h1>⚙️ إعدادات التسعير</h1></div>\n    <group>\n      <group string=\"التسعير اليومي\">\n        <field name=\"x_waste_pct\"/>\n        <field name=\"x_min_margin_pct\"/>\n        <field name=\"x_min_order_sar\"/>\n        <field name=\"x_planned_stops\"/>\n        <field name=\"x_expected_cartons\"/>\n      </group>\n      <group string=\"السجل\">\n        <field name=\"x_name\" readonly=\"1\"/>\n        <field name=\"x_active_from\" readonly=\"1\"/>\n      </group>\n    </group>\n    <div class=\"text-muted\">سعر الشراء يُدخَل بدون ضريبة. سعر البيع = سعر السوق لليوم متى بلغ «السعر المربح المقترح» = (الشراء + التالف + حصة الكرتون) × (1 + الهامش الأدنى ٪) × 1.15، مقرَّباً لأعلى لأقرب نصف ريال. الاستثناءات (بلا شراء، بلا سوق، سوق أقل من السعر المربح، سعر شاذ) تصل براء، وغيرها يُعتمد ويُنشر تلقائياً في موعد النشر. «عدد المحطات» فارغ = لا خصم كمية.</div>\n    <separator string=\"شرائح خصم الكمية\"/>\n    <field name=\"x_tier_ids\" nolabel=\"1\">\n      <list editable=\"bottom\" default_order=\"x_sequence, x_amount_from\" decoration-muted=\"not x_active\">\n        <field name=\"x_sequence\" widget=\"handle\"/>\n        <field name=\"x_amount_from\"/>\n        <field name=\"x_amount_to\"/>\n        <field name=\"x_discount_pct\"/>\n        <field name=\"x_active\" widget=\"boolean_toggle\"/>\n      </list>\n    </field>\n    <div class=\"text-muted\">الخصم على مجموع الطلب قبل الضريبة، بنسبة الشريحة التي يقع فيها المجموع («إلى» فارغ = بلا حد). لا خصم إذا صار ربح الطلب بعده أقل من (تكلفة اليوم ÷ عدد المحطات)، ولا خصم إطلاقاً والمحطات فارغة.</div>\n  </sheet>\n</form>"
+      },
+      "dayForm": {
+        "id": 2834,
+        "arch": "<form string=\"أسعار اليوم\" create=\"0\" delete=\"0\">\n  <header>\n    <button name=\"1002\" type=\"action\" string=\"نشر المعتمد الآن\" class=\"btn-primary\" invisible=\"x_state not in ('draft', 'missed')\" confirm=\"نشر الأصناف المعتمدة (تلقائياً أو منك) للعملاء الآن؟ الاستثناءات بلا قرار لا تُنشر.\"/>\n    <button name=\"1003\" type=\"action\" string=\"إلغاء الاعتماد\" invisible=\"x_state != 'approved'\"/>\n    <button name=\"1004\" type=\"action\" string=\"🔄 إعادة الحساب\" invisible=\"x_state not in ('draft', 'missed')\"/>\n    <field name=\"x_state\" widget=\"statusbar\" statusbar_visible=\"draft,approved,published\"/>\n  </header>\n  <sheet>\n    <div class=\"oe_title\"><h1><field name=\"x_name\" readonly=\"1\"/></h1></div>\n    <group>\n      <group><field name=\"x_date\" readonly=\"1\"/><field name=\"x_approved_by\" readonly=\"1\"/></group>\n      <group><field name=\"x_approved_at\" readonly=\"1\"/><field name=\"x_published_at\" readonly=\"1\"/></group>\n    </group>\n    <div class=\"text-muted mb-2\">سعر الشراء بدون ضريبة. سعر البيع = سعر السوق (وسيط مشاهدات اليوم) متى بلغ «المربح المقترح». ربح الوحدة = السوق ÷ 1.15 − الشراء − التالف. غير الاستثناء يُعتمد ويُنشر تلقائياً في موعد النشر. الاستثناء يحتاج قرارك («قرار براء»: «اعتمد بالسعر المربح» أو «اعتمد بسعر السوق» أو «لا تنشر»، و«السعر المعدّل» مع «سعر معدّل»)، وإلا لا يُنشر.</div>\n    <field name=\"x_line_ids\" readonly=\"x_state not in ('draft', 'missed')\">\n      <list editable=\"bottom\" create=\"0\" delete=\"0\" decoration-danger=\"x_status == 'exception'\" decoration-success=\"x_status == 'manual'\" decoration-muted=\"x_status == 'unpublished'\">\n        <field name=\"x_sequence\" column_invisible=\"1\"/>\n        <field name=\"x_product_tmpl_id\" readonly=\"1\"/>\n        <field name=\"x_packaging_id\" readonly=\"1\"/>\n        <field name=\"x_cost_price\" string=\"الشراء\" readonly=\"1\"/>\n        <field name=\"x_supplier_id\" string=\"من\" readonly=\"1\" optional=\"show\"/>\n        <field name=\"x_market_price\" string=\"السوق\" readonly=\"1\"/>\n        <field name=\"x_market_count\" string=\"المشاهدات\" readonly=\"1\"/>\n        <field name=\"x_suggested_price\" string=\"المربح المقترح\" readonly=\"1\"/>\n        <field name=\"x_sale_price\" string=\"البيع\" readonly=\"1\"/>\n        <field name=\"x_unit_profit\" string=\"الربح\" readonly=\"1\"/>\n        <field name=\"x_status\" readonly=\"1\"/>\n        <field name=\"x_reason\" readonly=\"1\"/>\n        <field name=\"x_decision\"/>\n        <field name=\"x_manual_price\"/>\n        <field name=\"x_offers\" readonly=\"1\" optional=\"hide\"/>\n      </list>\n    </field>\n    <group string=\"تقرير النشر\" invisible=\"not x_publish_report\">\n      <field name=\"x_publish_report\" nolabel=\"1\" readonly=\"1\" colspan=\"2\"/>\n    </group>\n  </sheet>\n</form>"
+      },
+      "boardForm": {
+        "id": 2871,
+        "arch": "<form string=\"لوحة التسعير\" create=\"0\" delete=\"0\" edit=\"0\">\n  <header>\n    <button name=\"1033\" type=\"action\" string=\"اليوم السابق\"/>\n    <button name=\"1032\" type=\"action\" string=\"اليوم\" class=\"btn-primary\"/>\n    <button name=\"1034\" type=\"action\" string=\"اليوم التالي\"/>\n    <button name=\"1030\" type=\"action\" string=\"📋 قائمة\"/>\n    <button name=\"1031\" type=\"action\" string=\"📈 رسم بياني\"/>\n    <field name=\"x_state\" widget=\"statusbar\" statusbar_visible=\"draft,approved,published\"/>\n  </header>\n  <sheet>\n    <div class=\"oe_title\"><h1>📊 لوحة التسعير — <field name=\"x_date\" readonly=\"1\" class=\"oe_inline\"/></h1></div>\n    <group>\n      <group string=\"تكلفة التشغيل\">\n        <field name=\"x_op_cost\" readonly=\"1\"/>\n        <field name=\"x_op_expected\" readonly=\"1\"/>\n        <field name=\"x_op_share\" readonly=\"1\"/>\n        <field name=\"x_op_basis\" readonly=\"1\"/>\n        <field name=\"x_op_cartons\" readonly=\"1\" invisible=\"x_op_basis != 'actual'\"/>\n      </group>\n      <group string=\"الأصناف\">\n        <field name=\"x_n_green\" readonly=\"1\"/>\n        <field name=\"x_n_yellow\" readonly=\"1\"/>\n        <field name=\"x_n_red\" readonly=\"1\"/>\n        <field name=\"x_n_none\" readonly=\"1\"/>\n      </group>\n    </group>\n    <div class=\"alert alert-info\" role=\"status\" invisible=\"not x_op_share_500\">مقارنة: لو كانت الكراتين 500 يومياً، حصة الكرتون <field name=\"x_op_share_500\" readonly=\"1\" class=\"oe_inline fw-bold\"/> ر.س.</div>\n    <div class=\"alert alert-warning\" role=\"status\" invisible=\"not x_board_note\"><field name=\"x_board_note\" readonly=\"1\" class=\"oe_inline\"/></div>\n    <field name=\"x_line_ids\" mode=\"kanban\" readonly=\"1\">\n      <kanban create=\"0\" delete=\"0\" edit=\"0\">\n        <field name=\"x_board_status\"/>\n        <templates>\n        <t t-name=\"card\">\n          <div t-attf-class=\"border-start border-5 ps-3 pe-1 #{record.x_board_status.raw_value == 'green' ? 'border-success' : record.x_board_status.raw_value == 'yellow' ? 'border-warning' : record.x_board_status.raw_value == 'red' ? 'border-danger' : 'border-secondary'}\">\n            <div class=\"d-flex justify-content-between align-items-start mb-1\">\n              <field name=\"x_name\" class=\"fw-bold fs-5\"/>\n              <field name=\"x_board_status\" class=\"text-nowrap ms-2\"/>\n            </div>\n            <div class=\"d-flex justify-content-between\"><span class=\"text-muted\">الشراء الصافي</span><field name=\"x_net_purchase\"/></div>\n            <div class=\"d-flex justify-content-between\"><span class=\"text-muted\">التكلفة الكاملة</span><field name=\"x_full_cost\"/></div>\n            <div class=\"d-flex justify-content-between\"><span class=\"text-muted\">أقل سعر بيع بدون خسارة</span><field name=\"x_break_even\"/></div>\n            <div class=\"d-flex justify-content-between fw-bold\"><span>السعر المربح المقترح</span><field name=\"x_suggested_price\"/></div>\n            <div class=\"d-flex justify-content-between\"><span class=\"text-muted\">البيع</span><field name=\"x_board_sale\"/></div>\n            <div class=\"d-flex justify-content-between fw-bold border-top mt-1 pt-1\"><span>الربح الحقيقي</span><field name=\"x_real_profit\"/></div>\n          </div>\n        </t>\n        </templates>\n      </kanban>\n    </field>\n    <div class=\"text-muted mt-2\">الشراء الصافي = سعر الشراء كما أُدخل: كل سعر شراء يُدخَل بدون ضريبة. التالف = نسبة التالف × الشراء الصافي. التكلفة الكاملة = الشراء الصافي + التالف + حصة الكرتون. أقل سعر بيع بدون خسارة = التكلفة الكاملة × 1.15. السعر المربح المقترح = التكلفة الكاملة × (1 + الهامش الأدنى ٪) × 1.15، مقرَّباً لأعلى لأقرب نصف ريال (السعران شاملان الضريبة). البيع الصافي = البيع ÷ 1.15. الربح الحقيقي = البيع الصافي − التكلفة الكاملة. سعر البيع = سعر السوق متى بلغ السعر المربح المقترح، وإلا استثناء بقرارك.</div>\n    <div class=\"text-muted\" invisible=\"x_board_at\">لم يكتب الوركر أرقام اللوحة لهذا اليوم بعد.</div>\n    <div class=\"text-muted\" invisible=\"not x_board_at\">آخر تحديث: <field name=\"x_board_at\" readonly=\"1\" class=\"oe_inline\"/></div>\n  </sheet>\n</form>"
+      }
+    },
+    "fieldTexts": [
+      {
+        "id": 20769,
+        "name": "x_pricing_config.x_min_margin_pct",
+        "vals": {
+          "field_description": "الهامش الأدنى ٪",
+          "help": "يُطبَّق على التكلفة الكاملة الصافية (الشراء + التالف + حصة الكرتون). «السعر المربح المقترح» = التكلفة الكاملة × (1 + هذه النسبة ÷ 100) × 1.15، مقرَّباً لأعلى لأقرب نصف ريال. سعر السوق يُنشر تلقائياً متى بلغه، وإلا يصلك استثناء."
+        }
+      },
+      {
+        "id": 20773,
+        "name": "x_price_day_line.x_suggested_price",
+        "vals": {
+          "help": "التكلفة الكاملة × (1 + الهامش الأدنى ٪ ÷ 100) × 1.15، مقرَّباً لأعلى لأقرب نصف ريال (شامل الضريبة)."
+        }
+      }
+    ],
+    "config": {
+      "id": 1,
+      "x_min_profit_sar": 0,
+      "x_min_margin_pct": 5,
+      "x_waste_pct": 5,
+      "x_min_order_sar": 150,
+      "x_planned_stops": 15,
+      "x_expected_cartons": 250
+    }
+  }
+}

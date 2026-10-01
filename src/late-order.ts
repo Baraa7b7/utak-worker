@@ -1,5 +1,11 @@
 // Orders after the 21:00 cutoff — 2026-09-24 (WA-SCENARIOS ح2, ح9; قرار براء).
 //
+// § 49 ب (2026-10-01) — an ORDER MESSAGE no longer comes here: orders are taken
+// at every hour and quoted at the valid price list (src/order-flow.ts), and a
+// «تأكيد الطلب» tap on a cancelled order gets a new quotation, not this
+// prompt. What is left is the standing order confirmed after 21:15 (ح9), and
+// the buttons of a prompt sent before § 49.
+//
 // Before: «طلبك يوصلك بكرة الصبح» and nothing was recorded. Now the customer
 // decides with two buttons:
 //   «سجّله لبكرة» → an order is created for the next ordering day, confirmed,
@@ -155,5 +161,6 @@ export async function handleLateNo(env: Env, partner: OdooPartner | null, partne
   const pending = await readLatePending(env, pid);
   if (!pending) return { text: ALREADY_DONE_TEXT };
   await env.MSG_DEDUP.delete(lateKey(pid));
-  return { text: "تمام، ما سجّلنا شي 🌿 نستقبل طلباتك يومياً من الساعة 6:00 صباحاً إلى 9:00 مساءً، وحياك الله في أي وقت." };
+  // § 49 ب — orders are taken at every hour
+  return { text: "تمام، ما سجّلنا شي 🌿 نستقبل طلباتك في أي وقت، وحياك الله." };
 }

@@ -6,12 +6,13 @@ import { isVatApplicable } from "./config";
 import { arabicDate } from "./wa-params";
 import {
   call,
-  getLatestSalePrice,
   getOrderForInvoicing,
   resolvePackagingNames,
+  unfrozenLinePrice,
 } from "./odoo";
 import { textContent } from "./meta";
 import { sendTemplateByPurpose, T, sendOwnerAlert } from "./templates";
+import { PRICE_NOTE } from "./order-flow";
 import {
   BRAND_COLORS,
   computePageMetrics,
@@ -94,8 +95,10 @@ export interface QuotationPDFData {
 // 2026-09-19 — same-day validity. Old text was "٧ أيام". Since UTAK's cost is
 // the daily supplier price, a 7-day quote is misleading; the new copy ties the
 // quote to the day of issue and to that day's market prices.
-const QUOTATION_FOOTER =
-  "الأسعار سارية حتى ٩:٠٠ مساءً من تاريخ الإصدار، وتخضع لأسعار السوق اليومية";
+// § 49 ب (2026-10-01) — the fixed note of every quotation, and the validity of
+// its price list: until 06:00 of the day after it (it was «حتى ٩:٠٠ مساءً»).
+export const QUOTATION_FOOTER =
+  `${PRICE_NOTE} العرض ساري حتى الساعة ٦:٠٠ صباحاً من اليوم التالي لأسعاره`;
 
 // ---- Body: line-items table (same 5 columns as invoice) ----
 export function renderQuotationBodyHTML(
@@ -321,7 +324,8 @@ export async function buildQuotationPDFDataFromOdoo(
     let age_days: number | null = 0;
     if (!unit || unit <= 0) {
       // § 41 — the order's day's price (a quotation rebuilt later keeps it)
-      const lookup = await getLatestSalePrice(env, l.product_id, l.packaging_id, order.order_date ?? undefined);
+      // § 49 ب — an order priced from a valid list has no price but its frozen ones
+      const lookup = await unfrozenLinePrice(env, order, l.product_id, l.packaging_id);
       unit = lookup.price;
       source = lookup.source;
       age_days = lookup.age_days;
@@ -372,7 +376,8 @@ export async function buildQuotationPDFDataFromOdoo(
   if (!has_blocking_issue && items.length) {
     try {
       const { orderDiscount, discountedTotals } = await import("./order-pricing");
-      const day = order.order_date ?? new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10);
+      // § 49 ب — the price list's day when the order carries one: its purchase costs are that day's
+      const day = order.price_date ?? order.order_date ?? new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10);
       let rate: number | null = null;
       const d = await orderDiscount(env, {
         day,
@@ -638,7 +643,7 @@ export async function createAndDispatchQuotationForRecord(
         ``,
         `الملف: ${uploaded.publicUrl}`,
         ``,
-        `الأسعار سارية حتى ٩:٠٠ مساءً من تاريخ الإصدار، وتخضع لأسعار السوق اليومية. شكراً لتعاملكم مع UTAK 🌿`,
+        `${QUOTATION_FOOTER}. شكراً لتعاملكم مع UTAK 🌿`,
       ].join("\n");
       let resp: Response | null = null;
       try {

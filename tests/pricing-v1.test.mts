@@ -846,7 +846,9 @@ console.log("\n[د] the minimum order (150, before the discount): no confirm but
   const partner = { id: C1, name: "مطعم الوادي", x_whatsapp_number: "+" + C1_PHONE } as any;
   const o = orderOf(DAY, [[1, 11, 2]], "cancelled");      // 60, cancelled
   const r = await quiet(() => dispatch(env, { msg: { from: "+" + C1_PHONE, messageId: "w5", type: "interactive", buttonId: `confirm_order_${o}`, timestamp: "0" } as any, intent: "other", senderType: "customer", partner }));
-  assert("ح4 first: a cancelled order below the minimum gets ح4's answer, not the minimum", /ملغى/.test(String(r.text)) && !/أقل طلب/.test(String(r.text)), JSON.stringify(r));
+  // § 49 ب — a cancelled order is still not revived: its items start a NEW order, and it is that one the minimum speaks of
+  const again = rows("x_daily_order").find((x: any) => x.x_customer_id === C1 && x.id !== o) as any;
+  assert("ح4 first: a cancelled order below the minimum gets ح4's answer (it stays cancelled); the minimum is said of the new order its items start", /أُلغي/.test(String(r.text)) && table("x_daily_order").get(o)!.x_state === "cancelled" && String(r.text).includes(`#${again?.id}`) && /أقل طلب 150 ريال/.test(String(r.text)) && again?.x_state === "draft" && !r.buttons, JSON.stringify(r));
   table("x_pricing_config").get(1)!.x_min_order_sar = 0;
   const o2 = orderOf(DAY, [[1, 11, 1]], "waiting_confirmation");
   const r2 = await quiet(() => dispatch(env, { msg: { from: "+" + C1_PHONE, messageId: "w6", type: "interactive", buttonId: `confirm_order_${o2}`, timestamp: "0" } as any, intent: "other", senderType: "customer", partner }));

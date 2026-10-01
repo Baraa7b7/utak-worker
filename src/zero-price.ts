@@ -16,10 +16,13 @@
 //     or the order day's published price).
 //
 // A price is read as the quotation reads it: the line's manual price, else
-// its stored unit price, else the order day's price (getLatestSalePrice).
+// its stored unit price, else — only for an order no quotation of § 49 priced —
+// the order day's price (unfrozenLinePrice). § 49 ب: an order priced from a
+// valid list carries its prices on its lines; a line the list had no price for
+// has none, and is caught here.
 
 import type { Env } from "./config";
-import { getLatestSalePrice, getOrderForInvoicing } from "./odoo";
+import { getOrderForInvoicing, unfrozenLinePrice } from "./odoo";
 import { claimButton, finishButton, releaseButton } from "./button-lock";
 import { riyadhDateKey } from "./hours";
 import { PLACE_TODAY } from "./places";
@@ -56,7 +59,7 @@ export async function orderZeroLines(env: Env, orderId: number): Promise<{ custo
   const zero: ZeroLine[] = [];
   for (const l of order.lines) {
     let unit = !isZeroPrice(l.price_unit_manual) ? (l.price_unit_manual as number) : !isZeroPrice(l.unit_price) ? (l.unit_price as number) : 0;
-    if (isZeroPrice(unit)) unit = (await getLatestSalePrice(env, l.product_id, l.packaging_id, order.order_date ?? undefined)).price;
+    if (isZeroPrice(unit)) unit = (await unfrozenLinePrice(env, order, l.product_id, l.packaging_id)).price;
     if (isZeroPrice(unit)) zero.push({ product: l.product_name, packaging: l.packaging_name });
   }
   return { customer: order.customer_name, zero };

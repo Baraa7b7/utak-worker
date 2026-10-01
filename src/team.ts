@@ -104,11 +104,20 @@ export function orderRemindButtons(orderId: number): Array<{ index: number; payl
 // ============================================================
 // 20:00 Riyadh — remind every customer with an unconfirmed order (ح3)
 // ============================================================
-export async function sendCutoffReminders(env: Env): Promise<{ reminded: number; failed: number }> {
+// § 49 ب — a quotation whose price list has expired is not reminded (its
+// «تأكيد الطلب» would not confirm it: the price is valid for one day), and an
+// order kept until the day's prices are published has no quotation to confirm.
+export async function sendCutoffReminders(env: Env): Promise<{ reminded: number; failed: number; skipped: number }> {
   const orders = await getUnconfirmedOrders(env, riyadhDateKey());
-  let reminded = 0, failed = 0;
+  let reminded = 0, failed = 0, skipped = 0;
+  const { listOfDayIfValid } = await import("./price-validity");
   for (const o of orders) {
     try {
+      if (o.awaitingPrices || (o.priceDate && !(await listOfDayIfValid(env, o.priceDate)))) {
+        skipped++;
+        console.log(`[cron 20:00] order ${o.id}: ${o.awaitingPrices ? "waits for the day's prices" : `its price list (${o.priceDate}) has expired`} — no reminder`);
+        continue;
+      }
       // § 40 د — an order below the minimum: no confirm button (it could not be
       // confirmed); the reminder says what is missing, and 21:00 cancels it as any other (ح3).
       const { minimumText, orderMinimum } = await import("./order-pricing");
@@ -144,13 +153,17 @@ export async function sendCutoffReminders(env: Env): Promise<{ reminded: number;
       console.error(`[cron 20:00] reminder for order ${o.id} failed`, (e as Error)?.message);
     }
   }
-  console.log(`[cron 20:00] unconfirmed=${orders.length} reminded=${reminded} failed=${failed}`);
-  return { reminded, failed };
+  console.log(`[cron 20:00] unconfirmed=${orders.length} reminded=${reminded} failed=${failed} skipped=${skipped}`);
+  return { reminded, failed, skipped };
 }
 
 // ============================================================
 // 21:00 Riyadh — auto-cancel unconfirmed orders, and tell each customer (ح3)
 // ============================================================
+// § 49 ب — what 21:00 closes is tonight's purchase list: an order of today
+// still unconfirmed is cancelled and its customer told, as before (a message
+// after it starts tomorrow's order). An order kept until the day's prices are
+// published is left: it was never quoted.
 export async function closeUnconfirmedOrders(env: Env): Promise<void> {
   const before = await getUnconfirmedOrders(env);
   const ids = await cancelStaleWaitingOrders(env);

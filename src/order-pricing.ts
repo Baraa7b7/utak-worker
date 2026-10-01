@@ -24,12 +24,15 @@
 // on the order's day, so a confirmed quotation's total does not move before
 // the delivery (unless a line is short).
 //
-// The minimum order (x_min_order_sar, 150): the order's total at the quoted
+// The minimum order (x_min_order_sar): the order's total at the quoted
 // prices, before the discount. Below it: no confirm button anywhere, and the
-// customer is told «أقل طلب 150 ريال، أضف أصنافاً ليكتمل»; the order stays open.
+// customer is told «أقل طلب N ريال، أضف أصنافاً ليكتمل»; the order stays open.
+// § 49 أ — the setting is 0 on the tenant: no minimum. With 0 nothing is
+// refused for it and no message names a minimum (orderMinimum answers «not
+// below» without reading the order).
 
 import type { Env } from "./config";
-import { call, getLatestSalePrice, getOrderForInvoicing } from "./odoo";
+import { call, getOrderForInvoicing, unfrozenLinePrice } from "./odoo";
 import { computeInclusiveTotals, isAccountingSyncEnabled, type InclusiveTotals } from "./accounting";
 import { NO_VAT, vatProfit, type VatContext } from "./pricing-engine";
 import { dailyOperatingCost, readPricingSettings } from "./operating-cost";
@@ -165,7 +168,7 @@ export async function orderMinimum(env: Env, orderId: number, day: string = riya
   if (!order) return { total: 0, min, below: false, unpriced: 0 };
   let total = 0, unpriced = 0;
   for (const l of order.lines) {
-    const unit = (l.price_unit_manual ?? 0) > 0 ? (l.price_unit_manual as number) : (l.unit_price ?? 0) > 0 ? (l.unit_price as number) : (await getLatestSalePrice(env, l.product_id, l.packaging_id, order.order_date ?? day)).price;
+    const unit = (l.price_unit_manual ?? 0) > 0 ? (l.price_unit_manual as number) : (l.unit_price ?? 0) > 0 ? (l.unit_price as number) : (await unfrozenLinePrice(env, order, l.product_id, l.packaging_id, day)).price;
     if (!(unit > 0)) { unpriced++; continue; }
     total += round2(unit * l.quantity);
   }

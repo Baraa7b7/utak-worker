@@ -91,8 +91,8 @@ export const UI = {
     "Payment due within 30 days of invoice date. Bank transfer or cash on delivery.",
   ),
   quotationValidity: T(
-    "الأسعار سارية حتى ٩:٠٠ مساءً من تاريخ الإصدار، وتخضع لأسعار السوق اليومية",
-    "Prices valid until 9:00 PM on the issue date and are subject to daily market prices",
+    "السعر حسب أسعار اليوم، وأسعار بكرة ممكن تختلف. العرض ساري حتى الساعة ٦:٠٠ صباحاً من اليوم التالي لأسعاره",
+    "Prices are today's prices and tomorrow's may differ. This quotation is valid until 6:00 AM of the day after its price list",
   ),
   receiptConfirmation: T(
     "استلمنا منكم المبلغ المذكور أعلاه عن الفواتير المدرجة. شكراً لالتزامكم.",

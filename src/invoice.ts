@@ -5,7 +5,7 @@ import type { Env } from "./config";
 import { arabicDate, joinCapped } from "./wa-params";
 import {
   getOrderForInvoicing,
-  getLatestSalePrice,
+  unfrozenLinePrice,
   createInvoiceRecord,
   writeInvoice,
   getInvoiceById,
@@ -148,7 +148,8 @@ async function issueAndDispatchInvoice(
       // sim-harness (2026-09-13): getLatestSalePrice now returns a tagged
       // object. Invoice path only needs the numeric price — pipeline
       // semantics preserved.
-      unit = (await getLatestSalePrice(env, l.product_id, l.packaging_id, order.order_date ?? undefined)).price;
+      // § 49 ب — an order priced from a valid list has no price but its frozen ones
+      unit = (await unfrozenLinePrice(env, order, l.product_id, l.packaging_id)).price;
     }
     // § 46 ج — still no price: the line's manual price (what Baraa corrects in Odoo), before the guard below
     if (isZeroPrice(unit) && !isZeroPrice(l.price_unit_manual)) unit = l.price_unit_manual as number;
@@ -198,7 +199,7 @@ async function issueAndDispatchInvoice(
   try {
     const { orderDiscount } = await import("./order-pricing");
     const d = await orderDiscount(env, {
-      day: order.order_date ?? invoiceDateYmd,
+      day: order.price_date ?? order.order_date ?? invoiceDateYmd, // § 49 ب — the price list's day, as the quotation
       lines: order.lines.map((l, i) => ({ productId: l.product_id, packagingId: l.packaging_id, qty: l.quantity, unit: pricedLines[i].unit })),
       vatRate: async () => saleTax?.rate ?? null,
     });
@@ -1254,7 +1255,7 @@ export async function buildInvoicePDFDataFromOdoo(
     if (!unit || unit <= 0) {
       // sim-harness (2026-09-13): unpack .price from tagged lookup result.
       // § 41 — the order's day's price, as at issue.
-      unit = (await getLatestSalePrice(env, l.product_id, l.packaging_id, order.order_date ?? undefined)).price;
+      unit = (await unfrozenLinePrice(env, order, l.product_id, l.packaging_id)).price;
     }
     const total = round2(unit * l.quantity);
     subtotal = round2(subtotal + total);

@@ -122,6 +122,9 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // § 35 — Baraa's copy of the published list, with the counts.
   owner_prices: crit(op("نسخة أسعار اليوم", false, { hours: 36 }), "أسعار اليوم"),
   owner_summary: op("ملخص المالك", false, { hours: 36 }),
+  // § 49 ج — a confirmed order, to Baraa, with «تم التسليم ✅»: the delivery on
+  // the spot (from the car). Held for his next tap outside his window.
+  owner_order_confirmed: op("طلب مؤكد", false, { hours: 36 }),
   // § 40 ج — a price exception for his decision (buttons), or the count with
   // the review link; held for his next tap, stale at the publication time (the
   // request's expiresAt). Not critical: § 34's list is Baraa's, and his opener

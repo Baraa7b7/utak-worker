@@ -620,22 +620,31 @@ export async function fetchCatalog(env: Env): Promise<CatalogProduct[]> {
 // v2 — Orders
 // ============================================================
 
+/**
+ * The customer's open order (draft or waiting for his confirmation), or a new
+ * draft. § 49 ب — orders are taken at every hour: the order's day is the
+ * ordering day of `now` (Riyadh; after 21:00 tomorrow's — src/hours.ts
+ * nextOrderingDate), no longer the UTC date; and an order still waiting for
+ * the day's prices (x_awaiting_prices) is the open one whatever its date.
+ * A confirmed or closed order of the day is left alone: the customer wants a
+ * second order.
+ */
 export async function findOrCreateTodayOrder(
   env: Env,
   customerId: number,
   neighborhood: string | undefined,
   sourceMessageId: string,
+  now: Date = new Date(),
 ): Promise<{ id: number; created: boolean }> {
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const { nextOrderingDate } = await import("./hours");
+  const today = nextOrderingDate(now);
 
-  // Only find orders still open for editing (draft or waiting_confirmation).
-  // If today's is already confirmed/closed, we start a new draft — customer wants a second order.
   type OrderRow = { id: number; x_state: OrderState };
   const rows = await call<OrderRow[]>(env, "x_daily_order", "search_read", {
     domain: [
       ["x_customer_id", "=", customerId],
-      ["x_order_date", "=", today],
       ["x_state", "in", ["draft", "waiting_confirmation"]],
+      "|", ["x_order_date", "=", today], ["x_awaiting_prices", "=", true],
     ],
     fields: ["id", "x_state"],
     limit: 1,
@@ -1156,17 +1165,21 @@ export interface UnconfirmedOrder {
   customerId: number;
   customerName: string;
   lineCount: number;
+  /** § 49 ب — the price list its quotation was priced with («أسعار يوم»); null = never quoted. */
+  priceDate: string | null;
+  /** § 49 ب — kept without a quotation until the first valid publication: never reminded, never cancelled at 21:00. */
+  awaitingPrices: boolean;
 }
 
 export async function getUnconfirmedOrders(env: Env, date: string = riyadhToday()): Promise<UnconfirmedOrder[]> {
-  type Row = { id: number; x_state: OrderState; x_customer_id: [number, string] | false; x_line_ids: number[] };
+  type Row = { id: number; x_state: OrderState; x_customer_id: [number, string] | false; x_line_ids: number[]; x_price_date?: string | false; x_awaiting_prices?: boolean };
   const rows = await call<Row[]>(env, "x_daily_order", "search_read", {
     domain: [
       ["x_order_date", "=", date],
       ["x_state", "in", ["waiting_confirmation", "draft"]],
       ["x_utak_simulation", "!=", true], // § 41
     ],
-    fields: ["id", "x_state", "x_customer_id", "x_line_ids"],
+    fields: ["id", "x_state", "x_customer_id", "x_line_ids", "x_price_date", "x_awaiting_prices"],
     limit: 500,
     order: "id",
   });
@@ -1178,6 +1191,8 @@ export async function getUnconfirmedOrders(env: Env, date: string = riyadhToday(
       customerId: r.x_customer_id ? r.x_customer_id[0] : 0,
       customerName: r.x_customer_id ? stripRef(r.x_customer_id[1]) : "",
       lineCount: (r.x_line_ids ?? []).length,
+      priceDate: typeof r.x_price_date === "string" && r.x_price_date ? r.x_price_date : null,
+      awaitingPrices: r.x_awaiting_prices === true,
     }));
 }
 
@@ -1186,11 +1201,15 @@ export async function getUnconfirmedOrders(env: Env, date: string = riyadhToday(
 // forever — never cancelled, never purchased, never flagged). The write is
 // conditional on the state still being unconfirmed, so an order confirmed in
 // the same second is not swept.
+// § 49 ب — an order kept until the day's prices are published (x_awaiting_prices)
+// is not an unconfirmed quotation: the customer was told his quotation comes
+// with the prices, so 21:00 leaves it (it is quoted at the first valid
+// publication, on that moment's ordering day).
 export async function cancelStaleWaitingOrders(env: Env): Promise<number[]> {
-  const pending = await getUnconfirmedOrders(env);
+  const pending = (await getUnconfirmedOrders(env)).filter((o) => !o.awaitingPrices);
   if (pending.length === 0) return [];
   const still = await call<Array<{ id: number }>>(env, "x_daily_order", "search_read", {
-    domain: [["id", "in", pending.map((o) => o.id)], ["x_state", "in", ["waiting_confirmation", "draft"]]],
+    domain: [["id", "in", pending.map((o) => o.id)], ["x_state", "in", ["waiting_confirmation", "draft"]], ["x_awaiting_prices", "!=", true]],
     fields: ["id"],
     limit: 500,
   });
@@ -1209,6 +1228,10 @@ export interface OrderBrief {
   hasLocation: boolean;
   lineIds: number[];
   createdVia: string;
+  /** § 49 ب — «أسعار يوم»: the price list the order's quotation was priced with; "" = never quoted. */
+  priceDate: string;
+  /** § 49 ب — kept until the first valid publication. */
+  awaitingPrices: boolean;
 }
 
 export async function getOrderBrief(env: Env, orderId: number): Promise<OrderBrief | null> {
@@ -1216,10 +1239,11 @@ export async function getOrderBrief(env: Env, orderId: number): Promise<OrderBri
     id: number; x_state: OrderState; x_order_date: string | false;
     x_customer_id: [number, string] | false; x_line_ids: number[];
     x_delivery_neighborhood: string | false; x_created_via: string | false;
+    x_price_date?: string | false; x_awaiting_prices?: boolean;
   };
   const rows = await call<Row[]>(env, "x_daily_order", "read", {
     ids: [orderId],
-    fields: ["id", "x_state", "x_order_date", "x_customer_id", "x_line_ids", "x_delivery_neighborhood", "x_created_via"],
+    fields: ["id", "x_state", "x_order_date", "x_customer_id", "x_line_ids", "x_delivery_neighborhood", "x_created_via", "x_price_date", "x_awaiting_prices"],
   });
   const r = rows[0];
   if (!r) return null;
@@ -1231,6 +1255,8 @@ export async function getOrderBrief(env: Env, orderId: number): Promise<OrderBri
     hasLocation: typeof r.x_delivery_neighborhood === "string" && r.x_delivery_neighborhood.trim() !== "",
     lineIds: r.x_line_ids ?? [],
     createdVia: typeof r.x_created_via === "string" ? r.x_created_via : "",
+    priceDate: typeof r.x_price_date === "string" ? r.x_price_date : "",
+    awaitingPrices: r.x_awaiting_prices === true,
   };
 }
 
@@ -1819,10 +1845,16 @@ export async function buildAndCreateRoutesForDrivers(
 }
 
 // ---- Mark a single stop delivered ----
+// § 49 ج — an order confirmed and not on a route yet (no x_delivery_stop) can
+// be delivered on the spot, from the car: before, this returned without
+// writing anything, so the order stayed «confirmed» (and went on the 21:15
+// purchase list) while its invoice was issued. Now the order itself is
+// written delivered, with the moment of the delivery, and marked
+// x_immediate_delivery; `immediate` tells the caller there was no stop.
 export async function markStopDelivered(
   env: Env,
   orderId: number,
-): Promise<{ routeId: number | null; allDone: boolean }> {
+): Promise<{ routeId: number | null; allDone: boolean; immediate: boolean }> {
   const stops = await call<Array<{ id: number; x_route_id: [number, string] | false; x_status: string }>>(
     env,
     "x_delivery_stop",
@@ -1830,7 +1862,13 @@ export async function markStopDelivered(
     { domain: [["x_order_id", "=", orderId]], fields: ["id", "x_route_id", "x_status"], limit: 5, order: "id desc" },
   );
   const stop = stops[0];
-  if (!stop) return { routeId: null, allDone: false };
+  if (!stop) {
+    await call(env, "x_daily_order", "write", {
+      ids: [orderId],
+      vals: { x_state: "delivered", x_delivered_at: nowOdoo(), x_immediate_delivery: true },
+    });
+    return { routeId: null, allDone: false, immediate: true };
+  }
 
   await call(env, "x_delivery_stop", "write", {
     ids: [stop.id],
@@ -1842,7 +1880,7 @@ export async function markStopDelivered(
   });
 
   const routeId = Array.isArray(stop.x_route_id) ? (stop.x_route_id as [number, string])[0] : null;
-  if (!routeId) return { routeId: null, allDone: false };
+  if (!routeId) return { routeId: null, allDone: false, immediate: false };
 
   // Recount route progress
   const routeStops = await call<Array<{ x_status: string }>>(env, "x_delivery_stop", "search_read", {
@@ -1862,7 +1900,44 @@ export async function markStopDelivered(
     },
   });
 
-  return { routeId, allDone: done === total };
+  return { routeId, allDone: done === total, immediate: false };
+}
+
+/**
+ * § 49 ج — an order delivered on the spot leaves every purchase list that has
+ * not been bought yet (draft or sent): its quantities come off the list's
+ * items, an item nobody else ordered goes, and the list's note says so. A
+ * list already confirmed («تم الشراء») is not touched. Returns the lists
+ * changed. The 21:15 list itself never takes it: it reads confirmed orders,
+ * and this one is delivered.
+ */
+export async function removeOrderFromOpenPurchaseLists(env: Env, orderId: number): Promise<number[]> {
+  const lists = await call<Array<{ id: number; x_aggregated_items: string | false }>>(env, "x_purchase_list", "search_read", {
+    domain: [["x_status", "in", ["draft", "sent"]], ["x_utak_simulation", "!=", true]],
+    fields: ["id", "x_aggregated_items"],
+    order: "id desc",
+    limit: 20,
+  });
+  const changed: number[] = [];
+  let lines: LateItem[] | null = null;
+  for (const l of lists) {
+    let items: PurchaseListItem[] = [];
+    try { items = typeof l.x_aggregated_items === "string" ? JSON.parse(l.x_aggregated_items) : []; } catch { items = []; }
+    if (!Array.isArray(items) || !items.some((it) => (it.order_ids ?? []).includes(orderId))) continue;
+    lines ??= await getOrderLineItems(env, orderId);
+    const next: PurchaseListItem[] = [];
+    for (const it of items) {
+      if (!(it.order_ids ?? []).includes(orderId)) { next.push(it); continue; }
+      const qty = lines.filter((x) => x.product_id === it.product_id && x.packaging_id === it.packaging_id).reduce((s, x) => s + x.quantity, 0);
+      const left = Math.round((it.total_quantity - qty) * 1000) / 1000;
+      const orders = it.order_ids.filter((o) => o !== orderId);
+      if (left > 0 && orders.length) next.push({ ...it, total_quantity: left, order_ids: orders });
+    }
+    await call(env, "x_purchase_list", "write", { ids: [l.id], vals: { x_aggregated_items: JSON.stringify(next), x_total_items_count: next.length } });
+    await appendPurchaseListNote(env, l.id, `الطلب #${orderId} سُلّم فوراً من السيارة: خرجت كمياته من القائمة`).catch(() => {});
+    changed.push(l.id);
+  }
+  return changed;
 }
 
 // ---- Mark a single stop as issue (driver reports problem) ----
@@ -2365,6 +2440,14 @@ export async function getOrderForInvoicing(
   neighborhood: string;
   /** § 40 د — x_order_date, the order's (Riyadh) day: its prices, its purchase costs, its discount. */
   order_date: string | null;
+  /**
+   * § 49 ب — «أسعار يوم»: the price list the quotation froze the lines' prices
+   * from. An order that carries it is never priced by a later lookup (a line
+   * without a frozen or a manual price has NO price), and its purchase costs
+   * and discount are that day's. Null: an order from before § 49, a standing
+   * order — priced by its own day as before.
+   */
+  price_date: string | null;
   lines: Array<{
     id: number;
     product_id: number;
@@ -2386,10 +2469,11 @@ export async function getOrderForInvoicing(
     x_delivery_neighborhood: string | false;
     x_line_ids: number[];
     x_order_date: string | false;
+    x_price_date?: string | false;
   };
   const orders = await call<OrderRow[]>(env, "x_daily_order", "read", {
     ids: [orderId],
-    fields: ["id", "x_customer_id", "x_delivery_neighborhood", "x_line_ids", "x_order_date"],
+    fields: ["id", "x_customer_id", "x_delivery_neighborhood", "x_line_ids", "x_order_date", "x_price_date"],
   });
   const order = orders[0];
   if (!order || !order.x_customer_id) return null;
@@ -2437,6 +2521,7 @@ export async function getOrderForInvoicing(
     customer_whatsapp: wa || "",
     neighborhood: order.x_delivery_neighborhood || "",
     order_date: typeof order.x_order_date === "string" && order.x_order_date ? order.x_order_date : null,
+    price_date: typeof order.x_price_date === "string" && order.x_price_date ? order.x_price_date : null,
     lines: usable.map((l) => ({
       id: l.id,
       product_id: l.x_product_tmpl_id ? l.x_product_tmpl_id[0] : 0,
@@ -2596,6 +2681,25 @@ export async function getLatestSalePrice(
     }
   }
   return { price: 0, source: "missing", price_date: null, age_days: null };
+}
+
+/**
+ * § 49 ب — the price of an order's line that carries neither a manual nor a
+ * frozen unit price. An order priced by a quotation of § 49 (it carries
+ * «أسعار يوم», x_price_date) has none: its lines' prices were frozen from the
+ * valid list, and a later lookup — the order day's row, an older day's — would
+ * be a price outside its validity. An order without it (a standing order, an
+ * order from before § 49) keeps the lookup of its own day.
+ */
+export async function unfrozenLinePrice(
+  env: Env,
+  order: { price_date: string | null; order_date: string | null },
+  productId: number,
+  packagingId: number,
+  fallbackDay?: string,
+): Promise<SalePriceLookup> {
+  if (order.price_date) return { price: 0, source: "missing", price_date: null, age_days: null };
+  return getLatestSalePrice(env, productId, packagingId, order.order_date ?? fallbackDay);
 }
 
 // ---- Invoice CRUD ----

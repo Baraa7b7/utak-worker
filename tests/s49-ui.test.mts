@@ -64,4 +64,17 @@ print(json.dumps([r["x_item_show"] for r in recs], ensure_ascii=False))`;
   assert("the code is the product's own reference (a related field), never part of the name", UI.LINE_FIELDS.find((f: any) => f.name === "x_item_code").related === "x_product_tmpl_id.default_code");
 }
 
+{
+  // the line's stored name (the days' chart and the search name a line by it): whole, from now on
+  const long = "طماطم شيري كرزية درجة أولى مستوردة من هولندا";
+  const env = fresh(`${DAY} 03:00`); cost(500);
+  table("product.template").get(1)!.name = `[UTAK-VEG-001] ${long}`;
+  dp(1, 11, 20); market(1, 11, 34.5);
+  await quiet(() => PR.refreshPriceDay(env, { force: true }));
+  const line = rows("x_price_day_line").find((l: any) => l.x_product_tmpl_id === 1) as any;
+  assert("a new line's stored name is the item's full name and its packaging: no cut at 24 characters, no code in it", line?.x_name === `${long} — كرتون`, line?.x_name);
+  const msg = PR.buildPriceMessages(DAY, [{ productName: `[UTAK-VEG-001] ${long}`, packagingName: "كرتون", salePrice: 34.5 }]).join("\n");
+  assert("(the customers' prices message keeps its short names, as before)", msg.includes("…") && !msg.includes("UTAK-VEG"), msg.slice(0, 200));
+}
+
 done();

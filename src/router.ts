@@ -3,12 +3,11 @@
 // { text: "" } means "no reply".
 
 import type { Env } from "./config";
-import { isVatApplicable } from "./config";
 import type { Intent, NormalizedMessage, OdooPartner, SenderType } from "./types";
 import { composeReply, extractOrderItems } from "./claude";
 import {
   addOrderLines,
-  createQuotationRecord,
+  createOrderWithLines,
   fetchCatalog,
   findDeactivatedProductMatches,
   findOrCreateTodayOrder,
@@ -16,6 +15,7 @@ import {
   getPartnerLocation,
   getPartnerNeighborhood,
   logMessageAnalysis,
+  removeOrderFromOpenPurchaseLists,
   setOrderLocation,
   setOrderNeighborhood,
   updateOrderState,
@@ -24,9 +24,8 @@ import { sendText } from "./meta";
 import { sendOwnerAlert } from "./templates";
 import {
   containsUrgencyKeywords,
-  isOrderingHoursOpen,
   isQuotationTrigger,
-  isWithinOrderingWindow,
+  nextOrderingDate,
   riyadhDateKey,
 } from "./hours";
 import {
@@ -34,10 +33,9 @@ import {
   getOrderBrief,
   getOrderLineItems,
   getPurchaseListBrief,
-  type LateItem,
 } from "./odoo";
-import { ALREADY_DONE_TEXT, withButtonLock } from "./button-lock";
-import { handleLateNo, handleLateYes, offerLateOrder } from "./late-order";
+import { ALREADY_DONE_TEXT, claimButton, finishButton, releaseButton, withButtonLock } from "./button-lock";
+import { handleLateNo, handleLateYes } from "./late-order";
 import { cancelSaleOrderForDailyOrder, ensureSaleOrderForDailyOrder } from "./sale-accounting";
 import {
   notifyCustomerDelivered,
@@ -48,13 +46,13 @@ import { looksLikeComplaint, handleComplaint } from "./complaint";
 import { handleStandingConfirm, handleStandingEdit, handleStandingSkip } from "./standing";
 import { minimumText, orderMinimum } from "./order-pricing";
 import { quotationZeroGuard } from "./zero-price";
+import {
+  AWAITING_TEXT, DELIVERABLE_STATES, LOCATION_ASK_LINES, PRICE_NOTE, deliveryLabel, freezeOrderPrices, markAwaitingPrices,
+  notifyOwnerConfirmed, orderListStillValid, quotationButtons, quoteOrder, vatNote, type QuoteOutcome,
+} from "./order-flow";
+import { validPriceList } from "./price-validity";
 
-/** § 41 د — from the VAT cutoff (Riyadh) the quotation message says its prices include VAT. */
-function vatNote(): string {
-  return isVatApplicable(riyadhDateKey()) ? "الأسعار شاملة ضريبة القيمة المضافة." : "";
-}
-
-/** § 40 د — «أقل طلب 150 ريال، أضف أصنافاً ليكتمل», and the order's total now. */
+/** § 40 د — «أقل طلب N ريال، أضف أصنافاً ليكتمل», and the order's total now (never with a minimum of 0, § 49 أ). */
 function belowMinimumText(m: { min: number; total: number }): string {
   return `${minimumText(m.min)}\nمجموع طلبك الآن: ${Number.isInteger(m.total) ? m.total : m.total.toFixed(2)} ريال.`;
 }
@@ -182,6 +180,14 @@ export async function dispatch(env: Env, input: RouterInput): Promise<RouterRepl
 
 // --------------------------------------------------------------
 // Order intake (place_order / add_to_order)
+//
+// § 49 ب — an order message is taken at every hour: the 21:00 → 06:00 gate
+// («استقبال الطلبات مقفل», «سجّله لبكرة») is gone. The order's day is the
+// ordering day of now (after 21:00: tomorrow's list, delivered the morning
+// after). What the reply says depends on the price list alone: a valid one →
+// as before («خلاص» → the quotation at that list's prices); none → the order
+// is kept and the customer is told his quotation comes with the day's prices
+// (src/order-flow.ts).
 // --------------------------------------------------------------
 async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterReply> {
   const { msg, partner } = input;
@@ -192,13 +198,6 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
   // Also accept "خلاص/جهزه" tacked on the end of an order message
   const quotationInline = isQuotationTrigger(msg.text);
 
-  // Ordering hours check (v3: also honours the 06:00 KV flag).
-  // 2026-09-24 (ح2): no more «يوصلك بكرة» with nothing recorded — the items
-  // are parsed and the customer chooses «سجّله لبكرة» / «لا شكراً».
-  if (!(await isOrderingHoursOpen(env))) {
-    return await handleClosedHoursOrder(env, input);
-  }
-
   const catalog = await fetchCatalog(env);
   // 2026-09-15: fetchCatalog is now filtered by x_is_active_for_sale.
   // Empty catalog can mean either a genuine cache-miss race OR (much more
@@ -206,9 +205,7 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
   // We still respond with a soft retry — the failure signal for "nothing
   // active" ends up in the alert emitted below, once the customer names
   // something specific.
-  const items = catalog.length === 0
-    ? await extractOrderItems(env, msg.text, catalog, partner.name)
-    : await extractOrderItems(env, msg.text, catalog, partner.name);
+  const items = await extractOrderItems(env, msg.text, catalog, partner.name);
   const active = items.filter((it) => it.product_id > 0 && it.packaging_id > 0);
   const unknownRaw = items.filter((it) => it.product_id === 0);
 
@@ -259,14 +256,16 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
     };
   }
 
-  // Find or create today's draft order — only when we actually have
-  // something active to add. This is the "لا يُنشأ طلب" branch when
+  // Find or create the open order of the ordering day — only when we actually
+  // have something active to add. This is the "لا يُنشأ طلب" branch when
   // active.length === 0 above.
+  const now = new Date();
   const { id: orderId, created } = await findOrCreateTodayOrder(
     env,
     partner.id,
     undefined,
     msg.messageId,
+    now,
   );
 
   if (active.length > 0) {
@@ -291,87 +290,49 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
     ? `\n\n🌿 بعض الأصناف مو متوفرة اليوم — سجّلنا باقي طلبك.`
     : "";
 
+  // § 49 ب — the day is written out: after 21:00 the order is delivered the morning after tomorrow.
   const urgencyNote = containsUrgencyKeywords(msg.text)
-    ? `\n\n📌 توصيلاتنا مجدولة صباحاً — طلبك يوصلك بكرة إن شاء الله.`
+    ? `\n\n📌 توصيلاتنا مجدولة صباحاً — طلبك يوصلك صباح ${deliveryLabel(nextOrderingDate(now))} إن شاء الله.`
     : "";
+  const head = [(created ? "بديت لك طلب جديد ✅" : "أضفنا لطلبك ✅"), addedSummary, unavailableWarn, urgencyNote];
 
   // If customer also said "خلاص/جهزه" in same message, go straight to quotation
   if (quotationInline) {
-    // § 40 د — below the minimum order: no quotation, no confirm button; the order stays open.
-    const minimum = await orderMinimum(env, orderId).catch(() => null);
-    if (minimum?.below) {
+    const q = await quoteOrder(env, { orderId, partnerId: partner.id, now });
+    if (q.kind === "quoted") {
       return {
-        text: [(created ? "بديت لك طلب جديد ✅" : "أضفنا لطلبك ✅"), addedSummary, unavailableWarn, urgencyNote, ``, belowMinimumText(minimum)]
-          .filter(Boolean).join("\n"),
-      };
-    }
-    // § 46 ج — a line priced ≤ 0 or without a price: no quotation; «نراجع السعر وأرد عليك», and Baraa's alert.
-    const review = await quotationZeroGuard(env, orderId);
-    if (review) {
-      return {
-        text: [(created ? "بديت لك طلب جديد ✅" : "أضفنا لطلبك ✅"), addedSummary, unavailableWarn, urgencyNote, ``, review]
-          .filter(Boolean).join("\n"),
-      };
-    }
-    // v4.2: precise location preferred; saved neighborhood text is acceptable
-    // fallback. Missing both → park the flow and ask for a location share.
-    const loc = await getPartnerLocation(env, partner.id);
-    const neigh = loc?.neighborhood || (await getPartnerNeighborhood(env, partner.id));
-    if (!loc && !neigh) {
-      await env.MSG_DEDUP.put(
-        `pending_neighborhood:${partner.id}`,
-        String(orderId),
-        { expirationTtl: 60 * 30 },
-      );
-      return {
-        text: [
-          (created ? "بديت لك طلب جديد ✅" : "أضفنا لطلبك ✅"),
-          addedSummary,
-          unavailableWarn,
-          urgencyNote,
+        bodyBeforeButtons: [
+          ...head,
           ``,
-          `📍 قبل ما نجهّز الكوتيشن — أرسل موقع التوصيل`,
-          `اضغط 📎 → موقع → إرسال موقعي الحالي`,
-          `(أو موقع محدد لو التوصيل لمكان ثاني)`,
+          q.locationLine,
+          q.deliveryLine,
+          vatNote(now),
+          PRICE_NOTE,
+          `📄 الكوتيشن رقم ${q.number} — راجع الأصناف واختر:`,
         ]
           .filter(Boolean)
           .join("\n"),
+        buttons: quotationButtons(orderId),
       };
     }
-    // Carry saved defaults down to the order record
-    if (loc) {
-      await setOrderLocation(env, orderId, loc.latitude, loc.longitude, loc.neighborhood);
-    } else if (neigh) {
-      await setOrderNeighborhood(env, orderId, neigh);
-    }
-    const deliveryLine = loc
-      ? `📍 التوصيل إلى: ${loc.neighborhood || "الموقع المحفوظ"} (${loc.mapUrl})`
-      : `📍 التوصيل إلى: ${neigh}`;
-    const q = await createQuotationRecord(env, orderId);
-    await updateOrderState(env, orderId, "waiting_confirmation");
-    return {
-      bodyBeforeButtons: [
-        (created ? "بديت لك طلب جديد ✅" : "أضفنا لطلبك ✅"),
-        addedSummary,
-        unavailableWarn,
-        urgencyNote,
-        ``,
-        deliveryLine,
-        vatNote(),
-        `📄 الكوتيشن رقم ${q.number} — راجع الأصناف واختر:`,
-      ]
-        .filter(Boolean)
-        .join("\n"),
-      buttons: quotationButtons(orderId),
-    };
+    return { text: [...head, ``, ...quoteOutcomeLines(q)].filter(Boolean).join("\n") };
+  }
+
+  // § 49 ب — no valid price list: the order is kept, and its quotation goes
+  // out by itself at the first valid publication. A list that cannot be read
+  // (Odoo trouble) changes nothing: the reply of before.
+  const list = await validPriceList(env, now.getTime()).catch((e) => {
+    console.warn("[order] the valid price list could not be read", (e as Error)?.message);
+    return undefined;
+  });
+  if (list === null) {
+    await markAwaitingPrices(env, orderId);
+    return { text: [...head, ``, AWAITING_TEXT].filter(Boolean).join("\n") };
   }
 
   return {
     text: [
-      (created ? "بديت لك طلب جديد ✅" : "أضفنا لطلبك ✅"),
-      addedSummary,
-      unavailableWarn,
-      urgencyNote,
+      ...head,
       ``,
       `تبغى تضيف شي ثاني، ولا نجهز الكوتيشن؟ (اكتب "خلاص" لما تخلّص)`,
     ]
@@ -380,33 +341,11 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
   };
 }
 
-// --------------------------------------------------------------
-// ح2 — an order written while ordering is closed
-// --------------------------------------------------------------
-async function handleClosedHoursOrder(env: Env, input: RouterInput): Promise<RouterReply> {
-  const { msg, partner } = input;
-  if (!partner) return { text: "حصل خطأ في تسجيلك، نعتذر — نتواصل معك قريباً 🌿" };
-  const catalog = await fetchCatalog(env);
-  const items = await extractOrderItems(env, msg.text, catalog, partner.name);
-  const late: LateItem[] = items
-    .filter((it) => it.product_id > 0 && it.packaging_id > 0 && it.quantity > 0)
-    .map((it) => {
-      const prod = catalog.find((p) => p.id === it.product_id);
-      const pk = prod?.packagings.find((x) => x.id === it.packaging_id);
-      return {
-        product_id: it.product_id,
-        packaging_id: it.packaging_id,
-        quantity: it.quantity,
-        notes: it.notes || "",
-        label: `${prod?.name ?? it.product_name_raw} ${pk?.name ?? ""} × ${it.quantity}`.replace(/ {2,}/g, " "),
-      };
-    });
-  if (late.length === 0) {
-    return {
-      text: "استقبال الطلبات مقفل الآن (من 6:00 صباحاً إلى 9:00 مساءً)، وما تسجّل شي. اكتب الأصناف والكميات (مثلاً: طماطم كرتون 3) ونعرض عليك تسجيلها على طلبات بكرة 🌿",
-    };
-  }
-  return await offerLateOrder(env, partner.id, late);
+/** What the customer reads when no quotation was made: the wait for prices, the minimum, the price review, the location. */
+function quoteOutcomeLines(q: Exclude<QuoteOutcome, { kind: "quoted" }>): string[] {
+  if (q.kind === "awaiting") return [AWAITING_TEXT];
+  if (q.kind === "need_location") return LOCATION_ASK_LINES;
+  return [q.text];
 }
 
 // --------------------------------------------------------------
@@ -416,12 +355,14 @@ async function handleQuotationRequest(env: Env, input: RouterInput): Promise<Rou
   const { partner, msg } = input;
   if (!partner) return { text: "حصل خطأ، نعتذر." };
 
-  // Find the customer's open order today
+  // Find the customer's open order of the ordering day
+  const now = new Date();
   const { id: orderId, created } = await findOrCreateTodayOrder(
     env,
     partner.id,
     undefined,
     msg.messageId,
+    now,
   );
   if (created) {
     // No prior order today — nothing to quote
@@ -432,67 +373,25 @@ async function handleQuotationRequest(env: Env, input: RouterInput): Promise<Rou
   if (!summary || summary.lines.length === 0) {
     return { text: "طلبك فاضي — أضف أصناف أول ثم أجهز الكوتيشن." };
   }
-  // § 40 د — below the minimum order: no quotation, no confirm button; the order stays open.
-  const minimum = await orderMinimum(env, orderId).catch(() => null);
-  if (minimum?.below) return { text: belowMinimumText(minimum) };
-  // § 46 ج — a line priced ≤ 0 or without a price: no quotation; «نراجع السعر وأرد عليك», and Baraa's alert.
-  const review = await quotationZeroGuard(env, orderId);
-  if (review) return { text: review };
-
-  // v4.2: precise location preferred; saved neighborhood text is acceptable
-  // fallback. Missing both → park the flow and ask for a location share.
-  const loc = await getPartnerLocation(env, partner.id);
-  const neigh = loc?.neighborhood || (await getPartnerNeighborhood(env, partner.id));
-  if (!loc && !neigh) {
-    await env.MSG_DEDUP.put(
-      `pending_neighborhood:${partner.id}`,
-      String(orderId),
-      { expirationTtl: 60 * 30 },
-    );
-    return {
-      text: [
-        `📍 قبل ما نجهّز الكوتيشن — أرسل موقع التوصيل`,
-        `اضغط 📎 → موقع → إرسال موقعي الحالي`,
-        `(أو موقع محدد لو التوصيل لمكان ثاني)`,
-      ].join("\n"),
-    };
-  }
-  if (loc) {
-    await setOrderLocation(env, orderId, loc.latitude, loc.longitude, loc.neighborhood);
-  } else if (neigh) {
-    await setOrderNeighborhood(env, orderId, neigh);
-  }
-
-  const q = await createQuotationRecord(env, orderId);
-  await updateOrderState(env, orderId, "waiting_confirmation");
+  // § 49 ب — the quotation at the valid list's prices, or the wait for them;
+  // § 40 د the minimum and § 46 ج the zero-price guard inside it.
+  const q = await quoteOrder(env, { orderId, partnerId: partner.id, now });
+  if (q.kind !== "quoted") return { text: quoteOutcomeLines(q).join("\n") };
 
   const linesText = summary.lines
     .map((l) => `• ${l.product} ${l.packaging} × ${l.qty}`)
     .join("\n");
-
-  const deliveryLine = loc
-    ? `📍 التوصيل إلى: ${loc.neighborhood || "الموقع المحفوظ"} (${loc.mapUrl})`
-    : `📍 التوصيل إلى: ${neigh}`;
 
   return {
     bodyBeforeButtons: [
       `📄 الكوتيشن رقم ${q.number}`,
       linesText,
       ``,
-      deliveryLine,
-      ...(vatNote() ? [vatNote()] : []),
-      `الأسعار النهائية عند التسليم. اختر:`,
+      ...[q.locationLine, q.deliveryLine, vatNote(now), PRICE_NOTE].filter(Boolean),
+      `اختر:`,
     ].join("\n"),
     buttons: quotationButtons(orderId),
   };
-}
-
-function quotationButtons(orderId: number): Array<{ id: string; title: string }> {
-  return [
-    { id: `confirm_order_${orderId}`, title: "تأكيد الطلب ✅" },
-    { id: `edit_order_${orderId}`, title: "تعديل ✏️" },
-    { id: `cancel_order_${orderId}`, title: "إلغاء ❌" },
-  ];
 }
 
 // --------------------------------------------------------------
@@ -521,7 +420,6 @@ async function handleButton(
 • طلب من الموبايل عبر واتساب
 • توصيل يومي في وقته
 • أسعار جملة تنافسية
-• لا حد أدنى للطلب في الأسبوع الأول
 
 جاهز تبدأ؟ أرسل "أبغى أطلب".` };
   }
@@ -696,6 +594,8 @@ async function handleButton(
   }
 
   // ---- v4: driver marked stop delivered ----
+  // § 49 ج — and the delivery on the spot (from the car): any confirmed order,
+  // on a route or not, whatever its registered delivery day.
   const mDelivered = /^delivered_(\d+)$/.exec(buttonId);
   if (mDelivered) {
     const orderId = Number(mDelivered[1]);
@@ -705,42 +605,22 @@ async function handleButton(
       intent: "delivered",
       actionTaken: `button:delivered:${orderId}`,
     });
-    const text = await withButtonLock(env, `delivered:${orderId}`, async () => {
-      // ح8: an order already delivered is not delivered, invoiced or announced again.
-      const brief = await getOrderBrief(env, orderId);
-      if (brief && (brief.state === "delivered" || brief.state === "closed")) {
-        return `${ALREADY_DONE_TEXT} الطلب #${orderId} مسجّل مسلّماً.`;
-      }
-      const { allDone } = await markStopDelivered(env, orderId);
-      // v5: create invoice + dispatch to customer & collector
-      try {
-        const { createAndDispatchInvoiceForOrder } = await import("./invoice");
-        await createAndDispatchInvoiceForOrder(env, orderId);
-      } catch (e) {
-        console.warn(`[delivered] invoice dispatch failed for order ${orderId}`, (e as Error).message);
-      }
-      // Fetch order + customer to notify
-      try {
-        const { getOrderCustomer } = await import("./odoo");
-        const cust = await getOrderCustomer(env, orderId);
-        if (cust) {
-          await notifyCustomerDelivered(env, cust.phone, cust.name, orderId);
-        }
-      } catch (e) {
-        console.error("[delivered] notify customer failed", (e as Error)?.message);
-      }
-      // STATUS § 38 (م8) — the next stop's customer: «في الطريق» (once per order).
-      try {
-        const { notifyNextAfterDelivered } = await import("./out-for-delivery");
-        await notifyNextAfterDelivered(env, orderId);
-      } catch (e) {
-        console.warn(`[delivered] «في الطريق» after #${orderId} failed`, (e as Error)?.message);
-      }
-      return allDone
-        ? `تم التسليم ✅ — خلصت مسارك اليوم. شكراً 🙏`
-        : `تم التسليم ✅ — التوصيلة الجاية بانتظارك.`;
-    });
-    return { text };
+    // ح8 — one delivery per order. A tap that delivered nothing (the order is
+    // not confirmed yet, § 49 ج) keeps no lock: the tap after his confirmation delivers.
+    const claim = await claimButton(env, `delivered:${orderId}`);
+    if (!claim.claimed) {
+      console.warn(`[btn-lock] repeat tap refused key=${claim.key} state=${claim.state.slice(0, 40)}`);
+      return { text: ALREADY_DONE_TEXT };
+    }
+    try {
+      const r = await deliverOrder(env, orderId);
+      if (r.delivered) await finishButton(env, claim);
+      else await releaseButton(env, claim);
+      return { text: r.text };
+    } catch (e) {
+      await releaseButton(env, claim);
+      throw e;
+    }
   }
 
   // ---- v4: driver reported issue ----
@@ -808,17 +688,102 @@ async function handleButton(
   return action === "confirm_order" ? await withVatAsk(env, reply, partner?.id) : reply;
 }
 
+/**
+ * «تم التسليم» on an order: the stop's button of a route, or (§ 49 ج) the
+ * delivery on the spot of an order that is confirmed and on no route — from
+ * the car, the same day, whatever its registered delivery day. The order is
+ * written delivered with the moment of the delivery, its invoice is issued
+ * and sent as at any delivery (the zero-price guard and the VAT as they are),
+ * and it leaves every purchase list not bought yet: it enters none.
+ * An order that is not confirmed is not delivered.
+ */
+export async function deliverOrder(env: Env, orderId: number): Promise<{ text: string; delivered: boolean }> {
+  // ح8: an order already delivered is not delivered, invoiced or announced again.
+  const brief = await getOrderBrief(env, orderId);
+  if (!brief) return { text: `ما لقينا الطلب #${orderId}.`, delivered: false };
+  if (brief.state === "delivered" || brief.state === "closed") {
+    return { text: `${ALREADY_DONE_TEXT} الطلب #${orderId} مسجّل مسلّماً.`, delivered: true };
+  }
+  if (!DELIVERABLE_STATES.has(brief.state)) {
+    return {
+      text: brief.state === "cancelled"
+        ? `الطلب #${orderId} ملغى، فلا يُسلَّم.`
+        : `الطلب #${orderId} لم يؤكده العميل بعد، فلا يُسلَّم ولا تصدر فاتورته. يضغط العميل «تأكيد الطلب» أولاً.`,
+      delivered: false,
+    };
+  }
+  const { allDone, immediate } = await markStopDelivered(env, orderId);
+  if (immediate) {
+    try {
+      const lists = await removeOrderFromOpenPurchaseLists(env, orderId);
+      if (lists.length) {
+        await sendOwnerAlert(env, `🛒 الطلب #${orderId} سُلّم فوراً وكان في قائمة الشراء ${lists.map((l) => "#" + l).join("، ")}: خرجت كمياته منها. لو وصلت القائمة عمر قبل الآن، أبلغه.`);
+      }
+    } catch (e) {
+      console.warn(`[delivered] order ${orderId}: the purchase lists were not updated`, (e as Error)?.message);
+    }
+  }
+  // v5: create invoice + dispatch to customer & collector
+  try {
+    const { createAndDispatchInvoiceForOrder } = await import("./invoice");
+    await createAndDispatchInvoiceForOrder(env, orderId);
+  } catch (e) {
+    console.warn(`[delivered] invoice dispatch failed for order ${orderId}`, (e as Error).message);
+  }
+  // Fetch order + customer to notify
+  try {
+    const { getOrderCustomer } = await import("./odoo");
+    const cust = await getOrderCustomer(env, orderId);
+    if (cust) {
+      await notifyCustomerDelivered(env, cust.phone, cust.name, orderId);
+    }
+  } catch (e) {
+    console.error("[delivered] notify customer failed", (e as Error)?.message);
+  }
+  if (immediate) return { text: `تم التسليم ✅ — الطلب #${orderId} سُلّم فوراً، وفاتورته تصل العميل الآن.`, delivered: true };
+  // STATUS § 38 (م8) — the next stop's customer: «في الطريق» (once per order).
+  try {
+    const { notifyNextAfterDelivered } = await import("./out-for-delivery");
+    await notifyNextAfterDelivered(env, orderId);
+  } catch (e) {
+    console.warn(`[delivered] «في الطريق» after #${orderId} failed`, (e as Error)?.message);
+  }
+  return {
+    text: allDone
+      ? `تم التسليم ✅ — خلصت مسارك اليوم. شكراً 🙏`
+      : `تم التسليم ✅ — التوصيلة الجاية بانتظارك.`,
+    delivered: true,
+  };
+}
+
 // --------------------------------------------------------------
 // ح4 — quotation buttons check the live order state before acting.
-//   تأكيد: only an unconfirmed order of today, while ordering is open. It
-//          never revives a cancelled order; after the cutoff it offers the
-//          «سجّله لبكرة» prompt with the same items (ح2).
+//   تأكيد: an unconfirmed order, at any hour (§ 49 ب), when the price list
+//          it was quoted with is still valid and the 21:00 of its ordering
+//          day has not passed. Else it is never confirmed at the old price or
+//          the old delivery day: a new quotation at the valid list (or the
+//          order waits for the day's prices). A cancelled order is not
+//          revived: its items start a new order, quoted the same way.
 //   إلغاء: only before the order enters purchasing (draft / waiting /
 //          confirmed). Afterwards the customer is told it is in progress and
 //          the owner is alerted at once to decide.
-//   تعديل: same window as إلغاء, and only while ordering is open.
+//   تعديل: same window as إلغاء, at any hour.
 // --------------------------------------------------------------
 const IN_EXECUTION: ReadonlySet<string> = new Set(["in_purchase", "in_delivery", "delivered", "closed"]);
+
+/** A new quotation's reply: its number, the delivery day, the note, the three buttons — or why there is none. */
+function requoteReply(orderId: number, q: QuoteOutcome, lead: string, now: Date): RouterReply {
+  if (q.kind !== "quoted") return { text: [lead, ...quoteOutcomeLines(q)].filter(Boolean).join("\n") };
+  return {
+    bodyBeforeButtons: [
+      lead,
+      `📄 الكوتيشن رقم ${q.number} لطلبك رقم #${orderId}`,
+      ...[q.locationLine, q.deliveryLine, vatNote(now), PRICE_NOTE].filter(Boolean),
+      `اختر:`,
+    ].filter(Boolean).join("\n"),
+    buttons: quotationButtons(orderId),
+  };
+}
 
 async function confirmOrderButton(env: Env, orderId: number, partner: OdooPartner | null): Promise<RouterReply> {
   const o = await getOrderBrief(env, orderId);
@@ -827,55 +792,67 @@ async function confirmOrderButton(env: Env, orderId: number, partner: OdooPartne
   if (o.state === "in_purchase" || o.state === "in_delivery") return { text: `طلبك رقم #${orderId} مؤكد وفي التنفيذ ✅` };
   if (o.state === "delivered" || o.state === "closed") return { text: `طلبك رقم #${orderId} تم تسليمه ✅` };
 
-  const unconfirmed = o.state === "draft" || o.state === "waiting_confirmation";
-  const open = isWithinOrderingWindow();
-  if (unconfirmed && open && o.date === riyadhDateKey()) {
-    // § 40 د — after the state guards (ح4): below the minimum it is not
-    // confirmed; the order stays open (draft) to be completed.
-    const minimum = await orderMinimum(env, orderId).catch(() => null);
-    if (minimum?.below) {
-      if (o.state === "waiting_confirmation") await updateOrderState(env, orderId, "draft");
-      return { text: belowMinimumText(minimum) };
-    }
-    // § 46 ج — a line priced ≤ 0 or without a price is never confirmed: the order goes back to draft.
-    const review = await quotationZeroGuard(env, orderId);
-    if (review) {
-      if (o.state !== "draft") await updateOrderState(env, orderId, "draft");
-      return { text: review };
-    }
-    await updateOrderState(env, orderId, "confirmed");
-    // 2026-09-23 (ACCOUNTING_SYNC) — confirmed order → confirmed sale.order.
-    // Never throws; the customer reply does not depend on it.
-    await ensureSaleOrderForDailyOrder(env, orderId);
-    let tail = "";
-    if (!o.hasLocation && partner?.id) {
-      const loc = await getPartnerLocation(env, partner.id);
-      const neigh = loc?.neighborhood || (await getPartnerNeighborhood(env, partner.id));
-      if (loc) await setOrderLocation(env, orderId, loc.latitude, loc.longitude, loc.neighborhood);
-      else if (neigh) await setOrderNeighborhood(env, orderId, neigh);
-      else {
-        await env.MSG_DEDUP.put(`pending_neighborhood:${partner.id}`, `loc:${orderId}`, { expirationTtl: 12 * 60 * 60 });
-        tail = "\n📍 أرسل موقع التوصيل (📎 → موقع → موقعي الحالي) أو اكتب اسم الحي.";
-      }
-    }
-    return { text: `تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿${tail}`, confirmedOrderId: orderId };
+  const now = new Date();
+  const customerId = partner?.id || o.customerId;
+  if (o.state === "cancelled") {
+    // not revived: the same items on a new order of the ordering day now, quoted at the valid list
+    const items = await getOrderLineItems(env, orderId);
+    if (!items.length || !customerId) return { text: `طلبك رقم #${orderId} ملغى وما نقدر نرجّعه. أرسل الأصناف من جديد ونبدأ لك طلب جديد 🌿` };
+    const fresh = await createOrderWithLines(env, { customerId, date: nextOrderingDate(now), items, via: "whatsapp", state: "draft" });
+    const q = await quoteOrder(env, { orderId: fresh, partnerId: customerId, now });
+    return requoteReply(fresh, q, `طلبك رقم #${orderId} أُلغي لأنه ما تأكد. سجّلنا أصنافه طلباً جديداً برقم #${fresh}.`, now);
   }
 
-  // Not confirmable now: cancelled at the cutoff, stale, or past 21:00.
-  if (unconfirmed) await cancelIfStillUnconfirmed(env, orderId);
-  const items = await getOrderLineItems(env, orderId);
-  if (!open && partner?.id && items.length > 0) {
-    const why = o.state === "cancelled" ? "أُلغي عند إقفال الساعة 9:00 مساءً لأنه ما تأكد" : "ما تأكد قبل إقفال الساعة 9:00 مساءً";
-    return await offerLateOrder(env, partner.id, items, { lead: `طلبك رقم #${orderId} ${why}، فما يدخل طلبات اليوم.` });
+  // § 49 ب — the price list of its quotation is still valid, and it is still the order's day: confirmed.
+  // An order no quotation priced yet (a draft confirmed from the 20:00 reminder): priced now, from the valid list.
+  const sameDay = o.date === nextOrderingDate(now);
+  let confirmable = false;
+  if (o.priceDate) confirmable = sameDay && !!(await orderListStillValid(env, o.priceDate, now));
+  else if (!o.awaitingPrices) {
+    const list = await validPriceList(env, now.getTime());
+    if (list) { await freezeOrderPrices(env, orderId, list, now); confirmable = true; }
   }
-  return { text: `طلبك رقم #${orderId} ملغى وما نقدر نرجّعه. أرسل الأصناف من جديد ونبدأ لك طلب جديد 🌿` };
-}
+  if (!confirmable) {
+    const q = await quoteOrder(env, { orderId, partnerId: customerId, now });
+    const lead = !o.priceDate ? ""
+      : sameDay ? "أسعار عرض السعر السابق انتهت صلاحيتها (السعر صالح ليوم واحد)، وهذا عرض جديد بأسعار اليوم:"
+        : "طلبك ما تأكد قبل الساعة 9:00 مساءً، وهذا عرض السعر بيوم التوصيل الجديد:";
+    return requoteReply(orderId, q, lead, now);
+  }
 
-async function cancelIfStillUnconfirmed(env: Env, orderId: number): Promise<void> {
-  const o = await getOrderBrief(env, orderId);
-  if (o && (o.state === "draft" || o.state === "waiting_confirmation")) {
-    await updateOrderState(env, orderId, "cancelled");
+  // § 40 د — after the state guards (ح4): below the minimum it is not
+  // confirmed; the order stays open (draft) to be completed.
+  const minimum = await orderMinimum(env, orderId).catch(() => null);
+  if (minimum?.below) {
+    if (o.state === "waiting_confirmation") await updateOrderState(env, orderId, "draft");
+    return { text: belowMinimumText(minimum) };
   }
+  // § 46 ج — a line priced ≤ 0 or without a price is never confirmed: the order goes back to draft.
+  const review = await quotationZeroGuard(env, orderId);
+  if (review) {
+    if (o.state !== "draft") await updateOrderState(env, orderId, "draft");
+    return { text: review };
+  }
+  await updateOrderState(env, orderId, "confirmed");
+  // 2026-09-23 (ACCOUNTING_SYNC) — confirmed order → confirmed sale.order.
+  // Never throws; the customer reply does not depend on it.
+  await ensureSaleOrderForDailyOrder(env, orderId);
+  let tail = "";
+  if (!o.hasLocation && customerId) {
+    const loc = await getPartnerLocation(env, customerId);
+    const neigh = loc?.neighborhood || (await getPartnerNeighborhood(env, customerId));
+    if (loc) await setOrderLocation(env, orderId, loc.latitude, loc.longitude, loc.neighborhood);
+    else if (neigh) await setOrderNeighborhood(env, orderId, neigh);
+    else {
+      await env.MSG_DEDUP.put(`pending_neighborhood:${customerId}`, `loc:${orderId}`, { expirationTtl: 12 * 60 * 60 });
+      tail = "\n📍 أرسل موقع التوصيل (📎 → موقع → موقعي الحالي) أو اكتب اسم الحي.";
+    }
+  }
+  // § 49 ج — Baraa gets the confirmed order with «تم التسليم ✅» (the delivery on the spot)
+  await notifyOwnerConfirmed(env, orderId);
+  // § 49 ب — the delivery day, written out: the morning after the order's day
+  const orderDay = (await getOrderBrief(env, orderId))?.date || nextOrderingDate(now);
+  return { text: `تم التأكيد ✅ — طلبك رقم #${orderId} يوصلك صباح ${deliveryLabel(orderDay)} إن شاء الله 🌿${tail}`, confirmedOrderId: orderId };
 }
 
 async function cancelOrderButton(env: Env, orderId: number, partner: OdooPartner | null): Promise<RouterReply> {
@@ -900,12 +877,13 @@ async function editOrderButton(env: Env, orderId: number, partner: OdooPartner |
   const o = await getOrderBrief(env, orderId);
   if (!o) return { text: "ما لقينا هذا الطلب." };
   if (o.state === "cancelled") return { text: `طلبك رقم #${orderId} ملغى. أرسل الأصناف من جديد ونبدأ لك طلب جديد 🌿` };
-  if (IN_EXECUTION.has(o.state) || !isWithinOrderingWindow() || o.date !== riyadhDateKey()) {
+  // § 49 ب — at any hour: only an order already in purchasing or delivery is not edited from here
+  if (IN_EXECUTION.has(o.state)) {
     await sendOwnerAlert(
       env,
-      `✏️ طلب تعديل بعد الإقفال أو أثناء التنفيذ: ${partner?.name ?? "عميل"}${partner?.x_whatsapp_number ? " (" + partner.x_whatsapp_number + ")" : ""} يريد تعديل الطلب #${orderId} وحالته ${o.state}. لم يُعدَّل؛ القرار لك.`,
+      `✏️ طلب تعديل أثناء التنفيذ: ${partner?.name ?? "عميل"}${partner?.x_whatsapp_number ? " (" + partner.x_whatsapp_number + ")" : ""} يريد تعديل الطلب #${orderId} وحالته ${o.state}. لم يُعدَّل؛ القرار لك.`,
     );
-    return { text: `طلبك رقم #${orderId} ما يقبل تعديل الحين (الطلبات تنقفل الساعة 9:00 مساءً). بلّغنا براء وبيتواصل معك 🙏` };
+    return { text: `طلبك رقم #${orderId} في التنفيذ الحين، فما يقبل تعديل من هنا. بلّغنا براء وبيتواصل معك 🙏` };
   }
   // edit_order → return to draft so new messages append lines again
   await updateOrderState(env, orderId, "draft");

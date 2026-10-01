@@ -235,7 +235,7 @@ async function readSoLines(env: Env, lineIds: number[]): Promise<ExistingSoLine[
 }
 
 /** Ordered lines of a daily order, priced like the invoice path. */
-async function readOrderedLines(env: Env, lineIds: number[]): Promise<SaleLineInput[]> {
+async function readOrderedLines(env: Env, lineIds: number[], frozen = false): Promise<SaleLineInput[]> {
   if (!lineIds.length) return [];
   type Row = {
     id: number;
@@ -252,7 +252,8 @@ async function readOrderedLines(env: Env, lineIds: number[]): Promise<SaleLineIn
   for (const r of rows) {
     if (!(r.x_quantity > 0)) continue;
     let unit = typeof r.x_unit_price === "number" && r.x_unit_price > 0 ? r.x_unit_price : 0;
-    if (!unit && r.x_product_tmpl_id && r.x_packaging_id) {
+    // § 49 ب — `frozen`: the order was priced from a valid list (x_price_date): no later lookup
+    if (!unit && !frozen && r.x_product_tmpl_id && r.x_packaging_id) {
       unit = (await getLatestSalePrice(env, r.x_product_tmpl_id[0], r.x_packaging_id[0])).price;
     }
     const name = r.x_product_tmpl_id ? stripRef(r.x_product_tmpl_id[1]) : "صنف";
@@ -286,16 +287,17 @@ export async function ensureSaleOrderForDailyOrder(
       x_customer_id: [number, string] | false;
       x_sale_order_id: [number, string] | false;
       x_line_ids: number[];
+      x_price_date?: string | false;
     };
     const [order] = await call<OrderRow[]>(env, "x_daily_order", "read", {
       ids: [orderId],
-      fields: ["id", "x_customer_id", "x_sale_order_id", "x_line_ids"],
+      fields: ["id", "x_customer_id", "x_sale_order_id", "x_line_ids", "x_price_date"],
     });
     if (!order) { await alert(env, `[sale-accounting] الطلب #${orderId} غير موجود — لا أمر بيع`); return null; }
 
     if (order.x_sale_order_id) {
       const linked = order.x_sale_order_id[0];
-      await resyncOrderedLines(env, linked, order.x_line_ids);
+      await resyncOrderedLines(env, linked, order.x_line_ids, !!order.x_price_date);
       console.log(`[sale-accounting] order ${orderId} already linked to sale.order ${linked} — skip create`);
       return { saleOrderId: linked, created: false };
     }
@@ -325,7 +327,7 @@ export async function ensureSaleOrderForDailyOrder(
       await alert(env, `[sale-accounting] منتج الخدمة ${SALE_GOODS_PRODUCT_CODE} غير موجود (شغّل scripts/acct-20260923-sale-setup.mjs) — الطلب #${orderId} بلا أمر بيع`);
       return null;
     }
-    const lines = await readOrderedLines(env, order.x_line_ids);
+    const lines = await readOrderedLines(env, order.x_line_ids, !!order.x_price_date);
     if (lines.length === 0) {
       await alert(env, `[sale-accounting] الطلب #${orderId} بلا أسطر بكمية — لا أمر بيع`);
       return null;
@@ -362,12 +364,12 @@ export async function ensureSaleOrderForDailyOrder(
  * update, add, or zero lines. Best effort — a failure is only logged; the
  * delivery step re-aligns what is actually billed anyway.
  */
-async function resyncOrderedLines(env: Env, soId: number, xLineIds: number[]): Promise<void> {
+async function resyncOrderedLines(env: Env, soId: number, xLineIds: number[], frozen = false): Promise<void> {
   try {
     const so = await readSo(env, soId);
     if (!so || so.state !== "sale" || so.invoice_ids.length) return;
     const existing = await readSoLines(env, so.order_line);
-    const wanted = await readOrderedLines(env, xLineIds);
+    const wanted = await readOrderedLines(env, xLineIds, frozen);
     const bySeq = new Map(existing.map((l) => [l.sequence, l]));
     const cmds: Array<[number, number, Record<string, unknown>]> = [];
     const seen = new Set<number>();

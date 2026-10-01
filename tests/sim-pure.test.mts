@@ -89,7 +89,9 @@ const FLOWS: Flow[] = [
     onCreates: "sale.order",
     run: async (env) => {
       setRiyadh("2026-09-25 10:00");
-      const o = order(CUST, "waiting_confirmation", "2026-09-25");
+      // § 49 ب — a quotation is confirmed while its price list is valid: the day's published list, and the order priced with it
+      seed("x_price_day", { x_date: "2026-09-25", x_state: "published", x_name: "أسعار اليوم 2026-09-25", x_utak_simulation: false, x_published_at: "2026-09-25 03:00:00" });
+      const o = order(CUST, "waiting_confirmation", "2026-09-25", 1, { x_price_date: "2026-09-25" });
       return tap(env, `confirm_order_${o}`, CUST);
     },
   },

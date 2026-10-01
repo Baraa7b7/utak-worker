@@ -881,7 +881,9 @@ console.log("\n[موقع] a pending location: a text with a number is an order l
   const p = table("res.partner").get(C1)!;
   assert("a confirmed order waiting for its location: «طماطم 5» is NOT saved as the neighborhood", p.x_delivery_neighborhood !== "طماطم 5" && table("x_daily_order").get(o)!.x_delivery_neighborhood !== "طماطم 5", String(p.x_delivery_neighborhood));
   assert("…the location still pending", env.MSG_DEDUP.store.get(`pending_neighborhood:${C1}`) === `loc:${o}`);
-  assert("…and the bot handled it as an order (the closed-hours «سجّله لبكرة» offer)", sentTo(C1_PHONE).some((b: any) => /سجّله لبكرة|طلبات بكرة/.test(JSON.stringify(b))), JSON.stringify(sentTo(C1_PHONE).slice(-2)));
+  // § 49 ب — at 21:08 the order is taken (no «سجّله لبكرة» offer any more): recorded on tomorrow's ordering day
+  const taken = rows("x_daily_order").find((x: any) => x.x_customer_id === C1 && x.id !== o) as any;
+  assert("…and the bot handled it as an order (§ 49: recorded on tomorrow's day, no closed-hours offer)", taken?.x_order_date === "2026-09-28" && rows("x_daily_order_line").some((l: any) => l.x_order_id === taken.id && l.x_quantity === 5) && sentTo(C1_PHONE).some((b: any) => /طماطم كرتون × 5/.test(JSON.stringify(b))) && !sentTo(C1_PHONE).some((b: any) => /سجّله لبكرة/.test(JSON.stringify(b))), JSON.stringify(sentTo(C1_PHONE).slice(-2)));
   claudeIntent = "other";
   await say(env, C1_PHONE, { type: "text", text: { body: "العليا" } });
   assert("then «العليا»: saved as the neighborhood, the pending cleared", table("res.partner").get(C1)!.x_delivery_neighborhood === "العليا" && !env.MSG_DEDUP.store.get(`pending_neighborhood:${C1}`));

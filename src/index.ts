@@ -70,6 +70,7 @@ import {
 } from "./sim";
 import { parseAllowlist, runtimeMode, isSimRun } from "./config";
 import { isQuotationTrigger } from "./hours";
+import { deliverCommandOrderId } from "./order-flow";
 import {
   classifySignatureFailure,
   handleSignatureFailure,
@@ -2415,6 +2416,14 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         }))) {
         // § 42 ب — the amount after «مبلغ آخر» (30 minutes): recorded, refused over the balance, or asked again.
         await sendReply(env, msg.from, collectReply, ctx);
+      } else if (msg.type === "text" && deliverCommandOrderId(msg.text) !== null) {
+        // § 49 ج — «تسليم 12»: the delivery on the spot of a confirmed order that is on no route yet
+        // (it has no stop message, so no button). The same handler as the «تم التسليم» button.
+        const reply: RouterReply = await dispatch(env, {
+          msg: { ...msg, buttonId: `delivered_${deliverCommandOrderId(msg.text)}` }, intent: "other", senderType: "customer",
+          partner: { id: teamMember.id, name: teamMember.name, x_whatsapp_number: teamMember.x_whatsapp_number },
+        });
+        await sendReply(env, msg.from, reply, ctx);
       } else if (msg.type === "text") {
         const pendingKey = `pending_issue:${teamMember.id}`;
         const pendingOrderId = await env.MSG_DEDUP.get(pendingKey);
@@ -2540,6 +2549,16 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
             return `تعذّر تسجيل القرار الآن. جرّب بعد قليل، أو قرّر من ${PLACE_TODAY}.`;
           });
           if (r) await sendText(env, msg.from, r, { ctx, purpose: "owner_alert" });
+        } else if (((msg.type === "interactive" || msg.type === "button") && /^delivered_\d+$/.test(msg.buttonId ?? ""))
+          || (msg.type === "text" && deliverCommandOrderId(msg.text) !== null)) {
+          // § 49 ج — Baraa sells from the car: «تم التسليم ✅» under a confirmed order (or «تسليم 12»)
+          // delivers it on the spot — the invoice issued and sent, the order off every purchase list.
+          const buttonId = msg.buttonId && /^delivered_\d+$/.test(msg.buttonId) ? msg.buttonId : `delivered_${deliverCommandOrderId(msg.text)}`;
+          const reply: RouterReply = await dispatch(env, { msg: { ...msg, buttonId }, intent: "other", senderType: "customer", partner: null }).catch((e) => {
+            console.warn("[delivered] owner delivery failed", (e as Error)?.message);
+            return { text: "تعذّر تسجيل التسليم الآن. جرّب بعد قليل." } as RouterReply;
+          });
+          if (reply.text) await sendText(env, msg.from, reply.text, { ctx, purpose: "owner_alert" });
         } else if (msg.type === "text" && msg.text) {
           // § 40 ج — the price after «عدّل» (within 30 minutes); any other text: nothing, as before.
           const { handlePriceEditReply } = await import("./prices");

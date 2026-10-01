@@ -77,6 +77,25 @@ export function nextOrderingDate(now: Date = new Date()): string {
   return riyadhDateKey(now);
 }
 
+// ---- § 49 ب (2026-10-01) — orders are taken at every hour ----
+//
+// Nothing refuses an order message any more (the 21:00 → 06:00 gate is gone
+// from the router). What 21:00 still decides is the DELIVERY day: an order
+// confirmed before it enters tonight's 21:15 purchase list and is delivered
+// tomorrow morning; one confirmed after it enters tomorrow night's list and is
+// delivered the morning after. The ordering day (x_order_date) is that list's
+// day — nextOrderingDate — and the delivery day is the day after it.
+
+/** «YYYY-MM-DD» + n days. */
+export function addDaysYmd(ymd: string, n: number): string {
+  return new Date(Date.parse(`${ymd}T12:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+}
+
+/** The morning an order of this ordering day is delivered: the day after its 21:15 purchase list. */
+export function deliveryDayOf(orderDay: string): string {
+  return addDaysYmd(orderDay, 1);
+}
+
 /** True once today's purchase list has gone out (21:15) and until 06:00. */
 export function isAfterPurchaseCutoff(now: Date = new Date()): boolean {
   return riyadhMinutes(now) >= PURCHASE_LIST_MINUTE || riyadhHour(now) < ORDERING_HOURS_OPEN;

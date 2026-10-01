@@ -130,18 +130,32 @@ console.log("\n[ح6] a failed send is recorded as a failure and alerts the owner
 }
 
 // ================================================================ ح2
-console.log("\n[ح2] an order after 21:00 is offered «سجّله لبكرة» / «لا شكراً»");
+// § 49 ب (2026-10-01) — an order message after 21:00 is no longer offered «سجّله لبكرة»: it is
+// taken, on tomorrow's ordering day (tests/s49.test.mts follows it to its quotation). The prompt
+// itself still serves the standing order confirmed after 21:15 (ح9) and the buttons of a prompt sent
+// before § 49: the rest of this block drives it through offerLateOrder.
+console.log("\n[ح2] an order after 21:00 is taken on tomorrow's day; «سجّله لبكرة» / «لا شكراً» still answer an older prompt");
 {
+  const { offerLateOrder } = await import("../src/late-order.ts");
+  const tomato = (q: number) => ({ product_id: 1, packaging_id: 11, quantity: q, notes: "", label: `طماطم كرتون × ${q}` });
+  const cucumber = (q: number) => ({ product_id: 2, packaging_id: 21, quantity: q, notes: "", label: `خيار جرم × ${q}` });
+  {
+    const env0 = reset(); clearTemplateCache(); setRiyadh("2026-09-24 22:00");
+    setClaude([{ product_id: 1, product_name_raw: "طماطم", packaging_id: 11, quantity: 3 }]);
+    const r0: any = await say(env0, "طماطم كرتون 3", CUST);
+    const o0 = rows("x_daily_order");
+    assert("§ 49: an order message at 22:00 is recorded, with no late_yes / late_no prompt", !(r0.buttons ?? []).length && o0.length === 1 && rows("x_daily_order_line").length === 1 && !/انقفل|مقفل|سجّله/.test(replyText(r0)), JSON.stringify(r0));
+    assert("§ 49: its ordering day is tomorrow (delivered the morning after)", o0[0].x_order_date === "2026-09-25" && o0[0].x_state === "draft", JSON.stringify(o0));
+    assert("§ 49: no valid price list in this world → he is told his quotation comes with the day's prices", replyText(r0).includes("استلمنا طلبك ✅ الأسعار تتحدث"));
+  }
   const env = reset(); clearTemplateCache(); setRiyadh("2026-09-24 22:00");
-  setClaude([{ product_id: 1, product_name_raw: "طماطم", packaging_id: 11, quantity: 3 }]);
-  const r: any = await say(env, "طماطم كرتون 3", CUST);
+  const r: any = await quiet(() => offerLateOrder(env, CUST, [tomato(3)]));
   const ids = (r.buttons ?? []).map((b: any) => b.id);
   assert("new: two buttons late_yes / late_no", ids.includes(`late_yes_${CUST}`) && ids.includes(`late_no_${CUST}`), JSON.stringify(r));
   assert("new: button title «سجّله لبكرة»", (r.buttons ?? []).some((b: any) => b.title === "سجّله لبكرة"));
   assert("old: no «يوصلك بكرة الصبح» promise", !replyText(r).includes("يوصلك بكرة الصبح"));
   assert("old: nothing recorded before the customer decides", rows("x_daily_order").length === 0);
-  setClaude([{ product_id: 2, product_name_raw: "خيار", packaging_id: 21, quantity: 5 }]);
-  const r2: any = await say(env, "وخيار جرم 5", CUST);
+  const r2: any = await quiet(() => offerLateOrder(env, CUST, [cucumber(5)]));
   assert("a second message adds to the same prompt", replyText(r2).includes("طماطم") && replyText(r2).includes("خيار"));
   const y1 = await tap(env, `late_yes_${CUST}`, CUST);
   const o = rows("x_daily_order");
@@ -152,14 +166,12 @@ console.log("\n[ح2] an order after 21:00 is offered «سجّله لبكرة» /
   assert("double tap yes: «تم مسبقاً», still one order", replyText(y2).includes(ALREADY_DONE_TEXT) && rows("x_daily_order").length === 1);
   // concurrent double tap
   const env2 = reset(); setRiyadh("2026-09-24 22:30");
-  setClaude([{ product_id: 1, product_name_raw: "طماطم", packaging_id: 11, quantity: 2 }]);
-  await say(env2, "طماطم 2", CUST2);
+  await quiet(() => offerLateOrder(env2, CUST2, [tomato(2)]));
   await Promise.all([tap(env2, `late_yes_${CUST2}`, CUST2), tap(env2, `late_yes_${CUST2}`, CUST2)]);
   assert("concurrent double tap yes: one order", rows("x_daily_order").length === 1, String(rows("x_daily_order").length));
   // no
   const env3 = reset(); setRiyadh("2026-09-24 23:00");
-  setClaude([{ product_id: 1, product_name_raw: "طماطم", packaging_id: 11, quantity: 1 }]);
-  await say(env3, "طماطم 1", CUST);
+  await quiet(() => offerLateOrder(env3, CUST, [tomato(1)]));
   const n1 = await tap(env3, `late_no_${CUST}`, CUST);
   assert("no: nothing recorded, polite close", rows("x_daily_order").length === 0 && replyText(n1).includes("ما سجّلنا"));
   const n2 = await tap(env3, `late_no_${CUST}`, CUST);
@@ -196,9 +208,16 @@ console.log("\n[ح3] 20:00 reminder with a confirm button; 21:00 cancels and tel
 console.log("\n[ح4] quotation buttons check the order state first");
 {
   const env = reset(); setRiyadh("2026-09-24 12:00");
+  // § 49 ب — the day's published price list (tomato 20): a quotation and a confirmation need a valid one
+  const pd = seed("x_price_day", { x_date: "2026-09-24", x_state: "published", x_name: "أسعار اليوم 2026-09-24", x_utak_simulation: false, x_published_at: "2026-09-24 03:00:00" });
+  seed("x_price_day_line", { x_day_id: pd, x_product_tmpl_id: 1, x_packaging_id: 11, x_cost_price: 15, x_market_price: 20, x_sale_price: 20, x_status: "auto", x_excluded: false, x_blocked: false });
+  table("res.partner").get(CUST)!.x_delivery_neighborhood = "العليا";
+  table("res.partner").get(CUST2)!.x_delivery_neighborhood = "الملز";
   const cancelled = order(CUST, "cancelled", "2026-09-24");
-  const r1 = await tap(env, `confirm_order_${cancelled}`, CUST);
-  assert("old gap closed: confirm does not revive a cancelled order", table("x_daily_order").get(cancelled)!.x_state === "cancelled" && replyText(r1).includes("ملغى"));
+  const r1: any = await tap(env, `confirm_order_${cancelled}`, CUST);
+  const again = rows("x_daily_order").find((o: any) => o.x_customer_id === CUST && o.id !== cancelled) as any;
+  assert("old gap closed: confirm does not revive a cancelled order", table("x_daily_order").get(cancelled)!.x_state === "cancelled" && replyText(r1).includes("أُلغي"));
+  assert("§ 49: its items start a new order, quoted at the valid list (a new confirm button), not confirmed by the old tap", again?.x_state === "waiting_confirmation" && (r1.buttons ?? []).some((b: any) => b.id === `confirm_order_${again.id}`) && replyText(r1).includes(`#${again.id}`), JSON.stringify(r1));
   const waiting = order(CUST, "waiting_confirmation", "2026-09-24");
   const r2 = await tap(env, `confirm_order_${waiting}`, CUST);
   assert("new: confirm of a waiting order during hours works", table("x_daily_order").get(waiting)!.x_state === "confirmed" && replyText(r2).includes("تم التأكيد"));
@@ -219,11 +238,12 @@ console.log("\n[ح4] quotation buttons check the order state first");
   setRiyadh("2026-09-24 21:30");
   const late = order(CUST2, "cancelled", "2026-09-24", 2);
   const r4: any = await tap(env, `confirm_order_${late}`, CUST2);
-  assert("confirm after 21:00 on a cancelled order → ح2 prompt, order stays cancelled",
-    (r4.buttons ?? []).some((b: any) => b.id === `late_yes_${CUST2}`) && table("x_daily_order").get(late)!.x_state === "cancelled", JSON.stringify(r4));
-  const stale = order(CUST2, "waiting_confirmation", "2026-09-24");
-  await tap(env, `confirm_order_${stale}`, CUST2);
-  assert("confirm after 21:00 on a still-waiting order: not confirmed", table("x_daily_order").get(stale)!.x_state !== "confirmed");
+  const relisted = rows("x_daily_order").find((o: any) => o.x_customer_id === CUST2 && o.id !== late) as any;
+  assert("§ 49: confirm after 21:00 on a cancelled order → no ح2 prompt: the order stays cancelled, its items are quoted again on tomorrow's day",
+    !(r4.buttons ?? []).some((b: any) => /^late_/.test(b.id)) && table("x_daily_order").get(late)!.x_state === "cancelled" && relisted?.x_order_date === "2026-09-25" && relisted.x_state === "waiting_confirmation" && (r4.buttons ?? []).some((b: any) => b.id === `confirm_order_${relisted.id}`) && /بعد بكرة/.test(replyText(r4)), JSON.stringify(r4));
+  const stale = order(CUST2, "waiting_confirmation", "2026-09-24", 1, { x_price_date: "2026-09-24" });
+  const r5: any = await tap(env, `confirm_order_${stale}`, CUST2);
+  assert("§ 49: confirm after 21:00 on a quotation of before 21:00: not confirmed for tomorrow — a new quotation with the day after tomorrow", table("x_daily_order").get(stale)!.x_state === "waiting_confirmation" && table("x_daily_order").get(stale)!.x_order_date === "2026-09-25" && /بعد بكرة/.test(replyText(r5)) && (r5.buttons ?? []).some((b: any) => b.id === `confirm_order_${stale}`), JSON.stringify(r5));
 }
 
 // ================================================================ ح5

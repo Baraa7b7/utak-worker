@@ -62,6 +62,7 @@ import { loadPriceSources, MARKET_ASK_MINUTE, MARKET_REPLY_WINDOW_MIN } from "./
 import { readPricingSettings } from "./operating-cost";
 import { BOARD_LINE_FIELDS, boardHeader, boardLine, boardShare, fallbackSale, readBoardInputs, type BoardStatus, type FloorInputs } from "./pricing-board";
 import { PLACE_TODAY } from "./places";
+import { PRICE_NOTE, quoteAwaitingOrders, type AwaitingReport } from "./order-flow";
 
 export const PRICE_DAY_MODEL = "x_price_day";
 export const PRICE_LINE_MODEL = "x_price_day_line";
@@ -91,8 +92,12 @@ export function pricesDeadlineMinutes(env: Env): { minutes: number; source: "PRI
   return set === null ? { minutes: ORDERING_HOURS_OPEN * 60, source: "ORDERING_HOURS_OPEN" } : { minutes: set, source: "PRICES_DEADLINE" };
 }
 
+/** The product's own name: the «[UTAK-…]» reference in front of it removed, nothing cut. */
+function fullName(name: string): string {
+  return String(name ?? "").replace(/^\[[^\]]*\]\s*/, "").trim();
+}
 function shortName(name: string): string {
-  const n = String(name ?? "").replace(/^\[[^\]]*\]\s*/, "").trim();
+  const n = fullName(name);
   return n.length > 24 ? `${n.slice(0, 23)}…` : n;
 }
 function money(x: number): string {
@@ -326,7 +331,8 @@ export async function refreshPriceDay(env: Env, opts: { day?: string; force?: bo
     };
     if (!l) {
       creates.push({
-        x_day_id: rec.id, x_name: `${shortName(p.productName)} — ${p.packagingName}`, x_sequence: ++seq,
+        // § 49 هـ — the line's stored name is the item's FULL name (the days' chart and the search name a line by it): no cut at 24 characters
+        x_day_id: rec.id, x_name: `${fullName(p.productName)} — ${p.packagingName}`, x_sequence: ++seq,
         x_product_tmpl_id: p.productId, x_packaging_id: p.packagingId, ...want,
       });
       continue;
@@ -506,7 +512,8 @@ export interface PublishedLine {
  */
 export function buildPriceMessages(day: string, lines: PublishedLine[], limit: number = PRICE_TEXT_LIMIT, heading?: string): string[] {
   const title = `🌿 أسعار يو تاك اليوم — ${weekdayAr(day)} ${arabicDate(day)}`;
-  const footer = `الأسعار لطلبات اليوم. اطلب من هنا قبل الساعة ${cutoffLabel(ORDERING_HOURS_CLOSE)} 🌿`;
+  // § 49 ب — the list is valid until 06:00 tomorrow, orders are taken at every hour, and 21:00 decides the delivery day
+  const footer = `${PRICE_NOTE}\nاطلب من هنا في أي وقت: الطلب المؤكد قبل الساعة ${cutoffLabel(ORDERING_HOURS_CLOSE)} يوصلك صباح بكرة 🌿`;
   const items = lines.map((l) => `• ${shortName(l.productName)} (${l.packagingName}): ${money(l.salePrice)} ر.س`);
   const head = [heading, title].filter(Boolean).join("\n\n");
   const room = Math.max(200, limit - head.length - footer.length - 16);
@@ -580,6 +587,8 @@ export interface PublishReport {
   recipients?: number;
   counts?: Record<string, number>;
   detail?: string;
+  /** § 49 ب — the orders that waited for a valid list and were quoted by this publication. */
+  awaiting?: AwaitingReport[];
 }
 
 function nowOdoo(ms: number = Date.now()): string {
@@ -687,13 +696,30 @@ export async function publishPriceDay(env: Env, dayId: number, opts: { ctx?: Exe
     await call(penv, PRICE_DAY_MODEL, "write", { ids: [dayId], vals: { x_state: "published", x_published_at: nowOdoo(now), x_publish_report: report } });
     await finishButton(penv, claim);
     console.log(`[prices] ${day.x_date} published`, JSON.stringify(counts));
-    return { action: "published", day: day.x_date, dayId, items: published.length, parts: parts.length, excluded, recipients: recipients.length, counts };
+    // § 49 ب — the list is valid from now: every order kept for want of one gets its quotation (never blocks the publication)
+    const awaiting = await quoteWaitingAfterPublication(penv, now, opts.ctx);
+    return { action: "published", day: day.x_date, dayId, items: published.length, parts: parts.length, excluded, recipients: recipients.length, counts, ...(awaiting.length ? { awaiting } : {}) };
   } catch (e) {
     // Nothing irreversible is known to have happened only if nothing was sent;
     // keep the claim (no second publication) and tell Baraa.
     console.error("[prices] publish failed", (e as Error)?.message);
     await sendOwnerAlert(penv, `⚠️ تعذّر إكمال نشر أسعار ${day.x_date}: ${(e as Error)?.message ?? e}. راجع السجل قبل إعادة المحاولة.`).catch(() => {});
     throw e;
+  }
+}
+
+/** § 49 ب — the orders that waited for prices, quoted now; Baraa gets one line with their numbers. Never throws. */
+async function quoteWaitingAfterPublication(env: Env, now: number, ctx?: ExecutionContext): Promise<AwaitingReport[]> {
+  try {
+    const out = await quoteAwaitingOrders(env, now, ctx);
+    const quoted = out.filter((r) => r.action === "quoted");
+    if (quoted.length) {
+      await sendOwnerAlert(env, `📨 أُرسل عرض السعر بأسعار اليوم لـ ${quoted.length} ${quoted.length === 1 ? "طلب كان" : "طلبات كانت"} بانتظار الأسعار: ${quoted.map((r) => `#${r.orderId}`).join("، ")}.`);
+    }
+    return out;
+  } catch (e) {
+    console.warn("[prices] the orders waiting for prices were not quoted — the tick retries", (e as Error)?.message);
+    return [];
   }
 }
 
@@ -994,6 +1020,8 @@ export interface PricesTick {
   publish?: PublishReport | { error: string };
   /** § 48 د — the days recomputed because a decision taken in Odoo was waiting. */
   decisions?: RefreshReport[] | { error: string };
+  /** § 49 ب — the orders that waited for a valid list, quoted by this tick (a publication that could not quote them). */
+  awaiting?: AwaitingReport[] | { error: string };
 }
 
 /** A decision taken in Odoo is looked for on the days from this many days back (today, yesterday). */
@@ -1063,5 +1091,10 @@ export async function runPricesTick(env: Env, now: number = Date.now(), ctx?: Ex
   } catch (e) {
     out.publish = { error: (e as Error)?.message ?? String(e) };
   }
+  // § 49 ب — an order still waiting for prices while a list is valid (the publication could not quote it): now
+  try {
+    const waiting = await quoteWaitingAfterPublication(env, now, ctx);
+    if (waiting.length) out.awaiting = waiting;
+  } catch (e) { out.awaiting = { error: (e as Error)?.message ?? String(e) }; }
   return out;
 }

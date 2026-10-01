@@ -1,0 +1,55 @@
+{
+  "script": "scripts/s46-20261001-product-setup.mjs",
+  "createdAt": "2026-10-01T03:16:34.459Z",
+  "created": {
+    "categories": {
+      "فواكه": 5,
+      "خضار": 6,
+      "ورقيات": 7
+    },
+    "fields": [
+      20766
+    ],
+    "actions": {
+      "onCreate": 1035,
+      "onCategory": 1036
+    },
+    "packagings": [
+      49
+    ],
+    "automations": {
+      "onCreate": 27,
+      "onCategory": 28
+    }
+  },
+  "before": {
+    "products": {
+      "113": {
+        "product": {
+          "id": 113,
+          "name": "رمان مصري",
+          "default_code": false,
+          "categ_id": false,
+          "type": "consu",
+          "is_storable": true,
+          "uom_id": [
+            1,
+            "Units"
+          ],
+          "purchase_method": "receive",
+          "invoice_policy": "order",
+          "taxes_id": [
+            5
+          ],
+          "supplier_taxes_id": [
+            21
+          ],
+          "x_is_active_for_sale": false,
+          "active": true,
+          "x_utak_new": false
+        },
+        "packagings": []
+      }
+    }
+  }
+}

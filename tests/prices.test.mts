@@ -391,9 +391,14 @@ console.log("\n[6] list_price / standard_price are never written");
   const SRC = new URL("../src/", import.meta.url);
   const offenders = readdirSync(SRC).filter((f) => f.endsWith(".ts")).filter((f) => {
     const code = readFileSync(new URL(f, SRC), "utf8");
-    return /["']product\.template["']\s*,\s*["']write["']/.test(code) || /(list_price|standard_price)\s*:/.test(code);
+    // § 46 ب — src/product-setup.ts clears its own alert flag on the product (checked below), nothing else
+    return (/["']product\.template["']\s*,\s*["']write["']/.test(code) && f !== "product-setup.ts") || /(list_price|standard_price)\s*:/.test(code);
   });
   assert("src/: no product.template write, no list_price / standard_price value", offenders.length === 0, offenders.join(","));
+  const setup = readFileSync(new URL("product-setup.ts", SRC), "utf8");
+  const setupWrites = [...setup.matchAll(/"product\.template", "write", \{ ids: \[p\.id\], vals: (\{[^}]*\}) \}/g)].map((m) => m[1]);
+  assert("src/product-setup.ts: its only product.template writes clear its alert flag (x_utak_new)", setupWrites.length === 2 && setupWrites.every((v) => v === "{ [NEW_FLAG]: false }")
+    && (setup.match(/"product\.template", "write"/g) ?? []).length === 2, JSON.stringify(setupWrites));
 }
 
 // ================================================================ 7. schema

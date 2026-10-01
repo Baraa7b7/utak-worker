@@ -228,6 +228,16 @@ export default {
           } catch (e) {
             console.error("[collect-pay tick] failed", (e as Error)?.message);
           }
+          // § 46 ب — a product created in Odoo: Baraa's one alert with what is
+          // still missing on it (10 minutes after its creation).
+          try {
+            const { runProductSetupTick, PRODUCT_SETUP_JOB } = await import("./product-setup");
+            const { withAutoSendJob } = await import("./auto-send-guard");
+            const ps = await runProductSetupTick(withAutoSendJob(rawEnv, PRODUCT_SETUP_JOB), Date.now());
+            if (ps.some((r) => r.action !== "waiting")) console.log("[product-setup tick]", JSON.stringify(ps));
+          } catch (e) {
+            console.error("[product-setup tick] failed", (e as Error)?.message);
+          }
           // 2026-09-25 (STATUS § 37) — supplier payments: the dues of recent
           // confirmed purchase lists (a price that arrived later), and a
           // decided payment whose webhook was lost.

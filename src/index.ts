@@ -228,6 +228,15 @@ export default {
           } catch (e) {
             console.error("[collect-pay tick] failed", (e as Error)?.message);
           }
+          // § 46 ج — an invoice held at «تم التسليم» for a zero price: issued and
+          // sent once the price is corrected in Odoo.
+          try {
+            const { runZeroInvoiceTick } = await import("./zero-price");
+            const zi = await runZeroInvoiceTick(rawEnv, Date.now());
+            if (zi.some((r) => r.action !== "waiting")) console.log("[zero-invoice tick]", JSON.stringify(zi));
+          } catch (e) {
+            console.error("[zero-invoice tick] failed", (e as Error)?.message);
+          }
           // § 46 ب — a product created in Odoo: Baraa's one alert with what is
           // still missing on it (10 minutes after its creation).
           try {

@@ -292,9 +292,11 @@ export function reset(): any {
   ]));
   return env;
 }
+// § 46 ج — its lines carry a unit price (20, the price the worlds built on it already assume:
+// 3 × 20 = 60): a line without a price is no longer confirmed or invoiced (src/zero-price.ts).
 export function order(customer: number, state: string, date: string, lines = 1, extra: Record<string, unknown> = {}): number {
   const id = seed("x_daily_order", { x_customer_id: customer, x_state: state, x_order_date: date, x_created_via: "whatsapp", ...extra });
-  for (let i = 0; i < lines; i++) seed("x_daily_order_line", { x_order_id: id, x_product_tmpl_id: 1, x_packaging_id: 11, x_quantity: 3, x_status: "pending" });
+  for (let i = 0; i < lines; i++) seed("x_daily_order_line", { x_order_id: id, x_product_tmpl_id: 1, x_packaging_id: 11, x_quantity: 3, x_unit_price: 20, x_status: "pending" });
   return id;
 }
 /**

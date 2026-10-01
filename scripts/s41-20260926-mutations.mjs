@@ -104,7 +104,8 @@ const M = [
   ["سعر", "the day asked ignored (always today)", [[OD,
     "  const today = day ?? riyadhToday(); // 2026-09-25", "  const today = riyadhToday(); // 2026-09-25"]], T],
   ["سعر", "the invoice priced at the delivery day", [[INV,
-    "      unit = (await getLatestSalePrice(env, l.product_id, l.packaging_id, order.order_date ?? undefined)).price;\n    }\n    const line_total", "      unit = (await getLatestSalePrice(env, l.product_id, l.packaging_id)).price;\n    }\n    const line_total"]], T],
+    // § 46 ج — the zero-price guard's lines follow the block now (the pattern's tail on the new shape)
+    "      unit = (await getLatestSalePrice(env, l.product_id, l.packaging_id, order.order_date ?? undefined)).price;\n    }\n    // § 46 ج — still no price", "      unit = (await getLatestSalePrice(env, l.product_id, l.packaging_id)).price;\n    }\n    // § 46 ج — still no price"]], T],
   ["سعر", "the quotation priced at the day it is built", [[QT,
     "      const lookup = await getLatestSalePrice(env, l.product_id, l.packaging_id, order.order_date ?? undefined);", "      const lookup = await getLatestSalePrice(env, l.product_id, l.packaging_id);"]], T],
   ["سعر", "the stale fallback takes a later day's price", [[OD,

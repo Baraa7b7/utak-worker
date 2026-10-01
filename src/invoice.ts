@@ -58,6 +58,7 @@ import { toLegalFooterAr } from "./legal-footer";
 import { parseOdooUtc, resolveZatcaQr, zatcaQrSvg, type ZatcaQr } from "./zatca-qr";
 import { BUYER_TAX_FIELDS, buyerTaxInfo, riyadhDateTime, taxInvoiceBreakdown, taxInvoiceKind, type BuyerTax } from "./tax-invoice";
 import { VAT_RATE_PCT } from "./config";
+import { holdZeroInvoice, isZeroPrice } from "./zero-price";
 import { UI, resolveDocLang, type DocLang } from "./i18n";
 import { formatDateEn, fromPartyFor, itemCellHTML, labelForBillTo, labelForFrom, labelForTerms, taglineFor, thanksLine } from "./doc-shell";
 
@@ -149,6 +150,8 @@ async function issueAndDispatchInvoice(
       // semantics preserved.
       unit = (await getLatestSalePrice(env, l.product_id, l.packaging_id, order.order_date ?? undefined)).price;
     }
+    // § 46 ج — still no price: the line's manual price (what Baraa corrects in Odoo), before the guard below
+    if (isZeroPrice(unit) && !isZeroPrice(l.price_unit_manual)) unit = l.price_unit_manual as number;
     const line_total = round2(unit * l.quantity);
     subtotal = round2(subtotal + line_total);
     pricedLines.push({
@@ -159,6 +162,17 @@ async function issueAndDispatchInvoice(
       unit,
       line_total,
     });
+  }
+
+  // § 46 ج — the zero-price guard: a line priced ≤ 0 or without a price never
+  // enters an invoice. Nothing is issued; the delivery goes on; Baraa gets one
+  // alert and the every-5-minutes tick issues and sends it once the price is
+  // corrected in Odoo (src/zero-price.ts).
+  const zeroLines = pricedLines.filter((p) => isZeroPrice(p.unit));
+  if (zeroLines.length) {
+    console.warn(`[invoice] order ${orderId}: ${zeroLines.length} line(s) without a price — no invoice issued`);
+    await holdZeroInvoice(env, orderId, order.customer_name, zeroLines.map((p) => ({ product: p.product, packaging: p.packaging })), issuedAt.getTime());
+    return null;
   }
 
   // 2026-09-23 — VAT by invoice date (Riyadh, src/config.ts

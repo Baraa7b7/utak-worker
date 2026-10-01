@@ -491,6 +491,10 @@ export async function createAndDispatchQuotationForRecord(
   // sim-harness (2026-09-13): loud-fail gate. Any line with source="missing"
   // means we would have sent the customer a quotation with a 0-price row —
   // silently. Short-circuit before HTML/PDF/R2/send. Never write x_sent_at.
+  // § 46 ج — this is the zero-price guard's second net: the router does not
+  // create the quotation at all for such an order (src/zero-price.ts); here a
+  // quotation created in Odoo, or one whose price disappeared, is still blocked,
+  // and the alert names the order.
   //
   // item3 (2026-09-17): manual quotations use the same gate but report per
   // the tonight spec — "صنف بلا سعر: <name>" — so the reason surfaces
@@ -506,8 +510,8 @@ export async function createAndDispatchQuotationForRecord(
     await alertOwner(
       env,
       [
-        `🚫 كوتيشن ${data.quotationNumber} (id=${quotationId}) — ما أرسلناه للعميل`,
-        data.is_manual ? `عرض يدوي: أصناف بلا سعر:` : `أصناف بدون سعر في x_daily_price:`,
+        `🚫 كوتيشن ${data.quotationNumber} (id=${quotationId})${data.order_id ? `، الطلب #${data.order_id}` : ""} — ما أرسلناه للعميل`,
+        data.is_manual ? `عرض يدوي: أصناف بلا سعر:` : `أصناف بسعر صفر أو بلا سعر:`,
         ...missing.map((n) => `• ${n}`),
         ``,
         data.is_manual

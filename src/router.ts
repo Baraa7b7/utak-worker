@@ -47,6 +47,7 @@ import { markStopDelivered, markStopIssue } from "./odoo";
 import { looksLikeComplaint, handleComplaint } from "./complaint";
 import { handleStandingConfirm, handleStandingEdit, handleStandingSkip } from "./standing";
 import { minimumText, orderMinimum } from "./order-pricing";
+import { quotationZeroGuard } from "./zero-price";
 
 /** § 41 د — from the VAT cutoff (Riyadh) the quotation message says its prices include VAT. */
 function vatNote(): string {
@@ -304,6 +305,14 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
           .filter(Boolean).join("\n"),
       };
     }
+    // § 46 ج — a line priced ≤ 0 or without a price: no quotation; «نراجع السعر وأرد عليك», and Baraa's alert.
+    const review = await quotationZeroGuard(env, orderId);
+    if (review) {
+      return {
+        text: [(created ? "بديت لك طلب جديد ✅" : "أضفنا لطلبك ✅"), addedSummary, unavailableWarn, urgencyNote, ``, review]
+          .filter(Boolean).join("\n"),
+      };
+    }
     // v4.2: precise location preferred; saved neighborhood text is acceptable
     // fallback. Missing both → park the flow and ask for a location share.
     const loc = await getPartnerLocation(env, partner.id);
@@ -426,6 +435,9 @@ async function handleQuotationRequest(env: Env, input: RouterInput): Promise<Rou
   // § 40 د — below the minimum order: no quotation, no confirm button; the order stays open.
   const minimum = await orderMinimum(env, orderId).catch(() => null);
   if (minimum?.below) return { text: belowMinimumText(minimum) };
+  // § 46 ج — a line priced ≤ 0 or without a price: no quotation; «نراجع السعر وأرد عليك», and Baraa's alert.
+  const review = await quotationZeroGuard(env, orderId);
+  if (review) return { text: review };
 
   // v4.2: precise location preferred; saved neighborhood text is acceptable
   // fallback. Missing both → park the flow and ask for a location share.
@@ -824,6 +836,12 @@ async function confirmOrderButton(env: Env, orderId: number, partner: OdooPartne
     if (minimum?.below) {
       if (o.state === "waiting_confirmation") await updateOrderState(env, orderId, "draft");
       return { text: belowMinimumText(minimum) };
+    }
+    // § 46 ج — a line priced ≤ 0 or without a price is never confirmed: the order goes back to draft.
+    const review = await quotationZeroGuard(env, orderId);
+    if (review) {
+      if (o.state !== "draft") await updateOrderState(env, orderId, "draft");
+      return { text: review };
     }
     await updateOrderState(env, orderId, "confirmed");
     // 2026-09-23 (ACCOUNTING_SYNC) — confirmed order → confirmed sale.order.

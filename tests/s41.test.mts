@@ -77,7 +77,7 @@ const FIX = [
   "fixtures-odoo-fields-20260926-s40.json",
   "fixtures-odoo-fields-20260926-s41.json",       // § 41: every model the parts read or write (last: it wins)
   "fixtures-odoo-fields-20260928-s44.json", // § 44: x_vat_status / x_legal_name / x_vat_ask_count on res.partner (the invoice reads them), the purchase side (last: it wins)
-  "fixtures-odoo-fields-20261001-s46.json", // § 46: the pricing board's fields on x_price_day / x_price_day_line, x_expected_cartons, product.template.x_utak_new (last: it wins)
+  "fixtures-odoo-fields-20261001-s47.json", // § 46 + § 47: the pricing board's fields on x_price_day / x_price_day_line, x_expected_cartons, product.template.x_utak_new, x_min_margin_pct, x_break_even / x_suggested_price, x_decision «profit» (last: it wins)
 ].map((f) => JSON.parse(readFileSync(new URL(`./${f}`, import.meta.url), "utf8")));
 const REAL: Record<string, string[]> = Object.assign({}, ...FIX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FIX.map((f) => f._selections ?? {}));
@@ -205,30 +205,34 @@ function publishedTomato(day: string, cost = 20, sale = 30, source: number = AHM
 const line = (qty: number, unit = 30, product = 1, packaging = 11) => ({ productId: product, packagingId: packaging, qty, unit });
 
 // ================================================================ [أ]
-console.log("\n[أ] the rule: (sale − purchase − waste) ÷ 1.15 registered, sale ÷ 1.15 − purchase − waste not; nothing before 10-01");
+// § 47 أ (2026-10-01) — the purchase price is NET of VAT whoever the source: «مسجل في الضريبة» no longer
+// divides the purchase by 1.15, so a registered and an unregistered source give the same profit (what the
+// unregistered one gave in § 41): sale ÷ 1.15 − purchase − waste.
+console.log("\n[أ] the rule: sale ÷ 1.15 − purchase − waste from 10-01, whoever the source (§ 47: the purchase is net); nothing before 10-01");
 {
   assert("the rate: 09-30 → none, 10-01 → 15", CFG.profitVatRate("2026-09-30") === null && CFG.profitVatRate("2026-10-01") === 15 && CFG.PROFIT_VAT_RATE_PCT === 15);
   const r2 = (n: number) => Math.round(n * 100) / 100;
-  assert("before the cutoff: 24 − 20 − 5 % × 20 = 3, not divided", EN.vatProfit(24, 20, 5, null, true) === 3 && EN.vatProfit(24, 20, 5, null, false) === 3);
-  assert("from the cutoff, registered: (24 − 20 − 1) ÷ 1.15 = 2.61", r2(EN.vatProfit(24, 20, 5, 15, true)) === 2.61);
-  assert("from the cutoff, not registered: 24 ÷ 1.15 − 20 − 1 = −0.13", r2(EN.vatProfit(24, 20, 5, 15, false)) === -0.13);
-  assert("waste = waste % × purchase (10 % of 40 = 4): (60 − 40 − 4) ÷ 1.15 = 13.91", r2(EN.vatProfit(60, 40, 10, 15, true)) === 13.91);
+  assert("before the cutoff: 24 − 20 − 5 % × 20 = 3, not divided", EN.vatProfit(24, 20, 5, null) === 3);
+  assert("from the cutoff: 24 ÷ 1.15 − 20 − 1 = −0.13 (the purchase 20 is net: not (24 − 20 − 1) ÷ 1.15 = 2.61)", r2(EN.vatProfit(24, 20, 5, 15)) === -0.13);
+  assert("…26 ÷ 1.15 − 20 − 1 = 1.61", r2(EN.vatProfit(26, 20, 5, 15)) === 1.61);
+  assert("waste = waste % × purchase (10 % of 40 = 4): 60 ÷ 1.15 − 40 − 4 = 8.17", r2(EN.vatProfit(60, 40, 10, 15)) === 8.17);
   const dp20 = offer({ kind: "purchase", price: 20, partnerId: AHMED, model: "dp", rowId: 5 });
   const m24 = offer({ kind: "market", price: 24, partnerId: DRIVER, rowId: 6 });
+  const m26 = offer({ kind: "market", price: 26, partnerId: DRIVER, rowId: 6 });
   const [pre] = EN.computePricing([ITEM], [dp20, m24], 5);
   assert("the engine without a VAT context (as before): 3, automatic", pre.unitProfit === 3 && pre.exceptions.length === 0, JSON.stringify(pre));
-  const [reg] = EN.computePricing([ITEM], [dp20, m24], 5, { ratePct: 15, registered: () => true });
-  assert("the engine, registered winner: 2.61, automatic", reg.unitProfit === 2.61 && reg.exceptions.length === 0, JSON.stringify(reg));
-  const [un] = EN.computePricing([ITEM], [dp20, m24], 5, { ratePct: 15, registered: (p) => p !== AHMED });
-  assert("the engine, unregistered winner: −0.13 → «ربح الوحدة ≤ 0 (-0.13)»", un.unitProfit === -0.13 && un.exceptions.join() === "no_profit" && un.reason === "ربح الوحدة ≤ 0 (-0.13)", JSON.stringify(un));
-  const [who] = EN.computePricing([ITEM], [dp20, offer({ kind: "purchase", price: 19, partnerId: DRIVER, rowId: 7 }), m24], 5, { ratePct: 15, registered: (p) => p !== DRIVER });
-  assert("the registration of the source that WON the purchase counts (Omar's 19 won, he is not registered): 24 ÷ 1.15 − 19 − 0.95 = 0.92",
-    who.purchase === 19 && who.unitProfit === 0.92, JSON.stringify(who));
+  const [ok] = EN.computePricing([ITEM], [dp20, m26], 5, { ratePct: 15 });
+  assert("the engine from the cutoff, market 26: 1.61, automatic", ok.unitProfit === 1.61 && ok.exceptions.length === 0, JSON.stringify(ok));
+  const [un] = EN.computePricing([ITEM], [dp20, m24], 5, { ratePct: 15 });
+  assert("the engine from the cutoff, market 24: −0.13 → «ربح الوحدة ≤ 0 (-0.13)» (no carton share given: the rule before § 47 ب)", un.unitProfit === -0.13 && un.exceptions.join() === "no_profit" && un.reason === "ربح الوحدة ≤ 0 (-0.13)", JSON.stringify(un));
+  const [who] = EN.computePricing([ITEM], [dp20, offer({ kind: "purchase", price: 19, partnerId: DRIVER, rowId: 7 }), m24], 5, { ratePct: 15 });
+  assert("the lowest offer wins as the numbers are (Omar's 19 under Ahmed's 20): 24 ÷ 1.15 − 19 − 0.95 = 0.92",
+    who.purchase === 19 && who.purchaseOffer?.partnerId === DRIVER && who.unitProfit === 0.92, JSON.stringify(who));
 }
 
-console.log("\n[أ] the engine on the day: 09-30 not divided, 10-01 divided — registered and not");
+console.log("\n[أ] the engine on the day: 09-30 not divided, 10-01 the sale ÷ 1.15 — the same for a registered source and not");
 for (const [day, ahmedReg, want, status] of [
-  ["2026-09-30", true, 3, "auto"], ["2026-10-01", true, 2.61, "auto"], ["2026-10-01", false, -0.13, "exception"], ["2026-09-30", false, 3, "auto"],
+  ["2026-09-30", true, 3, "auto"], ["2026-10-01", true, -0.13, "exception"], ["2026-10-01", false, -0.13, "exception"], ["2026-09-30", false, 3, "auto"],
 ] as Array<[string, boolean, number, string]>) {
   const env = fresh(`${day} 04:10`, { onAttendance: false }); sources({ ahmed: ahmedReg });
   dp(1, 11, AHMED, 20, day); po(1, 11, DRIVER, day, { market: 24 });
@@ -239,14 +243,16 @@ for (const [day, ahmedReg, want, status] of [
 }
 {
   const env = fresh("2026-10-01 04:10", { onAttendance: false }); sources({ ahmed: true });
-  dp(1, 11, AHMED, 20, "2026-10-01"); po(1, 11, DRIVER, "2026-10-01", { market: 24 });
+  dp(1, 11, AHMED, 20, "2026-10-01"); po(1, 11, DRIVER, "2026-10-01", { market: 26 });
   await quiet(() => PR.refreshPriceDay(env));
-  assert("before: 2.61 automatic", lineFor(1, "2026-10-01")!.x_unit_profit === 2.61);
+  assert("before: 1.61 automatic at 26", lineFor(1, "2026-10-01")!.x_unit_profit === 1.61 && lineFor(1, "2026-10-01")!.x_status === "auto");
   table("res.partner").get(AHMED)!.x_vat_registered = false;
-  await quiet(() => PR.refreshPriceDay(env));
+  const again = await quiet(() => PR.refreshPriceDay(env));
   const t = lineFor(1, "2026-10-01")!;
-  assert("Baraa unticks «مسجل في الضريبة» on Ahmed: the next run recomputes (not «unchanged») → −0.13, an exception",
-    t.x_unit_profit === -0.13 && t.x_status === "exception", JSON.stringify(t));
+  assert("Baraa unticks «مسجل في الضريبة» on Ahmed: nothing to recompute («unchanged»), the same 1.61, automatic",
+    again.action === "unchanged" && t.x_unit_profit === 1.61 && t.x_status === "auto" && t.x_sale_price === 26, JSON.stringify({ again, t }));
+  await quiet(() => PR.refreshPriceDay(env, { force: true }));
+  assert("…and a forced run gives the same line", lineFor(1, "2026-10-01")!.x_unit_profit === 1.61 && lineFor(1, "2026-10-01")!.x_status === "auto");
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 
@@ -262,17 +268,18 @@ console.log("\n[أ] the discount guard: the order's profit net of VAT, the disco
   const env = fresh("2026-10-01 10:00"); sources(); tiers(3); publishedTomato("2026-10-01");
   cost("السيارة والسائق (شامل)", "daily", 500, "2026-09-01");
   const d = await quiet(() => OP.orderDiscount(env, { day: "2026-10-01", lines: [line(20)], vatRate: async () => 15 }));
-  assert("10-01, registered: profit 180 ÷ 1.15 = 156.52; the discount 2 % of the net 521.74 = 10.43",
-    d.profitBefore === 156.52 && d.tierPct === 2, JSON.stringify(d));
-  assert("…after it: (180 − 11.99 the customer's total drops by) ÷ 1.15 = 146.10 < 166.67 → no discount (the same order got one on 09-30)",
-    !d.applied && d.profitAfter === 146.1 && d.amount === 0 && /أقل من 166.67/.test(d.reason), JSON.stringify(d));
+  // § 47 أ — the purchase 20 is net: 20 × (30 ÷ 1.15 − 21) = 101.74 (it was 180 ÷ 1.15 = 156.52 for a registered source)
+  assert("10-01: profit 20 × (30 ÷ 1.15 − 21) = 101.74; the discount 2 % of the net 521.74 = 10.43",
+    d.profitBefore === 101.74 && d.tierPct === 2, JSON.stringify(d));
+  assert("…after it: 101.74 − (11.99 the customer's total drops by) ÷ 1.15 = 91.31 < 166.67 → no discount (the same order got one on 09-30)",
+    !d.applied && d.profitAfter === 91.31 && d.amount === 0 && /أقل من 166.67/.test(d.reason), JSON.stringify(d));
   table("x_pricing_config").get(1)!.x_planned_stops = 10;
   const d2 = await quiet(() => OP.orderDiscount(env, { day: "2026-10-01", lines: [line(20)], vatRate: async () => 15 }));
-  assert("10 planned stops (50): applied, 10.43, profit after 146.10", d2.applied && d2.amount === 10.43 && d2.profitAfter === 146.1, JSON.stringify(d2));
+  assert("10 planned stops (50): applied, 10.43, profit after 91.31", d2.applied && d2.amount === 10.43 && d2.profitAfter === 91.31, JSON.stringify(d2));
   table("res.partner").get(AHMED)!.x_vat_registered = false;
   const d3 = await quiet(() => OP.orderDiscount(env, { day: "2026-10-01", lines: [line(20)], vatRate: async () => 15 }));
-  assert("Ahmed not registered: 20 × (30 ÷ 1.15 − 21) = 101.74, after the discount 91.31",
-    d3.profitBefore === 101.74 && d3.profitAfter === 91.31, JSON.stringify(d3));
+  assert("Ahmed not registered: the same 101.74, after the discount 91.31 (the registration changes nothing)",
+    d3.profitBefore === 101.74 && d3.profitAfter === 91.31 && d3.applied, JSON.stringify(d3));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 
@@ -292,11 +299,11 @@ function deliveredYesterday(day: string, yday: string, source: number): void {
 {
   const env = fresh("2026-10-01 21:30"); sources(); deliveredYesterday("2026-10-01", "2026-09-30", AHMED);
   const f = await quiet(() => SUM.readSummaryFigures(env));
-  assert("10-01, registered: 180 ÷ 1.15 = 156.52 → 31 %", f.coverage.profit === 156.52 && f.coverage.pct === 31, JSON.stringify(f.coverage));
-  assert("…«تغطية تكاليف اليوم: 31% (ربح 156.52 من 500.00)»", SUM.coverageLine(f.coverage) === "تغطية تكاليف اليوم: 31% (ربح 156.52 من 500.00)", SUM.coverageLine(f.coverage));
+  assert("10-01 (§ 47: the purchase is net): 20 × (30 ÷ 1.15 − 21) = 101.74 → 20 %", f.coverage.profit === 101.74 && f.coverage.pct === 20, JSON.stringify(f.coverage));
+  assert("…«تغطية تكاليف اليوم: 20% (ربح 101.74 من 500.00)»", SUM.coverageLine(f.coverage) === "تغطية تكاليف اليوم: 20% (ربح 101.74 من 500.00)", SUM.coverageLine(f.coverage));
   table("res.partner").get(AHMED)!.x_vat_registered = false;
   const g = await quiet(() => SUM.readSummaryFigures(env));
-  assert("10-01, not registered: 20 × (30 ÷ 1.15 − 21) = 101.74 → 20 %", g.coverage.profit === 101.74 && g.coverage.pct === 20, JSON.stringify(g.coverage));
+  assert("10-01, Ahmed not registered: the same 101.74 → 20 %", g.coverage.profit === 101.74 && g.coverage.pct === 20, JSON.stringify(g.coverage));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 
@@ -740,11 +747,12 @@ console.log("\n[عزل] a simulation day of the same date: the real day gets its
   assert("…with the real purchase 20 (the simulation row, newer, is not Ahmed's latest), market 24", line?.x_cost_price === 20 && line?.x_market_price === 24, JSON.stringify(line));
   const ref = await quiet(() => OD.getLastSupplierPrice(env, AHMED, 1, 11));
   assert("Ahmed's outlier reference: his real 20, not the newer simulation 5", ref?.price === 20, JSON.stringify(ref));
-  seed("x_daily_price", { x_product_tmpl_id: 2, x_packaging_id: 21, x_supplier_id: AHMED, x_price_sar: 40, x_date: "2026-09-27", x_extraction_status: "extracted" });
-  seed("x_daily_price", { x_product_tmpl_id: 2, x_packaging_id: 21, x_supplier_id: AHMED, x_price_sar: 77, x_date: "2026-09-27", x_extraction_status: "extracted", x_utak_simulation: true });
+  // § 47 أ — the fallback is the row's x_sale_price (the worker writes it with every supplier price), never its purchase price
+  seed("x_daily_price", { x_product_tmpl_id: 2, x_packaging_id: 21, x_supplier_id: AHMED, x_price_sar: 29, x_sale_price: 40, x_date: "2026-09-27", x_extraction_status: "extracted" });
+  seed("x_daily_price", { x_product_tmpl_id: 2, x_packaging_id: 21, x_supplier_id: AHMED, x_price_sar: 56, x_sale_price: 77, x_date: "2026-09-27", x_extraction_status: "extracted", x_utak_simulation: true });
   const today = await quiet(() => OD.getLatestSalePrice(env, 2, 21, "2026-09-27"));
   assert("nothing published for cucumber: the day's supplier row is the real 40, not the newer simulation 77", today.price === 40 && today.source === "today", JSON.stringify(today));
-  seed("x_daily_price", { x_product_tmpl_id: 2, x_packaging_id: 21, x_supplier_id: AHMED, x_price_sar: 88, x_date: "2026-09-29", x_extraction_status: "extracted", x_utak_simulation: true });
+  seed("x_daily_price", { x_product_tmpl_id: 2, x_packaging_id: 21, x_supplier_id: AHMED, x_price_sar: 64, x_sale_price: 88, x_date: "2026-09-29", x_extraction_status: "extracted", x_utak_simulation: true });
   const fb = await quiet(() => OD.getLatestSalePrice(env, 2, 21, "2026-10-05"));
   assert("the stale fallback: the real 40 of 09-27, not the later simulation 88", fb.price === 40 && fb.source === "stale", JSON.stringify(fb));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));

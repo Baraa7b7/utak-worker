@@ -1,0 +1,1731 @@
+{
+  "at": "2026-10-01T08:34:50.041Z",
+  "css": {
+    "light": "https://utakfresh.odoo.com/web/assets/c25c582/web.assets_web.rtl.min.css",
+    "dark": "https://utakfresh.odoo.com/web/assets/6b6b60e/web.assets_web_dark.rtl.min.css"
+  },
+  "minRatio": {
+    "light": 5.1,
+    "dark": 4.62
+  },
+  "listNewColumnsMinRatio": {
+    "light": 4.63,
+    "dark": 4.6
+  },
+  "listOtherCellsMinRatio": {
+    "light": 3.13,
+    "dark": 4.6
+  },
+  "light": [
+    {
+      "status": "green",
+      "minRatio": 5.1,
+      "pass": true,
+      "border": "#28a745",
+      "borderWidth": "5px",
+      "borderRatio": 3.13,
+      "texts": [
+        {
+          "text": "رمان وسط — كرتون",
+          "cls": "fw-bold fs-5",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "🟢 رابح",
+          "cls": "text-nowrap ms-2",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "الشراء الصافي",
+          "cls": "text-muted",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "text": "16.00",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "التكلفة الكاملة",
+          "cls": "text-muted",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "text": "18.79",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "أقل سعر بيع بدون خسارة",
+          "cls": "text-muted",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "text": "21.61",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "السعر المربح المقترح",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "23.00",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "البيع",
+          "cls": "text-muted",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "text": "26.00",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "الربح الحقيقي",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "3.82",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        }
+      ]
+    },
+    {
+      "status": "yellow",
+      "minRatio": 5.1,
+      "pass": true,
+      "border": "#e99d00",
+      "borderWidth": "5px",
+      "borderRatio": 2.26,
+      "texts": [
+        {
+          "text": "رمان صغير — كرتون",
+          "cls": "fw-bold fs-5",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "🟡 يغطي البضاعة فقط",
+          "cls": "text-nowrap ms-2",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "الشراء الصافي",
+          "cls": "text-muted",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "text": "12.00",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "التكلفة الكاملة",
+          "cls": "text-muted",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "text": "14.59",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "أقل سعر بيع بدون خسارة",
+          "cls": "text-muted",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "text": "16.78",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "السعر المربح المقترح",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "18.00",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "البيع",
+          "cls": "text-muted",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "text": "16.00",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "الربح الحقيقي",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "-0.68",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        }
+      ]
+    },
+    {
+      "status": "red",
+      "minRatio": 5.1,
+      "pass": true,
+      "border": "#d44c59",
+      "borderWidth": "5px",
+      "borderRatio": 4.22,
+      "texts": [
+        {
+          "text": "رمان كبير — كرتون",
+          "cls": "fw-bold fs-5",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "🔴 خسارة على البضاعة",
+          "cls": "text-nowrap ms-2",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "الشراء الصافي",
+          "cls": "text-muted",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "text": "22.00",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "التكلفة الكاملة",
+          "cls": "text-muted",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "text": "25.09",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "أقل سعر بيع بدون خسارة",
+          "cls": "text-muted",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "text": "28.85",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "السعر المربح المقترح",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "30.50",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "البيع",
+          "cls": "text-muted",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "text": "26.00",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "الربح الحقيقي",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "-2.48",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        }
+      ]
+    },
+    {
+      "status": "none",
+      "minRatio": 5.1,
+      "pass": true,
+      "border": "#d8dadd",
+      "borderWidth": "5px",
+      "borderRatio": 1.4,
+      "texts": [
+        {
+          "text": "موز أمريكي — كرتون · 14 ",
+          "cls": "fw-bold fs-5",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "⚪ لا بيانات",
+          "cls": "text-nowrap ms-2",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "الشراء الصافي",
+          "cls": "text-muted",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "text": "22.00",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "التكلفة الكاملة",
+          "cls": "text-muted",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "text": "25.09",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "أقل سعر بيع بدون خسارة",
+          "cls": "text-muted",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "text": "28.85",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "السعر المربح المقترح",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "30.50",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "البيع",
+          "cls": "text-muted",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "text": "0.00",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "الربح الحقيقي",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "0.00",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        }
+      ]
+    }
+  ],
+  "dark": [
+    {
+      "status": "green",
+      "minRatio": 4.62,
+      "pass": true,
+      "border": "#1dc959",
+      "borderWidth": "5px",
+      "borderRatio": 6.51,
+      "texts": [
+        {
+          "text": "رمان وسط — كرتون",
+          "cls": "fw-bold fs-5",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "🟢 رابح",
+          "cls": "text-nowrap ms-2",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "الشراء الصافي",
+          "cls": "text-muted",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "text": "16.00",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "التكلفة الكاملة",
+          "cls": "text-muted",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "text": "18.79",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "أقل سعر بيع بدون خسارة",
+          "cls": "text-muted",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "text": "21.61",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "السعر المربح المقترح",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "23.00",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "البيع",
+          "cls": "text-muted",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "text": "26.00",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "الربح الحقيقي",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "3.82",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        }
+      ]
+    },
+    {
+      "status": "yellow",
+      "minRatio": 4.62,
+      "pass": true,
+      "border": "#e99d00",
+      "borderWidth": "5px",
+      "borderRatio": 6.33,
+      "texts": [
+        {
+          "text": "رمان صغير — كرتون",
+          "cls": "fw-bold fs-5",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "🟡 يغطي البضاعة فقط",
+          "cls": "text-nowrap ms-2",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "الشراء الصافي",
+          "cls": "text-muted",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "text": "12.00",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "التكلفة الكاملة",
+          "cls": "text-muted",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "text": "14.59",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "أقل سعر بيع بدون خسارة",
+          "cls": "text-muted",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "text": "16.78",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "السعر المربح المقترح",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "18.00",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "البيع",
+          "cls": "text-muted",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "text": "16.00",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "الربح الحقيقي",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "-0.68",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        }
+      ]
+    },
+    {
+      "status": "red",
+      "minRatio": 4.62,
+      "pass": true,
+      "border": "#b83232",
+      "borderWidth": "5px",
+      "borderRatio": 2.41,
+      "texts": [
+        {
+          "text": "رمان كبير — كرتون",
+          "cls": "fw-bold fs-5",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "🔴 خسارة على البضاعة",
+          "cls": "text-nowrap ms-2",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "الشراء الصافي",
+          "cls": "text-muted",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "text": "22.00",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "التكلفة الكاملة",
+          "cls": "text-muted",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "text": "25.09",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "أقل سعر بيع بدون خسارة",
+          "cls": "text-muted",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "text": "28.85",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "السعر المربح المقترح",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "30.50",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "البيع",
+          "cls": "text-muted",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "text": "26.00",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "الربح الحقيقي",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "-2.48",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        }
+      ]
+    },
+    {
+      "status": "none",
+      "minRatio": 4.62,
+      "pass": true,
+      "border": "#3c3e4b",
+      "borderWidth": "5px",
+      "borderRatio": 1.35,
+      "texts": [
+        {
+          "text": "موز أمريكي — كرتون · 14 ",
+          "cls": "fw-bold fs-5",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "⚪ لا بيانات",
+          "cls": "text-nowrap ms-2",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "الشراء الصافي",
+          "cls": "text-muted",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "text": "22.00",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "التكلفة الكاملة",
+          "cls": "text-muted",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "text": "25.09",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "أقل سعر بيع بدون خسارة",
+          "cls": "text-muted",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "text": "28.85",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "السعر المربح المقترح",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "30.50",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "البيع",
+          "cls": "text-muted",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "text": "0.00",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "الربح الحقيقي",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "0.00",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        }
+      ]
+    }
+  ],
+  "lightList": [
+    {
+      "status": "green",
+      "newMin": 4.63,
+      "rowMin": 3.13,
+      "cells": [
+        {
+          "col": "x_day_date",
+          "text": "2026/10/01",
+          "fg": "#008818",
+          "bg": "#ffffff",
+          "ratio": 4.63
+        },
+        {
+          "col": "x_product_tmpl_id",
+          "text": "رمان وسط",
+          "fg": "#008818",
+          "bg": "#ffffff",
+          "ratio": 4.63
+        },
+        {
+          "col": "x_packaging_id",
+          "text": "كرتون",
+          "fg": "#008818",
+          "bg": "#ffffff",
+          "ratio": 4.63
+        },
+        {
+          "col": "x_cost_price",
+          "text": "16.00",
+          "fg": "#008818",
+          "bg": "#ffffff",
+          "ratio": 4.63
+        },
+        {
+          "col": "x_net_purchase",
+          "text": "16.00",
+          "fg": "#008818",
+          "bg": "#ffffff",
+          "ratio": 4.63
+        },
+        {
+          "col": "x_waste_cost",
+          "text": "0.80",
+          "fg": "#008818",
+          "bg": "#ffffff",
+          "ratio": 4.63
+        },
+        {
+          "col": "x_op_share",
+          "text": "1.99",
+          "fg": "#008818",
+          "bg": "#ffffff",
+          "ratio": 4.63
+        },
+        {
+          "col": "x_full_cost",
+          "text": "18.79",
+          "fg": "#008818",
+          "bg": "#ffffff",
+          "ratio": 4.63
+        },
+        {
+          "col": "x_break_even",
+          "text": "21.61",
+          "fg": "#008818",
+          "bg": "#ffffff",
+          "ratio": 4.63
+        },
+        {
+          "col": "x_suggested_price",
+          "text": "23.00",
+          "fg": "#008818",
+          "bg": "#ffffff",
+          "ratio": 4.63
+        },
+        {
+          "col": "x_board_sale",
+          "text": "26.00",
+          "fg": "#008818",
+          "bg": "#ffffff",
+          "ratio": 4.63
+        },
+        {
+          "col": "x_net_sale",
+          "text": "22.61",
+          "fg": "#008818",
+          "bg": "#ffffff",
+          "ratio": 4.63
+        },
+        {
+          "col": "x_real_profit",
+          "text": "3.82",
+          "fg": "#008818",
+          "bg": "#ffffff",
+          "ratio": 4.63
+        },
+        {
+          "col": "x_board_status",
+          "text": "🟢 رابح",
+          "fg": "#ffffff",
+          "bg": "#28a745",
+          "ratio": 3.13
+        }
+      ]
+    },
+    {
+      "status": "yellow",
+      "newMin": 4.69,
+      "rowMin": 4.69,
+      "cells": [
+        {
+          "col": "x_day_date",
+          "text": "2026/10/01",
+          "fg": "#9a6b01",
+          "bg": "#ffffff",
+          "ratio": 4.69
+        },
+        {
+          "col": "x_product_tmpl_id",
+          "text": "رمان صغير",
+          "fg": "#9a6b01",
+          "bg": "#ffffff",
+          "ratio": 4.69
+        },
+        {
+          "col": "x_packaging_id",
+          "text": "كرتون",
+          "fg": "#9a6b01",
+          "bg": "#ffffff",
+          "ratio": 4.69
+        },
+        {
+          "col": "x_cost_price",
+          "text": "12.00",
+          "fg": "#9a6b01",
+          "bg": "#ffffff",
+          "ratio": 4.69
+        },
+        {
+          "col": "x_net_purchase",
+          "text": "12.00",
+          "fg": "#9a6b01",
+          "bg": "#ffffff",
+          "ratio": 4.69
+        },
+        {
+          "col": "x_waste_cost",
+          "text": "0.60",
+          "fg": "#9a6b01",
+          "bg": "#ffffff",
+          "ratio": 4.69
+        },
+        {
+          "col": "x_op_share",
+          "text": "1.99",
+          "fg": "#9a6b01",
+          "bg": "#ffffff",
+          "ratio": 4.69
+        },
+        {
+          "col": "x_full_cost",
+          "text": "14.59",
+          "fg": "#9a6b01",
+          "bg": "#ffffff",
+          "ratio": 4.69
+        },
+        {
+          "col": "x_break_even",
+          "text": "16.78",
+          "fg": "#9a6b01",
+          "bg": "#ffffff",
+          "ratio": 4.69
+        },
+        {
+          "col": "x_suggested_price",
+          "text": "18.00",
+          "fg": "#9a6b01",
+          "bg": "#ffffff",
+          "ratio": 4.69
+        },
+        {
+          "col": "x_board_sale",
+          "text": "16.00",
+          "fg": "#9a6b01",
+          "bg": "#ffffff",
+          "ratio": 4.69
+        },
+        {
+          "col": "x_net_sale",
+          "text": "13.91",
+          "fg": "#9a6b01",
+          "bg": "#ffffff",
+          "ratio": 4.69
+        },
+        {
+          "col": "x_real_profit",
+          "text": "-0.68",
+          "fg": "#9a6b01",
+          "bg": "#ffffff",
+          "ratio": 4.69
+        },
+        {
+          "col": "x_board_status",
+          "text": "🟡 يغطي البضاعة فقط",
+          "fg": "#000000",
+          "bg": "#e99d00",
+          "ratio": 9.29
+        }
+      ]
+    },
+    {
+      "status": "red",
+      "newMin": 4.65,
+      "rowMin": 4.22,
+      "cells": [
+        {
+          "col": "x_day_date",
+          "text": "2026/10/01",
+          "fg": "#d23f3a",
+          "bg": "#ffffff",
+          "ratio": 4.65
+        },
+        {
+          "col": "x_product_tmpl_id",
+          "text": "رمان كبير",
+          "fg": "#d23f3a",
+          "bg": "#ffffff",
+          "ratio": 4.65
+        },
+        {
+          "col": "x_packaging_id",
+          "text": "كرتون",
+          "fg": "#d23f3a",
+          "bg": "#ffffff",
+          "ratio": 4.65
+        },
+        {
+          "col": "x_cost_price",
+          "text": "22.00",
+          "fg": "#d23f3a",
+          "bg": "#ffffff",
+          "ratio": 4.65
+        },
+        {
+          "col": "x_net_purchase",
+          "text": "22.00",
+          "fg": "#d23f3a",
+          "bg": "#ffffff",
+          "ratio": 4.65
+        },
+        {
+          "col": "x_waste_cost",
+          "text": "1.10",
+          "fg": "#d23f3a",
+          "bg": "#ffffff",
+          "ratio": 4.65
+        },
+        {
+          "col": "x_op_share",
+          "text": "1.99",
+          "fg": "#d23f3a",
+          "bg": "#ffffff",
+          "ratio": 4.65
+        },
+        {
+          "col": "x_full_cost",
+          "text": "25.09",
+          "fg": "#d23f3a",
+          "bg": "#ffffff",
+          "ratio": 4.65
+        },
+        {
+          "col": "x_break_even",
+          "text": "28.85",
+          "fg": "#d23f3a",
+          "bg": "#ffffff",
+          "ratio": 4.65
+        },
+        {
+          "col": "x_suggested_price",
+          "text": "30.50",
+          "fg": "#d23f3a",
+          "bg": "#ffffff",
+          "ratio": 4.65
+        },
+        {
+          "col": "x_board_sale",
+          "text": "26.00",
+          "fg": "#d23f3a",
+          "bg": "#ffffff",
+          "ratio": 4.65
+        },
+        {
+          "col": "x_net_sale",
+          "text": "22.61",
+          "fg": "#d23f3a",
+          "bg": "#ffffff",
+          "ratio": 4.65
+        },
+        {
+          "col": "x_real_profit",
+          "text": "-2.48",
+          "fg": "#d23f3a",
+          "bg": "#ffffff",
+          "ratio": 4.65
+        },
+        {
+          "col": "x_board_status",
+          "text": "🔴 خسارة على البضاعة",
+          "fg": "#ffffff",
+          "bg": "#d44c59",
+          "ratio": 4.22
+        }
+      ]
+    },
+    {
+      "status": "none",
+      "newMin": 5.1,
+      "rowMin": 5.1,
+      "cells": [
+        {
+          "col": "x_day_date",
+          "text": "2026/10/01",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "col": "x_product_tmpl_id",
+          "text": "موز أمريكي",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "col": "x_packaging_id",
+          "text": "كرتون · 14 كيلو",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "col": "x_cost_price",
+          "text": "22.00",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "col": "x_net_purchase",
+          "text": "22.00",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "col": "x_waste_cost",
+          "text": "1.10",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "col": "x_op_share",
+          "text": "1.99",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "col": "x_full_cost",
+          "text": "25.09",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "col": "x_break_even",
+          "text": "28.85",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "col": "x_suggested_price",
+          "text": "30.50",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "col": "x_board_sale",
+          "text": "0.00",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "col": "x_net_sale",
+          "text": "0.00",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "col": "x_real_profit",
+          "text": "0.00",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "col": "x_board_status",
+          "text": "⚪ لا بيانات",
+          "fg": "#000000",
+          "bg": "#d8dadd",
+          "ratio": 14.99
+        }
+      ]
+    }
+  ],
+  "darkList": [
+    {
+      "status": "green",
+      "newMin": 6.51,
+      "rowMin": 6.51,
+      "cells": [
+        {
+          "col": "x_day_date",
+          "text": "2026/10/01",
+          "fg": "#1dc959",
+          "bg": "#262a36",
+          "ratio": 6.51
+        },
+        {
+          "col": "x_product_tmpl_id",
+          "text": "رمان وسط",
+          "fg": "#1dc959",
+          "bg": "#262a36",
+          "ratio": 6.51
+        },
+        {
+          "col": "x_packaging_id",
+          "text": "كرتون",
+          "fg": "#1dc959",
+          "bg": "#262a36",
+          "ratio": 6.51
+        },
+        {
+          "col": "x_cost_price",
+          "text": "16.00",
+          "fg": "#1dc959",
+          "bg": "#262a36",
+          "ratio": 6.51
+        },
+        {
+          "col": "x_net_purchase",
+          "text": "16.00",
+          "fg": "#1dc959",
+          "bg": "#262a36",
+          "ratio": 6.51
+        },
+        {
+          "col": "x_waste_cost",
+          "text": "0.80",
+          "fg": "#1dc959",
+          "bg": "#262a36",
+          "ratio": 6.51
+        },
+        {
+          "col": "x_op_share",
+          "text": "1.99",
+          "fg": "#1dc959",
+          "bg": "#262a36",
+          "ratio": 6.51
+        },
+        {
+          "col": "x_full_cost",
+          "text": "18.79",
+          "fg": "#1dc959",
+          "bg": "#262a36",
+          "ratio": 6.51
+        },
+        {
+          "col": "x_break_even",
+          "text": "21.61",
+          "fg": "#1dc959",
+          "bg": "#262a36",
+          "ratio": 6.51
+        },
+        {
+          "col": "x_suggested_price",
+          "text": "23.00",
+          "fg": "#1dc959",
+          "bg": "#262a36",
+          "ratio": 6.51
+        },
+        {
+          "col": "x_board_sale",
+          "text": "26.00",
+          "fg": "#1dc959",
+          "bg": "#262a36",
+          "ratio": 6.51
+        },
+        {
+          "col": "x_net_sale",
+          "text": "22.61",
+          "fg": "#1dc959",
+          "bg": "#262a36",
+          "ratio": 6.51
+        },
+        {
+          "col": "x_real_profit",
+          "text": "3.82",
+          "fg": "#1dc959",
+          "bg": "#262a36",
+          "ratio": 6.51
+        },
+        {
+          "col": "x_board_status",
+          "text": "🟢 رابح",
+          "fg": "#000000",
+          "bg": "#1dc959",
+          "ratio": 9.55
+        }
+      ]
+    },
+    {
+      "status": "yellow",
+      "newMin": 8.13,
+      "rowMin": 8.13,
+      "cells": [
+        {
+          "col": "x_day_date",
+          "text": "2026/10/01",
+          "fg": "#fbb56a",
+          "bg": "#262a36",
+          "ratio": 8.13
+        },
+        {
+          "col": "x_product_tmpl_id",
+          "text": "رمان صغير",
+          "fg": "#fbb56a",
+          "bg": "#262a36",
+          "ratio": 8.13
+        },
+        {
+          "col": "x_packaging_id",
+          "text": "كرتون",
+          "fg": "#fbb56a",
+          "bg": "#262a36",
+          "ratio": 8.13
+        },
+        {
+          "col": "x_cost_price",
+          "text": "12.00",
+          "fg": "#fbb56a",
+          "bg": "#262a36",
+          "ratio": 8.13
+        },
+        {
+          "col": "x_net_purchase",
+          "text": "12.00",
+          "fg": "#fbb56a",
+          "bg": "#262a36",
+          "ratio": 8.13
+        },
+        {
+          "col": "x_waste_cost",
+          "text": "0.60",
+          "fg": "#fbb56a",
+          "bg": "#262a36",
+          "ratio": 8.13
+        },
+        {
+          "col": "x_op_share",
+          "text": "1.99",
+          "fg": "#fbb56a",
+          "bg": "#262a36",
+          "ratio": 8.13
+        },
+        {
+          "col": "x_full_cost",
+          "text": "14.59",
+          "fg": "#fbb56a",
+          "bg": "#262a36",
+          "ratio": 8.13
+        },
+        {
+          "col": "x_break_even",
+          "text": "16.78",
+          "fg": "#fbb56a",
+          "bg": "#262a36",
+          "ratio": 8.13
+        },
+        {
+          "col": "x_suggested_price",
+          "text": "18.00",
+          "fg": "#fbb56a",
+          "bg": "#262a36",
+          "ratio": 8.13
+        },
+        {
+          "col": "x_board_sale",
+          "text": "16.00",
+          "fg": "#fbb56a",
+          "bg": "#262a36",
+          "ratio": 8.13
+        },
+        {
+          "col": "x_net_sale",
+          "text": "13.91",
+          "fg": "#fbb56a",
+          "bg": "#262a36",
+          "ratio": 8.13
+        },
+        {
+          "col": "x_real_profit",
+          "text": "-0.68",
+          "fg": "#fbb56a",
+          "bg": "#262a36",
+          "ratio": 8.13
+        },
+        {
+          "col": "x_board_status",
+          "text": "🟡 يغطي البضاعة فقط",
+          "fg": "#000000",
+          "bg": "#e99d00",
+          "ratio": 9.29
+        }
+      ]
+    },
+    {
+      "status": "red",
+      "newMin": 4.6,
+      "rowMin": 4.6,
+      "cells": [
+        {
+          "col": "x_day_date",
+          "text": "2026/10/01",
+          "fg": "#ff5757",
+          "bg": "#262a36",
+          "ratio": 4.6
+        },
+        {
+          "col": "x_product_tmpl_id",
+          "text": "رمان كبير",
+          "fg": "#ff5757",
+          "bg": "#262a36",
+          "ratio": 4.6
+        },
+        {
+          "col": "x_packaging_id",
+          "text": "كرتون",
+          "fg": "#ff5757",
+          "bg": "#262a36",
+          "ratio": 4.6
+        },
+        {
+          "col": "x_cost_price",
+          "text": "22.00",
+          "fg": "#ff5757",
+          "bg": "#262a36",
+          "ratio": 4.6
+        },
+        {
+          "col": "x_net_purchase",
+          "text": "22.00",
+          "fg": "#ff5757",
+          "bg": "#262a36",
+          "ratio": 4.6
+        },
+        {
+          "col": "x_waste_cost",
+          "text": "1.10",
+          "fg": "#ff5757",
+          "bg": "#262a36",
+          "ratio": 4.6
+        },
+        {
+          "col": "x_op_share",
+          "text": "1.99",
+          "fg": "#ff5757",
+          "bg": "#262a36",
+          "ratio": 4.6
+        },
+        {
+          "col": "x_full_cost",
+          "text": "25.09",
+          "fg": "#ff5757",
+          "bg": "#262a36",
+          "ratio": 4.6
+        },
+        {
+          "col": "x_break_even",
+          "text": "28.85",
+          "fg": "#ff5757",
+          "bg": "#262a36",
+          "ratio": 4.6
+        },
+        {
+          "col": "x_suggested_price",
+          "text": "30.50",
+          "fg": "#ff5757",
+          "bg": "#262a36",
+          "ratio": 4.6
+        },
+        {
+          "col": "x_board_sale",
+          "text": "26.00",
+          "fg": "#ff5757",
+          "bg": "#262a36",
+          "ratio": 4.6
+        },
+        {
+          "col": "x_net_sale",
+          "text": "22.61",
+          "fg": "#ff5757",
+          "bg": "#262a36",
+          "ratio": 4.6
+        },
+        {
+          "col": "x_real_profit",
+          "text": "-2.48",
+          "fg": "#ff5757",
+          "bg": "#262a36",
+          "ratio": 4.6
+        },
+        {
+          "col": "x_board_status",
+          "text": "🔴 خسارة على البضاعة",
+          "fg": "#ffffff",
+          "bg": "#b83232",
+          "ratio": 5.93
+        }
+      ]
+    },
+    {
+      "status": "none",
+      "newMin": 4.62,
+      "rowMin": 4.62,
+      "cells": [
+        {
+          "col": "x_day_date",
+          "text": "2026/10/01",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "col": "x_product_tmpl_id",
+          "text": "موز أمريكي",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "col": "x_packaging_id",
+          "text": "كرتون · 14 كيلو",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "col": "x_cost_price",
+          "text": "22.00",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "col": "x_net_purchase",
+          "text": "22.00",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "col": "x_waste_cost",
+          "text": "1.10",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "col": "x_op_share",
+          "text": "1.99",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "col": "x_full_cost",
+          "text": "25.09",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "col": "x_break_even",
+          "text": "28.85",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "col": "x_suggested_price",
+          "text": "30.50",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "col": "x_board_sale",
+          "text": "0.00",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "col": "x_net_sale",
+          "text": "0.00",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "col": "x_real_profit",
+          "text": "0.00",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "col": "x_board_status",
+          "text": "⚪ لا بيانات",
+          "fg": "#ffffff",
+          "bg": "#3c3e4b",
+          "ratio": 10.59
+        }
+      ]
+    }
+  ]
+}

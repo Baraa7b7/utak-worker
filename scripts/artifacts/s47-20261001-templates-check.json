@@ -1,0 +1,36 @@
+{
+  "at": "2026-10-01T08:58:17.936Z",
+  "metaCount": 69,
+  "inclusive": [],
+  "asks": [
+    {
+      "name": "utak_supplier_ask_v2",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "language": "ar",
+      "text": "صباح الخير {{1}}، معك يو تاك. نحتاج أسعارك اليوم لهالأصناف: {{2}}. يا ليت ترد بسعر كل صنف وتعبئته (مثال: طماطم كرتون 25 ريال)، والله يعطيك العافية."
+    },
+    {
+      "name": "utak_supplier_price_nudge",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "language": "ar",
+      "text": "أهلاً {{1}}، لم تصلنا أسعارك اليوم بعد. نحتاجها قبل الساعة {{2}} لو سمحت"
+    },
+    {
+      "name": "utak_supplier_daily_ask",
+      "status": "APPROVED",
+      "category": "MARKETING",
+      "language": "ar",
+      "text": "🌅 صباح الخير،\n\nنبغى أسعار اليوم لهذي الأصناف:\n\n{{1}}\n\nرد بأسعارك (مثال: طماطم كرتون 25 ريال). شكراً 🌿"
+    }
+  ],
+  "odooCount": 69,
+  "odooHits": [
+    {
+      "id": 51,
+      "name": "utak_reactivate",
+      "body": "اشتقنا لك {{1}}! عندنا اليوم {{2}}. اطلب الآن ويوصلك بكرة"
+    }
+  ]
+}

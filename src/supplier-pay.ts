@@ -9,7 +9,10 @@
 //     purchase list priced it from (price_supplier_id in x_aggregated_items),
 //     else the list's supplier. A line without such a price is not counted:
 //     it is marked «بلا سعر» and Baraa gets one important alert per list and
-//     set of such lines. Built when the warehouse taps «تم الشراء», kept
+//     set of such lines. § 47 أ — that price is net of VAT: for a supplier
+//     with a VAT number on his card, from the VAT cutoff, the line's amount
+//     owed is quantity × price + 15 % (what his bill says,
+//     src/purchase-accounting.ts); a supplier without one is owed the price. Built when the warehouse taps «تم الشراء», kept
 //     current by the */5 tick (a price that arrives later), and on
 //     «🔄 إعادة حساب المستحقات» in Odoo. A confirmed list = x_status «done».
 //   • payments (x_supplier_payment): SP-2026-0001 references from an Odoo
@@ -40,7 +43,7 @@
 // (simulationPaymentRef). Never deleted.
 
 import type { Env } from "./config";
-import { isTestMode } from "./config";
+import { isTestMode, isVatApplicable, VAT_RATE_PCT } from "./config";
 import { call } from "./odoo";
 import { textContent, buttonsContent, listContent } from "./meta";
 import { gatewayDecision, sendViaGateway } from "./wa-gateway";
@@ -134,9 +137,13 @@ export interface DueLinePlan {
   packagingId: number;
   packagingName: string;
   quantity: number;
+  /** The supplier's price as entered: net of VAT (§ 47 أ). */
   unitPrice: number | null;
   priceId: number | null;
+  /** What is owed for the line: quantity × price, plus vatH. */
   subtotalH: number;
+  /** § 47 أ — the 15 % added for a supplier with a VAT number, from the cutoff (0 otherwise). */
+  vatH: number;
   noPrice: boolean;
   /** § 42 أ — the market source whose written purchase price won this line (owed to «مشتريات السوق النقدية»). */
   marketBy?: string;
@@ -178,19 +185,32 @@ export function lineSubtotalH(quantity: number, unitPrice: number): number {
   return halalas(Number(quantity) * Number(unitPrice));
 }
 
+/** § 47 أ — the VAT added on a net line amount: round(net × rate ÷ 100) per line, as the supplier's bill (round_per_line). */
+export function lineVatH(netH: number, ratePct: number | null): number {
+  return ratePct ? Math.round((netH * ratePct) / 100) : 0;
+}
+
 /**
  * The dues of one confirmed list: per supplier, a line per item with its own
  * price (or «بلا سعر», not counted), the amount = sum of the priced lines.
- * Items with no supplier at all come back in `noSupplier`.
+ * Items with no supplier at all come back in `noSupplier`. § 47 أ — the price
+ * is net: `vatRateOf` gives the rate added for a supplier (15 with a VAT
+ * number on his card from the cutoff, null otherwise; none given = no VAT).
  */
 export function planDues(
   list: { x_date: string; listSupplierId: number | null },
   items: ListItem[],
   prices: PriceRow[],
   market?: MarketPlan,
+  vatRateOf: (supplierId: number) => number | null = () => null,
 ): { dues: DuePlan[]; noSupplier: ListItem[] } {
   const by = new Map<number, DuePlan>();
   const noSupplier: ListItem[] = [];
+  const owed = (sid: number, qty: number, price: number) => {
+    const netH = lineSubtotalH(qty, price);
+    const vatH = lineVatH(netH, vatRateOf(sid));
+    return { subtotalH: netH + vatH, vatH };
+  };
   for (const it of items) {
     const qty = Number(it.total_quantity) || 0;
     const base = {
@@ -206,7 +226,7 @@ export function planDues(
       if (!market!.cashSupplierId) { noSupplier.push(it); continue; }
       const sid = market!.cashSupplierId;
       const line: DueLinePlan = {
-        ...base, unitPrice: won.price, priceId: null, subtotalH: lineSubtotalH(qty, won.price), noPrice: false,
+        ...base, unitPrice: won.price, priceId: null, ...owed(sid, qty, won.price), noPrice: false,
         marketBy: cleanName(won.sourceName) || "السوق",
       };
       const d = by.get(sid) ?? { supplierId: sid, lines: [], amountH: 0, unpriced: 0 };
@@ -222,7 +242,7 @@ export function planDues(
       ...base,
       unitPrice: p ? Number(p.x_price_sar) : null,
       priceId: p ? p.id : null,
-      subtotalH: p ? lineSubtotalH(qty, Number(p.x_price_sar)) : 0,
+      ...(p ? owed(sid, qty, Number(p.x_price_sar)) : { subtotalH: 0, vatH: 0 }),
       noPrice: !p,
     };
     const d = by.get(sid) ?? { supplierId: sid, lines: [], amountH: 0, unpriced: 0 };
@@ -319,6 +339,19 @@ async function partnerNames(env: Env, ids: number[]): Promise<Map<number, string
   return new Map(rows.map((r) => [r.id, r.name]));
 }
 
+/**
+ * § 47 أ — the suppliers of a list whose due carries VAT on `day`: a VAT number
+ * on the card (res.partner.vat, the bill's own rule) and a day from the cutoff.
+ */
+async function vatSuppliers(env: Env, day: string, ids: number[]): Promise<Set<number>> {
+  const uniq = [...new Set(ids.filter((n) => n > 0))];
+  if (!uniq.length || !/^\d{4}-\d{2}-\d{2}$/.test(day) || !isVatApplicable(day)) return new Set();
+  const rows = await call<Array<{ id: number; vat: string | false }>>(env, "res.partner", "read", {
+    ids: uniq, fields: ["id", "vat"], context: { active_test: false },
+  });
+  return new Set(rows.filter((r) => typeof r.vat === "string" && r.vat.trim().length > 0).map((r) => r.id));
+}
+
 function tagged(tag: string | false | null | undefined, text: string): string {
   const t = String(tag || "").trim();
   return t ? `${t} — ${text}` : text;
@@ -345,7 +378,10 @@ export async function syncSupplierDues(env: Env, listId: number, opts: { force?:
   const items = parseItems(list.x_aggregated_items);
   const prices = await readPricesFor(env, day, items);
   const market = await readMarketPlan(env, day);
-  const plan = planDues({ x_date: day, listSupplierId: list.x_supplier_id ? list.x_supplier_id[0] : null }, items, prices, market);
+  const listSupplierId = list.x_supplier_id ? list.x_supplier_id[0] : null;
+  // § 47 أ — the prices are net: a supplier with a VAT number is owed 15 % on top
+  const taxed = await vatSuppliers(env, day, [...items.map((it) => itemSupplier(it, listSupplierId) ?? 0), market.cashSupplierId ?? 0]);
+  const plan = planDues({ x_date: day, listSupplierId }, items, prices, market, (sid) => (taxed.has(sid) ? VAT_RATE_PCT : null));
   const fp = fnv1a(JSON.stringify(plan));
   const fpKey = `sp_due_fp:v1:${listId}`;
   const summary = plan.dues.map((d) => ({ supplierId: d.supplierId, amount: money(d.amountH), unpriced: d.unpriced }));
@@ -397,7 +433,10 @@ export async function syncSupplierDues(env: Env, listId: number, opts: { force?:
         x_no_price: l.noPrice,
         x_daily_price_id: l.priceId ?? false,
         x_note: l.noPrice ? "بلا سعر: لا سعر من هذا المورد لهذا الصنف في ذلك اليوم"
-          : l.marketBy ? `سعر شراء ${l.marketBy} المكتوب من السوق (فاز بسعر الشراء في «أسعار اليوم»)` : false,
+          : [
+              l.marketBy ? `سعر شراء ${l.marketBy} المكتوب من السوق (فاز بسعر الشراء في «أسعار اليوم»)` : "",
+              l.vatH > 0 ? `المستحق = الكمية × السعر + ضريبة ${VAT_RATE_PCT}% (${money(l.vatH)} ر.س): المورد مسجل والسعر بدون ضريبة` : "",
+            ].filter(Boolean).join(" · ") || false,
       };
       const old = oldLines.find((o) => o.x_due_id && o.x_due_id[0] === dueId && o.x_product_tmpl_id && o.x_product_tmpl_id[0] === l.productId
         && o.x_packaging_id && o.x_packaging_id[0] === l.packagingId);

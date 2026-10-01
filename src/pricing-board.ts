@@ -1,17 +1,21 @@
 // § 46 أ (2026-10-01) — «📊 لوحة التسعير»: the real profit of every line of
-// «أسعار اليوم», for display only. The pricing rule does not change here: the
-// sale price stays the market price (src/pricing-engine.ts).
+// «أسعار اليوم», for display. The sale price stays the market price whenever it
+// is profitable (src/pricing-engine.ts).
 //
 // For each line, written whenever the engine runs or a decision changes:
-//   • net purchase  = purchase ÷ 1.15 when the source that won the purchase is
-//     registered for VAT and the price day is on or after the cutoff
-//     (2026-10-01), else the purchase as it is;
+//   • net purchase  = the purchase price as it is (§ 47 أ: every purchase
+//     price is entered net of VAT, whoever the source — nothing is divided by
+//     1.15);
 //   • waste         = waste % × net purchase;
 //   • carton share  = dailyOperatingCost(day) ÷ the expected cartons a day
 //     («⚙️ إعدادات التسعير»); once ACTUAL_DAYS days with real deliveries exist:
 //     ÷ the average cartons actually delivered over the last ACTUAL_DAYS
 //     delivery days (the basis is written on the day);
 //   • full cost     = net purchase + waste + carton share;
+//   • § 47 ب — «أقل سعر بيع بدون خسارة» = full cost × 1.15, and «السعر المربح
+//     المقترح» = full cost × (1 + «الهامش الأدنى ٪» ÷ 100) × 1.15 rounded up to
+//     0.5 riyal, both VAT-inclusive (priceFloor, src/pricing-engine.ts: the
+//     engine's rule reads the same numbers);
 //   • net sale      = sale ÷ 1.15 from the cutoff (the sale = the approved
 //     price, else the market price);
 //   • real profit   = net sale − full cost;
@@ -28,6 +32,7 @@
 import type { Env } from "./config";
 import { call } from "./odoo";
 import { dailyOperatingCost } from "./operating-cost";
+import { DEFAULT_MIN_MARGIN_PCT, priceFloor } from "./pricing-engine";
 
 export type BoardStatus = "green" | "yellow" | "red" | "none";
 export type ShareBasis = "expected" | "actual";
@@ -83,23 +88,27 @@ export function boardShare(cost: number | null, expected: number | null, actual:
 // ---------------------------------------------------------------- a line
 
 export interface BoardLineInput {
-  /** The purchase price used by the engine (VAT-inclusive as written); null / 0 = none. */
+  /** The purchase price used by the engine: net of VAT as written (§ 47 أ); null / 0 = none. */
   purchase: number | null;
-  /** The approved sale price, else the market price; null / 0 = none. */
+  /** The approved sale price, else the market price (VAT-inclusive from the cutoff); null / 0 = none. */
   sale: number | null;
   wastePct: number;
   /** 15 from the cutoff, null before it. */
   vatRatePct: number | null;
-  /** The source that won the purchase is «مسجل في الضريبة». */
-  registered: boolean;
   /** The carton share; null = it cannot be read. */
   opShare: number | null;
+  /** § 47 ب — «الهامش الأدنى ٪» of the settings. */
+  minMarginPct?: number;
 }
 export interface BoardLineValues {
   x_net_purchase: number;
   x_waste_cost: number;
   x_op_share: number;
   x_full_cost: number;
+  /** § 47 ب — «أقل سعر بيع بدون خسارة» (0 = none: no purchase, or no carton share). */
+  x_break_even: number;
+  /** § 47 ب — «السعر المربح المقترح» (0 = none). */
+  x_suggested_price: number;
   x_board_sale: number;
   x_net_sale: number;
   x_real_profit: number;
@@ -109,12 +118,14 @@ export interface BoardLineValues {
 /** One line of the board. Pure. */
 export function boardLine(i: BoardLineInput): BoardLineValues {
   const d = i.vatRatePct ? 1 + i.vatRatePct / 100 : 1;
-  const hasPurchase = i.purchase !== null && i.purchase > 0;
   const hasSale = i.sale !== null && i.sale > 0;
-  const netPurchase = hasPurchase ? round2(i.registered ? (i.purchase as number) / d : (i.purchase as number)) : 0;
-  const waste = hasPurchase ? round2((Math.max(0, i.wastePct) / 100) * netPurchase) : 0;
+  // § 47 أ — the purchase is net as written; the floor is the engine's own (priceFloor)
+  const fl = priceFloor({ purchase: i.purchase, wastePct: i.wastePct, opShare: i.opShare, vatRatePct: i.vatRatePct, minMarginPct: i.minMarginPct ?? DEFAULT_MIN_MARGIN_PCT });
+  const hasPurchase = fl !== null;
+  const netPurchase = fl?.netPurchase ?? 0;
+  const waste = fl?.waste ?? 0;
   const opShare = i.opShare !== null ? round2(i.opShare) : 0;
-  const fullCost = hasPurchase ? round2(netPurchase + waste + opShare) : 0;
+  const fullCost = fl?.fullCost ?? 0;
   const sale = hasSale ? round2(i.sale as number) : 0;
   const netSale = hasSale ? round2((i.sale as number) / d) : 0;
   const complete = hasPurchase && hasSale;
@@ -129,11 +140,12 @@ export function boardLine(i: BoardLineInput): BoardLineValues {
   }
   return {
     x_net_purchase: netPurchase, x_waste_cost: waste, x_op_share: opShare, x_full_cost: fullCost,
+    x_break_even: fl?.breakEven ?? 0, x_suggested_price: fl?.suggested ?? 0,
     x_board_sale: sale, x_net_sale: netSale, x_real_profit: realProfit, x_board_status: status,
   };
 }
 
-export const BOARD_LINE_FIELDS = ["x_net_purchase", "x_waste_cost", "x_op_share", "x_full_cost", "x_board_sale", "x_net_sale", "x_real_profit", "x_board_status"] as const;
+export const BOARD_LINE_FIELDS = ["x_net_purchase", "x_waste_cost", "x_op_share", "x_full_cost", "x_break_even", "x_suggested_price", "x_board_sale", "x_net_sale", "x_real_profit", "x_board_status"] as const;
 
 /** The day's header: the cost, the share and its basis, the comparison, the counts. */
 export function boardHeader(share: BoardShare, statuses: BoardStatus[], nowMs: number): Record<string, unknown> {

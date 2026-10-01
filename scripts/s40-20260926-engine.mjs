@@ -175,7 +175,8 @@ if (VERIFY) {
   const lf = await call(LINE, "fields_get", { attributes: ["type", "selection", "readonly", "store"] });
   for (const d of LINE_FIELDS) check(`${LINE}.${d.name} ${d.ttype}`, lf[d.name]?.type === d.ttype);
   check("x_status = auto / exception / manual / unpublished", JSON.stringify((lf.x_status?.selection ?? []).map((s) => s[0])) === JSON.stringify(["auto", "exception", "manual", "unpublished"]));
-  check("x_decision = market / skip / edit", JSON.stringify((lf.x_decision?.selection ?? []).map((s) => s[0])) === JSON.stringify(["market", "skip", "edit"]));
+  // § 47 ب added «اعتمد بالسعر المربح» (profit) to the decisions (scripts/s47-20261001-odoo.mjs)
+  check("x_decision = market / skip / edit (+ profit from § 47)", ["market", "skip", "edit"].every((v, i) => (lf.x_decision?.selection ?? [])[i]?.[0] === v) && (lf.x_decision?.selection ?? []).slice(3).every((s) => s[0] === "profit"));
   for (const f of TO_PLAIN) {
     const r = await fieldRow(LINE, f);
     check(`${f}: a plain stored field now (no compute, not readonly)`, r && !r.compute && !r.depends && r.store === true && r.readonly === false, JSON.stringify({ c: String(r?.compute || "").slice(0, 20), d: r?.depends, s: r?.store, ro: r?.readonly }));

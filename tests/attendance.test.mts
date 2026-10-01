@@ -49,8 +49,8 @@ const F7 = load("./fixtures-odoo-fields-20260925-s36.json");
 const F8 = load("./fixtures-odoo-fields-20260926-s41.json");
 // § 44: x_vat_status / x_legal_name / x_vat_ask_count on res.partner (the invoice reads them), the purchase side (last: it wins)
 const F9 = load("./fixtures-odoo-fields-20260928-s44.json");
-// § 46: the pricing board's fields on x_price_day / x_price_day_line, x_expected_cartons, product.template.x_utak_new (last: it wins)
-const F10 = load("./fixtures-odoo-fields-20261001-s46.json");
+// § 46 + § 47: the pricing board's fields on x_price_day / x_price_day_line, x_expected_cartons, product.template.x_utak_new, x_min_margin_pct, x_break_even / x_suggested_price, x_decision «profit» (last: it wins)
+const F10 = load("./fixtures-odoo-fields-20261001-s47.json");
 const REAL: Record<string, string[]> = { ...F1, ...F2, ...F3, ...F4, ...F5, ...F6, ...F7, ...F8, ...F9, ...F10 };
 const SELECTIONS: Record<string, string[]> = { ...F1._selections, ...F2._selections, ...F3._selections, ...F4._selections, ...F5._selections, ...F6._selections, ...F7._selections, ...F8._selections, ...F9._selections, ...F10._selections };
 const rejected: string[] = [];

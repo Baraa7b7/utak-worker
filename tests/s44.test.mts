@@ -50,7 +50,7 @@ const FIX = [
   "fixtures-odoo-fields-20260926-s41.json", "fixtures-odoo-fields-20260927-s42.json",
   // § 44 — fields_get of 2026-09-28 after part د (scripts/s44-20260928-fields-fixture.mjs; last: it wins)
   "fixtures-odoo-fields-20260928-s44.json",
-  "fixtures-odoo-fields-20261001-s46.json", // § 46: the pricing board's fields on x_price_day / x_price_day_line, x_expected_cartons, product.template.x_utak_new (last: it wins)
+  "fixtures-odoo-fields-20261001-s47.json", // § 46 + § 47: the pricing board's fields on x_price_day / x_price_day_line, x_expected_cartons, product.template.x_utak_new, x_min_margin_pct, x_break_even / x_suggested_price, x_decision «profit» (last: it wins)
 ].map((f) => JSON.parse(readFileSync(new URL(`./${f}`, import.meta.url), "utf8")));
 const REAL: Record<string, string[]> = Object.assign({}, ...FIX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FIX.map((f) => f._selections ?? {}));
@@ -94,7 +94,8 @@ globalThis.fetch = (async (input: unknown, init?: any) => {
     }
   }
   // § 44 هـ — Odoo's purchase flow, as the tenant runs it: confirm, the bill from the PO lines
-  // (price-included 15 % when the line carries tax 43), post.
+  // (the line's tax as Odoo applies it: a price-EXCLUDED one — § 47 أ, the company's #21 — is added
+  // on the net line amount, a price-included one would split it), post.
   if (m && m[1] === "purchase.order" && m[2] === "button_confirm") {
     for (const id of JSON.parse(init.body).ids) (table("purchase.order").get(id) as any).state = "purchase";
     return new Response("true", { status: 200 });
@@ -102,11 +103,16 @@ globalThis.fetch = (async (input: unknown, init?: any) => {
   if (m && m[1] === "purchase.order" && m[2] === "action_create_invoice") {
     const po = table("purchase.order").get(JSON.parse(init.body).ids[0]) as any;
     const grosses = (po.order_line as any[]).map((c) => c[2].price_unit * c[2].product_qty);
-    const taxed = (po.order_line as any[]).some((c) => JSON.stringify(c[2].tax_ids) === "[[6,0,[43]]]");
-    const t = ACC.computeInclusiveTotals(grosses, taxed ? 15 : null);
+    const taxId = (po.order_line as any[]).map((c) => c[2].tax_ids?.[0]?.[2]?.[0]).find(Boolean);
+    const taxRow = taxId ? (table("account.tax").get(taxId) as any) : null;
+    const r2 = (n: number) => Math.round(n * 100) / 100;
+    const added = grosses.map((g) => ({ net: r2(g), tax: r2((r2(g) * (taxRow?.amount ?? 0)) / 100) }));
+    const t = !taxRow || taxRow.price_include
+      ? ACC.computeInclusiveTotals(grosses, taxRow ? taxRow.amount : null)
+      : { subtotal: r2(added.reduce((a, l) => a + l.net, 0)), tax: r2(added.reduce((a, l) => a + l.tax, 0)), total: r2(added.reduce((a, l) => a + l.net + l.tax, 0)) };
     const moveId = seed("account.move", { move_type: "in_invoice", state: "draft", partner_id: po.partner_id, amount_total: t.total, amount_tax: t.tax, invoice_origin: po.name ?? false });
     seed("account.move.line", { move_id: moveId, account_id: [136, "400001"], debit: t.subtotal, credit: 0, display_type: "product", tax_line_id: false });
-    if (t.tax > 0) seed("account.move.line", { move_id: moveId, account_id: [100, "104041"], debit: t.tax, credit: 0, display_type: "tax", tax_line_id: [43, "15%"] });
+    if (t.tax > 0) seed("account.move.line", { move_id: moveId, account_id: [100, "104041"], debit: t.tax, credit: 0, display_type: "tax", tax_line_id: [taxId, "15%"] });
     seed("account.move.line", { move_id: moveId, account_id: [106, "201002"], debit: 0, credit: t.total, display_type: "payment_term", tax_line_id: false });
     po.invoice_ids = [moveId];
     return new Response(JSON.stringify({ res_model: "account.move", res_id: moveId }), { status: 200 });
@@ -578,7 +584,8 @@ console.log("\n[هـ] the input tax: only a supplier with a VAT number, only fro
 {
   const L = purchaseSetup("2026-10-01 03:30", "2026-09-30", { ahmedVat: "310123456700003" });
   await quiet(() => PA.syncPurchaseListToAccounting(ENV, L, { billDate: "2026-10-01" }));
-  assert("[هـ] Ahmed registered, 10-01: his line carries the included tax 43, 200 → 173.91 + 26.09", JSON.stringify(poOf(AHMED)?.order_line[0][2].tax_ids) === "[[6,0,[43]]]" && billOf(AHMED)?.amount_tax === 26.09 && billOf(AHMED)?.amount_total === 200, JSON.stringify(billOf(AHMED)));
+  // § 47 أ — the purchase price is net: the registered supplier's 15 % is added on top (it was split out of the 200)
+  assert("[هـ] Ahmed registered, 10-01: his line carries the company's price-excluded tax 21, 200 → 200 + 30 = 230", JSON.stringify(poOf(AHMED)?.order_line[0][2].tax_ids) === "[[6,0,[21]]]" && poOf(AHMED)?.order_line[0][2].price_unit === 20 && billOf(AHMED)?.amount_tax === 30 && billOf(AHMED)?.amount_total === 230, JSON.stringify(billOf(AHMED)));
   assert("[هـ] …the cash market (no number) in the same list: no input tax", billOf(CASH)?.amount_tax === 0 && JSON.stringify(poOf(CASH)?.order_line[0][2].tax_ids) === "[[6,0,[]]]");
   assert("[هـ] …Baraa's no-VAT line for the market's 46", noVatLines().join() === "مشتريات سوق بلا رقم ضريبي: 46 ر.س، ضريبتها لا تُخصم");
   const L9 = purchaseSetup("2026-09-30 03:30", "2026-09-29", { ahmedVat: "310123456700003" });
@@ -587,7 +594,7 @@ console.log("\n[هـ] the input tax: only a supplier with a VAT number, only fro
   assert("[هـ] …and no no-VAT line before 10-01 (there is no VAT to deduct yet)", noVatLines().length === 0);
   const Lc = purchaseSetup("2026-10-01 03:30", "2026-09-30", { cashVat: "300000000000003" });
   await quiet(() => PA.syncPurchaseListToAccounting(ENV, Lc, { billDate: "2026-10-01" }));
-  assert("[هـ] the cash market WITH a VAT number on its card: its bill split (46 → 40 + 6), no line to Baraa", billOf(CASH)?.amount_tax === 6 && noVatLines().length === 0, JSON.stringify(billOf(CASH)));
+  assert("[هـ] the cash market WITH a VAT number on its card: 46 → 46 + 6.90 = 52.90, no line to Baraa", billOf(CASH)?.amount_tax === 6.9 && billOf(CASH)?.amount_total === 52.9 && noVatLines().length === 0, JSON.stringify(billOf(CASH)));
 }
 
 console.log("\n[هـ] one supplier only (no market line): one bill, as before");

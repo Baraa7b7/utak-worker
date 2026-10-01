@@ -13,11 +13,11 @@
 //     profit = Σ (sale − purchase − waste % × purchase) × qty over its lines,
 //     the purchase being the engine's for the order's day (x_price_day_line);
 //     a line without one, or the day's cost unreadable → no discount (never a
-//     guessed number). § 41 أ — with VAT (prices VAT-inclusive, the invoice's
-//     rate) the profit is net of VAT: a line whose purchase came from a
-//     registered source (x_price_day_line.x_supplier_id) ÷ 1.15, else sale ÷
-//     1.15 − purchase − waste; the discount (what the customer's total drops
-//     by, VAT-inclusive) is taken off BEFORE the division;
+//     guessed number). § 41 أ — with VAT (sale prices VAT-inclusive, the
+//     invoice's rate) the profit is net of VAT; § 47 أ — the purchase price is
+//     net of VAT whoever the source: sale ÷ 1.15 − purchase − waste; the
+//     discount (what the customer's total drops by, VAT-inclusive) is taken
+//     off BEFORE the division;
 //   • ACCOUNTING_SYNC is on: the sale order has no discount line yet, so an
 //     accounting invoice would not match (a prerequisite for prod).
 // The quotation and the invoice compute it the same way from their own lines,
@@ -75,8 +75,9 @@ export interface DiscountResult {
 
 /**
  * The order's profit: Σ (sale − purchase − waste % × purchase) × qty, the
- * engine's purchase of `day`. Null if a line has none. § 41 أ — `vat`: net of
- * VAT per line by the source that won its purchase (src/pricing-engine.ts vatProfit).
+ * engine's purchase of `day`. Null if a line has none. § 41 أ — `vat`: the
+ * sale price net of VAT; § 47 أ — the purchase price is net as stored
+ * (src/pricing-engine.ts vatProfit).
  */
 export async function orderProfit(env: Env, day: string, lines: PricedLine[], wastePct: number, vat: VatContext = NO_VAT): Promise<number | null> {
   const raw = await orderProfitRaw(env, day, lines, wastePct, vat);
@@ -86,19 +87,19 @@ export async function orderProfit(env: Env, day: string, lines: PricedLine[], wa
 /** orderProfit before its rounding: the discount guard takes the discount off this, then rounds once. */
 async function orderProfitRaw(env: Env, day: string, lines: PricedLine[], wastePct: number, vat: VatContext): Promise<number | null> {
   if (!lines.length) return 0;
-  const rows = await call<Array<{ x_product_tmpl_id: [number, string] | false; x_packaging_id: [number, string] | false; x_cost_price: number | false; x_supplier_id: [number, string] | false }>>(env, "x_price_day_line", "search_read", {
+  const rows = await call<Array<{ x_product_tmpl_id: [number, string] | false; x_packaging_id: [number, string] | false; x_cost_price: number | false }>>(env, "x_price_day_line", "search_read", {
     domain: [["x_day_id.x_date", "=", day], ["x_day_id.x_utak_simulation", "!=", true], ["x_product_tmpl_id", "in", [...new Set(lines.map((l) => l.productId))]], ["x_cost_price", ">", 0]],
-    fields: ["x_product_tmpl_id", "x_packaging_id", "x_cost_price", "x_supplier_id"],
+    fields: ["x_product_tmpl_id", "x_packaging_id", "x_cost_price"],
     limit: 1000,
   });
   const key = (r: { x_product_tmpl_id: [number, string] | false; x_packaging_id: [number, string] | false }) =>
     `${Array.isArray(r.x_product_tmpl_id) ? r.x_product_tmpl_id[0] : 0}:${Array.isArray(r.x_packaging_id) ? r.x_packaging_id[0] : 0}`;
-  const cost = new Map(rows.map((r) => [key(r), { price: Number(r.x_cost_price) || 0, source: Array.isArray(r.x_supplier_id) ? r.x_supplier_id[0] : 0 }]));
+  const cost = new Map(rows.map((r) => [key(r), Number(r.x_cost_price) || 0]));
   let profit = 0;
   for (const l of lines) {
     const c = cost.get(`${l.productId}:${l.packagingId}`);
-    if (!(c && c.price > 0)) return null;
-    profit += vatProfit(l.unit, c.price, wastePct, vat.ratePct, vat.registered(c.source)) * l.qty;
+    if (!(c && c > 0)) return null;
+    profit += vatProfit(l.unit, c, wastePct, vat.ratePct) * l.qty;
   }
   return profit;
 }
@@ -121,13 +122,8 @@ export async function orderDiscount(env: Env, a: { day: string; lines: PricedLin
   const split = computeInclusiveTotals(a.lines.map((l) => round2(l.unit * l.qty)), rate);
   const base = rate ? split.subtotal : gross;
   const amount = round2((base * out.tierPct) / 100);
-  // § 41 أ — with VAT the profit is net of it, per line by the winning source
-  let vat: VatContext = NO_VAT;
-  if (rate) {
-    const { isSourceVatRegistered, loadPriceSources } = await import("./price-sources");
-    const sources = await loadPriceSources(env);
-    vat = { ratePct: rate, registered: (pid) => isSourceVatRegistered(sources, pid) };
-  }
+  // § 41 أ — with VAT the profit is net of it (§ 47 أ: the purchase price is net already)
+  const vat: VatContext = rate ? { ratePct: rate } : NO_VAT;
   const raw = await orderProfitRaw(env, a.day, a.lines, settings.wastePct, vat);
   if (raw === null) return { ...out, reason: "ربح الطلب لا يُقرأ (صنف بلا سعر شراء اليوم)" };
   const profit = round2(raw);

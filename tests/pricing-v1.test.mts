@@ -38,7 +38,7 @@ const FIX = [
   "fixtures-odoo-fields-20260926-s40.json",       // § 40: every model the engine reads or writes
   "fixtures-odoo-fields-20260926-s41.json",       // § 41: «مسجل في الضريبة», x_utak_simulation on the per-day models (last: it wins)
   "fixtures-odoo-fields-20260928-s44.json", // § 44: x_vat_status / x_legal_name / x_vat_ask_count on res.partner (the invoice reads them), the purchase side (last: it wins)
-  "fixtures-odoo-fields-20261001-s46.json", // § 46: the pricing board's fields on x_price_day / x_price_day_line, x_expected_cartons, product.template.x_utak_new (last: it wins)
+  "fixtures-odoo-fields-20261001-s47.json", // § 46 + § 47: the pricing board's fields on x_price_day / x_price_day_line, x_expected_cartons, product.template.x_utak_new, x_min_margin_pct, x_break_even / x_suggested_price, x_decision «profit» (last: it wins)
 ].map((f) => JSON.parse(readFileSync(new URL(`./${f}`, import.meta.url), "utf8")));
 const REAL: Record<string, string[]> = Object.assign({}, ...FIX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FIX.map((f) => f._selections ?? {}));
@@ -518,15 +518,17 @@ console.log("\n[ج] the engine on the day: sources only, simulation out, nothing
   seed("res.partner", { id: 850, name: "مورد غير معلَّم", supplier_rank: 1, x_whatsapp_number: "+966500000850" });
   dp(1, 11, AHMED, 20);
   dp(1, 11, 850, 15);                          // a supplier without «مصدر أسعار»
-  po(1, 11, DRIVER, { market: 24 });
+  po(1, 11, DRIVER, { market: 26 });
   po(1, 11, DRIVER, { market: 99, sim: true, purchase: 1 }); // simulation
   po(1, 11, DRIVER, { market: 40, date: "2026-10-02" });    // yesterday
   const r = await quiet(() => PR.refreshPriceDay(env));
   const t = lineFor(1)!, c = lineFor(2)!;
   assert("the record built, one line per active product (tomato priced, cucumber not)", r.action === "refreshed" && rows("x_price_day_line").length === 2, JSON.stringify(r));
-  // § 41 أ — from the cutoff the unit profit is net of VAT: Ahmed is registered → (24 − 20 − 1) ÷ 1.15 = 2.61
-  assert("tomato: purchase 20 (the unflagged supplier's 15 ignored), market 24 (not the simulation 99, not yesterday's 40), sale 24, auto",
-    t.x_cost_price === 20 && t.x_market_price === 24 && t.x_market_count === 1 && t.x_sale_price === 24 && t.x_unit_profit === 2.61 && t.x_status === "auto" && !t.x_excluded, JSON.stringify(t));
+  // § 41 أ — from the cutoff the sale price is VAT-inclusive; § 47 أ — the purchase price is net, whoever the
+  // source (Ahmed «مسجل في الضريبة» or not): 26 ÷ 1.15 − 20 − 1 = 1.61. (No carton share in this world: the rule
+  // before § 47 — an exception when the unit profit ≤ 0; tests/s47.test.mts runs the suggested price.)
+  assert("tomato: purchase 20 (the unflagged supplier's 15 ignored), market 26 (not the simulation 99, not yesterday's 40), sale 26, auto",
+    t.x_cost_price === 20 && t.x_market_price === 26 && t.x_market_count === 1 && t.x_sale_price === 26 && t.x_unit_profit === 1.61 && t.x_status === "auto" && !t.x_excluded, JSON.stringify(t));
   assert("cucumber (no offer at all): its default packaging, an exception", c.x_packaging_id === 21 && c.x_status === "exception" && c.x_reason === "لا سعر شراء، لا سعر سوق", JSON.stringify(c));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
@@ -549,8 +551,9 @@ console.log("\n[ج] the exceptions to Baraa: from 04:00, one message per excepti
   assert("with a market price: «اعتمد بسعر السوق» / «لا تنشر» / «عدّل»", JSON.stringify(btnIds(tomatoMsg)) === JSON.stringify([`pexc_m_${tl.id}`, `pexc_s_${tl.id}`, `pexc_e_${tl.id}`]), JSON.stringify(btnIds(tomatoMsg)));
   assert("without a market price: «لا تنشر» / «عدّل» only", JSON.stringify(btnIds(cucMsg)) === JSON.stringify([`pexc_s_${cl.id}`, `pexc_e_${cl.id}`]), JSON.stringify(btnIds(cucMsg)));
   assert("the message: product, purchase, market, profit, reason, the deadline",
-    /طماطم \(كرتون\)/.test(tomatoMsg.interactive.body.text) && /الشراء: 20 · السوق: 20.50 · ربح الوحدة: -0.43/.test(tomatoMsg.interactive.body.text)
-      && /السبب: ربح الوحدة ≤ 0 \(-0.43\)/.test(tomatoMsg.interactive.body.text) && /قرارك قبل 06:00/.test(tomatoMsg.interactive.body.text), tomatoMsg.interactive.body.text);
+    // § 47 أ — the purchase is net: 20.50 ÷ 1.15 − 20 − 1 = −3.17 (it was (20.50 − 21) ÷ 1.15 = −0.43)
+    /طماطم \(كرتون\)/.test(tomatoMsg.interactive.body.text) && /الشراء \(بدون ضريبة\): 20 · السوق: 20.50 · ربح الوحدة: -3.17/.test(tomatoMsg.interactive.body.text)
+      && /السبب: ربح الوحدة ≤ 0 \(-3.17\)/.test(tomatoMsg.interactive.body.text) && /قرارك قبل 06:00/.test(tomatoMsg.interactive.body.text), tomatoMsg.interactive.body.text);
   setRiyadh("2026-10-03 04:05");
   const n2 = await quiet(() => PR.notifyPriceExceptions(env));
   assert("the next tick: no second message (KV guard per product and day)", n2.action === "notified_before" && excMsgs().length === 2, JSON.stringify(n2));
@@ -650,7 +653,7 @@ console.log("\n[ج] the publication time: automatic lines published, an exceptio
 {
   const env = fresh("2026-10-03 04:00", { onAttendance: false }); sources();
   seed("res.partner", { id: 891, name: "مطعم الوادي 2", customer_rank: 1, x_whatsapp_number: "+966500000891" });
-  dp(1, 11, AHMED, 20); po(1, 11, DRIVER, { market: 24 });   // tomato: automatic at 24
+  dp(1, 11, AHMED, 20); po(1, 11, DRIVER, { market: 26 });   // tomato: automatic at 26 (26 ÷ 1.15 − 21 > 0)
   dp(2, 21, AHMED, 30);                                       // cucumber: an exception, no decision
   await quiet(() => PR.runPricesTick(env, Date.now()));
   assert("04:00 tick: the record built, the exception sent to Baraa", !!dayOf() && excMsgs().length === 1);
@@ -662,13 +665,13 @@ console.log("\n[ج] the publication time: automatic lines published, an exceptio
   const d = dayOf()!;
   assert("06:00: approved by the worker and published (no Baraa in it)", (t.deadline as any)?.action === "auto_published" && d.x_state === "published" && !d.x_approved_by, JSON.stringify(t.deadline));
   const list = heldFor(env, "966500000891");
-  assert("the customers' list: tomato at 24 only (the undecided cucumber left out)", list.length === 1 && /• طماطم \(كرتون\): 24 ر.س/.test(JSON.stringify(list[0])) && !/خيار/.test(JSON.stringify(list[0])), JSON.stringify(list).slice(0, 300));
+  assert("the customers' list: tomato at 26 only (the undecided cucumber left out)", list.length === 1 && /• طماطم \(كرتون\): 26 ر.س/.test(JSON.stringify(list[0])) && !/خيار/.test(JSON.stringify(list[0])), JSON.stringify(list).slice(0, 300));
   assert("the cucumber: «لم يُنشر» (استثناء بلا قرار)", lineFor(2)!.x_status === "unpublished" && /استثناء بلا قرار/.test(String(lineFor(2)!.x_reason)));
   assert("Baraa: one line with the count of the undecided", ownerTexts().filter((x) => x.startsWith("⏰ لم يُنشر اليوم 1 صنف")).length === 1, JSON.stringify(ownerTexts()));
   const late = await quiet(() => PR.handlePriceExceptionButton(env, `pexc_s_${lineFor(2)!.id}`));
   assert("a tap after the publication → «فات موعد النشر», nothing written", /فات موعد نشر/.test(late) && !lineFor(2)!.x_decision, late);
   const p = await quiet(() => (import("../src/odoo.ts")).then((m) => m.getLatestSalePrice(env, 1, 11)));
-  assert("the quotation / invoice price: today's published 24", p.price === 24 && p.source === "today", JSON.stringify(p));
+  assert("the quotation / invoice price: today's published 26", p.price === 26 && p.source === "today", JSON.stringify(p));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 
@@ -676,15 +679,15 @@ console.log("\n[ج] the publication time takes the last offers; the tick runs th
 {
   const env = fresh("2026-10-03 05:55", { onAttendance: false }); sources();
   seed("res.partner", { id: 891, name: "مطعم الوادي 2", customer_rank: 1, x_whatsapp_number: "+966500000891" });
-  dp(1, 11, AHMED, 20); po(1, 11, DRIVER, { market: 24 });
+  dp(1, 11, AHMED, 20); po(1, 11, DRIVER, { market: 26 });
   dp(2, 21, AHMED, 30);
   await quiet(() => PR.refreshPriceDay(env));
   setRiyadh("2026-10-03 05:58");
-  po(2, 21, DRIVER, { market: 36 });                          // arrives after the last tick
+  po(2, 21, DRIVER, { market: 38 });                          // arrives after the last tick (38 ÷ 1.15 − 30 − 1.5 > 0)
   setRiyadh("2026-10-03 06:00");
   const r = await quiet(() => PR.checkPricesDeadline(env));
-  assert("an observation of 05:58 counts at 06:00 (the engine's last word): cucumber published at 36",
-    r.action === "auto_published" && lineFor(2)!.x_status === "auto" && /• خيار \(جرم\): 36 ر.س/.test(JSON.stringify(heldFor(env, "966500000891"))), JSON.stringify(r));
+  assert("an observation of 05:58 counts at 06:00 (the engine's last word): cucumber published at 38",
+    r.action === "auto_published" && lineFor(2)!.x_status === "auto" && /• خيار \(جرم\): 38 ر.س/.test(JSON.stringify(heldFor(env, "966500000891"))), JSON.stringify(r));
 }
 {
   const env = fresh("2026-10-03 01:30", { onAttendance: false }); sources();
@@ -905,7 +908,7 @@ function summaryEnv(): any {
   cost("السيارة والسائق (شامل)", "daily", 500, "2026-10-01");
   publishedTomato(YDAY);                                      // yesterday: tomato bought at 20
   publishedTomato(DAY, 26, 32);                               // today's prices: not the delivered orders' day
-  const o = delivered([[1, 11, 20, 30]]);                     // 20 × (30 − 20 − 1) = 180
+  const o = delivered([[1, 11, 20, 30]]);                     // § 47 أ: 20 × (30 ÷ 1.15 − 20 − 1) = 101.74 (the purchase 20 is net)
   seed("x_invoice", { x_invoice_number: "UTAK-INV-20261003-001", x_order_id: o, x_invoice_date: DAY, x_status: "issued", x_subtotal: 521.74, x_tax_amount: 76.7, x_total: 588.01, x_discount: 10.43 });
   delivered([[1, 11, 50, 30]], { x_utak_simulation: true }); // simulation: out
   return env;
@@ -916,13 +919,14 @@ console.log("\n[هـ] 21:30: today's profit ÷ today's operating cost — inside
 {
   const env = summaryEnv();
   const f = await quiet(() => SUM.readSummaryFigures(env));
-  // § 41 أ — 10-03 is after the cutoff: (180 − the discount as the customer saw it, 600 − 588.01 = 11.99) ÷ 1.15 = 146.10
-  assert("profit (180 − the invoice's discount 11.99 VAT-inclusive) ÷ 1.15 = 146.10 (the simulation order out); cost 500; 29%",
-    f.coverage.profit === 146.1 && f.coverage.cost === 500 && f.coverage.pct === 29, JSON.stringify(f.coverage));
+  // § 41 أ — 10-03 is after the cutoff; § 47 أ — the purchase is net: 20 × (30 ÷ 1.15 − 21) = 101.74, less the
+  // discount as the customer saw it (600 − 588.01 = 11.99) ÷ 1.15 = 10.43 → 91.31 (it was (180 − 11.99) ÷ 1.15 = 146.10)
+  assert("profit 20 × (30 ÷ 1.15 − 21) − the invoice's discount 11.99 ÷ 1.15 = 91.31 (the simulation order out); cost 500; 18%",
+    f.coverage.profit === 91.31 && f.coverage.cost === 500 && f.coverage.pct === 18, JSON.stringify(f.coverage));
   const r = await quiet(() => SUM.sendOwnerSummary(env));
   const t = String(summaryMsgs()[0]?.text?.body ?? "");
   const lines = t.split("\n");
-  assert("the text: a fourth line «تغطية تكاليف اليوم: 29% (ربح 146.10 من 500.00)»", r.action === "session" && lines.length === 5 && lines[4] === "تغطية تكاليف اليوم: 29% (ربح 146.10 من 500.00)", t);
+  assert("the text: a fourth line «تغطية تكاليف اليوم: 18% (ربح 91.31 من 500.00)»", r.action === "session" && lines.length === 5 && lines[4] === "تغطية تكاليف اليوم: 18% (ربح 91.31 من 500.00)", t);
   assert("…the three lines before it as they were", lines[3].startsWith("تحصيل اليوم:") && lines[2].startsWith("توصيلات اليوم: 1 مسلَّمة من 1"), t);
 }
 {
@@ -933,16 +937,16 @@ console.log("\n[هـ] 21:30: today's profit ÷ today's operating cost — inside
   const p = (m?.template?.components ?? []).find((c: any) => c.type === "body")?.parameters?.map((x: any) => x.text) ?? [];
   assert("outside his window: utak_v2_summary with its three variables as they are", r.action === "template" && p.length === 3, JSON.stringify(p));
   assert("…the coverage at the end of {{3}}, on the same line (its «ريال» follows)",
-    p[2] === "المحصَّل اليوم 0.00 والمعلَّق 588.01 · تغطية التكاليف 29% بربح 146.10 من 500.00" && !/[\n\t]/.test(p[2]), p[2]);
+    p[2] === "المحصَّل اليوم 0.00 والمعلَّق 588.01 · تغطية التكاليف 18% بربح 91.31 من 500.00" && !/[\n\t]/.test(p[2]), p[2]);
   const own = SUM.summaryParams(await quiet(() => SUM.readSummaryFigures(env)));
-  assert("…one line at the source too (not left to the gateway's cleanup)", own.every((x) => !/[\n\t]/.test(x)) && own[2].endsWith("· تغطية التكاليف 29% بربح 146.10 من 500.00"), JSON.stringify(own));
+  assert("…one line at the source too (not left to the gateway's cleanup)", own.every((x) => !/[\n\t]/.test(x)) && own[2].endsWith("· تغطية التكاليف 18% بربح 91.31 من 500.00"), JSON.stringify(own));
 }
 
 {
   const env = summaryEnv();
   cost("صيانة", "monthly", 2600, "2026-01-01");               // Saturday: 100 of it today (Friday, yesterday: 0)
   const f = await quiet(() => SUM.readSummaryFigures(env));
-  assert("today's cost (Saturday 10-03: 500 + 2600 ÷ 26 = 600), not yesterday's (Friday: 500) → 24%", f.coverage.cost === 600 && f.coverage.pct === 24, JSON.stringify(f.coverage));
+  assert("today's cost (Saturday 10-03: 500 + 2600 ÷ 26 = 600), not yesterday's (Friday: 500) → 15%", f.coverage.cost === 600 && f.coverage.pct === 15, JSON.stringify(f.coverage));
 }
 
 {
@@ -950,7 +954,7 @@ console.log("\n[هـ] 21:30: today's profit ÷ today's operating cost — inside
   const o = delivered([[1, 11, 2, 30]]);
   seed("x_daily_order_line", { x_order_id: o, x_product_tmpl_id: 2, x_packaging_id: 21, x_quantity: 3, x_unit_price: false, x_status: "unavailable" });
   const f = await quiet(() => SUM.readSummaryFigures(env));
-  assert("a line short at delivery («unavailable») is not in the profit: (180 + 2 × 9 − 11.99) ÷ 1.15 = 161.75", f.coverage.profit === 161.75, JSON.stringify(f.coverage));
+  assert("a line short at delivery («unavailable») is not in the profit: 22 × (30 ÷ 1.15 − 21) − 11.99 ÷ 1.15 = 101.49", f.coverage.profit === 101.49, JSON.stringify(f.coverage));
 }
 
 console.log("\n[هـ] a figure that cannot be read: «تعذّر», never a guess");
@@ -973,14 +977,14 @@ console.log("\n[هـ] a figure that cannot be read: «تعذّر», never a gues
   cost("صيانة", "monthly", 2600, "2026-01-01");
   table("hr.employee").get(OMAR_EMP)!.resource_calendar_id = false;
   const f = await quiet(() => SUM.readSummaryFigures(env));
-  assert("the day's cost unreadable (a monthly line, no driver schedule) → «تعذّر (ربح 146.10 من تعذّر)»",
-    f.coverage.cost === null && f.coverage.pct === null && SUM.coverageLine(f.coverage) === "تغطية تكاليف اليوم: تعذّر (ربح 146.10 من تعذّر)", JSON.stringify(f.coverage));
+  assert("the day's cost unreadable (a monthly line, no driver schedule) → «تعذّر (ربح 91.31 من تعذّر)»",
+    f.coverage.cost === null && f.coverage.pct === null && SUM.coverageLine(f.coverage) === "تغطية تكاليف اليوم: تعذّر (ربح 91.31 من تعذّر)", JSON.stringify(f.coverage));
 }
 {
   const env = summaryEnv();
   rows("x_operating_cost").forEach((r: any) => { r.x_date_from = "2026-12-01"; });
   const f = await quiet(() => SUM.readSummaryFigures(env));
-  assert("no cost line in force today (0): the coverage «تعذّر», the figures shown", f.coverage.cost === 0 && f.coverage.pct === null && SUM.coverageLine(f.coverage) === "تغطية تكاليف اليوم: تعذّر (ربح 146.10 من 0.00)", JSON.stringify(f.coverage));
+  assert("no cost line in force today (0): the coverage «تعذّر», the figures shown", f.coverage.cost === 0 && f.coverage.pct === null && SUM.coverageLine(f.coverage) === "تغطية تكاليف اليوم: تعذّر (ربح 91.31 من 0.00)", JSON.stringify(f.coverage));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 

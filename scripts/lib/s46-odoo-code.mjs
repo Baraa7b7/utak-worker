@@ -10,7 +10,8 @@
 //     فواكه → UTAK-FRT-###, خضار → UTAK-VEG-###, ورقيات → UTAK-LEAF-###, continuing from the highest
 //     number in use (archived products included). No such category → no reference. A reference
 //     typed by hand is never changed;
-//   • on creation only: the sale tax and the purchase tax, the type / storable / unit / purchase
+//   • on creation only: the sale tax and the purchase tax (§ 47 أ: the company's price-excluded
+//     «15%» — a purchase price is entered net of VAT), the type / storable / unit / purchase
 //     method / invoice policy of the existing produce, «نشط للبيع» = false, the flag the worker
 //     reads to alert Baraa once (x_utak_new), and a default packaging «كرتون» (8 kg, a temporary
 //     weight; base.automation #8 names it «كرتون · 8 كيلو»).

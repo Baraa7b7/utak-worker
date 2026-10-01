@@ -17,13 +17,15 @@
 //
 // The pricing settings are on the active x_pricing_config record (the existing
 // «إعدادات التسعير», menu UTAK ← «⚙️ إعدادات التسعير»): x_waste_pct,
-// x_min_order_sar, x_planned_stops (empty / 0 = none), and — § 46 أ —
-// x_expected_cartons (the carton share of «📊 لوحة التسعير»).
+// x_min_order_sar, x_planned_stops (empty / 0 = none), — § 46 أ —
+// x_expected_cartons (the carton share of «📊 لوحة التسعير»), and — § 47 ب —
+// x_min_margin_pct «الهامش الأدنى ٪» (the suggested profitable price).
 
 import type { Env } from "./config";
 import { call } from "./odoo";
 import { LINE_FIELDS, linesOn, loadRoster, toCalendarLine, type CalendarLine } from "./team-roster";
 import { riyadhDateKey } from "./hours";
+import { DEFAULT_MIN_MARGIN_PCT } from "./pricing-engine";
 
 export const COST_MODEL = "x_operating_cost";
 export const CONFIG_MODEL = "x_pricing_config";
@@ -154,13 +156,15 @@ export interface PricingSettings {
   plannedStops: number | null;
   /** § 46 أ — الكراتين المتوقعة يومياً (the carton share of «📊 لوحة التسعير»); null = empty. */
   expectedCartons: number | null;
+  /** § 47 ب — الهامش الأدنى ٪, on the full net cost (the suggested profitable price); DEFAULT_MIN_MARGIN_PCT when the record carries none. */
+  minMarginPct: number;
 }
 
 /** The active x_pricing_config on `day` (the one the menu opens). Null when none. Throws on Odoo trouble. */
 export async function readPricingSettings(env: Env, day: string = riyadhDateKey()): Promise<PricingSettings | null> {
-  const [r] = await call<Array<{ id: number; x_waste_pct: number | false; x_min_order_sar: number | false; x_planned_stops: number | false; x_expected_cartons: number | false }>>(env, CONFIG_MODEL, "search_read", {
+  const [r] = await call<Array<{ id: number; x_waste_pct: number | false; x_min_order_sar: number | false; x_planned_stops: number | false; x_expected_cartons: number | false; x_min_margin_pct?: number | false }>>(env, CONFIG_MODEL, "search_read", {
     domain: [["x_is_active", "=", true], ["x_active_from", "<=", day], "|", ["x_active_to", "=", false], ["x_active_to", ">=", day]],
-    fields: ["id", "x_waste_pct", "x_min_order_sar", "x_planned_stops", "x_expected_cartons"],
+    fields: ["id", "x_waste_pct", "x_min_order_sar", "x_planned_stops", "x_expected_cartons", "x_min_margin_pct"],
     order: "x_active_from desc, id desc",
     limit: 1,
   });
@@ -173,5 +177,6 @@ export async function readPricingSettings(env: Env, day: string = riyadhDateKey(
     minOrder: Math.max(0, Number(r.x_min_order_sar) || 0),
     plannedStops: stops > 0 ? Math.floor(stops) : null,
     expectedCartons: cartons > 0 ? Math.floor(cartons) : null,
+    minMarginPct: typeof r.x_min_margin_pct === "number" ? Math.max(0, r.x_min_margin_pct) : DEFAULT_MIN_MARGIN_PCT,
   };
 }

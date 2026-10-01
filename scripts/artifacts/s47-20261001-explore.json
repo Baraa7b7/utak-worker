@@ -1,0 +1,4837 @@
+{
+  "atRiyadh": "2026-10-01 11:20",
+  "taxes": [
+    {
+      "id": 21,
+      "name": "15%",
+      "amount": 15,
+      "amount_type": "percent",
+      "type_tax_use": "purchase",
+      "price_include": false,
+      "price_include_override": false,
+      "active": true,
+      "tax_group_id": [
+        3,
+        "VAT Total Amount"
+      ],
+      "include_base_amount": false
+    },
+    {
+      "id": 22,
+      "name": "15% R C",
+      "amount": 15,
+      "amount_type": "percent",
+      "type_tax_use": "purchase",
+      "price_include": false,
+      "price_include_override": false,
+      "active": true,
+      "tax_group_id": [
+        3,
+        "VAT Total Amount"
+      ],
+      "include_base_amount": false
+    },
+    {
+      "id": 23,
+      "name": "15% EX ONLY B",
+      "amount": 0,
+      "amount_type": "percent",
+      "type_tax_use": "purchase",
+      "price_include": false,
+      "price_include_override": false,
+      "active": true,
+      "tax_group_id": [
+        7,
+        "Import VAT 15%"
+      ],
+      "include_base_amount": false
+    },
+    {
+      "id": 24,
+      "name": "15% EX ONLY",
+      "amount": 100,
+      "amount_type": "division",
+      "type_tax_use": "purchase",
+      "price_include": true,
+      "price_include_override": "tax_included",
+      "active": true,
+      "tax_group_id": [
+        7,
+        "Import VAT 15%"
+      ],
+      "include_base_amount": true
+    },
+    {
+      "id": 25,
+      "name": "0%",
+      "amount": 0,
+      "amount_type": "percent",
+      "type_tax_use": "purchase",
+      "price_include": false,
+      "price_include_override": false,
+      "active": true,
+      "tax_group_id": [
+        3,
+        "VAT Total Amount"
+      ],
+      "include_base_amount": false
+    },
+    {
+      "id": 26,
+      "name": "0% EXT",
+      "amount": 0,
+      "amount_type": "percent",
+      "type_tax_use": "purchase",
+      "price_include": false,
+      "price_include_override": false,
+      "active": true,
+      "tax_group_id": [
+        3,
+        "VAT Total Amount"
+      ],
+      "include_base_amount": false
+    },
+    {
+      "id": 27,
+      "name": "5% WH R G",
+      "amount": 5,
+      "amount_type": "division",
+      "type_tax_use": "purchase",
+      "price_include": false,
+      "price_include_override": "tax_excluded",
+      "active": true,
+      "tax_group_id": [
+        4,
+        "Withholding 5%"
+      ],
+      "include_base_amount": false
+    },
+    {
+      "id": 28,
+      "name": "5% WH AT AF MF G",
+      "amount": 5,
+      "amount_type": "division",
+      "type_tax_use": "purchase",
+      "price_include": false,
+      "price_include_override": "tax_excluded",
+      "active": true,
+      "tax_group_id": [
+        4,
+        "Withholding 5%"
+      ],
+      "include_base_amount": false
+    },
+    {
+      "id": 29,
+      "name": "5% WH TC ICS G",
+      "amount": 5,
+      "amount_type": "division",
+      "type_tax_use": "purchase",
+      "price_include": false,
+      "price_include_override": "tax_excluded",
+      "active": true,
+      "tax_group_id": [
+        4,
+        "Withholding 5%"
+      ],
+      "include_base_amount": false
+    },
+    {
+      "id": 30,
+      "name": "5% WH D G",
+      "amount": 5,
+      "amount_type": "division",
+      "type_tax_use": "purchase",
+      "price_include": false,
+      "price_include_override": "tax_excluded",
+      "active": true,
+      "tax_group_id": [
+        4,
+        "Withholding 5%"
+      ],
+      "include_base_amount": false
+    },
+    {
+      "id": 31,
+      "name": "5% WH IL IRP G",
+      "amount": 5,
+      "amount_type": "division",
+      "type_tax_use": "purchase",
+      "price_include": false,
+      "price_include_override": "tax_excluded",
+      "active": true,
+      "tax_group_id": [
+        4,
+        "Withholding 5%"
+      ],
+      "include_base_amount": false
+    },
+    {
+      "id": 32,
+      "name": "15% WH R G",
+      "amount": 15,
+      "amount_type": "division",
+      "type_tax_use": "purchase",
+      "price_include": false,
+      "price_include_override": "tax_excluded",
+      "active": true,
+      "tax_group_id": [
+        5,
+        "Withholding 15%"
+      ],
+      "include_base_amount": false
+    },
+    {
+      "id": 33,
+      "name": "15% WH O G",
+      "amount": 15,
+      "amount_type": "division",
+      "type_tax_use": "purchase",
+      "price_include": false,
+      "price_include_override": "tax_excluded",
+      "active": true,
+      "tax_group_id": [
+        5,
+        "Withholding 15%"
+      ],
+      "include_base_amount": false
+    },
+    {
+      "id": 34,
+      "name": "20% WH MF G",
+      "amount": 20,
+      "amount_type": "division",
+      "type_tax_use": "purchase",
+      "price_include": false,
+      "price_include_override": "tax_excluded",
+      "active": true,
+      "tax_group_id": [
+        6,
+        "Withholding 20%"
+      ],
+      "include_base_amount": false
+    },
+    {
+      "id": 35,
+      "name": "5% WH R D",
+      "amount": -5,
+      "amount_type": "percent",
+      "type_tax_use": "purchase",
+      "price_include": false,
+      "price_include_override": false,
+      "active": false,
+      "tax_group_id": [
+        4,
+        "Withholding 5%"
+      ],
+      "include_base_amount": false
+    },
+    {
+      "id": 36,
+      "name": "5% WH AT AF MF D",
+      "amount": -5,
+      "amount_type": "percent",
+      "type_tax_use": "purchase",
+      "price_include": false,
+      "price_include_override": false,
+      "active": false,
+      "tax_group_id": [
+        4,
+        "Withholding 5%"
+      ],
+      "include_base_amount": false
+    },
+    {
+      "id": 37,
+      "name": "5% WH TC ICS D",
+      "amount": -5,
+      "amount_type": "percent",
+      "type_tax_use": "purchase",
+      "price_include": false,
+      "price_include_override": false,
+      "active": false,
+      "tax_group_id": [
+        4,
+        "Withholding 5%"
+      ],
+      "include_base_amount": false
+    },
+    {
+      "id": 38,
+      "name": "5% WH D D",
+      "amount": -5,
+      "amount_type": "percent",
+      "type_tax_use": "purchase",
+      "price_include": false,
+      "price_include_override": false,
+      "active": false,
+      "tax_group_id": [
+        4,
+        "Withholding 5%"
+      ],
+      "include_base_amount": false
+    },
+    {
+      "id": 39,
+      "name": "5% WH IL IRP D",
+      "amount": -5,
+      "amount_type": "percent",
+      "type_tax_use": "purchase",
+      "price_include": false,
+      "price_include_override": false,
+      "active": false,
+      "tax_group_id": [
+        4,
+        "Withholding 5%"
+      ],
+      "include_base_amount": false
+    },
+    {
+      "id": 40,
+      "name": "15% WH R D",
+      "amount": -15,
+      "amount_type": "percent",
+      "type_tax_use": "purchase",
+      "price_include": false,
+      "price_include_override": false,
+      "active": false,
+      "tax_group_id": [
+        5,
+        "Withholding 15%"
+      ],
+      "include_base_amount": false
+    },
+    {
+      "id": 41,
+      "name": "15% WH O D",
+      "amount": -15,
+      "amount_type": "percent",
+      "type_tax_use": "purchase",
+      "price_include": false,
+      "price_include_override": false,
+      "active": false,
+      "tax_group_id": [
+        5,
+        "Withholding 15%"
+      ],
+      "include_base_amount": false
+    },
+    {
+      "id": 42,
+      "name": "20% WH MF D",
+      "amount": -20,
+      "amount_type": "percent",
+      "type_tax_use": "purchase",
+      "price_include": false,
+      "price_include_override": false,
+      "active": false,
+      "tax_group_id": [
+        6,
+        "Withholding 20%"
+      ],
+      "include_base_amount": false
+    },
+    {
+      "id": 43,
+      "name": "15% شامل (مشتريات)",
+      "amount": 15,
+      "amount_type": "percent",
+      "type_tax_use": "purchase",
+      "price_include": true,
+      "price_include_override": "tax_included",
+      "active": true,
+      "tax_group_id": [
+        3,
+        "VAT Total Amount"
+      ],
+      "include_base_amount": false
+    }
+  ],
+  "company": {
+    "id": 1,
+    "name": "شركة يوتاك ذات مسؤولية محدودة",
+    "account_purchase_tax_id": [
+      21,
+      "15%"
+    ],
+    "account_sale_tax_id": [
+      5,
+      "15%"
+    ],
+    "tax_calculation_rounding_method": "round_per_line",
+    "account_price_include": "tax_excluded"
+  },
+  "sourcePartners": [
+    {
+      "id": 7,
+      "name": "براء - اختبار",
+      "vat": false,
+      "x_vat_registered": false,
+      "x_price_source": false,
+      "supplier_rank": 1,
+      "ref": false,
+      "active": true,
+      "x_supplied_product_ids": [
+        73,
+        96,
+        89,
+        72,
+        71
+      ]
+    },
+    {
+      "id": 22,
+      "name": "[SIM] Verify Pricing Supplier",
+      "vat": false,
+      "x_vat_registered": false,
+      "x_price_source": false,
+      "supplier_rank": 1,
+      "ref": false,
+      "active": true,
+      "x_supplied_product_ids": []
+    },
+    {
+      "id": 24,
+      "name": "[SIM] Verify Pricing Supplier #zerfzj",
+      "vat": false,
+      "x_vat_registered": false,
+      "x_price_source": false,
+      "supplier_rank": 1,
+      "ref": false,
+      "active": true,
+      "x_supplied_product_ids": []
+    },
+    {
+      "id": 26,
+      "name": "[SIM] Verify Pricing Supplier #2doyit",
+      "vat": false,
+      "x_vat_registered": false,
+      "x_price_source": false,
+      "supplier_rank": 1,
+      "ref": false,
+      "active": true,
+      "x_supplied_product_ids": []
+    },
+    {
+      "id": 29,
+      "name": "[SIM] Verify Pricing Supplier #2fj8if",
+      "vat": false,
+      "x_vat_registered": false,
+      "x_price_source": false,
+      "supplier_rank": 1,
+      "ref": false,
+      "active": true,
+      "x_supplied_product_ids": []
+    },
+    {
+      "id": 30,
+      "name": "أحمد حسان",
+      "vat": false,
+      "x_vat_registered": true,
+      "x_price_source": true,
+      "supplier_rank": 5,
+      "ref": false,
+      "active": true,
+      "x_supplied_product_ids": [
+        102,
+        105,
+        98,
+        104,
+        96,
+        100,
+        99,
+        103,
+        101,
+        97
+      ]
+    },
+    {
+      "id": 52,
+      "name": "[SIM] مورد اختبار شراء — بلا رقم ضريبي",
+      "vat": false,
+      "x_vat_registered": false,
+      "x_price_source": false,
+      "supplier_rank": 5,
+      "ref": false,
+      "active": false,
+      "x_supplied_product_ids": []
+    },
+    {
+      "id": 53,
+      "name": "[SIM] مورد اختبار شراء — مسجل ضريبياً",
+      "vat": "300000000000003",
+      "x_vat_registered": false,
+      "x_price_source": false,
+      "supplier_rank": 3,
+      "ref": false,
+      "active": false,
+      "x_supplied_product_ids": []
+    },
+    {
+      "id": 55,
+      "name": "مصروفات نقدية متنوعة",
+      "vat": false,
+      "x_vat_registered": false,
+      "x_price_source": false,
+      "supplier_rank": 1,
+      "ref": false,
+      "active": true,
+      "x_supplied_product_ids": []
+    },
+    {
+      "id": 58,
+      "name": "SIM-TEST مورد وقود غير مسجل 376274",
+      "vat": false,
+      "x_vat_registered": false,
+      "x_price_source": false,
+      "supplier_rank": 3,
+      "ref": false,
+      "active": false,
+      "x_supplied_product_ids": []
+    },
+    {
+      "id": 104,
+      "name": "مشتريات السوق النقدية",
+      "vat": false,
+      "x_vat_registered": true,
+      "x_price_source": false,
+      "supplier_rank": 1,
+      "ref": "UTAK-CASH-MARKET",
+      "active": true,
+      "x_supplied_product_ids": []
+    },
+    {
+      "id": 106,
+      "name": "فجر بزنسس",
+      "vat": false,
+      "x_vat_registered": true,
+      "x_price_source": false,
+      "supplier_rank": 2,
+      "ref": false,
+      "active": true,
+      "x_supplied_product_ids": []
+    }
+  ],
+  "sourceEmployees": [
+    {
+      "id": 4,
+      "name": "عمر المجهلي",
+      "work_contact_id": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_vat_registered": true
+    }
+  ],
+  "fields:x_pricing_config": [
+    {
+      "id": 19431,
+      "name": "x_name",
+      "ttype": "char",
+      "field_description": "Name",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 19440,
+      "name": "x_profit_margin_percent",
+      "ttype": "float",
+      "field_description": "Profit Margin %",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 19445,
+      "name": "x_is_active",
+      "ttype": "boolean",
+      "field_description": "Is Active (Singleton)",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 19448,
+      "name": "x_notes",
+      "ttype": "text",
+      "field_description": "Notes",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 19450,
+      "name": "x_operations_margin_percent",
+      "ttype": "float",
+      "field_description": "Operations Margin %",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 19452,
+      "name": "x_active_from",
+      "ttype": "date",
+      "field_description": "Active From",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 19454,
+      "name": "x_active_to",
+      "ttype": "date",
+      "field_description": "Active To",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20582,
+      "name": "x_waste_pct",
+      "ttype": "float",
+      "field_description": "نسبة التالف %",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20584,
+      "name": "x_min_order_sar",
+      "ttype": "float",
+      "field_description": "الحد الأدنى للطلب (ريال)",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20586,
+      "name": "x_planned_stops",
+      "ttype": "integer",
+      "field_description": "عدد المحطات اليومية المخطط",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20671,
+      "name": "x_tier_ids",
+      "ttype": "one2many",
+      "field_description": "شرائح خصم الكمية",
+      "store": true,
+      "readonly": false,
+      "relation": "x_pricing_tier"
+    },
+    {
+      "id": 20722,
+      "name": "x_expected_cartons",
+      "ttype": "integer",
+      "field_description": "الكراتين المتوقعة يومياً",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    }
+  ],
+  "fields:x_price_day": [
+    {
+      "id": 20353,
+      "name": "x_name",
+      "ttype": "char",
+      "field_description": "Name",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20369,
+      "name": "x_date",
+      "ttype": "date",
+      "field_description": "التاريخ",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20371,
+      "name": "x_state",
+      "ttype": "selection",
+      "field_description": "الحالة",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20373,
+      "name": "x_approved_by",
+      "ttype": "many2one",
+      "field_description": "اعتمدها",
+      "store": true,
+      "readonly": false,
+      "relation": "res.users"
+    },
+    {
+      "id": 20375,
+      "name": "x_approved_at",
+      "ttype": "datetime",
+      "field_description": "وقت الاعتماد",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20377,
+      "name": "x_published_at",
+      "ttype": "datetime",
+      "field_description": "وقت النشر",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20379,
+      "name": "x_publish_report",
+      "ttype": "text",
+      "field_description": "تقرير النشر",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20413,
+      "name": "x_line_ids",
+      "ttype": "one2many",
+      "field_description": "الأصناف",
+      "store": true,
+      "readonly": false,
+      "relation": "x_price_day_line"
+    },
+    {
+      "id": 20694,
+      "name": "x_utak_simulation",
+      "ttype": "boolean",
+      "field_description": "محاكاة (تجربة)",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20742,
+      "name": "x_op_cost",
+      "ttype": "float",
+      "field_description": "تكلفة اليوم",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20744,
+      "name": "x_op_expected",
+      "ttype": "integer",
+      "field_description": "الكراتين المتوقعة",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20746,
+      "name": "x_op_cartons",
+      "ttype": "float",
+      "field_description": "الكراتين في الحصة",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20748,
+      "name": "x_op_basis",
+      "ttype": "selection",
+      "field_description": "أساس الحصة",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20750,
+      "name": "x_op_share",
+      "ttype": "float",
+      "field_description": "حصة الكرتون",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20752,
+      "name": "x_op_share_500",
+      "ttype": "float",
+      "field_description": "حصة الكرتون لو الكراتين 500",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20754,
+      "name": "x_n_green",
+      "ttype": "integer",
+      "field_description": "🟢 رابح",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20756,
+      "name": "x_n_yellow",
+      "ttype": "integer",
+      "field_description": "🟡 يغطي البضاعة فقط",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20758,
+      "name": "x_n_red",
+      "ttype": "integer",
+      "field_description": "🔴 خسارة",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20760,
+      "name": "x_n_none",
+      "ttype": "integer",
+      "field_description": "⚪ لا بيانات",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20762,
+      "name": "x_board_note",
+      "ttype": "char",
+      "field_description": "ملاحظة اللوحة",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20764,
+      "name": "x_board_at",
+      "ttype": "datetime",
+      "field_description": "آخر تحديث للوحة",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    }
+  ],
+  "fields:x_price_day_line": [
+    {
+      "id": 20361,
+      "name": "x_name",
+      "ttype": "char",
+      "field_description": "Name",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20381,
+      "name": "x_day_id",
+      "ttype": "many2one",
+      "field_description": "اليوم",
+      "store": true,
+      "readonly": false,
+      "relation": "x_price_day"
+    },
+    {
+      "id": 20383,
+      "name": "x_sequence",
+      "ttype": "integer",
+      "field_description": "الترتيب",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20385,
+      "name": "x_product_tmpl_id",
+      "ttype": "many2one",
+      "field_description": "الصنف",
+      "store": true,
+      "readonly": false,
+      "relation": "product.template"
+    },
+    {
+      "id": 20387,
+      "name": "x_packaging_id",
+      "ttype": "many2one",
+      "field_description": "التعبئة",
+      "store": true,
+      "readonly": false,
+      "relation": "x_product_packaging"
+    },
+    {
+      "id": 20389,
+      "name": "x_supplier_id",
+      "ttype": "many2one",
+      "field_description": "مصدر الشراء",
+      "store": true,
+      "readonly": false,
+      "relation": "res.partner"
+    },
+    {
+      "id": 20391,
+      "name": "x_daily_price_id",
+      "ttype": "many2one",
+      "field_description": "سعر المورد (السجل)",
+      "store": true,
+      "readonly": false,
+      "relation": "x_daily_price"
+    },
+    {
+      "id": 20393,
+      "name": "x_default_price_id",
+      "ttype": "many2one",
+      "field_description": "الاختيار الآلي",
+      "store": true,
+      "readonly": false,
+      "relation": "x_daily_price"
+    },
+    {
+      "id": 20395,
+      "name": "x_source_price",
+      "ttype": "float",
+      "field_description": "سعر المورد",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20397,
+      "name": "x_cost_price",
+      "ttype": "float",
+      "field_description": "سعر الشراء",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20399,
+      "name": "x_is_outlier",
+      "ttype": "boolean",
+      "field_description": "شاذ",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20401,
+      "name": "x_outlier_ok",
+      "ttype": "boolean",
+      "field_description": "اعتماد رغم الشذوذ",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20403,
+      "name": "x_margin_pct",
+      "ttype": "float",
+      "field_description": "هامش العرض %",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20405,
+      "name": "x_offers",
+      "ttype": "char",
+      "field_description": "عروض المصادر",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20407,
+      "name": "x_sale_price",
+      "ttype": "float",
+      "field_description": "سعر البيع",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20409,
+      "name": "x_excluded",
+      "ttype": "boolean",
+      "field_description": "لم يُنشر",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20411,
+      "name": "x_blocked",
+      "ttype": "boolean",
+      "field_description": "يمنع الاعتماد",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20631,
+      "name": "x_market_price",
+      "ttype": "float",
+      "field_description": "سعر السوق",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20633,
+      "name": "x_market_count",
+      "ttype": "integer",
+      "field_description": "عدد المشاهدات",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20635,
+      "name": "x_unit_profit",
+      "ttype": "float",
+      "field_description": "ربح الوحدة",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20637,
+      "name": "x_status",
+      "ttype": "selection",
+      "field_description": "الحالة",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20639,
+      "name": "x_reason",
+      "ttype": "char",
+      "field_description": "السبب",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20641,
+      "name": "x_decision",
+      "ttype": "selection",
+      "field_description": "قرار براء",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20643,
+      "name": "x_manual_price",
+      "ttype": "float",
+      "field_description": "السعر المعدّل",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20645,
+      "name": "x_decided_at",
+      "ttype": "datetime",
+      "field_description": "وقت القرار",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20696,
+      "name": "x_utak_simulation",
+      "ttype": "boolean",
+      "field_description": "محاكاة (تجربة)",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20724,
+      "name": "x_net_purchase",
+      "ttype": "float",
+      "field_description": "الشراء الصافي",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20726,
+      "name": "x_waste_cost",
+      "ttype": "float",
+      "field_description": "التالف",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20728,
+      "name": "x_op_share",
+      "ttype": "float",
+      "field_description": "حصة التشغيل للكرتون",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20730,
+      "name": "x_full_cost",
+      "ttype": "float",
+      "field_description": "التكلفة الكاملة",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20732,
+      "name": "x_board_sale",
+      "ttype": "float",
+      "field_description": "البيع",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20734,
+      "name": "x_net_sale",
+      "ttype": "float",
+      "field_description": "البيع الصافي",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20736,
+      "name": "x_real_profit",
+      "ttype": "float",
+      "field_description": "الربح الحقيقي للكرتون",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20738,
+      "name": "x_board_status",
+      "ttype": "selection",
+      "field_description": "حالة اللوحة",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20740,
+      "name": "x_day_date",
+      "ttype": "date",
+      "field_description": "اليوم",
+      "store": true,
+      "readonly": true,
+      "relation": false
+    }
+  ],
+  "fields:x_price_offer": [
+    {
+      "id": 20593,
+      "name": "x_name",
+      "ttype": "char",
+      "field_description": "Name",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20601,
+      "name": "x_date",
+      "ttype": "date",
+      "field_description": "اليوم",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20603,
+      "name": "x_source_partner_id",
+      "ttype": "many2one",
+      "field_description": "المصدر",
+      "store": true,
+      "readonly": false,
+      "relation": "res.partner"
+    },
+    {
+      "id": 20605,
+      "name": "x_source_employee_id",
+      "ttype": "many2one",
+      "field_description": "الموظف",
+      "store": true,
+      "readonly": false,
+      "relation": "hr.employee"
+    },
+    {
+      "id": 20607,
+      "name": "x_product_tmpl_id",
+      "ttype": "many2one",
+      "field_description": "الصنف",
+      "store": true,
+      "readonly": false,
+      "relation": "product.template"
+    },
+    {
+      "id": 20609,
+      "name": "x_packaging_id",
+      "ttype": "many2one",
+      "field_description": "التعبئة",
+      "store": true,
+      "readonly": false,
+      "relation": "x_product_packaging"
+    },
+    {
+      "id": 20611,
+      "name": "x_purchase_price",
+      "ttype": "float",
+      "field_description": "سعر الشراء",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20613,
+      "name": "x_market_price",
+      "ttype": "float",
+      "field_description": "سعر السوق المشاهَد",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20615,
+      "name": "x_available_qty",
+      "ttype": "float",
+      "field_description": "الكمية المتاحة",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20617,
+      "name": "x_status",
+      "ttype": "selection",
+      "field_description": "الحالة",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20619,
+      "name": "x_purchase_outlier",
+      "ttype": "boolean",
+      "field_description": "شراء شاذ",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20621,
+      "name": "x_market_outlier",
+      "ttype": "boolean",
+      "field_description": "سوق شاذ",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20623,
+      "name": "x_daily_price_id",
+      "ttype": "many2one",
+      "field_description": "سجل سعر المورد",
+      "store": true,
+      "readonly": false,
+      "relation": "x_daily_price"
+    },
+    {
+      "id": 20625,
+      "name": "x_source_message_id",
+      "ttype": "char",
+      "field_description": "معرّف الرسالة",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20627,
+      "name": "x_raw_text",
+      "ttype": "text",
+      "field_description": "نص الرسالة",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20629,
+      "name": "x_utak_simulation",
+      "ttype": "boolean",
+      "field_description": "محاكاة (تجربة)",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    }
+  ],
+  "fields:x_daily_price": [
+    {
+      "id": 19243,
+      "name": "x_name",
+      "ttype": "char",
+      "field_description": "Name",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 19267,
+      "name": "x_product_tmpl_id",
+      "ttype": "many2one",
+      "field_description": "Product",
+      "store": true,
+      "readonly": false,
+      "relation": "product.template"
+    },
+    {
+      "id": 19268,
+      "name": "x_packaging_id",
+      "ttype": "many2one",
+      "field_description": "Packaging",
+      "store": true,
+      "readonly": false,
+      "relation": "x_product_packaging"
+    },
+    {
+      "id": 19269,
+      "name": "x_supplier_id",
+      "ttype": "many2one",
+      "field_description": "Supplier",
+      "store": true,
+      "readonly": false,
+      "relation": "res.partner"
+    },
+    {
+      "id": 19270,
+      "name": "x_date",
+      "ttype": "date",
+      "field_description": "Date",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 19271,
+      "name": "x_price_sar",
+      "ttype": "float",
+      "field_description": "Price (SAR)",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 19272,
+      "name": "x_actual_weight_kg",
+      "ttype": "float",
+      "field_description": "Actual Weight (kg)",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 19273,
+      "name": "x_source_message_id",
+      "ttype": "text",
+      "field_description": "WhatsApp Msg ID",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 19274,
+      "name": "x_raw_reply",
+      "ttype": "text",
+      "field_description": "Raw Supplier Reply",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 19275,
+      "name": "x_extraction_status",
+      "ttype": "selection",
+      "field_description": "Extraction Status",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 19456,
+      "name": "x_sale_price",
+      "ttype": "float",
+      "field_description": "Sale Price (Computed)",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20025,
+      "name": "x_is_simulation",
+      "ttype": "boolean",
+      "field_description": "Simulation Record",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20698,
+      "name": "x_utak_simulation",
+      "ttype": "boolean",
+      "field_description": "محاكاة (تجربة)",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    }
+  ],
+  "fields:x_supplier_due": [
+    {
+      "id": 20433,
+      "name": "x_name",
+      "ttype": "char",
+      "field_description": "Name",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20489,
+      "name": "x_supplier_id",
+      "ttype": "many2one",
+      "field_description": "المورد",
+      "store": true,
+      "readonly": false,
+      "relation": "res.partner"
+    },
+    {
+      "id": 20491,
+      "name": "x_purchase_list_id",
+      "ttype": "many2one",
+      "field_description": "قائمة الشراء",
+      "store": true,
+      "readonly": false,
+      "relation": "x_purchase_list"
+    },
+    {
+      "id": 20493,
+      "name": "x_date",
+      "ttype": "date",
+      "field_description": "التاريخ",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20495,
+      "name": "x_amount",
+      "ttype": "float",
+      "field_description": "المستحق (ر.س)",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20497,
+      "name": "x_unpriced_count",
+      "ttype": "integer",
+      "field_description": "أسطر بلا سعر",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20499,
+      "name": "x_is_simulation",
+      "ttype": "boolean",
+      "field_description": "محاكاة",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20521,
+      "name": "x_line_ids",
+      "ttype": "one2many",
+      "field_description": "الأسطر",
+      "store": true,
+      "readonly": false,
+      "relation": "x_supplier_due_line"
+    },
+    {
+      "id": 20542,
+      "name": "x_utak_simulation",
+      "ttype": "boolean",
+      "field_description": "محاكاة (تجربة)",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    }
+  ],
+  "fields:x_supplier_due_line": [
+    {
+      "id": 20441,
+      "name": "x_name",
+      "ttype": "char",
+      "field_description": "Name",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20501,
+      "name": "x_due_id",
+      "ttype": "many2one",
+      "field_description": "المستحق",
+      "store": true,
+      "readonly": false,
+      "relation": "x_supplier_due"
+    },
+    {
+      "id": 20503,
+      "name": "x_product_tmpl_id",
+      "ttype": "many2one",
+      "field_description": "الصنف",
+      "store": true,
+      "readonly": false,
+      "relation": "product.template"
+    },
+    {
+      "id": 20505,
+      "name": "x_packaging_id",
+      "ttype": "many2one",
+      "field_description": "التعبئة",
+      "store": true,
+      "readonly": false,
+      "relation": "x_product_packaging"
+    },
+    {
+      "id": 20507,
+      "name": "x_quantity",
+      "ttype": "float",
+      "field_description": "الكمية",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20509,
+      "name": "x_unit_price",
+      "ttype": "float",
+      "field_description": "سعر الشراء",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20511,
+      "name": "x_subtotal",
+      "ttype": "float",
+      "field_description": "المبلغ (ر.س)",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20513,
+      "name": "x_no_price",
+      "ttype": "boolean",
+      "field_description": "بلا سعر",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20515,
+      "name": "x_daily_price_id",
+      "ttype": "many2one",
+      "field_description": "سعر المورد (السجل)",
+      "store": true,
+      "readonly": false,
+      "relation": "x_daily_price"
+    },
+    {
+      "id": 20517,
+      "name": "x_note",
+      "ttype": "char",
+      "field_description": "ملاحظة",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20519,
+      "name": "x_is_simulation",
+      "ttype": "boolean",
+      "field_description": "محاكاة",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    },
+    {
+      "id": 20544,
+      "name": "x_utak_simulation",
+      "ttype": "boolean",
+      "field_description": "محاكاة (تجربة)",
+      "store": true,
+      "readonly": false,
+      "relation": false
+    }
+  ],
+  "config": [
+    {
+      "id": 1,
+      "display_name": "UTAK Default Pricing (Launch)",
+      "create_uid": [
+        2,
+        "albaraa abdulwahab"
+      ],
+      "create_date": "2026-08-29 10:12:34",
+      "write_uid": [
+        2,
+        "albaraa abdulwahab"
+      ],
+      "write_date": "2026-10-01 03:16:14",
+      "x_name": "UTAK Default Pricing (Launch)",
+      "x_expected_cartons": 250,
+      "x_notes": "الإعداد الافتراضي عند الإطلاق — ٪15 تشغيل + ٪20 ربح",
+      "x_profit_margin_percent": 20,
+      "x_operations_margin_percent": 15,
+      "x_active_to": false,
+      "x_is_active": true,
+      "x_active_from": "2026-08-29",
+      "x_min_order_sar": 150,
+      "x_waste_pct": 5,
+      "x_planned_stops": 15,
+      "x_tier_ids": [
+        1,
+        2,
+        3
+      ]
+    }
+  ],
+  "views": [
+    {
+      "id": 2834,
+      "name": "utak.price_day_form",
+      "model": "x_price_day",
+      "type": "form",
+      "priority": 16,
+      "inherit_id": false,
+      "active": true,
+      "arch_db": "<form string=\"أسعار اليوم\" create=\"0\" delete=\"0\">\n  <header>\n    <button name=\"1002\" type=\"action\" string=\"نشر المعتمد الآن\" class=\"btn-primary\" invisible=\"x_state not in ('draft', 'missed')\" confirm=\"نشر الأصناف المعتمدة (تلقائياً أو منك) للعملاء الآن؟ الاستثناءات بلا قرار لا تُنشر.\"/>\n    <button name=\"1003\" type=\"action\" string=\"إلغاء الاعتماد\" invisible=\"x_state != 'approved'\"/>\n    <button name=\"1004\" type=\"action\" string=\"🔄 إعادة الحساب\" invisible=\"x_state not in ('draft', 'missed')\"/>\n    <field name=\"x_state\" widget=\"statusbar\" statusbar_visible=\"draft,approved,published\"/>\n  </header>\n  <sheet>\n    <div class=\"oe_title\"><h1><field name=\"x_name\" readonly=\"1\"/></h1></div>\n    <group>\n      <group><field name=\"x_date\" readonly=\"1\"/><field name=\"x_approved_by\" readonly=\"1\"/></group>\n      <group><field name=\"x_approved_at\" readonly=\"1\"/><field name=\"x_published_at\" readonly=\"1\"/></group>\n    </group>\n    <div class=\"text-muted mb-2\">سعر البيع = سعر السوق (وسيط مشاهدات اليوم). ربح الوحدة = السوق − الشراء − التالف. غير الاستثناء يُعتمد ويُنشر تلقائياً في موعد النشر. الاستثناء يحتاج قرارك («قرار براء»، و«السعر المعدّل» مع «سعر معدّل»)، وإلا لا يُنشر.</div>\n    <field name=\"x_line_ids\" readonly=\"x_state not in ('draft', 'missed')\">\n      <list editable=\"bottom\" create=\"0\" delete=\"0\" decoration-danger=\"x_status == 'exception'\" decoration-success=\"x_status == 'manual'\" decoration-muted=\"x_status == 'unpublished'\">\n        <field name=\"x_sequence\" column_invisible=\"1\"/>\n        <field name=\"x_product_tmpl_id\" readonly=\"1\"/>\n        <field name=\"x_packaging_id\" readonly=\"1\"/>\n        <field name=\"x_cost_price\" string=\"الشراء\" readonly=\"1\"/>\n        <field name=\"x_supplier_id\" string=\"من\" readonly=\"1\" optional=\"show\"/>\n        <field name=\"x_market_price\" string=\"السوق\" readonly=\"1\"/>\n        <field name=\"x_market_count\" string=\"المشاهدات\" readonly=\"1\"/>\n        <field name=\"x_sale_price\" string=\"البيع\" readonly=\"1\"/>\n        <field name=\"x_unit_profit\" string=\"الربح\" readonly=\"1\"/>\n        <field name=\"x_status\" readonly=\"1\"/>\n        <field name=\"x_reason\" readonly=\"1\"/>\n        <field name=\"x_decision\"/>\n        <field name=\"x_manual_price\"/>\n        <field name=\"x_offers\" readonly=\"1\" optional=\"hide\"/>\n      </list>\n    </field>\n    <group string=\"تقرير النشر\" invisible=\"not x_publish_report\">\n      <field name=\"x_publish_report\" nolabel=\"1\" readonly=\"1\" colspan=\"2\"/>\n    </group>\n  </sheet>\n</form>"
+    },
+    {
+      "id": 2835,
+      "name": "utak.price_day_list",
+      "model": "x_price_day",
+      "type": "list",
+      "priority": 16,
+      "inherit_id": false,
+      "active": true,
+      "arch_db": "<list string=\"سجل أسعار الأيام\" default_order=\"x_date desc\" create=\"0\" delete=\"0\" decoration-success=\"x_state == 'published'\" decoration-danger=\"x_state == 'missed'\" decoration-info=\"x_state == 'approved'\">\n  <field name=\"x_date\"/>\n  <field name=\"x_state\"/>\n  <field name=\"x_approved_by\"/>\n  <field name=\"x_approved_at\"/>\n  <field name=\"x_published_at\"/>\n</list>"
+    },
+    {
+      "id": 2836,
+      "name": "utak.price_day_search",
+      "model": "x_price_day",
+      "type": "search",
+      "priority": 16,
+      "inherit_id": false,
+      "active": true,
+      "arch_db": "<search string=\"أسعار الأيام\">\n  <field name=\"x_date\"/>\n  <filter name=\"f_published\" string=\"منشورة\" domain=\"[('x_state', '=', 'published')]\"/>\n  <filter name=\"f_missed\" string=\"فات الموعد\" domain=\"[('x_state', '=', 'missed')]\"/>\n  <filter name=\"f_draft\" string=\"مسودة\" domain=\"[('x_state', '=', 'draft')]\"/>\n</search>"
+    },
+    {
+      "id": 2855,
+      "name": "utak.pricing_settings_form",
+      "model": "x_pricing_config",
+      "type": "form",
+      "priority": 99,
+      "inherit_id": false,
+      "active": true,
+      "arch_db": "<form string=\"إعدادات التسعير\" create=\"0\" delete=\"0\">\n  <sheet>\n    <div class=\"oe_title\"><h1>⚙️ إعدادات التسعير</h1></div>\n    <group>\n      <group string=\"التسعير اليومي\">\n        <field name=\"x_waste_pct\"/>\n        <field name=\"x_min_order_sar\"/>\n        <field name=\"x_planned_stops\"/>\n        <field name=\"x_expected_cartons\"/>\n      </group>\n      <group string=\"السجل\">\n        <field name=\"x_name\" readonly=\"1\"/>\n        <field name=\"x_active_from\" readonly=\"1\"/>\n      </group>\n    </group>\n    <div class=\"text-muted\">سعر البيع = سعر السوق لليوم. الاستثناءات (بلا شراء، بلا سوق، ربح ≤ 0، سعر شاذ) تصل براء، وغيرها يُعتمد ويُنشر تلقائياً في موعد النشر. «عدد المحطات» فارغ = لا خصم كمية.</div>\n    <separator string=\"شرائح خصم الكمية\"/>\n    <field name=\"x_tier_ids\" nolabel=\"1\">\n      <list editable=\"bottom\" default_order=\"x_sequence, x_amount_from\" decoration-muted=\"not x_active\">\n        <field name=\"x_sequence\" widget=\"handle\"/>\n        <field name=\"x_amount_from\"/>\n        <field name=\"x_amount_to\"/>\n        <field name=\"x_discount_pct\"/>\n        <field name=\"x_active\" widget=\"boolean_toggle\"/>\n      </list>\n    </field>\n    <div class=\"text-muted\">الخصم على مجموع الطلب قبل الضريبة، بنسبة الشريحة التي يقع فيها المجموع («إلى» فارغ = بلا حد). لا خصم إذا صار ربح الطلب بعده أقل من (تكلفة اليوم ÷ عدد المحطات)، ولا خصم إطلاقاً والمحطات فارغة.</div>\n  </sheet>\n</form>"
+    },
+    {
+      "id": 2858,
+      "name": "utak.price_offer_list",
+      "model": "x_price_offer",
+      "type": "list",
+      "priority": 16,
+      "inherit_id": false,
+      "active": true,
+      "arch_db": "<list string=\"عروض المصادر اليومية\" create=\"0\" default_order=\"x_date desc, id desc\" decoration-warning=\"x_status == 'outlier'\" decoration-muted=\"x_utak_simulation\">\n  <field name=\"x_date\"/>\n  <field name=\"x_source_partner_id\"/>\n  <field name=\"x_product_tmpl_id\"/>\n  <field name=\"x_packaging_id\"/>\n  <field name=\"x_purchase_price\"/>\n  <field name=\"x_market_price\"/>\n  <field name=\"x_available_qty\" optional=\"show\"/>\n  <field name=\"x_status\"/>\n  <field name=\"x_raw_text\" optional=\"hide\"/>\n  <field name=\"x_utak_simulation\" optional=\"hide\"/>\n</list>"
+    },
+    {
+      "id": 2859,
+      "name": "utak.price_offer_search",
+      "model": "x_price_offer",
+      "type": "search",
+      "priority": 16,
+      "inherit_id": false,
+      "active": true,
+      "arch_db": "<search string=\"عروض المصادر\">\n  <field name=\"x_source_partner_id\"/>\n  <field name=\"x_product_tmpl_id\"/>\n  <filter name=\"f_today\" string=\"اليوم\" domain=\"[('x_date', '=', context_today().strftime('%Y-%m-%d'))]\"/>\n  <filter name=\"f_market\" string=\"مشاهدات سوق\" domain=\"[('x_market_price', '&gt;', 0)]\"/>\n  <filter name=\"f_outlier\" string=\"شاذ\" domain=\"[('x_status', '=', 'outlier')]\"/>\n  <separator/>\n  <filter name=\"g_day\" string=\"اليوم\" context=\"{'group_by': 'x_date'}\"/>\n  <filter name=\"g_source\" string=\"المصدر\" context=\"{'group_by': 'x_source_partner_id'}\"/>\n</search>"
+    },
+    {
+      "id": 2867,
+      "name": "utak.pricing_board_kanban",
+      "model": "x_price_day_line",
+      "type": "kanban",
+      "priority": 90,
+      "inherit_id": false,
+      "active": true,
+      "arch_db": "<kanban string=\"لوحة التسعير\" create=\"0\" delete=\"0\" edit=\"0\" default_order=\"x_day_date desc, x_sequence, id\">\n  <field name=\"x_board_status\"/>\n  <templates>\n    <t t-name=\"card\">\n          <div t-attf-class=\"border-start border-5 ps-3 pe-1 #{record.x_board_status.raw_value == 'green' ? 'border-success' : record.x_board_status.raw_value == 'yellow' ? 'border-warning' : record.x_board_status.raw_value == 'red' ? 'border-danger' : 'border-secondary'}\">\n            <div class=\"d-flex justify-content-between align-items-start mb-1\">\n              <field name=\"x_name\" class=\"fw-bold fs-5\"/>\n              <field name=\"x_board_status\" class=\"text-nowrap ms-2\"/>\n            </div>\n            <div class=\"d-flex justify-content-between\"><span class=\"text-muted\">الشراء الصافي</span><field name=\"x_net_purchase\"/></div>\n            <div class=\"d-flex justify-content-between\"><span class=\"text-muted\">التكلفة الكاملة</span><field name=\"x_full_cost\"/></div>\n            <div class=\"d-flex justify-content-between\"><span class=\"text-muted\">البيع</span><field name=\"x_board_sale\"/></div>\n            <div class=\"d-flex justify-content-between fw-bold border-top mt-1 pt-1\"><span>الربح الحقيقي</span><field name=\"x_real_profit\"/></div>\n          </div>\n        </t>\n  </templates>\n</kanban>"
+    },
+    {
+      "id": 2868,
+      "name": "utak.pricing_board_list",
+      "model": "x_price_day_line",
+      "type": "list",
+      "priority": 90,
+      "inherit_id": false,
+      "active": true,
+      "arch_db": "<list string=\"لوحة التسعير\" create=\"0\" delete=\"0\" edit=\"0\" default_order=\"x_day_date desc, x_sequence, id\" decoration-success=\"x_board_status == 'green'\" decoration-warning=\"x_board_status == 'yellow'\" decoration-danger=\"x_board_status == 'red'\" decoration-muted=\"x_board_status == 'none'\">\n  <field name=\"x_day_date\" optional=\"show\"/>\n  <field name=\"x_product_tmpl_id\" string=\"الصنف\"/>\n  <field name=\"x_packaging_id\" string=\"التعبئة\"/>\n  <field name=\"x_cost_price\" string=\"الشراء\"/>\n  <field name=\"x_net_purchase\"/>\n  <field name=\"x_waste_cost\"/>\n  <field name=\"x_op_share\"/>\n  <field name=\"x_full_cost\"/>\n  <field name=\"x_board_sale\"/>\n  <field name=\"x_net_sale\"/>\n  <field name=\"x_real_profit\" sum=\"مجموع ربح الكرتون\"/>\n  <field name=\"x_board_status\" widget=\"badge\" decoration-success=\"x_board_status == 'green'\" decoration-warning=\"x_board_status == 'yellow'\" decoration-danger=\"x_board_status == 'red'\" decoration-muted=\"x_board_status == 'none'\"/>\n  <field name=\"x_status\" string=\"حالة السعر\" optional=\"hide\"/>\n</list>"
+    },
+    {
+      "id": 2869,
+      "name": "utak.pricing_board_graph",
+      "model": "x_price_day_line",
+      "type": "graph",
+      "priority": 90,
+      "inherit_id": false,
+      "active": true,
+      "arch_db": "<graph string=\"الربح الحقيقي لكل صنف\" type=\"bar\" stacked=\"0\" sample=\"0\">\n  <field name=\"x_name\"/>\n  <field name=\"x_real_profit\" type=\"measure\"/>\n</graph>"
+    },
+    {
+      "id": 2870,
+      "name": "utak.pricing_board_search",
+      "model": "x_price_day_line",
+      "type": "search",
+      "priority": 90,
+      "inherit_id": false,
+      "active": true,
+      "arch_db": "<search string=\"لوحة التسعير\">\n  <field name=\"x_name\" string=\"الصنف\"/>\n  <field name=\"x_product_tmpl_id\"/>\n  <filter name=\"f_today\" string=\"اليوم\" domain=\"[('x_day_date', '=', context_today().strftime('%Y-%m-%d'))]\"/>\n  <filter name=\"f_real\" string=\"بلا المحاكاة\" domain=\"[('x_utak_simulation', '=', False), ('x_day_id.x_utak_simulation', '=', False)]\"/>\n  <separator/>\n  <filter name=\"f_green\" string=\"🟢 رابح\" domain=\"[('x_board_status', '=', 'green')]\"/>\n  <filter name=\"f_yellow\" string=\"🟡 يغطي البضاعة فقط\" domain=\"[('x_board_status', '=', 'yellow')]\"/>\n  <filter name=\"f_red\" string=\"🔴 خسارة\" domain=\"[('x_board_status', '=', 'red')]\"/>\n  <filter name=\"f_none\" string=\"⚪ لا بيانات\" domain=\"[('x_board_status', '=', 'none')]\"/>\n  <separator/>\n  <filter name=\"g_day\" string=\"اليوم\" context=\"{'group_by': 'x_day_date:day'}\"/>\n  <filter name=\"g_status\" string=\"الحالة\" context=\"{'group_by': 'x_board_status'}\"/>\n</search>"
+    },
+    {
+      "id": 2871,
+      "name": "utak.pricing_board_form",
+      "model": "x_price_day",
+      "type": "form",
+      "priority": 90,
+      "inherit_id": false,
+      "active": true,
+      "arch_db": "<form string=\"لوحة التسعير\" create=\"0\" delete=\"0\" edit=\"0\">\n  <header>\n    <button name=\"1033\" type=\"action\" string=\"اليوم السابق\"/>\n    <button name=\"1032\" type=\"action\" string=\"اليوم\" class=\"btn-primary\"/>\n    <button name=\"1034\" type=\"action\" string=\"اليوم التالي\"/>\n    <button name=\"1030\" type=\"action\" string=\"📋 قائمة\"/>\n    <button name=\"1031\" type=\"action\" string=\"📈 رسم بياني\"/>\n    <field name=\"x_state\" widget=\"statusbar\" statusbar_visible=\"draft,approved,published\"/>\n  </header>\n  <sheet>\n    <div class=\"oe_title\"><h1>📊 لوحة التسعير — <field name=\"x_date\" readonly=\"1\" class=\"oe_inline\"/></h1></div>\n    <group>\n      <group string=\"تكلفة التشغيل\">\n        <field name=\"x_op_cost\" readonly=\"1\"/>\n        <field name=\"x_op_expected\" readonly=\"1\"/>\n        <field name=\"x_op_share\" readonly=\"1\"/>\n        <field name=\"x_op_basis\" readonly=\"1\"/>\n        <field name=\"x_op_cartons\" readonly=\"1\" invisible=\"x_op_basis != 'actual'\"/>\n      </group>\n      <group string=\"الأصناف\">\n        <field name=\"x_n_green\" readonly=\"1\"/>\n        <field name=\"x_n_yellow\" readonly=\"1\"/>\n        <field name=\"x_n_red\" readonly=\"1\"/>\n        <field name=\"x_n_none\" readonly=\"1\"/>\n      </group>\n    </group>\n    <div class=\"alert alert-info\" role=\"status\" invisible=\"not x_op_share_500\">مقارنة: لو كانت الكراتين 500 يومياً، حصة الكرتون <field name=\"x_op_share_500\" readonly=\"1\" class=\"oe_inline fw-bold\"/> ر.س.</div>\n    <div class=\"alert alert-warning\" role=\"status\" invisible=\"not x_board_note\"><field name=\"x_board_note\" readonly=\"1\" class=\"oe_inline\"/></div>\n    <field name=\"x_line_ids\" mode=\"kanban\" readonly=\"1\">\n      <kanban create=\"0\" delete=\"0\" edit=\"0\">\n        <field name=\"x_board_status\"/>\n        <templates>\n        <t t-name=\"card\">\n          <div t-attf-class=\"border-start border-5 ps-3 pe-1 #{record.x_board_status.raw_value == 'green' ? 'border-success' : record.x_board_status.raw_value == 'yellow' ? 'border-warning' : record.x_board_status.raw_value == 'red' ? 'border-danger' : 'border-secondary'}\">\n            <div class=\"d-flex justify-content-between align-items-start mb-1\">\n              <field name=\"x_name\" class=\"fw-bold fs-5\"/>\n              <field name=\"x_board_status\" class=\"text-nowrap ms-2\"/>\n            </div>\n            <div class=\"d-flex justify-content-between\"><span class=\"text-muted\">الشراء الصافي</span><field name=\"x_net_purchase\"/></div>\n            <div class=\"d-flex justify-content-between\"><span class=\"text-muted\">التكلفة الكاملة</span><field name=\"x_full_cost\"/></div>\n            <div class=\"d-flex justify-content-between\"><span class=\"text-muted\">البيع</span><field name=\"x_board_sale\"/></div>\n            <div class=\"d-flex justify-content-between fw-bold border-top mt-1 pt-1\"><span>الربح الحقيقي</span><field name=\"x_real_profit\"/></div>\n          </div>\n        </t>\n        </templates>\n      </kanban>\n    </field>\n    <div class=\"text-muted mt-2\">الشراء الصافي = الشراء ÷ 1.15 إن كان المصدر مسجلاً في الضريبة (من 2026-10-01)، وإلا الشراء. التالف = نسبة التالف × الشراء الصافي. التكلفة الكاملة = الشراء الصافي + التالف + حصة الكرتون. البيع الصافي = البيع ÷ 1.15 (من 2026-10-01). الربح الحقيقي = البيع الصافي − التكلفة الكاملة. اللوحة للعرض فقط: سعر البيع يبقى سعر السوق.</div>\n    <div class=\"text-muted\" invisible=\"x_board_at\">لم يكتب الوركر أرقام اللوحة لهذا اليوم بعد.</div>\n    <div class=\"text-muted\" invisible=\"not x_board_at\">آخر تحديث: <field name=\"x_board_at\" readonly=\"1\" class=\"oe_inline\"/></div>\n  </sheet>\n</form>"
+    }
+  ],
+  "windows": [
+    {
+      "id": 1009,
+      "name": "UTAK — سجل أسعار الأيام",
+      "res_model": "x_price_day",
+      "view_mode": "list,form",
+      "domain": false,
+      "context": "{}",
+      "view_id": [
+        2835,
+        "utak.price_day_list"
+      ],
+      "search_view_id": [
+        2836,
+        "utak.price_day_search"
+      ]
+    },
+    {
+      "id": 1028,
+      "name": "UTAK — عروض المصادر اليومية",
+      "res_model": "x_price_offer",
+      "view_mode": "list",
+      "domain": false,
+      "context": "{'search_default_f_today': 1}",
+      "view_id": [
+        2858,
+        "utak.price_offer_list"
+      ],
+      "search_view_id": [
+        2859,
+        "utak.price_offer_search"
+      ]
+    },
+    {
+      "id": 1031,
+      "name": "UTAK — لوحة التسعير: ربح الأصناف",
+      "res_model": "x_price_day_line",
+      "view_mode": "graph,list,kanban",
+      "domain": "[('x_day_id', '=', active_id)]",
+      "context": "{}",
+      "view_id": false,
+      "search_view_id": [
+        2870,
+        "utak.pricing_board_search"
+      ]
+    },
+    {
+      "id": 1030,
+      "name": "UTAK — لوحة التسعير: قائمة اليوم",
+      "res_model": "x_price_day_line",
+      "view_mode": "list,kanban,graph",
+      "domain": "[('x_day_id', '=', active_id)]",
+      "context": "{}",
+      "view_id": false,
+      "search_view_id": [
+        2870,
+        "utak.pricing_board_search"
+      ]
+    },
+    {
+      "id": 919,
+      "name": "إعدادات التسعير",
+      "res_model": "x_pricing_config",
+      "view_mode": "list,form",
+      "domain": false,
+      "context": "{}",
+      "view_id": false,
+      "search_view_id": false
+    }
+  ],
+  "menu581": [
+    {
+      "id": 581,
+      "name": "📊 لوحة التسعير",
+      "action": "ir.actions.server,1032",
+      "active": true,
+      "parent_id": [
+        529,
+        "UTAK"
+      ]
+    }
+  ],
+  "day50": [
+    {
+      "id": 50,
+      "display_name": "أسعار اليوم 2026-10-01",
+      "create_uid": [
+        2,
+        "albaraa abdulwahab"
+      ],
+      "create_date": "2026-10-01 01:00:33",
+      "write_uid": [
+        2,
+        "albaraa abdulwahab"
+      ],
+      "write_date": "2026-10-01 03:30:50",
+      "x_board_note": false,
+      "x_approved_by": false,
+      "x_line_ids": [
+        89,
+        90,
+        91
+      ],
+      "x_name": "أسعار اليوم 2026-10-01",
+      "x_op_share_500": 0.99,
+      "x_date": "2026-10-01",
+      "x_publish_report": false,
+      "x_state": "missed",
+      "x_approved_at": false,
+      "x_op_cost": 496.52,
+      "x_op_expected": 250,
+      "x_published_at": false,
+      "x_op_cartons": 250,
+      "x_op_share": 1.99,
+      "x_n_none": 3,
+      "x_op_basis": "expected",
+      "x_n_green": 0,
+      "x_n_yellow": 0,
+      "x_n_red": 0,
+      "x_board_at": "2026-10-01 03:30:44",
+      "x_utak_simulation": false
+    }
+  ],
+  "day50Lines": [
+    {
+      "id": 89,
+      "display_name": "رمان وسط — كرتون",
+      "create_uid": [
+        2,
+        "albaraa abdulwahab"
+      ],
+      "create_date": "2026-10-01 01:00:34",
+      "write_uid": [
+        2,
+        "albaraa abdulwahab"
+      ],
+      "write_date": "2026-10-01 03:30:48",
+      "x_net_purchase": 0,
+      "x_waste_cost": 0,
+      "x_board_sale": 0,
+      "x_net_sale": 0,
+      "x_real_profit": 0,
+      "x_sequence": 1,
+      "x_daily_price_id": false,
+      "x_blocked": false,
+      "x_day_id": [
+        50,
+        "أسعار اليوم 2026-10-01"
+      ],
+      "x_cost_price": 0,
+      "x_is_outlier": false,
+      "x_name": "رمان وسط — كرتون",
+      "x_op_share": 1.99,
+      "x_full_cost": 0,
+      "x_default_price_id": false,
+      "x_offers": false,
+      "x_board_status": "none",
+      "x_market_price": 0,
+      "x_day_date": "2026-10-01",
+      "x_market_count": 0,
+      "x_product_tmpl_id": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "x_supplier_id": false,
+      "x_sale_price": 0,
+      "x_packaging_id": [
+        37,
+        "كرتون"
+      ],
+      "x_margin_pct": 0,
+      "x_unit_profit": 0,
+      "x_source_price": 0,
+      "x_outlier_ok": false,
+      "x_excluded": true,
+      "x_status": "exception",
+      "x_decision": false,
+      "x_decided_at": false,
+      "x_reason": "لا سعر شراء، لا سعر سوق",
+      "x_manual_price": 0,
+      "x_utak_simulation": false
+    },
+    {
+      "id": 90,
+      "display_name": "رمان صغير — كرتون",
+      "create_uid": [
+        2,
+        "albaraa abdulwahab"
+      ],
+      "create_date": "2026-10-01 01:00:34",
+      "write_uid": [
+        2,
+        "albaraa abdulwahab"
+      ],
+      "write_date": "2026-10-01 03:30:49",
+      "x_net_purchase": 0,
+      "x_waste_cost": 0,
+      "x_board_sale": 0,
+      "x_net_sale": 0,
+      "x_real_profit": 0,
+      "x_sequence": 2,
+      "x_daily_price_id": false,
+      "x_blocked": false,
+      "x_day_id": [
+        50,
+        "أسعار اليوم 2026-10-01"
+      ],
+      "x_cost_price": 0,
+      "x_is_outlier": false,
+      "x_name": "رمان صغير — كرتون",
+      "x_op_share": 1.99,
+      "x_full_cost": 0,
+      "x_default_price_id": false,
+      "x_offers": false,
+      "x_board_status": "none",
+      "x_market_price": 0,
+      "x_day_date": "2026-10-01",
+      "x_market_count": 0,
+      "x_product_tmpl_id": [
+        107,
+        "[UTAK-FRT-011] رمان صغير"
+      ],
+      "x_supplier_id": false,
+      "x_sale_price": 0,
+      "x_packaging_id": [
+        43,
+        "كرتون"
+      ],
+      "x_margin_pct": 0,
+      "x_unit_profit": 0,
+      "x_source_price": 0,
+      "x_outlier_ok": false,
+      "x_excluded": true,
+      "x_status": "exception",
+      "x_decision": false,
+      "x_decided_at": false,
+      "x_reason": "لا سعر شراء، لا سعر سوق",
+      "x_manual_price": 0,
+      "x_utak_simulation": false
+    },
+    {
+      "id": 91,
+      "display_name": "رمان كبير — كرتون",
+      "create_uid": [
+        2,
+        "albaraa abdulwahab"
+      ],
+      "create_date": "2026-10-01 01:00:34",
+      "write_uid": [
+        2,
+        "albaraa abdulwahab"
+      ],
+      "write_date": "2026-10-01 03:30:49",
+      "x_net_purchase": 0,
+      "x_waste_cost": 0,
+      "x_board_sale": 0,
+      "x_net_sale": 0,
+      "x_real_profit": 0,
+      "x_sequence": 3,
+      "x_daily_price_id": false,
+      "x_blocked": false,
+      "x_day_id": [
+        50,
+        "أسعار اليوم 2026-10-01"
+      ],
+      "x_cost_price": 0,
+      "x_is_outlier": false,
+      "x_name": "رمان كبير — كرتون",
+      "x_op_share": 1.99,
+      "x_full_cost": 0,
+      "x_default_price_id": false,
+      "x_offers": false,
+      "x_board_status": "none",
+      "x_market_price": 0,
+      "x_day_date": "2026-10-01",
+      "x_market_count": 0,
+      "x_product_tmpl_id": [
+        108,
+        "[UTAK-FRT-012] رمان كبير"
+      ],
+      "x_supplier_id": false,
+      "x_sale_price": 0,
+      "x_packaging_id": [
+        44,
+        "كرتون"
+      ],
+      "x_margin_pct": 0,
+      "x_unit_profit": 0,
+      "x_source_price": 0,
+      "x_outlier_ok": false,
+      "x_excluded": true,
+      "x_status": "exception",
+      "x_decision": false,
+      "x_decided_at": false,
+      "x_reason": "لا سعر شراء، لا سعر سوق",
+      "x_manual_price": 0,
+      "x_utak_simulation": false
+    }
+  ],
+  "days": [
+    {
+      "id": 50,
+      "x_date": "2026-10-01",
+      "x_state": "missed",
+      "x_utak_simulation": false,
+      "x_name": "أسعار اليوم 2026-10-01"
+    },
+    {
+      "id": 45,
+      "x_date": "2026-10-01",
+      "x_state": "published",
+      "x_utak_simulation": true,
+      "x_name": "أسعار اليوم 2026-10-01"
+    },
+    {
+      "id": 40,
+      "x_date": "2026-10-01",
+      "x_state": "published",
+      "x_utak_simulation": true,
+      "x_name": "أسعار اليوم 2026-10-01"
+    },
+    {
+      "id": 49,
+      "x_date": "2026-09-30",
+      "x_state": "missed",
+      "x_utak_simulation": false,
+      "x_name": "أسعار اليوم 2026-09-30"
+    },
+    {
+      "id": 44,
+      "x_date": "2026-09-30",
+      "x_state": "published",
+      "x_utak_simulation": true,
+      "x_name": "أسعار اليوم 2026-09-30"
+    },
+    {
+      "id": 39,
+      "x_date": "2026-09-30",
+      "x_state": "missed",
+      "x_utak_simulation": true,
+      "x_name": "أسعار اليوم 2026-09-30"
+    },
+    {
+      "id": 48,
+      "x_date": "2026-09-29",
+      "x_state": "missed",
+      "x_utak_simulation": false,
+      "x_name": "أسعار اليوم 2026-09-29"
+    },
+    {
+      "id": 47,
+      "x_date": "2026-09-28",
+      "x_state": "missed",
+      "x_utak_simulation": false,
+      "x_name": "أسعار اليوم 2026-09-28"
+    },
+    {
+      "id": 43,
+      "x_date": "2026-09-28",
+      "x_state": "missed",
+      "x_utak_simulation": true,
+      "x_name": "أسعار اليوم 2026-09-28"
+    },
+    {
+      "id": 38,
+      "x_date": "2026-09-28",
+      "x_state": "missed",
+      "x_utak_simulation": true,
+      "x_name": "أسعار اليوم 2026-09-28"
+    },
+    {
+      "id": 46,
+      "x_date": "2026-09-27",
+      "x_state": "missed",
+      "x_utak_simulation": false,
+      "x_name": "أسعار اليوم 2026-09-27"
+    },
+    {
+      "id": 42,
+      "x_date": "2026-09-27",
+      "x_state": "published",
+      "x_utak_simulation": true,
+      "x_name": "أسعار اليوم 2026-09-27"
+    },
+    {
+      "id": 41,
+      "x_date": "2026-09-27",
+      "x_state": "published",
+      "x_utak_simulation": true,
+      "x_name": "أسعار اليوم 2026-09-27"
+    },
+    {
+      "id": 5,
+      "x_date": "2026-09-27",
+      "x_state": "published",
+      "x_utak_simulation": true,
+      "x_name": "أسعار اليوم 2026-09-27"
+    },
+    {
+      "id": 4,
+      "x_date": "2026-09-26",
+      "x_state": "missed",
+      "x_utak_simulation": false,
+      "x_name": "أسعار اليوم 2026-09-26"
+    },
+    {
+      "id": 1,
+      "x_date": "2026-09-25",
+      "x_state": "published",
+      "x_utak_simulation": false,
+      "x_name": "أسعار اليوم 2026-09-25"
+    }
+  ],
+  "products": [
+    {
+      "id": 97,
+      "name": "موز أمريكي",
+      "default_code": "UTAK-FRT-002",
+      "categ_id": false,
+      "active": true,
+      "sale_ok": true,
+      "purchase_ok": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_utak_new": false,
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "x_supplier_ids": [
+        30
+      ],
+      "type": "consu",
+      "create_date": "2026-08-24 06:26:35"
+    },
+    {
+      "id": 100,
+      "name": "رمان وسط",
+      "default_code": "UTAK-FRT-005",
+      "categ_id": false,
+      "active": true,
+      "sale_ok": true,
+      "purchase_ok": true,
+      "x_is_active_for_sale": true,
+      "x_name_en": false,
+      "x_utak_new": false,
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "x_supplier_ids": [
+        30
+      ],
+      "type": "consu",
+      "create_date": "2026-08-24 06:26:35"
+    },
+    {
+      "id": 107,
+      "name": "رمان صغير",
+      "default_code": "UTAK-FRT-011",
+      "categ_id": false,
+      "active": true,
+      "sale_ok": true,
+      "purchase_ok": true,
+      "x_is_active_for_sale": true,
+      "x_name_en": false,
+      "x_utak_new": false,
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "x_supplier_ids": [],
+      "type": "consu",
+      "create_date": "2026-09-19 13:26:28"
+    },
+    {
+      "id": 108,
+      "name": "رمان كبير",
+      "default_code": "UTAK-FRT-012",
+      "categ_id": false,
+      "active": true,
+      "sale_ok": true,
+      "purchase_ok": true,
+      "x_is_active_for_sale": true,
+      "x_name_en": false,
+      "x_utak_new": false,
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "x_supplier_ids": [],
+      "type": "consu",
+      "create_date": "2026-09-19 13:26:28"
+    },
+    {
+      "id": 109,
+      "name": "موز هندي",
+      "default_code": "UTAK-FRT-013",
+      "categ_id": false,
+      "active": true,
+      "sale_ok": true,
+      "purchase_ok": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_utak_new": false,
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "x_supplier_ids": [],
+      "type": "consu",
+      "create_date": "2026-09-19 13:26:29"
+    },
+    {
+      "id": 113,
+      "name": "رمان مصري",
+      "default_code": false,
+      "categ_id": false,
+      "active": true,
+      "sale_ok": true,
+      "purchase_ok": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_utak_new": false,
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        43
+      ],
+      "x_supplier_ids": [],
+      "type": "consu",
+      "create_date": "2026-10-01 02:23:54"
+    }
+  ],
+  "packagings": [
+    {
+      "id": 43,
+      "display_name": "كرتون",
+      "create_uid": [
+        2,
+        "albaraa abdulwahab"
+      ],
+      "create_date": "2026-09-19 13:26:29",
+      "write_uid": [
+        2,
+        "albaraa abdulwahab"
+      ],
+      "write_date": "2026-09-19 19:27:12",
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        107,
+        "[UTAK-FRT-011] رمان صغير"
+      ],
+      "x_approx_weight_kg": 0,
+      "x_is_default": true,
+      "x_sequence": 0,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 44,
+      "display_name": "كرتون",
+      "create_uid": [
+        2,
+        "albaraa abdulwahab"
+      ],
+      "create_date": "2026-09-19 13:26:29",
+      "write_uid": [
+        2,
+        "albaraa abdulwahab"
+      ],
+      "write_date": "2026-09-19 19:27:12",
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        108,
+        "[UTAK-FRT-012] رمان كبير"
+      ],
+      "x_approx_weight_kg": 0,
+      "x_is_default": true,
+      "x_sequence": 0,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 49,
+      "display_name": "كرتون · 8 كيلو",
+      "create_uid": [
+        2,
+        "albaraa abdulwahab"
+      ],
+      "create_date": "2026-10-01 03:16:39",
+      "write_uid": [
+        2,
+        "albaraa abdulwahab"
+      ],
+      "write_date": "2026-10-01 03:16:39",
+      "x_name": "كرتون · 8 كيلو",
+      "x_product_tmpl_id": [
+        113,
+        "رمان مصري"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 37,
+      "display_name": "كرتون",
+      "create_uid": [
+        2,
+        "albaraa abdulwahab"
+      ],
+      "create_date": "2026-08-25 16:45:44",
+      "write_uid": [
+        2,
+        "albaraa abdulwahab"
+      ],
+      "write_date": "2026-09-19 19:27:12",
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "x_approx_weight_kg": 0,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 33,
+      "display_name": "كرتون · 14 كيلو",
+      "create_uid": [
+        2,
+        "albaraa abdulwahab"
+      ],
+      "create_date": "2026-08-25 16:45:44",
+      "write_uid": [
+        2,
+        "albaraa abdulwahab"
+      ],
+      "write_date": "2026-09-19 14:59:15",
+      "x_name": "كرتون · 14 كيلو",
+      "x_product_tmpl_id": [
+        97,
+        "[UTAK-FRT-002] موز أمريكي"
+      ],
+      "x_approx_weight_kg": 14,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 45,
+      "display_name": "كرتون · 13 كيلو",
+      "create_uid": [
+        2,
+        "albaraa abdulwahab"
+      ],
+      "create_date": "2026-09-19 13:26:29",
+      "write_uid": [
+        2,
+        "albaraa abdulwahab"
+      ],
+      "write_date": "2026-09-19 14:59:15",
+      "x_name": "كرتون · 13 كيلو",
+      "x_product_tmpl_id": [
+        109,
+        "[UTAK-FRT-013] موز هندي"
+      ],
+      "x_approx_weight_kg": 13,
+      "x_is_default": true,
+      "x_sequence": 0,
+      "x_type": "carton",
+      "x_name_en": false
+    }
+  ],
+  "fruitRefs": [
+    {
+      "id": 96,
+      "default_code": "UTAK-FRT-001",
+      "name": "تفاح",
+      "active": true
+    },
+    {
+      "id": 97,
+      "default_code": "UTAK-FRT-002",
+      "name": "موز أمريكي",
+      "active": true
+    },
+    {
+      "id": 98,
+      "default_code": "UTAK-FRT-003",
+      "name": "برتقال",
+      "active": true
+    },
+    {
+      "id": 99,
+      "default_code": "UTAK-FRT-004",
+      "name": "عنب",
+      "active": true
+    },
+    {
+      "id": 100,
+      "default_code": "UTAK-FRT-005",
+      "name": "رمان وسط",
+      "active": true
+    },
+    {
+      "id": 101,
+      "default_code": "UTAK-FRT-006",
+      "name": "مانجو",
+      "active": true
+    },
+    {
+      "id": 102,
+      "default_code": "UTAK-FRT-007",
+      "name": "أناناس",
+      "active": true
+    },
+    {
+      "id": 103,
+      "default_code": "UTAK-FRT-008",
+      "name": "فراولة",
+      "active": true
+    },
+    {
+      "id": 104,
+      "default_code": "UTAK-FRT-009",
+      "name": "بطيخ (بالحبة)",
+      "active": true
+    },
+    {
+      "id": 105,
+      "default_code": "UTAK-FRT-010",
+      "name": "افوكادو",
+      "active": true
+    },
+    {
+      "id": 107,
+      "default_code": "UTAK-FRT-011",
+      "name": "رمان صغير",
+      "active": true
+    },
+    {
+      "id": 108,
+      "default_code": "UTAK-FRT-012",
+      "name": "رمان كبير",
+      "active": true
+    },
+    {
+      "id": 109,
+      "default_code": "UTAK-FRT-013",
+      "name": "موز هندي",
+      "active": true
+    }
+  ],
+  "categories": [
+    {
+      "id": 1,
+      "name": "Goods",
+      "parent_id": false
+    },
+    {
+      "id": 2,
+      "name": "Expenses",
+      "parent_id": false
+    },
+    {
+      "id": 3,
+      "name": "Services",
+      "parent_id": false
+    },
+    {
+      "id": 4,
+      "name": "Deliveries",
+      "parent_id": false
+    },
+    {
+      "id": 5,
+      "name": "فواكه",
+      "parent_id": false
+    },
+    {
+      "id": 6,
+      "name": "خضار",
+      "parent_id": false
+    },
+    {
+      "id": 7,
+      "name": "ورقيات",
+      "parent_id": false
+    }
+  ],
+  "productTaxUse": {
+    "5/21": 40,
+    "/": 2,
+    "5/43": 1
+  },
+  "offersAll": [
+    {
+      "id": 1,
+      "x_date": "2026-09-27",
+      "x_source_partner_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_source_employee_id": false,
+      "x_product_tmpl_id": [
+        105,
+        "[UTAK-FRT-010] افوكادو"
+      ],
+      "x_packaging_id": [
+        47,
+        "كرتون · 4 كيلو"
+      ],
+      "x_purchase_price": 0,
+      "x_market_price": 62,
+      "x_status": "valid",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 15:32:05"
+    },
+    {
+      "id": 2,
+      "x_date": "2026-09-27",
+      "x_source_partner_id": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_source_employee_id": [
+        4,
+        "عمر المجهلي"
+      ],
+      "x_product_tmpl_id": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "x_packaging_id": [
+        37,
+        "كرتون"
+      ],
+      "x_purchase_price": 0,
+      "x_market_price": 19,
+      "x_status": "valid",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 15:32:08"
+    },
+    {
+      "id": 3,
+      "x_date": "2026-09-27",
+      "x_source_partner_id": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_source_employee_id": [
+        4,
+        "عمر المجهلي"
+      ],
+      "x_product_tmpl_id": [
+        108,
+        "[UTAK-FRT-012] رمان كبير"
+      ],
+      "x_packaging_id": [
+        44,
+        "كرتون"
+      ],
+      "x_purchase_price": 22,
+      "x_market_price": 26,
+      "x_status": "valid",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 15:32:17"
+    },
+    {
+      "id": 4,
+      "x_date": "2026-09-27",
+      "x_source_partner_id": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_source_employee_id": [
+        4,
+        "عمر المجهلي"
+      ],
+      "x_product_tmpl_id": [
+        107,
+        "[UTAK-FRT-011] رمان صغير"
+      ],
+      "x_packaging_id": [
+        43,
+        "كرتون"
+      ],
+      "x_purchase_price": 11.5,
+      "x_market_price": 12,
+      "x_status": "valid",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 15:32:17"
+    },
+    {
+      "id": 34,
+      "x_date": "2026-10-01",
+      "x_source_partner_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_source_employee_id": false,
+      "x_product_tmpl_id": [
+        105,
+        "[UTAK-FRT-010] افوكادو"
+      ],
+      "x_packaging_id": [
+        47,
+        "كرتون · 4 كيلو"
+      ],
+      "x_purchase_price": 0,
+      "x_market_price": 63,
+      "x_status": "valid",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 15:40:24"
+    },
+    {
+      "id": 35,
+      "x_date": "2026-10-01",
+      "x_source_partner_id": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_source_employee_id": [
+        4,
+        "عمر المجهلي"
+      ],
+      "x_product_tmpl_id": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "x_packaging_id": [
+        37,
+        "كرتون"
+      ],
+      "x_purchase_price": 0,
+      "x_market_price": 20,
+      "x_status": "valid",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 15:40:42"
+    },
+    {
+      "id": 36,
+      "x_date": "2026-10-01",
+      "x_source_partner_id": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_source_employee_id": [
+        4,
+        "عمر المجهلي"
+      ],
+      "x_product_tmpl_id": [
+        105,
+        "[UTAK-FRT-010] افوكادو"
+      ],
+      "x_packaging_id": [
+        47,
+        "كرتون · 4 كيلو"
+      ],
+      "x_purchase_price": 0,
+      "x_market_price": 62,
+      "x_status": "valid",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 15:40:43"
+    },
+    {
+      "id": 37,
+      "x_date": "2026-10-01",
+      "x_source_partner_id": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_source_employee_id": [
+        4,
+        "عمر المجهلي"
+      ],
+      "x_product_tmpl_id": [
+        108,
+        "[UTAK-FRT-012] رمان كبير"
+      ],
+      "x_packaging_id": [
+        44,
+        "كرتون"
+      ],
+      "x_purchase_price": 23,
+      "x_market_price": 24,
+      "x_status": "valid",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 15:40:44"
+    },
+    {
+      "id": 38,
+      "x_date": "2026-10-01",
+      "x_source_partner_id": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_source_employee_id": [
+        4,
+        "عمر المجهلي"
+      ],
+      "x_product_tmpl_id": [
+        107,
+        "[UTAK-FRT-011] رمان صغير"
+      ],
+      "x_packaging_id": [
+        43,
+        "كرتون"
+      ],
+      "x_purchase_price": 11.5,
+      "x_market_price": 13,
+      "x_status": "valid",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 15:40:44"
+    },
+    {
+      "id": 39,
+      "x_date": "2026-09-27",
+      "x_source_partner_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_source_employee_id": false,
+      "x_product_tmpl_id": [
+        105,
+        "[UTAK-FRT-010] افوكادو"
+      ],
+      "x_packaging_id": [
+        47,
+        "كرتون · 4 كيلو"
+      ],
+      "x_purchase_price": 0,
+      "x_market_price": 62,
+      "x_status": "valid",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 15:57:30"
+    },
+    {
+      "id": 40,
+      "x_date": "2026-09-27",
+      "x_source_partner_id": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_source_employee_id": [
+        4,
+        "عمر المجهلي"
+      ],
+      "x_product_tmpl_id": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "x_packaging_id": [
+        37,
+        "كرتون"
+      ],
+      "x_purchase_price": 0,
+      "x_market_price": 19,
+      "x_status": "valid",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 15:57:40"
+    },
+    {
+      "id": 41,
+      "x_date": "2026-09-27",
+      "x_source_partner_id": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_source_employee_id": [
+        4,
+        "عمر المجهلي"
+      ],
+      "x_product_tmpl_id": [
+        105,
+        "[UTAK-FRT-010] افوكادو"
+      ],
+      "x_packaging_id": [
+        47,
+        "كرتون · 4 كيلو"
+      ],
+      "x_purchase_price": 0,
+      "x_market_price": 60,
+      "x_status": "valid",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 15:57:40"
+    },
+    {
+      "id": 42,
+      "x_date": "2026-09-27",
+      "x_source_partner_id": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_source_employee_id": [
+        4,
+        "عمر المجهلي"
+      ],
+      "x_product_tmpl_id": [
+        108,
+        "[UTAK-FRT-012] رمان كبير"
+      ],
+      "x_packaging_id": [
+        44,
+        "كرتون"
+      ],
+      "x_purchase_price": 22,
+      "x_market_price": 26,
+      "x_status": "valid",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 15:57:41"
+    },
+    {
+      "id": 43,
+      "x_date": "2026-09-27",
+      "x_source_partner_id": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_source_employee_id": [
+        4,
+        "عمر المجهلي"
+      ],
+      "x_product_tmpl_id": [
+        107,
+        "[UTAK-FRT-011] رمان صغير"
+      ],
+      "x_packaging_id": [
+        43,
+        "كرتون"
+      ],
+      "x_purchase_price": 11.5,
+      "x_market_price": 12,
+      "x_status": "valid",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 15:57:41"
+    },
+    {
+      "id": 44,
+      "x_date": "2026-09-27",
+      "x_source_partner_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_source_employee_id": false,
+      "x_product_tmpl_id": [
+        105,
+        "[UTAK-FRT-010] افوكادو"
+      ],
+      "x_packaging_id": [
+        47,
+        "كرتون · 4 كيلو"
+      ],
+      "x_purchase_price": 0,
+      "x_market_price": 62,
+      "x_status": "valid",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 16:03:30"
+    },
+    {
+      "id": 45,
+      "x_date": "2026-09-27",
+      "x_source_partner_id": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_source_employee_id": [
+        4,
+        "عمر المجهلي"
+      ],
+      "x_product_tmpl_id": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "x_packaging_id": [
+        37,
+        "كرتون"
+      ],
+      "x_purchase_price": 0,
+      "x_market_price": 19,
+      "x_status": "valid",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 16:03:40"
+    },
+    {
+      "id": 46,
+      "x_date": "2026-09-27",
+      "x_source_partner_id": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_source_employee_id": [
+        4,
+        "عمر المجهلي"
+      ],
+      "x_product_tmpl_id": [
+        105,
+        "[UTAK-FRT-010] افوكادو"
+      ],
+      "x_packaging_id": [
+        47,
+        "كرتون · 4 كيلو"
+      ],
+      "x_purchase_price": 0,
+      "x_market_price": 60,
+      "x_status": "valid",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 16:03:40"
+    },
+    {
+      "id": 47,
+      "x_date": "2026-09-27",
+      "x_source_partner_id": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_source_employee_id": [
+        4,
+        "عمر المجهلي"
+      ],
+      "x_product_tmpl_id": [
+        108,
+        "[UTAK-FRT-012] رمان كبير"
+      ],
+      "x_packaging_id": [
+        44,
+        "كرتون"
+      ],
+      "x_purchase_price": 22,
+      "x_market_price": 26,
+      "x_status": "valid",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 16:03:40"
+    },
+    {
+      "id": 48,
+      "x_date": "2026-09-27",
+      "x_source_partner_id": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_source_employee_id": [
+        4,
+        "عمر المجهلي"
+      ],
+      "x_product_tmpl_id": [
+        107,
+        "[UTAK-FRT-011] رمان صغير"
+      ],
+      "x_packaging_id": [
+        43,
+        "كرتون"
+      ],
+      "x_purchase_price": 11.5,
+      "x_market_price": 12,
+      "x_status": "valid",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 16:03:41"
+    },
+    {
+      "id": 49,
+      "x_date": "2026-09-30",
+      "x_source_partner_id": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_source_employee_id": [
+        4,
+        "عمر المجهلي"
+      ],
+      "x_product_tmpl_id": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "x_packaging_id": [
+        37,
+        "كرتون"
+      ],
+      "x_purchase_price": 0,
+      "x_market_price": 19,
+      "x_status": "valid",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 16:08:27"
+    },
+    {
+      "id": 50,
+      "x_date": "2026-09-30",
+      "x_source_partner_id": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_source_employee_id": [
+        4,
+        "عمر المجهلي"
+      ],
+      "x_product_tmpl_id": [
+        105,
+        "[UTAK-FRT-010] افوكادو"
+      ],
+      "x_packaging_id": [
+        47,
+        "كرتون · 4 كيلو"
+      ],
+      "x_purchase_price": 0,
+      "x_market_price": 61,
+      "x_status": "valid",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 16:08:27"
+    },
+    {
+      "id": 51,
+      "x_date": "2026-09-30",
+      "x_source_partner_id": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_source_employee_id": [
+        4,
+        "عمر المجهلي"
+      ],
+      "x_product_tmpl_id": [
+        108,
+        "[UTAK-FRT-012] رمان كبير"
+      ],
+      "x_packaging_id": [
+        44,
+        "كرتون"
+      ],
+      "x_purchase_price": 22,
+      "x_market_price": 26,
+      "x_status": "valid",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 16:08:28"
+    },
+    {
+      "id": 52,
+      "x_date": "2026-09-30",
+      "x_source_partner_id": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_source_employee_id": [
+        4,
+        "عمر المجهلي"
+      ],
+      "x_product_tmpl_id": [
+        107,
+        "[UTAK-FRT-011] رمان صغير"
+      ],
+      "x_packaging_id": [
+        43,
+        "كرتون"
+      ],
+      "x_purchase_price": 11,
+      "x_market_price": 13,
+      "x_status": "valid",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 16:08:29"
+    },
+    {
+      "id": 53,
+      "x_date": "2026-10-01",
+      "x_source_partner_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_source_employee_id": false,
+      "x_product_tmpl_id": [
+        105,
+        "[UTAK-FRT-010] افوكادو"
+      ],
+      "x_packaging_id": [
+        47,
+        "كرتون · 4 كيلو"
+      ],
+      "x_purchase_price": 0,
+      "x_market_price": 63,
+      "x_status": "valid",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 16:09:42"
+    },
+    {
+      "id": 54,
+      "x_date": "2026-10-01",
+      "x_source_partner_id": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_source_employee_id": [
+        4,
+        "عمر المجهلي"
+      ],
+      "x_product_tmpl_id": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "x_packaging_id": [
+        37,
+        "كرتون"
+      ],
+      "x_purchase_price": 0,
+      "x_market_price": 20,
+      "x_status": "valid",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 16:09:55"
+    },
+    {
+      "id": 55,
+      "x_date": "2026-10-01",
+      "x_source_partner_id": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_source_employee_id": [
+        4,
+        "عمر المجهلي"
+      ],
+      "x_product_tmpl_id": [
+        105,
+        "[UTAK-FRT-010] افوكادو"
+      ],
+      "x_packaging_id": [
+        47,
+        "كرتون · 4 كيلو"
+      ],
+      "x_purchase_price": 0,
+      "x_market_price": 62,
+      "x_status": "valid",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 16:09:55"
+    },
+    {
+      "id": 56,
+      "x_date": "2026-10-01",
+      "x_source_partner_id": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_source_employee_id": [
+        4,
+        "عمر المجهلي"
+      ],
+      "x_product_tmpl_id": [
+        108,
+        "[UTAK-FRT-012] رمان كبير"
+      ],
+      "x_packaging_id": [
+        44,
+        "كرتون"
+      ],
+      "x_purchase_price": 23,
+      "x_market_price": 24,
+      "x_status": "valid",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 16:09:56"
+    },
+    {
+      "id": 57,
+      "x_date": "2026-10-01",
+      "x_source_partner_id": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_source_employee_id": [
+        4,
+        "عمر المجهلي"
+      ],
+      "x_product_tmpl_id": [
+        107,
+        "[UTAK-FRT-011] رمان صغير"
+      ],
+      "x_packaging_id": [
+        43,
+        "كرتون"
+      ],
+      "x_purchase_price": 11.5,
+      "x_market_price": 13,
+      "x_status": "valid",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 16:09:56"
+    }
+  ],
+  "dailyAll": [
+    {
+      "id": 1,
+      "x_date": "2026-08-29",
+      "x_supplier_id": [
+        7,
+        "براء - اختبار"
+      ],
+      "x_product_tmpl_id": [
+        71,
+        "[UTAK-VEG-001] طماطم"
+      ],
+      "x_packaging_id": [
+        1,
+        "فلين · 5 كيلو"
+      ],
+      "x_price_sar": 22,
+      "x_sale_price": 30.36,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": false,
+      "create_date": "2026-08-29 10:37:52"
+    },
+    {
+      "id": 2,
+      "x_date": "2026-08-29",
+      "x_supplier_id": [
+        7,
+        "براء - اختبار"
+      ],
+      "x_product_tmpl_id": [
+        72,
+        "[UTAK-VEG-002] خيار"
+      ],
+      "x_packaging_id": [
+        3,
+        "جرم · 8 كيلو"
+      ],
+      "x_price_sar": 15,
+      "x_sale_price": 20.7,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": false,
+      "create_date": "2026-08-29 10:37:52"
+    },
+    {
+      "id": 3,
+      "x_date": "2026-08-29",
+      "x_supplier_id": [
+        7,
+        "براء - اختبار"
+      ],
+      "x_product_tmpl_id": [
+        73,
+        "[UTAK-VEG-003] بطاطس"
+      ],
+      "x_packaging_id": [
+        6,
+        "كرتون · 10 كيلو"
+      ],
+      "x_price_sar": 40,
+      "x_sale_price": 55.2,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": false,
+      "create_date": "2026-08-29 10:37:53"
+    },
+    {
+      "id": 4,
+      "x_date": "2026-09-12",
+      "x_supplier_id": [
+        22,
+        "[SIM] Verify Pricing Supplier"
+      ],
+      "x_product_tmpl_id": [
+        72,
+        "[UTAK-VEG-002] خيار"
+      ],
+      "x_packaging_id": [
+        3,
+        "جرم · 8 كيلو"
+      ],
+      "x_price_sar": 10,
+      "x_sale_price": 15,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-13 02:53:50"
+    },
+    {
+      "id": 5,
+      "x_date": "2026-09-12",
+      "x_supplier_id": [
+        24,
+        "[SIM] Verify Pricing Supplier #zerfzj"
+      ],
+      "x_product_tmpl_id": [
+        74,
+        "[UTAK-VEG-004] بصل"
+      ],
+      "x_packaging_id": [
+        7,
+        "جرم · 20 كيلو"
+      ],
+      "x_price_sar": 10,
+      "x_sale_price": 15,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-13 06:03:29"
+    },
+    {
+      "id": 6,
+      "x_date": "2026-09-14",
+      "x_supplier_id": [
+        26,
+        "[SIM] Verify Pricing Supplier #2doyit"
+      ],
+      "x_product_tmpl_id": [
+        75,
+        "[UTAK-VEG-005] جزر"
+      ],
+      "x_packaging_id": [
+        9,
+        "جرم · 8 كيلو"
+      ],
+      "x_price_sar": 10,
+      "x_sale_price": 15,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-15 07:56:53"
+    },
+    {
+      "id": 7,
+      "x_date": "2026-09-14",
+      "x_supplier_id": [
+        29,
+        "[SIM] Verify Pricing Supplier #2fj8if"
+      ],
+      "x_product_tmpl_id": [
+        76,
+        "[UTAK-VEG-006] كوسا"
+      ],
+      "x_packaging_id": [
+        10,
+        "جرم · 8 كيلو"
+      ],
+      "x_price_sar": 10,
+      "x_sale_price": 15,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-15 08:48:25"
+    },
+    {
+      "id": 8,
+      "x_date": "2026-09-19",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_product_tmpl_id": [
+        107,
+        "[UTAK-FRT-011] رمان صغير"
+      ],
+      "x_packaging_id": [
+        43,
+        "كرتون"
+      ],
+      "x_price_sar": 9,
+      "x_sale_price": 11.5,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": false,
+      "create_date": "2026-09-19 13:26:30"
+    },
+    {
+      "id": 9,
+      "x_date": "2026-09-19",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_product_tmpl_id": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "x_packaging_id": [
+        37,
+        "كرتون"
+      ],
+      "x_price_sar": 13,
+      "x_sale_price": 18,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": false,
+      "create_date": "2026-09-19 13:26:30"
+    },
+    {
+      "id": 10,
+      "x_date": "2026-09-19",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_product_tmpl_id": [
+        108,
+        "[UTAK-FRT-012] رمان كبير"
+      ],
+      "x_packaging_id": [
+        44,
+        "كرتون"
+      ],
+      "x_price_sar": 22,
+      "x_sale_price": 30.5,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": false,
+      "create_date": "2026-09-19 13:26:30"
+    },
+    {
+      "id": 11,
+      "x_date": "2026-09-19",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_product_tmpl_id": [
+        97,
+        "[UTAK-FRT-002] موز أمريكي"
+      ],
+      "x_packaging_id": [
+        33,
+        "كرتون · 14 كيلو"
+      ],
+      "x_price_sar": 44,
+      "x_sale_price": 61,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": false,
+      "create_date": "2026-09-19 13:26:30"
+    },
+    {
+      "id": 12,
+      "x_date": "2026-09-19",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_product_tmpl_id": [
+        109,
+        "[UTAK-FRT-013] موز هندي"
+      ],
+      "x_packaging_id": [
+        45,
+        "كرتون · 13 كيلو"
+      ],
+      "x_price_sar": 45,
+      "x_sale_price": 62.5,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": false,
+      "create_date": "2026-09-19 13:26:30"
+    },
+    {
+      "id": 13,
+      "x_date": "2026-09-19",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_product_tmpl_id": [
+        105,
+        "[UTAK-FRT-010] افوكادو"
+      ],
+      "x_packaging_id": [
+        47,
+        "كرتون · 4 كيلو"
+      ],
+      "x_price_sar": 45,
+      "x_sale_price": 62.5,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": false,
+      "create_date": "2026-09-19 13:26:30"
+    },
+    {
+      "id": 14,
+      "x_date": "2026-09-19",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_product_tmpl_id": [
+        104,
+        "[UTAK-FRT-009] بطيخ (بالحبة)"
+      ],
+      "x_packaging_id": [
+        46,
+        "فرط (بالكيلو)"
+      ],
+      "x_price_sar": 0.6,
+      "x_sale_price": 0.85,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": false,
+      "create_date": "2026-09-19 13:26:30"
+    },
+    {
+      "id": 15,
+      "x_date": "2026-09-25",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_product_tmpl_id": [
+        71,
+        "[UTAK-VEG-001] طماطم"
+      ],
+      "x_packaging_id": [
+        1,
+        "فلين · 5 كيلو"
+      ],
+      "x_price_sar": 26,
+      "x_sale_price": 0,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-25 16:01:12"
+    },
+    {
+      "id": 16,
+      "x_date": "2026-09-25",
+      "x_supplier_id": [
+        7,
+        "براء - اختبار"
+      ],
+      "x_product_tmpl_id": [
+        71,
+        "[UTAK-VEG-001] طماطم"
+      ],
+      "x_packaging_id": [
+        1,
+        "فلين · 5 كيلو"
+      ],
+      "x_price_sar": 24,
+      "x_sale_price": 0,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-25 16:01:12"
+    },
+    {
+      "id": 17,
+      "x_date": "2026-09-25",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_product_tmpl_id": [
+        72,
+        "[UTAK-VEG-002] خيار"
+      ],
+      "x_packaging_id": [
+        3,
+        "جرم · 8 كيلو"
+      ],
+      "x_price_sar": 45,
+      "x_sale_price": 0,
+      "x_extraction_status": "pending",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-25 16:01:12"
+    },
+    {
+      "id": 18,
+      "x_date": "2026-09-25",
+      "x_supplier_id": [
+        7,
+        "براء - اختبار"
+      ],
+      "x_product_tmpl_id": [
+        73,
+        "[UTAK-VEG-003] بطاطس"
+      ],
+      "x_packaging_id": [
+        6,
+        "كرتون · 10 كيلو"
+      ],
+      "x_price_sar": 18,
+      "x_sale_price": 0,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-25 16:01:12"
+    },
+    {
+      "id": 19,
+      "x_date": "2026-09-25",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_product_tmpl_id": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "x_packaging_id": [
+        37,
+        "كرتون"
+      ],
+      "x_price_sar": 13,
+      "x_sale_price": 0,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-25 16:01:12"
+    },
+    {
+      "id": 20,
+      "x_date": "2026-09-26",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_product_tmpl_id": [
+        105,
+        "[UTAK-FRT-010] افوكادو"
+      ],
+      "x_packaging_id": [
+        47,
+        "كرتون · 4 كيلو"
+      ],
+      "x_price_sar": 50,
+      "x_sale_price": 69,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-25 23:01:57"
+    },
+    {
+      "id": 21,
+      "x_date": "2026-09-26",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_product_tmpl_id": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "x_packaging_id": [
+        37,
+        "كرتون"
+      ],
+      "x_price_sar": 15,
+      "x_sale_price": 20.7,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-25 23:01:58"
+    },
+    {
+      "id": 22,
+      "x_date": "2026-09-26",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_product_tmpl_id": [
+        104,
+        "[UTAK-FRT-009] بطيخ (بالحبة)"
+      ],
+      "x_packaging_id": [
+        46,
+        "فرط (بالكيلو)"
+      ],
+      "x_price_sar": 1,
+      "x_sale_price": 1.38,
+      "x_extraction_status": "pending",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-25 23:04:25"
+    },
+    {
+      "id": 23,
+      "x_date": "2026-09-26",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_product_tmpl_id": [
+        99,
+        "[UTAK-FRT-004] عنب"
+      ],
+      "x_packaging_id": [
+        36,
+        "كرتون · 8 كيلو"
+      ],
+      "x_price_sar": 20,
+      "x_sale_price": 27.6,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-25 23:05:05"
+    },
+    {
+      "id": 24,
+      "x_date": "2026-09-27",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_product_tmpl_id": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "x_packaging_id": [
+        37,
+        "كرتون"
+      ],
+      "x_price_sar": 15,
+      "x_sale_price": 20.7,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 15:32:05"
+    },
+    {
+      "id": 25,
+      "x_date": "2026-09-27",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_product_tmpl_id": [
+        105,
+        "[UTAK-FRT-010] افوكادو"
+      ],
+      "x_packaging_id": [
+        47,
+        "كرتون · 4 كيلو"
+      ],
+      "x_price_sar": 50,
+      "x_sale_price": 69,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 15:32:05"
+    },
+    {
+      "id": 57,
+      "x_date": "2026-09-30",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_product_tmpl_id": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "x_packaging_id": [
+        37,
+        "كرتون"
+      ],
+      "x_price_sar": 15,
+      "x_sale_price": 20.7,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 15:38:49"
+    },
+    {
+      "id": 58,
+      "x_date": "2026-09-30",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_product_tmpl_id": [
+        105,
+        "[UTAK-FRT-010] افوكادو"
+      ],
+      "x_packaging_id": [
+        47,
+        "كرتون · 4 كيلو"
+      ],
+      "x_price_sar": 50,
+      "x_sale_price": 69,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 15:38:50"
+    },
+    {
+      "id": 59,
+      "x_date": "2026-10-01",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_product_tmpl_id": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "x_packaging_id": [
+        37,
+        "كرتون"
+      ],
+      "x_price_sar": 16,
+      "x_sale_price": 22.08,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 15:40:23"
+    },
+    {
+      "id": 60,
+      "x_date": "2026-10-01",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_product_tmpl_id": [
+        105,
+        "[UTAK-FRT-010] افوكادو"
+      ],
+      "x_packaging_id": [
+        47,
+        "كرتون · 4 كيلو"
+      ],
+      "x_price_sar": 52,
+      "x_sale_price": 71.76,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 15:40:23"
+    },
+    {
+      "id": 61,
+      "x_date": "2026-09-27",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_product_tmpl_id": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "x_packaging_id": [
+        37,
+        "كرتون"
+      ],
+      "x_price_sar": 15,
+      "x_sale_price": 20.7,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 15:57:29"
+    },
+    {
+      "id": 62,
+      "x_date": "2026-09-27",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_product_tmpl_id": [
+        105,
+        "[UTAK-FRT-010] افوكادو"
+      ],
+      "x_packaging_id": [
+        47,
+        "كرتون · 4 كيلو"
+      ],
+      "x_price_sar": 50,
+      "x_sale_price": 69,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 15:57:30"
+    },
+    {
+      "id": 63,
+      "x_date": "2026-09-27",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_product_tmpl_id": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "x_packaging_id": [
+        37,
+        "كرتون"
+      ],
+      "x_price_sar": 15,
+      "x_sale_price": 20.7,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 16:03:29"
+    },
+    {
+      "id": 64,
+      "x_date": "2026-09-27",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_product_tmpl_id": [
+        105,
+        "[UTAK-FRT-010] افوكادو"
+      ],
+      "x_packaging_id": [
+        47,
+        "كرتون · 4 كيلو"
+      ],
+      "x_price_sar": 50,
+      "x_sale_price": 69,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 16:03:29"
+    },
+    {
+      "id": 65,
+      "x_date": "2026-09-30",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_product_tmpl_id": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "x_packaging_id": [
+        37,
+        "كرتون"
+      ],
+      "x_price_sar": 15,
+      "x_sale_price": 20.7,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 16:08:12"
+    },
+    {
+      "id": 66,
+      "x_date": "2026-09-30",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_product_tmpl_id": [
+        105,
+        "[UTAK-FRT-010] افوكادو"
+      ],
+      "x_packaging_id": [
+        47,
+        "كرتون · 4 كيلو"
+      ],
+      "x_price_sar": 50,
+      "x_sale_price": 69,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 16:08:13"
+    },
+    {
+      "id": 67,
+      "x_date": "2026-10-01",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_product_tmpl_id": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "x_packaging_id": [
+        37,
+        "كرتون"
+      ],
+      "x_price_sar": 16,
+      "x_sale_price": 22.08,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 16:09:42"
+    },
+    {
+      "id": 68,
+      "x_date": "2026-10-01",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_product_tmpl_id": [
+        105,
+        "[UTAK-FRT-010] افوكادو"
+      ],
+      "x_packaging_id": [
+        47,
+        "كرتون · 4 كيلو"
+      ],
+      "x_price_sar": 52,
+      "x_sale_price": 71.76,
+      "x_extraction_status": "extracted",
+      "x_utak_simulation": true,
+      "create_date": "2026-09-26 16:09:42"
+    }
+  ],
+  "purchaseLists": [
+    {
+      "id": 13,
+      "x_date": "2026-10-01",
+      "x_status": "sent",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_purchase_order_id": false,
+      "x_account_move_id": false,
+      "x_utak_simulation": true
+    },
+    {
+      "id": 12,
+      "x_date": "2026-09-30",
+      "x_status": "done",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_purchase_order_id": false,
+      "x_account_move_id": false,
+      "x_utak_simulation": true
+    },
+    {
+      "id": 11,
+      "x_date": "2026-09-27",
+      "x_status": "done",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_purchase_order_id": false,
+      "x_account_move_id": false,
+      "x_utak_simulation": true
+    },
+    {
+      "id": 10,
+      "x_date": "2026-10-01",
+      "x_status": "sent",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_purchase_order_id": false,
+      "x_account_move_id": false,
+      "x_utak_simulation": true
+    },
+    {
+      "id": 9,
+      "x_date": "2026-09-30",
+      "x_status": "done",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_purchase_order_id": false,
+      "x_account_move_id": false,
+      "x_utak_simulation": true
+    },
+    {
+      "id": 8,
+      "x_date": "2026-09-27",
+      "x_status": "done",
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_purchase_order_id": false,
+      "x_account_move_id": false,
+      "x_utak_simulation": true
+    },
+    {
+      "id": 7,
+      "x_date": "2026-09-25",
+      "x_status": "done",
+      "x_supplier_id": false,
+      "x_purchase_order_id": false,
+      "x_account_move_id": false,
+      "x_utak_simulation": true
+    },
+    {
+      "id": 3,
+      "x_date": "2026-09-11",
+      "x_status": "done",
+      "x_supplier_id": false,
+      "x_purchase_order_id": false,
+      "x_account_move_id": false,
+      "x_utak_simulation": true
+    },
+    {
+      "id": 2,
+      "x_date": "2026-08-30",
+      "x_status": "done",
+      "x_supplier_id": false,
+      "x_purchase_order_id": false,
+      "x_account_move_id": false,
+      "x_utak_simulation": false
+    }
+  ],
+  "vendorBills": [
+    {
+      "id": 54,
+      "name": "EXP/2026/09/0002",
+      "state": "posted",
+      "partner_id": [
+        58,
+        "SIM-TEST مورد وقود غير مسجل 376274"
+      ],
+      "invoice_date": "2026-09-23",
+      "amount_untaxed": 50,
+      "amount_tax": 0,
+      "amount_total": 50,
+      "ref": "SIM-TEST expense ن 376274",
+      "journal_id": [
+        20,
+        "المصاريف"
+      ]
+    },
+    {
+      "id": 37,
+      "name": "BILL/2026/09/0003",
+      "state": "posted",
+      "partner_id": [
+        52,
+        "[SIM] مورد اختبار شراء — بلا رقم ضريبي"
+      ],
+      "invoice_date": "2026-09-23",
+      "amount_untaxed": 30,
+      "amount_tax": 0,
+      "amount_total": 30,
+      "ref": "PL-6",
+      "journal_id": [
+        9,
+        "Purchases"
+      ]
+    },
+    {
+      "id": 36,
+      "name": "BILL/2026/09/0002",
+      "state": "posted",
+      "partner_id": [
+        53,
+        "[SIM] مورد اختبار شراء — مسجل ضريبياً"
+      ],
+      "invoice_date": "2026-09-23",
+      "amount_untaxed": 100,
+      "amount_tax": 15,
+      "amount_total": 115,
+      "ref": "PL-5",
+      "journal_id": [
+        9,
+        "Purchases"
+      ]
+    },
+    {
+      "id": 35,
+      "name": "BILL/2026/09/0001",
+      "state": "posted",
+      "partner_id": [
+        52,
+        "[SIM] مورد اختبار شراء — بلا رقم ضريبي"
+      ],
+      "invoice_date": "2026-09-23",
+      "amount_untaxed": 80,
+      "amount_tax": 0,
+      "amount_total": 80,
+      "ref": "PL-4",
+      "journal_id": [
+        9,
+        "Purchases"
+      ]
+    }
+  ],
+  "automations": [
+    {
+      "id": 23,
+      "name": "utak.prices.line_lock",
+      "model_id": [
+        6130,
+        "سطر أسعار اليوم"
+      ],
+      "trigger": "on_create_or_write",
+      "active": true,
+      "filter_domain": "[('x_day_id.x_state', 'in', ['approved', 'published'])]",
+      "filter_pre_domain": false,
+      "trigger_field_ids": [
+        20397,
+        20391,
+        20381,
+        20641,
+        20393,
+        20399,
+        20643,
+        20403,
+        20405,
+        20401,
+        20387,
+        20385,
+        20383,
+        20395,
+        20389
+      ],
+      "action_server_ids": [
+        1007
+      ]
+    },
+    {
+      "id": 27,
+      "name": "utak.product.setup (on_create)",
+      "model_id": [
+        2322,
+        "Product"
+      ],
+      "trigger": "on_create",
+      "active": true,
+      "filter_domain": false,
+      "filter_pre_domain": false,
+      "trigger_field_ids": [],
+      "action_server_ids": [
+        1035
+      ]
+    },
+    {
+      "id": 28,
+      "name": "utak.product.ref ← categ_id (on_write)",
+      "model_id": [
+        2322,
+        "Product"
+      ],
+      "trigger": "on_write",
+      "active": true,
+      "filter_domain": false,
+      "filter_pre_domain": false,
+      "trigger_field_ids": [
+        7700
+      ],
+      "action_server_ids": [
+        1036
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "id": 1036,
+      "name": "utak.product.ref_on_category",
+      "state": "code",
+      "code": "PREFIXES = {'فواكه': 'UTAK-FRT-', 'خضار': 'UTAK-VEG-', 'ورقيات': 'UTAK-LEAF-'}\nTmpl = env['product.template'].with_context(active_test=False)\nfor rec in records:\n    code = (rec.default_code or '').strip()\n    if code or rec.type == 'service':\n        continue\n    prefix = ''\n    c = rec.categ_id\n    while c and not prefix:\n        prefix = PREFIXES.get((c.name or '').strip(), '')\n        c = c.parent_id\n    ref = ''\n    if prefix:\n        top = 0\n        for other in Tmpl.search([('default_code', '=like', prefix + '%')]):\n            tail = (other.default_code or '')[len(prefix):]\n            if tail.isdigit() and int(tail) > top:\n                top = int(tail)\n        ref = prefix + str(top + 1).zfill(3)\n    if ref:\n        rec.write({'default_code': ref})"
+    },
+    {
+      "id": 1035,
+      "name": "utak.product.setup_on_create",
+      "state": "code",
+      "code": "PREFIXES = {'فواكه': 'UTAK-FRT-', 'خضار': 'UTAK-VEG-', 'ورقيات': 'UTAK-LEAF-'}\nTmpl = env['product.template'].with_context(active_test=False)\nPack = env['x_product_packaging']\nfor rec in records:\n    code = (rec.default_code or '').strip()\n    if rec.type == 'service' or code.startswith('UTAK-SALE') or code.startswith('UTAK-PUR'):\n        continue\n    vals = {\n        'x_is_active_for_sale': False,\n        'x_utak_new': True,\n        'taxes_id': [(6, 0, [5])],\n        'supplier_taxes_id': [(6, 0, [43])],\n        'type': 'consu',\n        'is_storable': True,\n        'uom_id': 1,\n        'purchase_method': 'purchase',\n        'invoice_policy': 'order',\n    }\n    if not code:\n        prefix = ''\n        c = rec.categ_id\n        while c and not prefix:\n            prefix = PREFIXES.get((c.name or '').strip(), '')\n            c = c.parent_id\n        ref = ''\n        if prefix:\n            top = 0\n            for other in Tmpl.search([('default_code', '=like', prefix + '%')]):\n                tail = (other.default_code or '')[len(prefix):]\n                if tail.isdigit() and int(tail) > top:\n                    top = int(tail)\n            ref = prefix + str(top + 1).zfill(3)\n        if ref:\n            vals['default_code'] = ref\n    rec.write(vals)\n    if not Pack.search_count([('x_product_tmpl_id', '=', rec.id)]):\n        Pack.create({'x_product_tmpl_id': rec.id, 'x_type': 'carton', 'x_approx_weight_kg': 8, 'x_is_default': True, 'x_sequence': 10})"
+    }
+  ],
+  "templates": [
+    {
+      "id": 4,
+      "x_meta_template_id": "utak_supplier_daily_ask",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "MARKETING",
+      "x_body_text": "🌅 صباح الخير،\n\nنبغى أسعار اليوم لهذي الأصناف:\n\n{{1}}\n\nرد بأسعارك (مثال: طماطم كرتون 25 ريال). شكراً 🌿"
+    },
+    {
+      "id": 5,
+      "x_meta_template_id": "utak_purchase_list_v2",
+      "x_purpose": "purchase_list",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "🌅 صباح الخير {{1}}،\n\nقائمة شراء اليوم {{2}}:\n\n{{3}}\n\nإجمالي الأصناف: {{4}}\n\nاضغط الزر لما تخلص الشراء 👇"
+    },
+    {
+      "id": 6,
+      "x_meta_template_id": "utak_v2_loading",
+      "x_purpose": "loading_done",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "تم تحميل البضاعة بنجاح\n\nعدد الأصناف: {{1}}\nعدد العملاء: {{2}}\n\nجاهز للانطلاق؟"
+    },
+    {
+      "id": 7,
+      "x_meta_template_id": "utak_driver_dispatch",
+      "x_purpose": "driver_dispatch",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "🚚 صباح الخير {{1}}،\n\nمسارك اليوم {{2}}:\n\n{{3}}\n\nإجمالي التوصيلات: {{4}}\n\nراح تجيك رسالة مستقلة لكل توصيلة، اضغط تم التسليم على كل واحدة بعد ما تخلصها."
+    },
+    {
+      "id": 8,
+      "x_meta_template_id": "utak_driver_stop",
+      "x_purpose": "driver_stop",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "📦 توصيلة #{{1}}\n\nالعميل: {{2}}\nالحي: {{3}}\nالعنوان: {{4}}\n\nالأصناف:\n{{5}}\n\nلما توصل، اضغط تم التسليم 👇"
+    },
+    {
+      "id": 9,
+      "x_meta_template_id": "utak_driver_collection",
+      "x_purpose": "driver_collection",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "مرحبا {{1}} وصلت طلبية {{2}} ولا لا؟\n\nالمبلغ المطلوب: {{3}} ريال"
+    },
+    {
+      "id": 10,
+      "x_meta_template_id": "utak_collection_request",
+      "x_purpose": "collection_request",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "💰 طلب تحصيل\n\nالعميل: {{1}}\nالحي: {{2}}\nالفاتورة: {{3}}\nالمبلغ: {{4}} ر.س\n\nاختر طريقة التحصيل 👇"
+    },
+    {
+      "id": 11,
+      "x_meta_template_id": "utak_collection_summary",
+      "x_purpose": "collection_summary",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "📋 قائمة تحصيل اليوم {{1}}:\n\n{{2}}\n\nإجمالي مطلوب: {{3}} ر.س\nعدد الفواتير: {{4}}\n\nلما تحصّل من أي عميل، افتح رسالة الفاتورة واضغط زر التحصيل."
+    },
+    {
+      "id": 12,
+      "x_meta_template_id": "utak_v2_commission",
+      "x_purpose": "commission",
+      "x_meta_status": "APPROVED",
+      "x_category": "MARKETING",
+      "x_body_text": "كشف عمولتك جاهز يا {{1}} يعطيك العافية\n\nالفترة: {{2}}\nالإجمالي: {{3}} ريال"
+    },
+    {
+      "id": 13,
+      "x_meta_template_id": "utak_v2_summary",
+      "x_purpose": "owner_summary",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "ملخص اليوم جاهز\n\nطلبات: {{1}}\nتوصيلات: {{2}}\nإجمالي: {{3}} ريال\n\nتفاصيل أكثر في لوحة القيادة."
+    },
+    {
+      "id": 14,
+      "x_meta_template_id": "utak_v2_welcome",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "MARKETING",
+      "x_body_text": "هلا والله {{1}} نورت\n\nأنا من فريق UTAK — نوصّل لك خضار وفواكه طازجة كل يوم لباب محلك.\n\nكيف نقدر نخدمك؟"
+    },
+    {
+      "id": 15,
+      "x_meta_template_id": "utak_v2_daily_remind",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "MARKETING",
+      "x_body_text": "مساء الخير {{1}} يسعد مساك\n\nقائمتك الثابتة جاهزة لبكرة. تبي نرسلها زي ما هي ولا تبي تعدّل؟"
+    },
+    {
+      "id": 16,
+      "x_meta_template_id": "utak_v2_order_confirm",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "تم استلام طلبك يا {{1}} بنجاح\n\nعدد الأصناف: {{2}}\nالتوصيل: {{3}}\n\nبنأكد لك قبل التحميل إن شاء الله."
+    },
+    {
+      "id": 17,
+      "x_meta_template_id": "utak_delivery_incoming",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "مرحبا {{1}} طلبك في الطريق\n\nالسائق: {{2}}\nالوصول المتوقع: {{3}} تقريباً"
+    },
+    {
+      "id": 18,
+      "x_meta_template_id": "utak_delivery_done",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "MARKETING",
+      "x_body_text": "تم توصيل طلبك يا {{1}} بنجاح\n\nنتمنى كل شي يعجبك. لو فيه أي ملاحظة لا تتردد!"
+    },
+    {
+      "id": 19,
+      "x_meta_template_id": "utak_invoice_customer_v2",
+      "x_purpose": "customer_invoice",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "مرحباً {{1}}،\n\n🧾 فاتورتك من UTAK\nرقم الفاتورة: {{2}}\n\n{{3}}\n\nالإجمالي: {{4}} ر.س\n\nشكراً لتعاملكم معنا 🌿"
+    },
+    {
+      "id": 20,
+      "x_meta_template_id": "utak_v2_pay_remind",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "تذكير ودي يا {{1}} الله يحفظك\n\nعندك مبلغ {{2}} ريال مستحق.\nنتمنى تسوية المبلغ في أقرب وقت عشان نقدر نستمر بالخدمة بدون انقطاع."
+    },
+    {
+      "id": 21,
+      "x_meta_template_id": "utak_v2_inactive",
+      "x_purpose": "customer_inactive",
+      "x_meta_status": "APPROVED",
+      "x_category": "MARKETING",
+      "x_body_text": "وحشتنا يا {{1}} والله\n\nصار لك فترة ما طلبت. لو تبي ترجع قائمتك أو عندك أي استفسار، حنا هنا!"
+    },
+    {
+      "id": 22,
+      "x_meta_template_id": "utak_feedback",
+      "x_purpose": "customer_feedback",
+      "x_meta_status": "APPROVED",
+      "x_category": "MARKETING",
+      "x_body_text": "مرحبا {{1}} كيف كانت تجربتك مع آخر طلب؟ رأيك يهمنا عشان نطوّر لك الخدمة"
+    },
+    {
+      "id": 23,
+      "x_meta_template_id": "utak_invoice_pdf_v1",
+      "x_purpose": "customer_invoice_pdf",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "هلا {{1}} 🌿\nفاتورتك رقم {{2}} بتاريخ {{3}}\nالإجمالي: {{4}} ريال\nالتفاصيل الكاملة بالفاتورة المرفقة.\nيعطيك العافية — UTAK 💚\nUTAK | يو تاك"
+    },
+    {
+      "id": 24,
+      "x_meta_template_id": "utak_owner_alert",
+      "x_purpose": "owner_alert",
+      "x_meta_status": "APPROVED",
+      "x_category": "MARKETING",
+      "x_body_text": "تنبيه تشغيلي من نظام يو تاك:\n{{1}}\nيرجى مراجعة التفاصيل واتخاذ الإجراء المناسب."
+    },
+    {
+      "id": 25,
+      "x_meta_template_id": "utak_shift_start",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "MARKETING",
+      "x_body_text": "مساء الخير {{1}}، مهام يو تاك لليوم جاهزة. اضغط الزر أدناه لبدء الدوام واستلام التفاصيل."
+    },
+    {
+      "id": 42,
+      "x_meta_template_id": "utak_v2_collection",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "كشف التحصيل جاهز يا {{1}} الله يوفقك\n\nعدد العملاء: {{2}}\nالمبلغ الإجمالي: {{3}} ريال"
+    },
+    {
+      "id": 43,
+      "x_meta_template_id": "utak_v2_purchase",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "صباح الخير يا {{1}} قائمتك جاهزة\n\nقائمة مشتريات اليوم:\nعدد الأصناف: {{2}}\n\nالله يعطيك العافية."
+    },
+    {
+      "id": 44,
+      "x_meta_template_id": "utak_v2_driver_route",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "صباح الخير يا {{1}} مسارك جاهز\n\nعدد التوصيلات: {{2}}\n\nالله يوفقك ويسهّل دربك."
+    },
+    {
+      "id": 45,
+      "x_meta_template_id": "hello_world",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "Hello World\nWelcome and congratulations!! This message demonstrates your ability to send a WhatsApp message notification from the Cloud API, hosted by Meta. Thank you for taking the time to test with us.\nWhatsApp Business Platform sample message"
+    },
+    {
+      "id": 46,
+      "x_meta_template_id": "utak_supplier_confirm_v1",
+      "x_purpose": "supplier_confirm",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "شكراً {{1}} 🌿\n\nاستلمنا أسعارك لـ {{2}} صنف اليوم. سنعتمدها لطلبات اليوم.\n\nلو تحتاج تعديل، اضغط \"تعديل الأسعار\" أو رد \"تعديل\"."
+    },
+    {
+      "id": 47,
+      "x_meta_template_id": "utak_po_confirmed",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "لديك طلب شراء جديد من يو تاك رقم {{1}}. البنود المطلوبة: {{2}}. موعد الاستلام {{3}}. نرجو التأكيد باختيار أحد الأزرار أدناه"
+    },
+    {
+      "id": 48,
+      "x_meta_template_id": "utak_supplier_price_nudge",
+      "x_purpose": "supplier_price_nudge",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "أهلاً {{1}}، لم تصلنا أسعارك اليوم بعد. نحتاجها قبل الساعة {{2}} لو سمحت"
+    },
+    {
+      "id": 49,
+      "x_meta_template_id": "utak_quality_issue",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "MARKETING",
+      "x_body_text": "ملاحظة جودة على توريد {{1}}: {{2}}. نحتاج نتفق على المعالجة"
+    },
+    {
+      "id": 50,
+      "x_meta_template_id": "utak_po_changed",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "تعديل على طلب الشراء رقم {{1}}: {{2}}. نرجو التأكيد"
+    },
+    {
+      "id": 51,
+      "x_meta_template_id": "utak_reactivate",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "MARKETING",
+      "x_body_text": "اشتقنا لك {{1}}! عندنا اليوم {{2}}. اطلب الآن ويوصلك بكرة"
+    },
+    {
+      "id": 52,
+      "x_meta_template_id": "utak_service_notice",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "MARKETING",
+      "x_body_text": "تنبيه: {{1}} بتاريخ {{2}}. نعتذر عن أي إزعاج"
+    },
+    {
+      "id": 53,
+      "x_meta_template_id": "utak_welcome",
+      "x_purpose": "customer_welcome",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "أهلاً {{1}}، تم تفعيل حسابك في يو تاك. اطلب مباشرة من هنا، وآخر موعد للطلب يومياً الساعة {{2}}. حياك"
+    },
+    {
+      "id": 54,
+      "x_meta_template_id": "utak_complaint_resolved",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "تمت معالجة ملاحظتك على طلب رقم {{1}}: {{2}}. نشكرك على إبلاغنا"
+    },
+    {
+      "id": 55,
+      "x_meta_template_id": "utak_complaint_received",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "استلمنا ملاحظتك على طلب رقم {{1}}، وسنعود لك خلال {{2}}. يو تاك"
+    },
+    {
+      "id": 56,
+      "x_meta_template_id": "utak_payment_received",
+      "x_purpose": "customer_payment_received",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "استلمنا دفعتك بمبلغ {{1}} ريال على فاتورة {{2}}. شكراً لك"
+    },
+    {
+      "id": 57,
+      "x_meta_template_id": "utak_payment_reminder",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "تذكير ودي: فاتورة رقم {{1}} بمبلغ {{2}} ريال مستحقة بتاريخ {{3}}. شاكرين تعاونك"
+    },
+    {
+      "id": 58,
+      "x_meta_template_id": "utak_invoice_ready",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "فاتورة طلبك رقم {{1}} بمبلغ {{2}} ريال، وتاريخ الاستحقاق {{3}}. شكراً لتعاملك مع يو تاك"
+    },
+    {
+      "id": 59,
+      "x_meta_template_id": "utak_order_cutoff",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "MARKETING",
+      "x_body_text": "تذكير: آخر موعد لطلبات الغد الساعة {{1}}. أرسل طلبك الآن لضمان التوصيل"
+    },
+    {
+      "id": 60,
+      "x_meta_template_id": "utak_delivered",
+      "x_purpose": "customer_delivery_done",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "تم تسليم طلبك رقم {{1}}. إذا فيه أي ملاحظة على الجودة رد علينا خلال اليوم"
+    },
+    {
+      "id": 61,
+      "x_meta_template_id": "utak_out_for_delivery",
+      "x_purpose": "customer_delivery_incoming",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "طلبك رقم {{1}} في الطريق إليك الآن مع {{2}}. يو تاك"
+    },
+    {
+      "id": 62,
+      "x_meta_template_id": "utak_delivery_delay",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "نعتذر عن تأخر طلبك رقم {{1}}، والوصول المتوقع {{2}}. نقدّر صبرك"
+    },
+    {
+      "id": 63,
+      "x_meta_template_id": "utak_item_shortage",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "نعتذر، الصنف {{1}} غير متوفر اليوم في طلبك رقم {{2}}. البديل المقترح: {{3}}. اختر من الأزرار أدناه"
+    },
+    {
+      "id": 64,
+      "x_meta_template_id": "utak_order_update",
+      "x_purpose": "customer_order_update",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "تحديث على طلبك رقم {{1}}: {{2}}. لأي استفسار رد على هذه الرسالة"
+    },
+    {
+      "id": 65,
+      "x_meta_template_id": "utak_order_confirmed",
+      "x_purpose": "customer_order_confirm",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "تم تأكيد طلبك رقم {{1}}، والتوصيل {{2}}. شكراً لاختيارك يو تاك"
+    },
+    {
+      "id": 66,
+      "x_meta_template_id": "utak_followup_supplier",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "MARKETING",
+      "x_body_text": "السلام عليكم {{1}}، نحتاج نتواصل معك بخصوص {{2}}. نرجو الرد على هذه الرسالة. يو تاك"
+    },
+    {
+      "id": 67,
+      "x_meta_template_id": "utak_followup_customer",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "MARKETING",
+      "x_body_text": "مرحباً {{1}}، لدينا تحديث بخصوص {{2}}. نرجو الرد على هذه الرسالة لنكمل معك. فريق يو تاك"
+    },
+    {
+      "id": 68,
+      "x_meta_template_id": "utak_po_quality_issue",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "لدينا ملاحظة جودة على طلب الشراء رقم {{1}} المورَّد إلى يو تاك، والتفاصيل: {{2}}. نحتاج نتفق معك على طريقة المعالجة"
+    },
+    {
+      "id": 69,
+      "x_meta_template_id": "utak_order_service_notice",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "تنبيه بخصوص توصيل طلبك رقم {{1}} لدى يو تاك: {{2}}. نعتذر عن أي إزعاج، ونحن متاحون للرد على أي استفسار"
+    },
+    {
+      "id": 70,
+      "x_meta_template_id": "utak_followup_po",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "السلام عليكم {{1}}، لدينا تحديث بخصوص طلب الشراء رقم {{2}} من يو تاك. نرجو الرد على هذه الرسالة حتى نكمل معك التفاصيل. شكراً لك"
+    },
+    {
+      "id": 71,
+      "x_meta_template_id": "utak_followup_order",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "مرحباً {{1}}، لدينا تحديث بخصوص طلبك رقم {{2}} لدى يو تاك. نرجو الرد على هذه الرسالة حتى نكمل معك التفاصيل. شكراً لك"
+    },
+    {
+      "id": 72,
+      "x_meta_template_id": "utak_supplier_ask_v2",
+      "x_purpose": "supplier_ask",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "صباح الخير {{1}}، معك يو تاك. نحتاج أسعارك اليوم لهالأصناف: {{2}}. يا ليت ترد بسعر كل صنف وتعبئته (مثال: طماطم كرتون 25 ريال)، والله يعطيك العافية."
+    },
+    {
+      "id": 73,
+      "x_meta_template_id": "utak_owner_alert_v2",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "MARKETING",
+      "x_body_text": "تنبيه تشغيلي من نظام يو تاك: {{1}} — يرجى مراجعة التفاصيل واتخاذ الإجراء المناسب."
+    },
+    {
+      "id": 74,
+      "x_meta_template_id": "utak_shift_start_v2",
+      "x_purpose": "team_shift_start",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "مرحباً {{1}}، مهامك في يو تاك لهذا اليوم جاهزة. اضغط زر «بدء الدوام» أدناه لاستلام التفاصيل والمواقع."
+    },
+    {
+      "id": 75,
+      "x_meta_template_id": "utak_standing_remind_v2",
+      "x_purpose": "customer_daily_remind",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "مساء الخير {{1}}، قائمتك الثابتة عند يو تاك جاهزة لطلب بكرة. تحب نرسلها مثل ما هي، أو تعدّل عليها؟"
+    },
+    {
+      "id": 76,
+      "x_meta_template_id": "utak_pay_remind_v3",
+      "x_purpose": "customer_pay_remind",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "تذكير من يو تاك: عزيزنا {{1}}، يوجد على حسابكم مبلغ مستحق قدره {{2}} ريال. نأمل التكرم بسداده في أقرب وقت، ولأي استفسار يسعدنا ردكم على هذه الرسالة."
+    },
+    {
+      "id": 77,
+      "x_meta_template_id": "utak_quotation_pdf_v1",
+      "x_purpose": "customer_quotation_pdf",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "مرحباً {{1}}، مرفق عرض السعر رقم {{2}} من يو تاك بتاريخ {{3}}، بإجمالي {{4}} ريال. الأسعار سارية حتى موعد إقفال الطلبات في يوم الإصدار، ولأي استفسار يسعدنا ردكم على هذه الرسالة."
+    },
+    {
+      "id": 78,
+      "x_meta_template_id": "utak_order_confirm_remind_v1",
+      "x_purpose": "customer_order_remind",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "تذكير من يو تاك: طلبك رقم {{1}} لسه ما تأكد، ويُلغى تلقائياً الساعة {{2}}. اضغط «تأكيد الطلب» عشان يدخل طلبات اليوم، أو «إلغاء» لو ما تحتاجه."
+    },
+    {
+      "id": 79,
+      "x_meta_template_id": "utak_purchase_list_remind_v1",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "MARKETING",
+      "x_body_text": "تذكير من يو تاك: قائمة شراء يوم {{1}} لم يُضغط فيها على «تم الشراء» حتى الآن، وعدد أصنافها {{2}}. يرجى الضغط على الزر أدناه بعد إتمام الشراء، أو الرد على هذه الرسالة إن وُجدت مشكلة."
+    },
+    {
+      "id": 80,
+      "x_meta_template_id": "utak_owner_alert_v3",
+      "x_purpose": "other",
+      "x_meta_status": "REJECTED",
+      "x_category": "UTILITY",
+      "x_body_text": "إشعار آلي من نظام يو تاك بشأن عمليات حسابك، سُجّل بتاريخ {{1}}: {{2}}. يصلك هذا الإشعار بصفتك مالك الحساب، وتفاصيله محفوظة في سجل النظام."
+    },
+    {
+      "id": 81,
+      "x_meta_template_id": "utak_purchase_list_remind_v2",
+      "x_purpose": "purchase_list_remind",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "تحديث حالة مهمة في يو تاك: قائمة الشراء رقم {{1}} المسندة إليك ليوم {{2}}، وعدد أصنافها {{3}}، حالتها الآن «بانتظار التأكيد». عند إنجاز المهمة اضغط «تم الشراء» لتحديث حالتها، أو رد على هذه الرسالة إن وُجدت مشكلة في التنفيذ."
+    },
+    {
+      "id": 82,
+      "x_meta_template_id": "utak_update_customer",
+      "x_purpose": "conv_open_customer",
+      "x_meta_status": "APPROVED",
+      "x_category": "MARKETING",
+      "x_body_text": "يوجد تحديث على حسابك لدى يو تاك رقم {{1}}: {{2}}. اضغط «عرض التحديث» للتفاصيل."
+    },
+    {
+      "id": 83,
+      "x_meta_template_id": "utak_update_team",
+      "x_purpose": "conv_open_team",
+      "x_meta_status": "APPROVED",
+      "x_category": "MARKETING",
+      "x_body_text": "يوجد تحديث على مهامك في وردية {{1}}: {{2}}. اضغط «عرض التحديث» للتفاصيل."
+    },
+    {
+      "id": 84,
+      "x_meta_template_id": "utak_update_supplier",
+      "x_purpose": "conv_open_supplier",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "يوجد تحديث على طلب التوريد بتاريخ {{1}}: {{2}}. اضغط «عرض التحديث» للتفاصيل."
+    },
+    {
+      "id": 85,
+      "x_meta_template_id": "utak_update_owner",
+      "x_purpose": "conv_open_owner",
+      "x_meta_status": "APPROVED",
+      "x_category": "MARKETING",
+      "x_body_text": "يوجد تحديث تشغيلي على حساب يو تاك بتاريخ {{1}}: {{2}}. اضغط «عرض التحديث» للتفاصيل."
+    },
+    {
+      "id": 86,
+      "x_meta_template_id": "utak_supplier_payment_sent",
+      "x_purpose": "supplier_payment_sent",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "تم تسجيل دفعة لك من يو تاك بمبلغ {{1}} ر.س بتاريخ {{2}}، رقم المرجع {{3}}. الرصيد المتبقي لك: {{4}} ر.س."
+    },
+    {
+      "id": 87,
+      "x_meta_template_id": "utak_owner_daily_summary_v1",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "UTILITY",
+      "x_body_text": "ملخص عمليات يو تاك ليوم {{1}}\n\nطلبات: {{2}}\nتوصيلات: {{3}}\nإجمالي: {{4}} ريال\n\nتفاصيل أكثر في لوحة القيادة."
+    },
+    {
+      "id": 88,
+      "x_meta_template_id": "utak_owner_price_review_v1",
+      "x_purpose": "other",
+      "x_meta_status": "APPROVED",
+      "x_category": "MARKETING",
+      "x_body_text": "أسعار يو تاك ليوم {{1}}: {{2}} صنف بانتظار قرارك قبل 06:00."
+    }
+  ],
+  "templatesInclusive": []
+}

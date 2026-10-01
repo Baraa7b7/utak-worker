@@ -44,7 +44,10 @@ export interface PurchaseOrderPDFData {
     phone: string;
   };
   items: PurchaseOrderItem[];
+  /** The lines' total at the agreed prices: net of VAT (§ 47 أ). */
   subtotal: number;
+  /** § 47 أ — the 15 % added for a registered supplier (0 / absent = none): grandTotal = subtotal + tax. */
+  tax?: number;
   grandTotal: number;
   // Doc-level language. purchase.order has no Studio x_doc_lang field; the
   // dispatcher fills this from the supplier's res.partner.x_doc_lang (with
@@ -105,16 +108,22 @@ export function renderPurchaseOrderBodyHTML(
     </table>`;
 }
 
-// ---- Totals: subtotal + total (no VAT, no discount) ----
+// ---- Totals: subtotal + total (no discount); § 47 أ — the agreed prices are
+// net of VAT, so a registered supplier's 15 % shows as its own row between them ----
 export function renderPurchaseOrderTotalsHTML(
   subtotal: number,
   grandTotal: number,
   lang: DocLang = "ar",
+  tax = 0,
 ): string {
-  const L = (key: "subtotal" | "grandTotal") => (lang === "en" ? UI[key].en : UI[key].ar);
+  const L = (key: "subtotal" | "grandTotal" | "vat15") => (lang === "en" ? UI[key].en : UI[key].ar);
+  const taxRow = tax > 0.005
+    ? `
+        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>${escapeHTML(L("vat15"))}</span><span style="direction: ltr;">${formatMoney(tax, lang)}</span></div>`
+    : "";
   return `<div style="position: relative; display: flex; justify-content: flex-end;">
       <div style="width: 40%; display: flex; flex-direction: column; gap: 9px;">
-        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>${escapeHTML(L("subtotal"))}</span><span style="direction: ltr;">${formatMoney(subtotal, lang)}</span></div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>${escapeHTML(L("subtotal"))}</span><span style="direction: ltr;">${formatMoney(subtotal, lang)}</span></div>${taxRow}
         <div style="height: 6px;"></div>
         <div style="height: 0; border-top: 0.5px solid ${BRAND_COLORS.borderStrong};"></div>
         <div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 8px;"><span style="font-size: 12px; font-weight: 500; color: ${BRAND_COLORS.ink};">${escapeHTML(L("grandTotal"))}</span><span style="font-size: 20px; font-weight: 500; color: ${BRAND_COLORS.primary}; direction: ltr;">${formatMoney(grandTotal, lang)}</span></div>
@@ -141,7 +150,7 @@ export function renderPurchaseOrderHTML(data: PurchaseOrderPDFData, company?: Co
     billTo: supplierAsBillTo,
     from: data.lang ? fromPartyFor(lang, company) : undefined,
     bodyHTML: renderPurchaseOrderBodyHTML(data.items, pageMetrics, lang),
-    totalsHTML: renderPurchaseOrderTotalsHTML(data.subtotal, data.grandTotal, lang),
+    totalsHTML: renderPurchaseOrderTotalsHTML(data.subtotal, data.grandTotal, lang, data.tax ?? 0),
     footerNote: lang === "en" ? UI.poNote.en : PO_FOOTER,
     showZatcaQR: false,
     legalFooterBar,
@@ -292,12 +301,13 @@ export async function buildPurchaseOrderPDFDataFromPurchaseOrder(
     partner_id: [number, string] | false;
     order_line: number[];
     amount_untaxed: number;
+    amount_tax?: number;
     amount_total: number;
     state?: string;
   };
   const heads = await call<POHead[]>(env, "purchase.order", "read", {
     ids: [purchaseOrderId],
-    fields: ["id","name","date_order","partner_id","order_line","amount_untaxed","amount_total","state"],
+    fields: ["id","name","date_order","partner_id","order_line","amount_untaxed","amount_tax","amount_total","state"],
   });
   const head = heads[0];
   if (!head) return null;
@@ -375,6 +385,8 @@ export async function buildPurchaseOrderPDFDataFromPurchaseOrder(
     },
     items,
     subtotal,
+    // § 47 أ — price_unit is net: Odoo's tax (a registered supplier's 15 %) is added on top
+    tax: round2(Number(head.amount_tax) || 0),
     grandTotal: head.amount_total || subtotal,
     // Confirmed purchase order = issued; an RFQ (draft / sent) stays unsealed.
     issued: head.state === "purchase" || head.state === "done",

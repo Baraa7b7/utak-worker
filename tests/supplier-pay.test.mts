@@ -60,7 +60,7 @@ const FX = [
   // STATUS § 41 — x_utak_simulation on the per-day models (the dues' x_daily_price read)
   "./fixtures-odoo-fields-20260926-s41.json",
   "./fixtures-odoo-fields-20260928-s44.json", // § 44: x_vat_status / x_legal_name / x_vat_ask_count on res.partner (the invoice reads them), the purchase side (last: it wins)
-  "./fixtures-odoo-fields-20261001-s46.json", // § 46: the pricing board's fields on x_price_day / x_price_day_line, x_expected_cartons, product.template.x_utak_new (last: it wins)
+  "./fixtures-odoo-fields-20261001-s47.json", // § 46 + § 47: the pricing board's fields on x_price_day / x_price_day_line, x_expected_cartons, product.template.x_utak_new, x_min_margin_pct, x_break_even / x_suggested_price, x_decision «profit» (last: it wins)
 ].map(load);
 const REAL: Record<string, string[]> = Object.assign({}, ...FX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FX.map((f) => f._selections));

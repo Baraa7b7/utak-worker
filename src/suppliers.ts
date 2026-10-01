@@ -475,7 +475,8 @@ const SUPPLIER_CONFIRM_BUTTONS = [
   { index: 1, payload: SUPPLIER_BUTTON.stop },
   { index: 2, payload: SUPPLIER_BUTTON.thanks },
 ];
-export const SUPPLIER_EDIT_TEXT = "تمام، أرسل الأسعار المعدلة بنفس الصيغة (الصنف، التعبئة، السعر)، ونعتمد الأحدث.";
+// § 47 أ — every purchase price is entered net of VAT: a free text that asks for prices says so.
+export const SUPPLIER_EDIT_TEXT = "تمام، أرسل الأسعار المعدلة بنفس الصيغة (الصنف، التعبئة، السعر بدون ضريبة)، ونعتمد الأحدث.";
 export const SUPPLIER_STOP_TEXT = "تمام، سجّلنا توقفك اليوم. الله يعطيك العافية.";
 export type SupplierButton = "edit" | "stop" | "thanks";
 
@@ -527,6 +528,10 @@ export async function handleSupplierButton(
 // 2026-09-25 (م5) — a supplier who has not sent prices
 // ============================================================
 
+/** § 47 أ — the 05:00 reminder as text (inside the supplier's window): the prices asked for are net of VAT. */
+export const supplierNudgeText = (needBy: string): string =>
+  `تذكير من يو تاك: ما وصلتنا أسعارك اليوم للحين، نحتاجها قبل الساعة ${needBy} لو سمحت (الأسعار بدون ضريبة).`;
+
 /** Today's (Riyadh) ask logs still waiting for a reply. «no_reply» = the ask never reached him (ت13). */
 async function silentAskLogs(env: Env): Promise<SupplierLogRow[]> {
   const hours = riyadhMinutes() / 60 + 0.1;
@@ -561,7 +566,7 @@ export async function nudgeLateSuppliers(env: Env): Promise<{ nudged: number; sk
       // STATUS § 33 — the approved template, else the same reminder as text
       // inside the supplier's window (held for it otherwise, until the day ends).
       const r = await sendTemplateByPurpose(env, p.x_whatsapp_number, TMPL_SUPPLIER_PRICE_NUDGE, [name, needBy], [], undefined,
-        { fallback: [textContent(`تذكير من يو تاك: ما وصلتنا أسعارك اليوم للحين، نحتاجها قبل الساعة ${needBy} لو سمحت.`)] });
+        { fallback: [textContent(supplierNudgeText(needBy))] });
       const d = gatewayDecision(r);
       if (d?.action === "template" || d?.action === "session") nudged++;
       else {

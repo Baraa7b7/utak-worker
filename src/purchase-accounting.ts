@@ -17,9 +17,14 @@
 //
 // Tax (decisions 2026-09-23): bill date (Riyadh) before VAT_EFFECTIVE_DATE →
 // no tax whatever the supplier. From the cutoff: supplier with res.partner.vat
-// → the paid price includes 15% and is split (115 → 100 + 15 VAT input);
-// supplier without vat → no tax at all. The tax is the price-included twin of
-// res.company.account_purchase_tax_id, found live in Odoo (never hard-coded).
+// → 15% VAT input; supplier without vat → no tax at all.
+// § 47 أ (2026-10-01) — THE PURCHASE PRICE IS NET OF VAT: price_unit is the
+// price as entered, and a registered supplier's 15% is ADDED on top of it
+// (22 → 22 + 3.30 = 25.30 on the bill); an unregistered one's bill is the
+// price itself (22). The tax is res.company.account_purchase_tax_id, read
+// live in Odoo (never hard-coded), and it must be price-EXCLUDED: a
+// price-included tax (the «15% شامل (مشتريات)» twin used before § 47) would
+// split the net price instead of adding to it, and is refused.
 //
 // § 44 هـ (2026-09-28) — ONE VENDOR BILL PER SUPPLIER. A list whose items
 // came from more than one supplier (Ahmed, and «مشتريات السوق النقدية» #104
@@ -45,7 +50,7 @@
 // Guard on the posted bill: expense debited (expense_direct_cost / expense),
 // payable credited (liability_payable), a debited tax line only when the
 // supplier is registered and the date is past the cutoff, balanced, total =
-// paid amount. Any failure → bill and PO cancelled, owner alerted
+// what is owed (the net amount, plus the tax when there is one). Any failure → bill and PO cancelled, owner alerted
 // (T.OWNER_ALERT) with the list number and reason, nothing linked. The
 // x_purchase_list flow and WhatsApp never stop. NEVER throws.
 
@@ -56,7 +61,6 @@ import { call } from "./odoo";
 import { sendOwnerAlert } from "./templates";
 import { findCashMarketSupplier, winnerKey, type MarketWinners } from "./cash-market";
 import {
-  computeInclusiveTotals,
   isAccountingSyncEnabled,
   roundHalala,
   todayRiyadhYmd,
@@ -144,38 +148,53 @@ export interface PurchaseTax {
 }
 
 /**
- * The price-INCLUDED purchase tax: the company's account_purchase_tax_id if
- * it is already included, otherwise its included twin (same rate, same tax
- * group, price_include_override = tax_included — created by
- * scripts/acct-20260923-purchase-setup.mjs). Throws when neither is usable.
+ * § 47 أ — the purchase tax that is ADDED on a net price: the company's
+ * account_purchase_tax_id, which must be an active percent purchase tax and
+ * price-EXCLUDED. Throws otherwise (a price-included tax would split the net
+ * price: 22 → 19.13 + 2.87, not 22 + 3.30).
  */
-export async function resolveCompanyPurchaseTaxIncluded(env: Env): Promise<PurchaseTax> {
+export async function resolveCompanyPurchaseTaxExcluded(env: Env): Promise<PurchaseTax> {
   type Co = { id: number; account_purchase_tax_id: [number, string] | false };
   const [co] = await call<Co[]>(env, "res.company", "read", { ids: [1], fields: ["id", "account_purchase_tax_id"] });
   if (!co?.account_purchase_tax_id) throw new Error("res.company.account_purchase_tax_id فارغ — ضريبة الشراء غير مضبوطة");
-  type Tax = {
-    id: number; amount: number; amount_type: string; type_tax_use: string;
-    price_include: boolean; active: boolean; tax_group_id: [number, string] | false;
-  };
-  const fields = ["id", "amount", "amount_type", "type_tax_use", "price_include", "active", "tax_group_id"];
-  const [base] = await call<Tax[]>(env, "account.tax", "read", { ids: [co.account_purchase_tax_id[0]], fields });
+  type Tax = { id: number; amount: number; amount_type: string; type_tax_use: string; price_include: boolean; active: boolean };
+  const [base] = await call<Tax[]>(env, "account.tax", "read", {
+    ids: [co.account_purchase_tax_id[0]],
+    fields: ["id", "amount", "amount_type", "type_tax_use", "price_include", "active"],
+  });
   if (!base || !base.active || base.type_tax_use !== "purchase" || base.amount_type !== "percent" || !(base.amount > 0)) {
     throw new Error(`ضريبة الشراء ${co.account_purchase_tax_id[0]} غير صالحة`);
   }
-  if (base.price_include) return { id: base.id, rate: base.amount };
-  const domain: unknown[] = [
-    ["type_tax_use", "=", "purchase"],
-    ["amount_type", "=", "percent"],
-    ["amount", "=", base.amount],
-    ["price_include_override", "=", "tax_included"],
-    ["active", "=", true],
-  ];
-  if (base.tax_group_id) domain.push(["tax_group_id", "=", base.tax_group_id[0]]);
-  const [twin] = await call<Tax[]>(env, "account.tax", "search_read", { domain, fields, order: "id", limit: 1 });
-  if (!twin || !twin.price_include) {
-    throw new Error(`لا توجد ضريبة شراء ${base.amount}% شاملة في السعر (شغّل scripts/acct-20260923-purchase-setup.mjs)`);
+  if (base.price_include) {
+    throw new Error(`ضريبة الشراء ${base.id} شاملة في السعر (price_include=true) — سعر الشراء يُدخَل بدون ضريبة، والمطلوب ضريبة تُضاف على السعر`);
   }
-  return { id: twin.id, rate: twin.amount };
+  return { id: base.id, rate: base.amount };
+}
+
+export interface NetTotals {
+  /** Total before tax (sum of the lines' net amounts). */
+  subtotal: number;
+  /** Sum of the per-line taxes. */
+  tax: number;
+  /** What is owed: subtotal + tax. */
+  total: number;
+  lines: Array<{ net: number; tax: number; gross: number }>;
+}
+
+/**
+ * § 47 أ — the totals of net (tax-excluded) line amounts: per line the tax =
+ * round(net × rate ÷ 100), then summed (round_per_line — the rule configured
+ * on the company). `ratePct` null/0 = no VAT: total = subtotal. 22 → 22 +
+ * 3.30 = 25.30.
+ */
+export function computeNetTotals(lineNets: number[], ratePct: number | null): NetTotals {
+  const lines = lineNets.map((n) => {
+    const net = roundHalala(n);
+    const tax = ratePct ? roundHalala((net * ratePct) / 100) : 0;
+    return { net, tax, gross: roundHalala(net + tax) };
+  });
+  const sum = (k: "net" | "tax" | "gross") => roundHalala(lines.reduce((a, l) => a + l[k], 0));
+  return { subtotal: sum("net"), tax: sum("tax"), total: sum("gross"), lines };
 }
 
 /** null = no tax (before the cutoff, or supplier not VAT-registered). */
@@ -185,7 +204,7 @@ export async function resolvePurchaseTaxForBill(
 ): Promise<PurchaseTax | null> {
   if (!isVatApplicable(a.billDate, a.vatEffectiveDate)) return null;
   if (!supplierIsVatRegistered(a.supplierVat)) return null;
-  return resolveCompanyPurchaseTaxIncluded(env);
+  return resolveCompanyPurchaseTaxExcluded(env);
 }
 
 /** x_aggregated_items JSON → items. Throws on malformed JSON. */
@@ -210,7 +229,7 @@ export function validatePurchaseItems(items: PurchaseListItem[]): string[] {
   return reasons;
 }
 
-/** order_line commands; every line pins tax_ids (empty = no tax). */
+/** order_line commands; price_unit is the net price as entered (§ 47 أ), and every line pins tax_ids (empty = no tax). */
 export function buildPurchaseOrderLineCommands(
   items: PurchaseListItem[],
   productId: number,
@@ -232,7 +251,7 @@ export interface VendorBillTaxExpectation {
   expectTax: boolean;
   expectedTax: number;
   amountTax: number;
-  /** What was paid (sum of unit_price × qty). */
+  /** What is owed: Σ unit_price × qty (net), plus the tax when one is expected (§ 47 أ). */
   expectedTotal: number;
   amountTotal: number;
 }
@@ -242,7 +261,7 @@ const COST_TYPES: ReadonlySet<string> = new Set(["expense_direct_cost", "expense
 /**
  * Vendor bill: posted in_invoice; cost debited on expense_direct_cost /
  * expense; payable credited on liability_payable; a debited tax line only
- * when expected (amount = per-line split); balanced; total = paid amount.
+ * when expected (amount = the per-line tax added on the net); balanced; total = what is owed.
  * Any other line (income, receivable, a credited cost …) is refused.
  */
 export function evaluateVendorBillGuard(f: {
@@ -284,7 +303,7 @@ export function evaluateVendorBillGuard(f: {
   const c = roundHalala(f.lines.reduce((a, l) => a + l.credit, 0));
   if (Math.abs(d - c) > 0.005) reasons.push(`القيد غير متوازن: مدين ${d} ≠ دائن ${c}`);
   if (Math.abs(f.tax.amountTotal - f.tax.expectedTotal) > 0.005) {
-    reasons.push(`إجمالي الفاتورة ${f.tax.amountTotal} ≠ المدفوع ${f.tax.expectedTotal}`);
+    reasons.push(`إجمالي الفاتورة ${f.tax.amountTotal} ≠ المستحق ${f.tax.expectedTotal}`);
   }
   return { ok: reasons.length === 0, reasons };
 }
@@ -481,7 +500,8 @@ async function syncOneSupplierBill(
     const tax = await resolvePurchaseTaxForBill(env, {
       supplierVat: supplier?.vat, billDate, vatEffectiveDate: opts.vatEffectiveDate,
     });
-    const expected = computeInclusiveTotals(
+    // § 47 أ — unit_price is net: the registered supplier's tax is added on top
+    const expected = computeNetTotals(
       b.items.map((it) => (it.unit_price as number) * it.total_quantity),
       tax?.rate ?? null,
     );

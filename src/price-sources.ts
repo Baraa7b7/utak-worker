@@ -47,7 +47,7 @@ const SIM_FIELD = "x_utak_simulation";
 const MARKER_TTL = 12 * 60 * 60;
 
 export const marketAskText = (name: string): string =>
-  `صباح الخير ${String(name || "").split(" ")[0]} 🌿 أرسل أسعار السوق اليوم لو سمحت: الصنف والتعبئة والسعر لكل صنف. ولو معك سعر شراء اكتب «شراء» جنب رقمه.`;
+  `صباح الخير ${String(name || "").split(" ")[0]} 🌿 أرسل أسعار السوق اليوم لو سمحت: الصنف والتعبئة والسعر لكل صنف. ولو معك سعر شراء اكتب «شراء» جنب رقمه، وسعر الشراء بدون ضريبة.`;
 export const marketAckText = (n: number): string => `وصلتنا أسعار السوق (${n} صنف) 🌿 الله يعطيك العافية.`;
 /** § 41 و (the live run) — the items whose offer Odoo did not take: named, to be sent again. */
 export const marketUnsavedText = (names: string[], none = false): string =>
@@ -248,9 +248,11 @@ export async function saveOffer(env: Env, o: OfferWrite, day: string = riyadhDat
 
 /**
  * § 41 أ — «مسجل في الضريبة» (x_vat_registered, default true) on the partner
- * and on the employee: a registered source's purchase price carries VAT the
- * business recovers, so from the cutoff the whole unit profit is divided by
- * 1.15; an unregistered one's is not (only the sale price is).
+ * and on the employee. § 47 أ — it no longer changes any number: every
+ * purchase price is net of VAT whoever the source, so the profit never
+ * divides a purchase by 1.15. The field stays in Odoo and is still read here;
+ * a supplier's 15 % on his bill follows the VAT number on his card
+ * (src/purchase-accounting.ts).
  */
 export const VAT_REGISTERED_FIELD = "x_vat_registered";
 
@@ -263,7 +265,7 @@ export interface PriceSources {
   partnerIds: Set<number>;
 }
 
-/** § 41 أ — the source an offer's partner belongs to is registered for VAT (a partner that is not a source: the field's default, true). */
+/** § 41 أ — the source an offer's partner belongs to is registered for VAT (a partner that is not a source: the field's default, true). § 47 أ: read by no rule. */
 export function isSourceVatRegistered(sources: PriceSources, partnerId: number): boolean {
   const p = sources.partners.find((x) => x.partnerId === partnerId);
   if (p) return p.vatRegistered;

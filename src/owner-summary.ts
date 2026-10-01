@@ -175,10 +175,10 @@ async function pendingUpTo(env: Env, day: string): Promise<number> {
  * purchase) × qty − their invoices' discounts. Null when a line has no sale
  * price or no purchase price of its day (never a partial sum).
  * § 41 أ — `vatRatePct` (15 when the summary day is from the cutoff: the
- * deliveries are invoiced today, VAT-inclusive): net of VAT, per line by the
- * source that won its purchase (registered: ÷ 1.15; else sale ÷ 1.15 −
- * purchase − waste), each invoice's discount (VAT-inclusive: the lines'
- * total − the invoice's total) taken off before the division.
+ * deliveries are invoiced today, VAT-inclusive): net of VAT — § 47 أ: the
+ * purchase price is net whoever the source, so sale ÷ 1.15 − purchase −
+ * waste — each invoice's discount (VAT-inclusive: the lines' total − the
+ * invoice's total) taken off before the division.
  */
 async function deliveredProfit(env: Env, orderDay: string, vatRatePct: number | null = null): Promise<number> {
   const orders = await ordersOf(env, orderDay, [...DELIVERED_STATES]);
@@ -189,20 +189,14 @@ async function deliveredProfit(env: Env, orderDay: string, vatRatePct: number | 
     fields: ["x_order_id", "x_product_tmpl_id", "x_packaging_id", "x_quantity", "x_status", "x_unit_price", "x_price_unit_manual"],
     limit: 10000,
   });
-  const costs = await call<Array<{ x_product_tmpl_id: M2O; x_packaging_id: M2O; x_cost_price: number | false; x_supplier_id: M2O }>>(env, "x_price_day_line", "search_read", {
+  const costs = await call<Array<{ x_product_tmpl_id: M2O; x_packaging_id: M2O; x_cost_price: number | false }>>(env, "x_price_day_line", "search_read", {
     domain: [["x_day_id.x_date", "=", orderDay], ["x_day_id.x_utak_simulation", "!=", true], ["x_cost_price", ">", 0]],
-    fields: ["x_product_tmpl_id", "x_packaging_id", "x_cost_price", "x_supplier_id"],
+    fields: ["x_product_tmpl_id", "x_packaging_id", "x_cost_price"],
     limit: 2000,
   });
-  const cost = new Map(costs.map((c) => [`${m2oId(c.x_product_tmpl_id)}:${m2oId(c.x_packaging_id)}`, { price: Number(c.x_cost_price) || 0, source: m2oId(c.x_supplier_id) }]));
+  const cost = new Map(costs.map((c) => [`${m2oId(c.x_product_tmpl_id)}:${m2oId(c.x_packaging_id)}`, Number(c.x_cost_price) || 0]));
   const waste = (await readPricingSettings(env, orderDay))?.wastePct;
   if (waste === undefined) throw new Error(`no pricing settings on ${orderDay}`);
-  let registered: (pid: number) => boolean = () => true;
-  if (vatRatePct) {
-    const { isSourceVatRegistered, loadPriceSources } = await import("./price-sources");
-    const sources = await loadPriceSources(env);
-    registered = (pid) => isSourceVatRegistered(sources, pid);
-  }
   const { vatProfit } = await import("./pricing-engine");
   let profit = 0;
   const grossByOrder = new Map<number, number>();
@@ -211,9 +205,9 @@ async function deliveredProfit(env: Env, orderDay: string, vatRatePct: number | 
     const sale = Number(l.x_price_unit_manual) > 0 ? Number(l.x_price_unit_manual) : Number(l.x_unit_price) || 0;
     const buy = cost.get(`${m2oId(l.x_product_tmpl_id)}:${m2oId(l.x_packaging_id)}`);
     if (!(sale > 0)) throw new Error("a delivered line without a sale price");
-    if (!(buy && buy.price > 0)) throw new Error("a delivered line without its day's purchase price");
+    if (!(buy && buy > 0)) throw new Error("a delivered line without its day's purchase price");
     const qty = Number(l.x_quantity) || 0;
-    profit += vatProfit(sale, buy.price, waste, vatRatePct, registered(buy.source)) * qty;
+    profit += vatProfit(sale, buy, waste, vatRatePct) * qty;
     grossByOrder.set(m2oId(l.x_order_id), (grossByOrder.get(m2oId(l.x_order_id)) ?? 0) + round2(sale * qty));
   }
   const invs = await call<Array<{ id: number; x_order_id: M2O; x_subtotal: number | false; x_tax_amount: number | false; x_total: number }>>(env, "x_invoice", "search_read", {

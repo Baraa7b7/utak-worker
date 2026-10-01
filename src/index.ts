@@ -2530,8 +2530,9 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           // opened his window and the flush above sent what was held; one line, nothing else.
           const r = ownerWindowButtonReply(msg.buttonId!, flushed?.sent ?? 0);
           if (r) await sendText(env, msg.from, r, { ctx, purpose: "owner_alert" });
-        } else if ((msg.type === "interactive" || msg.type === "button") && /^pexc_[mse]_\d+$/.test(msg.buttonId ?? "")) {
-          // § 40 ج — his decision on a price exception: «اعتمد بسعر السوق» / «لا تنشر» / «عدّل».
+        } else if ((msg.type === "interactive" || msg.type === "button") && /^pexc_[mspe]_\d+$/.test(msg.buttonId ?? "")) {
+          // § 40 ج — his decision on a price exception: «اعتمد بسعر السوق» / «لا تنشر» / «عدّل»,
+          // and (§ 47 ب) «اعتمد بالسعر المربح» — a reply button or a list row.
           const { handlePriceExceptionButton } = await import("./prices");
           const r = await handlePriceExceptionButton(env, msg.buttonId!).catch((e) => {
             console.warn("[prices] exception button failed", (e as Error)?.message);

@@ -1,7 +1,8 @@
 // Unit tests for purchase → accounting (2026-09-23).
 //   1. Unregistered supplier (after the cutoff) → no tax on any line, linked
-//   2. Registered supplier after the cutoff: 115 tax-included → 100 + 15,
-//      the included twin of the company purchase tax on the line
+//   2. Registered supplier after the cutoff (§ 47 أ: the purchase price is net):
+//      100 → 100 + 15 = 115, the company's price-EXCLUDED purchase tax on the line;
+//      22 → 25.30
 //   3. Registered supplier before the cutoff → no tax, no tax lookup
 //   4. Idempotency: linked list → nothing created; unlinked live PO with the
 //      list origin → nothing created, owner alerted
@@ -9,7 +10,7 @@
 //   6. Guard: wrong account (income) → bill + PO cancelled, not linked
 //   7. action_post refused → draft bill + PO cancelled, no orphan
 //   8. Missing supplier / missing unit_price → nothing created
-//   9. evaluateVendorBillGuard (pure) + tax twin resolution
+//   9. evaluateVendorBillGuard (pure) + the price-excluded tax resolution + computeNetTotals
 //  10. prefillPurchasePrices: x_daily_price fill, unique supplier, edited price kept
 //  11. ACCOUNTING_SYNC off → no Odoo call
 //
@@ -20,7 +21,8 @@ import {
   evaluateVendorBillGuard,
   purchaseBillOrigin,
   purchaseListOrigin,
-  resolveCompanyPurchaseTaxIncluded,
+  computeNetTotals,
+  resolveCompanyPurchaseTaxExcluded,
   supplierIsVatRegistered,
   syncPurchaseListToAccounting,
   validatePurchaseItems,
@@ -77,8 +79,18 @@ const TAX43 = { id: 43, amount: 15, amount_type: "percent", type_tax_use: "purch
 
 const LINES_TAXED_115 = [
   { account_id: acc(136), debit: 100, credit: 0, display_type: "product", tax_line_id: false },
-  { account_id: acc(100), debit: 15, credit: 0, display_type: "tax", tax_line_id: [43, "15%"] },
+  { account_id: acc(100), debit: 15, credit: 0, display_type: "tax", tax_line_id: [21, "15%"] },
   { account_id: acc(106), debit: 0, credit: 115, display_type: "payment_term", tax_line_id: false },
+];
+/** § 47 أ — a net 22 from a registered supplier: 22 + 3.30 = 25.30 on the bill. */
+const LINES_TAXED_2530 = [
+  { account_id: acc(136), debit: 22, credit: 0, display_type: "product", tax_line_id: false },
+  { account_id: acc(100), debit: 3.3, credit: 0, display_type: "tax", tax_line_id: [21, "15%"] },
+  { account_id: acc(106), debit: 0, credit: 25.3, display_type: "payment_term", tax_line_id: false },
+];
+const LINES_UNTAXED_22 = [
+  { account_id: acc(136), debit: 22, credit: 0, display_type: "product", tax_line_id: false },
+  { account_id: acc(106), debit: 0, credit: 22, display_type: "payment_term", tax_line_id: false },
 ];
 const LINES_UNTAXED_80 = [
   { account_id: acc(136), debit: 80, credit: 0, display_type: "product", tax_line_id: false },
@@ -103,6 +115,8 @@ function mockOdoo(o: {
   amountTax: number;
   lines: any[];
   moveType?: string;
+  /** The company's purchase tax as Odoo answers it (default: #21, price-excluded). */
+  companyTax?: any;
 }): void {
   const poId = o.poId ?? 501;
   const billId = o.billId ?? 601;
@@ -119,7 +133,7 @@ function mockOdoo(o: {
     if (u.endsWith("/product.product/search_read")) return [{ id: 900 }];
     if (u.endsWith("/res.partner/read")) return [{ id: 90, vat: o.vat ?? false }];
     if (u.endsWith("/res.company/read")) return [{ id: 1, account_purchase_tax_id: [21, "15%"] }];
-    if (u.endsWith("/account.tax/read")) return [TAX21];
+    if (u.endsWith("/account.tax/read")) return [o.companyTax ?? TAX21];
     if (u.endsWith("/account.tax/search_read")) return [TAX43];
     if (u.endsWith("/purchase.order/create")) return [poId];
     if (u.endsWith("/purchase.order/button_confirm")) return true;
@@ -157,14 +171,37 @@ async function testUnregistered(): Promise<void> {
 
 // ==================== 2. registered after cutoff ====================
 async function testRegisteredAfter(): Promise<void> {
-  console.log("\n[2] registered supplier after the cutoff: 115 → 100 + 15");
+  console.log("\n[2] registered supplier after the cutoff (§ 47 أ: the price is net): 100 → 100 + 15 = 115");
   reset();
-  mockOdoo({ vat: "399999999900003", amountTotal: 115, amountTax: 15, lines: LINES_TAXED_115 });
+  mockOdoo({ vat: "399999999900003", items: [item(100)], amountTotal: 115, amountTax: 15, lines: LINES_TAXED_115 });
   const r = await quiet(() => syncPurchaseListToAccounting(env, 7, { billDate: "2026-10-01" }));
   assert("linked", r?.moveId === 601);
-  assert("line carries the included twin 43", JSON.stringify(poLines()[0]?.[2]?.tax_ids) === "[[6,0,[43]]]");
-  assert("price_unit stays the paid 115", poLines()[0]?.[2]?.price_unit === 115);
-  assert("company tax read from Odoo", hits("/res.company/read").length === 1);
+  assert("line carries the company's price-excluded tax 21 (not the included twin 43)", JSON.stringify(poLines()[0]?.[2]?.tax_ids) === "[[6,0,[21]]]");
+  assert("price_unit is the net 100 as entered", poLines()[0]?.[2]?.price_unit === 100);
+  assert("the bill's total = what is owed: 115", r?.bills?.[0]?.total === 115 && r?.bills?.[0]?.tax === true, JSON.stringify(r?.bills));
+  assert("company tax read from Odoo, no search for an included twin", hits("/res.company/read").length === 1 && hits("/account.tax/search_read").length === 0);
+
+  console.log("\n[2] the order's numbers: a net 22 → 25.30 registered, 22 not registered");
+  reset();
+  mockOdoo({ vat: "399999999900003", items: [item(22)], amountTotal: 25.3, amountTax: 3.3, lines: LINES_TAXED_2530 });
+  const a = await quiet(() => syncPurchaseListToAccounting(env, 7, { billDate: "2026-10-01" }));
+  assert("registered: price_unit 22, tax 21 on the line, the bill 25.30 (22 + 3.30) accepted by the guard", a?.moveId === 601 && poLines()[0]?.[2]?.price_unit === 22 && JSON.stringify(poLines()[0]?.[2]?.tax_ids) === "[[6,0,[21]]]" && a?.bills?.[0]?.total === 25.3, JSON.stringify(a));
+  reset();
+  mockOdoo({ vat: false, items: [item(22)], amountTotal: 22, amountTax: 0, lines: LINES_UNTAXED_22 });
+  const b = await quiet(() => syncPurchaseListToAccounting(env, 7, { billDate: "2026-10-01" }));
+  assert("not registered: price_unit 22, no tax, the bill 22", b?.moveId === 601 && poLines()[0]?.[2]?.price_unit === 22 && JSON.stringify(poLines()[0]?.[2]?.tax_ids) === "[[6,0,[]]]" && b?.bills?.[0]?.total === 22 && b?.bills?.[0]?.tax === false, JSON.stringify(b));
+  reset();
+  mockOdoo({ vat: "399999999900003", items: [item(22)], amountTotal: 22, amountTax: 2.87, lines: [
+    { account_id: acc(136), debit: 19.13, credit: 0, display_type: "product", tax_line_id: false },
+    { account_id: acc(100), debit: 2.87, credit: 0, display_type: "tax", tax_line_id: [43, "15%"] },
+    { account_id: acc(106), debit: 0, credit: 22, display_type: "payment_term", tax_line_id: false },
+  ] });
+  const c = await quiet(() => syncPurchaseListToAccounting(env, 7, { billDate: "2026-10-01" }));
+  assert("a bill that SPLIT the net 22 (19.13 + 2.87, the price-included way) is refused and cancelled", c === null && hits("/account.move/button_cancel").length === 1 && linked().length === 0);
+  reset();
+  mockOdoo({ vat: "399999999900003", items: [item(22)], companyTax: TAX43, amountTotal: 22, amountTax: 2.87, lines: [] });
+  const d = await quiet(() => syncPurchaseListToAccounting(env, 7, { billDate: "2026-10-01" }));
+  assert("the company's purchase tax price-INCLUDED → no purchase order at all (refused before the create)", d === null && hits("/purchase.order/create").length === 0);
 }
 
 // ==================== 3. registered before cutoff ====================
@@ -264,7 +301,7 @@ async function testMissingInputs(): Promise<void> {
 
 // ==================== 9. pure guard + tax twin ====================
 async function testPure(): Promise<void> {
-  console.log("\n[9] evaluateVendorBillGuard + tax twin");
+  console.log("\n[9] evaluateVendorBillGuard + the price-excluded purchase tax + computeNetTotals");
   const g = (lines: any[], tax: any, extra: any = {}) => evaluateVendorBillGuard({ moveState: "posted", moveType: "in_invoice", lines, tax, ...extra });
   const taxed = [
     { account_code: "400001", account_type: "expense_direct_cost", debit: 100, credit: 0 },
@@ -295,23 +332,38 @@ async function testPure(): Promise<void> {
   responder = (req) => {
     if (req.url.endsWith("/res.company/read")) return [{ id: 1, account_purchase_tax_id: [21, "15%"] }];
     if (req.url.endsWith("/account.tax/read")) return [TAX21];
-    if (req.url.endsWith("/account.tax/search_read")) return [TAX43];
     return true;
   };
-  const t = await resolveCompanyPurchaseTaxIncluded(env);
-  assert("excluded company tax 21 → included twin 43", t.id === 43 && t.rate === 15);
-  const dom = JSON.stringify(hits("/account.tax/search_read")[0]?.body?.domain);
-  assert("twin searched by rate + tax_included + group", dom.includes('"price_include_override","=","tax_included"') && dom.includes('"amount","=",15') && dom.includes('"tax_group_id","=",3'));
+  const t = await resolveCompanyPurchaseTaxExcluded(env);
+  assert("§ 47 أ — the company's price-excluded tax 21 is the one used (15 %)", t.id === 21 && t.rate === 15 && hits("/account.tax/search_read").length === 0);
+  for (const [label, bad] of [
+    ["price-included (it would split the net price)", TAX43],
+    ["inactive", { ...TAX21, active: false }],
+    ["a sale tax", { ...TAX21, type_tax_use: "sale" }],
+    ["a fixed amount", { ...TAX21, amount_type: "fixed" }],
+  ] as Array<[string, any]>) {
+    reset();
+    responder = (req) => {
+      if (req.url.endsWith("/res.company/read")) return [{ id: 1, account_purchase_tax_id: [bad.id, "x"] }];
+      if (req.url.endsWith("/account.tax/read")) return [bad];
+      return true;
+    };
+    let threw = false;
+    try { await resolveCompanyPurchaseTaxExcluded(env); } catch { threw = true; }
+    assert(`the company's purchase tax ${label} → throws (no silent wrong bill)`, threw);
+  }
   reset();
-  responder = (req) => {
-    if (req.url.endsWith("/res.company/read")) return [{ id: 1, account_purchase_tax_id: [21, "15%"] }];
-    if (req.url.endsWith("/account.tax/read")) return [TAX21];
-    if (req.url.endsWith("/account.tax/search_read")) return [];
-    return true;
-  };
-  let threw = false;
-  try { await resolveCompanyPurchaseTaxIncluded(env); } catch { threw = true; }
-  assert("no twin → throws (no silent tax-free bill)", threw);
+  responder = (req) => (req.url.endsWith("/res.company/read") ? [{ id: 1, account_purchase_tax_id: false }] : true);
+  let none = false;
+  try { await resolveCompanyPurchaseTaxExcluded(env); } catch { none = true; }
+  assert("no purchase tax on the company → throws", none);
+
+  const n = computeNetTotals([22], 15);
+  assert("computeNetTotals: 22 at 15 % → 22 + 3.30 = 25.30", n.subtotal === 22 && n.tax === 3.3 && n.total === 25.3, JSON.stringify(n));
+  const u = computeNetTotals([22], null);
+  assert("…no rate (not registered, or before the cutoff): 22, no tax", u.subtotal === 22 && u.tax === 0 && u.total === 22);
+  const m = computeNetTotals([10 * 22, 4 * 11.5, 3 * 0.35], 15);
+  assert("…per line then summed (round_per_line): 220 + 46 + 1.05 → tax 33 + 6.90 + 0.16 = 40.06, total 307.11", m.subtotal === 267.05 && m.tax === 40.06 && m.total === 307.11, JSON.stringify(m));
 }
 
 // ==================== 10. prefill ====================

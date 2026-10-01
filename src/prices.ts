@@ -6,11 +6,12 @@
 // worker (src/pricing-engine.ts): the lowest valid purchase price of the day
 // from any source, the median of the day's market observations, the sale price
 // = the market price, the unit profit = market − purchase − waste. A line with
-// no purchase price, no market price, a unit profit ≤ 0 or an outlier is an
-// exception: Baraa gets one message per exception (three buttons: «اعتمد بسعر
-// السوق», «لا تنشر», «عدّل»; one message with the count and the review link
-// above EXCEPTIONS_MANY), from the end of Omar's reply window (04:00) until
-// the publication time. Every other line is approved automatically.
+// no purchase price, no market price, a market price below the suggested
+// profitable price (§ 47 ب) or an outlier is an exception: Baraa gets one
+// message per exception («اعتمد بالسعر المربح», «اعتمد بسعر السوق», «لا تنشر»,
+// «عدّل»; one message with the count and the review link above
+// EXCEPTIONS_MANY), from the end of Omar's reply window (04:00) until the
+// publication time. Every other line is approved automatically.
 //
 //   • the publication time is § 35's deadline (ORDERING_HOURS_OPEN, 06:00
 //     Riyadh; PRICES_DEADLINE="HH:MM" overrides it): the day is approved by the
@@ -27,14 +28,18 @@
 // § 46 أ — «📊 لوحة التسعير»: with every engine run and every decision the
 // worker also writes each line's real profit (net purchase, waste, the carton
 // share of the day's operating cost, net sale) and its 🟢 🟡 🔴 ⚪ status, and the
-// header on the day (src/pricing-board.ts). Display only: no price changes.
+// header on the day (src/pricing-board.ts).
+//
+// § 47 — every purchase price is net of VAT as written (never ÷ 1.15), and
+// each line carries «أقل سعر بيع بدون خسارة» and «السعر المربح المقترح»: the
+// engine's rule and the exception's fourth choice read them.
 //
 // Nothing here writes list_price or standard_price.
 
 import type { Env } from "./config";
 import { ORDERING_HOURS_CLOSE, ORDERING_HOURS_OPEN, profitVatRate } from "./config";
 import { call } from "./odoo";
-import { buttonsContent, textContent } from "./meta";
+import { buttonsContent, listContent, textContent } from "./meta";
 import { gatewayDecision, sendViaGateway } from "./wa-gateway";
 import { cutoffLabel, sendOwnerAlert, sendOwnerMessage } from "./templates";
 import { claimButton, finishButton, releaseButton } from "./button-lock";
@@ -45,7 +50,7 @@ import { waDigits } from "./wa-window";
 import {
   computePricing, lineVerdict, readActiveItems, readDayOffers, saleRule, type Decision, type LineStatus,
 } from "./pricing-engine";
-import { isSourceVatRegistered, loadPriceSources, MARKET_ASK_MINUTE, MARKET_REPLY_WINDOW_MIN } from "./price-sources";
+import { loadPriceSources, MARKET_ASK_MINUTE, MARKET_REPLY_WINDOW_MIN } from "./price-sources";
 import { readPricingSettings } from "./operating-cost";
 import { BOARD_LINE_FIELDS, boardHeader, boardLine, boardShare, readBoardInputs, type BoardStatus } from "./pricing-board";
 
@@ -128,6 +133,9 @@ export interface DayLine {
   x_waste_cost?: number;
   x_op_share?: number;
   x_full_cost?: number;
+  // § 47 ب — «أقل سعر بيع بدون خسارة» and «السعر المربح المقترح» (0 = none)
+  x_break_even?: number;
+  x_suggested_price?: number;
   x_board_sale?: number;
   x_net_sale?: number;
   x_real_profit?: number;
@@ -235,16 +243,16 @@ export async function refreshPriceDay(env: Env, opts: { day?: string; force?: bo
   const settings = await readPricingSettings(env, day);
   if (!settings) throw new Error(`[prices] no active x_pricing_config on ${day}`);
   const items = await readActiveItems(env, offers);
-  // § 41 أ — from the cutoff the unit profit is net of VAT (by the source that won the purchase)
-  const vat = { ratePct: profitVatRate(day), registered: (pid: number) => isSourceVatRegistered(sources, pid) };
-  const plan = computePricing(items, offers, settings.wastePct, vat);
-  const rec = found ?? (await ensureDay(env, day));
-  const lines = await readLines(env, rec.id);
-  // § 46 أ — the board: the day's cost over the cartons (display only, the rule above is untouched)
+  // § 41 أ — from the cutoff the sale price is VAT-inclusive; § 47 أ — the purchase price is net, whoever the source
+  const vat = { ratePct: profitVatRate(day) };
+  // § 46 أ — the day's cost over the cartons: the board, and (§ 47 ب) the suggested profitable price of the rule
   const inputs = await readBoardInputs(env, day, now, !!opts.force);
   const share = boardShare(inputs.cost, settings.expectedCartons, inputs.actual, inputs.costReason);
+  const plan = computePricing(items, offers, settings.wastePct, vat, { opShare: share.share, minMarginPct: settings.minMarginPct });
+  const rec = found ?? (await ensureDay(env, day));
+  const lines = await readLines(env, rec.id);
   const fp = fnv1a(JSON.stringify([
-    rec.id, rec.x_state, settings.wastePct, vat.ratePct, [...sources.partnerIds].sort((a, b) => a - b).map((pid) => [pid, vat.registered(pid)]),
+    rec.id, rec.x_state, settings.wastePct, settings.minMarginPct, vat.ratePct, [...sources.partnerIds].sort((a, b) => a - b),
     [share.cost, share.cartons, share.basis, share.expected],
     offers.map((o) => [o.model, o.rowId, o.kind, o.price, o.outlier, o.partnerId]),
     items.map((i) => [i.productId, i.packagingId]),
@@ -270,7 +278,7 @@ export async function refreshPriceDay(env: Env, opts: { day?: string; force?: bo
     // § 46 أ — the board's sale is the approved price, else the market price (the rule: sale = market)
     const b = boardLine({
       purchase: p.purchase, sale: v.sale > 0 ? v.sale : p.market, wastePct: settings.wastePct,
-      vatRatePct: vat.ratePct, registered: src ? vat.registered(src.partnerId) : true, opShare: share.share,
+      vatRatePct: vat.ratePct, opShare: share.share, minMarginPct: settings.minMarginPct,
     });
     board.push(b.x_board_status);
     const want: Record<string, unknown> = {
@@ -301,6 +309,9 @@ export async function refreshPriceDay(env: Env, opts: { day?: string; force?: bo
       continue;
     }
     if (decision && !l.x_decided_at) want.x_decided_at = nowOdoo(now);
+    // § 47 ب — «اعتمد بالسعر المربح» chosen in Odoo without a price: the suggested price of this run is
+    // kept as his price (as the WhatsApp tap keeps the one he saw), so a later cost change does not move it
+    if (decision === "profit" && v.status === "manual" && !(Number(l.x_manual_price) > 0)) want.x_manual_price = v.sale;
     const vals = changed(l, want);
     if (Object.keys(vals).length) {
       await call(env, PRICE_LINE_MODEL, "write", { ids: [l.id], vals });
@@ -310,7 +321,7 @@ export async function refreshPriceDay(env: Env, opts: { day?: string; force?: bo
   const planned = new Set(plan.map((p) => p.key));
   for (const l of lines) {
     if (planned.has(lineKey(l))) continue;
-    const b = storedBoardLine(l, settings.wastePct, vat, share.share);
+    const b = storedBoardLine(l, settings.wastePct, vat.ratePct, share.share, settings.minMarginPct);
     board.push(b.x_board_status);
     const vals = changed(l, { x_status: "unpublished", x_reason: "ليس في الكتالوج النشط اليوم", x_sale_price: 0, x_excluded: true, ...b });
     if (Object.keys(vals).length) {
@@ -336,15 +347,12 @@ export async function refreshPriceDay(env: Env, opts: { day?: string; force?: bo
 
 // ---------------------------------------------------------------- the board (§ 46 أ)
 
-type VatOf = { ratePct: number | null; registered: (partnerId: number) => boolean };
-
-/** A stored line on the board: its purchase and its source, its approved sale price else its market price. */
-function storedBoardLine(l: DayLine, wastePct: number, vat: VatOf, opShare: number | null) {
-  const src = m2oId(l.x_supplier_id);
+/** A stored line on the board: its purchase (net as written), its approved sale price else its market price. */
+function storedBoardLine(l: DayLine, wastePct: number, vatRatePct: number | null, opShare: number | null, minMarginPct: number) {
   return boardLine({
     purchase: Number(l.x_cost_price) || 0,
     sale: Number(l.x_sale_price) > 0 ? Number(l.x_sale_price) : Number(l.x_market_price) || 0,
-    wastePct, vatRatePct: vat.ratePct, registered: src ? vat.registered(src) : true, opShare,
+    wastePct, vatRatePct, opShare, minMarginPct,
   });
 }
 
@@ -364,8 +372,7 @@ export async function rewriteBoard(env: Env, dayId: number, opts: { now?: number
   const day = rec.x_date;
   const settings = await readPricingSettings(env, day);
   if (!settings) throw new Error(`[board] no active x_pricing_config on ${day}`);
-  const sources = await loadPriceSources(env);
-  const vat: VatOf = { ratePct: profitVatRate(day), registered: (pid: number) => isSourceVatRegistered(sources, pid) };
+  const vatRatePct = profitVatRate(day);
   const inputs = await readBoardInputs(env, day, now, !!opts.force);
   const share = boardShare(inputs.cost, settings.expectedCartons, inputs.actual, inputs.costReason);
   const lines = await readLines(env, dayId);
@@ -373,7 +380,7 @@ export async function rewriteBoard(env: Env, dayId: number, opts: { now?: number
   const values: Array<Record<string, unknown>> = [];
   let updated = 0;
   for (const l of lines) {
-    const b = storedBoardLine(l, settings.wastePct, vat, share.share);
+    const b = storedBoardLine(l, settings.wastePct, vatRatePct, share.share, settings.minMarginPct);
     counts[b.x_board_status]++;
     values.push({ id: l.id, name: `${lineName(l)}${Array.isArray(l.x_packaging_id) ? ` — ${l.x_packaging_id[1]}` : ""}`, purchase: Number(l.x_cost_price) || 0, ...b });
     const vals = changed(l, { ...b });
@@ -675,7 +682,11 @@ export const EDIT_REPLY_MIN = 30;
 const EXC_TTL = 26 * 3600;
 const excLock = (day: string, l: DayLine) => `pexc:${day}:${lineKey(l)}`;
 const editKey = (env: Env) => `pexc_edit:v1:${waDigits(String(env.OWNER_WHATSAPP ?? ""))}`;
-const DECISION_LABEL: Record<Decision, string> = { market: "اعتمد بسعر السوق", skip: "لا تنشر", edit: "سعر معدّل" };
+const DECISION_LABEL: Record<Decision, string> = { market: "اعتمد بسعر السوق", skip: "لا تنشر", edit: "سعر معدّل", profit: "اعتمد بالسعر المربح" };
+/** § 47 ب — the fourth choice. Meta: a reply button's title holds 20 characters. */
+export const PROFIT_BUTTON_TITLE = "اعتمد بالسعر المربح";
+/** WhatsApp allows three reply buttons: four choices go out as a list under this button. */
+export const DECISION_LIST_BUTTON = "القرار";
 
 /** The review screen of a day (the history action's form, else the model's). */
 export async function reviewUrl(env: Env, dayId: number): Promise<string> {
@@ -700,19 +711,45 @@ export function exceptionText(day: string, l: DayLine, deadline: string): string
   const cost = Number(l.x_cost_price) > 0 ? money(l.x_cost_price) : "—";
   const market = Number(l.x_market_price) > 0 ? `${money(l.x_market_price)}${Number(l.x_market_count) > 1 ? ` (${l.x_market_count} مشاهدات)` : ""}` : "—";
   const profit = Number(l.x_cost_price) > 0 && Number(l.x_market_price) > 0 ? ` · ربح الوحدة: ${money(l.x_unit_profit)}` : "";
+  // § 47 ب — the two numbers of the decision: the market price above, the suggested profitable price here
+  const suggested = Number(l.x_suggested_price) > 0
+    ? `السعر المربح المقترح: ${money(Number(l.x_suggested_price))}${Number(l.x_break_even) > 0 ? ` · أقل سعر بيع بدون خسارة: ${money(Number(l.x_break_even))}` : ""}`
+    : "";
   return [
     `⚠️ استثناء في أسعار اليوم (${arabicDate(day)})`,
     `${lineName(l)}${pk ? ` (${pk})` : ""}`,
-    `الشراء: ${cost} · السوق: ${market}${profit}`,
+    `الشراء (بدون ضريبة): ${cost} · السوق: ${market}${profit}`,
+    suggested,
     `السبب: ${l.x_reason || "—"}`,
     `قرارك قبل ${deadline}، وإلا لا يُنشر اليوم.`,
-  ].join("\n");
+  ].filter(Boolean).join("\n");
+}
+
+/**
+ * § 47 ب — «اعتمد بالسعر المربح» is offered when the line has a suggested price
+ * and the market price does not reach it (a market price below it, or none).
+ */
+export function offersProfitChoice(l: DayLine): boolean {
+  const suggested = Number(l.x_suggested_price) || 0, market = Number(l.x_market_price) || 0;
+  return suggested > 0 && (!(market > 0) || market < suggested - 0.0001);
+}
+
+/** The choices of an exception, in order: the profitable price, the market price, «لا تنشر», «عدّل». */
+export function exceptionChoices(l: DayLine): Array<{ id: string; title: string; description?: string }> {
+  return [
+    ...(offersProfitChoice(l) ? [{ id: `pexc_p_${l.id}`, title: PROFIT_BUTTON_TITLE, description: `${money(Number(l.x_suggested_price))} ر.س` }] : []),
+    ...(Number(l.x_market_price) > 0 ? [{ id: `pexc_m_${l.id}`, title: "اعتمد بسعر السوق", description: `${money(Number(l.x_market_price))} ر.س` }] : []),
+    { id: `pexc_s_${l.id}`, title: "لا تنشر" },
+    { id: `pexc_e_${l.id}`, title: "عدّل" },
+  ];
 }
 
 /**
  * From exceptionsFromMinutes until the publication time, on a draft day: one
  * message per new exception (a KV guard per product, packaging and day), its
- * buttons «اعتمد بسعر السوق» (only with a market price), «لا تنشر», «عدّل».
+ * choices (exceptionChoices): «اعتمد بالسعر المربح» (§ 47 ب: the market price
+ * below the suggested one, or none), «اعتمد بسعر السوق» (only with a market
+ * price), «لا تنشر», «عدّل» — three as reply buttons, four as a list.
  * More than EXCEPTIONS_MANY exceptions: one message with the count and the
  * review screen's link instead (once a day).
  */
@@ -763,12 +800,11 @@ async function sendPriceExceptions(env: Env, now: number): Promise<{ action: str
   for (const l of fresh) {
     const c = await claimButton(env, excLock(day, l), EXC_TTL);
     if (!c.claimed) continue;
-    const buttons = [
-      ...(Number(l.x_market_price) > 0 ? [{ id: `pexc_m_${l.id}`, title: "اعتمد بسعر السوق" }] : []),
-      { id: `pexc_s_${l.id}`, title: "لا تنشر" },
-      { id: `pexc_e_${l.id}`, title: "عدّل" },
-    ];
-    await sendViaGateway(env, { purpose: EXCEPTION_PURPOSE, to: env.OWNER_WHATSAPP, expiresAt, content: buttonsContent(exceptionText(day, l, deadline), buttons) });
+    const choices = exceptionChoices(l);
+    const text = exceptionText(day, l, deadline);
+    // Meta: at most three reply buttons — four choices go out as one list message
+    const content = choices.length <= 3 ? buttonsContent(text, choices.map(({ id, title }) => ({ id, title }))) : listContent(text, DECISION_LIST_BUTTON, choices);
+    await sendViaGateway(env, { purpose: EXCEPTION_PURPOSE, to: env.OWNER_WHATSAPP, expiresAt, content });
     await finishButton(env, c, EXC_TTL);
     sent++;
   }
@@ -802,9 +838,12 @@ async function decidable(env: Env, lineId: number): Promise<{ l?: DayLine; day?:
 }
 const missedTail = (day: DayRecord) => day.x_state === "missed" ? " السجل «فات الموعد»: انشر من «💰 أسعار اليوم» ← «نشر المعتمد الآن»." : "";
 
-/** A tap on an exception's buttons (pexc_m_ / pexc_s_ / pexc_e_ + line id). The reply to Baraa. */
+/** The payload of an exception's choice (a reply button or a list row). */
+export const PRICE_EXCEPTION_PAYLOAD = /^pexc_([mspe])_(\d+)$/;
+
+/** A tap on an exception's choices (pexc_p_ / pexc_m_ / pexc_s_ / pexc_e_ + line id). The reply to Baraa. */
 export async function handlePriceExceptionButton(env: Env, payload: string, now: number = Date.now()): Promise<string> {
-  const mm = /^pexc_([mse])_(\d+)$/.exec(String(payload ?? ""));
+  const mm = PRICE_EXCEPTION_PAYLOAD.exec(String(payload ?? ""));
   if (!mm) return "";
   const { l, day, why } = await decidable(env, Number(mm[2]));
   if (why || !l || !day) return why ?? "";
@@ -812,6 +851,14 @@ export async function handlePriceExceptionButton(env: Env, payload: string, now:
   if (mm[1] === "e") {
     await env.MSG_DEDUP.put(editKey(env), JSON.stringify({ lineId: l.id, at: now }), { expirationTtl: EDIT_REPLY_MIN * 60 });
     return `✏️ أرسل سعر البيع لـ ${name} رقماً واحداً خلال ${EDIT_REPLY_MIN} دقيقة.`;
+  }
+  if (mm[1] === "p") {
+    // § 47 ب — the suggested profitable price the line carries (the number his message showed)
+    const suggested = Math.round((Number(l.x_suggested_price) || 0) * 100) / 100;
+    if (!(suggested > 0)) return `لا سعر مربح مقترح لـ ${name} اليوم (لا سعر شراء، أو تكلفة اليوم لا تُقرأ): اختر «لا تنشر» أو «عدّل».`;
+    const ok = await decide(env, l, { x_decision: "profit", x_manual_price: suggested, x_status: "manual", x_reason: "براء: اعتمد بالسعر المربح", x_sale_price: suggested, x_excluded: false }, now);
+    if (ok) await boardAfterDecision(env, day.id, now);
+    return ok ? `✅ ${name}: يُنشر بالسعر المربح ${money(suggested)} ر.س.${missedTail(day)}` : `القرار مسجّل مسبقاً على ${name}.`;
   }
   if (mm[1] === "m") {
     const market = Math.round((Number(l.x_market_price) || 0) * 100) / 100;

@@ -27,6 +27,11 @@ import {
   APPLY, DROP, ROLLBACK, UTAK_MENU, VERIFY, call, checker, dropCreated, ensureActWindow, ensureFields, ensureMenu,
   ensureServerAction, ensureView, log, modelId, one, rollbackFile,
 } from "./lib/s40-kit.mjs";
+// § 47 — the card, the list and the explanation moved to one source (the purchase price is net as
+// entered, and each line shows «أقل سعر بيع بدون خسارة» and «السعر المربح المقترح»): a re-apply of
+// this script writes the § 47 arch, never the § 46 one. Their fields (x_break_even,
+// x_suggested_price, x_pricing_config.x_min_margin_pct) are scripts/s47-20261001-odoo.mjs's.
+import { BOARD_LIST, BOARD_NOTE, CARD } from "./lib/s47-odoo-views.mjs";
 
 const RB = new URL("./artifacts/s46-20261001-board-rollback.json", import.meta.url);
 const SNAP = new URL("./artifacts/s46-20261001-board-today-snapshot.json", import.meta.url);
@@ -40,7 +45,7 @@ export const CFG_FIELDS = [
     help: "حصة التشغيل للكرتون في «📊 لوحة التسعير» = تكلفة اليوم ÷ هذا العدد، حتى تكتمل 7 أيام فيها تسليمات حقيقية؛ بعدها ÷ متوسط الكراتين المسلَّمة فعلاً في آخر 7 أيام تسليم." },
 ];
 export const LINE_FIELDS = [
-  { name: "x_net_purchase", ttype: "float", field_description: "الشراء الصافي", help: "الشراء ÷ 1.15 إن كان المصدر مسجلاً في الضريبة واليوم من 2026-10-01، وإلا الشراء كما هو." },
+  { name: "x_net_purchase", ttype: "float", field_description: "الشراء الصافي", help: "سعر الشراء كما أُدخل: كل سعر شراء يُدخَل بدون ضريبة (§ 47)." },
   { name: "x_waste_cost", ttype: "float", field_description: "التالف", help: "نسبة التالف × الشراء الصافي." },
   { name: "x_op_share", ttype: "float", field_description: "حصة التشغيل للكرتون", help: "تكلفة اليوم ÷ الكراتين (المتوقعة، أو متوسط المسلَّم فعلاً بعد 7 أيام تسليم)." },
   { name: "x_full_cost", ttype: "float", field_description: "التكلفة الكاملة", help: "الشراء الصافي + التالف + حصة التشغيل." },
@@ -74,21 +79,9 @@ const NAMES = {
   menu: "📊 لوحة التسعير",
 };
 
-// The card: the colour is a thick side border, and the status is its own words («🟢 رابح») in the
-// theme's text colour — no filled badge and no fixed text colour, so it reads in the light and the
-// dark mode alike (scripts/s46-20261001-board-shots.mts measures both).
-const CARD = `<t t-name="card">
-          <div t-attf-class="border-start border-5 ps-3 pe-1 #{record.x_board_status.raw_value == 'green' ? 'border-success' : record.x_board_status.raw_value == 'yellow' ? 'border-warning' : record.x_board_status.raw_value == 'red' ? 'border-danger' : 'border-secondary'}">
-            <div class="d-flex justify-content-between align-items-start mb-1">
-              <field name="x_name" class="fw-bold fs-5"/>
-              <field name="x_board_status" class="text-nowrap ms-2"/>
-            </div>
-            <div class="d-flex justify-content-between"><span class="text-muted">الشراء الصافي</span><field name="x_net_purchase"/></div>
-            <div class="d-flex justify-content-between"><span class="text-muted">التكلفة الكاملة</span><field name="x_full_cost"/></div>
-            <div class="d-flex justify-content-between"><span class="text-muted">البيع</span><field name="x_board_sale"/></div>
-            <div class="d-flex justify-content-between fw-bold border-top mt-1 pt-1"><span>الربح الحقيقي</span><field name="x_real_profit"/></div>
-          </div>
-        </t>`;
+// The card (scripts/lib/s47-odoo-views.mjs): the colour is a thick side border, and the status is
+// its own words («🟢 رابح») in the theme's text colour — no filled badge and no fixed text colour, so
+// it reads in the light and the dark mode alike (scripts/s47-20261001-board-shots.mts measures both).
 const KANBAN = (inner = "") => `<kanban create="0" delete="0" edit="0"${inner}>
         <field name="x_board_status"/>
         <templates>
@@ -102,21 +95,7 @@ const VIEWS = {
     ${CARD}
   </templates>
 </kanban>`,
-  list: `<list string="لوحة التسعير" create="0" delete="0" edit="0" default_order="x_day_date desc, x_sequence, id" decoration-success="x_board_status == 'green'" decoration-warning="x_board_status == 'yellow'" decoration-danger="x_board_status == 'red'" decoration-muted="x_board_status == 'none'">
-  <field name="x_day_date" optional="show"/>
-  <field name="x_product_tmpl_id" string="الصنف"/>
-  <field name="x_packaging_id" string="التعبئة"/>
-  <field name="x_cost_price" string="الشراء"/>
-  <field name="x_net_purchase"/>
-  <field name="x_waste_cost"/>
-  <field name="x_op_share"/>
-  <field name="x_full_cost"/>
-  <field name="x_board_sale"/>
-  <field name="x_net_sale"/>
-  <field name="x_real_profit" sum="مجموع ربح الكرتون"/>
-  <field name="x_board_status" widget="badge" decoration-success="x_board_status == 'green'" decoration-warning="x_board_status == 'yellow'" decoration-danger="x_board_status == 'red'" decoration-muted="x_board_status == 'none'"/>
-  <field name="x_status" string="حالة السعر" optional="hide"/>
-</list>`,
+  list: BOARD_LIST,
   graph: `<graph string="الربح الحقيقي لكل صنف" type="bar" stacked="0" sample="0">
   <field name="x_name"/>
   <field name="x_real_profit" type="measure"/>
@@ -167,7 +146,7 @@ const formArch = (a) => `<form string="لوحة التسعير" create="0" delet
     <field name="x_line_ids" mode="kanban" readonly="1">
       ${KANBAN()}
     </field>
-    <div class="text-muted mt-2">الشراء الصافي = الشراء ÷ 1.15 إن كان المصدر مسجلاً في الضريبة (من 2026-10-01)، وإلا الشراء. التالف = نسبة التالف × الشراء الصافي. التكلفة الكاملة = الشراء الصافي + التالف + حصة الكرتون. البيع الصافي = البيع ÷ 1.15 (من 2026-10-01). الربح الحقيقي = البيع الصافي − التكلفة الكاملة. اللوحة للعرض فقط: سعر البيع يبقى سعر السوق.</div>
+    <div class="text-muted mt-2">${BOARD_NOTE}</div>
     <div class="text-muted" invisible="x_board_at">لم يكتب الوركر أرقام اللوحة لهذا اليوم بعد.</div>
     <div class="text-muted" invisible="not x_board_at">آخر تحديث: <field name="x_board_at" readonly="1" class="oe_inline"/></div>
   </sheet>

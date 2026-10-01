@@ -25,7 +25,7 @@ export const FIX = [
   "fixtures-odoo-fields-20260925-gateway.json", "fixtures-odoo-fields-20260925-s36.json", "fixtures-odoo-fields-20260925-s37.json",
   "fixtures-odoo-fields-20260926-b3.json", "fixtures-odoo-fields-20260926-s39.json", "fixtures-odoo-fields-20260926-s40.json",
   "fixtures-odoo-fields-20260926-s41.json", "fixtures-odoo-fields-20260927-s42.json", "fixtures-odoo-fields-20260928-s44.json",
-  "fixtures-odoo-fields-20261001-s46.json",   // § 46: the board's fields, x_expected_cartons, x_utak_new (last: it wins)
+  "fixtures-odoo-fields-20261001-s47.json",   // § 46 + § 47: the board's fields, x_expected_cartons, x_utak_new, x_min_margin_pct, x_break_even / x_suggested_price, x_decision «profit» (last: it wins)
 ].map((f) => JSON.parse(readFileSync(new URL(`./${f}`, import.meta.url), "utf8")));
 const REAL: Record<string, string[]> = Object.assign({}, ...FIX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FIX.map((f) => f._selections ?? {}));
@@ -99,7 +99,7 @@ export function fresh(riyadh = `${DAY} 03:00`): any {
   table("x_product_packaging").get(21)!.x_is_default = true;
   seed("x_pricing_config", {
     id: 1, x_name: "UTAK Default Pricing (Launch)", x_is_active: true, x_active_from: "2026-08-29", x_active_to: false,
-    x_operations_margin_percent: 15, x_profit_margin_percent: 20, x_waste_pct: 5, x_min_order_sar: 150, x_planned_stops: 0, x_expected_cartons: 250,
+    x_operations_margin_percent: 15, x_profit_margin_percent: 20, x_waste_pct: 5, x_min_order_sar: 150, x_planned_stops: 0, x_expected_cartons: 250, x_min_margin_pct: 5,
   });
   return env;
 }
@@ -117,10 +117,14 @@ export function deliveredAt(utc: string, qty: number, extra: Record<string, unkn
   seed("x_daily_order_line", { x_order_id: id, x_product_tmpl_id: 1, x_packaging_id: 11, x_quantity: qty, x_status: "delivered", ...lineExtra });
   return id;
 }
-/** The four lines of the board's day: 🟢 tomato, 🔴 cucumber, 🟡 potato, ⚪ onion. */
+/**
+ * The four lines of the board's day: 🟢 tomato, 🔴 cucumber, 🟡 potato, ⚪ onion. § 47 أ — the purchase
+ * prices are net of VAT as entered (nothing is divided by 1.15); with a share of 2.00 and a 5 % margin
+ * the suggested prices are 28.00, 35.50 and 25.50.
+ */
 export function fourLines(): void {
-  dp(1, 11, 23); market(1, 11, 34.5);     // net 20 + waste 1 + share 2 = 23; net sale 30 → +7
-  dp(2, 21, 30); market(2, 21, 31.05);    // net 26.09 + waste 1.30 > net sale 27 → a loss on the goods
-  dp(3, 31, 20); market(3, 31, 23);       // net 17.39 + waste 0.87 = 18.26 ≤ net sale 20 < 20.26 with the share
+  dp(1, 11, 20); market(1, 11, 34.5);     // 20 + waste 1 + share 2 = 23; net sale 30 → +7; market ≥ 28 → automatic
+  dp(2, 21, 26); market(2, 21, 31.05);    // 26 + waste 1.30 > net sale 27 → a loss on the goods; market < 35.50 → an exception
+  dp(3, 31, 18); market(3, 31, 23);       // 18 + waste 0.90 = 18.90 ≤ net sale 20 < 20.90 with the share; market < 25.50 → an exception
 }
 

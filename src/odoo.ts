@@ -2473,8 +2473,9 @@ export async function getLatestSalePrice(
    * (the price it was quoted and confirmed at). The invoice is issued at
    * «تم التسليم», the next morning — often before that day's prices are
    * published (06:00) — and took the delivery day's: nothing published yet →
-   * that day's supplier row (a purchase price) or the latest price ever.
-   * Default: today (Riyadh).
+   * that day's supplier row or the latest price ever. § 47 أ: only a row's
+   * x_sale_price counts — its purchase price (net of VAT) is never the sale
+   * price. Default: today (Riyadh).
    */
   day?: string,
 ): Promise<SalePriceLookup> {
@@ -2500,21 +2501,22 @@ export async function getLatestSalePrice(
   } catch (e) {
     console.warn("[price] published lookup failed — supplier price", (e as Error)?.message);
   }
-  type Row = { x_sale_price: number | false; x_price_sar: number | false; x_date: string | false };
-  const pickPrice = (r: Row): number => {
-    if (typeof r.x_sale_price === "number" && r.x_sale_price > 0) return r.x_sale_price;
-    if (typeof r.x_price_sar === "number" && r.x_price_sar > 0) return r.x_price_sar;
-    return 0;
-  };
+  type Row = { x_sale_price: number | false; x_date: string | false };
+  // § 47 أ — a purchase price is never a sale price: x_price_sar is net of VAT
+  // (and of the waste and the carton share), so the row's purchase price is no
+  // longer the fallback of a row without x_sale_price — such a row is «missing»
+  // (the zero-price guard of § 46 ج keeps it out of a quotation and an invoice).
+  const pickPrice = (r: Row): number => (typeof r.x_sale_price === "number" && r.x_sale_price > 0 ? r.x_sale_price : 0);
   // Prefer today's confirmed/extracted price
   const rows = await call<Row[]>(env, "x_daily_price", "search_read", {
     domain: [
       ["x_product_tmpl_id", "=", productId],
       ["x_packaging_id", "=", packagingId],
       ["x_date", "=", today],
+      ["x_sale_price", ">", 0], // § 47 أ — a row with a purchase price alone is not a sale price
       ["x_utak_simulation", "!=", true], // § 41
     ],
-    fields: ["x_sale_price", "x_price_sar", "x_date"],
+    fields: ["x_sale_price", "x_date"],
     order: "id desc",
     limit: 1,
   });
@@ -2531,9 +2533,10 @@ export async function getLatestSalePrice(
       ["x_product_tmpl_id", "=", productId],
       ["x_packaging_id", "=", packagingId],
       ["x_date", "<=", today],
+      ["x_sale_price", ">", 0], // § 47 أ
       ["x_utak_simulation", "!=", true], // § 41
     ],
-    fields: ["x_sale_price", "x_price_sar", "x_date"],
+    fields: ["x_sale_price", "x_date"],
     order: "x_date desc, id desc",
     limit: 1,
   });

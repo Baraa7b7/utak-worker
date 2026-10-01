@@ -8,15 +8,35 @@
 //     source (one is enough; nothing carried over from yesterday);
 //   • sale price    = the market price, exactly (delivery is free, inside it);
 //   • unit profit   = market − purchase − (waste % × purchase); from the VAT
-//     cutoff (§ 41 أ, the price day ≥ 2026-10-01) it is net of VAT: ÷ 1.15
-//     when the source that won the purchase is registered («مسجل في الضريبة»,
-//     its purchase VAT is recovered), else sale ÷ 1.15 − purchase − waste.
-// An exception when any of: (1) no purchase price, (2) no market price,
-// (3) unit profit ≤ 0, (4) an outlier (PRICE_OUTLIER_RATIO, § 26) on the
-// purchase price used or on a market observation. Everything else is approved
-// automatically at the market price. Baraa decides the exceptions («اعتمد
-// بسعر السوق» / «لا تنشر» / «عدّل»); one without a decision by the
-// publication time is not published.
+//     cutoff (§ 41 أ, the price day ≥ 2026-10-01) the sale price is
+//     VAT-inclusive: sale ÷ 1.15 − purchase − waste.
+//
+// § 47 أ (2026-10-01) — EVERY PURCHASE PRICE IS NET OF VAT, whoever the source
+// and whether or not it is registered (Ahmed's offer, a row typed in Odoo, a
+// WhatsApp reply, Omar's «شراء»): the number is used as it is, never divided
+// by 1.15, and «the lowest offer» compares the numbers as they are. A
+// registered supplier's 15 % is added on his bill (src/purchase-accounting.ts)
+// and recovered; an unregistered one adds none: the net cost is the same.
+//
+// § 47 ب — the profitable price (priceFloor), from the purchase alone:
+//   • full cost      = net purchase + waste + the carton's share of the day's
+//     operating cost (src/pricing-board.ts);
+//   • «أقل سعر بيع بدون خسارة» = full cost × 1.15 (VAT-inclusive);
+//   • «السعر المربح المقترح»   = full cost × (1 + «الهامش الأدنى ٪» ÷ 100) × 1.15,
+//     rounded UP to the nearest 0.5 riyal (VAT-inclusive).
+// The rule of a line:
+//   1. market ≥ the suggested price → approved automatically at the market
+//      price, as before;
+//   2. a market price below the suggested one → an exception: Baraa chooses
+//      «اعتمد بالسعر المربح», «اعتمد بسعر السوق», «لا تنشر» or «عدّل»;
+//   3. no market price, a purchase price → an exception carrying the
+//      suggested price: «اعتمد بالسعر المربح», «لا تنشر» or «عدّل»;
+//   4. no purchase price → an exception, as before.
+// An outlier (PRICE_OUTLIER_RATIO, § 26) on the purchase price used or on a
+// market observation stays an exception. An exception without a decision by
+// the publication time is not published. When the carton share cannot be read
+// (the day's cost «تعذّر», or «الكراتين المتوقعة» empty) there is no suggested
+// price: the rule before § 47 stands (an exception when the unit profit ≤ 0).
 //
 // Only a source with «مصدر أسعار» counts (a supplier's own row: x_supplier_id
 // ticked; an offer: its source partner ticked, or the Work Contact of a ticked
@@ -46,7 +66,7 @@ export interface EngineItem {
   packagingId: number;
   packagingName: string;
 }
-export type ExceptionCode = "no_purchase" | "no_market" | "no_profit" | "outlier";
+export type ExceptionCode = "no_purchase" | "no_market" | "no_profit" | "below_profit" | "outlier";
 export interface PricingLine extends EngineItem {
   key: string;
   purchase: number | null;
@@ -57,6 +77,12 @@ export interface PricingLine extends EngineItem {
   sale: number | null;
   unitProfit: number | null;
   displayMargin: number | null;
+  /** § 47 ب — net purchase + waste + the carton share; null without a purchase price. */
+  fullCost: number | null;
+  /** «أقل سعر بيع بدون خسارة» (VAT-inclusive); null without a purchase price or a carton share. */
+  breakEven: number | null;
+  /** «السعر المربح المقترح» (VAT-inclusive, rounded up to 0.5); null without a purchase price or a carton share. */
+  suggested: number | null;
   exceptions: ExceptionCode[];
   reason: string;
   offersText: string;
@@ -79,23 +105,71 @@ export function unitProfit(market: number, purchase: number, wastePct: number): 
 }
 
 /**
- * § 41 أ — the VAT inside the profit. Every price (sale and purchase) is
- * VAT-inclusive; `vatRatePct` is 15 from the cutoff, null before it (then
- * this is unitProfit exactly). The waste = waste % × purchase.
- *   • registered source (its purchase VAT is recovered): (sale − purchase − waste) ÷ 1.15;
- *   • unregistered source: sale ÷ 1.15 − purchase − waste.
- * Unrounded: the order and the day sum it before rounding.
+ * § 41 أ — the VAT inside the profit; § 47 أ — the purchase price is net.
+ * `vatRatePct` is 15 from the cutoff, null before it (then this is unitProfit
+ * exactly). The sale price is VAT-inclusive, the purchase price is NET of VAT
+ * whoever the source: sale ÷ 1.15 − purchase − waste (waste = waste % ×
+ * purchase). Unrounded: the order and the day sum it before rounding.
  */
-export function vatProfit(sale: number, purchase: number, wastePct: number, vatRatePct: number | null, registered: boolean): number {
+export function vatProfit(sale: number, purchase: number, wastePct: number, vatRatePct: number | null): number {
   const waste = (wastePct / 100) * purchase;
-  if (!vatRatePct) return sale - purchase - waste;
-  const d = 1 + vatRatePct / 100;
-  return registered ? (sale - purchase - waste) / d : sale / d - purchase - waste;
+  return (vatRatePct ? sale / (1 + vatRatePct / 100) : sale) - purchase - waste;
 }
 
-/** The VAT context of a pricing day: the rate (null before the cutoff) and whether a source partner is registered. */
-export interface VatContext { ratePct: number | null; registered: (partnerId: number) => boolean }
-export const NO_VAT: VatContext = { ratePct: null, registered: () => true };
+/** The VAT context of a pricing day: the rate (null before the cutoff). */
+export interface VatContext { ratePct: number | null }
+export const NO_VAT: VatContext = { ratePct: null };
+
+// ---------------------------------------------------------------- the profitable price (§ 47 ب)
+
+/** «الهامش الأدنى ٪» when the settings record carries none. */
+export const DEFAULT_MIN_MARGIN_PCT = 5;
+/** The suggested price is rounded up to this step (riyals). */
+export const SUGGESTED_STEP = 0.5;
+
+/** An amount in whole halalas, half up (float noise removed first: 1.005 → 101). */
+const halalas = (x: number): number => Math.round(Math.round((Number(x) || 0) * 1e6) / 1e4);
+
+/** Up to the nearest SUGGESTED_STEP (a float's noise above a step does not push it to the next). */
+export function ceilToStep(x: number, step: number = SUGGESTED_STEP): number {
+  return round2(Math.ceil(x / step - 1e-6) * step);
+}
+
+export interface PriceFloor {
+  /** The purchase price as it is: it is net of VAT. */
+  netPurchase: number;
+  waste: number;
+  /** net purchase + waste + the carton share (0 when the share cannot be read). */
+  fullCost: number;
+  /** full cost × 1.15; null when the carton share cannot be read. */
+  breakEven: number | null;
+  /** full cost × (1 + margin) × 1.15, rounded up to 0.5; null when the carton share cannot be read. */
+  suggested: number | null;
+}
+
+/**
+ * What a purchase price must sell for. Each amount is rounded to two decimals
+ * as the board shows it (whole halalas, half up), and the next is made from
+ * the rounded one. Null without a purchase price. Pure.
+ */
+export function priceFloor(a: { purchase: number | null; wastePct: number; opShare: number | null; vatRatePct: number | null; minMarginPct: number }): PriceFloor | null {
+  if (a.purchase === null || !(a.purchase > 0)) return null;
+  const netH = halalas(a.purchase);
+  const wasteH = Math.round((netH * Math.max(0, a.wastePct)) / 100);
+  const fullH = netH + wasteH + (a.opShare !== null ? halalas(a.opShare) : 0);
+  const base = { netPurchase: netH / 100, waste: wasteH / 100, fullCost: fullH / 100 };
+  if (a.opShare === null) return { ...base, breakEven: null, suggested: null };
+  const vat = a.vatRatePct ? 100 + a.vatRatePct : 100;
+  return {
+    ...base,
+    breakEven: Math.round((fullH * vat) / 100) / 100,
+    suggested: ceilToStep((fullH * (100 + Math.max(0, a.minMarginPct)) * vat) / 1e6),
+  };
+}
+
+/** The inputs of the profitable price on a day: the carton share (null = it cannot be read) and «الهامش الأدنى ٪». */
+export interface FloorContext { opShare: number | null; minMarginPct: number }
+export const NO_FLOOR: FloorContext = { opShare: null, minMarginPct: DEFAULT_MIN_MARGIN_PCT };
 
 /** For display only: (market − purchase) ÷ purchase × 100 (= the Odoo compute of product.template.x_margin_view). */
 export function displayMarginPct(purchase: number, market: number): number {
@@ -118,6 +192,7 @@ const REASON: Record<ExceptionCode, string> = {
   no_purchase: "لا سعر شراء",
   no_market: "لا سعر سوق",
   no_profit: "ربح الوحدة ≤ 0",
+  below_profit: "سعر السوق أقل من السعر المربح",
   outlier: "سعر شاذ",
 };
 
@@ -127,25 +202,37 @@ export function offersLine(offers: EngineOffer[]): string {
     .map((o) => `${o.sourceName}: ${o.kind === "purchase" ? "شراء" : "سوق"} ${money(o.price)}${o.outlier ? " (شاذ)" : ""}`).join(" · ");
 }
 
-/** The rule, for every item. Pure. `vat` (§ 41 أ): the unit profit net of VAT from the cutoff. */
-export function computePricing(items: EngineItem[], offers: EngineOffer[], wastePct: number, vat: VatContext = NO_VAT): PricingLine[] {
+/**
+ * The rule, for every item. Pure. `vat` (§ 41 أ): the unit profit net of VAT
+ * from the cutoff. `floor` (§ 47 ب): the carton share and the minimum margin
+ * the suggested price is made from; without a share the rule before § 47.
+ */
+export function computePricing(items: EngineItem[], offers: EngineOffer[], wastePct: number, vat: VatContext = NO_VAT, floor: FloorContext = NO_FLOOR): PricingLine[] {
   const latest = latestPerSource(offers);
   return items.map((it) => {
     const its = latest.filter((o) => o.productId === it.productId && o.packagingId === it.packagingId);
+    // § 47 أ — the lowest offer: the numbers as they are (every one is net of VAT)
     const purchases = its.filter((o) => o.kind === "purchase").sort((a, b) => a.price - b.price || a.rowId - b.rowId);
     const markets = its.filter((o) => o.kind === "market");
     const p = purchases[0] ?? null;
     const purchase = p?.price ?? null;
     const market = median(markets.map((o) => o.price));
-    const profit = purchase !== null && market !== null && p
-      ? round2(vatProfit(market, purchase, wastePct, vat.ratePct, vat.registered(p.partnerId))) : null;
+    const profit = purchase !== null && market !== null
+      ? round2(vatProfit(market, purchase, wastePct, vat.ratePct)) : null;
+    const fl = priceFloor({ purchase, wastePct, opShare: floor.opShare, vatRatePct: vat.ratePct, minMarginPct: floor.minMarginPct });
+    const suggested = fl?.suggested ?? null;
     const outlier = { purchase: !!p?.outlier, market: markets.some((o) => o.outlier) };
     const exceptions: ExceptionCode[] = [];
     if (purchase === null) exceptions.push("no_purchase");
     if (market === null) exceptions.push("no_market");
-    if (profit !== null && profit <= 0) exceptions.push("no_profit");
+    if (purchase !== null && market !== null) {
+      // § 47 ب — profitable = the market price reaches the suggested price
+      if (suggested !== null) { if (market < suggested - 0.0001) exceptions.push("below_profit"); }
+      else if (profit !== null && profit <= 0) exceptions.push("no_profit");
+    }
     if (outlier.purchase || outlier.market) exceptions.push("outlier");
     const reason = exceptions.map((c) => c === "no_profit" ? `${REASON[c]} (${money(profit as number)})`
+      : c === "below_profit" ? `سعر السوق ${money(market as number)} أقل من السعر المربح ${money(suggested as number)}`
       : c === "outlier" ? `${REASON[c]}: ${[outlier.purchase ? "الشراء" : "", outlier.market ? "السوق" : ""].filter(Boolean).join(" و")}` : REASON[c]).join("، ");
     return {
       ...it,
@@ -154,6 +241,7 @@ export function computePricing(items: EngineItem[], offers: EngineOffer[], waste
       sale: market,
       unitProfit: profit,
       displayMargin: purchase !== null && market !== null ? displayMarginPct(purchase, market) : null,
+      fullCost: fl?.fullCost ?? null, breakEven: fl?.breakEven ?? null, suggested,
       exceptions, reason,
       offersText: offersLine(its),
     };
@@ -163,14 +251,15 @@ export function computePricing(items: EngineItem[], offers: EngineOffer[], waste
 // ---------------------------------------------------------------- the status of a line
 
 export type LineStatus = "auto" | "exception" | "manual" | "unpublished";
-export type Decision = "market" | "skip" | "edit";
+export type Decision = "market" | "skip" | "edit" | "profit";
 export interface LineVerdict { status: LineStatus; sale: number; excluded: boolean; reason: string }
 
 /**
  * The line's status from the rule and Baraa's decision: «لا تنشر» → not
  * published; «اعتمد بسعر السوق» → approved at the market price (the one he saw
- * when he decided, else today's); «سعر معدّل» → approved at his price (a
- * positive number); no decision → automatic, or an exception.
+ * when he decided, else today's); «اعتمد بالسعر المربح» (§ 47 ب) → approved at
+ * the suggested price (the one he saw, else today's); «سعر معدّل» → approved
+ * at his price (a positive number); no decision → automatic, or an exception.
  */
 export function lineVerdict(p: PricingLine, decision: Decision | null, manualPrice: number): LineVerdict {
   if (decision === "skip") return { status: "unpublished", sale: 0, excluded: true, reason: "براء: لا تنشر" };
@@ -178,15 +267,27 @@ export function lineVerdict(p: PricingLine, decision: Decision | null, manualPri
     const price = manualPrice > 0 ? manualPrice : p.market ?? 0;
     if (price > 0) return { status: "manual", sale: round2(price), excluded: false, reason: "براء: اعتمد بسعر السوق" };
   }
+  if (decision === "profit") {
+    const price = manualPrice > 0 ? manualPrice : p.suggested ?? 0;
+    if (price > 0) return { status: "manual", sale: round2(price), excluded: false, reason: "براء: اعتمد بالسعر المربح" };
+  }
   if (decision === "edit" && manualPrice > 0) return { status: "manual", sale: round2(manualPrice), excluded: false, reason: "براء: سعر معدّل" };
   if (p.exceptions.length) return { status: "exception", sale: 0, excluded: true, reason: p.reason };
   return { status: "auto", sale: round2(p.market as number), excluded: false, reason: "" };
 }
 
-/** The sale price a stored line must carry (the publication checks it): auto → market; manual → the decided price. */
-export function saleRule(l: { x_status: string | false; x_market_price: number; x_manual_price: number }): number {
+/**
+ * The sale price a stored line must carry (the publication checks it): auto →
+ * market; manual → the decided price, else — «اعتمد بالسعر المربح» chosen in
+ * Odoo without a price — the line's suggested price, else the market price.
+ */
+export function saleRule(l: { x_status: string | false; x_market_price: number; x_manual_price: number; x_decision?: string | false; x_suggested_price?: number }): number {
   if (l.x_status === "auto") return round2(Number(l.x_market_price) || 0);
-  if (l.x_status === "manual") return round2(Number(l.x_manual_price) > 0 ? Number(l.x_manual_price) : Number(l.x_market_price) || 0);
+  if (l.x_status === "manual") {
+    if (Number(l.x_manual_price) > 0) return round2(Number(l.x_manual_price));
+    if (l.x_decision === "profit") return round2(Number(l.x_suggested_price) || 0);
+    return round2(Number(l.x_market_price) || 0);
+  }
   return 0;
 }
 

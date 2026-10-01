@@ -7,7 +7,10 @@
 //      cleared by the worker's tick after Baraa's one alert (src/product-setup.ts);
 //   3. two server actions and their automations:
 //        on_create            → the reference by the category (continuing from the highest in
-//                               use), the sale tax and the purchase tax «15% شامل (مشتريات)», the
+//                               use), the sale tax and the purchase tax — § 47 أ (2026-10-01):
+//                               the company's own purchase tax «15%», price-EXCLUDED, because every
+//                               purchase price is entered net of VAT (it was «15% شامل (مشتريات)»,
+//                               price-included, in § 46) — the
 //                               type / storable / unit / purchase method / invoice policy of the
 //                               majority of the existing produce (READ here, never assumed),
 //                               «نشط للبيع» = false, a default packaging «كرتون» 8 kg;
@@ -35,7 +38,6 @@ import { NAMES, NEW_FLAG, ON_CATEGORY_CODE, REF_PREFIX, TEMP_CARTON_KG, onCreate
 const RB = new URL("./artifacts/s46-20261001-product-setup-rollback.json", import.meta.url);
 const CODES = new URL("./artifacts/s46-20261001-product-codes-before.json", import.meta.url);
 const TMPL = "product.template", PACK = "x_product_packaging";
-const PURCHASE_TAX_NAME = "15% شامل (مشتريات)";
 const ALL = { active_test: false };
 const FIELDS = [{ name: NEW_FLAG, ttype: "boolean", field_description: "صنف جديد (بانتظار تنبيه براء)", help: "يُعلَّم عند إنشاء الصنف. الوركر يرسل لبراء تنبيهاً واحداً بما ينقص الصنف ثم يطفئه." }];
 const P_FIELDS = ["id", "name", "default_code", "categ_id", "type", "is_storable", "uom_id", "purchase_method", "invoice_policy", "taxes_id", "supplier_taxes_id", "x_is_active_for_sale", "active"];
@@ -56,8 +58,12 @@ async function majority() {
     return { value: JSON.parse(k), count: c, of: produce.length };
   };
   const m = { type: top("type"), storable: top("is_storable"), uom: top("uom_id"), purchaseMethod: top("purchase_method"), invoicePolicy: top("invoice_policy"), saleTax: top("taxes_id") };
-  const taxes = await call("account.tax", "search_read", { domain: [["type_tax_use", "=", "purchase"], ["name", "=", PURCHASE_TAX_NAME], ["amount", "=", 15]], fields: ["id", "name", "amount", "price_include_override"] });
-  if (taxes.length !== 1) throw new Error(`purchase tax «${PURCHASE_TAX_NAME}»: ${taxes.length} found — stop`);
+  // § 47 أ — the purchase price is net of VAT: the company's purchase tax, added on top (never a price-included one)
+  const [co] = await call("res.company", "read", { ids: [1], fields: ["account_purchase_tax_id"] });
+  const taxes = co?.account_purchase_tax_id ? await call("account.tax", "read", { ids: [co.account_purchase_tax_id[0]], fields: ["id", "name", "amount", "type_tax_use", "price_include", "active"] }) : [];
+  if (taxes.length !== 1 || taxes[0].type_tax_use !== "purchase" || taxes[0].amount !== 15 || taxes[0].price_include || !taxes[0].active) {
+    throw new Error(`the company's purchase tax is not an active price-excluded 15%: ${JSON.stringify(taxes)} — stop`);
+  }
   const saleIds = m.saleTax.value;
   if (!Array.isArray(saleIds) || saleIds.length !== 1) throw new Error(`the produce's sale tax is not one tax: ${JSON.stringify(saleIds)} — stop`);
   const [sale] = await call("account.tax", "read", { ids: saleIds, fields: ["id", "name", "amount", "type_tax_use"] });
@@ -126,7 +132,7 @@ if (VERIFY) {
   const categField = (await call("ir.model.fields", "search_read", { domain: [["model", "=", TMPL], ["name", "=", "categ_id"]], fields: ["id"] }))[0]?.id;
   check("automation on_write, categ_id only → the on-category action, active", uCat?.trigger === "on_write" && uCat.active && uCat.model_name === TMPL && JSON.stringify(uCat.action_server_ids) === JSON.stringify([aCat?.id])
     && JSON.stringify(uCat.trigger_field_ids) === JSON.stringify([categField]), JSON.stringify(uCat));
-  check("the purchase tax in the code is «15% شامل (مشتريات)» and the sale tax 15%", CREATE_CODE.includes(`'supplier_taxes_id': [(6, 0, [${M.d.purchaseTax}])]`) && CREATE_CODE.includes(`'taxes_id': [(6, 0, [${M.d.saleTax}])]`));
+  check(`the purchase tax in the code is the company's price-excluded ${M.taxNames.purchase} (§ 47 أ) and the sale tax 15%`, CREATE_CODE.includes(`'supplier_taxes_id': [(6, 0, [${M.d.purchaseTax}])]`) && CREATE_CODE.includes(`'taxes_id': [(6, 0, [${M.d.saleTax}])]`));
   check("the code never links a supplier and never sets «نشط للبيع» true", !/seller_ids|x_supplier_ids/.test(CREATE_CODE + ON_CATEGORY_CODE) && CREATE_CODE.includes("'x_is_active_for_sale': False") && !/x_is_active_for_sale': True/.test(CREATE_CODE));
   if (existsSync(CODES)) {
     const before = JSON.parse(readFileSync(CODES, "utf8")).codes;

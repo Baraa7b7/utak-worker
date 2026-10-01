@@ -60,7 +60,7 @@ import { isRecipientAllowed, parseAllowlist, runtimeMode } from "./config";
 import { claimAutoSend, noteManualSend, skippedDuplicateResponse } from "./auto-send-guard";
 import { extractRealWamid, generateFakeWamid, recordOutbound, synthesizeMetaResponse } from "./sim";
 import { arabicDate, maskPhone, sanitizeTemplateBody } from "./wa-params";
-import { recordSendFailure, sendWhat } from "./send-failure";
+import { META_PAYMENT_ISSUE, isPaymentIssue, recordSendFailure, sendWhat } from "./send-failure";
 import { categoryAllowed, expiryFor, purposePolicy } from "./wa-purposes";
 import { markWindowClosed, readWindow, waDigits, type WindowState } from "./wa-window";
 import {
@@ -222,6 +222,19 @@ export function rejectionSeenKey(wamid: string): string {
 export function blocksOnRefusal(purpose: string): boolean {
   const k = purposePolicy(purpose)?.kind;
   return k === "operational" || k === "marketing";
+}
+/**
+ * A stored purpose block that still counts. § 46 هـ — one written for Meta
+ * 131042 (the account's payment problem, before this guard existed) does not:
+ * it said nothing about the purpose or the number.
+ */
+export function isPurposeBlock(stored: string | null): boolean {
+  if (!stored) return false;
+  try {
+    return !isPaymentIssue((JSON.parse(stored) as { code?: unknown })?.code);
+  } catch {
+    return true;
+  }
 }
 
 async function kvGet(env: Env, key: string): Promise<string | null> {
@@ -459,7 +472,7 @@ export async function sendViaGateway(env: Env, req: GatewayRequest): Promise<Res
   // ---- a purpose Meta refused for this number (not 131047 / 131049): 24h ----
   // Automatic purposes only: a bot reply answers a new message (not a retry of
   // the refused one), and a manual send is Baraa's own decision.
-  if (blocksOnRefusal(req.purpose) && (await kvGet(env, purposeBlockKey(to, req.purpose)))) {
+  if (blocksOnRefusal(req.purpose) && isPurposeBlock(await kvGet(env, purposeBlockKey(to, req.purpose)))) {
     const reason = `Meta رفض الغرض ${req.purpose} لهذا الرقم خلال 24 ساعة، ولا إعادة تلقائية`;
     console.warn(`[gateway] blocked purpose=${req.purpose} to=${maskPhone(to)} — refused by Meta within 24h`);
     await logSkipped(env, req, to, reason, "skipped");
@@ -860,6 +873,10 @@ async function handleRejection(
       await kvPut(env, templateBlockKey(to, m.t, now), new Date(now).toISOString(), (riyadhDayEndMs(now) - now) / 1000 + 3600);
       console.warn(`[gateway] 131049 template=${m.t} to=${maskPhone(to)} — not sent to this number again today`);
     }
+  } else if (isPaymentIssue(code)) {
+    // § 46 هـ — the account's payment problem, not this purpose or this number: nothing is blocked
+    // (Baraa's one alert a day is recordSendFailure's), so sends resume the moment he pays.
+    console.warn(`[gateway] Meta ${META_PAYMENT_ISSUE} (payment issue) purpose=${m?.p ?? "?"} to=${maskPhone(to)} — no block`);
   } else if (m?.p && blocksOnRefusal(m.p)) {
     await kvPut(env, purposeBlockKey(to, m.p), JSON.stringify({ code: f.code, at: new Date(now).toISOString() }), 24 * 3600);
     console.warn(`[gateway] Meta ${f.code} purpose=${m.p} to=${maskPhone(to)} — no automatic send of this purpose to this number for 24h`);

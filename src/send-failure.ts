@@ -10,7 +10,9 @@
 //   2. writes (or, for an async failure, relies on) an x_wa_message row with
 //      x_status='failed' and the Meta code in x_meta_error;
 //   3. alerts the owner on the FIRST failure of each template per Riyadh day
-//      (template name, Meta code, recipient masked to its last four digits).
+//      (template name, Meta code, recipient masked to its last four digits) —
+//      except Meta 131042 (the account's payment problem, § 46 هـ): one clear
+//      line a day for all templates.
 // A failure addressed to the owner is only logged and counted: alerting
 // through the owner channel about the owner channel would recurse.
 // Never throws.
@@ -23,6 +25,17 @@ const COUNT_PREFIX = "wa_send_fail:";
 const ALERT_PREFIX = "wa_send_fail_alert:";
 const COUNT_TTL = 8 * 24 * 60 * 60;
 const ALERT_TTL = 26 * 60 * 60;
+
+/**
+ * § 46 هـ — Meta 131042 «Business eligibility payment issue»: the WhatsApp
+ * Business account has a payment problem and Meta refuses every template. Not
+ * a template's failure: Baraa gets this one clear line, once a Riyadh day,
+ * instead of one alert per template — whoever the refused message was for.
+ */
+export const META_PAYMENT_ISSUE = 131042;
+export const PAYMENT_ISSUE_TEXT = "⚠️ Meta أوقف رسائل القوالب بسبب الدفع: سدّد المستحق في الفوترة والمدفوعات لحساب واتساب للأعمال";
+const PAYMENT_ALERT_PREFIX = "wa_pay_issue_alert:";
+export const isPaymentIssue = (code: unknown): boolean => Number(code) === META_PAYMENT_ISSUE;
 
 export interface SendFailure {
   to: string;
@@ -103,7 +116,21 @@ export async function recordSendFailure(env: Env, f: SendFailure): Promise<void>
     }
   }
 
-  // 3) owner alert, first failure of this template today
+  // 3) § 46 هـ — the account's payment problem: one clear alert a day, not one per template
+  if (isPaymentIssue(f.code)) {
+    try {
+      const key = `${PAYMENT_ALERT_PREFIX}${day}`;
+      if (await env.MSG_DEDUP.get(key)) return;
+      await env.MSG_DEDUP.put(key, new Date().toISOString(), { expirationTtl: ALERT_TTL });
+      const { sendOwnerAlert } = await import("./templates");
+      await sendOwnerAlert(env, PAYMENT_ISSUE_TEXT);
+    } catch (e) {
+      console.warn("[send-fail] payment-issue alert failed", (e as Error)?.message);
+    }
+    return;
+  }
+
+  // 4) owner alert, first failure of this template today
   if (isOwner(env, f.to)) return;
   try {
     const key = `${ALERT_PREFIX}${day}:${f.what}`;

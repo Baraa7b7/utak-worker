@@ -73,15 +73,32 @@ export function withoutReal(model, ids, linked) {
 }
 
 /**
+ * § 46 هـ — a model marked through its parent: a simulation order's quotation is a simulation
+ * (x_quotation carries no x_is_simulation of its own, so the rule below never selected it: the
+ * six of § 45 ز were marked by hand).
+ */
+export const PARENT_RULE = Object.freeze({ x_quotation: "x_order_id" });
+
+/**
  * The pre-launch rule for one model (§ 42 ج, § 44 ب): x_is_simulation = true and
  * x_utak_simulation not yet true, less the records linked to a real customer.
  * A model without x_utak_simulation has nothing to mark; one without
- * x_is_simulation is counted (unmarked) and left.
+ * x_is_simulation is counted (unmarked) and left. § 46 هـ — a model of PARENT_RULE:
+ * not yet marked, and its parent is marked or would be (x_is_simulation = true),
+ * less the real customers' as everywhere.
  */
 export async function selectForMark(call, model, linked) {
   const f = await call(model, "fields_get", { attributes: ["type"] });
   const hasIs = "x_is_simulation" in f, hasSim = "x_utak_simulation" in f;
   if (!hasSim) return { hasIs, hasSim, ids: [], excluded: [], unmarkedNoRule: null };
+  const parent = PARENT_RULE[model];
+  if (parent) {
+    const all = await call(model, "search", {
+      domain: [["x_utak_simulation", "!=", true], "|", [`${parent}.x_utak_simulation`, "=", true], [`${parent}.x_is_simulation`, "=", true]], order: "id asc",
+    });
+    const kept = withoutReal(model, all, linked);
+    return { hasIs: true, hasSim, ids: kept.ids, excluded: kept.excluded, unmarkedNoRule: null, parentRule: parent };
+  }
   if (!hasIs) return { hasIs, hasSim, ids: [], excluded: [], unmarkedNoRule: await call(model, "search_count", { domain: [["x_utak_simulation", "!=", true]] }) };
   const all = await call(model, "search", { domain: [["x_is_simulation", "=", true], ["x_utak_simulation", "!=", true]], order: "id asc" });
   const { ids, excluded } = withoutReal(model, all, linked);

@@ -5,7 +5,8 @@
 // the simulation («SIM37-» before SP-…) and the SP sequence back to 0001.
 //
 // The models (operational only — never res.partner, hr.employee, the products
-// or the templates): the order and its lines, the invoice, the payment, the
+// or the templates): the order and its lines, its quotation (§ 46 هـ: marked
+// through its order — a simulation order's quotation), the invoice, the payment, the
 // route and the stop, the purchase list, the dues and their lines, the
 // supplier payments, the price days and their lines, the daily prices, the
 // offers, the attendance, x_wa_message. A model without x_is_simulation has no
@@ -75,8 +76,9 @@ const SP_LOCK_AUTOMATION = 25;
 const numArg = (k: string, d: number) => { const v = process.argv.find((a) => a.startsWith(`--${k}=`)); return v ? Number(v.slice(k.length + 3)) : d; };
 const EXPECT_MOVES = numArg("expect-moves", 48), EXPECT_PAYMENTS = numArg("expect-payments", 9);
 const AHMED = 30;
+// § 46 هـ — x_quotation: a simulation order's quotation (selected through its order, scripts/lib/real-partners.mjs PARENT_RULE)
 export const MODELS = [
-  "x_daily_order", "x_daily_order_line", "x_invoice", "x_payment", "x_delivery_route", "x_delivery_stop",
+  "x_daily_order", "x_daily_order_line", "x_quotation", "x_invoice", "x_payment", "x_delivery_route", "x_delivery_stop",
   "x_purchase_list", "x_supplier_due", "x_supplier_due_line", "x_supplier_payment",
   "x_price_day", "x_price_day_line", "x_daily_price", "x_price_offer", "x_team_attendance", "x_wa_message",
 ];

@@ -53,7 +53,9 @@
 //      tests pin «the twelve on exactly one worker», so none needs editing). Rollback: wrangler.toml as
 //      after step 3, prod's schedules [] and its previous version.
 // Then (reads): the subscription → prod; the first */5 tick ran on prod and nothing on sim after step 3
-// (Cloudflare analytics, polled up to 12 minutes); prod /health; sim's schedules []. All green → the
+// (§ 46 هـ: Cloudflare analytics OR `wrangler tail` seen live, whichever shows it first, polled up to
+// 90 minutes — on 2026-09-30 Cloudflare started prod's schedule 75 minutes after the deploy and the
+// 12-minute poll gave up); prod /health; sim's schedules []. All green → the
 // file .env.prod-launch is deleted. Not green → nothing is rolled back automatically (every step was
 // verified on its own); the report says what failed and the --rollback command.
 //
@@ -69,6 +71,11 @@ import { call } from "./lib/odoo-cli.mjs";
 // @ts-ignore — plain .mjs helper (§ 44 ب: the real customers the re-mark never marks)
 import { REAL_PARTNER_IDS } from "./lib/real-partners.mjs";
 import { evaluateWindow, mergeWindowRecords, windowRecordUntil, type WindowRecord } from "../src/wa-window.ts";
+// @ts-ignore — plain .mjs helper (§ 46 هـ: the scheduled invocations seen by `wrangler tail`)
+import { watchTail } from "./lib/tail-ticks.mjs";
+
+/** § 46 هـ — how long the «first tick» check waits (it was 12 minutes: too short when Cloudflare is late). */
+export const FIRST_TICK_WAIT_MIN = 90;
 
 const APPLY = process.argv.includes("--apply");
 const ROLLBACK = process.argv.includes("--rollback");
@@ -636,13 +643,26 @@ const subAfter = await readSubscription(appToken);
 check(subAfter.callback_url === PROD_WEBHOOK, `Meta subscription → ${subAfter.callback_url}`);
 const t3At = String((stepLog["3"] as any).at), t4At = String((stepLog["4"] as any).at);
 let prodTick: any = null, simAfter: any[] = [];
-for (let i = 0; i < 24 && !prodTick; i++) {
-  await new Promise((r) => setTimeout(r, 30_000));
-  const inv = await invocationsSince(t3At).catch(() => []);
-  prodTick = inv.find((x) => x.scriptName === "utak-worker" && x.cron === "*/5 * * * *" && x.datetime >= t4At) ?? null;
-  simAfter = inv.filter((x) => x.scriptName === "utak-worker-sim" && Date.parse(x.datetime) > Date.parse(t3At) + 30_000);
+// § 46 هـ — two sources for the first tick: the scheduled analytics (they lag) and `wrangler tail`, live
+const tailProd = watchTail("utak-worker", rel("./").pathname), tailSim = watchTail("utak-worker-sim", rel("./").pathname);
+try {
+  for (let i = 0; i < FIRST_TICK_WAIT_MIN * 2 && !prodTick; i++) {
+    await new Promise((r) => setTimeout(r, 30_000));
+    tailProd.alive(); tailSim.alive();
+    const inv = await invocationsSince(t3At).catch(() => []);
+    const seen = inv.find((x) => x.scriptName === "utak-worker" && x.cron === "*/5 * * * *" && x.datetime >= t4At) ?? null;
+    const live = tailProd.ticks.find((x: any) => x.cron === "*/5 * * * *" && x.at >= t4At) ?? null;
+    prodTick = seen ? { ...seen, source: "analytics" } : live ? { scriptName: "utak-worker", cron: live.cron, status: live.outcome, datetime: live.at, source: "wrangler tail" } : null;
+    const after = (iso: string) => Date.parse(iso) > Date.parse(t3At) + 30_000;
+    simAfter = [
+      ...inv.filter((x) => x.scriptName === "utak-worker-sim" && after(x.datetime)),
+      ...tailSim.ticks.filter((x: any) => after(x.at)).map((x: any) => ({ scriptName: "utak-worker-sim", cron: x.cron, status: x.outcome, datetime: x.at, source: "wrangler tail" })),
+    ];
+  }
+} finally {
+  tailProd.stop(); tailSim.stop();
 }
-check(prodTick, `the first */5 tick on prod: ${prodTick ? `${prodTick.datetime} ${prodTick.status}` : "not seen in 12 minutes"}`);
+check(prodTick, `the first */5 tick on prod: ${prodTick ? `${prodTick.datetime} ${prodTick.status} (${prodTick.source})` : `not seen in ${FIRST_TICK_WAIT_MIN} minutes (analytics or wrangler tail)`}`);
 check(simAfter.length === 0, `nothing on sim after step 3 (${simAfter.length} invocation(s))`);
 const h = await getHealth();
 check(h.status === 200 && h.body?.status === "ok", `prod /health: ${h.status} ${h.body?.status} ${h.body?.odoo}`);

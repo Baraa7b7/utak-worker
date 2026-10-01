@@ -1,0 +1,41 @@
+{
+  "label": "s46-after-prod-deploy",
+  "atRiyadh": "2026-10-01 06:26",
+  "prod": {
+    "version": "5284f419-a788-4be0-9e48-9048cc0b144b",
+    "deployedAt": "2026-10-01T03:26:16.809526Z",
+    "schedules": [
+      "0 14 * * *",
+      "0 15 * * *",
+      "0 17 * * *",
+      "0 18 * * *",
+      "0 2 * * *",
+      "0 23 * * *",
+      "0 3 * * *",
+      "0 5 * * *",
+      "15 18 * * *",
+      "2,7,12,17,22,27,32,37,42,47,52,57 * * * *",
+      "30 18 * * *",
+      "*/5 * * * *"
+    ],
+    "health": {
+      "status": 200,
+      "state": "ok",
+      "odoo": "connected (apikey)",
+      "mode": null
+    },
+    "challenge": "لا توكن في الملف"
+  },
+  "sim": {
+    "version": "5c3e92e5-7899-4f44-a911-3f1599b0c8eb",
+    "deployedAt": "2026-10-01T03:24:53.456017Z",
+    "schedules": [],
+    "health": {
+      "status": 200,
+      "state": "ok",
+      "odoo": "connected (apikey)",
+      "mode": null
+    },
+    "challenge": "لا توكن في الملف"
+  }
+}

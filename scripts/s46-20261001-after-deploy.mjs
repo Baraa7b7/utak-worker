@@ -3,9 +3,9 @@
 // nothing scheduled on sim. Then the schedules of both workers, /health, and Meta's webhook
 // (scripts/s45-20260930-prod-check.mjs and scripts/s46-20261001-step0.mjs print those).
 //
-//   node scripts/s46-20261001-after-deploy.mjs [--minutes=9]
+//   node scripts/s46-20261001-after-deploy.mjs [--minutes=9] [--out=<name>]
 //
-// Out: scripts/artifacts/s46-20261001-after-deploy.json
+// Out: scripts/artifacts/s46-20261001-after-deploy.json (§ 47: --out=<name> writes a later run to scripts/artifacts/<name>.json)
 import { spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { splitJsonObjects } from "./lib/tail-ticks.mjs";
@@ -44,7 +44,8 @@ while (Date.now() < until) await new Promise((r) => setTimeout(r, 2000));
 for (const t of tails) t.kill();
 const first = five()[0] ?? null;
 const out = { startedRiyadh: riyadh(started), endedRiyadh: riyadh(Date.now()), firstFiveMinuteTickOnProd: first, prod: seen["utak-worker"], sim: seen["utak-worker-sim"] };
-writeFileSync(new URL("./artifacts/s46-20261001-after-deploy.json", import.meta.url), JSON.stringify(out, null, 2) + "\n");
+const OUT = process.argv.find((a) => a.startsWith("--out="))?.slice(6) ?? "s46-20261001-after-deploy";
+writeFileSync(new URL(`./artifacts/${OUT}.json`, import.meta.url), JSON.stringify(out, null, 2) + "\n");
 console.log(first ? `\n✓ أول نبضة */5 على prod بعد النشر: ${first.at} (${first.outcome})${first.exceptions.length || first.errors.length ? " — مع أخطاء، راجعها" : "، بلا استثناء ولا console.error"}` : `\n✗ لم تُر نبضة */5 على prod في ${MINUTES} دقائق`);
 console.log(seen["utak-worker-sim"].length ? `✗ sim شغّل ${seen["utak-worker-sim"].length} موعداً` : "✓ لا تشغيل مجدول على sim");
 process.exit(first && !seen["utak-worker-sim"].length ? 0 : 1);

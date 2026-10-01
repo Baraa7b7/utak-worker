@@ -40,6 +40,10 @@
 // (the day's cost «تعذّر», or «الكراتين المتوقعة» empty) there is no suggested
 // price: the rule before § 47 stands (an exception when the unit profit ≤ 0).
 //
+// § 49 د — «دور الأسعار»: «أقل عرض» is computed from the «شراء» sources alone. A
+// source whose role is «سوق» sends market observations only (src/price-sources.ts),
+// and a purchase price on one of his rows is never a purchase offer.
+//
 // Only a source with «مصدر أسعار» counts (a supplier's own row: x_supplier_id
 // ticked; an offer: its source partner ticked, or the Work Contact of a ticked
 // employee). Offers marked x_utak_simulation are left out. Each source counts
@@ -335,16 +339,21 @@ export async function readDayOffers(env: Env, day: string, sources: PriceSources
     fields: ["id", "x_source_partner_id", "x_product_tmpl_id", "x_packaging_id", "x_purchase_price", "x_market_price", "x_purchase_outlier", "x_market_outlier"],
     order: "id asc", limit: 2000,
   });
+  // § 49 د — «أقل عرض» counts the «شراء» sources alone: a source whose role is «سوق» gives market
+  // observations only, so no row of his is a purchase offer (a source without a role: as before).
+  const { marketOnlyPartners } = await import("./price-sources");
+  const marketOnly = marketOnlyPartners(sources);
   const out: EngineOffer[] = [];
   for (const r of dp) {
     const [pid, pname] = m2o(r.x_supplier_id);
+    if (marketOnly.has(pid)) continue;
     out.push({ kind: "purchase", price: Number(r.x_price_sar), outlier: r.x_extraction_status === "pending", partnerId: pid, sourceName: names.get(pid) ?? pname,
       productId: m2o(r.x_product_tmpl_id)[0], packagingId: m2o(r.x_packaging_id)[0], model: "dp", rowId: r.id, saleStored: Number(r.x_sale_price) || 0 });
   }
   for (const r of po) {
     const [pid, pname] = m2o(r.x_source_partner_id);
     const base = { partnerId: pid, sourceName: names.get(pid) ?? pname, productId: m2o(r.x_product_tmpl_id)[0], packagingId: m2o(r.x_packaging_id)[0], model: "po" as const, rowId: r.id };
-    if (Number(r.x_purchase_price) > 0) out.push({ ...base, kind: "purchase", price: Number(r.x_purchase_price), outlier: r.x_purchase_outlier === true });
+    if (Number(r.x_purchase_price) > 0 && !marketOnly.has(pid)) out.push({ ...base, kind: "purchase", price: Number(r.x_purchase_price), outlier: r.x_purchase_outlier === true });
     if (Number(r.x_market_price) > 0) out.push({ ...base, kind: "market", price: Number(r.x_market_price), outlier: r.x_market_outlier === true });
   }
   return out;

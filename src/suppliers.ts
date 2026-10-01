@@ -284,8 +284,11 @@ export async function handleSupplierReply(
   // § 40 ب — and a number with «سوق» beside it is a market observation, not
   // his purchase price (checkOfferItems; checkExtractedPrices is the same rule
   // for the purchase price alone).
-  const { checkOfferItems, saveOffer } = await import("./price-sources");
-  const check = checkOfferItems(extract.prices, products, packagings, messageText, "supplier");
+  // § 49 د — «دور الأسعار» on his card: «شراء» → every number is his purchase
+  // price («سوق» beside one changes nothing); «سوق» → every number is a market
+  // observation (an x_price_offer row, no x_daily_price); none → the rule above.
+  const { checkOfferItems, saveOffer, partnerPriceRole } = await import("./price-sources");
+  const check = checkOfferItems(extract.prices, products, packagings, messageText, "supplier", await partnerPriceRole(env, supplier.id));
   if (!check.kept.length) {
     if (pendingLog) {
       await updateSupplierLog(env, pendingLog.id, {

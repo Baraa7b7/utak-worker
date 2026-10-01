@@ -46,8 +46,18 @@ const MIN = 60_000;
 const SIM_FIELD = "x_utak_simulation";
 const MARKER_TTL = 12 * 60 * 60;
 
-export const marketAskText = (name: string): string =>
-  `صباح الخير ${String(name || "").split(" ")[0]} 🌿 أرسل أسعار السوق اليوم لو سمحت: الصنف والتعبئة والسعر لكل صنف. ولو معك سعر شراء اكتب «شراء» جنب رقمه، وسعر الشراء بدون ضريبة.`;
+/**
+ * The 02:30 ask. § 49 د — it follows the source's role: a «سوق» source is
+ * asked for market prices alone (a «شراء» beside a number changes nothing for
+ * him), a «شراء» source for his purchase prices; a source without a role gets
+ * the text of before (§ 40 ب / § 47 أ).
+ */
+export const marketAskText = (name: string, role: PriceRole | null = null): string => {
+  const first = String(name || "").split(" ")[0];
+  if (role === "market") return `صباح الخير ${first} 🌿 أرسل أسعار السوق اليوم لو سمحت: اسم الصنف كاملاً والتعبئة وسعر السوق لكل صنف.`;
+  if (role === "purchase") return `صباح الخير ${first} 🌿 أرسل أسعار الشراء اليوم لو سمحت: اسم الصنف كاملاً والتعبئة وسعر الشراء لكل صنف، بدون ضريبة.`;
+  return `صباح الخير ${first} 🌿 أرسل أسعار السوق اليوم لو سمحت: الصنف والتعبئة والسعر لكل صنف. ولو معك سعر شراء اكتب «شراء» جنب رقمه، وسعر الشراء بدون ضريبة.`;
+};
 export const marketAckText = (n: number): string => `وصلتنا أسعار السوق (${n} صنف) 🌿 الله يعطيك العافية.`;
 /** § 41 و (the live run) — the items whose offer Odoo did not take: named, to be sent again. */
 export const marketUnsavedText = (names: string[], none = false): string =>
@@ -70,6 +80,18 @@ const hasNumber = (text: string): boolean => /[0-9٠-٩۰-۹]/.test(text);
 /** supplier: a purchase price unless «سوق» is beside it. observer (Omar): a market observation unless «شراء» is. */
 export type SourceRole = "supplier" | "observer";
 export type PriceKind = "purchase" | "market";
+/**
+ * § 49 د — «دور الأسعار» (x_price_role on the source's card: the partner, the
+ * employee), set in Odoo. A source with a role sends ONE kind of number:
+ *   • «شراء» (purchase): every number he writes is a purchase offer;
+ *   • «سوق» (market): every number is a market observation — even with «شراء»
+ *     written beside it — and none of his numbers enters «أقل عرض».
+ * No role (empty): the keyword rule of § 40 ب above, as before § 49.
+ * 2026-10-01: Ahmed Hassan (#30) = شراء, Omar = سوق.
+ */
+export type PriceRole = PriceKind;
+export const ROLE_FIELD = "x_price_role";
+const asRole = (v: unknown): PriceRole | null => (v === "purchase" || v === "market" ? v : null);
 const KEYWORD: Record<PriceKind, RegExp> = { market: /سوق/, purchase: /شرا/ };
 const DEFAULT_KIND: Record<SourceRole, PriceKind> = { supplier: "purchase", observer: "market" };
 const OTHER: Record<PriceKind, PriceKind> = { purchase: "market", market: "purchase" };
@@ -145,22 +167,25 @@ export interface OfferPrices {
  * keyword is beside it («سوق» for a supplier, «شراء» for an observer). Two
  * numbers of one kind: the one the extractor labelled that kind stays.
  */
-export function classifyOffer(item: { cost_price?: number | null; market_price?: number | null; available_qty?: number | null }, text: string, role: SourceRole): OfferPrices {
+export function classifyOffer(item: { cost_price?: number | null; market_price?: number | null; available_qty?: number | null }, text: string, role: SourceRole, fixed: PriceRole | null = null): OfferPrices {
   const out: OfferPrices = { dropped: [] };
   const cands: Array<{ v: number; label: PriceKind }> = [];
   if (Number(item.cost_price) > 0) cands.push({ v: Number(item.cost_price), label: "purchase" });
   if (Number(item.market_price) > 0) cands.push({ v: Number(item.market_price), label: "market" });
-  const placed: Array<{ v: number; kind: PriceKind; label: PriceKind }> = [];
+  // § 49 د — a source with a role: every number is of its role's kind, whatever is written beside it.
+  // `plain`: no keyword of the other kind beside it — of two numbers of an item, that one is kept.
+  const reader: SourceRole = fixed === "purchase" ? "supplier" : fixed === "market" ? "observer" : role;
+  const placed: Array<{ v: number; kind: PriceKind; label: PriceKind; plain: boolean }> = [];
   for (const c of cands) {
-    const k = kindByText(text, c.v, role);
+    const k = kindByText(text, c.v, reader);
     if (k === "unwritten") { out.dropped.push(`${c.v}: غير مكتوب في الرسالة`); continue; }
-    const kind = k === "ambiguous" ? c.label : k === "other" ? OTHER[DEFAULT_KIND[role]] : DEFAULT_KIND[role];
-    placed.push({ v: c.v, kind, label: c.label });
+    const kind = fixed ?? (k === "ambiguous" ? c.label : k === "other" ? OTHER[DEFAULT_KIND[role]] : DEFAULT_KIND[role]);
+    placed.push({ v: c.v, kind, label: c.label, plain: k === "default" });
   }
   for (const kind of ["purchase", "market"] as PriceKind[]) {
     const of = placed.filter((p) => p.kind === kind);
     if (!of.length) continue;
-    const pick = of.find((p) => p.label === kind) ?? of[0];
+    const pick = (fixed ? of.find((p) => p.plain) : undefined) ?? of.find((p) => p.label === kind) ?? of[0];
     out[kind] = pick.v;
     for (const p of of) if (p !== pick) out.dropped.push(`${p.v}: رقمان لنفس النوع`);
   }
@@ -184,6 +209,8 @@ export function checkOfferItems(
   packagings: Array<{ id: number; product_id: number }>,
   text: string,
   role: SourceRole,
+  /** § 49 د — the source's «دور الأسعار», when it carries one. */
+  fixed: PriceRole | null = null,
 ): { kept: KeptOffer[]; dropped: Array<{ item: SupplierPriceItem; reason: string }> } {
   const ids = new Set(products.map((p) => p.id));
   const kept: KeptOffer[] = [];
@@ -191,7 +218,7 @@ export function checkOfferItems(
   for (const it of items) {
     if (!ids.has(it.product_id)) { dropped.push({ item: it, reason: "صنف لا يورّده" }); continue; }
     if (!packagings.some((k) => k.id === it.packaging_id && k.product_id === it.product_id)) { dropped.push({ item: it, reason: "تعبئة لا تخص الصنف" }); continue; }
-    const c = classifyOffer(it, text, role);
+    const c = classifyOffer(it, text, role, fixed);
     if (c.purchase === undefined && c.market === undefined) { dropped.push({ item: it, reason: "السعر غير مكتوب في الرسالة" }); continue; }
     kept.push({ ...c, product_id: it.product_id, packaging_id: it.packaging_id, item: it });
   }
@@ -269,8 +296,8 @@ export async function saveOffer(env: Env, o: OfferWrite, day: string = riyadhDat
  */
 export const VAT_REGISTERED_FIELD = "x_vat_registered";
 
-export interface EmployeeSource { employeeId: number; partnerId: number; name: string; whatsapp: string; vatRegistered: boolean }
-export interface PartnerSource { partnerId: number; name: string; whatsapp: string; supplier: boolean; vatRegistered: boolean }
+export interface EmployeeSource { employeeId: number; partnerId: number; name: string; whatsapp: string; vatRegistered: boolean; /** § 49 د — «دور الأسعار»; null = none (the keyword rule). */ role: PriceRole | null }
+export interface PartnerSource { partnerId: number; name: string; whatsapp: string; supplier: boolean; vatRegistered: boolean; /** § 49 د */ role: PriceRole | null }
 export interface PriceSources {
   employees: EmployeeSource[];
   partners: PartnerSource[];
@@ -288,11 +315,11 @@ export function isSourceVatRegistered(sources: PriceSources, partnerId: number):
 }
 
 export async function loadPriceSources(env: Env): Promise<PriceSources> {
-  const emps = await call<Array<{ id: number; name: string; work_contact_id: [number, string] | number | false; x_utak_whatsapp: string | false; x_vat_registered: boolean }>>(env, "hr.employee", "search_read", {
-    domain: [[SOURCE_FIELD, "=", true]], fields: ["id", "name", "work_contact_id", "x_utak_whatsapp", VAT_REGISTERED_FIELD], order: "id asc", limit: 100,
+  const emps = await call<Array<{ id: number; name: string; work_contact_id: [number, string] | number | false; x_utak_whatsapp: string | false; x_vat_registered: boolean; x_price_role?: string | false }>>(env, "hr.employee", "search_read", {
+    domain: [[SOURCE_FIELD, "=", true]], fields: ["id", "name", "work_contact_id", "x_utak_whatsapp", VAT_REGISTERED_FIELD, ROLE_FIELD], order: "id asc", limit: 100,
   });
-  const parts = await call<Array<{ id: number; name: string; x_whatsapp_number: string | false; supplier_rank: number; x_vat_registered: boolean }>>(env, "res.partner", "search_read", {
-    domain: [[SOURCE_FIELD, "=", true]], fields: ["id", "name", "x_whatsapp_number", "supplier_rank", VAT_REGISTERED_FIELD], order: "id asc", limit: 200,
+  const parts = await call<Array<{ id: number; name: string; x_whatsapp_number: string | false; supplier_rank: number; x_vat_registered: boolean; x_price_role?: string | false }>>(env, "res.partner", "search_read", {
+    domain: [[SOURCE_FIELD, "=", true]], fields: ["id", "name", "x_whatsapp_number", "supplier_rank", VAT_REGISTERED_FIELD, ROLE_FIELD], order: "id asc", limit: 200,
   });
   const employees = emps.map((e) => ({
     employeeId: e.id,
@@ -300,9 +327,31 @@ export async function loadPriceSources(env: Env): Promise<PriceSources> {
     name: e.name,
     whatsapp: waDigits(String(e.x_utak_whatsapp || "")),
     vatRegistered: e.x_vat_registered === true,
+    role: asRole(e.x_price_role),
   }));
-  const partners = parts.map((p) => ({ partnerId: p.id, name: p.name, whatsapp: waDigits(String(p.x_whatsapp_number || "")), supplier: (Number(p.supplier_rank) || 0) > 0, vatRegistered: p.x_vat_registered === true }));
+  const partners = parts.map((p) => ({ partnerId: p.id, name: p.name, whatsapp: waDigits(String(p.x_whatsapp_number || "")), supplier: (Number(p.supplier_rank) || 0) > 0, vatRegistered: p.x_vat_registered === true, role: asRole(p.x_price_role) }));
   return { employees, partners, partnerIds: new Set([...partners.map((p) => p.partnerId), ...employees.map((e) => e.partnerId).filter(Boolean)]) };
+}
+
+/** § 49 د — the role of the source an offer's partner belongs to: the employee's (by Work Contact) first, else the partner's; null = none. */
+export function sourceRole(sources: PriceSources, partnerId: number): PriceRole | null {
+  return sources.employees.find((e) => e.partnerId === partnerId)?.role ?? sources.partners.find((p) => p.partnerId === partnerId)?.role ?? null;
+}
+
+/** § 49 د — the partners whose numbers are market observations alone («سوق»): none of their rows is a purchase offer. */
+export function marketOnlyPartners(sources: PriceSources): Set<number> {
+  return new Set([...sources.employees, ...sources.partners].filter((x) => x.partnerId && sourceRole(sources, x.partnerId) === "market").map((x) => x.partnerId));
+}
+
+/** § 49 د — «دور الأسعار» on a partner's card (a supplier answering the 02:00 ask). Null when empty or unreadable. */
+export async function partnerPriceRole(env: Env, partnerId: number): Promise<PriceRole | null> {
+  try {
+    const [p] = await call<Array<{ id: number; x_price_role?: string | false }>>(env, "res.partner", "read", { ids: [partnerId], fields: [ROLE_FIELD] });
+    return asRole(p?.x_price_role);
+  } catch (e) {
+    console.warn(`[price-sources] the role of partner ${partnerId} could not be read — the keyword rule`, (e as Error)?.message);
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------- the 02:30 ask and the 90-minute window
@@ -334,7 +383,7 @@ export async function runMarketAsk(env: Env, nowMs: number, untilMinute: number)
   const jenv = withAutoSendJob(env, MARKET_ASK_PURPOSE);
   const src = await loadPriceSources(env);
   const emp = new Set(src.employees.map((e) => e.partnerId));
-  const targets: Array<{ partnerId: number; employeeId: number | null; name: string; whatsapp: string }> = [
+  const targets: Array<{ partnerId: number; employeeId: number | null; name: string; whatsapp: string; role: PriceRole | null }> = [
     ...src.employees.filter((e) => e.partnerId).map((e) => ({ ...e })),
     ...src.partners.filter((p) => !p.supplier && !emp.has(p.partnerId)).map((p) => ({ ...p, employeeId: null })),
   ];
@@ -343,7 +392,7 @@ export async function runMarketAsk(env: Env, nowMs: number, untilMinute: number)
     if (!t.whatsapp) { asks.push({ name: t.name, action: "no_number" }); continue; }
     const claim = await claimButton(env, `mask_sent:${day}:p${t.partnerId}`, 26 * 60 * 60);
     if (!claim.claimed) { asks.push({ name: t.name, action: "claimed_before" }); continue; }
-    const text = marketAskText(t.name);
+    const text = marketAskText(t.name, t.role);
     let action: AskResult["action"] = "refused";
     try {
       if (t.employeeId) {
@@ -414,7 +463,7 @@ export async function activeCatalog(env: Env): Promise<{ products: Array<{ id: n
  */
 export async function handleMarketReply(
   env: Env,
-  src: { partnerId: number; employeeId?: number | null; name: string; digits: string },
+  src: { partnerId: number; employeeId?: number | null; name: string; digits: string; /** § 49 د — «دور الأسعار» */ role?: PriceRole | null },
   text: string,
   messageId: string,
   nowMs: number = Date.now(),
@@ -430,7 +479,8 @@ export async function handleMarketReply(
     console.warn("[market-reply] extract failed — an ordinary message", (e as Error)?.message);
     return null;
   }
-  const check = checkOfferItems(items, products, packagings, text, "observer");
+  // § 49 د — a «سوق» source: every number a market observation, «شراء» beside it or not; a «شراء» source: every number a purchase offer
+  const check = checkOfferItems(items, products, packagings, text, "observer", src.role ?? null);
   if (!check.kept.length) {
     // § 48 د — no number in it: an ordinary message. A number and no price kept: Baraa is told, once
     if (!hasNumber(text)) return null;
@@ -495,6 +545,6 @@ export async function tryMarketReply(
   const src = await loadPriceSources(env);
   const emp = src.employees.find((e) => e.partnerId === who.partnerId);
   if (!emp && !src.partners.some((p) => p.partnerId === who.partnerId && !p.supplier)) return null;
-  const r = await handleMarketReply(env, { partnerId: who.partnerId, employeeId: emp?.employeeId ?? who.employeeId ?? null, name: who.name, digits }, text, messageId, nowMs);
+  const r = await handleMarketReply(env, { partnerId: who.partnerId, employeeId: emp?.employeeId ?? who.employeeId ?? null, name: who.name, digits, role: sourceRole(src, who.partnerId) }, text, messageId, nowMs);
   return r?.reply ?? null;
 }

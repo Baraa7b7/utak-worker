@@ -1,8 +1,8 @@
 # مراجعة قوالب واتساب — 2026-09-24
 
 - **الفرع:** `sim-harness`. **Meta:** طلبات GET فقط، ولم يُنشأ أو يُعدَّل أو يُحذف أي قالب. **لا إرسال واتساب** لأي رقم.
-- **Odoo:** 44 كتابة على `x_whatsapp_template` (x_purpose وx_label_ar وx_name فقط)، كلها مسجلة قبل الكتابة في `scripts/artifacts/wa-templates-20260924-rollback.json`، والتراجع: `node scripts/wa-templates-20260924-rollback.mjs --apply` (بلا `--apply` يطبع فقط).
-- **السكربتات:** الجرد `scripts/wa-templates-20260924-inventory.mjs` (مخرجه بعد التنفيذ في `scripts/artifacts/wa-templates-20260924-inventory.json`، وحالة ما قبل التنفيذ هي قيم `before` في ملف rollback)، والتنفيذ `scripts/wa-templates-20260924-migrate.mjs`، والتحقق `scripts/wa-templates-20260924-verify.mjs`، وعقد الأغراض `scripts/wa-templates-20260924-purpose-contract.mjs`.
+- **Odoo:** 44 كتابة على `x_whatsapp_template` (x_purpose وx_label_ar وx_name فقط)، كلها مسجلة قبل الكتابة في `scripts/artifacts/wa-templates-20260924-rollback.json`، والتراجع: `node scripts/archive/wa-templates-20260924-rollback.mjs --apply` (بلا `--apply` يطبع فقط).
+- **السكربتات:** الجرد `scripts/archive/wa-templates-20260924-inventory.mjs` (مخرجه بعد التنفيذ في `scripts/artifacts/wa-templates-20260924-inventory.json`، وحالة ما قبل التنفيذ هي قيم `before` في ملف rollback)، والتنفيذ `scripts/archive/wa-templates-20260924-migrate.mjs`، والتحقق `scripts/archive/wa-templates-20260924-verify.mjs`، وعقد الأغراض `scripts/wa-templates-20260924-purpose-contract.mjs`.
 - **x_purpose حقل selection إلزامي**، فلا يمكن تركه فارغاً. «التفريغ» في هذا الملف = ضبطه على `other`، وهي قيمة «بلا غرض» التي لا يطلبها أي كود.
 - **من يستقبل Webhook واتساب:** `webhook_configuration` لرقم UTAK يشير إلى `utak-worker-sim` (GET من Graph)، وجدولة prod `[]`. أي أن كود prod القديم لا يرسل الترحيب ولا «تم التسليم» ولا أي رسالة مجدولة، فنقل الأغراض في tenant Odoo المشترك لا يمسه عملياً.
 
@@ -168,4 +168,4 @@
 ## 8) الاختبارات والتحقق
 
 - `tests/wa-template-purpose.test.mts` (25 فحصاً): ترتيب الاختيار، وتجاهل `other`، وتنبيه المالك مرة واحدة في اليوم، وعدم التكرار الذاتي في owner_alert، وانتقال المتغيرات مع القالب (الترحيل والتراجع)، ومسار الموردين، وتقرير المزامنة.
-- `scripts/wa-templates-20260924-verify.mjs` (قراءة فقط من Odoo): كل ثابت `T.*` و`TMPL_*` في العقد، وكل غرض له قالب واحد معتمد بعدد متغيرات يطابق الكود، ولا تكرار. النتيجة: **ALL OK**، والاستثناء الوحيد المعروف `customer_quotation_pdf` (§ 1).
+- `scripts/archive/wa-templates-20260924-verify.mjs` (قراءة فقط من Odoo): كل ثابت `T.*` و`TMPL_*` في العقد، وكل غرض له قالب واحد معتمد بعدد متغيرات يطابق الكود، ولا تكرار. النتيجة: **ALL OK**، والاستثناء الوحيد المعروف `customer_quotation_pdf` (§ 1).

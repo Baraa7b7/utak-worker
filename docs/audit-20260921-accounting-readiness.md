@@ -4,7 +4,7 @@
 **Branch:** `sim-harness` (HEAD `9841b8f`)
 **Method:** read-only Odoo JSON-2 (`search_read`, `search_count`, `fields_get`, `read` on `res.company`)
 **No writes to Odoo. No deploys. No Meta/Graph calls.**
-**Reproduce:** `node scripts/audit-20260921-accounting-readiness.mjs` — writes a local JSON snapshot to `scripts/artifacts/audit-20260921-accounting-readiness.json` (not committed).
+**Reproduce:** `node scripts/archive/audit-20260921-accounting-readiness.mjs` — writes a local JSON snapshot to `scripts/artifacts/audit-20260921-accounting-readiness.json` (not committed).
 
 The question this audit answers: *what would need to be connected before the standard Odoo financial statements — Balance Sheet, Profit & Loss, Trial Balance — can be produced end-to-end from Odoo?*
 

@@ -1,6 +1,6 @@
 // § 48 و (2026-10-01) — UTAK ← «💲 التسعير»: everything about pricing in one menu, five screens.
 // The names, the computed fields' Python, the server actions' code and the views' arch — one source
-// for scripts/s48-20261001-ui.mjs (which writes them to the tenant), scripts/s48-20261001-shots.mts
+// for scripts/s48-20261001-ui.mjs (which writes them to the tenant), scripts/archive/s48-20261001-shots.mts
 // (which measures their contrast) and tests/s48.test.mts (which runs the Python in python3 and
 // reads the arch). Changing a string here changes nothing in Odoo until the setup script is
 // re-applied (its --verify compares what the tenant stores with this file).

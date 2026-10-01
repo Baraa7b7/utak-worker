@@ -2,7 +2,7 @@
 //
 // Pure logic and Odoo orchestration with an injected `call(model, method,
 // body, opts)`, so tests/acct-close.test.mts runs it against a fake Odoo.
-// The CLI wrappers are scripts/acct-20260924-opening-capital.mjs and
+// The CLI wrappers are scripts/archive/acct-20260924-opening-capital.mjs and
 // scripts/acct-month-close.mjs.
 
 export const OPENING_REF = "UTAK-OPENING-CAPITAL";

@@ -9,7 +9,7 @@
 // messages and are not affected.
 //
 // The flag lives on res.partner.x_wa_marketing_optout (boolean, created by
-// scripts/wa-20260924-marketing-optout-field.mjs), so Baraa sees and edits it
+// scripts/archive/wa-20260924-marketing-optout-field.mjs), so Baraa sees and edits it
 // on the partner form next to «مسموح واتساب».
 // ============================================================
 import type { Env } from "./config";

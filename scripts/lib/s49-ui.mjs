@@ -1,5 +1,5 @@
 // § 49 (2026-10-01) — what § 49 puts in Odoo, one source for scripts/s49-20261001-odoo.mjs (which
-// writes it to the tenant), scripts/s49-20261001-shots.mts (which measures its contrast) and
+// writes it to the tenant), scripts/archive/s49-20261001-shots.mts (which measures its contrast) and
 // tests/s49.test.mts (which runs the Python in python3 and reads the archs):
 //   أ  «الحد الأدنى للطلب (ريال)» = 0 on the active settings record (0 = no minimum, never mentioned);
 //   ب  x_daily_order: «أسعار يوم» (the price list the quotation was priced with), «بانتظار أسعار اليوم»;

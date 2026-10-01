@@ -83,7 +83,7 @@ export function replaceStatusLine(body: string, line: string): string | null {
 
 /**
  * The Python of the server action — generated from the functions above so the
- * two never drift (scripts/s36-20260925-odoo.mts writes it and --verify runs
+ * two never drift (scripts/archive/s36-20260925-odoo.mts writes it and --verify runs
  * its functions in python3 against statusLineFor / replaceStatusLine).
  */
 export function heldLineActionCode(): string {

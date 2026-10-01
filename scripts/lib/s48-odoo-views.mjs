@@ -1,6 +1,6 @@
 // § 48 (2026-10-01) — the texts, the computed display fields and the view pieces of § 48, one source
 // for scripts/s48-20261001-odoo.mjs (the logic: أ–د), scripts/s48-20261001-ui.mjs (the «💲 التسعير»
-// screens: هـ–و) and scripts/s48-20261001-shots.mts (the contrast of what they show).
+// screens: هـ–و) and scripts/archive/s48-20261001-shots.mts (the contrast of what they show).
 
 // ---------------------------------------------------------------- the rule, as the screens say it
 export const MIN_PROFIT_SAR = 2;

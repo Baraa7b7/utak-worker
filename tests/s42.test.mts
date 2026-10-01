@@ -49,7 +49,7 @@ const FX = [
   "./fixtures-odoo-fields-20260925-team.json", "./fixtures-odoo-fields-20260925-opener.json", "./fixtures-odoo-fields-20260925-prices.json",
   "./fixtures-odoo-fields-20260925-s36.json", "./fixtures-odoo-fields-20260925-s37.json", "./fixtures-odoo-fields-20260926-s37-sim.json",
   "./fixtures-odoo-fields-20260926-s41.json",
-  // § 42 — fields_get of 2026-09-27 (scripts/s42-20260927-fields-fixture.mjs), the dues and the accounting twins included
+  // § 42 — fields_get of 2026-09-27 (scripts/archive/s42-20260927-fields-fixture.mjs), the dues and the accounting twins included
   "./fixtures-odoo-fields-20260927-s42.json",
   "./fixtures-odoo-fields-20260928-s44.json", // § 44: x_vat_status / x_legal_name / x_vat_ask_count on res.partner (the invoice reads them), the purchase side (last: it wins)
   "./fixtures-odoo-fields-20261001-s49.json", // § 46 + § 47: the pricing board's fields on x_price_day / x_price_day_line, x_expected_cartons, product.template.x_utak_new, x_min_margin_pct, x_break_even / x_suggested_price, x_decision «profit» (last: it wins)

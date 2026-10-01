@@ -27,7 +27,7 @@ Date: 2026-09-17 · Branch: `sim-harness`
 
 ## 0.c — Odoo capability probe
 
-Ran `scripts/probe-odoo.mjs`. Each capability creates a disabled test record, records success, deletes it.
+Ran `scripts/archive/probe-odoo.mjs`. Each capability creates a disabled test record, records success, deletes it.
 
 | Capability | Result | Detail |
 |---|---|---|

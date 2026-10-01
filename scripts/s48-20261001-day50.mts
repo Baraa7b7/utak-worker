@@ -1,6 +1,6 @@
 // § 48 د (2026-10-01) — the day of 2026-10-01 (#50) recomputed by the new rule.
 //
-// What was found (read-only, scripts/s48-20261001-explore.mjs): Baraa saved «قرار براء» = «اعتمد
+// What was found (read-only, scripts/archive/s48-20261001-explore.mjs): Baraa saved «قرار براء» = «اعتمد
 // بالسعر المربح» on the four lines at 12:51:05 Riyadh (one save of the form), and nothing computed
 // the day after it — the board's last write was 11:57:25, § 47's own. A decision saved in Odoo is
 // applied by the engine, and the engine runs by itself only 02:00–07:00 or on «🔄 إعادة الحساب».

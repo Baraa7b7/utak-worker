@@ -9,7 +9,7 @@
 -- by hand. This one runs once, after wa_status_log.sql and sim_outbound.sql
 -- (ALTER TABLE … ADD COLUMN fails if the column is already there):
 --   npx wrangler d1 execute utak-worker-sim-db --file=./schema/is_simulation.sql --env=sim --remote
--- The rows are marked by scripts/s37-20260926-sim-cleanup.mts mark --apply.
+-- The rows are marked by scripts/archive/s37-20260926-sim-cleanup.mts mark --apply.
 -- Rollback (not run unless asked): the flags back with the script's rollback
 -- step; the columns stay (ALTER TABLE … DROP COLUMN is_simulation only on request).
 

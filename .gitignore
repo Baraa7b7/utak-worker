@@ -29,7 +29,7 @@ scripts/artifacts/*signature*.png
 scripts/artifacts/brand-*.png
 
 # 2026-09-25 (STATUS § 33) — raw read-only snapshot of the send log: customers'
-# message texts. Regenerate with scripts/gw-20260925-scan.mjs; the committed
+# message texts. Regenerate with scripts/archive/gw-20260925-scan.mjs; the committed
 # analysis is scripts/artifacts/gw-20260925-analysis.{md,json}.
 scripts/artifacts/gw-20260925-scan.json
 
@@ -44,3 +44,8 @@ scripts/artifacts/s41-sim/*/*.png
 
 # § 43 — prod launch secrets (six values, mode 600). Never committed; deleted after the cutover.
 .env.prod-launch
+
+# § 50 (2026-10-01) — scripts/artifacts/ (run outputs and rollback snapshots): nothing new is
+# committed from it. The files tracked before § 50 stay tracked; a new rollback snapshot lives on
+# this disk only (copy it to backups/ or another disk when it matters).
+scripts/artifacts/

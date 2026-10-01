@@ -550,7 +550,7 @@ export async function createWaMessageRow(
     const source =
       a.source ??
       (a.direction === "in" ? "inbound" : a.manual === true ? "manual" : "auto");
-    // x_source is added by scripts/inbox-cover-20260920-apply.mjs. If Odoo
+    // x_source is added by scripts/archive/inbox-cover-20260920-apply.mjs. If Odoo
     // rejects the field name (studio setup lags a Worker deploy), the whole
     // insert would fail — retry once without x_source so the audit row is
     // still created. Best-effort; failure of that retry is still logged.

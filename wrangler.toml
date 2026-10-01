@@ -220,7 +220,7 @@ PILOT_MODE            = "true"                          # real Meta sends restri
 # كانت "+966505154962,+966536251307,+966571777704" (قرار 2026-09-16)، وأُزيل
 # +966536251307 («عميل pilot»، لا شريك له في Odoo). الخانة x_wa_allowed على
 # الشريك بابٌ ثانٍ في fetchMeta، وصارت على أرقام الفريق وحدها
-# (scripts/sim-pure-20260925-wa-allowed.mjs).
+# (scripts/archive/sim-pure-20260925-wa-allowed.mjs).
 SIM_ALLOWLIST         = "+966505154962,+966571777704,+966530399474,+966545816832"
 
 # 2026-09-21 — accounting parallel-write. tenant مشترك مع prod، فأي قيد مُرحَّل

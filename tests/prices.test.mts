@@ -143,7 +143,7 @@ const dayRec = (d = TODAY) => rows("x_price_day").find((r) => r.x_date === d);
 const linesOf = (id: number) => rows("x_price_day_line").filter((l) => l.x_day_id === id);
 const lineOf = (id: number, product: number) => linesOf(id).find((l) => l.x_product_tmpl_id === product)!;
 const txt = (to: string) => sentTo(to).filter((b) => b.type === "text").map((b) => String(b.text?.body ?? ""));
-/** The Odoo «نشر المعتمد الآن» code action, mirrored (the real one: scripts/s40-20260926-engine.mjs APPROVE_CODE). */
+/** The Odoo «نشر المعتمد الآن» code action, mirrored (the real one: scripts/archive/s40-20260926-engine.mjs APPROVE_CODE). */
 function approveInOdoo(id: number): string | null {
   const d = table("x_price_day").get(id)!;
   if (!["draft", "missed"].includes(String(d.x_state))) return "not draft";

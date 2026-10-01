@@ -8,7 +8,7 @@
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs scripts/cutover-prod.mts --apply --now
 //                                                                             § 45 ز (Baraa, 2026-09-30 18:2x): the cutover outside
 //                                                                             22:35–01:40, on his word, after the read-only gate
-//                                                                             scripts/s45-20260930-cutover-precheck.mjs passed
+//                                                                             scripts/archive/s45-20260930-cutover-precheck.mjs passed
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs scripts/cutover-prod.mts --rollback [--apply]
 //                                                                             undo the last --apply run from its rollback files
 //

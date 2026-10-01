@@ -20,7 +20,7 @@
 // In-memory Odoo + captured Graph (tests/wa-harness.mts) behind the strict
 // schema gate from the tenant's real field lists (…-20260924, …-suppliers,
 // …-attendance and …-20260925-review.json, taken after
-// scripts/rev-20260925-odoo-setup.mjs --apply). Claude is faked by system
+// scripts/archive/rev-20260925-odoo-setup.mjs --apply). Claude is faked by system
 // prompt. No network, no WhatsApp send.
 //
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/review.test.mts

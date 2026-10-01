@@ -81,7 +81,7 @@ const NAMES = {
 
 // The card (scripts/lib/s47-odoo-views.mjs): the colour is a thick side border, and the status is
 // its own words («🟢 رابح») in the theme's text colour — no filled badge and no fixed text colour, so
-// it reads in the light and the dark mode alike (scripts/s47-20261001-board-shots.mts measures both).
+// it reads in the light and the dark mode alike (scripts/archive/s47-20261001-board-shots.mts measures both).
 const KANBAN = (inner = "") => `<kanban create="0" delete="0" edit="0"${inner}>
         <field name="x_board_status"/>
         <templates>

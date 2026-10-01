@@ -19,7 +19,7 @@
 //   • Entering review: ONE message in the Discuss channel «📋 مراجعة الأرقام»
 //     (name, number, intent, reason, first message, a link to the record), and
 //     one owner alert «رقم جديد ينتظر المراجعة: {الاسم}». Baraa decides in Odoo
-//     (UTAK ← 📋 مراجعة الأرقام; scripts/rev-20260925-odoo-setup.mjs).
+//     (UTAK ← 📋 مراجعة الأرقام; scripts/archive/rev-20260925-odoo-setup.mjs).
 //   • Once flagged, the flag stays until Baraa's decision or a real order; the
 //     hold follows the latest intent (a later purchase message lifts it).
 //   • Class personal / team / supplier (Baraa's decision): no automated

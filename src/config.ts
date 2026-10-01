@@ -324,7 +324,7 @@ export const DEDUP_TTL_SECONDS = 24 * 60 * 60;
 // locked decision of 2026-09-23 — UTAK charges 15% VAT on invoices dated
 // 2026-10-01 or later; anything dated before stays tax-free. The tax itself
 // (id, rate, price-included) is read from Odoo (res.company
-// account_sale_tax_id), never hard-coded — see scripts/tax-20260923-enable-vat.mjs.
+// account_sale_tax_id), never hard-coded — see scripts/archive/tax-20260923-enable-vat.mjs.
 export const VAT_EFFECTIVE_DATE_RIYADH = "2026-10-01";
 
 /**

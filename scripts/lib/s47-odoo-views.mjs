@@ -3,7 +3,7 @@
 // line shows «أقل سعر بيع بدون خسارة» and «السعر المربح المقترح». One source for
 // scripts/s47-20261001-odoo.mjs (which moves the tenant's views from the § 46 shape to this one),
 // scripts/s46-20261001-board.mjs (so a later re-apply of § 46 writes the same arch) and
-// scripts/s47-20261001-board-shots.mts (which measures the card's and the list's contrast).
+// scripts/archive/s47-20261001-board-shots.mts (which measures the card's and the list's contrast).
 
 const cardHead = `<t t-name="card">
           <div t-attf-class="border-start border-5 ps-3 pe-1 #{record.x_board_status.raw_value == 'green' ? 'border-success' : record.x_board_status.raw_value == 'yellow' ? 'border-warning' : record.x_board_status.raw_value == 'red' ? 'border-danger' : 'border-secondary'}">
@@ -55,7 +55,7 @@ const listView = (extra) => `<list string="لوحة التسعير" create="0" d
 </list>`;
 export const S46_BOARD_LIST = listView("");
 // The two columns take the row's decoration like the columns around them (measured on the tenant's
-// own CSS by scripts/s47-20261001-board-shots.mts: 4.6:1 at least in both themes).
+// own CSS by scripts/archive/s47-20261001-board-shots.mts: 4.6:1 at least in both themes).
 export const LIST_NEW_COLUMNS = `
   <field name="x_break_even"/>
   <field name="x_suggested_price"/>`;

@@ -101,7 +101,7 @@ const PARTNER_O2M = [
   { name: "x_sp_due_ids", ttype: "one2many", relation: DUE, relation_field: "x_supplier_id", field_description: "المستحقات اليومية (دفع الموردين)" },
   { name: "x_sp_payment_ids", ttype: "one2many", relation: SP, relation_field: "x_supplier_id", field_description: "دفعات المورد" },
 ];
-// § 37 ج (2026-09-26): the computes leave x_utak_simulation out (scripts/s37-20260926-sim-cleanup.mts wrote them).
+// § 37 ج (2026-09-26): the computes leave x_utak_simulation out (scripts/archive/s37-20260926-sim-cleanup.mts wrote them).
 const PARTNER_COMPUTES = [
   { name: "x_sp_due_total", ttype: "float", field_description: "المستحق للمورد", compute: DUE_TOTAL_COMPUTE, depends: DUE_TOTAL_DEPENDS, store: false, readonly: true },
   { name: "x_sp_paid_total", ttype: "float", field_description: "المدفوع للمورد (المعتمد)", compute: PAID_TOTAL_COMPUTE, depends: PAID_TOTAL_DEPENDS, store: false, readonly: true },

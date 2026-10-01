@@ -1,7 +1,7 @@
 // The team's real working schedules, and Baraa's fixed morning time
 // (2026-09-25, STATUS § 32).
 //
-// The schedules exactly as they are in Odoo (scripts/shift-20260925-odoo-setup.mjs):
+// The schedules exactly as they are in Odoo (scripts/archive/shift-20260925-odoo-setup.mjs):
 //   «UTAK — عمر»    Saturday–Thursday 02:00–12:00, Friday no line
 //   «UTAK — عثمان»  Saturday–Thursday 06:00–16:00, Friday no line
 // both «مشمول بالتحضير», and Baraa's window template at the fixed

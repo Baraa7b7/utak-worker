@@ -1,7 +1,7 @@
 // § 40 أ (2026-09-26) — the operating costs and the pricing settings.
 //
 // Budget Management (account_budget) is not installed on the tenant and the
-// Analytic Accounting setting is off (scripts/s40-20260926-costs.mjs
+// Analytic Accounting setting is off (scripts/archive/s40-20260926-costs.mjs
 // --modules), so the planned costs live in x_operating_cost «💰 التكاليف
 // التشغيلية» (Odoo, menu UTAK). dailyOperatingCost(day) is the one function the
 // engine, the discount guard and the 21:30 coverage line read:

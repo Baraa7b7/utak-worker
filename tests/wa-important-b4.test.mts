@@ -110,7 +110,7 @@ function fresh(riyadh = `${DAY} 16:00`): any {
   rejected.length = 0; gotenbergCalls = 0;
   seed("res.partner", { id: 42, name: "UTAK بوت" });
   seed("res.users", { id: 2, login: "x", partner_id: 3 });
-  // as on the tenant (#56) and at Meta (GET, scripts/s39-20260926-meta-payment-received.mjs)
+  // as on the tenant (#56) and at Meta (GET, scripts/archive/s39-20260926-meta-payment-received.mjs)
   seed("x_whatsapp_template", {
     x_purpose: "customer_payment_received", x_meta_template_id: "utak_payment_received", x_language: "ar", x_meta_status: "APPROVED",
     x_param_count: 2, x_category: "UTILITY", x_body_text: "استلمنا دفعتك بمبلغ {{1}} ريال على فاتورة {{2}}. شكراً لك",

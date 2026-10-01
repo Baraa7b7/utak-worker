@@ -1,7 +1,7 @@
 // § 46 و (2026-10-01) — after the prod deploy, read-only: the first scheduled invocations on prod seen
 // live by `wrangler tail` (their cron, time, outcome, exceptions and console.error lines), and
 // nothing scheduled on sim. Then the schedules of both workers, /health, and Meta's webhook
-// (scripts/s45-20260930-prod-check.mjs and scripts/s46-20261001-step0.mjs print those).
+// (scripts/archive/s45-20260930-prod-check.mjs and scripts/archive/s46-20261001-step0.mjs print those).
 //
 //   node scripts/s46-20261001-after-deploy.mjs [--minutes=9] [--out=<name>]
 //

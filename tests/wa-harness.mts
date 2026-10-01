@@ -1,7 +1,7 @@
 // Shared in-memory harness for WhatsApp scenario tests and simulations
 // (2026-09-24): fixed Riyadh clock, fake Odoo JSON-2, captured Graph, fake
 // Claude. Nothing leaves the process. Used by tests/wa-critical.test.mts and
-// scripts/wa-20260924-journeys.mts.
+// scripts/archive/wa-20260924-journeys.mts.
 import { createHmac } from "node:crypto";
 
 // ---------------------------------------------------------------- clock

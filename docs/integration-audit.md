@@ -2,7 +2,7 @@
 
 - التاريخ: 2026-09-18 07:22 Asia/Riyadh
 - الفرع: `sim-harness`
-- المنهج: **قراءة بحتة**. الاستدعاءات كلها `search_read` / `search_count` / `fields_get` / `read` عبر `.env.sim-verify` باستخدام `scripts/probe-odoo.mjs` كنموذج. لا كتابة ولا تثبيت ولا `unlink`.
+- المنهج: **قراءة بحتة**. الاستدعاءات كلها `search_read` / `search_count` / `fields_get` / `read` عبر `.env.sim-verify` باستخدام `scripts/archive/probe-odoo.mjs` كنموذج. لا كتابة ولا تثبيت ولا `unlink`.
 - Odoo النسخة: `saas-19.4` (utakfresh.odoo.com، شركة واحدة، عملة `SAR`، بلد `Saudi Arabia`، chart `sa`).
 - عدد الوحدات المثبتة: **245** (منها **21 تطبيقاً**). المصدر: `ir.module.module (state=installed)`.
 
@@ -273,7 +273,7 @@ price_warnings[], has_blocking_issue, is_manual?, customer_id?, order_id?, missi
 - الكود: [src/odoo.ts](src/odoo.ts) · [src/quotation.ts](src/quotation.ts) · [src/invoice.ts](src/invoice.ts) · [src/purchase-order.ts](src/purchase-order.ts) · [src/suppliers.ts](src/suppliers.ts) · [src/pdf-template.ts](src/pdf-template.ts) · [src/wa-message-send.ts](src/wa-message-send.ts) · [src/wa-template-sync.ts](src/wa-template-sync.ts)
 - Odoo hooks: [src/index.ts:973](src/index.ts:973) `/odoo/hook/wa` · [src/index.ts:1014](src/index.ts:1014) `/odoo/hook/wa-template-sync`
 - Cron config: [wrangler.toml:53-63](wrangler.toml:53) `[triggers]`
-- سكربت الفحص: `scripts/probe-odoo.mjs` (نموذج) + `scratchpad/probe.mjs` (نسخة الفحص هذه، READ-ONLY، لم تُلمس بيانات).
+- سكربت الفحص: `scripts/archive/probe-odoo.mjs` (نموذج) + `scratchpad/probe.mjs` (نسخة الفحص هذه، READ-ONLY، لم تُلمس بيانات).
 
 ---
 

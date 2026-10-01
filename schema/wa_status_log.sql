@@ -3,7 +3,7 @@
 -- failed), with what the worker did with it. Written by logMetaStatus in
 -- src/wa-status.ts; read by highestLoggedStatus (a row created after its
 -- statuses arrived) and by the correction script
--- scripts/s37-20260925-status-fix.mts.
+-- scripts/archive/s37-20260925-status-fix.mts.
 --
 -- One-time setup on the sim worker's D1 database (the prod worker has no D1):
 --   npx wrangler d1 execute utak-worker-sim-db --file=./schema/wa_status_log.sql --env=sim --remote

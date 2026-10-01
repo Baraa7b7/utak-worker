@@ -49,7 +49,7 @@ const F9 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260928-s44.
 const F10 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261001-s49.json", import.meta.url), "utf8"));
 const REAL: Record<string, string[]> = { ...F1, ...F2, ...F3, ...F4, ...F5, ...F6, ...F7, ...F8, ...F9, ...F10 };
 const SELECTIONS: Record<string, string[]> = { ...F1._selections, ...F2._selections, ...F3._selections, ...F4._selections, ...F5._selections, ...F6._selections, ...F7._selections, ...F8._selections, ...F9._selections, ...F10._selections };
-// added on the tenant by scripts/wa-20260925-supplier-nudge-purpose.mjs (selection #4025)
+// added on the tenant by scripts/archive/wa-20260925-supplier-nudge-purpose.mjs (selection #4025)
 SELECTIONS["x_whatsapp_template.x_purpose"] = [...SELECTIONS["x_whatsapp_template.x_purpose"], "supplier_price_nudge"];
 const rejected: string[] = [];
 function known(model: string, name: string): boolean {

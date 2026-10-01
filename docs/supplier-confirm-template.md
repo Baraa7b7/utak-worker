@@ -55,7 +55,7 @@ once the template lands.
      text like "شكراً أحمد 🌿 استلمنا أسعارك لـ 7 صنف اليوم…".
 
 2. **Odoo side — no manual step required.**
-   `scripts/item3b-pre-register-supplier-confirm.mjs` already created a
+   `scripts/archive/item3b-pre-register-supplier-confirm.mjs` already created a
    placeholder row in `x_whatsapp_template` with:
    - `x_meta_template_id` = `utak_supplier_confirm_v1`
    - `x_language` = `ar`

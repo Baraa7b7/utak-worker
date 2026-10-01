@@ -9,7 +9,7 @@ export const SEQ_CODE = "utak.supplier.payment";
 /**
  * § 37 ج (2026-09-26) — a trial's record («محاكاة (تجربة)», default false) on
  * the list, the payment, the due and its line: counted nowhere (written by
- * scripts/s37-20260926-sim-cleanup.mts). Not x_is_simulation, which every row
+ * scripts/archive/s37-20260926-sim-cleanup.mts). Not x_is_simulation, which every row
  * the sim / pilot worker creates carries.
  */
 export const SIM_FIELD = "x_utak_simulation";

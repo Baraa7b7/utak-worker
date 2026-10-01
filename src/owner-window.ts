@@ -1,6 +1,6 @@
 // § 45 ب (2026-09-30) — Baraa's window for the night.
 //
-// Two UTILITY templates (scripts/s45-20260930-owner-templates.mjs), each read
+// Two UTILITY templates (scripts/archive/s45-20260930-owner-templates.mjs), each read
 // by its Meta name from x_whatsapp_template (x_purpose «other»: a purpose
 // lookup never picks them, so no duplicate-purpose alert) and used only while
 // its row is APPROVED / UTILITY — the daily 05:00 sync keeps the row in step

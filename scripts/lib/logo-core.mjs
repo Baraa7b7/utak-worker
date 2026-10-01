@@ -1,4 +1,4 @@
-// Logo checks (2026-09-24), shared by scripts/brand-20260924-logo-prep.mjs
+// Logo checks (2026-09-24), shared by scripts/archive/brand-20260924-logo-prep.mjs
 // and tests/fin-statements.test.mts.
 
 /** True when the SVG paints its own background: a <rect> (or any element)

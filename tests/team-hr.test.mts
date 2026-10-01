@@ -22,7 +22,7 @@
 //
 // In-memory Odoo + captured Graph (tests/wa-harness.mts) behind the strict
 // schema gate built from the tenant's real field lists (fields_get), the last
-// one taken after scripts/team-20260925-hr-setup.mjs --apply
+// one taken after scripts/archive/team-20260925-hr-setup.mjs --apply
 // (tests/fixtures-odoo-fields-20260925-team.json). No network, no WhatsApp.
 //
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/team-hr.test.mts

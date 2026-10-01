@@ -1,6 +1,6 @@
 // The five «مراجعة الأرقام» buttons (2026-09-25, STATUS § 30): the Python the
 // Odoo server actions run on the selected rows (`records`). One source for
-// scripts/rev-20260925-odoo-setup.mjs (creates the actions) and
+// scripts/archive/rev-20260925-odoo-setup.mjs (creates the actions) and
 // tests/review.test.mts (runs the same code on in-memory rows).
 //   عميل   → class customer, customer_rank at least 1
 //   مورد   → class supplier, supplier_rank at least 1

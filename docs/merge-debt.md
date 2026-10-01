@@ -125,7 +125,7 @@ identical to prod.
   above them: the previous attempt wrapped them in `<group
   expand="0" string="تجميع حسب">` and Odoo 19.4 silent-rolled
   the whole search view on that. Script:
-  `scripts/item2-wa-search-filters.mjs` — idempotent; safe to
+  `scripts/archive/item2-wa-search-filters.mjs` — idempotent; safe to
   re-run on prod after the initial item2 migration.
 - **Ahmed Hassan Sep 17 19:05 (id=1) x_status blank —
   diagnosis only.** Row was created without any `x_status` in
@@ -170,7 +170,7 @@ identical to prod.
 - **Bulk backfill (2026-09-18).** All existing res.partner rows,
   active AND archived, suppliers / customers / employees / drivers /
   everything, were flipped to x_wa_allowed=True via
-  `scripts/item4-wa-allowed-default-true.mjs`. Baraa's number
+  `scripts/archive/item4-wa-allowed-default-true.mjs`. Baraa's number
   (+966505154962) is the only exclusion — his eight partner rows
   keep whatever value they had (all still False). Prod promotion
   must re-run the same script after item4-wa-allowed.mjs has
@@ -248,7 +248,7 @@ queued send pipeline (`handleWaMessageWebhook`) that the manual
   existing `handleWaMessageWebhook` unchanged — this route is generic
   over `res_model`, so no code fork was needed.
 - **Verified on sim (2026-09-18)** via
-  `scripts/item1-sale-quotation-verify.mjs`:
+  `scripts/archive/item1-sale-quotation-verify.mjs`:
   - Three-tier priority produced a valid `dry_ok` with `x_res_model='sale.order'`.
   - Missing-price line produced no `x_wa_message` row (blocked before create).
   - Owner-phone destination → `x_status='failed'`,
@@ -334,7 +334,7 @@ lists) to `scripts/artifacts/item5-tax-rollback.json` before making any
 change. To reinstate the 15% VAT default and drop the picker override:
 
 ```
-node scripts/item5-tax-rollback-restore.mjs
+node scripts/archive/item5-tax-rollback-restore.mjs
 ```
 
 This restores the company default, walks every product row back to its
@@ -354,7 +354,7 @@ product.template.write([...utak_ids], { taxes_id: [[6, 0, [5]]] })
 
 Since this is a tenant-level change and the tenant is shared, prod already
 sees it. When promoting `sim-harness` → `main`, **do not re-run**
-`scripts/item5-tax-and-picker-fix.mjs` against prod — the snapshot in
+`scripts/archive/item5-tax-and-picker-fix.mjs` against prod — the snapshot in
 `scripts/artifacts/item5-tax-rollback.json` was taken from this
 already-cleared state; a second run would overwrite the rollback JSON with
 empty-tax rows and destroy the ability to restore. If a fresh snapshot is
@@ -369,7 +369,7 @@ visual placeholder; hiding it is a separate template decision.
 
 ### Verified 2026-09-18 (Asia/Riyadh)
 
-Via `scripts/item5-verify.mjs`:
+Via `scripts/archive/item5-verify.mjs`:
 
 - Fresh sale.order.line with product طماطم, qty=4, price=25 →
   `tax_ids=[]`, `price_subtotal=100`, `price_total=100`.
@@ -407,7 +407,7 @@ them. Worker code changes DO need to promote as usual.
 
 ### Item 2a — rotate `ODOO_HOOK_TOKEN` (leaked)
 
-Script only. `scripts/item2a-rotate-hook-token.mjs` is prep — it
+Script only. `scripts/archive/item2a-rotate-hook-token.mjs` is prep — it
 reads the new token from `~/utak-hook-token.txt` (mode 600, generated
 locally, never printed) and writes it into the 5 sim-facing
 `ir.actions.server.webhook_url` values on `utakfresh.odoo.com`
@@ -422,7 +422,7 @@ three commands in order:
 ```
 cat ~/utak-hook-token.txt | npx wrangler secret put ODOO_HOOK_TOKEN --env sim
 npx wrangler deploy --env sim
-node scripts/item2a-rotate-hook-token.mjs
+node scripts/archive/item2a-rotate-hook-token.mjs
 ```
 
 Between step 2 and step 3, Odoo→Worker webhooks with the old token
@@ -431,7 +431,7 @@ customer-facing flow is on this path.
 
 ### Item 2b — unbind Odoo's native sale-order print reports
 
-Applied on `utakfresh.odoo.com` via `scripts/item2b-hide-native-sale-print.mjs`.
+Applied on `utakfresh.odoo.com` via `scripts/archive/item2b-hide-native-sale-print.mjs`.
 
 Before: three `ir.actions.report` rows exist for `sale.order` —
 `id=433 sale.report_saleorder` (already unbound),
@@ -480,7 +480,7 @@ Nothing to recompute; item5 was thorough on the shared tenant.
 
 Applied on `utakfresh.odoo.com` in two steps:
 
-1. `scripts/item2e-template-purposes.mjs` — creates 4 rows for the
+1. `scripts/archive/item2e-template-purposes.mjs` — creates 4 rows for the
    Meta templates the sync failed to land (because `x_purpose` is
    required at the model level but the sync leaves it unset on
    create; `wa-template-sync.ts` still refuses to auto-fill it,
@@ -488,7 +488,7 @@ Applied on `utakfresh.odoo.com` in two steps:
    with placeholder `x_purpose="other"`. Then a re-triggered sync
    backfills `x_meta_id / x_meta_status / x_category / x_body /
    x_param_count / x_buttons / x_last_synced` from Meta.
-2. `scripts/item2e-template-purposes-refine.mjs` — reassigns
+2. `scripts/archive/item2e-template-purposes-refine.mjs` — reassigns
    `x_purpose` based on the actual body of each template:
 
    | id | Meta template          | body summary               | x_purpose            |
@@ -549,7 +549,7 @@ only for future item-3 wiring).
 
 Scripts on `utakfresh.odoo.com`:
 
-- `scripts/item3-ahmed-purchase-order.mjs` — creates a **draft**
+- `scripts/archive/item3-ahmed-purchase-order.mjs` — creates a **draft**
   `purchase.order` for supplier أحمد حسان (id=30) sourcing every
   `x_daily_price` row dated today. Line vals: `product_id` (variant),
   `product_qty=1`, `price_unit=x_price_sar`, `uom_id` from the variant,
@@ -559,7 +559,7 @@ Scripts on `utakfresh.odoo.com`:
   without writing; `--confirm` also calls `button_confirm`. Left at
   `draft` by default so the row can be inspected + deleted without
   accounting impact.
-- `scripts/item3-set-purchase-method.mjs` — **tenant-wide config
+- `scripts/archive/item3-set-purchase-method.mjs` — **tenant-wide config
   flip**: every `product.template` with `default_code =like 'UTAK-%'`
   gets `purchase_method="purchase"` (bill on ordered qty). Necessary
   because UTAK products are `type='consu'` (no `stock.picking`, no
@@ -567,8 +567,8 @@ Scripts on `utakfresh.odoo.com`:
   pinned `qty_received=0` → `qty_to_invoice=0` → vendor bill
   `amount=0`. Snapshot in
   `scripts/artifacts/item3-purchase-method-rollback.json`; matching
-  `scripts/item3-purchase-method-rollback.mjs` restores it.
-- `scripts/item3-verify.mjs` — end-to-end acceptance test (create PO
+  `scripts/archive/item3-purchase-method-rollback.mjs` restores it.
+- `scripts/archive/item3-verify.mjs` — end-to-end acceptance test (create PO
   → confirm → create bill → post → snapshot Ahmed's payable ledger
   → clean up + assert invariants). Safe to re-run any day Ahmed has
   today's `x_daily_price` rows.
@@ -595,7 +595,7 @@ PRE-REGISTERED, but NOT yet submitted to Meta. Baraa submits via
 WhatsApp Business Manager — full spec + step-by-step recipe in
 [docs/supplier-confirm-template.md](supplier-confirm-template.md).
 
-`scripts/item3b-pre-register-supplier-confirm.mjs` created
+`scripts/archive/item3b-pre-register-supplier-confirm.mjs` created
 `x_whatsapp_template id=46` with `x_purpose='supplier_confirm'`,
 `x_meta_status='PENDING_META'`, `x_missing_in_meta=true`. This is the
 same "avoid the required-field trap" fix as item2e — without the
@@ -620,7 +620,7 @@ in Meta Business Manager.
   `https://utak-worker-sim.utak-business.workers.dev/odoo/hook/wa-inbox?token=<ODOO_HOOK_TOKEN>`.
   On merge to prod, flip the URL to
   `https://utak-worker.utak-business.workers.dev/…` using the prod
-  ODOO_HOOK_TOKEN. `scripts/inbox-20260920-apply-automation.mjs` derives
+  ODOO_HOOK_TOKEN. `scripts/archive/inbox-20260920-apply-automation.mjs` derives
   the token from the existing wa_message.send_webhook (id=967) URL; the
   same script can be re-run against a prod-URL target.
 - **`/odoo/hook/wa-inbox`** is a new POST route in `src/index.ts`. Runs in
@@ -653,7 +653,7 @@ in Meta Business Manager.
   `INTERNAL_WEBHOOK_SECRET`-guarded) were repointed from prod (or the
   wrong secret) to `utak-worker-sim.utak-business.workers.dev` after the
   INTERNAL_WEBHOOK_SECRET rotation on sim. See
-  `scripts/token-align-20260920-apply.mjs` and the safe rollback map in
+  `scripts/archive/token-align-20260920-apply.mjs` and the safe rollback map in
   `scripts/artifacts/token-align-20260920-rollback.json`. Full previous
   URLs live in `~/utak-token-align-rollback.json` (mode 600, outside repo).
 

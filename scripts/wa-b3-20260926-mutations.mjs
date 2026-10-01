@@ -72,7 +72,7 @@ const M = [
     "          const r = await runDriverFollowupTick(env);\n", "          const r = { at: \"\", drivers: [] as Array<{ name: string; steps: string[] }> };\n"]], T],
   // ---- م8: «في الطريق»
   ["م8: «تم التسليم» does not notify the next stop", [["src/router.ts",
-    "        await notifyNextAfterDelivered(env, orderId);\n", ""]], T],
+    "    await notifyNextAfterDelivered(env, orderId);\n", ""]], T],
   ["م8: the route's start does not notify the first stop", [["src/team.ts",
     "    await notifyRouteStart(env, routeId, driver.name || \"\");\n", ""]], T],
   ["م8: a held route without its route_start marker", [["src/team.ts",

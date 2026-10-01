@@ -108,9 +108,9 @@ const M = [
     "  const today = day ?? riyadhToday(); // 2026-09-25", "  const today = riyadhToday(); // 2026-09-25"]], T],
   ["سعر", "the invoice priced at the delivery day", [[INV,
     // § 46 ج — the zero-price guard's lines follow the block now (the pattern's tail on the new shape)
-    "      unit = (await getLatestSalePrice(env, l.product_id, l.packaging_id, order.order_date ?? undefined)).price;\n    }\n    // § 46 ج — still no price", "      unit = (await getLatestSalePrice(env, l.product_id, l.packaging_id)).price;\n    }\n    // § 46 ج — still no price"]], T],
+    "      unit = (await unfrozenLinePrice(env, order, l.product_id, l.packaging_id)).price;\n    }\n    // § 46 ج — still no price", "      unit = (await unfrozenLinePrice(env, { ...order, order_date: null }, l.product_id, l.packaging_id)).price;\n    }\n    // § 46 ج — still no price"]], T],
   ["سعر", "the quotation priced at the day it is built", [[QT,
-    "      const lookup = await getLatestSalePrice(env, l.product_id, l.packaging_id, order.order_date ?? undefined);", "      const lookup = await getLatestSalePrice(env, l.product_id, l.packaging_id);"]], T],
+    "      const lookup = await unfrozenLinePrice(env, order, l.product_id, l.packaging_id);", "      const lookup = await unfrozenLinePrice(env, { ...order, order_date: null }, l.product_id, l.packaging_id);"]], T],
   ["سعر", "the stale fallback takes a later day's price", [[OD,
     // § 47 أ: the row must carry a sale price (the line after the date bound)
     "      [\"x_packaging_id\", \"=\", packagingId],\n      [\"x_date\", \"<=\", today],\n      [\"x_sale_price\"", "      [\"x_packaging_id\", \"=\", packagingId],\n      [\"x_sale_price\""]], T],
@@ -135,8 +135,8 @@ const M = [
     "    saleTax = await resolveSaleTaxForDate(env, invoiceDateYmd);", "    saleTax = await resolveSaleTaxForDate(env, order.order_date ?? invoiceDateYmd);"]], T],
   ["د", "the quotation page without the VAT note from 10-01", [[QT,
     "    ...(isVatApplicable(new Date(quotationDate.getTime() + 3 * 3600 * 1000).toISOString().slice(0, 10)) ? { vatInclusive: true } : {}),", ""]], T],
-  ["د", "the quotation message without the VAT note from 10-01", [[RT,
-    "  return isVatApplicable(riyadhDateKey()) ? \"الأسعار شاملة ضريبة القيمة المضافة.\" : \"\";", "  return \"\";"]], T],
+  ["د", "the quotation message without the VAT note from 10-01", [["src/order-flow.ts",
+    "  return isVatApplicable(riyadhDateKey(now)) ? \"الأسعار شاملة ضريبة القيمة المضافة.\" : \"\";", "  return \"\";"]], T],
   // ---------------------------------------------------------------- هـ the purchase tax invoice
   ["هـ", "no «أرسل صورة فاتورة الشراء الضريبية» after «تم الشراء»", [[RT,
     "(${ordersMoved} توصيلة).\\n${PINV_ASK_TEXT}`;", "(${ordersMoved} توصيلة).`;"]], T],

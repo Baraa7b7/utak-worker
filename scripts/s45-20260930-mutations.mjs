@@ -84,7 +84,7 @@ const M = [
     "params: [arabicDate(day), String(count)], buttons: [{ index: 0, payload: PRICE_REVIEW_PAYLOAD }] },",
     "params: [arabicDate(day), String(count)] },"]], T],
   ["ب", "owner_price_review not in the owner guard", [[GW,
-    "\"owner_price_exception\", \"owner_price_review\"]);", "\"owner_price_exception\"]);"]], T],
+    "\"owner_price_exception\", \"owner_price_review\", \"owner_order_confirmed\"]);", "\"owner_price_exception\", \"owner_order_confirmed\"]);"]], T],
   ["ب", "owner_price_review not a known purpose", [[PU,
     "  owner_price_review: op(\"قالب استثناءات الأسعار\"),\n", ""]], T],
   ["ب", "a held exception stale before 06:00", [[PR,

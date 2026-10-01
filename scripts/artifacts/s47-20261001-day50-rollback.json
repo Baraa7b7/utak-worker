@@ -1,0 +1,222 @@
+{
+  "script": "scripts/s47-20261001-day50.mts",
+  "createdAt": "2026-10-01T08:57:22.015Z",
+  "appliedAt": "2026-10-01T08:57:22.016Z",
+  "before": {
+    "day": {
+      "id": 50,
+      "x_date": "2026-10-01",
+      "x_state": "missed",
+      "x_name": "أسعار اليوم 2026-10-01",
+      "x_approved_at": false,
+      "x_approved_by": false,
+      "x_published_at": false,
+      "x_publish_report": false,
+      "x_utak_simulation": false,
+      "x_op_cost": 496.52,
+      "x_op_expected": 250,
+      "x_op_cartons": 250,
+      "x_op_basis": "expected",
+      "x_op_share": 1.99,
+      "x_op_share_500": 0.99,
+      "x_n_green": 0,
+      "x_n_yellow": 0,
+      "x_n_red": 0,
+      "x_n_none": 3,
+      "x_board_note": false,
+      "x_board_at": "2026-10-01 03:30:44",
+      "write_date": "2026-10-01 03:30:50"
+    },
+    "lines": [
+      {
+        "id": 89,
+        "x_name": "رمان وسط — كرتون",
+        "x_sequence": 1,
+        "x_product_tmpl_id": [
+          100,
+          "[UTAK-FRT-005] رمان وسط"
+        ],
+        "x_packaging_id": [
+          37,
+          "كرتون"
+        ],
+        "x_decision": false,
+        "x_manual_price": 0,
+        "x_decided_at": false,
+        "x_utak_simulation": false,
+        "x_supplier_id": false,
+        "x_daily_price_id": false,
+        "x_default_price_id": false,
+        "x_source_price": 0,
+        "x_cost_price": 0,
+        "x_is_outlier": false,
+        "x_outlier_ok": false,
+        "x_margin_pct": 0,
+        "x_market_price": 0,
+        "x_market_count": 0,
+        "x_unit_profit": 0,
+        "x_offers": false,
+        "x_status": "exception",
+        "x_reason": "لا سعر شراء، لا سعر سوق",
+        "x_sale_price": 0,
+        "x_excluded": true,
+        "x_blocked": false,
+        "x_net_purchase": 0,
+        "x_waste_cost": 0,
+        "x_op_share": 1.99,
+        "x_full_cost": 0,
+        "x_break_even": 0,
+        "x_suggested_price": 0,
+        "x_board_sale": 0,
+        "x_net_sale": 0,
+        "x_real_profit": 0,
+        "x_board_status": "none",
+        "write_date": "2026-10-01 03:30:48"
+      },
+      {
+        "id": 90,
+        "x_name": "رمان صغير — كرتون",
+        "x_sequence": 2,
+        "x_product_tmpl_id": [
+          107,
+          "[UTAK-FRT-011] رمان صغير"
+        ],
+        "x_packaging_id": [
+          43,
+          "كرتون"
+        ],
+        "x_decision": false,
+        "x_manual_price": 0,
+        "x_decided_at": false,
+        "x_utak_simulation": false,
+        "x_supplier_id": false,
+        "x_daily_price_id": false,
+        "x_default_price_id": false,
+        "x_source_price": 0,
+        "x_cost_price": 0,
+        "x_is_outlier": false,
+        "x_outlier_ok": false,
+        "x_margin_pct": 0,
+        "x_market_price": 0,
+        "x_market_count": 0,
+        "x_unit_profit": 0,
+        "x_offers": false,
+        "x_status": "exception",
+        "x_reason": "لا سعر شراء، لا سعر سوق",
+        "x_sale_price": 0,
+        "x_excluded": true,
+        "x_blocked": false,
+        "x_net_purchase": 0,
+        "x_waste_cost": 0,
+        "x_op_share": 1.99,
+        "x_full_cost": 0,
+        "x_break_even": 0,
+        "x_suggested_price": 0,
+        "x_board_sale": 0,
+        "x_net_sale": 0,
+        "x_real_profit": 0,
+        "x_board_status": "none",
+        "write_date": "2026-10-01 03:30:49"
+      },
+      {
+        "id": 91,
+        "x_name": "رمان كبير — كرتون",
+        "x_sequence": 3,
+        "x_product_tmpl_id": [
+          108,
+          "[UTAK-FRT-012] رمان كبير"
+        ],
+        "x_packaging_id": [
+          44,
+          "كرتون"
+        ],
+        "x_decision": false,
+        "x_manual_price": 0,
+        "x_decided_at": false,
+        "x_utak_simulation": false,
+        "x_supplier_id": false,
+        "x_daily_price_id": false,
+        "x_default_price_id": false,
+        "x_source_price": 0,
+        "x_cost_price": 0,
+        "x_is_outlier": false,
+        "x_outlier_ok": false,
+        "x_margin_pct": 0,
+        "x_market_price": 0,
+        "x_market_count": 0,
+        "x_unit_profit": 0,
+        "x_offers": false,
+        "x_status": "exception",
+        "x_reason": "لا سعر شراء، لا سعر سوق",
+        "x_sale_price": 0,
+        "x_excluded": true,
+        "x_blocked": false,
+        "x_net_purchase": 0,
+        "x_waste_cost": 0,
+        "x_op_share": 1.99,
+        "x_full_cost": 0,
+        "x_break_even": 0,
+        "x_suggested_price": 0,
+        "x_board_sale": 0,
+        "x_net_sale": 0,
+        "x_real_profit": 0,
+        "x_board_status": "none",
+        "write_date": "2026-10-01 03:30:49"
+      }
+    ],
+    "banana": {
+      "id": 97,
+      "name": "موز أمريكي",
+      "default_code": "UTAK-FRT-002",
+      "categ_id": false,
+      "active": true,
+      "sale_ok": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_utak_new": false,
+      "x_supplier_ids": [
+        30
+      ],
+      "write_date": "2026-09-23 08:13:51"
+    }
+  },
+  "created": {
+    "dailyPrices": [
+      69,
+      70,
+      71,
+      72
+    ],
+    "lines": [
+      92
+    ]
+  },
+  "engine": {
+    "day": "2026-10-01",
+    "action": "refreshed",
+    "dayId": 50,
+    "state": "missed",
+    "created": 0,
+    "updated": 4,
+    "lines": 3,
+    "excluded": 4,
+    "counts": {
+      "auto": 0,
+      "exception": 3,
+      "manual": 0,
+      "unpublished": 1
+    }
+  },
+  "writes": [
+    "x_daily_price.create x_supplier_id,x_product_tmpl_id,x_packaging_id,x_date,x_price_sar,x_sale_price,x_source_message_id,x_raw_reply,x_extraction_status",
+    "x_daily_price.create x_supplier_id,x_product_tmpl_id,x_packaging_id,x_date,x_price_sar,x_sale_price,x_source_message_id,x_raw_reply,x_extraction_status",
+    "x_daily_price.create x_supplier_id,x_product_tmpl_id,x_packaging_id,x_date,x_price_sar,x_sale_price,x_source_message_id,x_raw_reply,x_extraction_status",
+    "x_daily_price.create x_supplier_id,x_product_tmpl_id,x_packaging_id,x_date,x_price_sar,x_sale_price,x_source_message_id,x_raw_reply,x_extraction_status",
+    "x_price_day_line.create x_day_id,x_name,x_sequence,x_product_tmpl_id,x_packaging_id,x_supplier_id,x_daily_price_id,x_default_price_id,x_source_price,x_cost_price,x_offers,x_market_price,x_market_count,x_sale_price,x_excluded,x_blocked,x_status,x_reason",
+    "x_price_day_line.write [89] x_net_purchase,x_waste_cost,x_full_cost,x_break_even,x_suggested_price,x_supplier_id,x_daily_price_id,x_default_price_id,x_source_price,x_cost_price,x_offers,x_reason",
+    "x_price_day_line.write [90] x_net_purchase,x_waste_cost,x_full_cost,x_break_even,x_suggested_price,x_supplier_id,x_daily_price_id,x_default_price_id,x_source_price,x_cost_price,x_offers,x_reason",
+    "x_price_day_line.write [91] x_net_purchase,x_waste_cost,x_full_cost,x_break_even,x_suggested_price,x_supplier_id,x_daily_price_id,x_default_price_id,x_source_price,x_cost_price,x_offers,x_reason",
+    "x_price_day_line.write [92] x_net_purchase,x_waste_cost,x_op_share,x_full_cost,x_break_even,x_suggested_price,x_board_status",
+    "x_price_day.write [50] x_op_cost,x_op_expected,x_op_cartons,x_op_basis,x_op_share,x_op_share_500,x_n_green,x_n_yellow,x_n_red,x_n_none,x_board_note,x_board_at"
+  ]
+}

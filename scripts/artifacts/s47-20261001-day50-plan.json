@@ -1,0 +1,82 @@
+{
+  "at": "2026-10-01T08:57:22.013Z",
+  "day": {
+    "id": 50,
+    "state": "missed"
+  },
+  "multiplier": 1.38,
+  "plan": [
+    {
+      "name": "رمان كبير",
+      "product": 108,
+      "packaging": 44,
+      "price": 22,
+      "productName": "رمان كبير",
+      "packagingName": "كرتون",
+      "forSale": true,
+      "sale": 30.36,
+      "dailyPrice": null,
+      "line": 91,
+      "last": "22 (2026-09-19)",
+      "ratio": 1
+    },
+    {
+      "name": "رمان وسط",
+      "product": 100,
+      "packaging": 37,
+      "price": 16,
+      "productName": "رمان وسط",
+      "packagingName": "كرتون",
+      "forSale": true,
+      "sale": 22.08,
+      "dailyPrice": null,
+      "line": 89,
+      "last": "13 (2026-09-19)",
+      "ratio": 1.23
+    },
+    {
+      "name": "رمان صغير",
+      "product": 107,
+      "packaging": 43,
+      "price": 12,
+      "productName": "رمان صغير",
+      "packagingName": "كرتون",
+      "forSale": true,
+      "sale": 16.56,
+      "dailyPrice": null,
+      "line": 90,
+      "last": "9 (2026-09-19)",
+      "ratio": 1.33
+    },
+    {
+      "name": "موز أمريكي",
+      "product": 97,
+      "packaging": 33,
+      "price": 22,
+      "newLine": true,
+      "productName": "موز أمريكي",
+      "packagingName": "كرتون · 14 كيلو",
+      "forSale": false,
+      "sale": 30.36,
+      "dailyPrice": null,
+      "line": null,
+      "last": "44 (2026-09-19)",
+      "ratio": 2
+    }
+  ],
+  "banana": {
+    "id": 97,
+    "name": "موز أمريكي",
+    "default_code": "UTAK-FRT-002",
+    "categ_id": false,
+    "active": true,
+    "sale_ok": true,
+    "x_is_active_for_sale": false,
+    "x_name_en": false,
+    "x_utak_new": false,
+    "x_supplier_ids": [
+      30
+    ],
+    "write_date": "2026-09-23 08:13:51"
+  }
+}

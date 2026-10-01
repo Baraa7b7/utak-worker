@@ -1,0 +1,114 @@
+{
+  "at": "2026-10-01T08:57:59.236Z",
+  "ok": 18,
+  "bad": 0,
+  "day": {
+    "id": 50,
+    "state": "missed",
+    "cost": 496.52,
+    "share": 1.99,
+    "counts": [
+      0,
+      0,
+      0,
+      4
+    ],
+    "at": "2026-10-01 08:57:25"
+  },
+  "lines": [
+    {
+      "name": "رمان كبير",
+      "line": 91,
+      "purchase": 22,
+      "net": 22,
+      "waste": 1.1,
+      "share": 1.99,
+      "full": 25.09,
+      "even": 28.85,
+      "suggested": 30.5,
+      "status": "none",
+      "price": "exception",
+      "reason": "لا سعر سوق"
+    },
+    {
+      "name": "رمان وسط",
+      "line": 89,
+      "purchase": 16,
+      "net": 16,
+      "waste": 0.8,
+      "share": 1.99,
+      "full": 18.79,
+      "even": 21.61,
+      "suggested": 23,
+      "status": "none",
+      "price": "exception",
+      "reason": "لا سعر سوق"
+    },
+    {
+      "name": "رمان صغير",
+      "line": 90,
+      "purchase": 12,
+      "net": 12,
+      "waste": 0.6,
+      "share": 1.99,
+      "full": 14.59,
+      "even": 16.78,
+      "suggested": 18,
+      "status": "none",
+      "price": "exception",
+      "reason": "لا سعر سوق"
+    },
+    {
+      "name": "موز أمريكي",
+      "line": 92,
+      "purchase": 22,
+      "net": 22,
+      "waste": 1.1,
+      "share": 1.99,
+      "full": 25.09,
+      "even": 28.85,
+      "suggested": 30.5,
+      "status": "none",
+      "price": "unpublished",
+      "reason": "ليس في الكتالوج النشط اليوم"
+    }
+  ],
+  "dailyPrices": [
+    {
+      "id": 69,
+      "product": [
+        108,
+        "[UTAK-FRT-012] رمان كبير"
+      ],
+      "price": 22,
+      "sale": 30.36
+    },
+    {
+      "id": 70,
+      "product": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "price": 16,
+      "sale": 22.08
+    },
+    {
+      "id": 71,
+      "product": [
+        107,
+        "[UTAK-FRT-011] رمان صغير"
+      ],
+      "price": 12,
+      "sale": 16.56
+    },
+    {
+      "id": 72,
+      "product": [
+        97,
+        "[UTAK-FRT-002] موز أمريكي"
+      ],
+      "price": 22,
+      "sale": 30.36
+    }
+  ]
+}

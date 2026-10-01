@@ -1,0 +1,3569 @@
+{
+  "at": "2026-10-01T13:03:12.232Z",
+  "css": {
+    "light": "https://utakfresh.odoo.com/web/assets/c25c582/web.assets_web.rtl.min.css",
+    "dark": "https://utakfresh.odoo.com/web/assets/6b6b60e/web.assets_web_dark.rtl.min.css"
+  },
+  "min": {
+    "light": {
+      "list": 4.63,
+      "headers": 20.1,
+      "preview": 4.65,
+      "dash": 4.63,
+      "cards": 5.1,
+      "notes": 4.86,
+      "name": 4.63,
+      "code": 5.1,
+      "roles": 4.86
+    },
+    "dark": {
+      "list": 4.6,
+      "headers": 16.8,
+      "preview": 4.6,
+      "dash": 4.6,
+      "cards": 4.62,
+      "notes": 4.62,
+      "name": 4.6,
+      "code": 4.62,
+      "roles": 6.71
+    }
+  },
+  "light": {
+    "css": "https://utakfresh.odoo.com/web/assets/c25c582/web.assets_web.rtl.min.css",
+    "list": [
+      {
+        "status": "manual",
+        "min": 4.63,
+        "preview": {
+          "col": "x_profit_show",
+          "text": "2.30",
+          "fg": "#008818",
+          "bg": "#ffffff",
+          "ratio": 4.63,
+          "italic": false
+        },
+        "dash": [
+          4.63
+        ],
+        "name": {
+          "fg": "#008818",
+          "bg": "#ffffff",
+          "ratio": 4.63,
+          "italic": false,
+          "wraps": true,
+          "clipped": false,
+          "text": "رمان كبير — كرتون"
+        },
+        "cells": [
+          {
+            "col": "x_item_show",
+            "text": "رمان كبير — كرتون",
+            "fg": "#008818",
+            "bg": "#ffffff",
+            "ratio": 4.63,
+            "italic": false
+          },
+          {
+            "col": "x_cost_show",
+            "text": "22.00",
+            "fg": "#008818",
+            "bg": "#ffffff",
+            "ratio": 4.63,
+            "italic": false
+          },
+          {
+            "col": "x_supplier_id",
+            "text": "أحمد حسان",
+            "fg": "#008818",
+            "bg": "#ffffff",
+            "ratio": 4.63,
+            "italic": false
+          },
+          {
+            "col": "x_market_show",
+            "text": "—",
+            "fg": "#008818",
+            "bg": "#ffffff",
+            "ratio": 4.63,
+            "italic": false
+          },
+          {
+            "col": "x_market_count",
+            "text": "0",
+            "fg": "#008818",
+            "bg": "#ffffff",
+            "ratio": 4.63,
+            "italic": false
+          },
+          {
+            "col": "x_even_show",
+            "text": "28.85",
+            "fg": "#008818",
+            "bg": "#ffffff",
+            "ratio": 4.63,
+            "italic": false
+          },
+          {
+            "col": "x_suggested_show",
+            "text": "31.50",
+            "fg": "#008818",
+            "bg": "#ffffff",
+            "ratio": 4.63,
+            "italic": false
+          },
+          {
+            "col": "x_sale_show",
+            "text": "31.50",
+            "fg": "#008818",
+            "bg": "#ffffff",
+            "ratio": 4.63,
+            "italic": false
+          },
+          {
+            "col": "x_profit_show",
+            "text": "2.30",
+            "fg": "#008818",
+            "bg": "#ffffff",
+            "ratio": 4.63,
+            "italic": false
+          },
+          {
+            "col": "x_board_status",
+            "text": "🟢 رابح",
+            "fg": "#008818",
+            "bg": "#ffffff",
+            "ratio": 4.63,
+            "italic": false
+          },
+          {
+            "col": "x_status",
+            "text": "معتمد يدوياً",
+            "fg": "#008818",
+            "bg": "#ffffff",
+            "ratio": 4.63,
+            "italic": false
+          },
+          {
+            "col": "x_reason",
+            "text": "براء: اعتمد بالسعر المرب",
+            "fg": "#008818",
+            "bg": "#ffffff",
+            "ratio": 4.63,
+            "italic": false
+          },
+          {
+            "col": "x_decision",
+            "text": "اعتمد بالسعر المربح",
+            "fg": "#008818",
+            "bg": "#ffffff",
+            "ratio": 4.63,
+            "italic": false
+          },
+          {
+            "col": "x_manual_price",
+            "text": "31.50",
+            "fg": "#008818",
+            "bg": "#ffffff",
+            "ratio": 4.63,
+            "italic": false
+          }
+        ]
+      },
+      {
+        "status": "exception",
+        "min": 4.65,
+        "preview": {
+          "col": "x_profit_show",
+          "text": "معاينة 2.00",
+          "fg": "#d23f3a",
+          "bg": "#ffffff",
+          "ratio": 4.65,
+          "italic": true
+        },
+        "dash": [
+          4.65
+        ],
+        "name": {
+          "fg": "#d23f3a",
+          "bg": "#ffffff",
+          "ratio": 4.65,
+          "italic": false,
+          "wraps": true,
+          "clipped": false,
+          "text": "خيار — جرم · 8 كيلو"
+        },
+        "cells": [
+          {
+            "col": "x_item_show",
+            "text": "خيار — جرم · 8 كيلو",
+            "fg": "#d23f3a",
+            "bg": "#ffffff",
+            "ratio": 4.65,
+            "italic": false
+          },
+          {
+            "col": "x_cost_show",
+            "text": "26.00",
+            "fg": "#d23f3a",
+            "bg": "#ffffff",
+            "ratio": 4.65,
+            "italic": false
+          },
+          {
+            "col": "x_supplier_id",
+            "text": "أحمد حسان",
+            "fg": "#d23f3a",
+            "bg": "#ffffff",
+            "ratio": 4.65,
+            "italic": false
+          },
+          {
+            "col": "x_market_show",
+            "text": "31.05",
+            "fg": "#d23f3a",
+            "bg": "#ffffff",
+            "ratio": 4.65,
+            "italic": false
+          },
+          {
+            "col": "x_market_count",
+            "text": "2",
+            "fg": "#d23f3a",
+            "bg": "#ffffff",
+            "ratio": 4.65,
+            "italic": false
+          },
+          {
+            "col": "x_even_show",
+            "text": "33.70",
+            "fg": "#d23f3a",
+            "bg": "#ffffff",
+            "ratio": 4.65,
+            "italic": false
+          },
+          {
+            "col": "x_suggested_show",
+            "text": "36.00",
+            "fg": "#d23f3a",
+            "bg": "#ffffff",
+            "ratio": 4.65,
+            "italic": false
+          },
+          {
+            "col": "x_sale_show",
+            "text": "—",
+            "fg": "#d23f3a",
+            "bg": "#ffffff",
+            "ratio": 4.65,
+            "italic": false
+          },
+          {
+            "col": "x_profit_show",
+            "text": "معاينة 2.00",
+            "fg": "#d23f3a",
+            "bg": "#ffffff",
+            "ratio": 4.65,
+            "italic": true
+          },
+          {
+            "col": "x_board_status",
+            "text": "🔴 خسارة على البضاعة",
+            "fg": "#d23f3a",
+            "bg": "#ffffff",
+            "ratio": 4.65,
+            "italic": false
+          },
+          {
+            "col": "x_status",
+            "text": "استثناء",
+            "fg": "#d23f3a",
+            "bg": "#ffffff",
+            "ratio": 4.65,
+            "italic": false
+          },
+          {
+            "col": "x_reason",
+            "text": "سعر السوق 31.05 أقل من ا",
+            "fg": "#d23f3a",
+            "bg": "#ffffff",
+            "ratio": 4.65,
+            "italic": false
+          }
+        ]
+      },
+      {
+        "status": "unpublished",
+        "min": 5.1,
+        "preview": {
+          "col": "x_profit_show",
+          "text": "معاينة 2.30",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1,
+          "italic": true
+        },
+        "dash": [
+          5.1,
+          5.1
+        ],
+        "name": {
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1,
+          "italic": false,
+          "wraps": true,
+          "clipped": false,
+          "text": "موز أمريكي — كرتون · 14 كيلو"
+        },
+        "cells": [
+          {
+            "col": "x_item_show",
+            "text": "موز أمريكي — كرتون · 14 ",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "col": "x_cost_show",
+            "text": "22.00",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "col": "x_supplier_id",
+            "text": "أحمد حسان",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "col": "x_market_show",
+            "text": "—",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "col": "x_market_count",
+            "text": "0",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "col": "x_even_show",
+            "text": "28.85",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "col": "x_suggested_show",
+            "text": "31.50",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "col": "x_sale_show",
+            "text": "—",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "col": "x_profit_show",
+            "text": "معاينة 2.30",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": true
+          },
+          {
+            "col": "x_board_status",
+            "text": "⚪ لا بيانات",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "col": "x_status",
+            "text": "لم يُنشر",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "col": "x_reason",
+            "text": "ليس في الكتالوج النشط ال",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          }
+        ]
+      },
+      {
+        "status": "auto",
+        "min": 17.74,
+        "preview": {
+          "col": "x_profit_show",
+          "text": "7.00",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74,
+          "italic": false
+        },
+        "dash": [],
+        "name": {
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74,
+          "italic": false,
+          "wraps": true,
+          "clipped": false,
+          "text": "طماطم شيري كرزية درجة أولى مستوردة — فلين · 5 كيلو"
+        },
+        "cells": [
+          {
+            "col": "x_item_show",
+            "text": "طماطم شيري كرزية درجة أو",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "col": "x_cost_show",
+            "text": "20.00",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "col": "x_supplier_id",
+            "text": "عمر المجهلي",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "col": "x_market_show",
+            "text": "34.50",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "col": "x_market_count",
+            "text": "1",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "col": "x_even_show",
+            "text": "26.45",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "col": "x_suggested_show",
+            "text": "29.00",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "col": "x_sale_show",
+            "text": "34.50",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "col": "x_profit_show",
+            "text": "7.00",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "col": "x_board_status",
+            "text": "🟢 رابح",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "col": "x_status",
+            "text": "تلقائي",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          }
+        ]
+      },
+      {
+        "status": "exception",
+        "min": 4.65,
+        "preview": {
+          "col": "x_profit_show",
+          "text": "—",
+          "fg": "#d23f3a",
+          "bg": "#ffffff",
+          "ratio": 4.65,
+          "italic": false
+        },
+        "dash": [
+          4.65,
+          4.65,
+          4.65,
+          4.65,
+          4.65
+        ],
+        "name": {
+          "fg": "#d23f3a",
+          "bg": "#ffffff",
+          "ratio": 4.65,
+          "italic": false,
+          "wraps": true,
+          "clipped": false,
+          "text": "بصل — جرم · 20 كيلو"
+        },
+        "cells": [
+          {
+            "col": "x_item_show",
+            "text": "بصل — جرم · 20 كيلو",
+            "fg": "#d23f3a",
+            "bg": "#ffffff",
+            "ratio": 4.65,
+            "italic": false
+          },
+          {
+            "col": "x_cost_show",
+            "text": "—",
+            "fg": "#d23f3a",
+            "bg": "#ffffff",
+            "ratio": 4.65,
+            "italic": false
+          },
+          {
+            "col": "x_market_show",
+            "text": "30.00",
+            "fg": "#d23f3a",
+            "bg": "#ffffff",
+            "ratio": 4.65,
+            "italic": false
+          },
+          {
+            "col": "x_market_count",
+            "text": "1",
+            "fg": "#d23f3a",
+            "bg": "#ffffff",
+            "ratio": 4.65,
+            "italic": false
+          },
+          {
+            "col": "x_even_show",
+            "text": "—",
+            "fg": "#d23f3a",
+            "bg": "#ffffff",
+            "ratio": 4.65,
+            "italic": false
+          },
+          {
+            "col": "x_suggested_show",
+            "text": "—",
+            "fg": "#d23f3a",
+            "bg": "#ffffff",
+            "ratio": 4.65,
+            "italic": false
+          },
+          {
+            "col": "x_sale_show",
+            "text": "—",
+            "fg": "#d23f3a",
+            "bg": "#ffffff",
+            "ratio": 4.65,
+            "italic": false
+          },
+          {
+            "col": "x_profit_show",
+            "text": "—",
+            "fg": "#d23f3a",
+            "bg": "#ffffff",
+            "ratio": 4.65,
+            "italic": false
+          },
+          {
+            "col": "x_board_status",
+            "text": "🟡 يغطي البضاعة فقط",
+            "fg": "#d23f3a",
+            "bg": "#ffffff",
+            "ratio": 4.65,
+            "italic": false
+          },
+          {
+            "col": "x_status",
+            "text": "استثناء",
+            "fg": "#d23f3a",
+            "bg": "#ffffff",
+            "ratio": 4.65,
+            "italic": false
+          },
+          {
+            "col": "x_reason",
+            "text": "لا سعر شراء",
+            "fg": "#d23f3a",
+            "bg": "#ffffff",
+            "ratio": 4.65,
+            "italic": false
+          },
+          {
+            "col": "x_decision",
+            "text": "سعر معدّل",
+            "fg": "#d23f3a",
+            "bg": "#ffffff",
+            "ratio": 4.65,
+            "italic": false
+          },
+          {
+            "col": "x_manual_price",
+            "text": "0.00",
+            "fg": "#d23f3a",
+            "bg": "#ffffff",
+            "ratio": 4.65,
+            "italic": false
+          }
+        ]
+      }
+    ],
+    "heads": [
+      20.1,
+      20.1,
+      20.1,
+      20.1,
+      20.1,
+      20.1,
+      20.1,
+      20.1,
+      20.1,
+      20.1,
+      20.1,
+      20.1,
+      20.1,
+      20.1
+    ],
+    "cards": [
+      {
+        "status": "manual",
+        "min": 5.1,
+        "border": "#28a745",
+        "borderWidth": "5px",
+        "previewItalic": false,
+        "name": {
+          "text": "رمان كبير — كرتون",
+          "clipped": false,
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74,
+          "italic": false
+        },
+        "code": {
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1,
+          "italic": false,
+          "px": 13,
+          "namePx": 15.4,
+          "below": true
+        },
+        "texts": [
+          {
+            "text": "رمان كبير — كرتون",
+            "cls": "fw-bold fs-5",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "UTAK-FRT-012",
+            "cls": "",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "🟢 رابح",
+            "cls": "text-nowrap ms-2",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "الشراء",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "22.00",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "السوق",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "بدون خسارة",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "28.85",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "المقترح",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "31.50",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "البيع",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "31.50",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "الربح / المعاينة",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "2.30",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "الحالة",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "معتمد يدوياً",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "براء: اعتمد بالسعر المرب",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "قرار براء",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "اعتمد بالسعر المربح",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "السعر المعدّل",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "31.50",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          }
+        ]
+      },
+      {
+        "status": "exception",
+        "min": 5.1,
+        "border": "#d44c59",
+        "borderWidth": "5px",
+        "previewItalic": true,
+        "name": {
+          "text": "خيار — جرم · 8 كيلو",
+          "clipped": false,
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74,
+          "italic": false
+        },
+        "code": {
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1,
+          "italic": false,
+          "px": 13,
+          "namePx": 15.4,
+          "below": true
+        },
+        "texts": [
+          {
+            "text": "خيار — جرم · 8 كيلو",
+            "cls": "fw-bold fs-5",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "UTAK-VEG-002",
+            "cls": "",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "🔴 خسارة على البضاعة",
+            "cls": "text-nowrap ms-2",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "الشراء",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "26.00",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "السوق",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "31.05",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "بدون خسارة",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "33.70",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "المقترح",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "36.00",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "البيع",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "الربح / المعاينة",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "معاينة 2.00",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": true
+          },
+          {
+            "text": "الحالة",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "استثناء",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "سعر السوق 31.05 أقل من ا",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "قرار براء",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "السعر المعدّل",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          }
+        ]
+      },
+      {
+        "status": "unpublished",
+        "min": 5.1,
+        "border": "#d8dadd",
+        "borderWidth": "5px",
+        "previewItalic": true,
+        "name": {
+          "text": "موز أمريكي — كرتون · 14 كيلو",
+          "clipped": false,
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74,
+          "italic": false
+        },
+        "code": {
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1,
+          "italic": false,
+          "px": 13,
+          "namePx": 15.4,
+          "below": true
+        },
+        "texts": [
+          {
+            "text": "موز أمريكي — كرتون · 14 ",
+            "cls": "fw-bold fs-5",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "UTAK-FRT-002",
+            "cls": "",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "⚪ لا بيانات",
+            "cls": "text-nowrap ms-2",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "الشراء",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "22.00",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "السوق",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "بدون خسارة",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "28.85",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "المقترح",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "31.50",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "البيع",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "الربح / المعاينة",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "معاينة 2.30",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": true
+          },
+          {
+            "text": "الحالة",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "لم يُنشر",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "ليس في الكتالوج النشط ال",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "قرار براء",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "السعر المعدّل",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          }
+        ]
+      },
+      {
+        "status": "auto",
+        "min": 5.1,
+        "border": "#28a745",
+        "borderWidth": "5px",
+        "previewItalic": false,
+        "name": {
+          "text": "طماطم شيري كرزية درجة أولى مستوردة — فلين · 5 كيلو",
+          "clipped": false,
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74,
+          "italic": false
+        },
+        "code": {
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1,
+          "italic": false,
+          "px": 13,
+          "namePx": 15.4,
+          "below": true
+        },
+        "texts": [
+          {
+            "text": "طماطم شيري كرزية درجة أو",
+            "cls": "fw-bold fs-5",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "UTAK-VEG-001",
+            "cls": "",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "🟢 رابح",
+            "cls": "text-nowrap ms-2",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "الشراء",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "20.00",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "السوق",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "34.50",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "بدون خسارة",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "26.45",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "المقترح",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "29.00",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "البيع",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "34.50",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "الربح / المعاينة",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "7.00",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "الحالة",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "تلقائي",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "قرار براء",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "السعر المعدّل",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          }
+        ]
+      },
+      {
+        "status": "exception",
+        "min": 5.1,
+        "border": "#e99d00",
+        "borderWidth": "5px",
+        "previewItalic": false,
+        "name": {
+          "text": "بصل — جرم · 20 كيلو",
+          "clipped": false,
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74,
+          "italic": false
+        },
+        "code": null,
+        "texts": [
+          {
+            "text": "بصل — جرم · 20 كيلو",
+            "cls": "fw-bold fs-5",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "🟡 يغطي البضاعة فقط",
+            "cls": "text-nowrap ms-2",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "الشراء",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "السوق",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "30.00",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "بدون خسارة",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "المقترح",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "البيع",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "الربح / المعاينة",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "الحالة",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "استثناء",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "لا سعر شراء",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "قرار براء",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "سعر معدّل",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          },
+          {
+            "text": "السعر المعدّل",
+            "cls": "text-muted",
+            "fg": "#676f7b",
+            "bg": "#ffffff",
+            "ratio": 5.1,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#111827",
+            "bg": "#ffffff",
+            "ratio": 17.74,
+            "italic": false
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "kind": "link",
+        "text": "📅 الأيام السابقة",
+        "fg": "#017e84",
+        "bg": "#ffffff",
+        "ratio": 4.86,
+        "italic": false
+      },
+      {
+        "kind": "link",
+        "text": "📥 عروض المصادر",
+        "fg": "#017e84",
+        "bg": "#ffffff",
+        "ratio": 4.86,
+        "italic": false
+      },
+      {
+        "kind": "link",
+        "text": "📦 الأصناف",
+        "fg": "#017e84",
+        "bg": "#ffffff",
+        "ratio": 4.86,
+        "italic": false
+      },
+      {
+        "kind": "link",
+        "text": "⚙️ الإعدادات",
+        "fg": "#017e84",
+        "bg": "#ffffff",
+        "ratio": 4.86,
+        "italic": false
+      },
+      {
+        "kind": "alert alert-warning",
+        "text": "لا يوجد سجل أسعار لليوم بعد (يبنيه النظا",
+        "fg": "#5d3f00",
+        "bg": "#fbebcc",
+        "ratio": 8.2,
+        "italic": false
+      },
+      {
+        "kind": "alert alert-info",
+        "text": "هذا يوم سابق، وليس اليوم.",
+        "fg": "#09414a",
+        "bg": "#d1ecf1",
+        "ratio": 9.1,
+        "italic": false
+      },
+      {
+        "kind": "alert alert-info",
+        "text": "مقارنة: لو كانت الكراتين 500 يومياً، حصة",
+        "fg": "#09414a",
+        "bg": "#d1ecf1",
+        "ratio": 9.1,
+        "italic": false
+      },
+      {
+        "kind": "alert alert-warning",
+        "text": "«الكراتين المتوقعة يومياً» فارغة: لا حصة",
+        "fg": "#5d3f00",
+        "bg": "#fbebcc",
+        "ratio": 8.2,
+        "italic": false
+      },
+      {
+        "kind": "alert alert-warning",
+        "text": "هذا يرسل رسائل واتساب فعلية للعملاء الآن",
+        "fg": "#5d3f00",
+        "bg": "#fbebcc",
+        "ratio": 8.2,
+        "italic": false
+      },
+      {
+        "kind": "alert alert-info",
+        "text": "عدد العملاء لم يُحسب لهذا اليوم بعد: «🔄",
+        "fg": "#09414a",
+        "bg": "#d1ecf1",
+        "ratio": 9.1,
+        "italic": false
+      },
+      {
+        "kind": "alert alert-info",
+        "text": "لا صنف معتمد للنشر: كل الأصناف استثناء ب",
+        "fg": "#09414a",
+        "bg": "#d1ecf1",
+        "ratio": 9.1,
+        "italic": false
+      },
+      {
+        "kind": "text-muted",
+        "text": "الشراء خام بدون ضريبة. التكلفة الكاملة =",
+        "fg": "#676f7b",
+        "bg": "#ffffff",
+        "ratio": 5.1,
+        "italic": false
+      },
+      {
+        "kind": "roles: the text",
+        "text": "دور الأسعار: أحمد حسان: شراء · عمر المجه",
+        "fg": "#09414a",
+        "bg": "#d1ecf1",
+        "ratio": 9.1,
+        "italic": false
+      },
+      {
+        "kind": "roles: the rule",
+        "text": "«شراء»: كل رقم يرسله المصدر عرض شراء، وم",
+        "fg": "#09414a",
+        "bg": "#d1ecf1",
+        "ratio": 9.1,
+        "italic": false
+      },
+      {
+        "kind": "roles: a link",
+        "text": "تعديل دور المورد",
+        "fg": "#017e84",
+        "bg": "#ffffff",
+        "ratio": 4.86,
+        "italic": false
+      },
+      {
+        "kind": "roles: a link",
+        "text": "تعديل دور الموظف",
+        "fg": "#017e84",
+        "bg": "#ffffff",
+        "ratio": 4.86,
+        "italic": false
+      }
+    ]
+  },
+  "dark": {
+    "css": "https://utakfresh.odoo.com/web/assets/6b6b60e/web.assets_web_dark.rtl.min.css",
+    "list": [
+      {
+        "status": "manual",
+        "min": 6.51,
+        "preview": {
+          "col": "x_profit_show",
+          "text": "2.30",
+          "fg": "#1dc959",
+          "bg": "#262a36",
+          "ratio": 6.51,
+          "italic": false
+        },
+        "dash": [
+          6.51
+        ],
+        "name": {
+          "fg": "#1dc959",
+          "bg": "#262a36",
+          "ratio": 6.51,
+          "italic": false,
+          "wraps": true,
+          "clipped": false,
+          "text": "رمان كبير — كرتون"
+        },
+        "cells": [
+          {
+            "col": "x_item_show",
+            "text": "رمان كبير — كرتون",
+            "fg": "#1dc959",
+            "bg": "#262a36",
+            "ratio": 6.51,
+            "italic": false
+          },
+          {
+            "col": "x_cost_show",
+            "text": "22.00",
+            "fg": "#1dc959",
+            "bg": "#262a36",
+            "ratio": 6.51,
+            "italic": false
+          },
+          {
+            "col": "x_supplier_id",
+            "text": "أحمد حسان",
+            "fg": "#1dc959",
+            "bg": "#262a36",
+            "ratio": 6.51,
+            "italic": false
+          },
+          {
+            "col": "x_market_show",
+            "text": "—",
+            "fg": "#1dc959",
+            "bg": "#262a36",
+            "ratio": 6.51,
+            "italic": false
+          },
+          {
+            "col": "x_market_count",
+            "text": "0",
+            "fg": "#1dc959",
+            "bg": "#262a36",
+            "ratio": 6.51,
+            "italic": false
+          },
+          {
+            "col": "x_even_show",
+            "text": "28.85",
+            "fg": "#1dc959",
+            "bg": "#262a36",
+            "ratio": 6.51,
+            "italic": false
+          },
+          {
+            "col": "x_suggested_show",
+            "text": "31.50",
+            "fg": "#1dc959",
+            "bg": "#262a36",
+            "ratio": 6.51,
+            "italic": false
+          },
+          {
+            "col": "x_sale_show",
+            "text": "31.50",
+            "fg": "#1dc959",
+            "bg": "#262a36",
+            "ratio": 6.51,
+            "italic": false
+          },
+          {
+            "col": "x_profit_show",
+            "text": "2.30",
+            "fg": "#1dc959",
+            "bg": "#262a36",
+            "ratio": 6.51,
+            "italic": false
+          },
+          {
+            "col": "x_board_status",
+            "text": "🟢 رابح",
+            "fg": "#1dc959",
+            "bg": "#262a36",
+            "ratio": 6.51,
+            "italic": false
+          },
+          {
+            "col": "x_status",
+            "text": "معتمد يدوياً",
+            "fg": "#1dc959",
+            "bg": "#262a36",
+            "ratio": 6.51,
+            "italic": false
+          },
+          {
+            "col": "x_reason",
+            "text": "براء: اعتمد بالسعر المرب",
+            "fg": "#1dc959",
+            "bg": "#262a36",
+            "ratio": 6.51,
+            "italic": false
+          },
+          {
+            "col": "x_decision",
+            "text": "اعتمد بالسعر المربح",
+            "fg": "#1dc959",
+            "bg": "#262a36",
+            "ratio": 6.51,
+            "italic": false
+          },
+          {
+            "col": "x_manual_price",
+            "text": "31.50",
+            "fg": "#1dc959",
+            "bg": "#262a36",
+            "ratio": 6.51,
+            "italic": false
+          }
+        ]
+      },
+      {
+        "status": "exception",
+        "min": 4.6,
+        "preview": {
+          "col": "x_profit_show",
+          "text": "معاينة 2.00",
+          "fg": "#ff5757",
+          "bg": "#262a36",
+          "ratio": 4.6,
+          "italic": true
+        },
+        "dash": [
+          4.6
+        ],
+        "name": {
+          "fg": "#ff5757",
+          "bg": "#262a36",
+          "ratio": 4.6,
+          "italic": false,
+          "wraps": true,
+          "clipped": false,
+          "text": "خيار — جرم · 8 كيلو"
+        },
+        "cells": [
+          {
+            "col": "x_item_show",
+            "text": "خيار — جرم · 8 كيلو",
+            "fg": "#ff5757",
+            "bg": "#262a36",
+            "ratio": 4.6,
+            "italic": false
+          },
+          {
+            "col": "x_cost_show",
+            "text": "26.00",
+            "fg": "#ff5757",
+            "bg": "#262a36",
+            "ratio": 4.6,
+            "italic": false
+          },
+          {
+            "col": "x_supplier_id",
+            "text": "أحمد حسان",
+            "fg": "#ff5757",
+            "bg": "#262a36",
+            "ratio": 4.6,
+            "italic": false
+          },
+          {
+            "col": "x_market_show",
+            "text": "31.05",
+            "fg": "#ff5757",
+            "bg": "#262a36",
+            "ratio": 4.6,
+            "italic": false
+          },
+          {
+            "col": "x_market_count",
+            "text": "2",
+            "fg": "#ff5757",
+            "bg": "#262a36",
+            "ratio": 4.6,
+            "italic": false
+          },
+          {
+            "col": "x_even_show",
+            "text": "33.70",
+            "fg": "#ff5757",
+            "bg": "#262a36",
+            "ratio": 4.6,
+            "italic": false
+          },
+          {
+            "col": "x_suggested_show",
+            "text": "36.00",
+            "fg": "#ff5757",
+            "bg": "#262a36",
+            "ratio": 4.6,
+            "italic": false
+          },
+          {
+            "col": "x_sale_show",
+            "text": "—",
+            "fg": "#ff5757",
+            "bg": "#262a36",
+            "ratio": 4.6,
+            "italic": false
+          },
+          {
+            "col": "x_profit_show",
+            "text": "معاينة 2.00",
+            "fg": "#ff5757",
+            "bg": "#262a36",
+            "ratio": 4.6,
+            "italic": true
+          },
+          {
+            "col": "x_board_status",
+            "text": "🔴 خسارة على البضاعة",
+            "fg": "#ff5757",
+            "bg": "#262a36",
+            "ratio": 4.6,
+            "italic": false
+          },
+          {
+            "col": "x_status",
+            "text": "استثناء",
+            "fg": "#ff5757",
+            "bg": "#262a36",
+            "ratio": 4.6,
+            "italic": false
+          },
+          {
+            "col": "x_reason",
+            "text": "سعر السوق 31.05 أقل من ا",
+            "fg": "#ff5757",
+            "bg": "#262a36",
+            "ratio": 4.6,
+            "italic": false
+          }
+        ]
+      },
+      {
+        "status": "unpublished",
+        "min": 4.62,
+        "preview": {
+          "col": "x_profit_show",
+          "text": "معاينة 2.30",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62,
+          "italic": true
+        },
+        "dash": [
+          4.62,
+          4.62
+        ],
+        "name": {
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62,
+          "italic": false,
+          "wraps": true,
+          "clipped": false,
+          "text": "موز أمريكي — كرتون · 14 كيلو"
+        },
+        "cells": [
+          {
+            "col": "x_item_show",
+            "text": "موز أمريكي — كرتون · 14 ",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "col": "x_cost_show",
+            "text": "22.00",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "col": "x_supplier_id",
+            "text": "أحمد حسان",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "col": "x_market_show",
+            "text": "—",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "col": "x_market_count",
+            "text": "0",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "col": "x_even_show",
+            "text": "28.85",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "col": "x_suggested_show",
+            "text": "31.50",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "col": "x_sale_show",
+            "text": "—",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "col": "x_profit_show",
+            "text": "معاينة 2.30",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": true
+          },
+          {
+            "col": "x_board_status",
+            "text": "⚪ لا بيانات",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "col": "x_status",
+            "text": "لم يُنشر",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "col": "x_reason",
+            "text": "ليس في الكتالوج النشط ال",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          }
+        ]
+      },
+      {
+        "status": "auto",
+        "min": 11.26,
+        "preview": {
+          "col": "x_profit_show",
+          "text": "7.00",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26,
+          "italic": false
+        },
+        "dash": [],
+        "name": {
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26,
+          "italic": false,
+          "wraps": true,
+          "clipped": false,
+          "text": "طماطم شيري كرزية درجة أولى مستوردة — فلين · 5 كيلو"
+        },
+        "cells": [
+          {
+            "col": "x_item_show",
+            "text": "طماطم شيري كرزية درجة أو",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "col": "x_cost_show",
+            "text": "20.00",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "col": "x_supplier_id",
+            "text": "عمر المجهلي",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "col": "x_market_show",
+            "text": "34.50",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "col": "x_market_count",
+            "text": "1",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "col": "x_even_show",
+            "text": "26.45",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "col": "x_suggested_show",
+            "text": "29.00",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "col": "x_sale_show",
+            "text": "34.50",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "col": "x_profit_show",
+            "text": "7.00",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "col": "x_board_status",
+            "text": "🟢 رابح",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "col": "x_status",
+            "text": "تلقائي",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          }
+        ]
+      },
+      {
+        "status": "exception",
+        "min": 4.6,
+        "preview": {
+          "col": "x_profit_show",
+          "text": "—",
+          "fg": "#ff5757",
+          "bg": "#262a36",
+          "ratio": 4.6,
+          "italic": false
+        },
+        "dash": [
+          4.6,
+          4.6,
+          4.6,
+          4.6,
+          4.6
+        ],
+        "name": {
+          "fg": "#ff5757",
+          "bg": "#262a36",
+          "ratio": 4.6,
+          "italic": false,
+          "wraps": true,
+          "clipped": false,
+          "text": "بصل — جرم · 20 كيلو"
+        },
+        "cells": [
+          {
+            "col": "x_item_show",
+            "text": "بصل — جرم · 20 كيلو",
+            "fg": "#ff5757",
+            "bg": "#262a36",
+            "ratio": 4.6,
+            "italic": false
+          },
+          {
+            "col": "x_cost_show",
+            "text": "—",
+            "fg": "#ff5757",
+            "bg": "#262a36",
+            "ratio": 4.6,
+            "italic": false
+          },
+          {
+            "col": "x_market_show",
+            "text": "30.00",
+            "fg": "#ff5757",
+            "bg": "#262a36",
+            "ratio": 4.6,
+            "italic": false
+          },
+          {
+            "col": "x_market_count",
+            "text": "1",
+            "fg": "#ff5757",
+            "bg": "#262a36",
+            "ratio": 4.6,
+            "italic": false
+          },
+          {
+            "col": "x_even_show",
+            "text": "—",
+            "fg": "#ff5757",
+            "bg": "#262a36",
+            "ratio": 4.6,
+            "italic": false
+          },
+          {
+            "col": "x_suggested_show",
+            "text": "—",
+            "fg": "#ff5757",
+            "bg": "#262a36",
+            "ratio": 4.6,
+            "italic": false
+          },
+          {
+            "col": "x_sale_show",
+            "text": "—",
+            "fg": "#ff5757",
+            "bg": "#262a36",
+            "ratio": 4.6,
+            "italic": false
+          },
+          {
+            "col": "x_profit_show",
+            "text": "—",
+            "fg": "#ff5757",
+            "bg": "#262a36",
+            "ratio": 4.6,
+            "italic": false
+          },
+          {
+            "col": "x_board_status",
+            "text": "🟡 يغطي البضاعة فقط",
+            "fg": "#ff5757",
+            "bg": "#262a36",
+            "ratio": 4.6,
+            "italic": false
+          },
+          {
+            "col": "x_status",
+            "text": "استثناء",
+            "fg": "#ff5757",
+            "bg": "#262a36",
+            "ratio": 4.6,
+            "italic": false
+          },
+          {
+            "col": "x_reason",
+            "text": "لا سعر شراء",
+            "fg": "#ff5757",
+            "bg": "#262a36",
+            "ratio": 4.6,
+            "italic": false
+          },
+          {
+            "col": "x_decision",
+            "text": "سعر معدّل",
+            "fg": "#ff5757",
+            "bg": "#262a36",
+            "ratio": 4.6,
+            "italic": false
+          },
+          {
+            "col": "x_manual_price",
+            "text": "0.00",
+            "fg": "#ff5757",
+            "bg": "#262a36",
+            "ratio": 4.6,
+            "italic": false
+          }
+        ]
+      }
+    ],
+    "heads": [
+      16.8,
+      16.8,
+      16.8,
+      16.8,
+      16.8,
+      16.8,
+      16.8,
+      16.8,
+      16.8,
+      16.8,
+      16.8,
+      16.8,
+      16.8,
+      16.8
+    ],
+    "cards": [
+      {
+        "status": "manual",
+        "min": 4.62,
+        "border": "#1dc959",
+        "borderWidth": "5px",
+        "previewItalic": false,
+        "name": {
+          "text": "رمان كبير — كرتون",
+          "clipped": false,
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26,
+          "italic": false
+        },
+        "code": {
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62,
+          "italic": false,
+          "px": 13,
+          "namePx": 15.4,
+          "below": true
+        },
+        "texts": [
+          {
+            "text": "رمان كبير — كرتون",
+            "cls": "fw-bold fs-5",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "UTAK-FRT-012",
+            "cls": "",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "🟢 رابح",
+            "cls": "text-nowrap ms-2",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "الشراء",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "22.00",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "السوق",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "بدون خسارة",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "28.85",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "المقترح",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "31.50",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "البيع",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "31.50",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "الربح / المعاينة",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "2.30",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "الحالة",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "معتمد يدوياً",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "براء: اعتمد بالسعر المرب",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "قرار براء",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "اعتمد بالسعر المربح",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "السعر المعدّل",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "31.50",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          }
+        ]
+      },
+      {
+        "status": "exception",
+        "min": 4.62,
+        "border": "#b83232",
+        "borderWidth": "5px",
+        "previewItalic": true,
+        "name": {
+          "text": "خيار — جرم · 8 كيلو",
+          "clipped": false,
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26,
+          "italic": false
+        },
+        "code": {
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62,
+          "italic": false,
+          "px": 13,
+          "namePx": 15.4,
+          "below": true
+        },
+        "texts": [
+          {
+            "text": "خيار — جرم · 8 كيلو",
+            "cls": "fw-bold fs-5",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "UTAK-VEG-002",
+            "cls": "",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "🔴 خسارة على البضاعة",
+            "cls": "text-nowrap ms-2",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "الشراء",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "26.00",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "السوق",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "31.05",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "بدون خسارة",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "33.70",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "المقترح",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "36.00",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "البيع",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "الربح / المعاينة",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "معاينة 2.00",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": true
+          },
+          {
+            "text": "الحالة",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "استثناء",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "سعر السوق 31.05 أقل من ا",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "قرار براء",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "السعر المعدّل",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          }
+        ]
+      },
+      {
+        "status": "unpublished",
+        "min": 4.62,
+        "border": "#3c3e4b",
+        "borderWidth": "5px",
+        "previewItalic": true,
+        "name": {
+          "text": "موز أمريكي — كرتون · 14 كيلو",
+          "clipped": false,
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26,
+          "italic": false
+        },
+        "code": {
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62,
+          "italic": false,
+          "px": 13,
+          "namePx": 15.4,
+          "below": true
+        },
+        "texts": [
+          {
+            "text": "موز أمريكي — كرتون · 14 ",
+            "cls": "fw-bold fs-5",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "UTAK-FRT-002",
+            "cls": "",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "⚪ لا بيانات",
+            "cls": "text-nowrap ms-2",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "الشراء",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "22.00",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "السوق",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "بدون خسارة",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "28.85",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "المقترح",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "31.50",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "البيع",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "الربح / المعاينة",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "معاينة 2.30",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": true
+          },
+          {
+            "text": "الحالة",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "لم يُنشر",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "ليس في الكتالوج النشط ال",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "قرار براء",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "السعر المعدّل",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          }
+        ]
+      },
+      {
+        "status": "auto",
+        "min": 4.62,
+        "border": "#1dc959",
+        "borderWidth": "5px",
+        "previewItalic": false,
+        "name": {
+          "text": "طماطم شيري كرزية درجة أولى مستوردة — فلين · 5 كيلو",
+          "clipped": false,
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26,
+          "italic": false
+        },
+        "code": {
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62,
+          "italic": false,
+          "px": 13,
+          "namePx": 15.4,
+          "below": true
+        },
+        "texts": [
+          {
+            "text": "طماطم شيري كرزية درجة أو",
+            "cls": "fw-bold fs-5",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "UTAK-VEG-001",
+            "cls": "",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "🟢 رابح",
+            "cls": "text-nowrap ms-2",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "الشراء",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "20.00",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "السوق",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "34.50",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "بدون خسارة",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "26.45",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "المقترح",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "29.00",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "البيع",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "34.50",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "الربح / المعاينة",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "7.00",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "الحالة",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "تلقائي",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "قرار براء",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "السعر المعدّل",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          }
+        ]
+      },
+      {
+        "status": "exception",
+        "min": 4.62,
+        "border": "#e99d00",
+        "borderWidth": "5px",
+        "previewItalic": false,
+        "name": {
+          "text": "بصل — جرم · 20 كيلو",
+          "clipped": false,
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26,
+          "italic": false
+        },
+        "code": null,
+        "texts": [
+          {
+            "text": "بصل — جرم · 20 كيلو",
+            "cls": "fw-bold fs-5",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "🟡 يغطي البضاعة فقط",
+            "cls": "text-nowrap ms-2",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "الشراء",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "السوق",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "30.00",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "بدون خسارة",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "المقترح",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "البيع",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "الربح / المعاينة",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "الحالة",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "استثناء",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "لا سعر شراء",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "قرار براء",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "سعر معدّل",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          },
+          {
+            "text": "السعر المعدّل",
+            "cls": "text-muted",
+            "fg": "#90929c",
+            "bg": "#262a36",
+            "ratio": 4.62,
+            "italic": false
+          },
+          {
+            "text": "—",
+            "cls": "",
+            "fg": "#e4e4e4",
+            "bg": "#262a36",
+            "ratio": 11.26,
+            "italic": false
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "kind": "link",
+        "text": "📅 الأيام السابقة",
+        "fg": "#02c7b5",
+        "bg": "#262a36",
+        "ratio": 6.71,
+        "italic": false
+      },
+      {
+        "kind": "link",
+        "text": "📥 عروض المصادر",
+        "fg": "#02c7b5",
+        "bg": "#262a36",
+        "ratio": 6.71,
+        "italic": false
+      },
+      {
+        "kind": "link",
+        "text": "📦 الأصناف",
+        "fg": "#02c7b5",
+        "bg": "#262a36",
+        "ratio": 6.71,
+        "italic": false
+      },
+      {
+        "kind": "link",
+        "text": "⚙️ الإعدادات",
+        "fg": "#02c7b5",
+        "bg": "#262a36",
+        "ratio": 6.71,
+        "italic": false
+      },
+      {
+        "kind": "alert alert-warning",
+        "text": "لا يوجد سجل أسعار لليوم بعد (يبنيه النظا",
+        "fg": "#f6d899",
+        "bg": "#2f1f00",
+        "ratio": 11.54,
+        "italic": false
+      },
+      {
+        "kind": "alert alert-info",
+        "text": "هذا يوم سابق، وليس اليوم.",
+        "fg": "#f0f8ff",
+        "bg": "#253f58",
+        "ratio": 10.14,
+        "italic": false
+      },
+      {
+        "kind": "alert alert-info",
+        "text": "مقارنة: لو كانت الكراتين 500 يومياً، حصة",
+        "fg": "#f0f8ff",
+        "bg": "#253f58",
+        "ratio": 10.14,
+        "italic": false
+      },
+      {
+        "kind": "alert alert-warning",
+        "text": "«الكراتين المتوقعة يومياً» فارغة: لا حصة",
+        "fg": "#f6d899",
+        "bg": "#2f1f00",
+        "ratio": 11.54,
+        "italic": false
+      },
+      {
+        "kind": "alert alert-warning",
+        "text": "هذا يرسل رسائل واتساب فعلية للعملاء الآن",
+        "fg": "#f6d899",
+        "bg": "#2f1f00",
+        "ratio": 11.54,
+        "italic": false
+      },
+      {
+        "kind": "alert alert-info",
+        "text": "عدد العملاء لم يُحسب لهذا اليوم بعد: «🔄",
+        "fg": "#f0f8ff",
+        "bg": "#253f58",
+        "ratio": 10.14,
+        "italic": false
+      },
+      {
+        "kind": "alert alert-info",
+        "text": "لا صنف معتمد للنشر: كل الأصناف استثناء ب",
+        "fg": "#f0f8ff",
+        "bg": "#253f58",
+        "ratio": 10.14,
+        "italic": false
+      },
+      {
+        "kind": "text-muted",
+        "text": "الشراء خام بدون ضريبة. التكلفة الكاملة =",
+        "fg": "#90929c",
+        "bg": "#262a36",
+        "ratio": 4.62,
+        "italic": false
+      },
+      {
+        "kind": "roles: the text",
+        "text": "دور الأسعار: أحمد حسان: شراء · عمر المجه",
+        "fg": "#f0f8ff",
+        "bg": "#253f58",
+        "ratio": 10.14,
+        "italic": false
+      },
+      {
+        "kind": "roles: the rule",
+        "text": "«شراء»: كل رقم يرسله المصدر عرض شراء، وم",
+        "fg": "#f0f8ff",
+        "bg": "#253f58",
+        "ratio": 10.14,
+        "italic": false
+      },
+      {
+        "kind": "roles: a link",
+        "text": "تعديل دور المورد",
+        "fg": "#02c7b5",
+        "bg": "#262a36",
+        "ratio": 6.71,
+        "italic": false
+      },
+      {
+        "kind": "roles: a link",
+        "text": "تعديل دور الموظف",
+        "fg": "#02c7b5",
+        "bg": "#262a36",
+        "ratio": 6.71,
+        "italic": false
+      }
+    ]
+  },
+  "previewItalic": true,
+  "fullNames": true
+}

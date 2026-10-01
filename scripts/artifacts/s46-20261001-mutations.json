@@ -1,0 +1,1150 @@
+{
+  "at": "2026-10-01T03:19:20.842Z",
+  "caught": 114,
+  "total": 114,
+  "results": [
+    {
+      "part": "أ",
+      "name": "a registered source's purchase not divided by 1.15",
+      "caught": true,
+      "fails": [
+        "✗ a registered source from the cutoff: net purchase 23 ÷ 1.15 = 20 — {\"x_net_purchase\":23,\"x_waste_cost\":1.15,\"x_op_share\":2,\"x_full_cost\":26.15,\"x_board_sale\":34.5,\"x_net_sale\":30,\"x_real_profit\":3.85,\"x_board_status\":\"green\"}",
+        "✗ waste = 5 % × the NET purchase = 1.00 (not × 23) — {\"x_net_purchase\":23,\"x_waste_cost\":1.15,\"x_op_share\":2,\"x_full_cost\":26.15,\"x_board_sale\":34.5,\"x_net_sale\":30,\"x_real_profit\":3.85,\"x_board_status\":\"green\"}",
+        "✗ full cost = 20 + 1 + 2 = 23 — {\"x_net_purchase\":23,\"x_waste_cost\":1.15,\"x_op_share\":2,\"x_full_cost\":26.15,\"x_board_sale\":34.5,\"x_net_sale\":30,\"x_real_profit\":3.85,\"x_board_status\":\"green\"}",
+        "✗ real profit = 30 − 23 = 7 → 🟢 — {\"x_net_purchase\":23,\"x_waste_cost\":1.15,\"x_op_share\":2,\"x_full_cost\":26.15,\"x_board_sale\":34.5,\"x_net_sale\":30,\"x_real_profit\":3.85,\"x_board_status\":\"green\"}"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "an unregistered source's purchase divided too",
+      "caught": true,
+      "fails": [
+        "✗ an unregistered source: the purchase as it is (23), waste 1.15, full 26.15, profit 3.85 — {\"x_net_purchase\":20,\"x_waste_cost\":1,\"x_op_share\":2,\"x_full_cost\":23,\"x_board_sale\":34.5,\"x_net_sale\":30,\"x_real_profit\":7,\"x_board_status\":\"green\"}",
+        "✗ the source that won the purchase is NOT registered: net purchase = the purchase (23), profit 3.85 — {\"x_day_id\":10015,\"x_name\":\"طماطم — كرتون\",\"x_sequence\":1,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_net_purchase\":20,\"x_waste_cost\":1,\"x_op_share\":2,\"x_full_cost\":23,\"x_board_sale\":34.5,\"x_net_sale\":30,\"x_real_profit\":7,\"x_board_status\":\"green\",\"x_supplier_id\":801,\"x_daily_price_id\":10009,\"x_default_price_id\":10009,\"x_source_price\":23,\"x_cost_price\":23,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":50,\"x_market_price\":34.5,\"x_market_count\":1,\"x_unit_profit\":5.85,\"x_offers\":\"أحمد حسان: شراء 23 · عمر المجهلي: سوق 34.50\",\"x_status\":\"auto\",\"x_reason\":false,\"x_sale_price\":34.5,\"x_excluded\":false,\"x_blocked\":false,\"id\":10016}",
+        "✗ an unregistered source: the purchase as it is (23), waste 1.15, full 26.15, profit 3.85",
+        "✗ the source that won the purchase is NOT registered: net purchase = the purchase (23), profit 3.85"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the waste on the gross purchase",
+      "caught": true,
+      "fails": [
+        "✗ waste = 5 % × the NET purchase = 1.00 (not × 23) — {\"x_net_purchase\":20,\"x_waste_cost\":1.15,\"x_op_share\":2,\"x_full_cost\":23.15,\"x_board_sale\":34.5,\"x_net_sale\":30,\"x_real_profit\":6.85,\"x_board_status\":\"green\"}",
+        "✗ full cost = 20 + 1 + 2 = 23 — {\"x_net_purchase\":20,\"x_waste_cost\":1.15,\"x_op_share\":2,\"x_full_cost\":23.15,\"x_board_sale\":34.5,\"x_net_sale\":30,\"x_real_profit\":6.85,\"x_board_status\":\"green\"}",
+        "✗ real profit = 30 − 23 = 7 → 🟢 — {\"x_net_purchase\":20,\"x_waste_cost\":1.15,\"x_op_share\":2,\"x_full_cost\":23.15,\"x_board_sale\":34.5,\"x_net_sale\":30,\"x_real_profit\":6.85,\"x_board_status\":\"green\"}",
+        "✗ 🟡 covers the goods and the waste (18.26 ≤ 20) but not the share (20.26) — {\"x_net_purchase\":17.39,\"x_waste_cost\":1,\"x_op_share\":2,\"x_full_cost\":20.39,\"x_board_sale\":23,\"x_net_sale\":20,\"x_real_profit\":-0.39,\"x_board_status\":\"yellow\"}"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the full cost without the carton share",
+      "caught": true,
+      "fails": [
+        "✗ full cost = 20 + 1 + 2 = 23 — {\"x_net_purchase\":20,\"x_waste_cost\":1,\"x_op_share\":2,\"x_full_cost\":21,\"x_board_sale\":34.5,\"x_net_sale\":30,\"x_real_profit\":9,\"x_board_status\":\"green\"}",
+        "✗ real profit = 30 − 23 = 7 → 🟢 — {\"x_net_purchase\":20,\"x_waste_cost\":1,\"x_op_share\":2,\"x_full_cost\":21,\"x_board_sale\":34.5,\"x_net_sale\":30,\"x_real_profit\":9,\"x_board_status\":\"green\"}",
+        "✗ an unregistered source: the purchase as it is (23), waste 1.15, full 26.15, profit 3.85 — {\"x_net_purchase\":23,\"x_waste_cost\":1.15,\"x_op_share\":2,\"x_full_cost\":24.15,\"x_board_sale\":34.5,\"x_net_sale\":30,\"x_real_profit\":5.85,\"x_board_status\":\"green\"}",
+        "✗ before the cutoff (no VAT): nothing divided — purchase 23, sale 34.5, profit 8.35 — {\"x_net_purchase\":23,\"x_waste_cost\":1.15,\"x_op_share\":2,\"x_full_cost\":24.15,\"x_board_sale\":34.5,\"x_net_sale\":34.5,\"x_real_profit\":10.35,\"x_board_status\":\"green\"}"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the net sale not divided from the cutoff",
+      "caught": true,
+      "fails": [
+        "✗ net sale = 34.5 ÷ 1.15 = 30; the sale shown 34.5 — {\"x_net_purchase\":20,\"x_waste_cost\":1,\"x_op_share\":2,\"x_full_cost\":23,\"x_board_sale\":34.5,\"x_net_sale\":34.5,\"x_real_profit\":11.5,\"x_board_status\":\"green\"}",
+        "✗ real profit = 30 − 23 = 7 → 🟢 — {\"x_net_purchase\":20,\"x_waste_cost\":1,\"x_op_share\":2,\"x_full_cost\":23,\"x_board_sale\":34.5,\"x_net_sale\":34.5,\"x_real_profit\":11.5,\"x_board_status\":\"green\"}",
+        "✗ an unregistered source: the purchase as it is (23), waste 1.15, full 26.15, profit 3.85 — {\"x_net_purchase\":23,\"x_waste_cost\":1.15,\"x_op_share\":2,\"x_full_cost\":26.15,\"x_board_sale\":34.5,\"x_net_sale\":34.5,\"x_real_profit\":8.35,\"x_board_status\":\"green\"}",
+        "✗ 🟡 covers the goods and the waste (18.26 ≤ 20) but not the share (20.26) — {\"x_net_purchase\":17.39,\"x_waste_cost\":0.87,\"x_op_share\":2,\"x_full_cost\":20.26,\"x_board_sale\":23,\"x_net_sale\":23,\"x_real_profit\":2.74,\"x_board_status\":\"green\"}"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "divided by 1.15 before the cutoff too",
+      "caught": true,
+      "fails": [
+        "✗ before the cutoff (no VAT): nothing divided — purchase 23, sale 34.5, profit 8.35 — {\"x_net_purchase\":20,\"x_waste_cost\":1,\"x_op_share\":2,\"x_full_cost\":23,\"x_board_sale\":34.5,\"x_net_sale\":30,\"x_real_profit\":7,\"x_board_status\":\"green\"}",
+        "✗ real profit exactly 0 is not 🟢 (> 0 only): 🟡 — {\"x_net_purchase\":17.39,\"x_waste_cost\":0,\"x_op_share\":2,\"x_full_cost\":19.39,\"x_board_sale\":22,\"x_net_sale\":19.13,\"x_real_profit\":-0.26,\"x_board_status\":\"yellow\"}",
+        "✗ a price day before 2026-10-01: nothing is divided by 1.15 (purchase 23, net sale 34.5, profit 8.35) — {\"x_day_id\":10011,\"x_name\":\"طماطم — كرتون\",\"x_sequence\":1,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_net_purchase\":20,\"x_waste_cost\":1,\"x_op_share\":2,\"x_full_cost\":23,\"x_board_sale\":34.5,\"x_net_sale\":30,\"x_real_profit\":7,\"x_board_status\":\"green\",\"x_supplier_id\":801,\"x_daily_price_id\":10009,\"x_default_price_id\":10009,\"x_source_price\":23,\"x_cost_price\":23,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":50,\"x_market_price\":34.5,\"x_market_count\":1,\"x_unit_profit\":10.35,\"x_offers\":\"أحمد حسان: شراء 23 · عمر المجهلي: سوق 34.50\",\"x_status\":\"auto\",\"x_reason\":false,\"x_sale_price\":34.5,\"x_excluded\":false,\"x_blocked\":false,\"id\":10012}",
+        "✗ before the cutoff (no VAT): nothing divided — purchase 23, sale 34.5, profit 8.35"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "a real profit of exactly 0 is 🟢",
+      "caught": true,
+      "fails": [
+        "✗ real profit exactly 0 is not 🟢 (> 0 only): 🟡 — {\"x_net_purchase\":20,\"x_waste_cost\":0,\"x_op_share\":2,\"x_full_cost\":22,\"x_board_sale\":22,\"x_net_sale\":22,\"x_real_profit\":0,\"x_board_status\":\"green\"}",
+        "✗ real profit exactly 0 is not 🟢 (> 0 only): 🟡"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "no 🟡: not covering the share is 🔴",
+      "caught": true,
+      "fails": [
+        "✗ 🟡 covers the goods and the waste (18.26 ≤ 20) but not the share (20.26) — {\"x_net_purchase\":17.39,\"x_waste_cost\":0.87,\"x_op_share\":2,\"x_full_cost\":20.26,\"x_board_sale\":23,\"x_net_sale\":20,\"x_real_profit\":-0.26,\"x_board_status\":\"red\"}",
+        "✗ real profit exactly 0 is not 🟢 (> 0 only): 🟡 — {\"x_net_purchase\":20,\"x_waste_cost\":0,\"x_op_share\":2,\"x_full_cost\":22,\"x_board_sale\":22,\"x_net_sale\":22,\"x_real_profit\":0,\"x_board_status\":\"red\"}",
+        "✗ the goods exactly covered (0) is not a loss: 🟡, not 🔴 — {\"x_net_purchase\":20,\"x_waste_cost\":0,\"x_op_share\":2,\"x_full_cost\":22,\"x_board_sale\":20,\"x_net_sale\":20,\"x_real_profit\":-2,\"x_board_status\":\"red\"}",
+        "✗ 🟡 potato: approved automatically at the market price (the rule is untouched), yet it does not cover its share — {\"x_day_id\":10015,\"x_name\":\"بطاطس — كرتون\",\"x_sequence\":3,\"x_product_tmpl_id\":3,\"x_packaging_id\":31,\"x_net_purchase\":17.39,\"x_waste_cost\":0.87,\"x_op_share\":2,\"x_full_cost\":20.26,\"x_board_sale\":23,\"x_net_sale\":20,\"x_real_profit\":-0.26,\"x_board_status\":\"red\",\"x_supplier_id\":801,\"x_daily_price_id\":10013,\"x_default_price_id\":10013,\"x_source_price\":20,\"x_cost_price\":20,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":15,\"x_market_price\":23,\"x_market_count\":1,\"x_unit_profit\":1.74,\"x_offers\":\"أحمد حسان: شراء 20 · عمر المجهلي: سوق 23\",\"x_status\":\"auto\",\"x_reason\":false,\"x_sale_price\":23,\"x_excluded\":false,\"x_blocked\":false,\"id\":10018}"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the goods exactly covered is 🔴",
+      "caught": true,
+      "fails": [
+        "✗ the goods exactly covered (0) is not a loss: 🟡, not 🔴 — {\"x_net_purchase\":20,\"x_waste_cost\":0,\"x_op_share\":2,\"x_full_cost\":22,\"x_board_sale\":20,\"x_net_sale\":20,\"x_real_profit\":-2,\"x_board_status\":\"red\"}",
+        "✗ the goods exactly covered (0) is not a loss: 🟡, not 🔴"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "an unreadable share guessed 🟢 / 🟡",
+      "caught": true,
+      "fails": [
+        "✗ the share unreadable: ⚪ (never a guessed 🟢), but a loss on the goods is still 🔴 — [{\"x_net_purchase\":20,\"x_waste_cost\":1,\"x_op_share\":0,\"x_full_cost\":21,\"x_board_sale\":34.5,\"x_net_sale\":30,\"x_real_profit\":9,\"x_board_status\":\"green\"},{\"x_net_purchase\":26.09,\"x_waste_cost\":1.3,\"x_op_share\":0,\"x_full_cost\":27.39,\"x_board_sale\":31.05,\"x_net_sale\":27,\"x_real_profit\":-0.39,\"x_board_status\":\"red\"}]",
+        "✗ the day's cost «تعذّر»: no share, the note says why, 🟢 / 🟡 become ⚪ and the loss on the goods stays 🔴 — {\"x_date\":\"2026-10-03\",\"x_name\":\"أسعار اليوم 2026-10-03\",\"x_state\":\"draft\",\"id\":10015,\"x_op_cost\":0,\"x_op_expected\":250,\"x_op_cartons\":250,\"x_op_basis\":\"expected\",\"x_op_share\":0,\"x_op_share_500\":0,\"x_n_green\":2,\"x_n_yellow\":0,\"x_n_red\":1,\"x_n_none\":1,\"x_board_note\":\"تكلفة اليوم تعذّرت (لا جدول دوام للسائق في «الموظفون»): الحالة ⚪ لما لا يخسر على البضاعة.\",\"x_board_at\":\"2026-10-03 00:00:00\"}",
+        "✗ «الكراتين المتوقعة يومياً» empty: no share, the note names the setting — {\"x_date\":\"2026-10-03\",\"x_name\":\"أسعار اليوم 2026-10-03\",\"x_state\":\"draft\",\"id\":10015,\"x_op_cost\":500,\"x_op_expected\":0,\"x_op_cartons\":0,\"x_op_basis\":\"expected\",\"x_op_share\":0,\"x_op_share_500\":1,\"x_n_green\":2,\"x_n_yellow\":0,\"x_n_red\":1,\"x_n_none\":1,\"x_board_note\":\"«الكراتين المتوقعة يومياً» فارغة في «⚙️ إعدادات التسعير»: لا حصة تشغيل.\",\"x_board_at\":\"2026-10-03 00:00:00\"}",
+        "✗ the share unreadable: ⚪ (never a guessed 🟢), but a loss on the goods is still 🔴"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "a status without a purchase price",
+      "caught": true,
+      "fails": [
+        "✗ ⚪ without a purchase price, and without a market price — [{\"x_net_purchase\":0,\"x_waste_cost\":0,\"x_op_share\":2,\"x_full_cost\":0,\"x_board_sale\":30,\"x_net_sale\":26.09,\"x_real_profit\":26.09,\"x_board_status\":\"green\"},{\"x_net_purchase\":17.39,\"x_waste_cost\":0.87,\"x_op_share\":2,\"x_full_cost\":20.26,\"x_board_sale\":0,\"x_net_sale\":0,\"x_real_profit\":0,\"x_board_status\":\"none\"}]",
+        "✗ ⚪ without a purchase price, and without a market price"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "a status without a market price",
+      "caught": true,
+      "fails": [
+        "✗ ⚪ without a purchase price, and without a market price — [{\"x_net_purchase\":0,\"x_waste_cost\":0,\"x_op_share\":2,\"x_full_cost\":0,\"x_board_sale\":30,\"x_net_sale\":26.09,\"x_real_profit\":0,\"x_board_status\":\"none\"},{\"x_net_purchase\":17.39,\"x_waste_cost\":0.87,\"x_op_share\":2,\"x_full_cost\":20.26,\"x_board_sale\":0,\"x_net_sale\":0,\"x_real_profit\":-20.26,\"x_board_status\":\"red\"}]",
+        "✗ ⚪ without a purchase price, and without a market price"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the actual average before 7 delivery days",
+      "caught": true,
+      "fails": [
+        "✗ 6 days with real deliveries (by Riyadh time) → days 6, no average — {\"days\":6,\"average\":87.14}",
+        "✗ 6 days with real deliveries (by Riyadh time) → days 6, no average"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the actual average never used",
+      "caught": true,
+      "fails": [
+        "✗ 7 delivery days: ÷ the actual average (100) → 5.00, basis «actual» — {\"cost\":500,\"expected\":250,\"basis\":\"actual\",\"cartons\":250,\"share\":2,\"share500\":1,\"note\":\"\"}",
+        "✗ 7 delivery days: the share is 500 ÷ 100 = 5.00 on the actual average, and the header says so — {\"x_date\":\"2026-10-03\",\"x_name\":\"أسعار اليوم 2026-10-03\",\"x_state\":\"draft\",\"id\":10029,\"x_op_cost\":500,\"x_op_expected\":250,\"x_op_cartons\":250,\"x_op_basis\":\"actual\",\"x_op_share\":2,\"x_op_share_500\":1,\"x_n_green\":1,\"x_n_yellow\":1,\"x_n_red\":1,\"x_n_none\":1,\"x_board_note\":false,\"x_board_at\":\"2026-10-03 00:00:00\"}",
+        "✗ …and the line uses it: full cost 20 + 1 + 5 = 26, real profit 4 — {\"x_day_id\":10029,\"x_name\":\"طماطم — كرتون\",\"x_sequence\":1,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_net_purchase\":20,\"x_waste_cost\":1,\"x_op_share\":2,\"x_full_cost\":23,\"x_board_sale\":34.5,\"x_net_sale\":30,\"x_real_profit\":7,\"x_board_status\":\"green\",\"x_supplier_id\":801,\"x_daily_price_id\":10009,\"x_default_price_id\":10009,\"x_source_price\":23,\"x_cost_price\":23,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":50,\"x_market_price\":34.5,\"x_market_count\":1,\"x_unit_profit\":9,\"x_offers\":\"أحمد حسان: شراء 23 · عمر المجهلي: سوق 34.50\",\"x_status\":\"auto\",\"x_reason\":false,\"x_sale_price\":34.5,\"x_excluded\":false,\"x_blocked\":false,\"id\":10030}",
+        "✗ 7 delivery days: ÷ the actual average (100) → 5.00, basis «actual»"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the expected cartons empty → ÷ 1",
+      "caught": true,
+      "fails": [
+        "✗ the expected cartons empty: no share (null) and the reason, never ÷ 0 — {\"cost\":500,\"expected\":1,\"basis\":\"expected\",\"cartons\":1,\"share\":500,\"share500\":1,\"note\":\"\"}",
+        "✗ «الكراتين المتوقعة يومياً» empty: no share, the note names the setting — {\"x_date\":\"2026-10-03\",\"x_name\":\"أسعار اليوم 2026-10-03\",\"x_state\":\"draft\",\"id\":10015,\"x_op_cost\":500,\"x_op_expected\":1,\"x_op_cartons\":1,\"x_op_basis\":\"expected\",\"x_op_share\":500,\"x_op_share_500\":1,\"x_n_green\":0,\"x_n_yellow\":2,\"x_n_red\":1,\"x_n_none\":1,\"x_board_note\":false,\"x_board_at\":\"2026-10-03 00:00:00\"}",
+        "✗ the expected cartons empty: no share (null) and the reason, never ÷ 0",
+        "✗ «الكراتين المتوقعة يومياً» empty: no share, the note names the setting"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the comparison at 250 cartons",
+      "caught": true,
+      "fails": [
+        "✗ 496.52 ÷ 250 = 1.99, basis «expected», the comparison 496.52 ÷ 500 = 0.99 — {\"cost\":496.52,\"expected\":250,\"basis\":\"expected\",\"cartons\":250,\"share\":1.99,\"share500\":1.99,\"note\":\"\"}",
+        "✗ the expected cartons empty: no share (null) and the reason, never ÷ 0 — {\"cost\":500,\"expected\":null,\"basis\":\"expected\",\"cartons\":null,\"share\":null,\"share500\":2,\"note\":\"«الكراتين المتوقعة يومياً» فارغة في «⚙️ إعدادات التسعير»: لا حصة تشغيل.\"}",
+        "✗ the comparison is at 500 cartons, the switch at 7 days",
+        "✗ the header: cost 500, expected 250, share 2.00 on the expected cartons, 1.00 at 500 cartons — {\"x_date\":\"2026-10-03\",\"x_name\":\"أسعار اليوم 2026-10-03\",\"x_state\":\"draft\",\"id\":10015,\"x_op_cost\":500,\"x_op_expected\":250,\"x_op_cartons\":250,\"x_op_basis\":\"expected\",\"x_op_share\":2,\"x_op_share_500\":2,\"x_n_green\":1,\"x_n_yellow\":1,\"x_n_red\":1,\"x_n_none\":1,\"x_board_note\":false,\"x_board_at\":\"2026-10-03 00:00:00\"}"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the comparison from the cartons in use",
+      "caught": true,
+      "fails": [
+        "✗ 496.52 ÷ 250 = 1.99, basis «expected», the comparison 496.52 ÷ 500 = 0.99 — {\"cost\":496.52,\"expected\":250,\"basis\":\"expected\",\"cartons\":250,\"share\":1.99,\"share500\":1.99,\"note\":\"\"}",
+        "✗ the expected cartons empty: no share (null) and the reason, never ÷ 0 — {\"cost\":500,\"expected\":null,\"basis\":\"expected\",\"cartons\":null,\"share\":null,\"share500\":500,\"note\":\"«الكراتين المتوقعة يومياً» فارغة في «⚙️ إعدادات التسعير»: لا حصة تشغيل.\"}",
+        "✗ the header: cost 500, expected 250, share 2.00 on the expected cartons, 1.00 at 500 cartons — {\"x_date\":\"2026-10-03\",\"x_name\":\"أسعار اليوم 2026-10-03\",\"x_state\":\"draft\",\"id\":10015,\"x_op_cost\":500,\"x_op_expected\":250,\"x_op_cartons\":250,\"x_op_basis\":\"expected\",\"x_op_share\":2,\"x_op_share_500\":2,\"x_n_green\":1,\"x_n_yellow\":1,\"x_n_red\":1,\"x_n_none\":1,\"x_board_note\":false,\"x_board_at\":\"2026-10-03 00:00:00\"}",
+        "✗ 7 delivery days: the share is 500 ÷ 100 = 5.00 on the actual average, and the header says so — {\"x_date\":\"2026-10-03\",\"x_name\":\"أسعار اليوم 2026-10-03\",\"x_state\":\"draft\",\"id\":10029,\"x_op_cost\":500,\"x_op_expected\":250,\"x_op_cartons\":100,\"x_op_basis\":\"actual\",\"x_op_share\":5,\"x_op_share_500\":5,\"x_n_green\":1,\"x_n_yellow\":1,\"x_n_red\":1,\"x_n_none\":1,\"x_board_note\":false,\"x_board_at\":\"2026-10-03 00:00:00\"}"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "a simulation delivery counted",
+      "caught": true,
+      "fails": [
+        "✗ a simulation order, the board's own day (by Riyadh time) and an order that is not delivered are not counted — {\"days\":9,\"average\":220}",
+        "✗ a delivery older than the look-back (90 days) is not counted — {\"days\":9,\"average\":220}",
+        "✗ a simulation order, the board's own day (by Riyadh time) and an order that is not delivered are not counted",
+        "✗ a delivery older than the look-back (90 days) is not counted"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the board's own day counted",
+      "caught": true,
+      "fails": [
+        "✗ a simulation order, the board's own day (by Riyadh time) and an order that is not delivered are not counted — {\"days\":9,\"average\":320}",
+        "✗ a delivery older than the look-back (90 days) is not counted — {\"days\":9,\"average\":320}",
+        "✗ a simulation order, the board's own day (by Riyadh time) and an order that is not delivered are not counted",
+        "✗ a delivery older than the look-back (90 days) is not counted"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "an undelivered order counted",
+      "caught": true,
+      "fails": [
+        "✗ a simulation order, the board's own day (by Riyadh time) and an order that is not delivered are not counted — {\"days\":9,\"average\":205.71}",
+        "✗ a delivery older than the look-back (90 days) is not counted — {\"days\":9,\"average\":205.71}",
+        "✗ a simulation order, the board's own day (by Riyadh time) and an order that is not delivered are not counted",
+        "✗ a delivery older than the look-back (90 days) is not counted"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "a delivery older than the look-back counted",
+      "caught": true,
+      "fails": [
+        "✗ a delivery older than the look-back (90 days) is not counted — {\"days\":9,\"average\":105.71}",
+        "✗ a delivery older than the look-back (90 days) is not counted"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "a line short at delivery counted",
+      "caught": true,
+      "fails": [
+        "✗ 8 days: the LAST 7 only (09-21 drops out), a line short at delivery not counted: (5 × 100 + 200 + 40) ÷ 7 = 105.71 — {\"days\":8,\"average\":114.29}",
+        "✗ a simulation order, the board's own day (by Riyadh time) and an order that is not delivered are not counted — {\"days\":8,\"average\":114.29}",
+        "✗ 8 days: the LAST 7 only (09-21 drops out), a line short at delivery not counted: (5 × 100 + 200 + 40) ÷ 7 = 105.71",
+        "✗ a simulation order, the board's own day (by Riyadh time) and an order that is not delivered are not counted"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the average over every delivery day, not the last 7",
+      "caught": true,
+      "fails": [
+        "✗ 8 days: the LAST 7 only (09-21 drops out), a line short at delivery not counted: (5 × 100 + 200 + 40) ÷ 7 = 105.71 — {\"days\":8,\"average\":121.43}",
+        "✗ a simulation order, the board's own day (by Riyadh time) and an order that is not delivered are not counted — {\"days\":8,\"average\":121.43}",
+        "✗ 8 days: the LAST 7 only (09-21 drops out), a line short at delivery not counted: (5 × 100 + 200 + 40) ÷ 7 = 105.71",
+        "✗ a simulation order, the board's own day (by Riyadh time) and an order that is not delivered are not counted"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the delivery day by the UTC date",
+      "caught": true,
+      "fails": [
+        "✗ 6 days with real deliveries (by Riyadh time) → days 6, no average — {\"days\":7,\"average\":87.14}",
+        "✗ 7 days → the average of their cartons: (6 × 100 + 10 + 200) ÷ 7 = 115.71 — {\"days\":8,\"average\":114.29}",
+        "✗ 8 days: the LAST 7 only (09-21 drops out), a line short at delivery not counted: (5 × 100 + 200 + 40) ÷ 7 = 105.71 — {\"days\":9,\"average\":105.71}",
+        "✗ a simulation order, the board's own day (by Riyadh time) and an order that is not delivered are not counted — {\"days\":9,\"average\":105.71}"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the day's cost never read again",
+      "caught": true,
+      "fails": [
+        "✗ …after 15 minutes the board is rewritten: share 4.00, tomato's profit 5, potato still 🟡 — [{\"day\":\"2026-10-03\",\"action\":\"unchanged\",\"dayId\":10015,\"state\":\"draft\"},{\"x_date\":\"2026-10-03\",\"x_name\":\"أسعار اليوم 2026-10-03\",\"x_state\":\"draft\",\"id\":10015,\"x_op_cost\":500,\"x_op_expected\":250,\"x_op_cartons\":250,\"x_op_basis\":\"expected\",\"x_op_share\":2,\"x_op_share_500\":1,\"x_n_green\":1,\"x_n_yellow\":1,\"x_n_red\":1,\"x_n_none\":1,\"x_board_note\":false,\"x_board_at\":\"2026-10-03 00:00:00\"}]",
+        "✗ …after 15 minutes the board is rewritten: share 4.00, tomato's profit 5, potato still 🟡"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "«🔄 إعادة الحساب» does not read the cost again",
+      "caught": true,
+      "fails": [
+        "✗ «🔄 إعادة الحساب» (force) reads the cost at once: share 1.00, potato turns 🟢 (20 − 19.26 = 0.74) — {\"x_day_id\":10015,\"x_name\":\"بطاطس — كرتون\",\"x_sequence\":3,\"x_product_tmpl_id\":3,\"x_packaging_id\":31,\"x_net_purchase\":17.39,\"x_waste_cost\":0.87,\"x_op_share\":4,\"x_full_cost\":22.26,\"x_board_sale\":23,\"x_net_sale\":20,\"x_real_profit\":-2.26,\"x_board_status\":\"yellow\",\"x_supplier_id\":801,\"x_daily_price_id\":10013,\"x_default_price_id\":10013,\"x_source_price\":20,\"x_cost_price\":20,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":15,\"x_market_price\":23,\"x_market_count\":1,\"x_unit_profit\":1.74,\"x_offers\":\"أحمد حسان: شراء 20 · عمر المجهلي: سوق 23\",\"x_status\":\"auto\",\"x_reason\":false,\"x_sale_price\":23,\"x_excluded\":false,\"x_blocked\":false,\"id\":10018}",
+        "✗ «🔄 إعادة الحساب» (force) reads the cost at once: share 1.00, potato turns 🟢 (20 − 19.26 = 0.74)"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the share not in the engine's fingerprint",
+      "caught": true,
+      "fails": [
+        "✗ …after 15 minutes the board is rewritten: share 4.00, tomato's profit 5, potato still 🟡 — [{\"day\":\"2026-10-03\",\"action\":\"unchanged\",\"dayId\":10015,\"state\":\"draft\"},{\"x_date\":\"2026-10-03\",\"x_name\":\"أسعار اليوم 2026-10-03\",\"x_state\":\"draft\",\"id\":10015,\"x_op_cost\":500,\"x_op_expected\":250,\"x_op_cartons\":250,\"x_op_basis\":\"expected\",\"x_op_share\":2,\"x_op_share_500\":1,\"x_n_green\":1,\"x_n_yellow\":1,\"x_n_red\":1,\"x_n_none\":1,\"x_board_note\":false,\"x_board_at\":\"2026-10-03 00:00:00\"}]",
+        "✗ …after 15 minutes the board is rewritten: share 4.00, tomato's profit 5, potato still 🟡"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the card of an exception has no sale (the market price not used)",
+      "caught": true,
+      "fails": [
+        "✗ 🔴 cucumber (an exception: unit profit ≤ 0): the board prices it at the market price — a loss on the goods — {\"x_day_id\":10015,\"x_name\":\"خيار — جرم\",\"x_sequence\":2,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_net_purchase\":26.09,\"x_waste_cost\":1.3,\"x_op_share\":2,\"x_full_cost\":29.39,\"x_board_sale\":0,\"x_net_sale\":0,\"x_real_profit\":0,\"x_board_status\":\"none\",\"x_supplier_id\":801,\"x_daily_price_id\":10011,\"x_default_price_id\":10011,\"x_source_price\":30,\"x_cost_price\":30,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":3.5,\"x_market_price\":31.05,\"x_market_count\":1,\"x_unit_profit\":-0.39,\"x_offers\":\"أحمد حسان: شراء 30 · عمر المجهلي: سوق 31.05\",\"x_status\":\"exception\",\"x_reason\":\"ربح الوحدة ≤ 0 (-0.39)\",\"x_sale_price\":0,\"x_excluded\":true,\"x_blocked\":false,\"id\":10017}",
+        "✗ the header: 🟢 1 · 🟡 1 · 🔴 1 · ⚪ 1, no note, the time of the update — {\"x_date\":\"2026-10-03\",\"x_name\":\"أسعار اليوم 2026-10-03\",\"x_state\":\"draft\",\"id\":10015,\"x_op_cost\":500,\"x_op_expected\":250,\"x_op_cartons\":250,\"x_op_basis\":\"expected\",\"x_op_share\":2,\"x_op_share_500\":1,\"x_n_green\":1,\"x_n_yellow\":1,\"x_n_red\":0,\"x_n_none\":2,\"x_board_note\":false,\"x_board_at\":\"2026-10-03 00:00:00\"}",
+        "✗ the day's cost «تعذّر»: no share, the note says why, 🟢 / 🟡 become ⚪ and the loss on the goods stays 🔴 — {\"x_date\":\"2026-10-03\",\"x_name\":\"أسعار اليوم 2026-10-03\",\"x_state\":\"draft\",\"id\":10015,\"x_op_cost\":0,\"x_op_expected\":250,\"x_op_cartons\":250,\"x_op_basis\":\"expected\",\"x_op_share\":0,\"x_op_share_500\":0,\"x_n_green\":0,\"x_n_yellow\":0,\"x_n_red\":0,\"x_n_none\":4,\"x_board_note\":\"تكلفة اليوم تعذّرت (لا جدول دوام للسائق في «الموظفون»): الحالة ⚪ لما لا يخسر على البضاعة.\",\"x_board_at\":\"2026-10-03 00:00:00\"}",
+        "✗ 🔴 cucumber (an exception: unit profit ≤ 0): the board prices it at the market price — a loss on the goods"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the engine's card ignores Baraa's price",
+      "caught": true,
+      "fails": [
+        "✗ the engine's next run keeps his price on the card (sale 40, 🟢 5.39) — {\"x_day_id\":10015,\"x_name\":\"خيار — جرم\",\"x_sequence\":2,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_net_purchase\":26.09,\"x_waste_cost\":1.3,\"x_op_share\":2,\"x_full_cost\":29.39,\"x_board_sale\":31.05,\"x_net_sale\":27,\"x_real_profit\":-2.39,\"x_board_status\":\"red\",\"x_supplier_id\":801,\"x_daily_price_id\":10011,\"x_default_price_id\":10011,\"x_source_price\":30,\"x_cost_price\":30,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":3.5,\"x_market_price\":31.05,\"x_market_count\":1,\"x_unit_profit\":-0.39,\"x_offers\":\"أحمد حسان: شراء 30 · عمر المجهلي: سوق 31.05\",\"x_status\":\"manual\",\"x_reason\":\"براء: سعر معدّل\",\"x_sale_price\":40,\"x_excluded\":false,\"x_blocked\":false,\"id\":10017,\"x_decision\":\"edit\",\"x_manual_price\":40,\"x_decided_at\":\"2026-10-03 01:05:00\"}",
+        "✗ the engine's next run keeps his price on the card (sale 40, 🟢 5.39)"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the stored card ignores Baraa's price",
+      "caught": true,
+      "fails": [
+        "✗ …and its card follows at once: sale 40, net sale 34.78, real profit 5.39 → 🟢 — {\"x_day_id\":10015,\"x_name\":\"خيار — جرم\",\"x_sequence\":2,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_net_purchase\":26.09,\"x_waste_cost\":1.3,\"x_op_share\":2,\"x_full_cost\":29.39,\"x_board_sale\":31.05,\"x_net_sale\":27,\"x_real_profit\":-2.39,\"x_board_status\":\"red\",\"x_supplier_id\":801,\"x_daily_price_id\":10011,\"x_default_price_id\":10011,\"x_source_price\":30,\"x_cost_price\":30,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":3.5,\"x_market_price\":31.05,\"x_market_count\":1,\"x_unit_profit\":-0.39,\"x_offers\":\"أحمد حسان: شراء 30 · عمر المجهلي: سوق 31.05\",\"x_status\":\"manual\",\"x_reason\":\"براء: سعر معدّل\",\"x_sale_price\":40,\"x_excluded\":false,\"x_blocked\":false,\"id\":10017,\"x_decision\":\"edit\",\"x_manual_price\":40,\"x_decided_at\":\"2026-10-03 01:05:00\"}",
+        "✗ …and the header's counts: 🟢 2 · 🟡 1 · 🔴 0 · ⚪ 1 — {\"x_date\":\"2026-10-03\",\"x_name\":\"أسعار اليوم 2026-10-03\",\"x_state\":\"draft\",\"id\":10015,\"x_op_cost\":500,\"x_op_expected\":250,\"x_op_cartons\":250,\"x_op_basis\":\"expected\",\"x_op_share\":2,\"x_op_share_500\":1,\"x_n_green\":1,\"x_n_yellow\":1,\"x_n_red\":1,\"x_n_none\":1,\"x_board_note\":false,\"x_board_at\":\"2026-10-03 01:05:00\"}",
+        "✗ …and its card follows at once: sale 40, net sale 34.78, real profit 5.39 → 🟢",
+        "✗ …and the header's counts: 🟢 2 · 🟡 1 · 🔴 0 · ⚪ 1"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "every source taken as registered",
+      "caught": true,
+      "fails": [
+        "✗ the source that won the purchase is NOT registered: net purchase = the purchase (23), profit 3.85 — {\"x_day_id\":10015,\"x_name\":\"طماطم — كرتون\",\"x_sequence\":1,\"x_product_tmpl_id\":1,\"x_packaging_id\":11,\"x_net_purchase\":20,\"x_waste_cost\":1,\"x_op_share\":2,\"x_full_cost\":23,\"x_board_sale\":34.5,\"x_net_sale\":30,\"x_real_profit\":7,\"x_board_status\":\"green\",\"x_supplier_id\":801,\"x_daily_price_id\":10009,\"x_default_price_id\":10009,\"x_source_price\":23,\"x_cost_price\":23,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":50,\"x_market_price\":34.5,\"x_market_count\":1,\"x_unit_profit\":5.85,\"x_offers\":\"أحمد حسان: شراء 23 · عمر المجهلي: سوق 34.50\",\"x_status\":\"auto\",\"x_reason\":false,\"x_sale_price\":34.5,\"x_excluded\":false,\"x_blocked\":false,\"id\":10016}",
+        "✗ the source that won the purchase is NOT registered: net purchase = the purchase (23), profit 3.85"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the header not written by the engine",
+      "caught": true,
+      "fails": [
+        "✗ the header: cost 500, expected 250, share 2.00 on the expected cartons, 1.00 at 500 cartons — {\"x_date\":\"2026-10-03\",\"x_name\":\"أسعار اليوم 2026-10-03\",\"x_state\":\"draft\",\"id\":10015}",
+        "✗ the header: 🟢 1 · 🟡 1 · 🔴 1 · ⚪ 1, no note, the time of the update — {\"x_date\":\"2026-10-03\",\"x_name\":\"أسعار اليوم 2026-10-03\",\"x_state\":\"draft\",\"id\":10015}",
+        "✗ 7 delivery days: the share is 500 ÷ 100 = 5.00 on the actual average, and the header says so — {\"x_date\":\"2026-10-03\",\"x_name\":\"أسعار اليوم 2026-10-03\",\"x_state\":\"draft\",\"id\":10029}",
+        "✗ the day's cost «تعذّر»: no share, the note says why, 🟢 / 🟡 become ⚪ and the loss on the goods stays 🔴 — {\"x_date\":\"2026-10-03\",\"x_name\":\"أسعار اليوم 2026-10-03\",\"x_state\":\"draft\",\"id\":10015}"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "no board after a decision",
+      "caught": true,
+      "fails": [
+        "✗ …and its card follows at once: sale 40, net sale 34.78, real profit 5.39 → 🟢 — {\"x_day_id\":10015,\"x_name\":\"خيار — جرم\",\"x_sequence\":2,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_net_purchase\":26.09,\"x_waste_cost\":1.3,\"x_op_share\":2,\"x_full_cost\":29.39,\"x_board_sale\":31.05,\"x_net_sale\":27,\"x_real_profit\":-2.39,\"x_board_status\":\"red\",\"x_supplier_id\":801,\"x_daily_price_id\":10011,\"x_default_price_id\":10011,\"x_source_price\":30,\"x_cost_price\":30,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":3.5,\"x_market_price\":31.05,\"x_market_count\":1,\"x_unit_profit\":-0.39,\"x_offers\":\"أحمد حسان: شراء 30 · عمر المجهلي: سوق 31.05\",\"x_status\":\"manual\",\"x_reason\":\"براء: سعر معدّل\",\"x_sale_price\":40,\"x_excluded\":false,\"x_blocked\":false,\"id\":10017,\"x_decision\":\"edit\",\"x_manual_price\":40,\"x_decided_at\":\"2026-10-03 01:05:00\"}",
+        "✗ …and the header's counts: 🟢 2 · 🟡 1 · 🔴 0 · ⚪ 1 — {\"x_date\":\"2026-10-03\",\"x_name\":\"أسعار اليوم 2026-10-03\",\"x_state\":\"draft\",\"id\":10015,\"x_op_cost\":500,\"x_op_expected\":250,\"x_op_cartons\":250,\"x_op_basis\":\"expected\",\"x_op_share\":2,\"x_op_share_500\":1,\"x_n_green\":1,\"x_n_yellow\":1,\"x_n_red\":1,\"x_n_none\":1,\"x_board_note\":false,\"x_board_at\":\"2026-10-03 01:00:00\"}",
+        "✗ …and its card follows at once: sale 40, net sale 34.78, real profit 5.39 → 🟢",
+        "✗ …and the header's counts: 🟢 2 · 🟡 1 · 🔴 0 · ⚪ 1"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "a dry rewrite writes the lines",
+      "caught": true,
+      "fails": [
+        "✗ rewriteBoard dry: the values are returned and nothing is written — {\"day\":\"2026-10-03\",\"dayId\":10009,\"lines\":1,\"updated\":1,\"counts\":{\"green\":1,\"yellow\":0,\"red\":0,\"none\":0},\"values\":[{\"id\":10010,\"name\":\"طماطم — كرتون\",\"purchase\":23,\"x_net_purchase\":20,\"x_waste_cost\":1,\"x_op_share\":2,\"x_full_cost\":23,\"x_board_sale\":34.5,\"x_net_sale\":30,\"x_real_profit\":7,\"x_board_status\":\"green\"}],\"header\":{\"x_op_cost\":500,\"x_op_expected\":250,\"x_op_cartons\":250,\"x_op_basis\":\"expected\",\"x_op_share\":2,\"x_op_share_500\":1,\"x_n_green\":1,\"x_n_yellow\":0,\"x_n_red\":0,\"x_n_none\":0,\"x_board_note\":false,\"x_board_at\":\"2026-10-03 06:00:00\"}}",
+        "✗ rewriteBoard: the card is filled (🟢 7) and the header written — {\"day\":\"2026-10-03\",\"dayId\":10009,\"lines\":1,\"updated\":0,\"counts\":{\"green\":1,\"yellow\":0,\"red\":0,\"none\":0}}",
+        "✗ …writing the board's fields ONLY (the lock's watched fields and the prices are never in the write) — [[],[{\"x_op_cost\":500,\"x_op_expected\":250,\"x_op_cartons\":250,\"x_op_basis\":\"expected\",\"x_op_share\":2,\"x_op_share_500\":1,\"x_n_green\":1,\"x_n_yellow\":0,\"x_n_red\":0,\"x_n_none\":0,\"x_board_note\":false,\"x_board_at\":\"2026-10-03 06:00:00\"}]]",
+        "✗ rewriteBoard dry: the values are returned and nothing is written"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "a dry rewrite writes the header",
+      "caught": true,
+      "fails": [
+        "✗ rewriteBoard dry: the values are returned and nothing is written — {\"day\":\"2026-10-03\",\"dayId\":10009,\"lines\":1,\"updated\":1,\"counts\":{\"green\":1,\"yellow\":0,\"red\":0,\"none\":0},\"values\":[{\"id\":10010,\"name\":\"طماطم — كرتون\",\"purchase\":23,\"x_net_purchase\":20,\"x_waste_cost\":1,\"x_op_share\":2,\"x_full_cost\":23,\"x_board_sale\":34.5,\"x_net_sale\":30,\"x_real_profit\":7,\"x_board_status\":\"green\"}],\"header\":{\"x_op_cost\":500,\"x_op_expected\":250,\"x_op_cartons\":250,\"x_op_basis\":\"expected\",\"x_op_share\":2,\"x_op_share_500\":1,\"x_n_green\":1,\"x_n_yellow\":0,\"x_n_red\":0,\"x_n_none\":0,\"x_board_note\":false,\"x_board_at\":\"2026-10-03 06:00:00\"}}",
+        "✗ rewriteBoard dry: the values are returned and nothing is written"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "🟡 counted as 🟢 in the header",
+      "caught": true,
+      "fails": [
+        "✗ the header: 🟢 1 · 🟡 1 · 🔴 1 · ⚪ 1, no note, the time of the update — {\"x_date\":\"2026-10-03\",\"x_name\":\"أسعار اليوم 2026-10-03\",\"x_state\":\"draft\",\"id\":10015,\"x_op_cost\":500,\"x_op_expected\":250,\"x_op_cartons\":250,\"x_op_basis\":\"expected\",\"x_op_share\":2,\"x_op_share_500\":1,\"x_n_green\":2,\"x_n_yellow\":0,\"x_n_red\":1,\"x_n_none\":1,\"x_board_note\":false,\"x_board_at\":\"2026-10-03 00:00:00\"}",
+        "✗ …and the header's counts: 🟢 2 · 🟡 1 · 🔴 0 · ⚪ 1 — {\"x_date\":\"2026-10-03\",\"x_name\":\"أسعار اليوم 2026-10-03\",\"x_state\":\"draft\",\"id\":10015,\"x_op_cost\":500,\"x_op_expected\":250,\"x_op_cartons\":250,\"x_op_basis\":\"expected\",\"x_op_share\":2,\"x_op_share_500\":1,\"x_n_green\":3,\"x_n_yellow\":0,\"x_n_red\":0,\"x_n_none\":1,\"x_board_note\":false,\"x_board_at\":\"2026-10-03 01:05:00\"}",
+        "✗ the engine's next run keeps his price on the card (sale 40, 🟢 5.39) — {\"x_day_id\":10015,\"x_name\":\"خيار — جرم\",\"x_sequence\":2,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_net_purchase\":26.09,\"x_waste_cost\":1.3,\"x_op_share\":2,\"x_full_cost\":29.39,\"x_board_sale\":40,\"x_net_sale\":34.78,\"x_real_profit\":5.39,\"x_board_status\":\"green\",\"x_supplier_id\":801,\"x_daily_price_id\":10011,\"x_default_price_id\":10011,\"x_source_price\":30,\"x_cost_price\":30,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":3.5,\"x_market_price\":31.05,\"x_market_count\":1,\"x_unit_profit\":-0.39,\"x_offers\":\"أحمد حسان: شراء 30 · عمر المجهلي: سوق 31.05\",\"x_status\":\"manual\",\"x_reason\":\"براء: سعر معدّل\",\"x_sale_price\":40,\"x_excluded\":false,\"x_blocked\":false,\"id\":10017,\"x_decision\":\"edit\",\"x_manual_price\":40,\"x_decided_at\":\"2026-10-03 01:05:00\"}",
+        "✗ the header: 🟢 1 · 🟡 1 · 🔴 1 · ⚪ 1, no note, the time of the update"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the expected cartons not read from the settings",
+      "caught": true,
+      "fails": [
+        "✗ «الكراتين المتوقعة يومياً» empty: no share, the note names the setting — {\"x_date\":\"2026-10-03\",\"x_name\":\"أسعار اليوم 2026-10-03\",\"x_state\":\"draft\",\"id\":10015,\"x_op_cost\":500,\"x_op_expected\":250,\"x_op_cartons\":250,\"x_op_basis\":\"expected\",\"x_op_share\":2,\"x_op_share_500\":1,\"x_n_green\":1,\"x_n_yellow\":1,\"x_n_red\":1,\"x_n_none\":1,\"x_board_note\":false,\"x_board_at\":\"2026-10-03 00:00:00\"}",
+        "✗ readPricingSettings: expectedCartons null when empty, 250 when set — {\"configId\":1,\"wastePct\":5,\"minOrder\":150,\"plannedStops\":null,\"expectedCartons\":250}",
+        "✗ «الكراتين المتوقعة يومياً» empty: no share, the note names the setting",
+        "✗ readPricingSettings: expectedCartons null when empty, 250 when set"
+      ]
+    },
+    {
+      "part": "أ",
+      "name": "the board changes the sale price (the rule moved)",
+      "caught": true,
+      "fails": [
+        "✗ 🔴 cucumber (an exception: unit profit ≤ 0): the board prices it at the market price — a loss on the goods — {\"x_day_id\":10015,\"x_name\":\"خيار — جرم\",\"x_sequence\":2,\"x_product_tmpl_id\":2,\"x_packaging_id\":21,\"x_net_purchase\":26.09,\"x_waste_cost\":1.3,\"x_op_share\":2,\"x_full_cost\":29.39,\"x_board_sale\":31.05,\"x_net_sale\":27,\"x_real_profit\":-2.39,\"x_board_status\":\"red\",\"x_supplier_id\":801,\"x_daily_price_id\":10011,\"x_default_price_id\":10011,\"x_source_price\":30,\"x_cost_price\":30,\"x_is_outlier\":false,\"x_outlier_ok\":false,\"x_margin_pct\":3.5,\"x_market_price\":31.05,\"x_market_count\":1,\"x_unit_profit\":-0.39,\"x_offers\":\"أحمد حسان: شراء 30 · عمر المجهلي: سوق 31.05\",\"x_status\":\"exception\",\"x_reason\":\"ربح الوحدة ≤ 0 (-0.39)\",\"x_sale_price\":31.05,\"x_excluded\":true,\"x_blocked\":false,\"id\":10017}",
+        "✗ 🔴 cucumber (an exception: unit profit ≤ 0): the board prices it at the market price — a loss on the goods"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "a reference typed by hand overwritten on creation",
+      "caught": true,
+      "fails": [
+        "✗ a reference typed by hand is never changed — {\"code\":\"UTAK-FRT-014\",\"written\":{\"x_is_active_for_sale\":false,\"x_utak_new\":true,\"taxes_id\":[[6,0,[5]]],\"supplier_taxes_id\":[[6,0,[43]]],\"type\":\"consu\",\"is_storable\":true,\"uom_id\":1,\"purchase_method\":\"purchase\",\"invoice_policy\":\"order\",\"default_code\":\"UTAK-FRT-014\"},\"packs\":[{\"x_product_tmpl_id\":56,\"x_type\":\"carton\",\"x_approx_weight_kg\":8,\"x_is_default\":true,\"x_sequence\":10}]}",
+        "✗ the action run twice is idempotent: one reference, one packaging — {\"code\":\"UTAK-FRT-015\",\"written\":{\"x_is_active_for_sale\":false,\"x_utak_new\":true,\"taxes_id\":[[6,0,[5]]],\"supplier_taxes_id\":[[6,0,[43]]],\"type\":\"consu\",\"is_storable\":true,\"uom_id\":1,\"purchase_method\":\"purchase\",\"invoice_policy\":\"order\",\"default_code\":\"UTAK-FRT-015\"},\"packs\":[{\"x_product_tmpl_id\":70,\"x_type\":\"carton\",\"x_approx_weight_kg\":8,\"x_is_default\":true,\"x_sequence\":10}]}",
+        "✗ a reference typed by hand is never changed",
+        "✗ the action run twice is idempotent: one reference, one packaging"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "a service prepared",
+      "caught": true,
+      "fails": [
+        "✗ a service, UTAK-SALE… and UTAK-PUR… are left entirely alone (nothing written, no packaging) — [{\"code\":\"UTAK-FRT-014\",\"written\":{\"x_is_active_for_sale\":false,\"x_utak_new\":true,\"taxes_id\":[[6,0,[5]]],\"supplier_taxes_id\":[[6,0,[43]]],\"type\":\"consu\",\"is_storable\":true,\"uom_id\":1,\"purchase_method\":\"purchase\",\"invoice_policy\":\"order\",\"default_code\":\"UTAK-FRT-014\"},\"packs\":[{\"x_product_tmpl_id\":57,\"x_type\":\"carton\",\"x_approx_weight_kg\":8,\"x_is_default\":true,\"x_sequence\":10}]},{\"code\":\"UTAK-SALE-GOODS\",\"written\":{},\"packs\":[]},{\"code\":\"UTAK-PUR-GOODS\",\"written\":{},\"packs\":[]}]",
+        "✗ a service, UTAK-SALE… and UTAK-PUR… are left entirely alone (nothing written, no packaging)"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "UTAK-SALE… prepared",
+      "caught": true,
+      "fails": [
+        "✗ a service, UTAK-SALE… and UTAK-PUR… are left entirely alone (nothing written, no packaging) — [{\"code\":\"\",\"written\":{},\"packs\":[]},{\"code\":\"UTAK-SALE-GOODS\",\"written\":{\"x_is_active_for_sale\":false,\"x_utak_new\":true,\"taxes_id\":[[6,0,[5]]],\"supplier_taxes_id\":[[6,0,[43]]],\"type\":\"consu\",\"is_storable\":true,\"uom_id\":1,\"purchase_method\":\"purchase\",\"invoice_policy\":\"order\"},\"packs\":[{\"x_product_tmpl_id\":58,\"x_type\":\"carton\",\"x_approx_weight_kg\":8,\"x_is_default\":true,\"x_sequence\":10}]},{\"code\":\"UTAK-PUR-GOODS\",\"written\":{},\"packs\":[]}]",
+        "✗ a service, UTAK-SALE… and UTAK-PUR… are left entirely alone (nothing written, no packaging)"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "UTAK-PUR… prepared",
+      "caught": true,
+      "fails": [
+        "✗ a service, UTAK-SALE… and UTAK-PUR… are left entirely alone (nothing written, no packaging) — [{\"code\":\"\",\"written\":{},\"packs\":[]},{\"code\":\"UTAK-SALE-GOODS\",\"written\":{},\"packs\":[]},{\"code\":\"UTAK-PUR-GOODS\",\"written\":{\"x_is_active_for_sale\":false,\"x_utak_new\":true,\"taxes_id\":[[6,0,[5]]],\"supplier_taxes_id\":[[6,0,[43]]],\"type\":\"consu\",\"is_storable\":true,\"uom_id\":1,\"purchase_method\":\"purchase\",\"invoice_policy\":\"order\"},\"packs\":[{\"x_product_tmpl_id\":59,\"x_type\":\"carton\",\"x_approx_weight_kg\":8,\"x_is_default\":true,\"x_sequence\":10}]}]",
+        "✗ a service, UTAK-SALE… and UTAK-PUR… are left entirely alone (nothing written, no packaging)"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "«نشط للبيع» left as created",
+      "caught": true,
+      "fails": [
+        "✗ …«نشط للبيع» false ALWAYS (even created ticked), and the flag for Baraa's alert — {\"x_utak_new\":true,\"taxes_id\":[[6,0,[5]]],\"supplier_taxes_id\":[[6,0,[43]]],\"type\":\"consu\",\"is_storable\":true,\"uom_id\":1,\"purchase_method\":\"purchase\",\"invoice_policy\":\"order\",\"default_code\":\"UTAK-FRT-014\"}",
+        "✗ …«نشط للبيع» false ALWAYS (even created ticked), and the flag for Baraa's alert"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the flag for Baraa's alert not set",
+      "caught": true,
+      "fails": [
+        "✗ …«نشط للبيع» false ALWAYS (even created ticked), and the flag for Baraa's alert — {\"x_is_active_for_sale\":false,\"taxes_id\":[[6,0,[5]]],\"supplier_taxes_id\":[[6,0,[43]]],\"type\":\"consu\",\"is_storable\":true,\"uom_id\":1,\"purchase_method\":\"purchase\",\"invoice_policy\":\"order\",\"default_code\":\"UTAK-FRT-014\"}",
+        "✗ …«نشط للبيع» false ALWAYS (even created ticked), and the flag for Baraa's alert"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "an archived product's number not counted (a repeated reference)",
+      "caught": true,
+      "fails": [
+        "✗ the highest number counts even on an archived product: 020 → 021 — {\"code\":\"UTAK-FRT-014\",\"written\":{\"x_is_active_for_sale\":false,\"x_utak_new\":true,\"taxes_id\":[[6,0,[5]]],\"supplier_taxes_id\":[[6,0,[43]]],\"type\":\"consu\",\"is_storable\":true,\"uom_id\":1,\"purchase_method\":\"purchase\",\"invoice_policy\":\"order\",\"default_code\":\"UTAK-FRT-014\"},\"packs\":[{\"x_product_tmpl_id\":60,\"x_type\":\"carton\",\"x_approx_weight_kg\":8,\"x_is_default\":true,\"x_sequence\":10}]}",
+        "✗ the highest number counts even on an archived product: 020 → 021"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the highest number repeated (no + 1)",
+      "caught": true,
+      "fails": [
+        "✗ فواكه → UTAK-FRT-014 (after 013; «UTAK-FRT-TEST» is not a number) — {\"code\":\"UTAK-FRT-013\",\"written\":{\"x_is_active_for_sale\":false,\"x_utak_new\":true,\"taxes_id\":[[6,0,[5]]],\"supplier_taxes_id\":[[6,0,[43]]],\"type\":\"consu\",\"is_storable\":true,\"uom_id\":1,\"purchase_method\":\"purchase\",\"invoice_policy\":\"order\",\"default_code\":\"UTAK-FRT-013\"},\"packs\":[{\"x_product_tmpl_id\":50,\"x_type\":\"carton\",\"x_approx_weight_kg\":8,\"x_is_default\":true,\"x_sequence\":10}]}",
+        "✗ خضار → UTAK-VEG-019, ورقيات → UTAK-LEAF-008 — UTAK-VEG-018 UTAK-LEAF-007",
+        "✗ a sub-category of فواكه («حمضيات») → UTAK-FRT-014 too — {\"code\":\"UTAK-FRT-013\",\"written\":{\"x_is_active_for_sale\":false,\"x_utak_new\":true,\"taxes_id\":[[6,0,[5]]],\"supplier_taxes_id\":[[6,0,[43]]],\"type\":\"consu\",\"is_storable\":true,\"uom_id\":1,\"purchase_method\":\"purchase\",\"invoice_policy\":\"order\",\"default_code\":\"UTAK-FRT-013\"},\"packs\":[{\"x_product_tmpl_id\":53,\"x_type\":\"carton\",\"x_approx_weight_kg\":8,\"x_is_default\":true,\"x_sequence\":10}]}",
+        "✗ the highest number counts even on an archived product: 020 → 021 — {\"code\":\"UTAK-FRT-020\",\"written\":{\"x_is_active_for_sale\":false,\"x_utak_new\":true,\"taxes_id\":[[6,0,[5]]],\"supplier_taxes_id\":[[6,0,[43]]],\"type\":\"consu\",\"is_storable\":true,\"uom_id\":1,\"purchase_method\":\"purchase\",\"invoice_policy\":\"order\",\"default_code\":\"UTAK-FRT-020\"},\"packs\":[{\"x_product_tmpl_id\":60,\"x_type\":\"carton\",\"x_approx_weight_kg\":8,\"x_is_default\":true,\"x_sequence\":10}]}"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the reference not padded to three digits",
+      "caught": true,
+      "fails": [
+        "✗ فواكه → UTAK-FRT-014 (after 013; «UTAK-FRT-TEST» is not a number) — {\"code\":\"UTAK-FRT-14\",\"written\":{\"x_is_active_for_sale\":false,\"x_utak_new\":true,\"taxes_id\":[[6,0,[5]]],\"supplier_taxes_id\":[[6,0,[43]]],\"type\":\"consu\",\"is_storable\":true,\"uom_id\":1,\"purchase_method\":\"purchase\",\"invoice_policy\":\"order\",\"default_code\":\"UTAK-FRT-14\"},\"packs\":[{\"x_product_tmpl_id\":50,\"x_type\":\"carton\",\"x_approx_weight_kg\":8,\"x_is_default\":true,\"x_sequence\":10}]}",
+        "✗ خضار → UTAK-VEG-019, ورقيات → UTAK-LEAF-008 — UTAK-VEG-19 UTAK-LEAF-8",
+        "✗ a sub-category of فواكه («حمضيات») → UTAK-FRT-014 too — {\"code\":\"UTAK-FRT-14\",\"written\":{\"x_is_active_for_sale\":false,\"x_utak_new\":true,\"taxes_id\":[[6,0,[5]]],\"supplier_taxes_id\":[[6,0,[43]]],\"type\":\"consu\",\"is_storable\":true,\"uom_id\":1,\"purchase_method\":\"purchase\",\"invoice_policy\":\"order\",\"default_code\":\"UTAK-FRT-14\"},\"packs\":[{\"x_product_tmpl_id\":53,\"x_type\":\"carton\",\"x_approx_weight_kg\":8,\"x_is_default\":true,\"x_sequence\":10}]}",
+        "✗ the highest number counts even on an archived product: 020 → 021 — {\"code\":\"UTAK-FRT-21\",\"written\":{\"x_is_active_for_sale\":false,\"x_utak_new\":true,\"taxes_id\":[[6,0,[5]]],\"supplier_taxes_id\":[[6,0,[43]]],\"type\":\"consu\",\"is_storable\":true,\"uom_id\":1,\"purchase_method\":\"purchase\",\"invoice_policy\":\"order\",\"default_code\":\"UTAK-FRT-21\"},\"packs\":[{\"x_product_tmpl_id\":60,\"x_type\":\"carton\",\"x_approx_weight_kg\":8,\"x_is_default\":true,\"x_sequence\":10}]}"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "a reference that is not a number breaks the series",
+      "caught": true,
+      "fails": []
+    },
+    {
+      "part": "ب",
+      "name": "a parent category not followed (Odoo)",
+      "caught": true,
+      "fails": [
+        "✗ a sub-category of فواكه («حمضيات») → UTAK-FRT-014 too — {\"code\":\"\",\"written\":{\"x_is_active_for_sale\":false,\"x_utak_new\":true,\"taxes_id\":[[6,0,[5]]],\"supplier_taxes_id\":[[6,0,[43]]],\"type\":\"consu\",\"is_storable\":true,\"uom_id\":1,\"purchase_method\":\"purchase\",\"invoice_policy\":\"order\"},\"packs\":[{\"x_product_tmpl_id\":53,\"x_type\":\"carton\",\"x_approx_weight_kg\":8,\"x_is_default\":true,\"x_sequence\":10}]}",
+        "✗ a sub-category of فواكه («حمضيات») → UTAK-FRT-014 too"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the plain 15% as the purchase tax",
+      "caught": true,
+      "fails": [
+        "✗ on creation: sale tax #5 and purchase tax #43 «15% شامل (مشتريات)» — {\"x_is_active_for_sale\":false,\"x_utak_new\":true,\"taxes_id\":[[6,0,[5]]],\"supplier_taxes_id\":[[6,0,[5]]],\"type\":\"consu\",\"is_storable\":true,\"uom_id\":1,\"purchase_method\":\"purchase\",\"invoice_policy\":\"order\",\"default_code\":\"UTAK-FRT-014\"}",
+        "✗ on creation: sale tax #5 and purchase tax #43 «15% شامل (مشتريات)»"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the sale tax not set",
+      "caught": true,
+      "fails": [
+        "✗ on creation: sale tax #5 and purchase tax #43 «15% شامل (مشتريات)» — {\"x_is_active_for_sale\":false,\"x_utak_new\":true,\"supplier_taxes_id\":[[6,0,[43]]],\"type\":\"consu\",\"is_storable\":true,\"uom_id\":1,\"purchase_method\":\"purchase\",\"invoice_policy\":\"order\",\"default_code\":\"UTAK-FRT-014\"}",
+        "✗ on creation: sale tax #5 and purchase tax #43 «15% شامل (مشتريات)»"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the purchase method left as created",
+      "caught": true,
+      "fails": [
+        "✗ …the produce's type / storable / unit / purchase method / invoice policy — {\"x_is_active_for_sale\":false,\"x_utak_new\":true,\"taxes_id\":[[6,0,[5]]],\"supplier_taxes_id\":[[6,0,[43]]],\"type\":\"consu\",\"is_storable\":true,\"uom_id\":1,\"invoice_policy\":\"order\",\"default_code\":\"UTAK-FRT-014\"}",
+        "✗ …the produce's type / storable / unit / purchase method / invoice policy"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "a second packaging on a product that has one",
+      "caught": true,
+      "fails": [
+        "✗ …no second packaging when the product already has one — {\"code\":\"UTAK-FRT-014\",\"written\":{\"x_is_active_for_sale\":false,\"x_utak_new\":true,\"taxes_id\":[[6,0,[5]]],\"supplier_taxes_id\":[[6,0,[43]]],\"type\":\"consu\",\"is_storable\":true,\"uom_id\":1,\"purchase_method\":\"purchase\",\"invoice_policy\":\"order\",\"default_code\":\"UTAK-FRT-014\"},\"packs\":[{\"x_product_tmpl_id\":61,\"x_type\":\"carton\",\"x_approx_weight_kg\":8,\"x_is_default\":true,\"x_sequence\":10}]}",
+        "✗ the action run twice is idempotent: one reference, one packaging — {\"code\":\"UTAK-FRT-014\",\"written\":{\"x_is_active_for_sale\":false,\"x_utak_new\":true,\"taxes_id\":[[6,0,[5]]],\"supplier_taxes_id\":[[6,0,[43]]],\"type\":\"consu\",\"is_storable\":true,\"uom_id\":1,\"purchase_method\":\"purchase\",\"invoice_policy\":\"order\",\"default_code\":\"UTAK-FRT-014\"},\"packs\":[{\"x_product_tmpl_id\":70,\"x_type\":\"carton\",\"x_approx_weight_kg\":8,\"x_is_default\":true,\"x_sequence\":10},{\"x_product_tmpl_id\":70,\"x_type\":\"carton\",\"x_approx_weight_kg\":8,\"x_is_default\":true,\"x_sequence\":10}]}",
+        "✗ …no second packaging when the product already has one",
+        "✗ the action run twice is idempotent: one reference, one packaging"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the packaging not the default",
+      "caught": true,
+      "fails": [
+        "✗ …a default packaging «كرتون» 8 kg (the naming automation names it), once — [{\"x_product_tmpl_id\":50,\"x_type\":\"carton\",\"x_approx_weight_kg\":8,\"x_is_default\":false,\"x_sequence\":10}]",
+        "✗ …a default packaging «كرتون» 8 kg (the naming automation names it), once"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the temporary weight 5 kg",
+      "caught": true,
+      "fails": [
+        "✗ …a default packaging «كرتون» 8 kg (the naming automation names it), once — [{\"x_product_tmpl_id\":50,\"x_type\":\"carton\",\"x_approx_weight_kg\":5,\"x_is_default\":true,\"x_sequence\":10}]",
+        "✗ the lib's prefixes: فواكه / خضار / ورقيات → FRT / VEG / LEAF, 8 kg, the flag",
+        "✗ the worker and the Odoo code agree: the categories, the flag, the temporary weight",
+        "✗ …a default packaging «كرتون» 8 kg (the naming automation names it), once"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the category set later overwrites a typed reference",
+      "caught": true,
+      "fails": [
+        "✗ …but never over a reference Baraa typed meanwhile — {\"code\":\"UTAK-FRT-014\",\"written\":{\"x_is_active_for_sale\":false,\"x_utak_new\":true,\"taxes_id\":[[6,0,[5]]],\"supplier_taxes_id\":[[6,0,[43]]],\"type\":\"consu\",\"is_storable\":true,\"uom_id\":1,\"purchase_method\":\"purchase\",\"invoice_policy\":\"order\",\"default_code\":\"UTAK-FRT-014\"},\"packs\":[{\"x_product_tmpl_id\":64,\"x_type\":\"carton\",\"x_approx_weight_kg\":8,\"x_is_default\":true,\"x_sequence\":10}]}",
+        "✗ a later change of category does not renumber — {\"code\":\"UTAK-VEG-019\",\"written\":{\"x_is_active_for_sale\":false,\"x_utak_new\":true,\"taxes_id\":[[6,0,[5]]],\"supplier_taxes_id\":[[6,0,[43]]],\"type\":\"consu\",\"is_storable\":true,\"uom_id\":1,\"purchase_method\":\"purchase\",\"invoice_policy\":\"order\",\"default_code\":\"UTAK-VEG-019\"},\"packs\":[{\"x_product_tmpl_id\":65,\"x_type\":\"carton\",\"x_approx_weight_kg\":8,\"x_is_default\":true,\"x_sequence\":10}]}",
+        "✗ the action run twice is idempotent: one reference, one packaging — {\"code\":\"UTAK-FRT-015\",\"written\":{\"x_is_active_for_sale\":false,\"x_utak_new\":true,\"taxes_id\":[[6,0,[5]]],\"supplier_taxes_id\":[[6,0,[43]]],\"type\":\"consu\",\"is_storable\":true,\"uom_id\":1,\"purchase_method\":\"purchase\",\"invoice_policy\":\"order\",\"default_code\":\"UTAK-FRT-015\"},\"packs\":[{\"x_product_tmpl_id\":70,\"x_type\":\"carton\",\"x_approx_weight_kg\":8,\"x_is_default\":true,\"x_sequence\":10}]}",
+        "✗ …but never over a reference Baraa typed meanwhile"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "vegetables numbered as fruits",
+      "caught": true,
+      "fails": [
+        "✗ خضار → UTAK-VEG-019, ورقيات → UTAK-LEAF-008 — UTAK-FRT-014 UTAK-LEAF-008",
+        "✗ the series continues from the highest (009 → 010), it does not fill a gap — {\"code\":\"UTAK-FRT-001\",\"written\":{\"x_is_active_for_sale\":false,\"x_utak_new\":true,\"taxes_id\":[[6,0,[5]]],\"supplier_taxes_id\":[[6,0,[43]]],\"type\":\"consu\",\"is_storable\":true,\"uom_id\":1,\"purchase_method\":\"purchase\",\"invoice_policy\":\"order\",\"default_code\":\"UTAK-FRT-001\"},\"packs\":[{\"x_product_tmpl_id\":66,\"x_type\":\"carton\",\"x_approx_weight_kg\":8,\"x_is_default\":true,\"x_sequence\":10}]}",
+        "✗ the lib's prefixes: فواكه / خضار / ورقيات → FRT / VEG / LEAF, 8 kg, the flag",
+        "✗ خضار → UTAK-VEG-019, ورقيات → UTAK-LEAF-008"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the alert at once (no 10 minutes)",
+      "caught": true,
+      "fails": [
+        "✗ 5 minutes after its creation: nothing yet (Baraa is still filling the card) — [{\"productId\":113,\"action\":\"alerted\",\"missing\":[\"الفئة (فواكه / خضار / ورقيات): بلا فئة لا رقم مرجعي\",\"المورد\",\"«نشط للبيع»\",\"وزن الكرتون (القيمة المؤقتة 8 كجم)\",\"الاسم بالإنجليزي\"]}]"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the flag not cleared after the alert",
+      "caught": true,
+      "fails": [
+        "✗ …and the flag is cleared",
+        "✗ the next ticks: nothing more (one alert per product) — [{\"productId\":113,\"action\":\"claimed_before\"}]",
+        "✗ nothing missing: no alert, the flag cleared — [{\"productId\":113,\"action\":\"complete\",\"missing\":[]}]",
+        "✗ an existing product (flag off) is never alerted"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "a second alert when the flag comes back",
+      "caught": true,
+      "fails": [
+        "✗ the flag written back by a lost write: no second alert, the flag cleared — [{\"productId\":113,\"action\":\"alerted\",\"missing\":[\"«نشط للبيع»\"]}]",
+        "✗ the flag written back by a lost write: no second alert, the flag cleared"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "an alert with nothing missing",
+      "caught": true,
+      "fails": [
+        "✗ nothing missing: no alert, the flag cleared — [{\"productId\":113,\"action\":\"complete\",\"missing\":[]}]",
+        "✗ nothing missing: no alert, the flag cleared"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "an existing product alerted (the flag not read)",
+      "caught": true,
+      "fails": [
+        "✗ 5 minutes after its creation: nothing yet (Baraa is still filling the card) — [{\"productId\":1,\"action\":\"waiting\"},{\"productId\":2,\"action\":\"waiting\"},{\"productId\":3,\"action\":\"waiting\"},{\"productId\":4,\"action\":\"waiting\"},{\"productId\":113,\"action\":\"waiting\"}]",
+        "✗ 10 minutes: ONE alert to Baraa naming the product — [\"🆕 صنف جديد: رمان مصري (بلا رقم مرجعي)\\nجُهّز تلقائياً: الضرائب، والتعبئة الافتراضية «كرتون»، وهو غير نشط للبيع.\\nالناقص:\\n• الفئة (فواكه / خضار / ورقيات): بلا فئة لا رقم مرجعي\\n• المورد\\n• «نشط للبيع»\\n• وزن الكرتون (القيمة المؤقتة 8 كجم)\\n• الاسم بالإنجليزي\"]",
+        "✗ the next ticks: nothing more (one alert per product) — [{\"productId\":1,\"action\":\"waiting\"},{\"productId\":2,\"action\":\"waiting\"},{\"productId\":3,\"action\":\"waiting\"},{\"productId\":4,\"action\":\"waiting\"},{\"productId\":113,\"action\":\"claimed_before\"}]",
+        "✗ completed but for «نشط للبيع»: the alert lists that alone, with the reference — 🆕 صنف جديد: رمان مصري [UTAK-FRT-014]"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "a parent category not followed (the worker)",
+      "caught": true,
+      "fails": [
+        "✗ completed but for «نشط للبيع»: the alert lists that alone, with the reference — 🆕 صنف جديد: رمان مصري [UTAK-FRT-014]",
+        "✗ a sub-category of فواكه counts as the category — {\"productId\":113,\"action\":\"alerted\",\"missing\":[\"الفئة (فواكه / خضار / ورقيات)\",\"«نشط للبيع»\"]}",
+        "✗ a category whose PARENT is فواكه (Odoo's [id, name] pair) gives the reference too",
+        "✗ completed but for «نشط للبيع»: the alert lists that alone, with the reference"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the supplier not listed",
+      "caught": true,
+      "fails": [
+        "✗ …listing what is missing: the category, the supplier, «نشط للبيع», the carton's temporary 8 kg, the English name — 🆕 صنف جديد: رمان مصري (بلا رقم مرجعي)",
+        "✗ …listing what is missing: the category, the supplier, «نشط للبيع», the carton's temporary 8 kg, the English name"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "«نشط للبيع» not listed",
+      "caught": true,
+      "fails": [
+        "✗ …listing what is missing: the category, the supplier, «نشط للبيع», the carton's temporary 8 kg, the English name — 🆕 صنف جديد: رمان مصري (بلا رقم مرجعي)",
+        "✗ completed but for «نشط للبيع»: the alert lists that alone, with the reference",
+        "✗ a sub-category of فواكه counts as the category — {\"productId\":113,\"action\":\"complete\",\"missing\":[]}",
+        "✗ the flag written back by a lost write: no second alert, the flag cleared — [{\"productId\":113,\"action\":\"claimed_before\"}]"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the carton's weight listed whatever it is",
+      "caught": true,
+      "fails": [
+        "✗ completed but for «نشط للبيع»: the alert lists that alone, with the reference — 🆕 صنف جديد: رمان مصري [UTAK-FRT-014]",
+        "✗ a sub-category of فواكه counts as the category — {\"productId\":113,\"action\":\"alerted\",\"missing\":[\"«نشط للبيع»\",\"وزن الكرتون (القيمة المؤقتة 8 كجم)\"]}",
+        "✗ nothing missing: no alert, the flag cleared — [{\"productId\":113,\"action\":\"alerted\",\"missing\":[\"وزن الكرتون (القيمة المؤقتة 8 كجم)\"]}]",
+        "✗ completed but for «نشط للبيع»: the alert lists that alone, with the reference"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the category not listed",
+      "caught": true,
+      "fails": [
+        "✗ …listing what is missing: the category, the supplier, «نشط للبيع», the carton's temporary 8 kg, the English name — 🆕 صنف جديد: رمان مصري (بلا رقم مرجعي)",
+        "✗ another category is «الفئة» missing (a typed reference: no «بلا رقم» tail); 8 kg on a non-carton is not the temporary weight — []",
+        "✗ …listing what is missing: the category, the supplier, «نشط للبيع», the carton's temporary 8 kg, the English name",
+        "✗ another category is «الفئة» missing (a typed reference: no «بلا رقم» tail); 8 kg on a non-carton is not the temporary weight"
+      ]
+    },
+    {
+      "part": "ب",
+      "name": "the tick not wired",
+      "caught": true,
+      "fails": [
+        "✗ */5: runProductSetupTick under its own send job (product_setup)",
+        "✗ */5: runProductSetupTick under its own send job (product_setup)"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "0 is a price",
+      "caught": true,
+      "fails": [
+        "✗ 0, −5, null, undefined, false, NaN, \"12\" → zero; 0.01 and 30 → a price",
+        "✗ the order's lines without a price: cucumber alone — {\"customer\":\"مطعم الوادي\",\"zero\":[]}",
+        "✗ «خلاص» → «نراجع السعر وأرد عليك», no buttons — {\"bodyBeforeButtons\":\"📄 الكوتيشن رقم UTAK-Q-20261003-001\\n• طماطم كرتون × 10\\n• خيار جرم × 2\\n\\n📍 التوصيل إلى: العليا\\nالأسعار شاملة ضريبة القيمة المضافة.\\nالأسعار النهائية عند التسليم. اختر:\",\"buttons\":[{\"id\":\"confirm_order_10010\",\"title\":\"تأكيد الطلب ✅\"},{\"id\":\"edit_order_10010\",\"title\":\"تعديل ✏️\"},{\"id\":\"cancel_order_10010\",\"title\":\"إلغاء ❌\"}]}",
+        "✗ …no x_quotation, the order still open (draft)"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "a negative price is a price",
+      "caught": true,
+      "fails": [
+        "✗ 0, −5, null, undefined, false, NaN, \"12\" → zero; 0.01 and 30 → a price",
+        "✗ 0, −5, null, undefined, false, NaN, \"12\" → zero; 0.01 and 30 → a price"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the guard off at the quotation request",
+      "caught": true,
+      "fails": [
+        "✗ «خلاص» → «نراجع السعر وأرد عليك», no buttons — {\"bodyBeforeButtons\":\"📄 الكوتيشن رقم UTAK-Q-20261003-001\\n• طماطم كرتون × 10\\n• خيار جرم × 2\\n\\n📍 التوصيل إلى: العليا\\nالأسعار شاملة ضريبة القيمة المضافة.\\nالأسعار النهائية عند التسليم. اختر:\",\"buttons\":[{\"id\":\"confirm_order_10010\",\"title\":\"تأكيد الطلب ✅\"},{\"id\":\"edit_order_10010\",\"title\":\"تعديل ✏️\"},{\"id\":\"cancel_order_10010\",\"title\":\"إلغاء ❌\"}]}",
+        "✗ …no x_quotation, the order still open (draft)",
+        "✗ a second «خلاص» the same day: the same text, no second alert",
+        "✗ the price corrected («سعر يدوي للوحدة») → the quotation with its confirm button — {\"bodyBeforeButtons\":\"📄 الكوتيشن رقم UTAK-Q-20261003-003\\n• طماطم كرتون × 10\\n• خيار جرم × 2\\n\\n📍 التوصيل إلى: العليا\\nالأسعار شاملة ضريبة القيمة المضافة.\\nالأسعار النهائية عند التسليم. اختر:\",\"buttons\":[{\"id\":\"confirm_order_10010\",\"title\":\"تأكيد الطلب ✅\"},{\"id\":\"edit_order_10010\",\"title\":\"تعديل ✏️\"},{\"id\":\"cancel_order_10010\",\"title\":\"إلغاء ❌\"}]}"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the guard off at «خلاص» in the order's message",
+      "caught": true,
+      "fails": [
+        "✗ «… خلاص» in the order's own message: the items recorded, «نراجع السعر وأرد عليك», no quotation, no button, the order open — {\"bodyBeforeButtons\":\"بديت لك طلب جديد ✅\\n• طماطم كرتون × 10\\n• خيار جرم × 2\\n📍 التوصيل إلى: العليا\\nالأسعار شاملة ضريبة القيمة المضافة.\\n📄 الكوتيشن رقم UTAK-Q-20261003-001 — راجع الأصناف واختر:\",\"buttons\":[{\"id\":\"confirm_order_10011\",\"title\":\"تأكيد الطلب ✅\"},{\"id\":\"edit_order_10011\",\"title\":\"تعديل ✏️\"},{\"id\":\"cancel_order_10011\",\"title\":\"إلغاء ❌\"}]}",
+        "✗ «… خلاص» in the order's own message: the items recorded, «نراجع السعر وأرد عليك», no quotation, no button, the order open"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the guard off at «تأكيد الطلب»",
+      "caught": true,
+      "fails": [
+        "✗ an old «تأكيد الطلب» tap on an order with a line without a price: not confirmed, back to draft, the text and the alert — {\"text\":\"تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿\",\"confirmedOrderId\":10010,\"followUp\":{\"bodyBeforeButtons\":\"لإصدار فاتورتك الضريبية: هل منشأتك مسجلة في ضريبة القيمة المضافة؟\",\"buttons\":[{\"id\":\"vat_yes_501_eiohkbp6\",\"title\":\"نعم\"},{\"id\":\"vat_no_501_eiohkbp6\",\"title\":\"لا\"}],\"purpose\":\"customer_vat_ask\"}}",
+        "✗ …the tap on the reminder's button: not confirmed, «نراجع السعر وأرد عليك», back to draft, Baraa's alert — {\"text\":\"تم التأكيد ✅ — طلبك في السكة، يوصلك في وقته 🌿\",\"confirmedOrderId\":10010,\"followUp\":{\"bodyBeforeButtons\":\"لإصدار فاتورتك الضريبية: هل منشأتك مسجلة في ضريبة القيمة المضافة؟\",\"buttons\":[{\"id\":\"vat_yes_501_u23zaqmi\",\"title\":\"نعم\"},{\"id\":\"vat_no_501_u23zaqmi\",\"title\":\"لا\"}],\"purpose\":\"customer_vat_ask\"}}",
+        "✗ …priced: the same button confirms — {\"text\":\"طلبك رقم #10010 مؤكد مسبقاً ✅\"}",
+        "✗ an old «تأكيد الطلب» tap on an order with a line without a price: not confirmed, back to draft, the text and the alert"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "a refused confirm leaves the order «بانتظار التأكيد»",
+      "caught": true,
+      "fails": [
+        "✗ an old «تأكيد الطلب» tap on an order with a line without a price: not confirmed, back to draft, the text and the alert — {\"text\":\"نراجع السعر وأرد عليك 🌿\"}",
+        "✗ …the tap on the reminder's button: not confirmed, «نراجع السعر وأرد عليك», back to draft, Baraa's alert — {\"text\":\"نراجع السعر وأرد عليك 🌿\"}",
+        "✗ an old «تأكيد الطلب» tap on an order with a line without a price: not confirmed, back to draft, the text and the alert",
+        "✗ …the tap on the reminder's button: not confirmed, «نراجع السعر وأرد عليك», back to draft, Baraa's alert"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "no alert to Baraa for the quotation",
+      "caught": true,
+      "fails": [
+        "✗ …Baraa's alert: the order's number, the customer and the item",
+        "✗ a second «خلاص» the same day: the same text, no second alert",
+        "✗ «… خلاص» in the order's own message: the items recorded, «نراجع السعر وأرد عليك», no quotation, no button, the order open — {\"text\":\"بديت لك طلب جديد ✅\\n• طماطم كرتون × 10\\n• خيار جرم × 2\\nنراجع السعر وأرد عليك 🌿\"}",
+        "✗ an old «تأكيد الطلب» tap on an order with a line without a price: not confirmed, back to draft, the text and the alert — {\"text\":\"نراجع السعر وأرد عليك 🌿\"}"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "an alert at every «خلاص»",
+      "caught": true,
+      "fails": [
+        "✗ a second «خلاص» the same day: the same text, no second alert",
+        "✗ a second «خلاص» the same day: the same text, no second alert"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the alert without the order's number",
+      "caught": true,
+      "fails": [
+        "✗ …Baraa's alert: the order's number, the customer and the item — 🚫 عرض سعر لم يُرسل (مطعم الوادي): صنف بسعر صفر أو بلا سعر:",
+        "✗ …Baraa's alert: the order's number, the customer and the item"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the alert without the items",
+      "caught": true,
+      "fails": [
+        "✗ …Baraa's alert: the order's number, the customer and the item — 🚫 عرض سعر لم يُرسل — الطلب #10010 (مطعم الوادي): صنف بسعر صفر أو بلا سعر:",
+        "✗ …Baraa's alert: the order's number, the customer and the item"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the manual price not read by the check",
+      "caught": true,
+      "fails": [
+        "✗ the price corrected («سعر يدوي للوحدة») → the quotation with its confirm button — {\"text\":\"نراجع السعر وأرد عليك 🌿\"}",
+        "✗ corrected with «سعر يدوي للوحدة» → issued at it (2 × 40 = 80) — [[{\"orderId\":10012,\"action\":\"waiting\"}],[]]",
+        "✗ the price corrected («سعر يدوي للوحدة») → the quotation with its confirm button",
+        "✗ corrected with «سعر يدوي للوحدة» → issued at it (2 × 40 = 80)"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the stored unit price not read by the check",
+      "caught": true,
+      "fails": [
+        "✗ …priced: the same button confirms — {\"text\":\"نراجع السعر وأرد عليك 🌿\"}",
+        "✗ the price corrected → the next tick issues the invoice: 5 × 30 + 2 × 25 = 200 — [[{\"orderId\":10012,\"action\":\"waiting\"}],null]",
+        "✗ …and sends it to the customer, once, and the collection request goes",
+        "✗ …and the order leaves the list"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the day's price not read by the check",
+      "caught": true,
+      "fails": [
+        "✗ the order's lines without a price: cucumber alone — {\"customer\":\"مطعم الوادي\",\"zero\":[{\"product\":\"طماطم\",\"packaging\":\"كرتون\"},{\"product\":\"خيار\",\"packaging\":\"جرم\"}]}",
+        "✗ …Baraa's alert: the order's number, the customer and the item — 🚫 عرض سعر لم يُرسل — الطلب #10010 (مطعم الوادي): صنف بسعر صفر أو بلا سعر:",
+        "✗ the price corrected («سعر يدوي للوحدة») → the quotation with its confirm button — {\"text\":\"نراجع السعر وأرد عليك 🌿\"}",
+        "✗ control: every line priced → the quotation as before, no alert — {\"text\":\"نراجع السعر وأرد عليك 🌿\"}"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the PDF pipeline's alert without the order",
+      "caught": true,
+      "fails": [
+        "✗ the PDF pipeline keeps its own block: nothing sent, x_sent_at empty, Baraa's alert with the order and the item — [{\"quotationId\":10013,\"number\":\"UTAK-Q-20261003-001\",\"pdfUrl\":\"\",\"pdfSize\":0,\"messageId\":null,\"blocked\":true,\"blockReason\":\"missing prices: خيار\"},[\"🚫 كوتيشن UTAK-Q-20261003-001 (id=10013) — ما أرسلناه للعميل\\nأصناف بسعر صفر أو بلا سعر:\\n• خيار\\n\\nأدخل الأسعار ثم أعد الإصدار.\"]]",
+        "✗ the PDF pipeline keeps its own block: nothing sent, x_sent_at empty, Baraa's alert with the order and the item"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the invoice guard off",
+      "caught": true,
+      "fails": [
+        "✗ …no x_invoice, nothing invoiced to the customer, no collection request",
+        "✗ …Baraa's alert: the order's number, the customer, the item, and that it will issue by itself",
+        "✗ …the order is remembered for the tick",
+        "✗ the tick while the price is still missing: «waiting», no invoice, no second alert — []"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the invoice issued after the alert",
+      "caught": true,
+      "fails": [
+        "✗ …no x_invoice, nothing invoiced to the customer, no collection request",
+        "✗ the tick while the price is still missing: «waiting», no invoice, no second alert — [{\"orderId\":10012,\"action\":\"waiting\"}]",
+        "✗ the price corrected → the next tick issues the invoice: 5 × 30 + 2 × 25 = 200 — [[{\"orderId\":10012,\"action\":\"issued\",\"invoice\":\"UTAK-INV-20261003-001\"}],{\"x_order_id\":10012,\"x_invoice_number\":\"UTAK-INV-20261003-001\",\"x_invoice_date\":\"2026-10-03\",\"x_subtotal\":130.43,\"x_tax_amount\":19.57,\"x_total\":150,\"x_status\":\"issued\",\"x_issued_at\":\"2026-10-03 05:40:00\",\"x_is_simulation\":true,\"id\":10018,\"x_invoice_sent_at\":\"2026-10-03 05:40:00\",\"x_sent_to_customer_at\":\"2026-10-03 05:40:00\",\"x_sent_to_collector_at\":\"2026-10-03 05:40:00\"}]",
+        "✗ every line without a price: no invoice either, held"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the invoice's check takes 0 as a price",
+      "caught": true,
+      "fails": [
+        "✗ …no x_invoice, nothing invoiced to the customer, no collection request",
+        "✗ …Baraa's alert: the order's number, the customer, the item, and that it will issue by itself",
+        "✗ …the order is remembered for the tick",
+        "✗ the tick while the price is still missing: «waiting», no invoice, no second alert — []"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the held order not remembered for the tick",
+      "caught": true,
+      "fails": [
+        "✗ …the order is remembered for the tick",
+        "✗ the tick while the price is still missing: «waiting», no invoice, no second alert — []"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "a held order listed twice",
+      "caught": true,
+      "fails": [
+        "✗ an order held twice: listed once, alerted once — [\"🚫 فاتورة لم تصدر — الطلب #777 (مطعم الوادي): صنف بسعر صفر أو بلا سعر:\\n• خيار (جرم)\\nالتسليم مسجّل. صحّح السعر في Odoo على سطر الطلب («سعر يدوي للوحدة» أو Unit Price)، وتصدر الفاتورة وتُرسل تلقائياً خلال 5 دقائق.\"]",
+        "✗ an order held twice: listed once, alerted once"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "an alert at every hold of the same order",
+      "caught": true,
+      "fails": [
+        "✗ an order held twice: listed once, alerted once — [\"🚫 فاتورة لم تصدر — الطلب #777 (مطعم الوادي): صنف بسعر صفر أو بلا سعر:\\n• خيار (جرم)\\nالتسليم مسجّل. صحّح السعر في Odoo على سطر الطلب («سعر يدوي للوحدة» أو Unit Price)، وتصدر الفاتورة وتُرسل تلقائياً خلال 5 دقائق.\",\"🚫 فاتورة لم تصدر — الطلب #777 (مطعم الوادي): صنف بسعر صفر أو بلا سعر:\\n• خيار (جرم)\\nالتسليم مسجّل. صحّح السعر في Odoo على سطر الطلب («سعر يدوي للوحدة» أو Unit Price)، وتصدر الفاتورة وتُرسل تلقائياً خلال 5 دقائق.\"]",
+        "✗ an order held twice: listed once, alerted once"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "no alert to Baraa for the invoice",
+      "caught": true,
+      "fails": [
+        "✗ …Baraa's alert: the order's number, the customer, the item, and that it will issue by itself",
+        "✗ the tick while the price is still missing: «waiting», no invoice, no second alert — [{\"orderId\":10012,\"action\":\"waiting\"}]",
+        "✗ an order held twice: listed once, alerted once — []",
+        "✗ …Baraa's alert: the order's number, the customer, the item, and that it will issue by itself"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the tick tries the invoice while the price is still missing",
+      "caught": true,
+      "fails": [
+        "✗ the tick while the price is still missing: «waiting», no invoice, no second alert — [{\"orderId\":10012,\"action\":\"dropped\",\"detail\":\"no invoice to issue\"}]"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the tick never issues",
+      "caught": true,
+      "fails": [
+        "✗ the price corrected → the next tick issues the invoice: 5 × 30 + 2 × 25 = 200 — [[{\"orderId\":10012,\"action\":\"dropped\",\"detail\":\"no invoice to issue\"}],null]",
+        "✗ …and sends it to the customer, once, and the collection request goes",
+        "✗ later ticks: nothing, still one invoice and one message",
+        "✗ corrected with «سعر يدوي للوحدة» → issued at it (2 × 40 = 80) — [[{\"orderId\":10012,\"action\":\"dropped\",\"detail\":\"no invoice to issue\"}],[]]"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "an issued order stays in the list",
+      "caught": true,
+      "fails": [
+        "✗ …and the order leaves the list",
+        "✗ later ticks: nothing, still one invoice and one message",
+        "✗ held more than 30 days: dropped from the list (no invoice) — [{\"orderId\":10026,\"action\":\"dropped\",\"detail\":\"older than 30 days\"}]",
+        "✗ …and the order leaves the list"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "a held order never dropped (30 days)",
+      "caught": true,
+      "fails": [
+        "✗ held more than 30 days: dropped from the list (no invoice) — [{\"orderId\":10026,\"action\":\"waiting\"}]",
+        "✗ held more than 30 days: dropped from the list (no invoice)"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the invoice ignores the corrected manual price",
+      "caught": true,
+      "fails": [
+        "✗ corrected with «سعر يدوي للوحدة» → issued at it (2 × 40 = 80) — [[{\"orderId\":10012,\"action\":\"dropped\",\"detail\":\"no invoice to issue\"}],[]]",
+        "✗ corrected with «سعر يدوي للوحدة» → issued at it (2 × 40 = 80)"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the tick reads Odoo with nothing held",
+      "caught": true,
+      "fails": [
+        "✗ the tick with nothing held: no Odoo read at all",
+        "✗ the tick with nothing held: no Odoo read at all"
+      ]
+    },
+    {
+      "part": "ج",
+      "name": "the tick not wired",
+      "caught": true,
+      "fails": [
+        "✗ */5: runZeroInvoiceTick (a held invoice issued once its price is corrected)",
+        "✗ */5: runZeroInvoiceTick (a held invoice issued once its price is corrected)"
+      ]
+    },
+    {
+      "part": "هـ",
+      "name": "x_quotation not in the mark's models",
+      "caught": true,
+      "fails": [
+        "✗ the mark script's models include x_quotation, after the order and its lines —",
+        "✗ the mark script's models include x_quotation, after the order and its lines"
+      ]
+    },
+    {
+      "part": "هـ",
+      "name": "no parent rule (a quotation never selected)",
+      "caught": true,
+      "fails": [
+        "✗ the quotation of an order already marked is selected — {\"hasIs\":false,\"hasSim\":true,\"ids\":[],\"excluded\":[],\"unmarkedNoRule\":4}",
+        "✗ …and of an order the same run will mark (x_is_simulation)",
+        "✗ a real customer's quotation is never selected (listed as excluded), nor an ordinary order's — {\"hasIs\":false,\"hasSim\":true,\"ids\":[],\"excluded\":[],\"unmarkedNoRule\":4}",
+        "✗ one already marked is not selected again"
+      ]
+    },
+    {
+      "part": "هـ",
+      "name": "a real customer's quotation marked",
+      "caught": true,
+      "fails": [
+        "✗ a real customer's quotation is never selected (listed as excluded), nor an ordinary order's — {\"hasIs\":true,\"hasSim\":true,\"ids\":[10004,10005,10006],\"excluded\":[10006],\"unmarkedNoRule\":null,\"parentRule\":\"x_order_id\"}",
+        "✗ one already marked is not selected again",
+        "✗ a real customer's quotation is never selected (listed as excluded), nor an ordinary order's",
+        "✗ one already marked is not selected again"
+      ]
+    },
+    {
+      "part": "هـ",
+      "name": "only an order already marked (the same run's orders missed)",
+      "caught": true,
+      "fails": [
+        "✗ …and of an order the same run will mark (x_is_simulation)",
+        "✗ a real customer's quotation is never selected (listed as excluded), nor an ordinary order's — {\"hasIs\":true,\"hasSim\":true,\"ids\":[10004],\"excluded\":[],\"unmarkedNoRule\":null,\"parentRule\":\"x_order_id\"}",
+        "✗ one already marked is not selected again",
+        "✗ …and of an order the same run will mark (x_is_simulation)"
+      ]
+    },
+    {
+      "part": "هـ",
+      "name": "a quotation already marked selected again",
+      "caught": true,
+      "fails": [
+        "✗ one already marked is not selected again",
+        "✗ one already marked is not selected again"
+      ]
+    },
+    {
+      "part": "هـ",
+      "name": "the first tick waits 12 minutes",
+      "caught": true,
+      "fails": [
+        "✗ the wait is 90 minutes (it was 12), polled every 30 seconds",
+        "✗ the wait is 90 minutes (it was 12), polled every 30 seconds"
+      ]
+    },
+    {
+      "part": "هـ",
+      "name": "wrangler tail not accepted for the first tick",
+      "caught": true,
+      "fails": [
+        "✗ the tick is accepted from the analytics OR from wrangler tail, and the source is reported",
+        "✗ the tick is accepted from the analytics OR from wrangler tail, and the source is reported"
+      ]
+    },
+    {
+      "part": "هـ",
+      "name": "a brace inside a string breaks the tail's events",
+      "caught": true,
+      "fails": [
+        "✗ wrangler tail's pretty JSON is split into its events (braces and quotes inside strings do not break it) — 0 900",
+        "✗ …the scheduled ones only, with their cron and time — []",
+        "✗ an event cut between two chunks is completed by the next chunk — 0",
+        "✗ wrangler tail's pretty JSON is split into its events (braces and quotes inside strings do not break it)"
+      ]
+    },
+    {
+      "part": "هـ",
+      "name": "a request counted as a scheduled tick",
+      "caught": true,
+      "fails": [
+        "✗ …the scheduled ones only, with their cron and time — [{\"cron\":\"*/5 * * * *\",\"at\":\"2026-09-30T20:40:00.123Z\",\"outcome\":\"ok\",\"script\":\"utak-worker\"},{\"at\":\"2026-09-30T20:40:01.000Z\",\"outcome\":\"ok\",\"script\":\"utak-worker\"},{\"cron\":\"0 17 * * *\",\"at\":\"2026-09-30T20:40:02.000Z\",\"outcome\":\"ok\",\"script\":\"utak-worker\"}]",
+        "✗ …the scheduled ones only, with their cron and time"
+      ]
+    },
+    {
+      "part": "هـ",
+      "name": "131042 alerted per template",
+      "caught": true,
+      "fails": [
+        "✗ three templates refused with 131042 in a day (one of them Baraa's own): ONE alert — [\"⚠️ فشل إرسال واتساب — القالب: utak_shift_start_v2، الرمز 131042، المستقبل …0603. رفضه Meta بعد القبول: Business eligibility payment issue. أول فشل لهذا القالب اليوم؛ التفاصيل في سجل رسائل واتساب.\",\"⚠️ فشل إرسال واتساب — القالب: utak_supplier_price_nudge، الرمز 131042، المستقبل …0801. رفضه Meta: Business eligibility payment issue. أول فشل لهذا القالب اليوم؛ التفاصيل في سجل رسائل واتساب.\"]",
+        "✗ …the clear text, exactly — ⚠️ فشل إرسال واتساب — القالب: utak_shift_start_v2، الرمز 131042، المستقبل …0603. رفضه Meta بعد القبول: Business eligibility payment issue. أول فشل لهذا القالب اليوم؛ التفاصيل في سجل رسائل واتساب.",
+        "✗ …not the per-template «فشل إرسال واتساب» alert",
+        "✗ another Meta code keeps its per-template alert — [\"⚠️ فشل إرسال واتساب — القالب: utak_shift_start_v2، الرمز 131042، المستقبل …0603. رفضه Meta بعد القبول: Business eligibility payment issue. أول فشل لهذا القالب اليوم؛ التفاصيل في سجل رسائل واتساب.\",\"⚠️ فشل إرسال واتساب — القالب: utak_supplier_price_nudge، الرمز 131042، المستقبل …0801. رفضه Meta: Business eligibility payment issue. أول فشل لهذا القالب اليوم؛ التفاصيل في سجل رسائل واتساب.\"]"
+      ]
+    },
+    {
+      "part": "هـ",
+      "name": "a 131042 alert at every refusal",
+      "caught": true,
+      "fails": [
+        "✗ three templates refused with 131042 in a day (one of them Baraa's own): ONE alert — [\"⚠️ Meta أوقف رسائل القوالب بسبب الدفع: سدّد المستحق في الفوترة والمدفوعات لحساب واتساب للأعمال\",\"⚠️ Meta أوقف رسائل القوالب بسبب الدفع: سدّد المستحق في الفوترة والمدفوعات لحساب واتساب للأعمال\",\"⚠️ Meta أوقف رسائل القوالب بسبب الدفع: سدّد المستحق في الفوترة والمدفوعات لحساب واتساب للأعمال\"]",
+        "✗ another Meta code keeps its per-template alert — [\"⚠️ Meta أوقف رسائل القوالب بسبب الدفع: سدّد المستحق في الفوترة والمدفوعات لحساب واتساب للأعمال\",\"⚠️ Meta أوقف رسائل القوالب بسبب الدفع: سدّد المستحق في الفوترة والمدفوعات لحساب واتساب للأعمال\",\"⚠️ Meta أوقف رسائل القوالب بسبب الدفع: سدّد المستحق في الفوترة والمدفوعات لحساب واتساب للأعمال\",\"⚠️ فشل إرسال واتساب — القالب: utak_supplier_price_nudge، الرمز 131026، المستقبل …0801. رفضه Meta بعد القبول: Message undeliverable. أول فشل لهذا القالب اليوم؛ التفاصيل في سجل رسائل واتساب.\"]",
+        "✗ the next day it is unpaid still: one alert again",
+        "✗ a day when only Baraa's own template is refused: he is still told (his text needs no template)"
+      ]
+    },
+    {
+      "part": "هـ",
+      "name": "the 131042 alert once ever (not once a day)",
+      "caught": true,
+      "fails": [
+        "✗ the next day it is unpaid still: one alert again",
+        "✗ a day when only Baraa's own template is refused: he is still told (his text needs no template)",
+        "✗ the next day it is unpaid still: one alert again",
+        "✗ a day when only Baraa's own template is refused: he is still told (his text needs no template)"
+      ]
+    },
+    {
+      "part": "هـ",
+      "name": "no 131042 alert when the refused template was Baraa's own",
+      "caught": true,
+      "fails": [
+        "✗ a day when only Baraa's own template is refused: he is still told (his text needs no template)",
+        "✗ a day when only Baraa's own template is refused: he is still told (his text needs no template)"
+      ]
+    },
+    {
+      "part": "هـ",
+      "name": "the alert's text changed",
+      "caught": true,
+      "fails": [
+        "✗ …the clear text, exactly — ⚠️ Meta أوقف رسائل القوالب بسبب الدفع: راجع حساب واتساب للأعمال",
+        "✗ …the clear text, exactly"
+      ]
+    },
+    {
+      "part": "هـ",
+      "name": "131042 blocks the purpose for 24h",
+      "caught": true,
+      "fails": [
+        "✗ a template refused with 131042: no 24h block of its purpose for that number — 400 {\"code\":131042,\"at\":\"2026-10-03T07:00:00.000Z\"}",
+        "✗ a template refused with 131042: no 24h block of its purpose for that number"
+      ]
+    },
+    {
+      "part": "هـ",
+      "name": "a stored 131042 block still blocks",
+      "caught": true,
+      "fails": [
+        "✗ a block written for 131042 before this guard (as on prod's KV today) no longer blocks — 409",
+        "✗ isPurposeBlock: null no, 131042 no, another code yes, an unreadable value yes",
+        "✗ a block written for 131042 before this guard (as on prod's KV today) no longer blocks",
+        "✗ isPurposeBlock: null no, 131042 no, another code yes, an unreadable value yes"
+      ]
+    },
+    {
+      "part": "هـ",
+      "name": "no stored block blocks any more",
+      "caught": true,
+      "fails": [
+        "✗ a block for any other refusal still blocks (24h, as before) — 200",
+        "✗ …and another refusal still writes its block",
+        "✗ isPurposeBlock: null no, 131042 no, another code yes, an unreadable value yes",
+        "✗ a block for any other refusal still blocks (24h, as before)"
+      ]
+    },
+    {
+      "part": "هـ",
+      "name": "131042 as a string not recognised",
+      "caught": true,
+      "fails": [
+        "✗ isPurposeBlock: null no, 131042 no, another code yes, an unreadable value yes",
+        "✗ isPurposeBlock: null no, 131042 no, another code yes, an unreadable value yes"
+      ]
+    }
+  ]
+}

@@ -158,8 +158,9 @@ console.log("\n[أ] a purchase price is never a sale price; the free texts that 
   const stale = await quiet(() => OD.getLatestSalePrice(env, 3, 31, DAY));
   assert("…and no older day's price takes its place (§ 48 ب): a purchase price today without a fallback is «missing», yesterday's 28 is not used", stale.price === 0 && stale.source === "missing", JSON.stringify(stale));
   seed("x_daily_price", { x_product_tmpl_id: 4, x_packaging_id: 41, x_supplier_id: AHMED, x_price_sar: 20, x_sale_price: 28, x_date: "2026-10-02", x_extraction_status: "extracted" });
+  seed("x_daily_price", { x_product_tmpl_id: 4, x_packaging_id: 41, x_supplier_id: AHMED, x_price_sar: 21, x_date: "2026-10-02", x_extraction_status: "extracted" });   // a newer row of that day with a purchase price alone
   const old = await quiet(() => OD.getLatestSalePrice(env, 4, 41, DAY));
-  assert("…a product nobody priced today still takes its latest price («stale», 28 of yesterday), as before", old.price === 28 && old.source === "stale" && old.price_date === "2026-10-02", JSON.stringify(old));
+  assert("…a product nobody priced today still takes its latest SALE price («stale», 28 of yesterday) — a newer purchase-only row of that day is skipped, as before", old.price === 28 && old.source === "stale" && old.price_date === "2026-10-02", JSON.stringify(old));
   row(DAY, 30.36);
   row(DAY);                                                 // a newer row of today, again with a purchase price alone
   const got = await quiet(() => OD.getLatestSalePrice(env, 3, 31, DAY));

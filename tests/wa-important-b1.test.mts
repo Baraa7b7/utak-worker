@@ -41,8 +41,10 @@ const F_S36 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260925-s
 const F_S41 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260926-s41.json", import.meta.url), "utf8"));
 // § 44: x_vat_status / x_legal_name / x_vat_ask_count on res.partner (the invoice reads them), the purchase side (last: it wins)
 const F_S44 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260928-s44.json", import.meta.url), "utf8"));
-const REAL: Record<string, string[]> = { ...FIXTURE, ...F_REVIEW, ...F_GW, ...F_S36, ...F_S41, ...F_S44 };
-const SELECTIONS: Record<string, string[]> = { ...FIXTURE._selections, ...F_REVIEW._selections, ...F_GW._selections, ...F_S36._selections, ...F_S41._selections, ...F_S44._selections };
+// § 46: the pricing board's fields on x_price_day / x_price_day_line, x_expected_cartons, product.template.x_utak_new (last: it wins)
+const F_S46 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261001-s46.json", import.meta.url), "utf8"));
+const REAL: Record<string, string[]> = { ...FIXTURE, ...F_REVIEW, ...F_GW, ...F_S36, ...F_S41, ...F_S44, ...F_S46 };
+const SELECTIONS: Record<string, string[]> = { ...FIXTURE._selections, ...F_REVIEW._selections, ...F_GW._selections, ...F_S36._selections, ...F_S41._selections, ...F_S44._selections, ...F_S46._selections };
 let optoutFieldExists = true;
 const rejected: string[] = [];
 function known(model: string, name: string): boolean {

@@ -1,0 +1,4820 @@
+{
+  "atRiyadh": "2026-10-01 05:29",
+  "fields:x_price_day": [
+    {
+      "id": 20353,
+      "name": "x_name",
+      "ttype": "char",
+      "field_description": "Name",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20354,
+      "name": "id",
+      "ttype": "integer",
+      "field_description": "ID",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20355,
+      "name": "display_name",
+      "ttype": "char",
+      "field_description": "Display Name",
+      "store": false,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20356,
+      "name": "create_uid",
+      "ttype": "many2one",
+      "field_description": "Created by",
+      "store": true,
+      "compute": false,
+      "relation": "res.users"
+    },
+    {
+      "id": 20357,
+      "name": "create_date",
+      "ttype": "datetime",
+      "field_description": "Created on",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20358,
+      "name": "write_uid",
+      "ttype": "many2one",
+      "field_description": "Last Updated by",
+      "store": true,
+      "compute": false,
+      "relation": "res.users"
+    },
+    {
+      "id": 20359,
+      "name": "write_date",
+      "ttype": "datetime",
+      "field_description": "Last Updated on",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20369,
+      "name": "x_date",
+      "ttype": "date",
+      "field_description": "التاريخ",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20371,
+      "name": "x_state",
+      "ttype": "selection",
+      "field_description": "الحالة",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20373,
+      "name": "x_approved_by",
+      "ttype": "many2one",
+      "field_description": "اعتمدها",
+      "store": true,
+      "compute": false,
+      "relation": "res.users"
+    },
+    {
+      "id": 20375,
+      "name": "x_approved_at",
+      "ttype": "datetime",
+      "field_description": "وقت الاعتماد",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20377,
+      "name": "x_published_at",
+      "ttype": "datetime",
+      "field_description": "وقت النشر",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20379,
+      "name": "x_publish_report",
+      "ttype": "text",
+      "field_description": "تقرير النشر",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20413,
+      "name": "x_line_ids",
+      "ttype": "one2many",
+      "field_description": "الأصناف",
+      "store": true,
+      "compute": false,
+      "relation": "x_price_day_line"
+    },
+    {
+      "id": 20694,
+      "name": "x_utak_simulation",
+      "ttype": "boolean",
+      "field_description": "محاكاة (تجربة)",
+      "store": true,
+      "compute": false,
+      "relation": false
+    }
+  ],
+  "fields:x_price_day_line": [
+    {
+      "id": 20361,
+      "name": "x_name",
+      "ttype": "char",
+      "field_description": "Name",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20362,
+      "name": "id",
+      "ttype": "integer",
+      "field_description": "ID",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20363,
+      "name": "display_name",
+      "ttype": "char",
+      "field_description": "Display Name",
+      "store": false,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20364,
+      "name": "create_uid",
+      "ttype": "many2one",
+      "field_description": "Created by",
+      "store": true,
+      "compute": false,
+      "relation": "res.users"
+    },
+    {
+      "id": 20365,
+      "name": "create_date",
+      "ttype": "datetime",
+      "field_description": "Created on",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20366,
+      "name": "write_uid",
+      "ttype": "many2one",
+      "field_description": "Last Updated by",
+      "store": true,
+      "compute": false,
+      "relation": "res.users"
+    },
+    {
+      "id": 20367,
+      "name": "write_date",
+      "ttype": "datetime",
+      "field_description": "Last Updated on",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20381,
+      "name": "x_day_id",
+      "ttype": "many2one",
+      "field_description": "اليوم",
+      "store": true,
+      "compute": false,
+      "relation": "x_price_day"
+    },
+    {
+      "id": 20383,
+      "name": "x_sequence",
+      "ttype": "integer",
+      "field_description": "الترتيب",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20385,
+      "name": "x_product_tmpl_id",
+      "ttype": "many2one",
+      "field_description": "الصنف",
+      "store": true,
+      "compute": false,
+      "relation": "product.template"
+    },
+    {
+      "id": 20387,
+      "name": "x_packaging_id",
+      "ttype": "many2one",
+      "field_description": "التعبئة",
+      "store": true,
+      "compute": false,
+      "relation": "x_product_packaging"
+    },
+    {
+      "id": 20389,
+      "name": "x_supplier_id",
+      "ttype": "many2one",
+      "field_description": "مصدر الشراء",
+      "store": true,
+      "compute": false,
+      "relation": "res.partner"
+    },
+    {
+      "id": 20391,
+      "name": "x_daily_price_id",
+      "ttype": "many2one",
+      "field_description": "سعر المورد (السجل)",
+      "store": true,
+      "compute": false,
+      "relation": "x_daily_price"
+    },
+    {
+      "id": 20393,
+      "name": "x_default_price_id",
+      "ttype": "many2one",
+      "field_description": "الاختيار الآلي",
+      "store": true,
+      "compute": false,
+      "relation": "x_daily_price"
+    },
+    {
+      "id": 20395,
+      "name": "x_source_price",
+      "ttype": "float",
+      "field_description": "سعر المورد",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20397,
+      "name": "x_cost_price",
+      "ttype": "float",
+      "field_description": "سعر الشراء",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20399,
+      "name": "x_is_outlier",
+      "ttype": "boolean",
+      "field_description": "شاذ",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20401,
+      "name": "x_outlier_ok",
+      "ttype": "boolean",
+      "field_description": "اعتماد رغم الشذوذ",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20403,
+      "name": "x_margin_pct",
+      "ttype": "float",
+      "field_description": "هامش العرض %",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20405,
+      "name": "x_offers",
+      "ttype": "char",
+      "field_description": "عروض المصادر",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20407,
+      "name": "x_sale_price",
+      "ttype": "float",
+      "field_description": "سعر البيع",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20409,
+      "name": "x_excluded",
+      "ttype": "boolean",
+      "field_description": "لم يُنشر",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20411,
+      "name": "x_blocked",
+      "ttype": "boolean",
+      "field_description": "يمنع الاعتماد",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20631,
+      "name": "x_market_price",
+      "ttype": "float",
+      "field_description": "سعر السوق",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20633,
+      "name": "x_market_count",
+      "ttype": "integer",
+      "field_description": "عدد المشاهدات",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20635,
+      "name": "x_unit_profit",
+      "ttype": "float",
+      "field_description": "ربح الوحدة",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20637,
+      "name": "x_status",
+      "ttype": "selection",
+      "field_description": "الحالة",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20639,
+      "name": "x_reason",
+      "ttype": "char",
+      "field_description": "السبب",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20641,
+      "name": "x_decision",
+      "ttype": "selection",
+      "field_description": "قرار براء",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20643,
+      "name": "x_manual_price",
+      "ttype": "float",
+      "field_description": "السعر المعدّل",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20645,
+      "name": "x_decided_at",
+      "ttype": "datetime",
+      "field_description": "وقت القرار",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20696,
+      "name": "x_utak_simulation",
+      "ttype": "boolean",
+      "field_description": "محاكاة (تجربة)",
+      "store": true,
+      "compute": false,
+      "relation": false
+    }
+  ],
+  "fields:x_pricing_config": [
+    {
+      "id": 19431,
+      "name": "x_name",
+      "ttype": "char",
+      "field_description": "Name",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 19432,
+      "name": "id",
+      "ttype": "integer",
+      "field_description": "ID",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 19433,
+      "name": "display_name",
+      "ttype": "char",
+      "field_description": "Display Name",
+      "store": false,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 19434,
+      "name": "create_uid",
+      "ttype": "many2one",
+      "field_description": "Created by",
+      "store": true,
+      "compute": false,
+      "relation": "res.users"
+    },
+    {
+      "id": 19435,
+      "name": "create_date",
+      "ttype": "datetime",
+      "field_description": "Created on",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 19436,
+      "name": "write_uid",
+      "ttype": "many2one",
+      "field_description": "Last Updated by",
+      "store": true,
+      "compute": false,
+      "relation": "res.users"
+    },
+    {
+      "id": 19437,
+      "name": "write_date",
+      "ttype": "datetime",
+      "field_description": "Last Updated on",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 19440,
+      "name": "x_profit_margin_percent",
+      "ttype": "float",
+      "field_description": "Profit Margin %",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 19445,
+      "name": "x_is_active",
+      "ttype": "boolean",
+      "field_description": "Is Active (Singleton)",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 19448,
+      "name": "x_notes",
+      "ttype": "text",
+      "field_description": "Notes",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 19450,
+      "name": "x_operations_margin_percent",
+      "ttype": "float",
+      "field_description": "Operations Margin %",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 19452,
+      "name": "x_active_from",
+      "ttype": "date",
+      "field_description": "Active From",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 19454,
+      "name": "x_active_to",
+      "ttype": "date",
+      "field_description": "Active To",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20582,
+      "name": "x_waste_pct",
+      "ttype": "float",
+      "field_description": "نسبة التالف %",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20584,
+      "name": "x_min_order_sar",
+      "ttype": "float",
+      "field_description": "الحد الأدنى للطلب (ريال)",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20586,
+      "name": "x_planned_stops",
+      "ttype": "integer",
+      "field_description": "عدد المحطات اليومية المخطط",
+      "store": true,
+      "compute": false,
+      "relation": false
+    },
+    {
+      "id": 20671,
+      "name": "x_tier_ids",
+      "ttype": "one2many",
+      "field_description": "شرائح خصم الكمية",
+      "store": true,
+      "compute": false,
+      "relation": "x_pricing_tier"
+    }
+  ],
+  "views": [
+    {
+      "id": 2724,
+      "name": "utak.product.template.list",
+      "model": "product.template",
+      "type": "list",
+      "priority": 20,
+      "inherit_id": false,
+      "active": true
+    },
+    {
+      "id": 2725,
+      "name": "utak.product.packaging.list",
+      "model": "x_product_packaging",
+      "type": "list",
+      "priority": 20,
+      "inherit_id": false,
+      "active": true
+    },
+    {
+      "id": 2732,
+      "name": "utak.product_packagings_list",
+      "model": "x_product_packaging",
+      "type": "list",
+      "priority": 16,
+      "inherit_id": false,
+      "active": true
+    },
+    {
+      "id": 2768,
+      "name": "utak.product.template.form.x_is_active_for_sale",
+      "model": "product.template",
+      "type": "form",
+      "priority": 16,
+      "inherit_id": [
+        559,
+        "product.template.common.form"
+      ],
+      "active": true
+    },
+    {
+      "id": 2769,
+      "name": "utak.product.template.list.x_is_active_for_sale",
+      "model": "product.template",
+      "type": "list",
+      "priority": 16,
+      "inherit_id": [
+        604,
+        "product.template.product.list"
+      ],
+      "active": true
+    },
+    {
+      "id": 2770,
+      "name": "utak.product.template.search.x_is_active_for_sale",
+      "model": "product.template",
+      "type": "search",
+      "priority": 16,
+      "inherit_id": [
+        560,
+        "product.template.search"
+      ],
+      "active": true
+    },
+    {
+      "id": 2773,
+      "name": "product.template.form.utak_suppliers",
+      "model": "product.template",
+      "type": "form",
+      "priority": 30,
+      "inherit_id": [
+        559,
+        "product.template.common.form"
+      ],
+      "active": true
+    },
+    {
+      "id": 2790,
+      "name": "utak.product.template.list.packaging",
+      "model": "product.template",
+      "type": "list",
+      "priority": 30,
+      "inherit_id": [
+        604,
+        "product.template.product.list"
+      ],
+      "active": true
+    },
+    {
+      "id": 2791,
+      "name": "utak.x_product_packaging.list.editable",
+      "model": "x_product_packaging",
+      "type": "list",
+      "priority": 5,
+      "inherit_id": false,
+      "active": true
+    },
+    {
+      "id": 2834,
+      "name": "utak.price_day_form",
+      "model": "x_price_day",
+      "type": "form",
+      "priority": 16,
+      "inherit_id": false,
+      "active": true
+    },
+    {
+      "id": 2835,
+      "name": "utak.price_day_list",
+      "model": "x_price_day",
+      "type": "list",
+      "priority": 16,
+      "inherit_id": false,
+      "active": true
+    },
+    {
+      "id": 2836,
+      "name": "utak.price_day_search",
+      "model": "x_price_day",
+      "type": "search",
+      "priority": 16,
+      "inherit_id": false,
+      "active": true
+    },
+    {
+      "id": 2855,
+      "name": "utak.pricing_settings_form",
+      "model": "x_pricing_config",
+      "type": "form",
+      "priority": 99,
+      "inherit_id": false,
+      "active": true
+    }
+  ],
+  "windows": [
+    {
+      "id": 1009,
+      "name": "UTAK — سجل أسعار الأيام",
+      "res_model": "x_price_day",
+      "view_mode": "list,form",
+      "domain": false,
+      "context": "{}",
+      "view_id": [
+        2835,
+        "utak.price_day_list"
+      ],
+      "search_view_id": [
+        2836,
+        "utak.price_day_search"
+      ]
+    },
+    {
+      "id": 919,
+      "name": "إعدادات التسعير",
+      "res_model": "x_pricing_config",
+      "view_mode": "list,form",
+      "domain": false,
+      "context": "{}",
+      "view_id": false,
+      "search_view_id": false
+    }
+  ],
+  "menus": [
+    {
+      "id": 565,
+      "name": "💬 المحادثات",
+      "parent_id": [
+        529,
+        "UTAK"
+      ],
+      "sequence": 5,
+      "action": "ir.actions.client,110",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 570,
+      "name": "📋 مراجعة الأرقام (1)",
+      "parent_id": [
+        529,
+        "UTAK"
+      ],
+      "sequence": 6,
+      "action": "ir.actions.act_window,993",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 572,
+      "name": "💰 أسعار اليوم",
+      "parent_id": [
+        529,
+        "UTAK"
+      ],
+      "sequence": 7,
+      "action": "ir.actions.server,1008",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 574,
+      "name": "💵 دفع الموردين",
+      "parent_id": [
+        529,
+        "UTAK"
+      ],
+      "sequence": 8,
+      "action": "ir.actions.act_window,1023",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 577,
+      "name": "💰 التكاليف التشغيلية",
+      "parent_id": [
+        529,
+        "UTAK"
+      ],
+      "sequence": 9,
+      "action": "ir.actions.act_window,1026",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 578,
+      "name": "⚙️ إعدادات التسعير",
+      "parent_id": [
+        529,
+        "UTAK"
+      ],
+      "sequence": 9,
+      "action": "ir.actions.server,1027",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 545,
+      "name": "👥 العملاء",
+      "parent_id": [
+        529,
+        "UTAK"
+      ],
+      "sequence": 10,
+      "action": false,
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 546,
+      "name": "🚚 التوصيل والفريق",
+      "parent_id": [
+        529,
+        "UTAK"
+      ],
+      "sequence": 20,
+      "action": false,
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 547,
+      "name": "🛒 المشتريات",
+      "parent_id": [
+        529,
+        "UTAK"
+      ],
+      "sequence": 30,
+      "action": false,
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 548,
+      "name": "💰 المالية",
+      "parent_id": [
+        529,
+        "UTAK"
+      ],
+      "sequence": 40,
+      "action": false,
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 549,
+      "name": "📱 المحتوى والتسويق",
+      "parent_id": [
+        529,
+        "UTAK"
+      ],
+      "sequence": 50,
+      "action": false,
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 566,
+      "name": "📄 المستندات الرسمية",
+      "parent_id": [
+        529,
+        "UTAK"
+      ],
+      "sequence": 55,
+      "action": false,
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 536,
+      "name": "⚙️ الإعدادات",
+      "parent_id": [
+        529,
+        "UTAK"
+      ],
+      "sequence": 60,
+      "action": false,
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 563,
+      "name": "رسائل واتساب",
+      "parent_id": [
+        529,
+        "UTAK"
+      ],
+      "sequence": 90,
+      "action": "ir.actions.act_window,965",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 564,
+      "name": "تحكم واتساب",
+      "parent_id": [
+        529,
+        "UTAK"
+      ],
+      "sequence": 91,
+      "action": "ir.actions.act_window,966",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 550,
+      "name": "قائمة العملاء",
+      "parent_id": [
+        545,
+        "UTAK/👥 العملاء"
+      ],
+      "sequence": 10,
+      "action": "ir.actions.act_window,926",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 531,
+      "name": "طلبات اليوم",
+      "parent_id": [
+        545,
+        "UTAK/👥 العملاء"
+      ],
+      "sequence": 20,
+      "action": "ir.actions.act_window,914",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 533,
+      "name": "الكوتيشنات",
+      "parent_id": [
+        545,
+        "UTAK/👥 العملاء"
+      ],
+      "sequence": 30,
+      "action": "ir.actions.act_window,916",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 543,
+      "name": "الطلبات المعتادة",
+      "parent_id": [
+        545,
+        "UTAK/👥 العملاء"
+      ],
+      "sequence": 40,
+      "action": "ir.actions.act_window,924",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 544,
+      "name": "الشكاوى",
+      "parent_id": [
+        545,
+        "UTAK/👥 العملاء"
+      ],
+      "sequence": 50,
+      "action": "ir.actions.act_window,925",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 551,
+      "name": "الموظفين",
+      "parent_id": [
+        546,
+        "UTAK/🚚 التوصيل والفريق"
+      ],
+      "sequence": 10,
+      "action": "ir.actions.act_window,995",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 569,
+      "name": "حضور الفريق",
+      "parent_id": [
+        546,
+        "UTAK/🚚 التوصيل والفريق"
+      ],
+      "sequence": 15,
+      "action": "ir.actions.act_window,987",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 571,
+      "name": "إجازات الفريق",
+      "parent_id": [
+        546,
+        "UTAK/🚚 التوصيل والفريق"
+      ],
+      "sequence": 16,
+      "action": "ir.actions.act_window,996",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 552,
+      "name": "مسارات اليوم",
+      "parent_id": [
+        546,
+        "UTAK/🚚 التوصيل والفريق"
+      ],
+      "sequence": 20,
+      "action": "ir.actions.act_window,928",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 532,
+      "name": "قائمة الشراء",
+      "parent_id": [
+        546,
+        "UTAK/🚚 التوصيل والفريق"
+      ],
+      "sequence": 30,
+      "action": "ir.actions.act_window,915",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 538,
+      "name": "الموردين",
+      "parent_id": [
+        547,
+        "UTAK/🛒 المشتريات"
+      ],
+      "sequence": 10,
+      "action": "ir.actions.act_window,920",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 553,
+      "name": "طلبات الأسعار اليومية",
+      "parent_id": [
+        547,
+        "UTAK/🛒 المشتريات"
+      ],
+      "sequence": 20,
+      "action": "ir.actions.act_window,929",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 580,
+      "name": "قوائم الشراء",
+      "parent_id": [
+        547,
+        "UTAK/🛒 المشتريات"
+      ],
+      "sequence": 20,
+      "action": "ir.actions.act_window,1029",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 535,
+      "name": "الأسعار اليومية",
+      "parent_id": [
+        547,
+        "UTAK/🛒 المشتريات"
+      ],
+      "sequence": 30,
+      "action": "ir.actions.act_window,918",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 579,
+      "name": "عروض المصادر اليومية",
+      "parent_id": [
+        547,
+        "UTAK/🛒 المشتريات"
+      ],
+      "sequence": 35,
+      "action": "ir.actions.act_window,1028",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 573,
+      "name": "سجل أسعار الأيام",
+      "parent_id": [
+        547,
+        "UTAK/🛒 المشتريات"
+      ],
+      "sequence": 50,
+      "action": "ir.actions.act_window,1009",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 575,
+      "name": "دفعات الموردين",
+      "parent_id": [
+        547,
+        "UTAK/🛒 المشتريات"
+      ],
+      "sequence": 60,
+      "action": "ir.actions.act_window,1024",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 576,
+      "name": "مستحقات الموردين اليومية",
+      "parent_id": [
+        547,
+        "UTAK/🛒 المشتريات"
+      ],
+      "sequence": 70,
+      "action": "ir.actions.act_window,1025",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 540,
+      "name": "الفواتير",
+      "parent_id": [
+        548,
+        "UTAK/💰 المالية"
+      ],
+      "sequence": 10,
+      "action": "ir.actions.act_window,922",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 541,
+      "name": "التحصيلات",
+      "parent_id": [
+        548,
+        "UTAK/💰 المالية"
+      ],
+      "sequence": 20,
+      "action": "ir.actions.act_window,923",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 554,
+      "name": "قوالب الواتساب",
+      "parent_id": [
+        549,
+        "UTAK/📱 المحتوى والتسويق"
+      ],
+      "sequence": 10,
+      "action": "ir.actions.act_window,930",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 567,
+      "name": "المستندات",
+      "parent_id": [
+        566,
+        "UTAK/📄 المستندات الرسمية"
+      ],
+      "sequence": 10,
+      "action": "ir.actions.act_window,983",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 568,
+      "name": "النماذج",
+      "parent_id": [
+        566,
+        "UTAK/📄 المستندات الرسمية"
+      ],
+      "sequence": 20,
+      "action": "ir.actions.act_window,984",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 537,
+      "name": "معاملات التسعير",
+      "parent_id": [
+        536,
+        "UTAK/⚙️ الإعدادات"
+      ],
+      "sequence": 10,
+      "action": "ir.actions.act_window,919",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 555,
+      "name": "الأصناف",
+      "parent_id": [
+        536,
+        "UTAK/⚙️ الإعدادات"
+      ],
+      "sequence": 20,
+      "action": "ir.actions.act_window,931",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 556,
+      "name": "التغليف",
+      "parent_id": [
+        536,
+        "UTAK/⚙️ الإعدادات"
+      ],
+      "sequence": 30,
+      "action": "ir.actions.act_window,932",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 557,
+      "name": "الأحياء",
+      "parent_id": [
+        536,
+        "UTAK/⚙️ الإعدادات"
+      ],
+      "sequence": 40,
+      "action": "ir.actions.act_window,933",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 534,
+      "name": "تحليل الرسائل",
+      "parent_id": [
+        536,
+        "UTAK/⚙️ الإعدادات"
+      ],
+      "sequence": 50,
+      "action": "ir.actions.act_window,917",
+      "active": true,
+      "group_ids": []
+    },
+    {
+      "id": 529,
+      "name": "UTAK",
+      "parent_id": false,
+      "sequence": 5,
+      "action": false,
+      "active": true,
+      "group_ids": []
+    }
+  ],
+  "automations": [
+    {
+      "id": 1,
+      "name": "UTAK: Issue & Send Receipt",
+      "model_id": [
+        5189,
+        "UTAK Payment"
+      ],
+      "trigger": "on_create",
+      "active": true,
+      "filter_domain": false,
+      "filter_pre_domain": false,
+      "trigger_field_ids": [],
+      "action_server_ids": [
+        957
+      ]
+    },
+    {
+      "id": 6,
+      "name": "wa_control.on_sync_requested",
+      "model_id": [
+        6042,
+        "WhatsApp Control"
+      ],
+      "trigger": "on_create_or_write",
+      "active": true,
+      "filter_domain": "[[\"x_sync_requested\", \"=\", True]]",
+      "filter_pre_domain": false,
+      "trigger_field_ids": [
+        20092
+      ],
+      "action_server_ids": [
+        963
+      ]
+    },
+    {
+      "id": 7,
+      "name": "wa_message.on_queued",
+      "model_id": [
+        6047,
+        "WhatsApp Message"
+      ],
+      "trigger": "on_create_or_write",
+      "active": true,
+      "filter_domain": "[[\"x_status\", \"=\", \"queued\"]]",
+      "filter_pre_domain": false,
+      "trigger_field_ids": [
+        20129
+      ],
+      "action_server_ids": [
+        967
+      ]
+    },
+    {
+      "id": 8,
+      "name": "utak.packaging.auto_name",
+      "model_id": [
+        5104,
+        "UTAK Product Packaging"
+      ],
+      "trigger": "on_create_or_write",
+      "active": true,
+      "filter_domain": false,
+      "filter_pre_domain": false,
+      "trigger_field_ids": [
+        19230,
+        20157
+      ],
+      "action_server_ids": [
+        972
+      ]
+    },
+    {
+      "id": 9,
+      "name": "utak.packaging.default_guard",
+      "model_id": [
+        5104,
+        "UTAK Product Packaging"
+      ],
+      "trigger": "on_create_or_write",
+      "active": true,
+      "filter_domain": "[['x_is_default', '=', True]]",
+      "filter_pre_domain": false,
+      "trigger_field_ids": [
+        19231
+      ],
+      "action_server_ids": [
+        973
+      ]
+    },
+    {
+      "id": 10,
+      "name": "utak.sale.order.line.default_packaging",
+      "model_id": [
+        2732,
+        "Sales Order Line"
+      ],
+      "trigger": "on_create_or_write",
+      "active": true,
+      "filter_domain": false,
+      "filter_pre_domain": false,
+      "trigger_field_ids": [
+        12135
+      ],
+      "action_server_ids": [
+        977
+      ]
+    },
+    {
+      "id": 11,
+      "name": "utak.purchase.order.line.default_packaging",
+      "model_id": [
+        4072,
+        "Purchase Order Line"
+      ],
+      "trigger": "on_create_or_write",
+      "active": true,
+      "filter_domain": false,
+      "filter_pre_domain": false,
+      "trigger_field_ids": [
+        17099
+      ],
+      "action_server_ids": [
+        978
+      ]
+    },
+    {
+      "id": 12,
+      "name": "wa_inbox.on_message",
+      "model_id": [
+        1097,
+        "Message"
+      ],
+      "trigger": "on_create",
+      "active": true,
+      "filter_domain": "[[\"model\",\"=\",\"discuss.channel\"],[\"message_type\",\"=\",\"comment\"],[\"author_id\",\"!=\",42]]",
+      "filter_pre_domain": false,
+      "trigger_field_ids": [],
+      "action_server_ids": [
+        979
+      ]
+    },
+    {
+      "id": 13,
+      "name": "wa_inbox.partner_title",
+      "model_id": [
+        90,
+        "Contact"
+      ],
+      "trigger": "on_write",
+      "active": true,
+      "filter_domain": "[('x_wa_channel_id', '!=', False)]",
+      "filter_pre_domain": false,
+      "trigger_field_ids": [
+        1020,
+        1056,
+        19285
+      ],
+      "action_server_ids": [
+        985
+      ]
+    },
+    {
+      "id": 14,
+      "name": "utak.review.menu_counter",
+      "model_id": [
+        90,
+        "Contact"
+      ],
+      "trigger": "on_create_or_write",
+      "active": true,
+      "filter_domain": false,
+      "filter_pre_domain": false,
+      "trigger_field_ids": [
+        1040,
+        20331
+      ],
+      "action_server_ids": [
+        994
+      ]
+    },
+    {
+      "id": 15,
+      "name": "utak.team_roster ← hr.employee (on_create_or_write)",
+      "model_id": [
+        3370,
+        "Employee"
+      ],
+      "trigger": "on_create_or_write",
+      "active": true,
+      "filter_domain": false,
+      "filter_pre_domain": false,
+      "trigger_field_ids": [],
+      "action_server_ids": []
+    },
+    {
+      "id": 16,
+      "name": "utak.team_roster ← hr.employee (on_unlink)",
+      "model_id": [
+        3370,
+        "Employee"
+      ],
+      "trigger": "on_unlink",
+      "active": true,
+      "filter_domain": false,
+      "filter_pre_domain": false,
+      "trigger_field_ids": [],
+      "action_server_ids": [
+        997
+      ]
+    },
+    {
+      "id": 17,
+      "name": "utak.team_roster ← resource.calendar.attendance (on_create_or_write)",
+      "model_id": [
+        2307,
+        "Work Detail"
+      ],
+      "trigger": "on_create_or_write",
+      "active": true,
+      "filter_domain": false,
+      "filter_pre_domain": false,
+      "trigger_field_ids": [],
+      "action_server_ids": []
+    },
+    {
+      "id": 18,
+      "name": "utak.team_roster ← resource.calendar.attendance (on_unlink)",
+      "model_id": [
+        2307,
+        "Work Detail"
+      ],
+      "trigger": "on_unlink",
+      "active": true,
+      "filter_domain": false,
+      "filter_pre_domain": false,
+      "trigger_field_ids": [],
+      "action_server_ids": [
+        998
+      ]
+    },
+    {
+      "id": 19,
+      "name": "utak.team_roster ← resource.calendar.leaves (on_create_or_write)",
+      "model_id": [
+        2308,
+        "Resource Time Off Detail"
+      ],
+      "trigger": "on_create_or_write",
+      "active": true,
+      "filter_domain": false,
+      "filter_pre_domain": false,
+      "trigger_field_ids": [],
+      "action_server_ids": []
+    },
+    {
+      "id": 20,
+      "name": "utak.team_roster ← resource.calendar.leaves (on_unlink)",
+      "model_id": [
+        2308,
+        "Resource Time Off Detail"
+      ],
+      "trigger": "on_unlink",
+      "active": true,
+      "filter_domain": false,
+      "filter_pre_domain": false,
+      "trigger_field_ids": [],
+      "action_server_ids": [
+        999
+      ]
+    },
+    {
+      "id": 21,
+      "name": "utak.prices.day_unique",
+      "model_id": [
+        6128,
+        "أسعار اليوم"
+      ],
+      "trigger": "on_create",
+      "active": true,
+      "filter_domain": false,
+      "filter_pre_domain": false,
+      "trigger_field_ids": [],
+      "action_server_ids": [
+        1005
+      ]
+    },
+    {
+      "id": 22,
+      "name": "utak.prices.line_supplier",
+      "model_id": [
+        6130,
+        "سطر أسعار اليوم"
+      ],
+      "trigger": "on_write",
+      "active": false,
+      "filter_domain": false,
+      "filter_pre_domain": false,
+      "trigger_field_ids": [
+        20389
+      ],
+      "action_server_ids": [
+        1006
+      ]
+    },
+    {
+      "id": 23,
+      "name": "utak.prices.line_lock",
+      "model_id": [
+        6130,
+        "سطر أسعار اليوم"
+      ],
+      "trigger": "on_create_or_write",
+      "active": true,
+      "filter_domain": "[('x_day_id.x_state', 'in', ['approved', 'published'])]",
+      "filter_pre_domain": false,
+      "trigger_field_ids": [
+        20397,
+        20391,
+        20381,
+        20641,
+        20393,
+        20399,
+        20643,
+        20403,
+        20405,
+        20401,
+        20387,
+        20385,
+        20383,
+        20395,
+        20389
+      ],
+      "action_server_ids": [
+        1007
+      ]
+    },
+    {
+      "id": 24,
+      "name": "utak.sp.on_create",
+      "model_id": [
+        6160,
+        "دفعة مورد"
+      ],
+      "trigger": "on_create",
+      "active": true,
+      "filter_domain": false,
+      "filter_pre_domain": false,
+      "trigger_field_ids": [],
+      "action_server_ids": [
+        1011,
+        1012
+      ]
+    },
+    {
+      "id": 25,
+      "name": "utak.sp.lock",
+      "model_id": [
+        6160,
+        "دفعة مورد"
+      ],
+      "trigger": "on_write",
+      "active": true,
+      "filter_domain": false,
+      "filter_pre_domain": "[('x_state', 'in', ['approved', 'rejected'])]",
+      "trigger_field_ids": [
+        20453,
+        20459,
+        20451,
+        20473,
+        20471,
+        20455,
+        20425,
+        20467,
+        20465,
+        20457,
+        20469,
+        20461,
+        20449
+      ],
+      "action_server_ids": [
+        1019
+      ]
+    },
+    {
+      "id": 26,
+      "name": "utak.sp.no_unlink",
+      "model_id": [
+        6160,
+        "دفعة مورد"
+      ],
+      "trigger": "on_unlink",
+      "active": true,
+      "filter_domain": "[('x_state', 'in', ['approved', 'rejected'])]",
+      "filter_pre_domain": false,
+      "trigger_field_ids": [],
+      "action_server_ids": [
+        1020
+      ]
+    }
+  ],
+  "config": [
+    {
+      "id": 1,
+      "display_name": "UTAK Default Pricing (Launch)",
+      "create_uid": [
+        2,
+        "albaraa abdulwahab"
+      ],
+      "create_date": "2026-08-29 10:12:34",
+      "write_uid": [
+        2,
+        "albaraa abdulwahab"
+      ],
+      "write_date": "2026-09-30 11:45:38",
+      "x_name": "UTAK Default Pricing (Launch)",
+      "x_notes": "الإعداد الافتراضي عند الإطلاق — ٪15 تشغيل + ٪20 ربح",
+      "x_profit_margin_percent": 20,
+      "x_operations_margin_percent": 15,
+      "x_active_to": false,
+      "x_is_active": true,
+      "x_active_from": "2026-08-29",
+      "x_min_order_sar": 150,
+      "x_waste_pct": 5,
+      "x_planned_stops": 15,
+      "x_tier_ids": [
+        1,
+        2,
+        3
+      ]
+    }
+  ],
+  "productFieldsRead": [
+    "id",
+    "name",
+    "default_code",
+    "categ_id",
+    "type",
+    "is_storable",
+    "uom_id",
+    "purchase_method",
+    "invoice_policy",
+    "taxes_id",
+    "supplier_taxes_id",
+    "sale_ok",
+    "purchase_ok",
+    "active",
+    "x_is_active_for_sale",
+    "x_name_en",
+    "x_margin_pct",
+    "tracking",
+    "list_price",
+    "standard_price",
+    "service_type",
+    "create_date",
+    "seller_ids"
+  ],
+  "productCustomFields": [
+    "x_is_active_for_sale (boolean) Active for sale (manual)",
+    "x_supplier_ids (many2many) الموردون",
+    "x_packaging_ids (one2many) Packagings",
+    "x_packaging_notes (text) Packaging Notes",
+    "x_margin_pct (float) هامش الربح % (قديم — لا يُستعمل في التسعير)",
+    "x_alternative_product_ids (many2many) Alternative Products",
+    "x_margin_view (float) هامش الربح %",
+    "x_name_en (char) الاسم بالإنجليزي"
+  ],
+  "products": [
+    {
+      "id": 1,
+      "name": "Booking Fees",
+      "default_code": false,
+      "categ_id": [
+        3,
+        "Services"
+      ],
+      "type": "service",
+      "is_storable": false,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": false,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": false,
+      "list_price": 50,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 05:58:13",
+      "seller_ids": []
+    },
+    {
+      "id": 2,
+      "name": "Standard delivery",
+      "default_code": "Delivery_007",
+      "categ_id": [
+        4,
+        "Deliveries"
+      ],
+      "type": "service",
+      "is_storable": false,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": false,
+      "purchase_ok": false,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": false,
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:15:25",
+      "seller_ids": []
+    },
+    {
+      "id": 71,
+      "name": "طماطم",
+      "default_code": "UTAK-VEG-001",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 72,
+      "name": "خيار",
+      "default_code": "UTAK-VEG-002",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 73,
+      "name": "بطاطس",
+      "default_code": "UTAK-VEG-003",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 74,
+      "name": "بصل",
+      "default_code": "UTAK-VEG-004",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 75,
+      "name": "جزر",
+      "default_code": "UTAK-VEG-005",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 76,
+      "name": "كوسا",
+      "default_code": "UTAK-VEG-006",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 77,
+      "name": "باذنجان",
+      "default_code": "UTAK-VEG-007",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 78,
+      "name": "فلفل رومي",
+      "default_code": "UTAK-VEG-008",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 79,
+      "name": "فلفل حار",
+      "default_code": "UTAK-VEG-009",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 80,
+      "name": "ثوم",
+      "default_code": "UTAK-VEG-010",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 81,
+      "name": "ليمون",
+      "default_code": "UTAK-VEG-011",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 82,
+      "name": "قرع",
+      "default_code": "UTAK-VEG-012",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 83,
+      "name": "ملفوف",
+      "default_code": "UTAK-VEG-013",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 84,
+      "name": "قرنبيط",
+      "default_code": "UTAK-VEG-014",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 85,
+      "name": "بامية",
+      "default_code": "UTAK-VEG-015",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 86,
+      "name": "فاصوليا",
+      "default_code": "UTAK-VEG-016",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 87,
+      "name": "فجل",
+      "default_code": "UTAK-VEG-017",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 88,
+      "name": "لفت",
+      "default_code": "UTAK-VEG-018",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 89,
+      "name": "خس",
+      "default_code": "UTAK-LEAF-001",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 90,
+      "name": "جرجير",
+      "default_code": "UTAK-LEAF-002",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 91,
+      "name": "بقدونس",
+      "default_code": "UTAK-LEAF-003",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 92,
+      "name": "كزبرة",
+      "default_code": "UTAK-LEAF-004",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 93,
+      "name": "نعناع",
+      "default_code": "UTAK-LEAF-005",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 94,
+      "name": "شبت",
+      "default_code": "UTAK-LEAF-006",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 95,
+      "name": "سبانخ",
+      "default_code": "UTAK-LEAF-007",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 96,
+      "name": "تفاح",
+      "default_code": "UTAK-FRT-001",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 97,
+      "name": "موز أمريكي",
+      "default_code": "UTAK-FRT-002",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 60,
+      "standard_price": 44,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": [
+        4
+      ]
+    },
+    {
+      "id": 98,
+      "name": "برتقال",
+      "default_code": "UTAK-FRT-003",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 99,
+      "name": "عنب",
+      "default_code": "UTAK-FRT-004",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 100,
+      "name": "رمان وسط",
+      "default_code": "UTAK-FRT-005",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": true,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 17,
+      "standard_price": 13,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": [
+        2
+      ]
+    },
+    {
+      "id": 101,
+      "name": "مانجو",
+      "default_code": "UTAK-FRT-006",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 102,
+      "name": "أناناس",
+      "default_code": "UTAK-FRT-007",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 103,
+      "name": "فراولة",
+      "default_code": "UTAK-FRT-008",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": []
+    },
+    {
+      "id": 104,
+      "name": "بطيخ (بالحبة)",
+      "default_code": "UTAK-FRT-009",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 8,
+      "standard_price": 5,
+      "service_type": "manual",
+      "create_date": "2026-08-24 06:26:35",
+      "seller_ids": [
+        7
+      ]
+    },
+    {
+      "id": 105,
+      "name": "افوكادو",
+      "default_code": "UTAK-FRT-010",
+      "categ_id": [
+        1,
+        "Goods"
+      ],
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 50,
+      "standard_price": 45,
+      "service_type": "manual",
+      "create_date": "2026-09-17 14:07:59",
+      "seller_ids": [
+        6
+      ]
+    },
+    {
+      "id": 107,
+      "name": "رمان صغير",
+      "default_code": "UTAK-FRT-011",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": false,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": true,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": false,
+      "list_price": 11.5,
+      "standard_price": 9,
+      "service_type": "manual",
+      "create_date": "2026-09-19 13:26:28",
+      "seller_ids": [
+        1
+      ]
+    },
+    {
+      "id": 108,
+      "name": "رمان كبير",
+      "default_code": "UTAK-FRT-012",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": false,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": true,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": false,
+      "list_price": 27,
+      "standard_price": 22,
+      "service_type": "manual",
+      "create_date": "2026-09-19 13:26:28",
+      "seller_ids": [
+        3
+      ]
+    },
+    {
+      "id": 109,
+      "name": "موز هندي",
+      "default_code": "UTAK-FRT-013",
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": false,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": false,
+      "list_price": 55,
+      "standard_price": 45,
+      "service_type": "manual",
+      "create_date": "2026-09-19 13:26:29",
+      "seller_ids": [
+        5
+      ]
+    },
+    {
+      "id": 110,
+      "name": "بضاعة مشتراة (وسيط)",
+      "default_code": "UTAK-PUR-GOODS",
+      "categ_id": false,
+      "type": "service",
+      "is_storable": false,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "order",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "sale_ok": false,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": false,
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-09-23 08:35:38",
+      "seller_ids": [
+        8,
+        9
+      ]
+    },
+    {
+      "id": 111,
+      "name": "بضاعة مباعة (وسيط)",
+      "default_code": "UTAK-SALE-GOODS",
+      "categ_id": false,
+      "type": "service",
+      "is_storable": false,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "purchase",
+      "invoice_policy": "delivery",
+      "taxes_id": [],
+      "supplier_taxes_id": [],
+      "sale_ok": true,
+      "purchase_ok": false,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": false,
+      "list_price": 0,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-09-23 08:58:27",
+      "seller_ids": []
+    },
+    {
+      "id": 113,
+      "name": "رمان مصري",
+      "default_code": false,
+      "categ_id": false,
+      "type": "consu",
+      "is_storable": true,
+      "uom_id": [
+        1,
+        "Units"
+      ],
+      "purchase_method": "receive",
+      "invoice_policy": "order",
+      "taxes_id": [
+        5
+      ],
+      "supplier_taxes_id": [
+        21
+      ],
+      "sale_ok": true,
+      "purchase_ok": true,
+      "active": true,
+      "x_is_active_for_sale": false,
+      "x_name_en": false,
+      "x_margin_pct": 0,
+      "tracking": "none",
+      "list_price": 1,
+      "standard_price": 0,
+      "service_type": "manual",
+      "create_date": "2026-10-01 02:23:54",
+      "seller_ids": []
+    }
+  ],
+  "categories": [
+    {
+      "id": 1,
+      "name": "Goods",
+      "complete_name": "Goods",
+      "parent_id": false
+    },
+    {
+      "id": 2,
+      "name": "Expenses",
+      "complete_name": "Expenses",
+      "parent_id": false
+    },
+    {
+      "id": 3,
+      "name": "Services",
+      "complete_name": "Services",
+      "parent_id": false
+    },
+    {
+      "id": 4,
+      "name": "Deliveries",
+      "complete_name": "Deliveries",
+      "parent_id": false
+    }
+  ],
+  "taxes": [
+    {
+      "id": 5,
+      "name": "15%",
+      "type_tax_use": "sale",
+      "amount": 15,
+      "price_include_override": "tax_included",
+      "active": true
+    },
+    {
+      "id": 6,
+      "name": "0% ITP",
+      "type_tax_use": "sale",
+      "amount": 0,
+      "price_include_override": false,
+      "active": false
+    },
+    {
+      "id": 7,
+      "name": "0% S IPT",
+      "type_tax_use": "sale",
+      "amount": 0,
+      "price_include_override": false,
+      "active": false
+    },
+    {
+      "id": 8,
+      "name": "0% QT",
+      "type_tax_use": "sale",
+      "amount": 0,
+      "price_include_override": false,
+      "active": false
+    },
+    {
+      "id": 9,
+      "name": "0% GPT",
+      "type_tax_use": "sale",
+      "amount": 0,
+      "price_include_override": false,
+      "active": false
+    },
+    {
+      "id": 10,
+      "name": "0% MME",
+      "type_tax_use": "sale",
+      "amount": 0,
+      "price_include_override": false,
+      "active": false
+    },
+    {
+      "id": 11,
+      "name": "0% QM",
+      "type_tax_use": "sale",
+      "amount": 0,
+      "price_include_override": false,
+      "active": false
+    },
+    {
+      "id": 12,
+      "name": "0% PE",
+      "type_tax_use": "sale",
+      "amount": 0,
+      "price_include_override": false,
+      "active": false
+    },
+    {
+      "id": 13,
+      "name": "0% PH",
+      "type_tax_use": "sale",
+      "amount": 0,
+      "price_include_override": false,
+      "active": false
+    },
+    {
+      "id": 14,
+      "name": "0% IT G",
+      "type_tax_use": "sale",
+      "amount": 0,
+      "price_include_override": false,
+      "active": false
+    },
+    {
+      "id": 15,
+      "name": "0% EX G",
+      "type_tax_use": "sale",
+      "amount": 0,
+      "price_include_override": false,
+      "active": true
+    },
+    {
+      "id": 16,
+      "name": "0% EX S",
+      "type_tax_use": "sale",
+      "amount": 0,
+      "price_include_override": false,
+      "active": true
+    },
+    {
+      "id": 17,
+      "name": "0% EXT FS",
+      "type_tax_use": "sale",
+      "amount": 0,
+      "price_include_override": false,
+      "active": false
+    },
+    {
+      "id": 18,
+      "name": "0% EXT LI",
+      "type_tax_use": "sale",
+      "amount": 0,
+      "price_include_override": false,
+      "active": false
+    },
+    {
+      "id": 19,
+      "name": "0% EXT RE",
+      "type_tax_use": "sale",
+      "amount": 0,
+      "price_include_override": false,
+      "active": false
+    },
+    {
+      "id": 20,
+      "name": "0%",
+      "type_tax_use": "sale",
+      "amount": 0,
+      "price_include_override": false,
+      "active": false
+    },
+    {
+      "id": 21,
+      "name": "15%",
+      "type_tax_use": "purchase",
+      "amount": 15,
+      "price_include_override": false,
+      "active": true
+    },
+    {
+      "id": 22,
+      "name": "15% R C",
+      "type_tax_use": "purchase",
+      "amount": 15,
+      "price_include_override": false,
+      "active": true
+    },
+    {
+      "id": 23,
+      "name": "15% EX ONLY B",
+      "type_tax_use": "purchase",
+      "amount": 0,
+      "price_include_override": false,
+      "active": true
+    },
+    {
+      "id": 24,
+      "name": "15% EX ONLY",
+      "type_tax_use": "purchase",
+      "amount": 100,
+      "price_include_override": "tax_included",
+      "active": true
+    },
+    {
+      "id": 25,
+      "name": "0%",
+      "type_tax_use": "purchase",
+      "amount": 0,
+      "price_include_override": false,
+      "active": true
+    },
+    {
+      "id": 26,
+      "name": "0% EXT",
+      "type_tax_use": "purchase",
+      "amount": 0,
+      "price_include_override": false,
+      "active": true
+    },
+    {
+      "id": 27,
+      "name": "5% WH R G",
+      "type_tax_use": "purchase",
+      "amount": 5,
+      "price_include_override": "tax_excluded",
+      "active": true
+    },
+    {
+      "id": 28,
+      "name": "5% WH AT AF MF G",
+      "type_tax_use": "purchase",
+      "amount": 5,
+      "price_include_override": "tax_excluded",
+      "active": true
+    },
+    {
+      "id": 29,
+      "name": "5% WH TC ICS G",
+      "type_tax_use": "purchase",
+      "amount": 5,
+      "price_include_override": "tax_excluded",
+      "active": true
+    },
+    {
+      "id": 30,
+      "name": "5% WH D G",
+      "type_tax_use": "purchase",
+      "amount": 5,
+      "price_include_override": "tax_excluded",
+      "active": true
+    },
+    {
+      "id": 31,
+      "name": "5% WH IL IRP G",
+      "type_tax_use": "purchase",
+      "amount": 5,
+      "price_include_override": "tax_excluded",
+      "active": true
+    },
+    {
+      "id": 32,
+      "name": "15% WH R G",
+      "type_tax_use": "purchase",
+      "amount": 15,
+      "price_include_override": "tax_excluded",
+      "active": true
+    },
+    {
+      "id": 33,
+      "name": "15% WH O G",
+      "type_tax_use": "purchase",
+      "amount": 15,
+      "price_include_override": "tax_excluded",
+      "active": true
+    },
+    {
+      "id": 34,
+      "name": "20% WH MF G",
+      "type_tax_use": "purchase",
+      "amount": 20,
+      "price_include_override": "tax_excluded",
+      "active": true
+    },
+    {
+      "id": 35,
+      "name": "5% WH R D",
+      "type_tax_use": "purchase",
+      "amount": -5,
+      "price_include_override": false,
+      "active": false
+    },
+    {
+      "id": 36,
+      "name": "5% WH AT AF MF D",
+      "type_tax_use": "purchase",
+      "amount": -5,
+      "price_include_override": false,
+      "active": false
+    },
+    {
+      "id": 37,
+      "name": "5% WH TC ICS D",
+      "type_tax_use": "purchase",
+      "amount": -5,
+      "price_include_override": false,
+      "active": false
+    },
+    {
+      "id": 38,
+      "name": "5% WH D D",
+      "type_tax_use": "purchase",
+      "amount": -5,
+      "price_include_override": false,
+      "active": false
+    },
+    {
+      "id": 39,
+      "name": "5% WH IL IRP D",
+      "type_tax_use": "purchase",
+      "amount": -5,
+      "price_include_override": false,
+      "active": false
+    },
+    {
+      "id": 40,
+      "name": "15% WH R D",
+      "type_tax_use": "purchase",
+      "amount": -15,
+      "price_include_override": false,
+      "active": false
+    },
+    {
+      "id": 41,
+      "name": "15% WH O D",
+      "type_tax_use": "purchase",
+      "amount": -15,
+      "price_include_override": false,
+      "active": false
+    },
+    {
+      "id": 42,
+      "name": "20% WH MF D",
+      "type_tax_use": "purchase",
+      "amount": -20,
+      "price_include_override": false,
+      "active": false
+    },
+    {
+      "id": 43,
+      "name": "15% شامل (مشتريات)",
+      "type_tax_use": "purchase",
+      "amount": 15,
+      "price_include_override": "tax_included",
+      "active": true
+    }
+  ],
+  "packagingFields": [
+    "x_name (char) Name",
+    "x_product_tmpl_id (many2one) Product",
+    "x_approx_weight_kg (float) Approx Weight (kg)",
+    "x_is_default (boolean) Default Packaging",
+    "x_sequence (integer) Sequence",
+    "x_type (selection) النوع",
+    "x_name_en (char) الاسم بالإنجليزي"
+  ],
+  "packagings": [
+    {
+      "id": 1,
+      "x_name": "فلين · 5 كيلو",
+      "x_product_tmpl_id": [
+        71,
+        "[UTAK-VEG-001] طماطم"
+      ],
+      "x_approx_weight_kg": 5,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "foam",
+      "x_name_en": false
+    },
+    {
+      "id": 2,
+      "x_name": "جرم · 8 كيلو",
+      "x_product_tmpl_id": [
+        71,
+        "[UTAK-VEG-001] طماطم"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": false,
+      "x_sequence": 20,
+      "x_type": "bag",
+      "x_name_en": false
+    },
+    {
+      "id": 3,
+      "x_name": "جرم · 8 كيلو",
+      "x_product_tmpl_id": [
+        72,
+        "[UTAK-VEG-002] خيار"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "bag",
+      "x_name_en": false
+    },
+    {
+      "id": 4,
+      "x_name": "كرتون · 6 كيلو",
+      "x_product_tmpl_id": [
+        72,
+        "[UTAK-VEG-002] خيار"
+      ],
+      "x_approx_weight_kg": 6,
+      "x_is_default": false,
+      "x_sequence": 20,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 5,
+      "x_name": "جرم · 20 كيلو",
+      "x_product_tmpl_id": [
+        73,
+        "[UTAK-VEG-003] بطاطس"
+      ],
+      "x_approx_weight_kg": 20,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "bag",
+      "x_name_en": false
+    },
+    {
+      "id": 6,
+      "x_name": "كرتون · 10 كيلو",
+      "x_product_tmpl_id": [
+        73,
+        "[UTAK-VEG-003] بطاطس"
+      ],
+      "x_approx_weight_kg": 10,
+      "x_is_default": false,
+      "x_sequence": 20,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 7,
+      "x_name": "جرم · 20 كيلو",
+      "x_product_tmpl_id": [
+        74,
+        "[UTAK-VEG-004] بصل"
+      ],
+      "x_approx_weight_kg": 20,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "bag",
+      "x_name_en": false
+    },
+    {
+      "id": 8,
+      "x_name": "كرتون · 10 كيلو",
+      "x_product_tmpl_id": [
+        74,
+        "[UTAK-VEG-004] بصل"
+      ],
+      "x_approx_weight_kg": 10,
+      "x_is_default": false,
+      "x_sequence": 20,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 9,
+      "x_name": "جرم · 8 كيلو",
+      "x_product_tmpl_id": [
+        75,
+        "[UTAK-VEG-005] جزر"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "bag",
+      "x_name_en": false
+    },
+    {
+      "id": 10,
+      "x_name": "جرم · 8 كيلو",
+      "x_product_tmpl_id": [
+        76,
+        "[UTAK-VEG-006] كوسا"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "bag",
+      "x_name_en": false
+    },
+    {
+      "id": 11,
+      "x_name": "جرم · 8 كيلو",
+      "x_product_tmpl_id": [
+        77,
+        "[UTAK-VEG-007] باذنجان"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "bag",
+      "x_name_en": false
+    },
+    {
+      "id": 12,
+      "x_name": "كرتون · 8 كيلو",
+      "x_product_tmpl_id": [
+        78,
+        "[UTAK-VEG-008] فلفل رومي"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 13,
+      "x_name": "جرم · 8 كيلو",
+      "x_product_tmpl_id": [
+        79,
+        "[UTAK-VEG-009] فلفل حار"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "bag",
+      "x_name_en": false
+    },
+    {
+      "id": 14,
+      "x_name": "كرتون · 8 كيلو",
+      "x_product_tmpl_id": [
+        80,
+        "[UTAK-VEG-010] ثوم"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 15,
+      "x_name": "جرم · 8 كيلو",
+      "x_product_tmpl_id": [
+        81,
+        "[UTAK-VEG-011] ليمون"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "bag",
+      "x_name_en": false
+    },
+    {
+      "id": 16,
+      "x_name": "كرتون · 8 كيلو",
+      "x_product_tmpl_id": [
+        81,
+        "[UTAK-VEG-011] ليمون"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": false,
+      "x_sequence": 20,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 17,
+      "x_name": "كرتون · 8 كيلو",
+      "x_product_tmpl_id": [
+        82,
+        "[UTAK-VEG-012] قرع"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 18,
+      "x_name": "كرتون · 8 كيلو",
+      "x_product_tmpl_id": [
+        83,
+        "[UTAK-VEG-013] ملفوف"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 19,
+      "x_name": "كرتون · 8 كيلو",
+      "x_product_tmpl_id": [
+        84,
+        "[UTAK-VEG-014] قرنبيط"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 20,
+      "x_name": "جرم · 8 كيلو",
+      "x_product_tmpl_id": [
+        85,
+        "[UTAK-VEG-015] بامية"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "bag",
+      "x_name_en": false
+    },
+    {
+      "id": 21,
+      "x_name": "كرتون · 8 كيلو",
+      "x_product_tmpl_id": [
+        86,
+        "[UTAK-VEG-016] فاصوليا"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 22,
+      "x_name": "كرتون · 5 كيلو",
+      "x_product_tmpl_id": [
+        87,
+        "[UTAK-VEG-017] فجل"
+      ],
+      "x_approx_weight_kg": 5,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 23,
+      "x_name": "كرتون · 8 كيلو",
+      "x_product_tmpl_id": [
+        88,
+        "[UTAK-VEG-018] لفت"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 24,
+      "x_name": "كرتون · 4 كيلو",
+      "x_product_tmpl_id": [
+        89,
+        "[UTAK-LEAF-001] خس"
+      ],
+      "x_approx_weight_kg": 4,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 25,
+      "x_name": "كرتون · 4 كيلو",
+      "x_product_tmpl_id": [
+        90,
+        "[UTAK-LEAF-002] جرجير"
+      ],
+      "x_approx_weight_kg": 4,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 26,
+      "x_name": "كرتون · 4 كيلو",
+      "x_product_tmpl_id": [
+        91,
+        "[UTAK-LEAF-003] بقدونس"
+      ],
+      "x_approx_weight_kg": 4,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 27,
+      "x_name": "كرتون · 4 كيلو",
+      "x_product_tmpl_id": [
+        92,
+        "[UTAK-LEAF-004] كزبرة"
+      ],
+      "x_approx_weight_kg": 4,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 28,
+      "x_name": "كرتون · 4 كيلو",
+      "x_product_tmpl_id": [
+        93,
+        "[UTAK-LEAF-005] نعناع"
+      ],
+      "x_approx_weight_kg": 4,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 29,
+      "x_name": "كرتون · 4 كيلو",
+      "x_product_tmpl_id": [
+        94,
+        "[UTAK-LEAF-006] شبت"
+      ],
+      "x_approx_weight_kg": 4,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 30,
+      "x_name": "كرتون · 4 كيلو",
+      "x_product_tmpl_id": [
+        95,
+        "[UTAK-LEAF-007] سبانخ"
+      ],
+      "x_approx_weight_kg": 4,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 31,
+      "x_name": "كرتون · 10 كيلو",
+      "x_product_tmpl_id": [
+        96,
+        "[UTAK-FRT-001] تفاح"
+      ],
+      "x_approx_weight_kg": 10,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 32,
+      "x_name": "جرم · 8 كيلو",
+      "x_product_tmpl_id": [
+        96,
+        "[UTAK-FRT-001] تفاح"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": false,
+      "x_sequence": 20,
+      "x_type": "bag",
+      "x_name_en": false
+    },
+    {
+      "id": 33,
+      "x_name": "كرتون · 14 كيلو",
+      "x_product_tmpl_id": [
+        97,
+        "[UTAK-FRT-002] موز أمريكي"
+      ],
+      "x_approx_weight_kg": 14,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 34,
+      "x_name": "كرتون · 10 كيلو",
+      "x_product_tmpl_id": [
+        98,
+        "[UTAK-FRT-003] برتقال"
+      ],
+      "x_approx_weight_kg": 10,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 35,
+      "x_name": "جرم · 15 كيلو",
+      "x_product_tmpl_id": [
+        98,
+        "[UTAK-FRT-003] برتقال"
+      ],
+      "x_approx_weight_kg": 15,
+      "x_is_default": false,
+      "x_sequence": 20,
+      "x_type": "bag",
+      "x_name_en": false
+    },
+    {
+      "id": 36,
+      "x_name": "كرتون · 8 كيلو",
+      "x_product_tmpl_id": [
+        99,
+        "[UTAK-FRT-004] عنب"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 37,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "x_approx_weight_kg": 0,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 38,
+      "x_name": "كرتون · 8 كيلو",
+      "x_product_tmpl_id": [
+        101,
+        "[UTAK-FRT-006] مانجو"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 39,
+      "x_name": "كرتون · 8 كيلو",
+      "x_product_tmpl_id": [
+        102,
+        "[UTAK-FRT-007] أناناس"
+      ],
+      "x_approx_weight_kg": 8,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 40,
+      "x_name": "كرتون · 4 كيلو",
+      "x_product_tmpl_id": [
+        103,
+        "[UTAK-FRT-008] فراولة"
+      ],
+      "x_approx_weight_kg": 4,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 41,
+      "x_name": "حبة (بالحبة)",
+      "x_product_tmpl_id": [
+        104,
+        "[UTAK-FRT-009] بطيخ (بالحبة)"
+      ],
+      "x_approx_weight_kg": 0,
+      "x_is_default": true,
+      "x_sequence": 10,
+      "x_type": "piece",
+      "x_name_en": false
+    },
+    {
+      "id": 42,
+      "x_name": "كرتون · 10 كيلو",
+      "x_product_tmpl_id": [
+        104,
+        "[UTAK-FRT-009] بطيخ (بالحبة)"
+      ],
+      "x_approx_weight_kg": 10,
+      "x_is_default": false,
+      "x_sequence": 20,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 43,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        107,
+        "[UTAK-FRT-011] رمان صغير"
+      ],
+      "x_approx_weight_kg": 0,
+      "x_is_default": true,
+      "x_sequence": 0,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 44,
+      "x_name": "كرتون",
+      "x_product_tmpl_id": [
+        108,
+        "[UTAK-FRT-012] رمان كبير"
+      ],
+      "x_approx_weight_kg": 0,
+      "x_is_default": true,
+      "x_sequence": 0,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 45,
+      "x_name": "كرتون · 13 كيلو",
+      "x_product_tmpl_id": [
+        109,
+        "[UTAK-FRT-013] موز هندي"
+      ],
+      "x_approx_weight_kg": 13,
+      "x_is_default": true,
+      "x_sequence": 0,
+      "x_type": "carton",
+      "x_name_en": false
+    },
+    {
+      "id": 46,
+      "x_name": "فرط (بالكيلو)",
+      "x_product_tmpl_id": [
+        104,
+        "[UTAK-FRT-009] بطيخ (بالحبة)"
+      ],
+      "x_approx_weight_kg": 0,
+      "x_is_default": false,
+      "x_sequence": 0,
+      "x_type": "loose",
+      "x_name_en": false
+    },
+    {
+      "id": 47,
+      "x_name": "كرتون · 4 كيلو",
+      "x_product_tmpl_id": [
+        105,
+        "[UTAK-FRT-010] افوكادو"
+      ],
+      "x_approx_weight_kg": 4,
+      "x_is_default": true,
+      "x_sequence": 0,
+      "x_type": "carton",
+      "x_name_en": false
+    }
+  ],
+  "irDefaults": [
+    {
+      "id": 1,
+      "field_id": [
+        1026,
+        "Language (Contact)"
+      ],
+      "json_value": "\"en_US\"",
+      "user_id": false,
+      "company_id": false
+    },
+    {
+      "id": 2,
+      "field_id": [
+        7571,
+        "Default Applicability (Analytic Plan)"
+      ],
+      "json_value": "\"optional\"",
+      "user_id": false,
+      "company_id": false
+    },
+    {
+      "id": 3,
+      "field_id": [
+        8778,
+        "Degree of trust you have in this debtor (Contact)"
+      ],
+      "json_value": "\"normal\"",
+      "user_id": false,
+      "company_id": false
+    },
+    {
+      "id": 8,
+      "field_id": [
+        9022,
+        "Income Account (Product Category)"
+      ],
+      "json_value": "234",
+      "user_id": false,
+      "company_id": [
+        1,
+        "شركة يوتاك ذات مسؤولية محدودة"
+      ]
+    },
+    {
+      "id": 9,
+      "field_id": [
+        9023,
+        "Expense Account (Product Category)"
+      ],
+      "json_value": "136",
+      "user_id": false,
+      "company_id": [
+        1,
+        "شركة يوتاك ذات مسؤولية محدودة"
+      ]
+    },
+    {
+      "id": 10,
+      "field_id": [
+        8767,
+        "Account Receivable (Contact)"
+      ],
+      "json_value": "69",
+      "user_id": false,
+      "company_id": [
+        1,
+        "شركة يوتاك ذات مسؤولية محدودة"
+      ]
+    },
+    {
+      "id": 11,
+      "field_id": [
+        8765,
+        "Account Payable (Contact)"
+      ],
+      "json_value": "106",
+      "user_id": false,
+      "company_id": [
+        1,
+        "شركة يوتاك ذات مسؤولية محدودة"
+      ]
+    },
+    {
+      "id": 12,
+      "field_id": [
+        15235,
+        "Vendor Location (Contact)"
+      ],
+      "json_value": "1",
+      "user_id": false,
+      "company_id": false
+    },
+    {
+      "id": 13,
+      "field_id": [
+        15234,
+        "Customer Location (Contact)"
+      ],
+      "json_value": "2",
+      "user_id": false,
+      "company_id": false
+    },
+    {
+      "id": 14,
+      "field_id": [
+        15828,
+        "Inventory Adjustment (Product)"
+      ],
+      "json_value": "11",
+      "user_id": false,
+      "company_id": [
+        1,
+        "شركة يوتاك ذات مسؤولية محدودة"
+      ]
+    },
+    {
+      "id": 15,
+      "field_id": [
+        15827,
+        "Production (Product)"
+      ],
+      "json_value": "12",
+      "user_id": false,
+      "company_id": [
+        1,
+        "شركة يوتاك ذات مسؤولية محدودة"
+      ]
+    },
+    {
+      "id": 16,
+      "field_id": [
+        17166,
+        "Days Before Receipt (Contact)"
+      ],
+      "json_value": "1",
+      "user_id": false,
+      "company_id": false
+    },
+    {
+      "id": 17,
+      "field_id": [
+        17260,
+        "Inventory Valuation (Product Category)"
+      ],
+      "json_value": "\"periodic\"",
+      "user_id": false,
+      "company_id": [
+        1,
+        "شركة يوتاك ذات مسؤولية محدودة"
+      ]
+    },
+    {
+      "id": 18,
+      "field_id": [
+        17261,
+        "Costing Method (Product Category)"
+      ],
+      "json_value": "\"standard\"",
+      "user_id": false,
+      "company_id": [
+        1,
+        "شركة يوتاك ذات مسؤولية محدودة"
+      ]
+    },
+    {
+      "id": 19,
+      "field_id": [
+        17261,
+        "Costing Method (Product Category)"
+      ],
+      "json_value": "\"standard\"",
+      "user_id": false,
+      "company_id": false
+    },
+    {
+      "id": 20,
+      "field_id": [
+        17260,
+        "Inventory Valuation (Product Category)"
+      ],
+      "json_value": "\"periodic\"",
+      "user_id": false,
+      "company_id": false
+    },
+    {
+      "id": 21,
+      "field_id": [
+        17263,
+        "Stock Valuation Account (Product Category)"
+      ],
+      "json_value": "105",
+      "user_id": false,
+      "company_id": [
+        1,
+        "شركة يوتاك ذات مسؤولية محدودة"
+      ]
+    },
+    {
+      "id": 22,
+      "field_id": [
+        17262,
+        "Stock Journal (Product Category)"
+      ],
+      "json_value": "18",
+      "user_id": false,
+      "company_id": [
+        1,
+        "شركة يوتاك ذات مسؤولية محدودة"
+      ]
+    },
+    {
+      "id": 23,
+      "field_id": [
+        20150,
+        "مسموح واتساب (Contact)"
+      ],
+      "json_value": "true",
+      "user_id": false,
+      "company_id": false
+    },
+    {
+      "id": 24,
+      "field_id": [
+        20232,
+        "لغة المستند المفضلة (Contact)"
+      ],
+      "json_value": "\"ar\"",
+      "user_id": false,
+      "company_id": false
+    },
+    {
+      "id": 25,
+      "field_id": [
+        20245,
+        "لغة المستند (مستند رسمي)"
+      ],
+      "json_value": "\"ar\"",
+      "user_id": false,
+      "company_id": false
+    },
+    {
+      "id": 26,
+      "field_id": [
+        20669,
+        "نشط (شرائح خصم الكمية)"
+      ],
+      "json_value": "true",
+      "user_id": false,
+      "company_id": false
+    },
+    {
+      "id": 27,
+      "field_id": [
+        20677,
+        "مسجل في الضريبة (Contact)"
+      ],
+      "json_value": "true",
+      "user_id": false,
+      "company_id": false
+    },
+    {
+      "id": 28,
+      "field_id": [
+        20680,
+        "مسجل في الضريبة (Employee)"
+      ],
+      "json_value": "true",
+      "user_id": false,
+      "company_id": false
+    },
+    {
+      "id": 29,
+      "field_id": [
+        20713,
+        "حالة التسجيل الضريبي (Contact)"
+      ],
+      "json_value": "\"unknown\"",
+      "user_id": false,
+      "company_id": false
+    }
+  ],
+  "modules": [
+    {
+      "id": 1516,
+      "name": "whatsapp",
+      "state": "installed",
+      "shortdesc": "WhatsApp Messaging"
+    },
+    {
+      "id": 894,
+      "name": "marketing_automation_whatsapp",
+      "state": "uninstalled",
+      "shortdesc": "WhatsApp in Marketing Automation"
+    },
+    {
+      "id": 1006,
+      "name": "pos_enterprise_sms_whatsapp",
+      "state": "uninstalled",
+      "shortdesc": "POS Enterprise SMS Whatsapp"
+    },
+    {
+      "id": 1158,
+      "name": "saas_whatsapp",
+      "state": "installed",
+      "shortdesc": "SaaS WhatsApp"
+    },
+    {
+      "id": 1517,
+      "name": "whatsapp_account",
+      "state": "installed",
+      "shortdesc": "Whatsapp Accounting"
+    },
+    {
+      "id": 1518,
+      "name": "whatsapp_account_followup",
+      "state": "installed",
+      "shortdesc": "WhatsApp Follow-Up"
+    },
+    {
+      "id": 1519,
+      "name": "whatsapp_calendar",
+      "state": "installed",
+      "shortdesc": "WhatsApp-Calendar"
+    },
+    {
+      "id": 1520,
+      "name": "whatsapp_crm",
+      "state": "installed",
+      "shortdesc": "WhatsApp CRM"
+    },
+    {
+      "id": 1521,
+      "name": "whatsapp_delivery",
+      "state": "uninstalled",
+      "shortdesc": "WhatsApp-Delivery"
+    },
+    {
+      "id": 1522,
+      "name": "whatsapp_event",
+      "state": "uninstalled",
+      "shortdesc": "WhatsApp-Website-Events"
+    },
+    {
+      "id": 1524,
+      "name": "whatsapp_identifiers",
+      "state": "installed",
+      "shortdesc": "WhatsApp Identifiers"
+    },
+    {
+      "id": 1545,
+      "name": "whatsapp_oauth",
+      "state": "uninstalled",
+      "shortdesc": "WhatsApp OAuth"
+    },
+    {
+      "id": 1525,
+      "name": "whatsapp_payment",
+      "state": "installed",
+      "shortdesc": "Whatsapp-Payment"
+    },
+    {
+      "id": 1526,
+      "name": "whatsapp_pos",
+      "state": "uninstalled",
+      "shortdesc": "WhatsApp-POS"
+    },
+    {
+      "id": 1527,
+      "name": "whatsapp_pos_self_order",
+      "state": "uninstalled",
+      "shortdesc": "WhatsApp PoS Self Order"
+    },
+    {
+      "id": 1528,
+      "name": "whatsapp_sale",
+      "state": "installed",
+      "shortdesc": "WhatsApp-Sale"
+    },
+    {
+      "id": 1529,
+      "name": "whatsapp_sign",
+      "state": "installed",
+      "shortdesc": "WhatsApp-Sign"
+    },
+    {
+      "id": 1530,
+      "name": "whatsapp_stock",
+      "state": "installed",
+      "shortdesc": "Stock - WhatsApp"
+    },
+    {
+      "id": 1531,
+      "name": "whatsapp_website_sale",
+      "state": "uninstalled",
+      "shortdesc": "WhatsApp-eCommerce"
+    },
+    {
+      "id": 1523,
+      "name": "whatsapp_hr_referral",
+      "state": "uninstalled",
+      "shortdesc": "WhatsApp - Employee Referral"
+    },
+    {
+      "id": 1364,
+      "name": "test_whatsapp",
+      "state": "uninstalled",
+      "shortdesc": "WhatsApp Tests"
+    }
+  ],
+  "waModels": [
+    {
+      "id": 4354,
+      "model": "whatsapp.account",
+      "name": "WhatsApp Business Account"
+    },
+    {
+      "id": 4352,
+      "model": "whatsapp.template",
+      "name": "WhatsApp Template"
+    },
+    {
+      "id": 4359,
+      "model": "whatsapp.preview",
+      "name": "Preview template"
+    },
+    {
+      "id": 4358,
+      "model": "whatsapp.composer",
+      "name": "Send WhatsApp Wizard"
+    },
+    {
+      "id": 5059,
+      "model": "whatsapp.partner.bsuid",
+      "name": "WhatsApp Business-Scoped User ID"
+    },
+    {
+      "id": 4355,
+      "model": "whatsapp.message",
+      "name": "WhatsApp Message"
+    },
+    {
+      "id": 4356,
+      "model": "whatsapp.template.button",
+      "name": "WhatsApp Template Button"
+    },
+    {
+      "id": 4357,
+      "model": "whatsapp.template.variable",
+      "name": "WhatsApp Template Variable"
+    }
+  ],
+  "waMenus": [
+    {
+      "id": 526,
+      "name": "WhatsApp Business Accounts",
+      "complete_name": "WhatsApp/Configuration/WhatsApp Business Accounts",
+      "parent_id": [
+        525,
+        "WhatsApp/Configuration"
+      ],
+      "action": "ir.actions.act_window,906",
+      "active": true,
+      "group_ids": [],
+      "web_icon": false
+    },
+    {
+      "id": 523,
+      "name": "WhatsApp",
+      "complete_name": "WhatsApp",
+      "parent_id": false,
+      "action": false,
+      "active": true,
+      "group_ids": [],
+      "web_icon": "whatsapp,static/description/icon.png"
+    }
+  ],
+  "rootMenus": [
+    {
+      "id": 72,
+      "name": "Discuss",
+      "active": true,
+      "group_ids": [
+        1
+      ],
+      "web_icon": "mail,static/description/icon.png",
+      "sequence": 5
+    },
+    {
+      "id": 529,
+      "name": "UTAK",
+      "active": true,
+      "group_ids": [],
+      "web_icon": false,
+      "sequence": 5
+    },
+    {
+      "id": 430,
+      "name": "To-do",
+      "active": true,
+      "group_ids": [],
+      "web_icon": "project_todo,static/description/icon.png",
+      "sequence": 10
+    },
+    {
+      "id": 289,
+      "name": "Appointments",
+      "active": true,
+      "group_ids": [
+        1
+      ],
+      "web_icon": "appointment,static/description/icon.png",
+      "sequence": 10
+    },
+    {
+      "id": 262,
+      "name": "Calendar",
+      "active": true,
+      "group_ids": [
+        1
+      ],
+      "web_icon": "calendar,static/description/icon.png",
+      "sequence": 10
+    },
+    {
+      "id": 324,
+      "name": "Knowledge",
+      "active": true,
+      "group_ids": [],
+      "web_icon": "knowledge,static/description/icon.png",
+      "sequence": 17
+    },
+    {
+      "id": 484,
+      "name": "Contacts",
+      "active": true,
+      "group_ids": [
+        9,
+        1
+      ],
+      "web_icon": "contacts,static/description/icon.png",
+      "sequence": 20
+    },
+    {
+      "id": 494,
+      "name": "CRM",
+      "active": true,
+      "group_ids": [
+        36,
+        38
+      ],
+      "web_icon": "crm,static/description/icon.png",
+      "sequence": 25
+    },
+    {
+      "id": 225,
+      "name": "Sales",
+      "active": true,
+      "group_ids": [],
+      "web_icon": "sale_management,static/description/icon.png",
+      "sequence": 30
+    },
+    {
+      "id": 179,
+      "name": "Dashboards",
+      "active": true,
+      "group_ids": [],
+      "web_icon": "spreadsheet_dashboard,static/description/icon.png",
+      "sequence": 37
+    },
+    {
+      "id": 126,
+      "name": "Invoicing",
+      "active": true,
+      "group_ids": [
+        25,
+        26
+      ],
+      "web_icon": "account,static/description/icon.png",
+      "sequence": 55
+    },
+    {
+      "id": 452,
+      "name": "Accounting",
+      "active": true,
+      "group_ids": [
+        25,
+        26
+      ],
+      "web_icon": "accountant,static/description/icon.png",
+      "sequence": 60
+    },
+    {
+      "id": 473,
+      "name": "Documents",
+      "active": true,
+      "group_ids": [
+        1
+      ],
+      "web_icon": "documents,static/description/icon.png",
+      "sequence": 65
+    },
+    {
+      "id": 336,
+      "name": "Project",
+      "active": true,
+      "group_ids": [
+        51,
+        52
+      ],
+      "web_icon": "project,static/description/icon.png",
+      "sequence": 70
+    },
+    {
+      "id": 415,
+      "name": "Planning",
+      "active": true,
+      "group_ids": [
+        1
+      ],
+      "web_icon": "planning,static/description/icon.png",
+      "sequence": 85
+    },
+    {
+      "id": 396,
+      "name": "Surveys",
+      "active": true,
+      "group_ids": [
+        69
+      ],
+      "web_icon": "survey,static/description/icon.png",
+      "sequence": 130
+    },
+    {
+      "id": 431,
+      "name": "Purchase",
+      "active": true,
+      "group_ids": [
+        80,
+        81
+      ],
+      "web_icon": "purchase,static/description/icon.png",
+      "sequence": 135
+    },
+    {
+      "id": 356,
+      "name": "Inventory",
+      "active": true,
+      "group_ids": [
+        57,
+        58
+      ],
+      "web_icon": "stock,static/description/icon.png",
+      "sequence": 140
+    },
+    {
+      "id": 278,
+      "name": "Sign",
+      "active": true,
+      "group_ids": [],
+      "web_icon": "sign,static/description/icon.png",
+      "sequence": 180
+    },
+    {
+      "id": 305,
+      "name": "Employees",
+      "active": true,
+      "group_ids": [
+        49,
+        50,
+        1
+      ],
+      "web_icon": "hr,static/description/icon.png",
+      "sequence": 185
+    },
+    {
+      "id": 523,
+      "name": "WhatsApp",
+      "active": true,
+      "group_ids": [],
+      "web_icon": "whatsapp,static/description/icon.png",
+      "sequence": 260
+    },
+    {
+      "id": 220,
+      "name": "Link Tracker",
+      "active": true,
+      "group_ids": [
+        7
+      ],
+      "web_icon": "utm,static/description/icon.png",
+      "sequence": 270
+    },
+    {
+      "id": 1,
+      "name": "Apps",
+      "active": true,
+      "group_ids": [],
+      "web_icon": "base,static/description/modules.png",
+      "sequence": 500
+    },
+    {
+      "id": 9,
+      "name": "Settings",
+      "active": true,
+      "group_ids": [
+        2,
+        4
+      ],
+      "web_icon": "base,static/description/settings.png",
+      "sequence": 550
+    },
+    {
+      "id": 66,
+      "name": "Tests",
+      "active": true,
+      "group_ids": [],
+      "web_icon": "base,static/description/exception.png",
+      "sequence": 1000
+    }
+  ]
+}

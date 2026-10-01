@@ -24,6 +24,11 @@
 //   • the § 35 margin (sale = purchase × margin) is gone from pricing: the
 //     product card's «هامش الربح %» is a display-only Odoo compute.
 //
+// § 46 أ — «📊 لوحة التسعير»: with every engine run and every decision the
+// worker also writes each line's real profit (net purchase, waste, the carton
+// share of the day's operating cost, net sale) and its 🟢 🟡 🔴 ⚪ status, and the
+// header on the day (src/pricing-board.ts). Display only: no price changes.
+//
 // Nothing here writes list_price or standard_price.
 
 import type { Env } from "./config";
@@ -42,6 +47,7 @@ import {
 } from "./pricing-engine";
 import { isSourceVatRegistered, loadPriceSources, MARKET_ASK_MINUTE, MARKET_REPLY_WINDOW_MIN } from "./price-sources";
 import { readPricingSettings } from "./operating-cost";
+import { BOARD_LINE_FIELDS, boardHeader, boardLine, boardShare, readBoardInputs, type BoardStatus } from "./pricing-board";
 
 export const PRICE_DAY_MODEL = "x_price_day";
 export const PRICE_LINE_MODEL = "x_price_day_line";
@@ -117,6 +123,15 @@ export interface DayLine {
   x_decision: Decision | false;
   x_manual_price: number;
   x_decided_at: string | false;
+  // § 46 أ — «📊 لوحة التسعير» (src/pricing-board.ts)
+  x_net_purchase?: number;
+  x_waste_cost?: number;
+  x_op_share?: number;
+  x_full_cost?: number;
+  x_board_sale?: number;
+  x_net_sale?: number;
+  x_real_profit?: number;
+  x_board_status?: BoardStatus | false;
 }
 
 const DAY_FIELDS = ["id", "x_date", "x_state", "x_name", "x_approved_at", "x_approved_by", "x_published_at"];
@@ -124,6 +139,7 @@ const LINE_FIELDS = [
   "id", "x_sequence", "x_product_tmpl_id", "x_packaging_id", "x_supplier_id", "x_daily_price_id", "x_default_price_id",
   "x_source_price", "x_cost_price", "x_is_outlier", "x_outlier_ok", "x_margin_pct", "x_sale_price", "x_excluded", "x_blocked", "x_offers",
   "x_market_price", "x_market_count", "x_unit_profit", "x_status", "x_reason", "x_decision", "x_manual_price", "x_decided_at",
+  ...BOARD_LINE_FIELDS,
 ];
 
 async function readDay(env: Env, day: string): Promise<DayRecord | null> {
@@ -224,8 +240,12 @@ export async function refreshPriceDay(env: Env, opts: { day?: string; force?: bo
   const plan = computePricing(items, offers, settings.wastePct, vat);
   const rec = found ?? (await ensureDay(env, day));
   const lines = await readLines(env, rec.id);
+  // § 46 أ — the board: the day's cost over the cartons (display only, the rule above is untouched)
+  const inputs = await readBoardInputs(env, day, now, !!opts.force);
+  const share = boardShare(inputs.cost, settings.expectedCartons, inputs.actual, inputs.costReason);
   const fp = fnv1a(JSON.stringify([
     rec.id, rec.x_state, settings.wastePct, vat.ratePct, [...sources.partnerIds].sort((a, b) => a - b).map((pid) => [pid, vat.registered(pid)]),
+    [share.cost, share.cartons, share.basis, share.expected],
     offers.map((o) => [o.model, o.rowId, o.kind, o.price, o.outlier, o.partnerId]),
     items.map((i) => [i.productId, i.packagingId]),
     lines.filter((l) => l.x_decision || Number(l.x_manual_price) > 0).map((l) => [lineKey(l), l.x_decision || "", Number(l.x_manual_price) || 0]),
@@ -240,13 +260,21 @@ export async function refreshPriceDay(env: Env, opts: { day?: string; force?: bo
   const counts: Record<LineStatus, number> = { auto: 0, exception: 0, manual: 0, unpublished: 0 };
   let updated = 0;
   let seq = lines.reduce((m, l) => Math.max(m, Number(l.x_sequence) || 0), 0);
+  const board: BoardStatus[] = [];
   for (const p of plan) {
     const l = byKey.get(p.key);
     const decision = (l?.x_decision || null) as Decision | null;
     const v = lineVerdict(p, decision, Number(l?.x_manual_price) || 0);
     counts[v.status]++;
     const src = p.purchaseOffer;
+    // § 46 أ — the board's sale is the approved price, else the market price (the rule: sale = market)
+    const b = boardLine({
+      purchase: p.purchase, sale: v.sale > 0 ? v.sale : p.market, wastePct: settings.wastePct,
+      vatRatePct: vat.ratePct, registered: src ? vat.registered(src.partnerId) : true, opShare: share.share,
+    });
+    board.push(b.x_board_status);
     const want: Record<string, unknown> = {
+      ...b,
       x_supplier_id: src?.partnerId || false,
       x_daily_price_id: src?.model === "dp" ? src.rowId : false,
       x_default_price_id: src?.model === "dp" ? src.rowId : false,
@@ -282,7 +310,9 @@ export async function refreshPriceDay(env: Env, opts: { day?: string; force?: bo
   const planned = new Set(plan.map((p) => p.key));
   for (const l of lines) {
     if (planned.has(lineKey(l))) continue;
-    const vals = changed(l, { x_status: "unpublished", x_reason: "ليس في الكتالوج النشط اليوم", x_sale_price: 0, x_excluded: true });
+    const b = storedBoardLine(l, settings.wastePct, vat, share.share);
+    board.push(b.x_board_status);
+    const vals = changed(l, { x_status: "unpublished", x_reason: "ليس في الكتالوج النشط اليوم", x_sale_price: 0, x_excluded: true, ...b });
     if (Object.keys(vals).length) {
       await call(env, PRICE_LINE_MODEL, "write", { ids: [l.id], vals });
       updated++;
@@ -290,12 +320,79 @@ export async function refreshPriceDay(env: Env, opts: { day?: string; force?: bo
     counts.unpublished++;
   }
   if (creates.length) await call<number[]>(env, PRICE_LINE_MODEL, "create", { vals_list: creates });
+  // § 46 أ — the board's header on the day (never blocks the engine)
+  try {
+    await call(env, PRICE_DAY_MODEL, "write", { ids: [rec.id], vals: boardHeader(share, board, now) });
+  } catch (e) {
+    console.warn(`[prices] ${day}: the board header was not written`, (e as Error)?.message);
+  }
   try { await env.MSG_DEDUP.put(fpKey(day), fp, { expirationTtl: 3 * 24 * 3600 }); } catch { /* next tick recomputes */ }
   console.log(`[prices] ${day} refreshed: +${creates.length} ~${updated} (${plan.length} lines: ${JSON.stringify(counts)})`);
   return {
     day, action: "refreshed", dayId: rec.id, state: rec.x_state, created: creates.length, updated, lines: plan.length,
     excluded: counts.exception + counts.unpublished, counts,
   };
+}
+
+// ---------------------------------------------------------------- the board (§ 46 أ)
+
+type VatOf = { ratePct: number | null; registered: (partnerId: number) => boolean };
+
+/** A stored line on the board: its purchase and its source, its approved sale price else its market price. */
+function storedBoardLine(l: DayLine, wastePct: number, vat: VatOf, opShare: number | null) {
+  const src = m2oId(l.x_supplier_id);
+  return boardLine({
+    purchase: Number(l.x_cost_price) || 0,
+    sale: Number(l.x_sale_price) > 0 ? Number(l.x_sale_price) : Number(l.x_market_price) || 0,
+    wastePct, vatRatePct: vat.ratePct, registered: src ? vat.registered(src) : true, opShare,
+  });
+}
+
+export interface BoardReport { day: string; dayId: number; lines: number; updated: number; counts: Record<BoardStatus, number> }
+
+/**
+ * The board of a day from its stored lines, whatever its state (a decision
+ * changed a line's sale price; a day approved or published before the board
+ * existed): the lines whose board values differ are written, then the header.
+ * The lock (base.automation #23) does not watch the board's fields. `dry`:
+ * nothing is written, the values are returned.
+ */
+export async function rewriteBoard(env: Env, dayId: number, opts: { now?: number; force?: boolean; dry?: boolean } = {}): Promise<BoardReport & { values?: Array<Record<string, unknown>>; header?: Record<string, unknown> }> {
+  const now = opts.now ?? Date.now();
+  const [rec] = await call<DayRecord[]>(env, PRICE_DAY_MODEL, "read", { ids: [dayId], fields: DAY_FIELDS });
+  if (!rec) throw new Error(`[board] no x_price_day ${dayId}`);
+  const day = rec.x_date;
+  const settings = await readPricingSettings(env, day);
+  if (!settings) throw new Error(`[board] no active x_pricing_config on ${day}`);
+  const sources = await loadPriceSources(env);
+  const vat: VatOf = { ratePct: profitVatRate(day), registered: (pid: number) => isSourceVatRegistered(sources, pid) };
+  const inputs = await readBoardInputs(env, day, now, !!opts.force);
+  const share = boardShare(inputs.cost, settings.expectedCartons, inputs.actual, inputs.costReason);
+  const lines = await readLines(env, dayId);
+  const counts: Record<BoardStatus, number> = { green: 0, yellow: 0, red: 0, none: 0 };
+  const values: Array<Record<string, unknown>> = [];
+  let updated = 0;
+  for (const l of lines) {
+    const b = storedBoardLine(l, settings.wastePct, vat, share.share);
+    counts[b.x_board_status]++;
+    values.push({ id: l.id, name: `${lineName(l)}${Array.isArray(l.x_packaging_id) ? ` — ${l.x_packaging_id[1]}` : ""}`, purchase: Number(l.x_cost_price) || 0, ...b });
+    const vals = changed(l, { ...b });
+    if (!Object.keys(vals).length) continue;
+    updated++;
+    if (!opts.dry) await call(env, PRICE_LINE_MODEL, "write", { ids: [l.id], vals });
+  }
+  const header = boardHeader(share, values.map((v) => v.x_board_status as BoardStatus), now);
+  if (!opts.dry) await call(env, PRICE_DAY_MODEL, "write", { ids: [dayId], vals: header });
+  return { day, dayId, lines: lines.length, updated, counts, ...(opts.dry ? { values, header } : {}) };
+}
+
+/** After a decision on a line: its day's board again. Never throws (the decision is already written). */
+async function boardAfterDecision(env: Env, dayId: number, now: number): Promise<void> {
+  try {
+    await rewriteBoard(env, dayId, { now });
+  } catch (e) {
+    console.warn(`[prices] board after a decision on day ${dayId} failed`, (e as Error)?.message);
+  }
 }
 
 // ---------------------------------------------------------------- the message
@@ -720,9 +817,11 @@ export async function handlePriceExceptionButton(env: Env, payload: string, now:
     const market = Math.round((Number(l.x_market_price) || 0) * 100) / 100;
     if (!(market > 0)) return `لا سعر سوق لـ ${name} اليوم: اختر «لا تنشر» أو «عدّل».`;
     const ok = await decide(env, l, { x_decision: "market", x_manual_price: market, x_status: "manual", x_reason: "براء: اعتمد بسعر السوق", x_sale_price: market, x_excluded: false }, now);
+    if (ok) await boardAfterDecision(env, day.id, now);
     return ok ? `✅ ${name}: يُنشر بسعر السوق ${money(market)} ر.س.${missedTail(day)}` : `القرار مسجّل مسبقاً على ${name}.`;
   }
   const ok = await decide(env, l, { x_decision: "skip", x_status: "unpublished", x_reason: "براء: لا تنشر", x_sale_price: 0, x_excluded: true }, now);
+  if (ok) await boardAfterDecision(env, day.id, now);
   return ok ? `✅ ${name}: لا يُنشر اليوم.` : `القرار مسجّل مسبقاً على ${name}.`;
 }
 
@@ -750,6 +849,7 @@ export async function handlePriceEditReply(env: Env, text: string, now: number =
   if (why || !l || !day) return why ?? null;
   const price = Math.round(nums[0] * 100) / 100;
   const ok = await decide(env, l, { x_decision: "edit", x_manual_price: price, x_status: "manual", x_reason: "براء: سعر معدّل", x_sale_price: price, x_excluded: false }, now);
+  if (ok) await boardAfterDecision(env, day.id, now);
   return ok ? `✅ ${lineName(l)}: يُنشر بـ ${money(price)} ر.س.${missedTail(day)}` : `القرار مسجّل مسبقاً على ${lineName(l)}.`;
 }
 

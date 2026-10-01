@@ -1,0 +1,655 @@
+{
+  "at": "2026-10-01T03:13:44.229Z",
+  "css": {
+    "light": "https://utakfresh.odoo.com/web/assets/c25c582/web.assets_web.rtl.min.css",
+    "dark": "https://utakfresh.odoo.com/web/assets/6b6b60e/web.assets_web_dark.rtl.min.css"
+  },
+  "minRatio": {
+    "light": 5.1,
+    "dark": 4.62
+  },
+  "light": [
+    {
+      "status": "green",
+      "minRatio": 5.1,
+      "pass": true,
+      "border": "#28a745",
+      "borderWidth": "5px",
+      "borderRatio": 3.13,
+      "texts": [
+        {
+          "text": "رمان وسط — كرتون",
+          "cls": "fw-bold fs-5",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "🟢 رابح",
+          "cls": "text-nowrap ms-2",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "الشراء الصافي",
+          "cls": "text-muted",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "text": "20.00",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "التكلفة الكاملة",
+          "cls": "text-muted",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "text": "22.99",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "البيع",
+          "cls": "text-muted",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "text": "34.50",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "الربح الحقيقي",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "7.01",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        }
+      ]
+    },
+    {
+      "status": "yellow",
+      "minRatio": 5.1,
+      "pass": true,
+      "border": "#e99d00",
+      "borderWidth": "5px",
+      "borderRatio": 2.26,
+      "texts": [
+        {
+          "text": "رمان صغير — كرتون",
+          "cls": "fw-bold fs-5",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "🟡 يغطي البضاعة فقط",
+          "cls": "text-nowrap ms-2",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "الشراء الصافي",
+          "cls": "text-muted",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "text": "17.39",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "التكلفة الكاملة",
+          "cls": "text-muted",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "text": "20.25",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "البيع",
+          "cls": "text-muted",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "text": "23.00",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "الربح الحقيقي",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "-0.25",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        }
+      ]
+    },
+    {
+      "status": "red",
+      "minRatio": 5.1,
+      "pass": true,
+      "border": "#d44c59",
+      "borderWidth": "5px",
+      "borderRatio": 4.22,
+      "texts": [
+        {
+          "text": "رمان كبير — كرتون",
+          "cls": "fw-bold fs-5",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "🔴 خسارة على البضاعة",
+          "cls": "text-nowrap ms-2",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "الشراء الصافي",
+          "cls": "text-muted",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "text": "26.09",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "التكلفة الكاملة",
+          "cls": "text-muted",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "text": "29.38",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "البيع",
+          "cls": "text-muted",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "text": "31.05",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "الربح الحقيقي",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "-2.38",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        }
+      ]
+    },
+    {
+      "status": "none",
+      "minRatio": 5.1,
+      "pass": true,
+      "border": "#d8dadd",
+      "borderWidth": "5px",
+      "borderRatio": 1.4,
+      "texts": [
+        {
+          "text": "رمان مصري — كرتون · 8 كي",
+          "cls": "fw-bold fs-5",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "⚪ لا بيانات",
+          "cls": "text-nowrap ms-2",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "الشراء الصافي",
+          "cls": "text-muted",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "text": "0.00",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "التكلفة الكاملة",
+          "cls": "text-muted",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "text": "0.00",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "البيع",
+          "cls": "text-muted",
+          "fg": "#676f7b",
+          "bg": "#ffffff",
+          "ratio": 5.1
+        },
+        {
+          "text": "0.00",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "الربح الحقيقي",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        },
+        {
+          "text": "0.00",
+          "cls": "",
+          "fg": "#111827",
+          "bg": "#ffffff",
+          "ratio": 17.74
+        }
+      ]
+    }
+  ],
+  "dark": [
+    {
+      "status": "green",
+      "minRatio": 4.62,
+      "pass": true,
+      "border": "#1dc959",
+      "borderWidth": "5px",
+      "borderRatio": 6.51,
+      "texts": [
+        {
+          "text": "رمان وسط — كرتون",
+          "cls": "fw-bold fs-5",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "🟢 رابح",
+          "cls": "text-nowrap ms-2",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "الشراء الصافي",
+          "cls": "text-muted",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "text": "20.00",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "التكلفة الكاملة",
+          "cls": "text-muted",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "text": "22.99",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "البيع",
+          "cls": "text-muted",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "text": "34.50",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "الربح الحقيقي",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "7.01",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        }
+      ]
+    },
+    {
+      "status": "yellow",
+      "minRatio": 4.62,
+      "pass": true,
+      "border": "#e99d00",
+      "borderWidth": "5px",
+      "borderRatio": 6.33,
+      "texts": [
+        {
+          "text": "رمان صغير — كرتون",
+          "cls": "fw-bold fs-5",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "🟡 يغطي البضاعة فقط",
+          "cls": "text-nowrap ms-2",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "الشراء الصافي",
+          "cls": "text-muted",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "text": "17.39",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "التكلفة الكاملة",
+          "cls": "text-muted",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "text": "20.25",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "البيع",
+          "cls": "text-muted",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "text": "23.00",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "الربح الحقيقي",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "-0.25",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        }
+      ]
+    },
+    {
+      "status": "red",
+      "minRatio": 4.62,
+      "pass": true,
+      "border": "#b83232",
+      "borderWidth": "5px",
+      "borderRatio": 2.41,
+      "texts": [
+        {
+          "text": "رمان كبير — كرتون",
+          "cls": "fw-bold fs-5",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "🔴 خسارة على البضاعة",
+          "cls": "text-nowrap ms-2",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "الشراء الصافي",
+          "cls": "text-muted",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "text": "26.09",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "التكلفة الكاملة",
+          "cls": "text-muted",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "text": "29.38",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "البيع",
+          "cls": "text-muted",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "text": "31.05",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "الربح الحقيقي",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "-2.38",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        }
+      ]
+    },
+    {
+      "status": "none",
+      "minRatio": 4.62,
+      "pass": true,
+      "border": "#3c3e4b",
+      "borderWidth": "5px",
+      "borderRatio": 1.35,
+      "texts": [
+        {
+          "text": "رمان مصري — كرتون · 8 كي",
+          "cls": "fw-bold fs-5",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "⚪ لا بيانات",
+          "cls": "text-nowrap ms-2",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "الشراء الصافي",
+          "cls": "text-muted",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "text": "0.00",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "التكلفة الكاملة",
+          "cls": "text-muted",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "text": "0.00",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "البيع",
+          "cls": "text-muted",
+          "fg": "#90929c",
+          "bg": "#262a36",
+          "ratio": 4.62
+        },
+        {
+          "text": "0.00",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "الربح الحقيقي",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        },
+        {
+          "text": "0.00",
+          "cls": "",
+          "fg": "#e4e4e4",
+          "bg": "#262a36",
+          "ratio": 11.26
+        }
+      ]
+    }
+  ]
+}

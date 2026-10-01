@@ -1,0 +1,35 @@
+{
+  "atRiyadh": "2026-10-01 05:28",
+  "metaPhoneWebhook": {
+    "application": "https://utak-worker.utak-business.workers.dev/webhook"
+  },
+  "odoo": {
+    "prod": [
+      "ir.actions.server #1001 utak.prices.approve_webhook (webhook_url)",
+      "ir.actions.server #1012 utak.sp.created_webhook (webhook_url)",
+      "ir.actions.server #1014 utak.sp.decided_webhook_approve (webhook_url)",
+      "ir.actions.server #1017 utak.sp.decided_webhook_reject (webhook_url)",
+      "ir.actions.server #957 Send Receipt Webhook (webhook_url)",
+      "ir.actions.server #941 UTAK: Issue & Send Quotation (webhook_url)",
+      "ir.actions.server #982 official-doc.ai_draft_webhook (webhook_url)",
+      "ir.actions.server #981 official-doc.issue_webhook (webhook_url)",
+      "ir.actions.server #980 official-doc.preview_webhook (webhook_url)",
+      "ir.actions.server #968 quotation.manual_pdf_build (webhook_url)",
+      "ir.actions.server #969 quotation.manual_wa_send (webhook_url)",
+      "ir.actions.server #971 sale.quotation.pdf_download (code)",
+      "ir.actions.server #970 sale.quotation.wa_send (webhook_url)",
+      "ir.actions.server #974 utak.invoice.pdf_download (code)",
+      "ir.actions.server #1004 utak.prices.refresh_webhook (webhook_url)",
+      "ir.actions.server #975 utak.purchase.pdf_download (code)",
+      "ir.actions.server #1021 utak.sp.refresh_dues_webhook (webhook_url)",
+      "ir.actions.server #997 utak.team_roster.hook ← hr.employee (webhook_url)",
+      "ir.actions.server #998 utak.team_roster.hook ← resource.calendar.attendance (webhook_url)",
+      "ir.actions.server #999 utak.team_roster.hook ← resource.calendar.leaves (webhook_url)",
+      "ir.actions.server #963 wa_control.sync_webhook (webhook_url)",
+      "ir.actions.server #985 wa_inbox.partner_title_webhook (webhook_url)",
+      "ir.actions.server #979 wa_inbox.reply_webhook (webhook_url)",
+      "ir.actions.server #967 wa_message.send_webhook (webhook_url)"
+    ],
+    "sim": []
+  }
+}

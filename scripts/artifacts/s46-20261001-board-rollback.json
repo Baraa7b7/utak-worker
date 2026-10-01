@@ -1,0 +1,62 @@
+{
+  "script": "scripts/s46-20261001-board.mjs",
+  "createdAt": "2026-10-01T03:15:40.415Z",
+  "created": {
+    "fields": [
+      20722,
+      20724,
+      20726,
+      20728,
+      20730,
+      20732,
+      20734,
+      20736,
+      20738,
+      20740,
+      20742,
+      20744,
+      20746,
+      20748,
+      20750,
+      20752,
+      20754,
+      20756,
+      20758,
+      20760,
+      20762,
+      20764
+    ],
+    "views": {
+      "kanban": 2867,
+      "list": 2868,
+      "graph": 2869,
+      "search": 2870,
+      "form": 2871
+    },
+    "windows": {
+      "winList": 1030,
+      "winGraph": 1031
+    },
+    "actions": {
+      "open": 1032,
+      "prev": 1033,
+      "next": 1034
+    },
+    "menus": {
+      "board": 581
+    }
+  },
+  "before": {
+    "settingsForm": {
+      "id": 2855,
+      "arch": "<form string=\"إعدادات التسعير\" create=\"0\" delete=\"0\">\n  <sheet>\n    <div class=\"oe_title\"><h1>⚙️ إعدادات التسعير</h1></div>\n    <group>\n      <group string=\"التسعير اليومي\">\n        <field name=\"x_waste_pct\"/>\n        <field name=\"x_min_order_sar\"/>\n        <field name=\"x_planned_stops\"/>\n      </group>\n      <group string=\"السجل\">\n        <field name=\"x_name\" readonly=\"1\"/>\n        <field name=\"x_active_from\" readonly=\"1\"/>\n      </group>\n    </group>\n    <div class=\"text-muted\">سعر البيع = سعر السوق لليوم. الاستثناءات (بلا شراء، بلا سوق، ربح ≤ 0، سعر شاذ) تصل براء، وغيرها يُعتمد ويُنشر تلقائياً في موعد النشر. «عدد المحطات» فارغ = لا خصم كمية.</div>\n    <separator string=\"شرائح خصم الكمية\"/>\n    <field name=\"x_tier_ids\" nolabel=\"1\">\n      <list editable=\"bottom\" default_order=\"x_sequence, x_amount_from\" decoration-muted=\"not x_active\">\n        <field name=\"x_sequence\" widget=\"handle\"/>\n        <field name=\"x_amount_from\"/>\n        <field name=\"x_amount_to\"/>\n        <field name=\"x_discount_pct\"/>\n        <field name=\"x_active\" widget=\"boolean_toggle\"/>\n      </list>\n    </field>\n    <div class=\"text-muted\">الخصم على مجموع الطلب قبل الضريبة، بنسبة الشريحة التي يقع فيها المجموع («إلى» فارغ = بلا حد). لا خصم إذا صار ربح الطلب بعده أقل من (تكلفة اليوم ÷ عدد المحطات)، ولا خصم إطلاقاً والمحطات فارغة.</div>\n  </sheet>\n</form>"
+    },
+    "config": {
+      "id": 1,
+      "x_expected_cartons": 0,
+      "x_waste_pct": 5,
+      "x_min_order_sar": 150,
+      "x_planned_stops": 15
+    }
+  }
+}

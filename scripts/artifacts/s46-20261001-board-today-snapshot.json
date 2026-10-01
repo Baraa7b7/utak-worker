@@ -1,0 +1,377 @@
+{
+  "at": "2026-10-01T03:15:40.567Z",
+  "days": [
+    {
+      "id": 50,
+      "x_date": "2026-10-01",
+      "x_state": "missed",
+      "x_name": "أسعار اليوم 2026-10-01",
+      "x_approved_at": false,
+      "x_published_at": false,
+      "write_date": "2026-10-01 03:00:53"
+    },
+    {
+      "id": 45,
+      "x_date": "2026-10-01",
+      "x_state": "published",
+      "x_name": "أسعار اليوم 2026-10-01",
+      "x_approved_at": "2026-10-01 03:00:00",
+      "x_published_at": "2026-10-01 03:00:00",
+      "write_date": "2026-09-26 16:13:45"
+    },
+    {
+      "id": 40,
+      "x_date": "2026-10-01",
+      "x_state": "published",
+      "x_name": "أسعار اليوم 2026-10-01",
+      "x_approved_at": "2026-10-01 03:00:00",
+      "x_published_at": "2026-10-01 03:00:00",
+      "write_date": "2026-09-26 15:45:52"
+    }
+  ],
+  "lines": [
+    {
+      "id": 50,
+      "x_day_id": [
+        40,
+        "أسعار اليوم 2026-10-01"
+      ],
+      "x_product_tmpl_id": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "x_packaging_id": [
+        37,
+        "كرتون"
+      ],
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_cost_price": 16,
+      "x_market_price": 20,
+      "x_market_count": 1,
+      "x_sale_price": 20,
+      "x_unit_profit": 2.78,
+      "x_status": "auto",
+      "x_reason": false,
+      "x_decision": false,
+      "x_manual_price": 0,
+      "x_decided_at": false,
+      "x_excluded": false,
+      "x_blocked": false,
+      "write_date": "2026-09-26 15:45:52"
+    },
+    {
+      "id": 51,
+      "x_day_id": [
+        40,
+        "أسعار اليوم 2026-10-01"
+      ],
+      "x_product_tmpl_id": [
+        105,
+        "[UTAK-FRT-010] افوكادو"
+      ],
+      "x_packaging_id": [
+        47,
+        "كرتون · 4 كيلو"
+      ],
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_cost_price": 52,
+      "x_market_price": 62.5,
+      "x_market_count": 2,
+      "x_sale_price": 62.5,
+      "x_unit_profit": 6.87,
+      "x_status": "auto",
+      "x_reason": false,
+      "x_decision": false,
+      "x_manual_price": 0,
+      "x_decided_at": false,
+      "x_excluded": false,
+      "x_blocked": false,
+      "write_date": "2026-09-26 15:45:52"
+    },
+    {
+      "id": 52,
+      "x_day_id": [
+        40,
+        "أسعار اليوم 2026-10-01"
+      ],
+      "x_product_tmpl_id": [
+        107,
+        "[UTAK-FRT-011] رمان صغير"
+      ],
+      "x_packaging_id": [
+        43,
+        "كرتون"
+      ],
+      "x_supplier_id": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_cost_price": 11.5,
+      "x_market_price": 13,
+      "x_market_count": 1,
+      "x_sale_price": 13,
+      "x_unit_profit": 0.8,
+      "x_status": "auto",
+      "x_reason": false,
+      "x_decision": false,
+      "x_manual_price": 0,
+      "x_decided_at": false,
+      "x_excluded": false,
+      "x_blocked": false,
+      "write_date": "2026-09-26 15:45:52"
+    },
+    {
+      "id": 53,
+      "x_day_id": [
+        40,
+        "أسعار اليوم 2026-10-01"
+      ],
+      "x_product_tmpl_id": [
+        108,
+        "[UTAK-FRT-012] رمان كبير"
+      ],
+      "x_packaging_id": [
+        44,
+        "كرتون"
+      ],
+      "x_supplier_id": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_cost_price": 23,
+      "x_market_price": 24,
+      "x_market_count": 1,
+      "x_sale_price": 25,
+      "x_unit_profit": -0.13,
+      "x_status": "manual",
+      "x_reason": "براء: سعر معدّل",
+      "x_decision": "edit",
+      "x_manual_price": 25,
+      "x_decided_at": "2026-10-01 01:05:00",
+      "x_excluded": false,
+      "x_blocked": false,
+      "write_date": "2026-09-26 15:45:52"
+    },
+    {
+      "id": 70,
+      "x_day_id": [
+        45,
+        "أسعار اليوم 2026-10-01"
+      ],
+      "x_product_tmpl_id": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "x_packaging_id": [
+        37,
+        "كرتون"
+      ],
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_cost_price": 16,
+      "x_market_price": 20,
+      "x_market_count": 1,
+      "x_sale_price": 20,
+      "x_unit_profit": 2.78,
+      "x_status": "auto",
+      "x_reason": false,
+      "x_decision": false,
+      "x_manual_price": 0,
+      "x_decided_at": false,
+      "x_excluded": false,
+      "x_blocked": false,
+      "write_date": "2026-09-26 16:13:45"
+    },
+    {
+      "id": 71,
+      "x_day_id": [
+        45,
+        "أسعار اليوم 2026-10-01"
+      ],
+      "x_product_tmpl_id": [
+        105,
+        "[UTAK-FRT-010] افوكادو"
+      ],
+      "x_packaging_id": [
+        47,
+        "كرتون · 4 كيلو"
+      ],
+      "x_supplier_id": [
+        30,
+        "أحمد حسان"
+      ],
+      "x_cost_price": 52,
+      "x_market_price": 62.5,
+      "x_market_count": 2,
+      "x_sale_price": 62.5,
+      "x_unit_profit": 6.87,
+      "x_status": "auto",
+      "x_reason": false,
+      "x_decision": false,
+      "x_manual_price": 0,
+      "x_decided_at": false,
+      "x_excluded": false,
+      "x_blocked": false,
+      "write_date": "2026-09-26 16:13:45"
+    },
+    {
+      "id": 72,
+      "x_day_id": [
+        45,
+        "أسعار اليوم 2026-10-01"
+      ],
+      "x_product_tmpl_id": [
+        107,
+        "[UTAK-FRT-011] رمان صغير"
+      ],
+      "x_packaging_id": [
+        43,
+        "كرتون"
+      ],
+      "x_supplier_id": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_cost_price": 11.5,
+      "x_market_price": 13,
+      "x_market_count": 1,
+      "x_sale_price": 13,
+      "x_unit_profit": 0.8,
+      "x_status": "auto",
+      "x_reason": false,
+      "x_decision": false,
+      "x_manual_price": 0,
+      "x_decided_at": false,
+      "x_excluded": false,
+      "x_blocked": false,
+      "write_date": "2026-09-26 16:13:45"
+    },
+    {
+      "id": 73,
+      "x_day_id": [
+        45,
+        "أسعار اليوم 2026-10-01"
+      ],
+      "x_product_tmpl_id": [
+        108,
+        "[UTAK-FRT-012] رمان كبير"
+      ],
+      "x_packaging_id": [
+        44,
+        "كرتون"
+      ],
+      "x_supplier_id": [
+        9,
+        "عمر المجهلي"
+      ],
+      "x_cost_price": 23,
+      "x_market_price": 24,
+      "x_market_count": 1,
+      "x_sale_price": 25,
+      "x_unit_profit": -0.13,
+      "x_status": "manual",
+      "x_reason": "براء: سعر معدّل",
+      "x_decision": "edit",
+      "x_manual_price": 25,
+      "x_decided_at": "2026-10-01 01:05:00",
+      "x_excluded": false,
+      "x_blocked": false,
+      "write_date": "2026-09-26 16:13:45"
+    },
+    {
+      "id": 89,
+      "x_day_id": [
+        50,
+        "أسعار اليوم 2026-10-01"
+      ],
+      "x_product_tmpl_id": [
+        100,
+        "[UTAK-FRT-005] رمان وسط"
+      ],
+      "x_packaging_id": [
+        37,
+        "كرتون"
+      ],
+      "x_supplier_id": false,
+      "x_cost_price": 0,
+      "x_market_price": 0,
+      "x_market_count": 0,
+      "x_sale_price": 0,
+      "x_unit_profit": 0,
+      "x_status": "exception",
+      "x_reason": "لا سعر شراء، لا سعر سوق",
+      "x_decision": false,
+      "x_manual_price": 0,
+      "x_decided_at": false,
+      "x_excluded": true,
+      "x_blocked": false,
+      "write_date": "2026-10-01 01:00:34"
+    },
+    {
+      "id": 90,
+      "x_day_id": [
+        50,
+        "أسعار اليوم 2026-10-01"
+      ],
+      "x_product_tmpl_id": [
+        107,
+        "[UTAK-FRT-011] رمان صغير"
+      ],
+      "x_packaging_id": [
+        43,
+        "كرتون"
+      ],
+      "x_supplier_id": false,
+      "x_cost_price": 0,
+      "x_market_price": 0,
+      "x_market_count": 0,
+      "x_sale_price": 0,
+      "x_unit_profit": 0,
+      "x_status": "exception",
+      "x_reason": "لا سعر شراء، لا سعر سوق",
+      "x_decision": false,
+      "x_manual_price": 0,
+      "x_decided_at": false,
+      "x_excluded": true,
+      "x_blocked": false,
+      "write_date": "2026-10-01 01:00:34"
+    },
+    {
+      "id": 91,
+      "x_day_id": [
+        50,
+        "أسعار اليوم 2026-10-01"
+      ],
+      "x_product_tmpl_id": [
+        108,
+        "[UTAK-FRT-012] رمان كبير"
+      ],
+      "x_packaging_id": [
+        44,
+        "كرتون"
+      ],
+      "x_supplier_id": false,
+      "x_cost_price": 0,
+      "x_market_price": 0,
+      "x_market_count": 0,
+      "x_sale_price": 0,
+      "x_unit_profit": 0,
+      "x_status": "exception",
+      "x_reason": "لا سعر شراء، لا سعر سوق",
+      "x_decision": false,
+      "x_manual_price": 0,
+      "x_decided_at": false,
+      "x_excluded": true,
+      "x_blocked": false,
+      "write_date": "2026-10-01 01:00:34"
+    }
+  ]
+}

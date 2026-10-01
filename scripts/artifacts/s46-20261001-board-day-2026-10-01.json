@@ -1,0 +1,147 @@
+{
+  "at": "2026-10-01T03:17:02.914Z",
+  "day": "2026-10-01",
+  "dayId": 50,
+  "state": "missed",
+  "cost": {
+    "day": "2026-10-01",
+    "total": 496.52,
+    "items": [
+      {
+        "id": 2,
+        "name": "إيجار الباص المبرد",
+        "frequency": "monthly",
+        "amount": 5000,
+        "perDay": 161.29032258064515
+      },
+      {
+        "id": 3,
+        "name": "الديزل",
+        "frequency": "monthly",
+        "amount": 1000,
+        "perDay": 32.25806451612903
+      },
+      {
+        "id": 4,
+        "name": "راتب عمر",
+        "frequency": "monthly",
+        "amount": 4000,
+        "perDay": 129.03225806451613
+      },
+      {
+        "id": 5,
+        "name": "تأمينات عمر (أخطار مهنية 2%)",
+        "frequency": "monthly",
+        "amount": 80,
+        "perDay": 2.5806451612903225
+      },
+      {
+        "id": 6,
+        "name": "اشتراك Odoo",
+        "frequency": "monthly",
+        "amount": 80,
+        "perDay": 2.5806451612903225
+      },
+      {
+        "id": 7,
+        "name": "Claude API",
+        "frequency": "monthly",
+        "amount": 75,
+        "perDay": 2.4193548387096775
+      },
+      {
+        "id": 8,
+        "name": "الرصيد والاتصالات",
+        "frequency": "monthly",
+        "amount": 100,
+        "perDay": 3.225806451612903
+      },
+      {
+        "id": 9,
+        "name": "تجديد هوية/إقامة عمر",
+        "frequency": "yearly",
+        "amount": 11000,
+        "perDay": 30.136986301369863
+      },
+      {
+        "id": 10,
+        "name": "رسوم دخول السوق",
+        "frequency": "daily",
+        "amount": 83,
+        "perDay": 83
+      },
+      {
+        "id": 11,
+        "name": "العربية",
+        "frequency": "daily",
+        "amount": 50,
+        "perDay": 50
+      }
+    ],
+    "workingDay": true,
+    "monthWorkingDays": 31,
+    "yearWorkingDays": 365,
+    "driver": "عمر المجهلي"
+  },
+  "expectedCartons": 250,
+  "actual": {
+    "days": 0,
+    "average": null
+  },
+  "header": {
+    "x_op_cost": 496.52,
+    "x_op_expected": 250,
+    "x_op_cartons": 250,
+    "x_op_basis": "expected",
+    "x_op_share": 1.99,
+    "x_op_share_500": 0.99,
+    "x_n_green": 0,
+    "x_n_yellow": 0,
+    "x_n_red": 0,
+    "x_n_none": 3,
+    "x_board_note": false,
+    "x_board_at": "2026-10-01 03:17:02"
+  },
+  "lines": [
+    {
+      "id": 89,
+      "name": "رمان وسط — كرتون",
+      "purchase": 0,
+      "x_net_purchase": 0,
+      "x_waste_cost": 0,
+      "x_op_share": 1.99,
+      "x_full_cost": 0,
+      "x_board_sale": 0,
+      "x_net_sale": 0,
+      "x_real_profit": 0,
+      "x_board_status": "none"
+    },
+    {
+      "id": 90,
+      "name": "رمان صغير — كرتون",
+      "purchase": 0,
+      "x_net_purchase": 0,
+      "x_waste_cost": 0,
+      "x_op_share": 1.99,
+      "x_full_cost": 0,
+      "x_board_sale": 0,
+      "x_net_sale": 0,
+      "x_real_profit": 0,
+      "x_board_status": "none"
+    },
+    {
+      "id": 91,
+      "name": "رمان كبير — كرتون",
+      "purchase": 0,
+      "x_net_purchase": 0,
+      "x_waste_cost": 0,
+      "x_op_share": 1.99,
+      "x_full_cost": 0,
+      "x_board_sale": 0,
+      "x_net_sale": 0,
+      "x_real_profit": 0,
+      "x_board_status": "none"
+    }
+  ],
+  "applied": false
+}

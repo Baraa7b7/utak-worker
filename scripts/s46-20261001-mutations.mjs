@@ -17,6 +17,7 @@ const TE = "tests/s46-post-launch.test.mts";
 const PB = "src/pricing-board.ts";
 const PR = "src/prices.ts";
 const OC = "src/operating-cost.ts";
+const EN = "src/pricing-engine.ts"; // § 47: the line's cost is priceFloor (the board and the engine's rule read the same numbers)
 const LIB = "scripts/lib/s46-odoo-code.mjs";
 const PSF = "src/product-setup.ts";
 const ZP = "src/zero-price.ts";
@@ -34,14 +35,16 @@ const TT = "scripts/lib/tail-ticks.mjs";
 // [part, name, [[file, find, replace], …], test file]
 const M = [
   // ---------------------------------------------------------------- أ the pricing board
-  ["أ", "a registered source's purchase not divided by 1.15", [[PB,
-    "round2(i.registered ? (i.purchase as number) / d : (i.purchase as number))", "round2(i.purchase as number)"]], TA],
-  ["أ", "an unregistered source's purchase divided too", [[PB,
-    "round2(i.registered ? (i.purchase as number) / d : (i.purchase as number))", "round2((i.purchase as number) / d)"]], TA],
-  ["أ", "the waste on the gross purchase", [[PB,
-    "round2((Math.max(0, i.wastePct) / 100) * netPurchase)", "round2((Math.max(0, i.wastePct) / 100) * (i.purchase as number))"]], TA],
-  ["أ", "the full cost without the carton share", [[PB,
-    "const fullCost = hasPurchase ? round2(netPurchase + waste + opShare) : 0;", "const fullCost = hasPurchase ? round2(netPurchase + waste) : 0;"]], TA],
+  // § 47 أ — the purchase price is net as entered: the two mutations of the registered / unregistered
+  // split are now the two ways of taking it for a VAT-inclusive (÷ 1.15) or a VAT-less (× 1.15) price.
+  ["أ", "§ 47: the purchase divided by 1.15 again (taken as VAT-inclusive)", [[EN,
+    "  const netH = halalas(a.purchase);", "  const netH = halalas(a.vatRatePct ? a.purchase / 1.15 : a.purchase);"]], TA],
+  ["أ", "§ 47: the VAT added on the net purchase (× 1.15)", [[EN,
+    "  const netH = halalas(a.purchase);", "  const netH = halalas(a.vatRatePct ? a.purchase * 1.15 : a.purchase);"]], TA],
+  ["أ", "the waste on the purchase with its VAT (× 1.15), not on the net purchase", [[EN,
+    "  const wasteH = Math.round((netH * Math.max(0, a.wastePct)) / 100);", "  const wasteH = Math.round((netH * 1.15 * Math.max(0, a.wastePct)) / 100);"]], TA],
+  ["أ", "the full cost without the carton share", [[EN,
+    "  const fullH = netH + wasteH + (a.opShare !== null ? halalas(a.opShare) : 0);", "  const fullH = netH + wasteH;"]], TA],
   ["أ", "the net sale not divided from the cutoff", [[PB,
     "const netSale = hasSale ? round2((i.sale as number) / d) : 0;", "const netSale = hasSale ? round2(i.sale as number) : 0;"]], TA],
   ["أ", "divided by 1.15 before the cutoff too", [[PB,
@@ -86,8 +89,9 @@ const M = [
   ["أ", "the day's cost never read again", [[PB,
     "nowMs - kept.at < BOARD_INPUT_TTL_SEC * 1000", "nowMs - kept.at < 99999 * 1000"]], TA],
   ["أ", "«🔄 إعادة الحساب» does not read the cost again", [[PR,
-    "// § 46 أ — the board: the day's cost over the cartons (display only, the rule above is untouched)\n  const inputs = await readBoardInputs(env, day, now, !!opts.force);",
-    "// § 46 أ — the board: the day's cost over the cartons (display only, the rule above is untouched)\n  const inputs = await readBoardInputs(env, day, now, false);"]], TA],
+    // § 47 ب: the inputs are read before the rule (the suggested price needs the carton share)
+    "of the rule\n  const inputs = await readBoardInputs(env, day, now, !!opts.force);",
+    "of the rule\n  const inputs = await readBoardInputs(env, day, now, false);"]], TA],
   ["أ", "the share not in the engine's fingerprint", [[PR,
     "    [share.cost, share.cartons, share.basis, share.expected],\n", ""]], TA],
   ["أ", "the card of an exception has no sale (the market price not used)", [[PR,
@@ -96,8 +100,9 @@ const M = [
     "purchase: p.purchase, sale: v.sale > 0 ? v.sale : p.market, wastePct: settings.wastePct,", "purchase: p.purchase, sale: p.market, wastePct: settings.wastePct,"]], TA],
   ["أ", "the stored card ignores Baraa's price", [[PR,
     "sale: Number(l.x_sale_price) > 0 ? Number(l.x_sale_price) : Number(l.x_market_price) || 0,", "sale: Number(l.x_market_price) || 0,"]], TA],
-  ["أ", "every source taken as registered", [[PR,
-    "vatRatePct: vat.ratePct, registered: src ? vat.registered(src.partnerId) : true, opShare: share.share,", "vatRatePct: vat.ratePct, registered: true, opShare: share.share,"]], TA],
+  // § 47 أ — no source is «registered» on the board any more; its counterpart: the engine's own line keeps the carton share
+  ["أ", "§ 47: the engine's line computed without the carton share", [[PR,
+    "      vatRatePct: vat.ratePct, opShare: share.share, minMarginPct: settings.minMarginPct,\n    });", "      vatRatePct: vat.ratePct, opShare: null, minMarginPct: settings.minMarginPct,\n    });"]], TA],
   ["أ", "the header not written by the engine", [[PR,
     "    await call(env, PRICE_DAY_MODEL, \"write\", { ids: [rec.id], vals: boardHeader(share, board, now) });", "    void boardHeader;"]], TA],
   ["أ", "no board after a decision", [[PR,

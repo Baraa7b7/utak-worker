@@ -129,8 +129,9 @@ const M = [
   ["هـ", "the list linked though a supplier's bill failed", [[PA,
     "    if (!failed.length && !plan.noSupplier.length) {", "    if (true) {"]], T],
   ["هـ", "the input tax split whatever the supplier's card says", [[PA,
-    "      supplierVat: supplier?.vat, billDate, vatEffectiveDate: opts.vatEffectiveDate,\n    });\n    const expected",
-    "      supplierVat: \"3\", billDate, vatEffectiveDate: opts.vatEffectiveDate,\n    });\n    void supplier;\n    const expected"]], T],
+    // § 47 أ: a comment line sits between the tax and the expected totals (the tax is added on the net price now)
+    "      supplierVat: supplier?.vat, billDate, vatEffectiveDate: opts.vatEffectiveDate,\n    });\n",
+    "      supplierVat: \"3\", billDate, vatEffectiveDate: opts.vatEffectiveDate,\n    });\n    void supplier;\n"]], T],
   ["هـ", "the no-VAT line before 10-01 too", [[PA,
     "    if (done.some((d) => !d.existed && !d.tax) && isVatApplicable(billDate, opts.vatEffectiveDate)) {",
     "    if (done.some((d) => !d.existed && !d.tax)) {"]], T],

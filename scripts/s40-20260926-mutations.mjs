@@ -113,14 +113,15 @@ const M = [
   ["ج", "sale = the purchase price", [[EN,
     "  return { status: \"auto\", sale: round2(p.market as number), excluded: false, reason: \"\" };", "  return { status: \"auto\", sale: round2(p.purchase as number), excluded: false, reason: \"\" };"]], T],
   ["ج", "the waste ignored in the unit profit", [[EN,
-    // § 41 أ: the engine's unit profit is vatProfit (the waste term inside it)
-    "  const waste = (wastePct / 100) * purchase;\n  if (!vatRatePct) return sale - purchase - waste;", "  const waste = 0;\n  if (!vatRatePct) return sale - purchase - waste;"]], T],
+    // § 41 أ: the engine's unit profit is vatProfit (the waste term inside it); § 47 أ: its one-line shape
+    "  const waste = (wastePct / 100) * purchase;\n  return (vatRatePct ?", "  const waste = 0;\n  return (vatRatePct ?"]], T],
   ["ج", "(1) no purchase price is not an exception", [[EN,
     "    if (purchase === null) exceptions.push(\"no_purchase\");\n", ""]], T],
   ["ج", "(2) no market price is not an exception", [[EN,
     "    if (market === null) exceptions.push(\"no_market\");\n", ""]], T],
   ["ج", "(3) a unit profit of 0 passes (< instead of ≤)", [[EN,
-    "    if (profit !== null && profit <= 0) exceptions.push(\"no_profit\");", "    if (profit !== null && profit < 0) exceptions.push(\"no_profit\");"]], T],
+    // § 47 ب: the unit-profit rule is the one without a carton share (this file's world has none)
+    "      else if (profit !== null && profit <= 0) exceptions.push(\"no_profit\");", "      else if (profit !== null && profit < 0) exceptions.push(\"no_profit\");"]], T],
   ["ج", "(4) an outlier purchase price passes", [[EN,
     "const outlier = { purchase: !!p?.outlier, market: markets.some((o) => o.outlier) };", "const outlier = { purchase: false, market: markets.some((o) => o.outlier) };"]], T],
   ["ج", "(4) an outlier market observation passes", [[EN,
@@ -154,7 +155,8 @@ const M = [
   ["ج", "the count message without the review link", [[PR,
     "        `راجعها في شاشة المراجعة: ${await reviewUrl(env, rec.id)}`,\n", ""]], T],
   ["ج", "«اعتمد بسعر السوق» offered without a market price", [[PR,
-    "      ...(Number(l.x_market_price) > 0 ? [{ id: `pexc_m_${l.id}`, title: \"اعتمد بسعر السوق\" }] : []),", "      { id: `pexc_m_${l.id}`, title: \"اعتمد بسعر السوق\" },"]], T],
+    // § 47 ب: the choices are built by exceptionChoices (a description beside the title)
+    "    ...(Number(l.x_market_price) > 0 ? [{ id: `pexc_m_${l.id}`, title: \"اعتمد بسعر السوق\", description: `${money(Number(l.x_market_price))} ر.س` }] : []),", "    { id: `pexc_m_${l.id}`, title: \"اعتمد بسعر السوق\" },"]], T],
   ["ج", "«اعتمد بسعر السوق» taken without a market price", [[PR,
     "    if (!(market > 0)) return `لا سعر سوق لـ ${name} اليوم: اختر «لا تنشر» أو «عدّل».`;\n", ""]], T],
   ["ج", "no lock: a second decision overwrites the first", [[PR,
@@ -181,7 +183,7 @@ const M = [
   ["ج", "the display margin ÷ the market price", [[EN,
     "  return purchase > 0 && market > 0 ? round2(((market - purchase) / purchase) * 100) : 0;", "  return purchase > 0 && market > 0 ? round2(((market - purchase) / market) * 100) : 0;"]], T],
   ["ج", "Baraa's tap not wired in /webhook", [["src/index.ts",
-    "/^pexc_[mse]_\\d+$/.test(msg.buttonId ?? \"\")", "false"]], T],
+    "/^pexc_[mspe]_\\d+$/.test(msg.buttonId ?? \"\")", "false"]], T],
   ["ج", "his «عدّل» reply not wired in /webhook", [["src/index.ts",
     "          const r = await handlePriceEditReply(env, msg.text).catch((e) => {", "          const r = await Promise.resolve(null).catch((e) => { void handlePriceEditReply;"]], T],
   // ---------------------------------------------------------------- د the tiers and the minimum
@@ -197,11 +199,11 @@ const M = [
   ["د", "planned stops empty → a discount anyway", [[OP,
     "  if (settings.plannedStops === null) return { ...out, reason: \"«عدد المحطات اليومية المخطط» فارغ\" };\n", ""]], T],
   ["د", "a line without the day's purchase price counted at 0", [[OP,
-    // § 41: the cost row carries the winning source too ({ price, source })
-    "    if (!(c && c.price > 0)) return null;", "    if (!(c && c.price > 0)) continue;"]], T],
+    // § 47 أ: the cost row is the net purchase price alone (no source: the registration changes nothing)
+    "    if (!(c && c > 0)) return null;", "    if (!(c && c > 0)) continue;"]], T],
   ["د", "the waste left out of the order's profit", [[OP,
     // § 41: the per-line profit is vatProfit (the waste inside it)
-    "    profit += vatProfit(l.unit, c.price, wastePct, vat.ratePct, vat.registered(c.source)) * l.qty;", "    profit += vatProfit(l.unit, c.price, 0, vat.ratePct, vat.registered(c.source)) * l.qty;"]], T],
+    "    profit += vatProfit(l.unit, c, wastePct, vat.ratePct) * l.qty;", "    profit += vatProfit(l.unit, c, 0, vat.ratePct) * l.qty;"]], T],
   ["د", "the day's cost unreadable → a discount anyway", [[OP,
     "  if (cost.total === null) return { ...out, profitBefore: profit, reason: `تكلفة اليوم لا تُقرأ (${cost.reason ?? \"—\"})` };\n", ""]], T],
   ["د", "ACCOUNTING_SYNC on → a discount anyway", [[OP,
@@ -246,15 +248,15 @@ const M = [
     "    if (String(l.x_status) === \"unavailable\") continue; // short at delivery: not sold\n", ""]], T],
   ["هـ", "the waste left out of the day's profit", [[SM,
     // § 41: the per-line profit is vatProfit (the waste inside it)
-    "    profit += vatProfit(sale, buy.price, waste, vatRatePct, registered(buy.source)) * qty;", "    profit += vatProfit(sale, buy.price, 0, vatRatePct, registered(buy.source)) * qty;"]], T],
+    "    profit += vatProfit(sale, buy, waste, vatRatePct) * qty;", "    profit += vatProfit(sale, buy, 0, vatRatePct) * qty;"]], T],
   ["هـ", "a simulation order counted", [[SM,
     "    domain: [[\"x_order_date\", \"=\", day], [\"x_state\", \"in\", states], [SIM_FIELD, \"!=\", true]],", "    domain: [[\"x_order_date\", \"=\", day], [\"x_state\", \"in\", states]],"]], T],
   ["هـ", "today's orders instead of today's deliveries", [[SM,
     // § 41: with the VAT rate of the summary day
     "  const profit = await attempt(\"coverage_profit\", () => deliveredProfit(env, yesterday, profitVatRate(day)));", "  const profit = await attempt(\"coverage_profit\", () => deliveredProfit(env, day, profitVatRate(day)));"]], T],
   ["هـ", "a line without its day's purchase price counted at 0", [[SM,
-    // § 41: the cost row carries the winning source too ({ price, source })
-    "    if (!(buy && buy.price > 0)) throw new Error(\"a delivered line without its day's purchase price\");\n", "    if (!buy) continue;\n"]], T],
+    // § 47 أ: the cost row is the net purchase price alone
+    "    if (!(buy && buy > 0)) throw new Error(\"a delivered line without its day's purchase price\");\n", "    if (!buy) continue;\n"]], T],
   ["هـ", "a line without a sale price counted at 0", [[SM,
     "    if (!(sale > 0)) throw new Error(\"a delivered line without a sale price\");\n", ""]], T],
   ["هـ", "the purchase price of any day, not the order's", [[SM,

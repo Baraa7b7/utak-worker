@@ -32,8 +32,9 @@ const M = [
     "      const sid = market!.cashSupplierId;",
     "      const sid = (itemSupplier(it, list.listSupplierId) ?? market!.cashSupplierId)!;"]], T],
   ["أ", "a market line at the list's price (Ahmed's), not Omar's written one", [[SP,
-    "...base, unitPrice: won.price, priceId: null, subtotalH: lineSubtotalH(qty, won.price), noPrice: false,",
-    "...base, unitPrice: won.price, priceId: null, subtotalH: lineSubtotalH(qty, Number((it as { unit_price?: number }).unit_price ?? won.price)), noPrice: false,"]], T],
+    // § 47 أ: the line's amount owed comes from owed() (the net price, plus the VAT of a supplier with a VAT number)
+    "...base, unitPrice: won.price, priceId: null, ...owed(sid, qty, won.price), noPrice: false,",
+    "...base, unitPrice: won.price, priceId: null, ...owed(sid, qty, Number((it as { unit_price?: number }).unit_price ?? won.price)), noPrice: false,"]], T],
   ["أ", "no cash-market partner: the market lines «بلا سعر» under Ahmed again", [[SP,
     "      if (!market!.cashSupplierId) { noSupplier.push(it); continue; }",
     "      if (!market!.cashSupplierId) { const s0 = itemSupplier(it, list.listSupplierId); if (!s0) { noSupplier.push(it); continue; } const d0 = by.get(s0) ?? { supplierId: s0, lines: [], amountH: 0, unpriced: 0 }; d0.lines.push({ ...base, unitPrice: null, priceId: null, subtotalH: 0, noPrice: true }); d0.unpriced++; by.set(s0, d0); continue; }"]], T],

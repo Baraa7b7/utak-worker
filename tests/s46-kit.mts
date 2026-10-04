@@ -26,6 +26,7 @@ export const FIX = [
   "fixtures-odoo-fields-20260926-b3.json", "fixtures-odoo-fields-20260926-s39.json", "fixtures-odoo-fields-20260926-s40.json",
   "fixtures-odoo-fields-20260926-s41.json", "fixtures-odoo-fields-20260927-s42.json", "fixtures-odoo-fields-20260928-s44.json",
   "fixtures-odoo-fields-20261001-s49.json",   // § 46 + § 47: the board's fields, x_expected_cartons, x_utak_new, x_break_even / x_suggested_price, x_decision «profit»; § 48: x_min_profit_sar, the preview, x_manual_for (last: it wins)
+  "fixtures-odoo-fields-20261004-s51.json",   // § 51: x_extraction_status «flow», the price_ask_flow purpose (read last: it wins for the models both hold)
 ].map((f) => JSON.parse(readFileSync(new URL(`./${f}`, import.meta.url), "utf8")));
 const REAL: Record<string, string[]> = Object.assign({}, ...FIX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FIX.map((f) => f._selections ?? {}));

@@ -517,6 +517,14 @@ console.log("\n[د] a NEW customer's first purchase-like message: his reply, the
   assert("a greeting is not a purchase: no form yet", regFlows(NEWC_PHONE).length === 0 && sentTo(NEWC_PHONE).length === 1, kinds(NEWC_PHONE));
 }
 
+{
+  const env = regWorld();
+  assert("a new customer with nothing on his card: the form is due", (await quiet(() => RF.registerFormDue(env, NEWC))) === true);
+  seed("res.partner", { id: 521, name: "مسجَّل من Odoo", x_whatsapp_number: "+966500000521", customer_rank: 1, create_date: "2026-10-06 09:00:00", x_vat_status: "not_registered", vat: false });
+  seed("res.partner", { id: 522, name: "برقم ضريبي من Odoo", x_whatsapp_number: "+966500000522", customer_rank: 1, create_date: "2026-10-06 09:00:00", x_vat_status: "unknown", vat: "310123456700003" });
+  assert("a new customer whose card Baraa already filled (the status known, or a VAT number on it): no form", (await quiet(() => RF.registerFormDue(env, 521))) === false && (await quiet(() => RF.registerFormDue(env, 522))) === false && env.MSG_DEDUP.store.get("rform_first:v1:521") === "registered");
+}
+
 console.log("\n[د] a customer of before (#31, #105: created before § 53) never gets it");
 {
   const env = regWorld(); published(DAY);

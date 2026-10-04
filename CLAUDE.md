@@ -55,6 +55,7 @@
 - `prices.ts` — «أسعار اليوم» (`x_price_day`): البناء والاستثناءات والاعتماد والنشر.
 - `pricing-engine.ts` — القواعد: الشراء، والسوق، و«السعر المربح المقترح». `pricing-board.ts` — الربح الحقيقي لكل سطر.
 - `price-sources.ts` — مصادر الأسعار وعروضها و«دور الأسعار». `price-validity.ts` — صلاحية القائمة حتى 06:00.
+- `price-flow.ts` — طلب الأسعار بنموذج WhatsApp Flow (§ 51): خانة لكل صنف نشط، و`flow_token`، وقراءة `nfm_reply` بلا ذكاء، و«تعديل»، وتجربة براء.
 - `operating-cost.ts` — التكاليف التشغيلية وإعدادات التسعير (`x_pricing_config`).
 
 **الشراء والموردون**
@@ -96,6 +97,7 @@
 - **«السعر المربح المقترح»** = (الشراء + التالف + حصة الكرتون من تكلفة اليوم + الربح الأدنى للكرتون 2) × 1.15، لأعلى لأقرب نصف ريال (§ 48).
 - سوق ≥ المقترح: يُنشر بسعر السوق. غيره استثناء يصل براء (04:00–06:00) بخيار «اعتمد بالسعر المربح». شراء بلا مقترح = بلا سعر.
 - **دور المصدر (`x_price_role`):** أحمد «شراء»، وعمر «سوق». «أقل عرض» من مصادر «شراء» وحدها (§ 49).
+- **طلب الأسعار بالنموذج (§ 51):** Flow واحد منشور عند Meta (`utak_price_ask_v1` #1086052444016554، شاشة واحدة، 15 خانة، بلا endpoint: البيانات مع الرسالة). داخل نافذة 24 ساعة رسالة `flow`؛ خارجها قالب `utak_price_ask_flow_v1` **إن كان APPROVED و UTILITY** (صنّفه Meta MARKETING يوم 10-04 فلا يُستعمل)، وإلا الطلب السابق في التشغيل نفسه (`utak_supplier_ask_v2`، ونص عمر، وتذكير 05:00). الرد يُقرأ من `flow_token` (KV): رقمه، ويومه، وقبل نشر اليوم، ومرة واحدة. مورد «شراء» ← `x_daily_price` بحالة `flow`، وغيره ← `x_price_offer`. الرد النصي باقٍ.
 - **الصلاحية يوم واحد (§ 49):** قائمة اليوم D صالحة من نشرها حتى 06:00 من D+1. `quoteOrder` يثبّت أسعارها على الأسطر (`x_unit_price`، `x_price_date`). كل مسار يعرض سعراً لعميل يمر به، لا بـ `getLatestSalePrice` مباشرة.
 - **الطلب في أي ساعة.** بلا قائمة صالحة يُحفظ (`x_awaiting_prices`) ويصله عرضه عند أول نشر. الحد الأدنى 0.
 - **البوابة:** داخل نافذة 24 ساعة نص حر. خارجها قالب **UTILITY** معتمد لغرضه فقط. **MARKETING ممنوع** (Meta يُسقطه ويعيد تصنيف القوالب بعد اعتمادها). بلا قالب: يُحفظ حتى تُفتح النافذة.
@@ -111,6 +113,7 @@
 | باقي قوائم UTAK | «💬 المحادثات»، «🛒 المشتريات»، «💵 دفع الموردين»، «💰 المالية»، «📋 مراجعة الأرقام» |
 | «🔄 إعادة الحساب» / «نشر المعتمد الآن» (إجراءا خادم) | #1004 / #1038 |
 | إعدادات التسعير (`x_pricing_config`) / يوم الأسعار 10-01 (`x_price_day`) | #1 / #50 |
+| نموذج الأسعار عند Meta: Flow `utak_price_ask_v1` / قالبه `utak_price_ask_flow_v1` (صفه في `x_whatsapp_template`) | #1086052444016554 / #1071676795680561 (الصف #89) |
 | أحمد حسان (مورد، دور «شراء») | شريك #30 |
 | أبو مكين المعبري / بيت التمور (العميلان الحقيقيان) | شريك #31 / #105 |
 | مشتريات السوق النقدية (`UTAK-CASH-MARKET`) | شريك #104 |
@@ -122,10 +125,10 @@
 | إجراءات الخادم التي تستدعي الوركر (24) | جدولها في الأرشيف، سطر 584 |
 
 ## 7) الاختبارات والطفرات
-- `npm test` (51 ملفاً، نحو 40 ثانية، 4188 ✓). ملف واحد: `node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/<name>.test.mts`. و`npx tsc --noEmit`.
-- `tests/wa-harness.mts`: Odoo و Meta و KV في الذاكرة. **بوابة المخطط:** `tests/fixtures-odoo-fields-20261001-s49.json` (حقل ليس في البصمة يُسقط الاختبار). بعد تغيير حقول Odoo تُولَّد بصمة جديدة على نمط `scripts/s49-20261001-fields-fixture.mjs`.
-- **الماسح** (بعد أي تغيير في `src/`): `node scripts/mutation/s41-20260926-mutation-scan.mjs` — كل نمط يطابق مرة واحدة (1141 نمطاً).
-- **كل الطفرات** (على HEAD، في نسخ معزولة، فبعد commit): `node scripts/mutation/s45-20260930-mutations-all.mjs --out=docs/history/sNN-mutations-all.txt` (1122/1122 في 21 سكربتاً).
+- `npm test` (52 ملفاً، نحو 40 ثانية، 4314 ✓). ملف واحد: `node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/<name>.test.mts`. و`npx tsc --noEmit`.
+- `tests/wa-harness.mts`: Odoo و Meta و KV في الذاكرة. **بوابة المخطط:** `tests/fixtures-odoo-fields-20261004-s51.json` (حقل أو قيمة اختيار ليست في البصمة تُسقط الاختبار). بعد تغيير حقول Odoo تُولَّد بصمة جديدة على نمط `scripts/s51-20261004-fields-fixture.mjs`.
+- **الماسح** (بعد أي تغيير في `src/`): `node scripts/mutation/s41-20260926-mutation-scan.mjs` — كل نمط يطابق مرة واحدة (1233 نمطاً).
+- **كل الطفرات** (على HEAD، في نسخ معزولة، فبعد commit): `node scripts/mutation/s45-20260930-mutations-all.mjs --out=docs/history/sNN-mutations-all.txt` (1214/1214 في 22 سكربتاً).
 - **المعيار:** 0 ✗، و tsc نظيف، والماسح 0 خارج، والطفرات كلها caught. كل حارس جديد له طفرة في `scripts/mutation/sNN-…-mutations.mjs` تعطّله وتُسقط اختباره. سكربت الطفرات لا يُشغَّل في الشجرة الحية.
 
 ## 8) السكربتات (`scripts/`)
@@ -136,8 +139,9 @@
 | `payroll-monthly-entry.mjs YYYY-MM` | قيد الرواتب اليدوي (`docs/EXPENSES.md`) |
 | `acct-20260921-setup` و`acct-20260923-{sale,purchase,expense}-setup` | إعداد المحاسبة (idempotent)، يسميها الوركر في رسائل الخطأ |
 | `s49-20261001-step0.mjs` و`s46-20261001-after-deploy.mjs` | فحوص قبل النشر وبعده (القاعدتان 7 و8) |
-| `s49-20261001-fields-fixture.mjs` | توليد بصمة المخطط للاختبارات |
-| `s49-…-odoo`، `s48-…-{ui,day50,odoo}`، `s47-…-{day50,odoo}`، `s46-…-{wa-menu,product-setup,board}` | تراجع Odoo لـ § 46–§ 49 (`--rollback`) — STATUS § 1 |
+| `s51-20261004-fields-fixture.mjs` (وقبله `s49-20261001-fields-fixture.mjs`) | توليد بصمة المخطط للاختبارات |
+| `s51-20261004-price-flow.mjs` (+ `lib/s51-price-flow.mjs`) | Flow طلب الأسعار وقالبه عند Meta: `--status` يقرأ حالتهما، ولا إعادة تقديم لقالب مرفوض أو MARKETING |
+| `s51-…-odoo`، `s49-…-odoo`، `s48-…-{ui,day50,odoo}`، `s47-…-{day50,odoo}`، `s46-…-{wa-menu,product-setup,board}` | تراجع Odoo لـ § 46–§ 51 (`--rollback`) — STATUS § 1 |
 | `cutover-prod.mts`، `s42-20260927-prelaunch-mark.mts`، `s45-…-{omar-friday,mark-quotes}` | التحويل sim ← prod وتراجعه، ووسم سجلات المحاكاة |
 | `brand-20260924-{render-samples,render-docs,paper-scan,qr-cream-read}` | بعد أي تعديل في PDF: الختم و QR والتذييل ولون الورق |
 | `s41-full-day-sim.mts` (+ `sim-report`، `sim-snapshot`، `sim-mark`) | المحاكاة الشاملة ليوم كامل (`--odoo=fake`) |

@@ -1,0 +1,551 @@
+// § 53 (2026-10-04) — price privacy by role, the optional uplift on the market price, and the pay
+// reminder that carries the IBAN.
+//
+//   [أ]  who sees which price — every path that reaches رائد (an outside «سوق» source), عمر (an
+//        employee: buyer, driver, collector, and a «سوق» source), أحمد (a supplier, «شراء») and Baraa:
+//        the form and its hints, the texts, the reminders, the day's list, the quotation, the owner's
+//        messages, the purchase list, the inbound routing. The forbidden numbers are distinctive
+//        (21.37, 33.33, 34.44 …): a message is searched for them as it leaves.
+//   [ب]  «زيادة على سعر السوق ٪»: 0 = today's behaviour to the letter; 3 % (30 → 30.90 → 31); the
+//        rounding; the exception after the uplift; the publication's own check
+//   [هـ] utak_pay_remind_iban_v1: approved UTILITY → it replaces the reminder of before; pending,
+//        refused or MARKETING → the reminder of before; an IBAN that is no longer the company's → never
+//
+// In-memory Odoo + captured Graph (tests/wa-harness.mts, tests/s46-kit.mts). No network, no send.
+//
+//   node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/s53.test.mts
+
+import { readFileSync } from "node:fs";
+import { CUST, CUST2, CUST2_PHONE, CUST_PHONE, OWNER, ctx, graph, heldFor, inbound, odooLog, openWindow, quiet, rows, seed, sentTo, signed, table } from "./wa-harness.mts";
+import { AHMED, AHMED_PHONE, DAY, DRIVER, DRIVER_PHONE, OMAR_EMP, assert, cost, dayOf, done, fresh, lineFor, ownerTexts, rejected, setExtract } from "./s46-kit.mts";
+
+const FL = await import("../src/price-flow.ts");
+const PS = await import("../src/price-sources.ts");
+const EN = await import("../src/pricing-engine.ts");
+const PR = await import("../src/prices.ts");
+const PP = await import("../src/price-privacy.ts");
+const OC = await import("../src/operating-cost.ts");
+const OUT = await import("../src/outreach.ts");
+const TEAM = await import("../src/team.ts");
+const { sendViaGateway, gatewayDecision } = await import("../src/wa-gateway.ts");
+const { textContent } = await import("../src/meta.ts");
+const { clearTemplateCache } = await import("../src/templates.ts");
+const worker = (await import("../src/index.ts")).default;
+// @ts-ignore — plain .mjs helpers
+const ODOO = await import("../scripts/lib/s53-odoo.mjs");
+// @ts-ignore
+const TPL = await import("../scripts/lib/s53-templates.mjs");
+
+const RAED = 880, RAED_PHONE = "966550689078";
+/** Distinctive numbers: a message that carries one of them shows where it came from. */
+const AHMED_PRICE = 21.37, OMAR_MARKET = 33.33, RAED_MARKET = 34.44, TYPED_IN_ODOO = 55.55, SALE_ON_ROW = 29.29;
+
+const world = (riyadh = `${DAY} 02:30`): any => {
+  const env = fresh(riyadh); cost(500); setExtract(null);
+  for (const [id, name] of [[5, "فواكه"], [6, "خضار"], [7, "ورقيات"]] as Array<[number, string]>) seed("product.category", { id, name, parent_id: false });
+  for (const id of [1, 2, 3, 4]) table("product.template").get(id)!.categ_id = 6;
+  table("hr.employee").get(OMAR_EMP)!.x_price_role = "market";
+  Object.assign(table("res.partner").get(AHMED)!, { x_price_role: "purchase", customer_rank: 0, phone: "+" + AHMED_PHONE });
+  seed("res.partner", { id: RAED, name: "رائد", phone: "+" + RAED_PHONE, x_whatsapp_number: "+" + RAED_PHONE, x_wa_allowed: true, x_price_source: true, x_price_role: "market", customer_rank: 0, supplier_rank: 0, x_contact_class: "supplier" });
+  for (const [purpose, name, n] of [["supplier_ask", "utak_supplier_ask_v2", 2], ["supplier_confirm", "utak_supplier_confirm_v1", 2], ["supplier_price_nudge", "utak_supplier_price_nudge", 2], ["price_ask_flow", "utak_price_ask_flow_v2", 1], ["customer_welcome", "utak_welcome", 2]] as Array<[string, string, number]>) {
+    seed("x_whatsapp_template", { x_purpose: purpose, x_meta_template_id: name, x_language: "ar", x_meta_status: "APPROVED", x_param_count: n, x_category: "UTILITY" });
+  }
+  return env;
+};
+/** What each source sent before (rows with his message's id), and a row typed in Odoo under each name (no message id). */
+function history(): void {
+  const day = "2026-10-02";
+  seed("x_daily_price", { x_product_tmpl_id: 1, x_packaging_id: 11, x_supplier_id: AHMED, x_price_sar: AHMED_PRICE, x_sale_price: SALE_ON_ROW, x_date: day, x_extraction_status: "flow", x_source_message_id: "wamid.A1" });
+  seed("x_daily_price", { x_product_tmpl_id: 2, x_packaging_id: 21, x_supplier_id: AHMED, x_price_sar: TYPED_IN_ODOO, x_date: day, x_extraction_status: "confirmed", x_source_message_id: false });
+  const offer = (partner: number, product: number, packaging: number, market: number, msg: string | false, emp: number | false = false) =>
+    seed("x_price_offer", { x_product_tmpl_id: product, x_packaging_id: packaging, x_source_partner_id: partner, x_source_employee_id: emp, x_date: day, x_purchase_price: 0, x_market_price: market, x_purchase_outlier: false, x_market_outlier: false, x_status: "valid", x_utak_simulation: false, x_source_message_id: msg });
+  offer(DRIVER, 1, 11, OMAR_MARKET, "wamid.O1", OMAR_EMP);
+  offer(DRIVER, 2, 21, TYPED_IN_ODOO, false, OMAR_EMP);
+  offer(RAED, 1, 11, RAED_MARKET, "wamid.R1");
+  offer(RAED, 2, 21, TYPED_IN_ODOO, false);
+}
+const ahmedSrc = { partnerId: AHMED, name: "أحمد حسان", whatsapp: "+" + AHMED_PHONE, supplier: true, role: "purchase" as const };
+const omarSrc = { partnerId: DRIVER, employeeId: OMAR_EMP, name: "عمر المجهلي", whatsapp: "+" + DRIVER_PHONE, supplier: false, role: "market" as const };
+const raedSrc = { partnerId: RAED, employeeId: null, name: "رائد", whatsapp: "+" + RAED_PHONE, supplier: false, role: "market" as const };
+/** Everything a recipient can read in a message: every text of it (the values, never the data's key names «h29», «p31»…). */
+const leaves = (v: unknown): string[] => typeof v === "string" ? [v] : typeof v === "number" ? [String(v)] : v && typeof v === "object" ? Object.values(v as object).flatMap(leaves) : [];
+const body = (b: any) => leaves(b).join("\n");
+const allTo = (d: string) => sentTo(d).map(body).join("\n");
+const has = (text: string, n: number) => new RegExp(`(?<![0-9.])${String(n).replace(".", "\\.")}(?![0-9])`).test(text);
+const hints = (data: Record<string, unknown>) => Object.entries(data).filter(([k, v]) => /^h\d+$/.test(k) && v !== "-").map(([, v]) => String(v));
+const tplTo = (d: string, name: string) => sentTo(d).filter((b: any) => b?.template?.name === name);
+const params = (b: any): string[] => b.template.components.find((c: any) => c.type === "body").parameters.map((p: any) => p.text);
+const say = (env: any, from: string, m: Record<string, unknown>) => quiet(() => worker.fetch(signed(inbound(from, m)), env, ctx));
+const text = (t: string) => ({ type: "text", text: { body: t } });
+const gw = async (env: any, purpose: string, to: string, t = "اختبار") => gatewayDecision(await quiet(() => sendViaGateway(env, { purpose, to, content: textContent(t) })));
+
+// ================================================================ [أ] the form: the hint is his own number, or nothing
+console.log("\n[أ] the price form — رائد (an outside source) is shown no price at all");
+{
+  const env = world(); history();
+  odooLog.length = 0;
+  const p = (await quiet(() => FL.prepareFlowAsk(env, raedSrc)))!;
+  const priceReads = odooLog.filter((l: any) => l.model === "x_price_offer" || l.model === "x_daily_price").length;
+  const all = body(p.data) + body(p.session.body);
+  assert("his four fields carry «السعر بالريال» (or the packaging and it): no «آخر سعر», no «لا سعر سابق»",
+    hints(p.data).length === 4 && hints(p.data).every((h) => h.endsWith(FL.NO_PRICE_HINT)) && !/آخر سعر|سعر سابق/.test(all), hints(p.data).join(" | "));
+  assert("…not his own last number (34.44, sent in his own message), nor the one typed in Odoo under his name, nor Ahmed's, nor Omar's",
+    ![RAED_MARKET, TYPED_IN_ODOO, AHMED_PRICE, OMAR_MARKET, SALE_ON_ROW].some((n) => has(all, n)), all.slice(0, 200));
+  assert("no digit in any hint or label of his form", Object.entries(p.data).filter(([k]) => /^[hl]\d+$/.test(k)).every(([, v]) => !/[0-9٠-٩]/.test(String(v))));
+  assert("…and no price row was read for it (nothing of x_price_offer / x_daily_price is asked for his hints)", FL.isOutsideSource(raedSrc) === true && priceReads === 0, String(priceReads));
+  assert("the token keeps the same hints: «تعديل» opens the form with no price but what he typed", p.record.items.every((i: any) => !/[0-9٠-٩]/.test(i.hint)));
+  assert("the line above the fields is the market's VAT line — a rule, not a price", String(p.data.note).startsWith("اكتب السعر زي ما ينباع في السوق (شامل الضريبة)."));
+}
+
+console.log("\n[أ] the price form — عمر (an employee, «سوق»): his own market number, the one he sent himself");
+{
+  const env = world(); history();
+  const p = (await quiet(() => FL.prepareFlowAsk(env, omarSrc)))!;
+  const all = body(p.data) + body(p.session.body);
+  assert("طماطم: «آخر سعر: 33.33» — his own observation, from his own message", p.data.h1 === "آخر سعر: 33.33", String(p.data.h1));
+  assert("خيار: «لا سعر سابق» — the row typed in Odoo under his name (55.55, no message of his) is not shown", p.data.h2 === FL.NO_LAST_PRICE && !has(all, TYPED_IN_ODOO), String(p.data.h2));
+  assert("never Ahmed's purchase price (21.37), its fallback sale price (29.29), nor رائد's number (34.44)", ![AHMED_PRICE, SALE_ON_ROW, RAED_MARKET].some((n) => has(all, n)));
+  assert("an employee is not an outside source", FL.isOutsideSource(omarSrc) === false);
+}
+
+console.log("\n[أ] the price form — أحمد (a supplier, «شراء»): his own prices alone");
+{
+  const env = world(); history();
+  const p = (await quiet(() => FL.prepareFlowAsk(env, ahmedSrc)))!;
+  const all = body(p.data) + body(p.session.body);
+  assert("طماطم: «آخر سعر: 21.37» — the price he sent", p.data.h1 === "آخر سعر: 21.37", String(p.data.h1));
+  assert("خيار: «لا سعر سابق» — a row typed in Odoo under his name is not shown back to him", p.data.h2 === FL.NO_LAST_PRICE && !has(all, TYPED_IN_ODOO), String(p.data.h2));
+  assert("never the market (33.33, 34.44), nor the sale price kept on his own row (x_sale_price 29.29)", ![OMAR_MARKET, RAED_MARKET, SALE_ON_ROW].some((n) => has(all, n)));
+  assert("the heading is «أسعار الشراء اليوم» and the line «الأسعار بدون ضريبة.»", p.data.sub === "أسعار الشراء اليوم" && String(p.data.note).startsWith("الأسعار بدون ضريبة."));
+}
+
+console.log("\n[أ] another source's last prices fill the hints of the trial to Baraa alone");
+{
+  const env = world(); history();
+  const leak = (await quiet(() => FL.prepareFlowAsk(env, raedSrc, { hintsFrom: { partnerId: AHMED, supplier: true } })))!;
+  assert("`hintsFrom` on an ask that is not the trial is ignored: رائد's form still carries no price", !has(body(leak.data), AHMED_PRICE) && hints(leak.data).every((h) => h.endsWith(FL.NO_PRICE_HINT)), hints(leak.data).join(" | "));
+  const omar = (await quiet(() => FL.prepareFlowAsk(env, omarSrc, { hintsFrom: { partnerId: AHMED, supplier: true } })))!;
+  assert("…and عمر's form still carries his own number, not Ahmed's", omar.data.h1 === "آخر سعر: 33.33" && !has(body(omar.data), AHMED_PRICE));
+  openWindow(env, OWNER, 1);
+  const t = await quiet(() => FL.sendFlowTest(env));
+  const f = sentTo(OWNER).filter((b: any) => b?.interactive?.type === "flow");
+  assert("the trial goes to Baraa's own number, with the purchase source's last price (he sees everything)", t.sent === true && f.length === 1 && body(f[0]).includes("آخر سعر: 21.37"), JSON.stringify(t));
+  assert("…and to nobody else", [RAED_PHONE, DRIVER_PHONE, AHMED_PHONE].every((d) => sentTo(d).length === 0));
+}
+
+console.log("\n[أ] the ask, the reminder, the answer and «ما قدرنا نقرأ…»: what reaches each of them");
+{
+  const env = world(`${DAY} 02:30`); history();
+  for (const d of [RAED_PHONE, DRIVER_PHONE, AHMED_PHONE]) openWindow(env, d, 5);
+  for (const s of [raedSrc, omarSrc, ahmedSrc]) await quiet(() => FL.sendFlowAsk(env, s));
+  const raed = allTo(RAED_PHONE), omar = allTo(DRIVER_PHONE), ahmed = allTo(AHMED_PHONE);
+  assert("each got one form", [RAED_PHONE, DRIVER_PHONE, AHMED_PHONE].every((d) => sentTo(d).filter((b: any) => b?.interactive?.type === "flow").length === 1));
+  assert("رائد: no purchase, market, sale or typed number of anyone", ![AHMED_PRICE, OMAR_MARKET, RAED_MARKET, TYPED_IN_ODOO, SALE_ON_ROW].some((n) => has(raed, n)));
+  assert("عمر: his own 33.33 and nothing of Ahmed's or رائد's", has(omar, OMAR_MARKET) && ![AHMED_PRICE, RAED_MARKET, SALE_ON_ROW, TYPED_IN_ODOO].some((n) => has(omar, n)));
+  assert("أحمد: his own 21.37 and nothing of the market's", has(ahmed, AHMED_PRICE) && ![OMAR_MARKET, RAED_MARKET, SALE_ON_ROW, TYPED_IN_ODOO].some((n) => has(ahmed, n)));
+  // the answer to a form: what he typed, to him alone
+  const token = sentTo(RAED_PHONE).find((b: any) => b?.interactive?.type === "flow").interactive.action.parameters.flow_token;
+  graph.length = 0;
+  await quiet(() => FL.handlePriceFlowReply(env, { from: "+" + RAED_PHONE, messageId: "wamid.R9", flow: { token, values: { p1: "36.36" } } }));
+  const ack = allTo(RAED_PHONE);
+  assert("رائد's answer «وصلت ✅ طماطم 36.36» carries the number he typed and no other price", has(ack, 36.36) && ![AHMED_PRICE, OMAR_MARKET, RAED_MARKET, SALE_ON_ROW].some((n) => has(ack, n)), ack.slice(0, 160));
+  assert("…and it reached nobody else (the outlier or any note about it is Baraa's)", sentTo(DRIVER_PHONE).length === 0 && sentTo(AHMED_PHONE).length === 0);
+  assert("the reminder's text names no price", !/[0-9٠-٩]{2}\.[0-9]/.test(FL.flowNudgeText("05:30", "market")) && !/[0-9]/.test(FL.flowNudgeText("", "market").replace("الساعة", "")));
+  assert("«ما قدرنا نقرأ الأسعار…» to an outside source: no number at all, not even an example's", !/[0-9٠-٩]/.test(PS.marketUnreadText("market", true)) && !/[0-9٠-٩]/.test(PS.marketUnreadText(null, true)) && !/[0-9٠-٩]/.test(PS.marketUnreadText("purchase", true)) && !/شراء/.test(PS.marketUnreadText("market", true)));
+  assert("…to عمر (an employee, «سوق») the text of § 52, with no «شراء»", PS.marketUnreadText("market") === PS.marketUnreadText("market", false) && !/شراء/.test(PS.marketUnreadText("market")));
+}
+
+console.log("\n[أ] رائد answers in text something that cannot be read: his reply shows no number");
+{
+  const env = world(`${DAY} 02:40`);
+  openWindow(env, RAED_PHONE, 1);
+  await quiet(() => PS.writeMarketAskMarker(env, RAED_PHONE, DAY, Date.now() - 60_000));
+  setExtract({ prices: [] });
+  const r = await quiet(() => PS.tryMarketReply(env, { partnerId: RAED, name: "رائد" }, "+" + RAED_PHONE, "رمان ١١", "wamid.RX"));
+  assert("he is told to write the item's full name and its market price — with no example number", r === PS.marketUnreadText("market", true) && !!r && !/[0-9٠-٩]/.test(r), String(r));
+  setExtract(null);
+}
+
+// ================================================================ [أ] the day's list and the quotation never reach a source or a supplier
+console.log("\n[أ] the customers' price list: never a price source, never a supplier — by the partner and by the number");
+{
+  const env = world(`${DAY} 06:00`);
+  // a second partner on رائد's number and one on Ahmed's, both customers nobody is holding (the state a failed lookup leaves behind)
+  seed("res.partner", { id: 881, name: "رائد (عميل مكرر)", x_whatsapp_number: "+" + RAED_PHONE, customer_rank: 1, x_contact_class: "customer" });
+  seed("res.partner", { id: 882, name: "أحمد (عميل مكرر)", x_whatsapp_number: "0" + AHMED_PHONE.slice(3), customer_rank: 1, x_contact_class: "customer" });
+  // a supplier that also carries a customer rank, and a source flagged on a customer's own card
+  Object.assign(table("res.partner").get(AHMED)!, { customer_rank: 2, x_contact_class: "customer" });
+  seed("res.partner", { id: 883, name: "مصدر وعميل", x_whatsapp_number: "+966500000883", customer_rank: 1, x_price_source: true, x_contact_class: "customer" });
+  const list = await quiet(() => PR.priceRecipients(env));
+  assert("the two real customers are on the list", [CUST, CUST2].every((id) => list.some((r: any) => r.id === id)), JSON.stringify(list.map((r: any) => r.id)));
+  assert("not رائد, not Ahmed, not the second partners on their numbers (0550… = +966550…), not a customer flagged «مصدر أسعار»",
+    ![RAED, AHMED, 881, 882, 883].some((id) => list.some((r: any) => r.id === id)), JSON.stringify(list.map((r: any) => r.id)));
+  assert("not عمر (the team, by the roster)", !list.some((r: any) => r.phone === "+" + DRIVER_PHONE));
+  // the gateway, whoever addressed it
+  for (const d of [RAED_PHONE, AHMED_PHONE]) openWindow(env, d, 1);
+  openWindow(env, CUST_PHONE, 1);
+  graph.length = 0;
+  const toRaed = await gw(env, "customer_prices", "+" + RAED_PHONE, "• طماطم (كرتون): 31 ر.س");
+  const toAhmed = await gw(env, "customer_quotation", "+" + AHMED_PHONE, "عرض السعر");
+  const toAhmedLocal = await gw(env, "customer_quotation_pdf", "0" + AHMED_PHONE.slice(3), "عرض السعر");
+  const toRaedForm = await gw(env, "customer_order_form", "+" + RAED_PHONE, "نموذج الطلب");
+  assert("the gateway refuses the day's list, a quotation, its PDF and the order form to their numbers, their windows open", [toRaed, toAhmed, toAhmedLocal, toRaedForm].every((d) => d?.action === "refused" && /PricePrivacy/.test(String((d as any).reason))), JSON.stringify([toRaed, toAhmed, toAhmedLocal, toRaedForm]));
+  assert("…nothing reached them", sentTo(RAED_PHONE).length === 0 && sentTo(AHMED_PHONE).length === 0 && heldFor(env, RAED_PHONE).length === 0 && heldFor(env, AHMED_PHONE).length === 0);
+  assert("…Baraa is told once per number («🔒 حُجبت رسالة … عن مصدر أسعار / مورد»), with no price in it", ownerTexts().filter((t) => /🔒 حُجبت رسالة/.test(t)).length === 2 && ownerTexts().some((t) => /مصدر أسعار «رائد»/.test(t)) && ownerTexts().some((t) => /مورد «أحمد حسان»/.test(t)) && !ownerTexts().some((t) => /🔒/.test(t) && has(t, 31)), ownerTexts().join(" | "));
+  const toCust = await gw(env, "customer_prices", "+" + CUST_PHONE, "• طماطم (كرتون): 31 ر.س");
+  assert("a customer gets it as before", toCust?.action === "session" && sentTo(CUST_PHONE).length === 1, JSON.stringify(toCust));
+  const toOmar = await gw(env, "customer_prices", "+" + DRIVER_PHONE, "• طماطم (كرتون): 31 ر.س");
+  assert("عمر is not closed: the sale price is the one price he may see (he is simply not on the customers' list)", toOmar?.action !== "refused" || !/PricePrivacy/.test(String((toOmar as any).reason)), JSON.stringify(toOmar));
+  assert("no field rejected by the schema gate", rejected.length === 0, rejected.join(" | "));
+}
+
+console.log("\n[أ] the closed numbers unreadable at the publication: the partner's own flags still keep it off the list");
+{
+  const env = world(`${DAY} 06:00`);
+  Object.assign(table("res.partner").get(AHMED)!, { customer_rank: 2, x_contact_class: "customer", x_price_source: false });
+  seed("res.partner", { id: 883, name: "مصدر وعميل", x_whatsapp_number: "+966500000883", customer_rank: 1, x_price_source: true, x_contact_class: "customer" });
+  const real = globalThis.fetch;
+  globalThis.fetch = (async (input: unknown, init?: any) => {
+    const url = typeof input === "string" ? input : (input as any)?.url ?? String(input);
+    if (url.includes("/res.partner/search_read") && String(init?.body ?? "").includes('"|"')) return new Response("{}", { status: 500 });
+    return real(input as any, init);
+  }) as typeof fetch;
+  const list = await quiet(() => PR.priceRecipients(env));
+  globalThis.fetch = real;
+  assert("a supplier with a customer rank (supplier_rank) and a customer flagged «مصدر أسعار» are left out; the customers stay", !list.some((r: any) => r.id === AHMED || r.id === 883) && [CUST, CUST2].every((id) => list.some((r: any) => r.id === id)), JSON.stringify(list.map((r: any) => r.id)));
+}
+
+console.log("\n[أ] a number that cannot be verified gets no price-bearing message (Odoo unreadable, nothing kept)");
+{
+  const env = world(`${DAY} 06:00`);
+  openWindow(env, CUST_PHONE, 1);
+  const real = globalThis.fetch;
+  globalThis.fetch = (async (input: unknown, init?: any) => {
+    const url = typeof input === "string" ? input : (input as any)?.url ?? String(input);
+    if (url.includes("/res.partner/search_read") && String(init?.body ?? "").includes("x_price_source")) return new Response("{}", { status: 500 });
+    return real(input as any, init);
+  }) as typeof fetch;
+  const d = await gw(env, "customer_prices", "+" + CUST_PHONE, "• طماطم (كرتون): 31 ر.س");
+  globalThis.fetch = real;
+  assert("refused, not guessed («PricePrivacyUnverified»)", d?.action === "refused" && /PricePrivacyUnverified/.test(String((d as any).reason)) && sentTo(CUST_PHONE).length === 0, JSON.stringify(d));
+  const again = await gw(env, "customer_prices", "+" + CUST_PHONE, "• طماطم (كرتون): 31 ر.س");
+  assert("…and the next send, Odoo back, goes (a failed read is not kept)", again?.action === "session" && sentTo(CUST_PHONE).length === 1, JSON.stringify(again));
+  assert("the closed numbers are then kept five minutes: one read for the sends of those minutes", !!env.MSG_DEDUP.store.get(PP.CLOSED_KV_KEY) && PP.CLOSED_TTL_SECONDS === 300);
+}
+
+console.log("\n[أ] the closed numbers: every price source and supplier, by «x_whatsapp_number» and by «phone»");
+{
+  const env = world();
+  seed("res.partner", { id: 884, name: "مورد برقم في الهاتف فقط", phone: "+966500000884", x_whatsapp_number: false, supplier_rank: 1 });
+  const list = await quiet(() => PP.readClosedNumbers(env));
+  assert("رائد is a «source», Ahmed a «supplier»; a supplier whose number sits in «phone» alone is there too", list.some((c: any) => c.id === RAED && c.kind === "source") && list.some((c: any) => c.id === AHMED && c.kind === "supplier") && list.some((c: any) => c.id === 884 && c.digits === "966500000884"), JSON.stringify(list));
+  assert("عمر (an employee) and the customers are not closed", !list.some((c: any) => c.id === DRIVER || c.id === CUST || c.id === CUST2));
+  assert("«0550689078», «966550689078» and «+966550689078» are one number", PP.sameNumber("0550689078", "+" + RAED_PHONE) && PP.sameNumber(RAED_PHONE, "+" + RAED_PHONE) && !PP.sameNumber("+966550689079", RAED_PHONE) && !PP.sameNumber("", RAED_PHONE));
+  assert("what carries our sale prices to a customer: the day's list, the quotation (text and PDF), the order form", JSON.stringify([...PP.CUSTOMER_PRICE_PURPOSES].sort()) === JSON.stringify(["customer_order_form", "customer_prices", "customer_quotation", "customer_quotation_pdf"]));
+}
+
+// ================================================================ [أ] what is Baraa's reaches Baraa alone
+console.log("\n[أ] the owner's messages — the exceptions with the purchase price and the profit, his copy, his alerts — reach his number alone");
+{
+  const env = world(`${DAY} 04:10`);
+  for (const d of [RAED_PHONE, DRIVER_PHONE, AHMED_PHONE, CUST_PHONE]) openWindow(env, d, 1);
+  const OWNER_PURPOSES = ["owner_alert", "owner_summary", "owner_window", "owner_team_note", "owner_prices", "owner_price_exception", "owner_price_review", "owner_order_confirmed", "conv_open_owner", "price_flow_test"];
+  const out: string[] = [];
+  for (const p of OWNER_PURPOSES) for (const d of [RAED_PHONE, DRIVER_PHONE, AHMED_PHONE, CUST_PHONE]) {
+    const r = await gw(env, p, "+" + d, "الشراء (بدون ضريبة): 21.37 · السوق: 33.33 · ربح الوحدة: 5.96");
+    if (r?.action !== "refused" || !/OwnerOnlyPurpose/.test(String((r as any).reason))) out.push(`${p}→${d}`);
+  }
+  assert("each of the owner's ten purposes is refused for رائد, عمر, أحمد and a customer, their windows open", out.length === 0, out.join(" "));
+  assert("…nothing sent, nothing held for them", [RAED_PHONE, DRIVER_PHONE, AHMED_PHONE, CUST_PHONE].every((d) => sentTo(d).length === 0 && heldFor(env, d).length === 0));
+  const mine = await gw(env, "owner_price_exception", "+" + OWNER, "الشراء (بدون ضريبة): 21.37");
+  assert("to Baraa's own number they go as before", mine?.action === "session" && sentTo(OWNER).length === 1, JSON.stringify(mine));
+}
+
+console.log("\n[أ] a real morning: the exception (purchase, market, profit, suggested) reaches Baraa and nobody else");
+{
+  const env = world(`${DAY} 04:10`);
+  for (const d of [RAED_PHONE, DRIVER_PHONE, AHMED_PHONE]) openWindow(env, d, 1);
+  seed("x_daily_price", { x_product_tmpl_id: 1, x_packaging_id: 11, x_supplier_id: AHMED, x_price_sar: AHMED_PRICE, x_date: DAY, x_extraction_status: "flow", x_source_message_id: "wamid.A2" });
+  seed("x_price_offer", { x_product_tmpl_id: 1, x_packaging_id: 11, x_source_partner_id: RAED, x_date: DAY, x_purchase_price: 0, x_market_price: 25.25, x_purchase_outlier: false, x_market_outlier: false, x_status: "valid", x_utak_simulation: false, x_source_message_id: "wamid.R2" });
+  await quiet(() => PR.refreshPriceDay(env, { force: true }));
+  await quiet(() => PR.notifyPriceExceptions(env));
+  const mine = ownerTexts().join("\n");
+  assert("Baraa reads it all: the purchase 21.37, the market 25.25, the suggested price", has(mine, AHMED_PRICE) && has(mine, 25.25) && /السعر المربح المقترح/.test(mine), mine.slice(0, 200));
+  assert("رائد, عمر and أحمد were sent nothing by the engine's run or the exceptions", [RAED_PHONE, DRIVER_PHONE, AHMED_PHONE].every((d) => sentTo(d).length === 0 && heldFor(env, d).length === 0));
+}
+
+// ================================================================ [أ] عمر: the purchase list, the collection
+console.log("\n[أ] عمر's purchase list names items and quantities — never the purchase price its rows carry");
+{
+  const items = [
+    { product_id: 1, product_name: "طماطم", packaging_id: 11, packaging_name: "كرتون", total_quantity: 7, order_ids: [1], unit_price: AHMED_PRICE, price_supplier_id: AHMED },
+    { product_id: 2, product_name: "خيار", packaging_id: 21, packaging_name: "جرم", total_quantity: 3, order_ids: [1], unit_price: 18.18, price_supplier_id: AHMED },
+  ];
+  const full = TEAM.renderPurchaseListMessage(items as any), line = TEAM.purchaseListLine(items as any);
+  assert("the message: «1. طماطم — كرتون × 7» — no 21.37, no 18.18, no «ريال»", /1\. طماطم — كرتون × 7/.test(full) && ![AHMED_PRICE, 18.18].some((n) => has(full, n) || has(line, n)) && !/ريال|ر\.س|سعر/.test(full + line), full);
+}
+
+// ================================================================ [أ] the inbound: a source's or a supplier's number never enters the customer path
+console.log("\n[أ] رائد writes while a customer partner sits on his number: no welcome, no customer reply, no quotation");
+{
+  const env = world(`${DAY} 10:00`);
+  seed("res.partner", { id: 881, name: "رائد (عميل مكرر)", x_whatsapp_number: "+" + RAED_PHONE, customer_rank: 1, x_contact_class: "customer" });
+  const before = rows("res.partner").length, orders = rows("x_daily_order").length;
+  setExtract({ items: [{ product_id: 1, packaging_id: 11, quantity: 26, product_name_raw: "طماطم" }] });
+  await say(env, RAED_PHONE, text("طماطم 26"));
+  setExtract(null);
+  const got = sentTo(RAED_PHONE);
+  assert("he is answered «وصلتنا رسالتك في يو تاك…» — not the customer bot", got.length === 1 && got[0]?.text?.body === PS.OUTSIDE_SOURCE_ACK, JSON.stringify(got.map((b: any) => b.template?.name ?? b.text?.body ?? b.interactive?.type)));
+  assert("no welcome template, no order, no quotation, no partner made", tplTo(RAED_PHONE, "utak_welcome").length === 0 && rows("x_daily_order").length === orders && rows("x_quotation").length === 0 && rows("res.partner").length === before);
+  assert("Baraa gets one line with what he wrote", ownerTexts().some((t) => /رسالة من مصدر الأسعار «رائد»/.test(t)));
+}
+
+console.log("\n[أ] a supplier whose number the supplier lookup does not give (kept in «phone» alone): never a customer");
+{
+  const env = world(`${DAY} 10:00`);
+  seed("res.partner", { id: 884, name: "مورد الهاتف", phone: "+966500000884", x_whatsapp_number: false, supplier_rank: 1 });
+  const before = rows("res.partner").length;
+  await say(env, "966500000884", text("السلام عليكم"));
+  assert("no customer partner is made for his number, and no welcome reaches him", rows("res.partner").length === before && tplTo("966500000884", "utak_welcome").length === 0, JSON.stringify(sentTo("966500000884").map((b: any) => b.template?.name ?? b.text?.body)));
+  assert("he is answered that the team will look at it", sentTo("966500000884").some((b: any) => b?.text?.body === PS.OUTSIDE_SOURCE_ACK));
+}
+
+console.log("\n[أ] Baraa's own number on a supplier partner (as «براء - اختبار» on the tenant): his messages stay the owner's");
+{
+  const env = world(`${DAY} 10:00`);
+  seed("res.partner", { id: 885, name: "براء - اختبار", phone: "+" + OWNER, x_whatsapp_number: false, supplier_rank: 1 });
+  await say(env, OWNER, text("السلام عليكم"));
+  await say(env, OWNER, { type: "image", image: { id: "MEDIA-OWNER-1", mime_type: "image/jpeg", sha256: "x" } });
+  assert("he is never answered as an outside source — a text or an image — and no line about «مصدر الأسعار» is raised", !sentTo(OWNER).some((b: any) => b?.text?.body === PS.OUTSIDE_SOURCE_ACK) && !ownerTexts().some((t) => /رسالة من مصدر الأسعار/.test(t)), JSON.stringify(sentTo(OWNER).map((b: any) => b.template?.name ?? b.text?.body)));
+}
+
+console.log("\n[أ] a new customer still gets his welcome and his partner (the check costs him nothing)");
+{
+  const env = world(`${DAY} 10:00`);
+  const before = rows("res.partner").length;
+  await say(env, "966500000777", text("السلام عليكم"));
+  assert("a partner is made and the welcome goes", rows("res.partner").length === before + 1 && tplTo("966500000777", "utak_welcome").length === 1, JSON.stringify(sentTo("966500000777").map((b: any) => b.template?.name ?? b.text?.body)));
+}
+
+// ================================================================ [ب] the uplift
+console.log("\n[ب] «زيادة على سعر السوق ٪»: the sale price of a market price");
+{
+  assert("the order's example: market 30, uplift 3 % → 30.90 → 31", EN.upliftedSale(30, 3) === 31);
+  assert("0 = the market price as it is — nothing is rounded (28.75 stays 28.75, 31.05 stays 31.05)", EN.upliftedSale(28.75, 0) === 28.75 && EN.upliftedSale(31.05, 0) === 31.05 && EN.upliftedSale(30, 0) === 30);
+  assert("an empty, a negative or an unreadable value is no uplift", [false, null, undefined, "", -3, NaN, "x"].every((v) => EN.upliftedSale(28.75, v) === 28.75 && EN.upliftOf(v) === 0));
+  assert("up to the nearest half: 20 + 2.5 % = 20.50 stays 20.50; 20 + 2.6 % = 20.52 → 21; 40 + 1 % = 40.40 → 40.50", EN.upliftedSale(20, 2.5) === 20.5 && EN.upliftedSale(20, 2.6) === 21 && EN.upliftedSale(40, 1) === 40.5);
+  assert("a float's noise does not push a price to the next half (10 + 5 % = 10.50 exactly)", EN.upliftedSale(10, 5) === 10.5 && EN.upliftedSale(100, 10) === 110);
+  assert("never below the market price", [[17.3, 0.1], [22, 0.01], [9.99, 50]].every(([m, u]) => EN.upliftedSale(m, u) >= m));
+}
+
+const ITEMS = [{ productId: 1, productName: "طماطم", packagingId: 11, packagingName: "كرتون" }, { productId: 2, productName: "خيار", packagingId: 21, packagingName: "جرم" }, { productId: 3, productName: "بطاطس", packagingId: 31, packagingName: "كرتون" }, { productId: 4, productName: "بصل", packagingId: 41, packagingName: "جرم" }];
+const offer = (kind: "purchase" | "market", productId: number, packagingId: number, price: number, rowId: number) => ({ kind, price, outlier: false, partnerId: kind === "purchase" ? AHMED : DRIVER, sourceName: kind === "purchase" ? "أحمد" : "عمر", productId, packagingId, model: kind === "purchase" ? "dp" as const : "po" as const, rowId });
+const OFFERS = [offer("purchase", 1, 11, 20, 1), offer("market", 1, 11, 30, 2), offer("purchase", 2, 21, 20, 3), offer("market", 2, 21, 28, 4), offer("purchase", 3, 31, 20, 5), offer("market", 3, 31, 27, 6), offer("market", 4, 41, 31.05, 7)];
+const VAT = { ratePct: 15 }, FLOOR = { opShare: 2, minProfit: 2 };
+
+console.log("\n[ب] the rule at 0 %: today's behaviour to the letter");
+{
+  const before = EN.computePricing(ITEMS, OFFERS, 5, VAT, FLOOR);
+  const zero = EN.computePricing(ITEMS, OFFERS, 5, VAT, FLOOR, 0);
+  assert("computePricing with an uplift of 0 gives every line exactly what it gives with no uplift named", JSON.stringify(zero) === JSON.stringify(before));
+  assert("the sale price is the market price itself on every line (30, 28, 27, 31.05 — not rounded)", zero.every((l) => l.sale === l.market) && zero[3].sale === 31.05);
+  assert("the suggested price of a purchase of 20 is 29: market 30 is automatic, 28 and 27 are «أقل من المربح», and the texts are the ones of before", zero[0].exceptions.length === 0 && zero[0].suggested === 29
+    && zero[1].reason === "سعر السوق 28 أقل من السعر المربح 29" && zero[2].reason === "سعر السوق 27 أقل من السعر المربح 29" && zero[3].reason === "لا سعر شراء", JSON.stringify(zero.map((l) => l.reason)));
+  assert("the unit profit is made from the market price: 30 ÷ 1.15 − 20 − 1 = 5.09", zero[0].unitProfit === 5.09 && EN.lineVerdict(zero[0], null, 0).sale === 30 && EN.lineVerdict(zero[1], "market", 0).sale === 28);
+  assert("a stored line with no uplift on it sells at its market price (a day made before § 53)", EN.saleRule({ x_status: "auto", x_market_price: 31.05, x_manual_price: 0 }) === 31.05 && EN.saleRule({ x_status: "auto", x_market_price: 31.05, x_manual_price: 0, x_uplift_pct: false }) === 31.05 && EN.marketSale({ x_market_price: 28.75, x_uplift_pct: 0 }) === 28.75);
+}
+
+console.log("\n[ب] the rule at 3 %: the sale price, the comparison and the exception are made on the price after the uplift");
+{
+  const up = EN.computePricing(ITEMS, OFFERS, 5, VAT, FLOOR, 3);
+  assert("market 30 → sale 31, automatic; the market observation itself is kept (30)", up[0].sale === 31 && up[0].market === 30 && up[0].upliftPct === 3 && up[0].exceptions.length === 0 && EN.lineVerdict(up[0], null, 0).sale === 31);
+  assert("…its unit profit is made from 31: 31 ÷ 1.15 − 20 − 1 = 5.96", up[0].unitProfit === 5.96);
+  assert("market 28 → 28.84 → 29: it reaches the suggested 29 — an exception at 0 %, automatic at 3 %", up[1].sale === 29 && up[1].exceptions.length === 0 && EN.lineVerdict(up[1], null, 0).status === "auto" && EN.lineVerdict(up[1], null, 0).sale === 29);
+  assert("market 27 → 27.81 → 28: still below 29 — an exception, and its reason says both numbers", up[2].sale === 28 && up[2].exceptions.join() === "below_profit" && up[2].reason === "سعر السوق 27 بعد الزيادة 3٪ = 28 أقل من السعر المربح 29", up[2].reason);
+  assert("«اعتمد بسعر السوق» on it approves the price after the uplift (28), «اعتمد بالسعر المربح» the suggested (29)", EN.lineVerdict(up[2], "market", 0).sale === 28 && EN.lineVerdict(up[2], "profit", 0).sale === 29);
+  assert("no purchase price: still an exception, its sale price the uplifted market (31.05 → 31.98 → 32)", up[3].exceptions.join() === "no_purchase" && up[3].sale === 32);
+  assert("the suggested price does not move with the uplift (it is made from the purchase alone)", up.every((l, i) => l.suggested === EN.computePricing(ITEMS, OFFERS, 5, VAT, FLOOR)[i].suggested));
+  assert("a stored line: auto → the market price after ITS uplift; a fixed price stays what Baraa fixed", EN.saleRule({ x_status: "auto", x_market_price: 30, x_manual_price: 0, x_uplift_pct: 3 }) === 31
+    && EN.saleRule({ x_status: "manual", x_market_price: 30, x_manual_price: 0, x_decision: "market", x_uplift_pct: 3 }) === 31
+    && EN.saleRule({ x_status: "manual", x_market_price: 30, x_manual_price: 33, x_decision: "edit", x_manual_for: "edit", x_uplift_pct: 3 }) === 33);
+}
+
+console.log("\n[ب] the setting: read from the active record («⚙️ الإعدادات»), 0 when empty");
+{
+  const env = world();
+  assert("no value on the record: 0", (await quiet(() => OC.readPricingSettings(env, DAY)))?.marketUpliftPct === 0);
+  table("x_pricing_config").get(1)!.x_market_uplift_pct = 3;
+  assert("3 on the record: 3", (await quiet(() => OC.readPricingSettings(env, DAY)))?.marketUpliftPct === 3);
+  table("x_pricing_config").get(1)!.x_market_uplift_pct = -5;
+  assert("a negative value: 0", (await quiet(() => OC.readPricingSettings(env, DAY)))?.marketUpliftPct === 0);
+  assert("no field rejected by the schema gate (x_market_uplift_pct is on the tenant)", rejected.length === 0, rejected.join(" | "));
+}
+
+const seedDay = (): void => {
+  for (const [p, k, price] of [[1, 11, 20], [2, 21, 20], [3, 31, 20]] as Array<[number, number, number]>) seed("x_daily_price", { x_product_tmpl_id: p, x_packaging_id: k, x_supplier_id: AHMED, x_price_sar: price, x_date: DAY, x_extraction_status: "flow", x_source_message_id: "wamid.A" });
+  for (const [p, k, m] of [[1, 11, 30], [2, 21, 28], [3, 31, 27]] as Array<[number, number, number]>) seed("x_price_offer", { x_product_tmpl_id: p, x_packaging_id: k, x_source_partner_id: DRIVER, x_source_employee_id: OMAR_EMP, x_date: DAY, x_purchase_price: 0, x_market_price: m, x_purchase_outlier: false, x_market_outlier: false, x_status: "valid", x_utak_simulation: false, x_source_message_id: "wamid.O" });
+};
+const custPrices = (d: string) => sentTo(d).map((b: any) => String(b?.text?.body ?? "")).filter((t) => /أسعار يو تاك اليوم/.test(t)).join("\n");
+
+console.log("\n[ب] a whole day at 0 %: the lines, the exception's message and the published list are the ones of before");
+{
+  const env = world(`${DAY} 04:10`); seedDay();
+  // share 500 ÷ 250 = 2: suggested 29
+  await quiet(() => PR.refreshPriceDay(env, { force: true }));
+  const l1 = lineFor(1), l2 = lineFor(2), l3 = lineFor(3);
+  assert("طماطم: automatic at the market price 30, «زيادة السوق ٪» 0", l1.x_status === "auto" && l1.x_sale_price === 30 && l1.x_market_price === 30 && !l1.x_uplift_pct, JSON.stringify([l1.x_status, l1.x_sale_price, l1.x_uplift_pct]));
+  assert("خيار (28) and بطاطس (27): exceptions «سعر السوق … أقل من السعر المربح 29»", l2.x_status === "exception" && l2.x_reason === "سعر السوق 28 أقل من السعر المربح 29" && l3.x_status === "exception");
+  const t = PR.exceptionText(DAY, l2, "06:00");
+  assert("the exception's message has no «بعد الزيادة» line: purchase, market, profit, suggested, reason, deadline — as before § 53", !/الزيادة/.test(t) && t.split("\n").length === 6 && /السوق: 28/.test(t), t);
+  assert("«اعتمد بسعر السوق» is offered at 28", PR.exceptionChoices(l2).find((c: any) => c.id === `pexc_m_${l2.id}`)?.description === "28 ر.س");
+  const ok = await quiet(() => PR.handlePriceExceptionButton(env, `pexc_m_${l2.id}`));
+  assert("…and approves 28: «يُنشر بسعر السوق 28 ر.س.»", /يُنشر بسعر السوق 28 ر\.س\./.test(ok) && lineFor(2).x_sale_price === 28 && lineFor(2).x_manual_price === 28, ok);
+  openWindow(env, CUST_PHONE, 1);
+  table("x_price_day").get(dayOf().id)!.x_state = "approved";
+  const pub = await quiet(() => PR.publishPriceDay(env, dayOf().id));
+  assert("published (the publication's own check of each line's price passes)", pub.action === "published", JSON.stringify(pub));
+  assert("the customer reads طماطم 30 and خيار 28", /طماطم \(كرتون\): 30 ر\.س/.test(custPrices(CUST_PHONE)) && /خيار \(جرم\): 28 ر\.س/.test(custPrices(CUST_PHONE)), custPrices(CUST_PHONE));
+}
+
+console.log("\n[ب] the same day at 3 %");
+{
+  const env = world(`${DAY} 04:10`); seedDay();
+  table("x_pricing_config").get(1)!.x_market_uplift_pct = 3;
+  await quiet(() => PR.refreshPriceDay(env, { force: true }));
+  const l1 = lineFor(1), l2 = lineFor(2), l3 = lineFor(3);
+  assert("طماطم: automatic at 31 (30 → 30.90 → 31); the market stays 30 on the line, with its uplift 3", l1.x_status === "auto" && l1.x_sale_price === 31 && l1.x_market_price === 30 && l1.x_uplift_pct === 3, JSON.stringify([l1.x_status, l1.x_sale_price, l1.x_market_price, l1.x_uplift_pct]));
+  assert("…its unit profit and its board are made from 31", l1.x_unit_profit === 5.96 && l1.x_board_sale === 31);
+  assert("خيار: 28 → 29 reaches the suggested 29 — automatic, no exception", l2.x_status === "auto" && l2.x_sale_price === 29);
+  assert("بطاطس: 27 → 28 < 29 — the exception, its reason with both numbers", l3.x_status === "exception" && l3.x_reason === "سعر السوق 27 بعد الزيادة 3٪ = 28 أقل من السعر المربح 29", String(l3.x_reason));
+  const t = PR.exceptionText(DAY, l3, "06:00");
+  assert("the exception's message shows the market (27) and «البيع بعد الزيادة 3٪: 28»", /السوق: 27/.test(t) && /البيع بعد الزيادة 3٪: 28/.test(t), t);
+  const choice = PR.exceptionChoices(l3);
+  assert("«اعتمد بالسعر المربح» 29 and «اعتمد بسعر السوق» 28 (the price after the uplift)", choice.find((c: any) => c.id === `pexc_p_${l3.id}`)?.description === "29 ر.س" && choice.find((c: any) => c.id === `pexc_m_${l3.id}`)?.description === "28 ر.س", JSON.stringify(choice));
+  const ok = await quiet(() => PR.handlePriceExceptionButton(env, `pexc_m_${l3.id}`));
+  assert("…the tap approves 28: «يُنشر بسعر السوق بعد الزيادة 28 ر.س.»", /يُنشر بسعر السوق بعد الزيادة 28 ر\.س\./.test(ok) && lineFor(3).x_sale_price === 28, ok);
+  await quiet(() => PR.refreshPriceDay(env, { force: true }));
+  assert("…and the engine's next run keeps it (28, «براء: اعتمد بسعر السوق»)", lineFor(3).x_sale_price === 28 && lineFor(3).x_status === "manual");
+  openWindow(env, CUST_PHONE, 1);
+  table("x_price_day").get(dayOf().id)!.x_state = "approved";
+  const pub = await quiet(() => PR.publishPriceDay(env, dayOf().id));
+  assert("published: each line's price is the rule's (31, 29, 28) — no «لا يطابق القاعدة»", pub.action === "published" && !ownerTexts().some((x) => /لا يطابق القاعدة/.test(x)), JSON.stringify(pub));
+  assert("the customer reads طماطم 31, خيار 29 and بطاطس 28", /طماطم \(كرتون\): 31 ر\.س/.test(custPrices(CUST_PHONE)) && /خيار \(جرم\): 29 ر\.س/.test(custPrices(CUST_PHONE)) && /بطاطس \(كرتون\): 28 ر\.س/.test(custPrices(CUST_PHONE)), custPrices(CUST_PHONE));
+  assert("no field rejected by the schema gate (x_uplift_pct is on the tenant)", rejected.length === 0, rejected.join(" | "));
+}
+
+console.log("\n[ب] a price changed by hand in Odoo no longer matches the rule: not published");
+{
+  const env = world(`${DAY} 04:10`); seedDay();
+  table("x_pricing_config").get(1)!.x_market_uplift_pct = 3;
+  await quiet(() => PR.refreshPriceDay(env, { force: true }));
+  lineFor(1).x_sale_price = 30; // the market price, typed over the rule's 31
+  table("x_price_day").get(dayOf().id)!.x_state = "approved";
+  const pub = await quiet(() => PR.publishPriceDay(env, dayOf().id));
+  assert("«mismatch», and Baraa is told which line (30≠31)", pub.action === "mismatch" && ownerTexts().some((x) => /لا يطابق القاعدة/.test(x) && /30≠31/.test(x)), JSON.stringify(pub));
+}
+
+console.log("\n[ب] the uplift changed during the night: the engine recomputes (it is one of its inputs)");
+{
+  const env = world(`${DAY} 04:10`); seedDay();
+  await quiet(() => PR.refreshPriceDay(env));
+  assert("at 0 %: 30", lineFor(1).x_sale_price === 30);
+  table("x_pricing_config").get(1)!.x_market_uplift_pct = 3;
+  const r = await quiet(() => PR.refreshPriceDay(env));
+  assert("at 3 %, with no offer changed: the run is not «unchanged», and the line is 31", r.action === "refreshed" && lineFor(1).x_sale_price === 31, JSON.stringify(r.action));
+}
+
+console.log("\n[ب] Odoo: the field in «⚙️ الإعدادات», right after «نسبة السعر الشاذ», 0 by default");
+{
+  const arch = `<group string="التسعير اليومي">\n        <field name="x_waste_pct"/>\n        <field name="x_outlier_ratio"/>\n      </group>`;
+  const out = ODOO.settingsArch(arch);
+  assert("the field is added once, after «نسبة السعر الشاذ», and the rest of the form is untouched", /<field name="x_outlier_ratio"\/>\s*<field name="x_market_uplift_pct"\/>/.test(out) && out.replace(/\n\s*<field name="x_market_uplift_pct"\/>/, "") === arch && ODOO.settingsArch(out) === out);
+  let threw = false; try { ODOO.settingsArch("<form/>"); } catch { threw = true; }
+  assert("a form without «نسبة السعر الشاذ» stops the script (never a guess)", threw);
+  assert("its label and its default", ODOO.UPLIFT_LABEL === "زيادة على سعر السوق ٪" && ODOO.UPLIFT_DEFAULT === 0 && ODOO.CFG_FIELDS[0].name === "x_market_uplift_pct" && ODOO.CFG_FIELDS[0].ttype === "float" && ODOO.LINE_FIELDS[0].name === "x_uplift_pct");
+}
+
+// ================================================================ [هـ] the pay reminder with the IBAN
+const IBAN = "SA5945000000168295723001";
+function payWorld(tpl: [string, string] | null, bank: Record<string, unknown> | null = {}): any {
+  const env = fresh(`${DAY} 08:00`);
+  clearTemplateCache();
+  seed("x_whatsapp_template", { x_purpose: "customer_pay_remind", x_meta_template_id: "utak_pay_remind_v3", x_language: "ar", x_meta_status: "APPROVED", x_param_count: 2, x_category: "UTILITY" });
+  if (tpl) seed("x_whatsapp_template", { x_purpose: "customer_pay_remind_iban", x_meta_template_id: "utak_pay_remind_iban_v1", x_language: "ar", x_meta_status: tpl[0], x_param_count: 3, x_category: tpl[1] });
+  if (bank === null) seed("account.journal", { id: 13, code: "BNK1", name: "البنك", bank_account_id: false });
+  else {
+    seed("res.partner.bank", { id: 1, account_number: IBAN, holder_name: "شركة يوتاك", bank_name: "البنك السعودي الأول", active: true, partner_id: [1, "شركة يوتاك"], ...bank });
+    seed("account.journal", { id: 13, code: "BNK1", name: "البنك", bank_account_id: [1, IBAN] });
+  }
+  return env;
+}
+let ord = 0;
+function invoice(customer: number, total: number, date: string, extra: Record<string, unknown> = {}): number {
+  const o = seed("x_daily_order", { x_customer_id: customer, x_state: "delivered", x_order_date: date, x_name: `O${++ord}` });
+  return seed("x_invoice", { x_invoice_number: `INV-2026-00${ord}`, x_total: total, x_status: "issued", x_invoice_date: date, x_utak_simulation: false, x_order_id: o, ...extra });
+}
+const NEW = "utak_pay_remind_iban_v1", OLD = "utak_pay_remind_v3";
+
+console.log("\n[هـ] the template: one submission, UTILITY, no greeting and no emoji, the IBAN in its fixed text");
+{
+  const t = TPL.PAY_REMIND_IBAN, pay = TPL.payRemindPayload();
+  assert("the order's text, to the letter", t.body === "تذكير بالفاتورة رقم {{1}} بمبلغ {{2}} ر.س، المستحقة بتاريخ {{3}}. للتحويل: شركة يوتاك — البنك السعودي الأول — IBAN SA59 4500 0000 1682 9572 3001.");
+  assert("its name, its purpose and its three variables are the worker's", t.name === OUT.PAY_REMIND_IBAN_TEMPLATE && t.name === NEW && t.purpose === "customer_pay_remind_iban" && t.params === 3 && (t.body.match(/\{\{\d\}\}/g) ?? []).length === 3);
+  assert("submitted UTILITY, in Arabic, a body alone (no header, no button), an example for each variable", pay.category === "UTILITY" && pay.language === "ar" && pay.components.length === 1 && pay.components[0].type === "BODY" && pay.components[0].example.body_text[0].length === 3);
+  assert("no greeting and no emoji", !/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(t.body) && !/أهلا|مرحبا|السلام|عزيز|صباح|مساء/.test(t.body));
+  assert("the transfer line in it is the worker's own (§ 52 أ), with a full stop after it", t.body.endsWith(`${TPL.IBAN_LINE}.`) && TPL.IBAN_LINE === OUT.PAY_REMIND_IBAN_LINE);
+  assert("the reminder of before is the row that holds customer_pay_remind today", t.replaces === OLD);
+}
+
+console.log("\n[هـ] approved and UTILITY: it takes the place of the reminder of before");
+{
+  const env = payWorld(["APPROVED", "UTILITY"]);
+  invoice(CUST, 450, "2026-09-28");
+  const r = await quiet(() => OUT.sendPaymentReminders(env));
+  const got = tplTo(CUST_PHONE, NEW);
+  assert("one reminder, by utak_pay_remind_iban_v1 — and not by the template of before", r.sent === 1 && got.length === 1 && tplTo(CUST_PHONE, OLD).length === 0, JSON.stringify(sentTo(CUST_PHONE).map((b: any) => b.template?.name)));
+  assert("{{1}} the invoice number, {{2}} the amount still owed, {{3}} its due date (the invoice's date + 30 days: 28 October 2026)", JSON.stringify(params(got[0])) === JSON.stringify(["INV-2026-001", "450.00", "28 أكتوبر 2026"]), JSON.stringify(params(got[0])));
+  assert("no IBAN travels as a variable (it is the template's fixed text)", !params(got[0]).some((p) => /SA\d|IBAN/.test(p)));
+  assert("no field rejected by the schema gate", rejected.length === 0, rejected.join(" | "));
+}
+
+console.log("\n[هـ] several invoices: still one reminder per customer — the numbers, the total, the oldest due date");
+{
+  const env = payWorld(["APPROVED", "UTILITY"]);
+  const a = invoice(CUST, 100, "2026-09-25");
+  seed("x_payment", { x_invoice_id: a, x_amount: 30 });
+  invoice(CUST, 50, "2026-09-20", { x_status: "overdue" });
+  invoice(CUST, 999, "2026-10-02");   // one day old: not yet
+  invoice(CUST2, 200, "2026-09-29");
+  const r = await quiet(() => OUT.sendPaymentReminders(env));
+  const p = params(tplTo(CUST_PHONE, NEW)[0]);
+  assert("the customer of two invoices: both numbers, 70 + 50 = 120.00, due 20 October (the older invoice's)", r.sent === 2 && tplTo(CUST_PHONE, NEW).length === 1 && /INV-2026-00\d، INV-2026-00\d/.test(p[0]) && p[1] === "120.00" && p[2] === "20 أكتوبر 2026", JSON.stringify(p));
+  assert("the other customer: his own invoice, 200.00, due 29 October", JSON.stringify(params(tplTo(CUST2_PHONE, NEW)[0]).slice(1)) === JSON.stringify(["200.00", "29 أكتوبر 2026"]));
+  assert("the cap of before is kept: a second run the same day sends nothing", (await quiet(() => OUT.sendPaymentReminders(env))).sent === 0 && tplTo(CUST_PHONE, NEW).length === 1);
+}
+
+console.log("\n[هـ] pending, refused, filed MARKETING, or no row at all: the reminder of before, in the same run");
+for (const [label, tpl] of [["PENDING", ["PENDING", "UTILITY"]], ["REJECTED", ["REJECTED", "UTILITY"]], ["APPROVED but MARKETING", ["APPROVED", "MARKETING"]], ["PAUSED", ["PAUSED", "UTILITY"]], ["no row", null]] as Array<[string, [string, string] | null]>) {
+  const env = payWorld(tpl);
+  invoice(CUST, 450, "2026-09-28");
+  const r = await quiet(() => OUT.sendPaymentReminders(env));
+  const old = tplTo(CUST_PHONE, OLD);
+  assert(`${label}: utak_pay_remind_v3 with [the customer's name, the amount] — never the new template`, r.sent === 1 && old.length === 1 && tplTo(CUST_PHONE, NEW).length === 0 && JSON.stringify(params(old[0])) === JSON.stringify(["مطعم الوادي", "450.00"]), JSON.stringify(sentTo(CUST_PHONE).map((b: any) => b.template?.name)));
+}
+
+console.log("\n[هـ] the IBAN in the template's text must still be the company's account");
+for (const [label, bank] of [["another IBAN on the journal", { account_number: "SA0380000000608010167519" }], ["the account archived", { active: false }], ["another holder name", { holder_name: "مؤسسة أخرى" }], ["no account on the journal", null]] as Array<[string, Record<string, unknown> | null]>) {
+  const env = payWorld(["APPROVED", "UTILITY"], bank);
+  invoice(CUST, 450, "2026-09-28");
+  const r = await quiet(() => OUT.sendPaymentReminders(env));
+  assert(`${label}: the reminder of before goes — a reminder never carries an IBAN that is not the company's now`, r.sent === 1 && tplTo(CUST_PHONE, OLD).length === 1 && tplTo(CUST_PHONE, NEW).length === 0, JSON.stringify(sentTo(CUST_PHONE).map((b: any) => b.template?.name)));
+}
+{
+  assert("the due date follows the invoice's printed terms (30 days)", OUT.INVOICE_DUE_DAYS === 30 && OUT.invoiceDueDate("2026-09-28") === "2026-10-28" && OUT.invoiceDueDate("2026-12-15") === "2027-01-14");
+  assert("a debt with no invoice date takes the reminder of before", OUT.ibanRemindParams({ amount: 10, invoices: ["INV-1"], firstDate: "" }) === null && OUT.ibanRemindParams({ amount: 10, invoices: [], firstDate: "2026-09-28" }) === null);
+  const purposes = (await import("../src/wa-purposes.ts")).PURPOSES;
+  assert("the new template's lookup purpose is known to the gateway, operational (UTILITY only)", purposes.customer_pay_remind_iban?.kind === "operational" && (await import("../src/templates.ts")).T.CUSTOMER_PAY_REMIND_IBAN === "customer_pay_remind_iban");
+  const labels = JSON.parse(readFileSync(new URL("../src/wa-template-labels.json", import.meta.url), "utf8"));
+  assert("its Arabic name for Odoo", labels.utak_pay_remind_iban_v1 === TPL.PAY_REMIND_IBAN.label);
+}
+
+done();

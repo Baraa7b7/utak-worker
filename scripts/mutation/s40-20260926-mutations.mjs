@@ -111,7 +111,7 @@ const M = [
   ["ج", "an even count: the upper middle, not the mean of the two", [[EN,
     "  return round2(v.length % 2 ? v[mid] : (v[mid - 1] + v[mid]) / 2);", "  return round2(v[mid]);"]], T],
   ["ج", "sale = the purchase price", [[EN,
-    "  return { status: \"auto\", sale: round2(p.market as number), excluded: false, reason: \"\" };", "  return { status: \"auto\", sale: round2(p.purchase as number), excluded: false, reason: \"\" };"]], T],
+    "  return { status: \"auto\", sale: round2(p.sale as number), excluded: false, reason: \"\" };", "  return { status: \"auto\", sale: round2(p.purchase as number), excluded: false, reason: \"\" };"]], T],
   ["ج", "the waste ignored in the unit profit", [[EN,
     // § 41 أ: the engine's unit profit is vatProfit (the waste term inside it); § 47 أ: its one-line shape
     "  const waste = (wastePct / 100) * purchase;\n  return (vatRatePct ?", "  const waste = 0;\n  return (vatRatePct ?"]], T],
@@ -156,7 +156,7 @@ const M = [
     "        `راجعها في شاشة المراجعة: ${await reviewUrl(env, rec.id)}`,\n", ""]], T],
   ["ج", "«اعتمد بسعر السوق» offered without a market price", [[PR,
     // § 47 ب: the choices are built by exceptionChoices (a description beside the title)
-    "    ...(Number(l.x_market_price) > 0 ? [{ id: `pexc_m_${l.id}`, title: \"اعتمد بسعر السوق\", description: `${money(Number(l.x_market_price))} ر.س` }] : []),", "    { id: `pexc_m_${l.id}`, title: \"اعتمد بسعر السوق\" },"]], T],
+    "    ...(Number(l.x_market_price) > 0 ? [{ id: `pexc_m_${l.id}`, title: \"اعتمد بسعر السوق\", description: `${money(marketSale(l))} ر.س` }] : []),", "    { id: `pexc_m_${l.id}`, title: \"اعتمد بسعر السوق\" },"]], T],
   ["ج", "«اعتمد بسعر السوق» taken without a market price", [[PR,
     "    if (!(market > 0)) return `لا سعر سوق لـ ${name} اليوم: اختر «لا تنشر» أو «عدّل».`;\n", ""]], T],
   ["ج", "no lock: a second decision overwrites the first", [[PR,
@@ -179,7 +179,7 @@ const M = [
   ["ج", "the tick runs the engine all day", [[PR,
     "    out.refresh = m >= ENGINE_FROM_MINUTE && m < dl + DEADLINE_WINDOW_MIN", "    out.refresh = true"]], T],
   ["ج", "the publication's sale rule: the purchase price", [["src/pricing-engine.ts",
-    "  if (l.x_status === \"auto\") return round2(Number(l.x_market_price) || 0);", "  if (l.x_status === \"auto\") return round2(Number((l as any).x_cost_price) || 0);"]], T],
+    "  if (l.x_status === \"auto\") return round2(marketSale(l));", "  if (l.x_status === \"auto\") return round2(Number((l as any).x_cost_price) || 0);"]], T],
   ["ج", "the display margin ÷ the market price", [[EN,
     "  return purchase > 0 && market > 0 ? round2(((market - purchase) / purchase) * 100) : 0;", "  return purchase > 0 && market > 0 ? round2(((market - purchase) / market) * 100) : 0;"]], T],
   ["ج", "Baraa's tap not wired in /webhook", [["src/index.ts",

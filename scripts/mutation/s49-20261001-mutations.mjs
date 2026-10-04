@@ -225,7 +225,7 @@ const M = [
   ["د", "Omar's reply is read without his role", [[PS,
     "  const check = checkOfferItems(items, products, packagings, text, \"observer\", src.role ?? null);", "  const check = checkOfferItems(items, products, packagings, text, \"observer\");"]], TS],
   ["د", "the reply's hook does not pass the source's role", [[PS,
-    "name: who.name, digits, role: sourceRole(src, who.partnerId) }, text, messageId, nowMs);", "name: who.name, digits }, text, messageId, nowMs);"]], TS],
+    "name: who.name, digits, role: sourceRole(src, who.partnerId), outside: !emp }, text, messageId, nowMs);", "name: who.name, digits, outside: !emp }, text, messageId, nowMs);"]], TS],
   ["د", "the supplier's reply is read without his role", [[SU,
     "messageText, \"supplier\", await partnerPriceRole(env, supplier.id));", "messageText, \"supplier\");"]], TS],
   ["د", "a «سوق» source is still told to write «شراء» beside a purchase price", [[PS,

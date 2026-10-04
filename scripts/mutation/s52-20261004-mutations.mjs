@@ -104,7 +104,7 @@ const M = [
   ["ج", "the market line says «بدون ضريبة»", [[PS,
     "export const MARKET_VAT_LINE = \"اكتب السعر زي ما ينباع في السوق (شامل الضريبة).\";", "export const MARKET_VAT_LINE = \"الأسعار بدون ضريبة.\";"]], T],
   ["ج", "the engine reads a market observation as net of VAT", [[EN,
-    "      if (suggested !== null) { if (market < suggested - 0.0001) exceptions.push(\"below_profit\"); }", "      if (suggested !== null) { if (market * 1.15 < suggested - 0.0001) exceptions.push(\"below_profit\"); }"]], T],
+    "      if (suggested !== null) { if (sale < suggested - 0.0001) exceptions.push(\"below_profit\"); }", "      if (suggested !== null) { if (sale * 1.15 < suggested - 0.0001) exceptions.push(\"below_profit\"); }"]], T],
   ["ج", "the profit keeps the VAT of the market price", [[EN,
     "  return (vatRatePct ? sale / (1 + vatRatePct / 100) : sale) - purchase - waste;", "  return sale - purchase - waste;"]], T],
   // ---------------------------------------------------------------- د the template
@@ -194,7 +194,7 @@ const M = [
   ["و", "the flush sends a queued ask whatever arrived", [[TQ,
     "      if (await pricesArrived(env, to, riyadhDateKey())) { console.log(\"[pending_loc] market ask dropped: today's prices already arrived\"); continue; }\n", ""]], T],
   ["و", "«ما قدرنا نقرأ الأسعار…»: a «سوق» source is told to write «شراء»", [[PS,
-    "    return { saved: 0, reply: marketUnreadText(src.role ?? null) };", "    return { saved: 0, reply: marketUnreadText(null) };"]], T],
+    "    return { saved: 0, reply: marketUnreadText(src.role ?? null, src.outside === true) };", "    return { saved: 0, reply: marketUnreadText(null, src.outside === true) };"]], T],
   ["و", "the «سوق» text's example carries a purchase price", [[PS,
     "ثم سعر السوق، مثل «رمان كبير 26». ${MARKET_VAT_LINE}`", "ثم سعر السوق، مثل «رمان كبير 26»، ولسعر الشراء «رمان كبير 26 شراء 22». ${MARKET_VAT_LINE}`"]], T],
   ["و", "05:00: the reminder goes before 05:00", [[PS,

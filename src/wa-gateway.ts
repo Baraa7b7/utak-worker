@@ -192,7 +192,8 @@ function refused(message: string, type: string, status: number): Response {
 //   • owner_order_confirmed — a confirmed order with «تم التسليم ✅», the
 //                     delivery on the spot (§ 49 ج)
 //   • price_flow_test — the one trial of the price Flow and its answers (§ 51)
-const OWNER_ALLOWED_PURPOSES: ReadonlySet<string> = new Set(["price_flow_test", "owner_alert", "owner_summary", "owner_window", "conv_open_owner", "owner_team_note", "owner_prices", "owner_price_exception", "owner_price_review", "owner_order_confirmed"]);
+//   • order_flow_test — the one trial of the order form and its answers (§ 53 ج)
+const OWNER_ALLOWED_PURPOSES: ReadonlySet<string> = new Set(["price_flow_test", "order_flow_test", "owner_alert", "owner_summary", "owner_window", "conv_open_owner", "owner_team_note", "owner_prices", "owner_price_exception", "owner_price_review", "owner_order_confirmed"]);
 
 function ownerDigits(env: Env): string {
   return waDigits(String(env.OWNER_WHATSAPP ?? ""));

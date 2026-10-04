@@ -604,6 +604,8 @@ export interface PublishReport {
   detail?: string;
   /** § 49 ب — the orders that waited for a valid list and were quoted by this publication. */
   awaiting?: AwaitingReport[];
+  /** § 53 ج — how many customers got the order form after the list (their windows open). */
+  forms?: number;
 }
 
 function nowOdoo(ms: number = Date.now()): string {
@@ -674,6 +676,8 @@ export async function publishPriceDay(env: Env, dayId: number, opts: { ctx?: Exe
     const parts = buildPriceMessages(day.x_date, published);
     const recipients = await priceRecipients(penv);
     const counts: Record<string, number> = { session: 0, held: 0, refused: 0, skipped: 0, rejected: 0, template: 0 };
+    // § 53 ج — the customers the list reached inside their window: the order form follows it («اطلب الآن»)
+    const inWindow: Array<{ partnerId: number; name: string; whatsapp: string }> = [];
     for (const r of recipients) {
       let first: string | null = null;
       for (const part of parts) {
@@ -683,6 +687,7 @@ export async function publishPriceDay(env: Env, dayId: number, opts: { ctx?: Exe
         if (d?.action === "refused") break; // the allowlist / guard refuses every part alike
       }
       counts[first ?? "refused"] = (counts[first ?? "refused"] ?? 0) + 1;
+      if (first === "session") inWindow.push({ partnerId: r.id, name: r.name, whatsapp: r.phone });
       console.log(`[prices] ${day.x_date} → ${maskPhone(r.phone)} ${first}`);
     }
     const summary = [
@@ -713,13 +718,30 @@ export async function publishPriceDay(env: Env, dayId: number, opts: { ctx?: Exe
     console.log(`[prices] ${day.x_date} published`, JSON.stringify(counts));
     // § 49 ب — the list is valid from now: every order kept for want of one gets its quotation (never blocks the publication)
     const awaiting = await quoteWaitingAfterPublication(penv, now, opts.ctx);
-    return { action: "published", day: day.x_date, dayId, items: published.length, parts: parts.length, excluded, recipients: recipients.length, counts, ...(awaiting.length ? { awaiting } : {}) };
+    // § 53 ج — …and the order form to every customer it reached inside his window (never blocks the publication)
+    const forms = await orderFormsAfterPublication(penv, { dayId, day: day.x_date }, inWindow, now, opts.ctx);
+    return { action: "published", day: day.x_date, dayId, items: published.length, parts: parts.length, excluded, recipients: recipients.length, counts, ...(awaiting.length ? { awaiting } : {}), ...(forms ? { forms } : {}) };
   } catch (e) {
     // Nothing irreversible is known to have happened only if nothing was sent;
     // keep the claim (no second publication) and tell Baraa.
     console.error("[prices] publish failed", (e as Error)?.message);
     await sendOwnerAlert(penv, `⚠️ تعذّر إكمال نشر أسعار ${day.x_date}: ${(e as Error)?.message ?? e}. راجع السجل قبل إعادة المحاولة.`).catch(() => {});
     throw e;
+  }
+}
+
+/** § 53 ج — the order form after the day's list, to the customers it reached in session. Never throws. */
+async function orderFormsAfterPublication(env: Env, day: { dayId: number; day: string }, inWindow: Array<{ partnerId: number; name: string; whatsapp: string }>, now: number, ctx?: ExecutionContext): Promise<number> {
+  if (!inWindow.length) return 0;
+  try {
+    const { listValidUntilMs } = await import("./price-validity");
+    const { sendOrderFormsAfterPrices } = await import("./order-form");
+    const n = await sendOrderFormsAfterPrices(env, { dayId: day.dayId, day: day.day, publishedAtMs: now, validUntilMs: listValidUntilMs(day.day, now) }, inWindow, now, ctx);
+    if (n) console.log(`[prices] ${day.day}: the order form went to ${n} of ${inWindow.length} customer(s) in session`);
+    return n;
+  } catch (e) {
+    console.warn("[prices] the order forms after the publication failed", (e as Error)?.message);
+    return 0;
   }
 }
 

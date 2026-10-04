@@ -51,6 +51,7 @@ import {
   notifyOwnerConfirmed, orderListStillValid, quotationButtons, quoteOrder, vatNote, type QuoteOutcome,
 } from "./order-flow";
 import { validPriceList } from "./price-validity";
+import { ORDER_FORM_FOLLOW_TEXT } from "./order-form";
 
 /** § 40 د — «أقل طلب N ريال، أضف أصنافاً ليكتمل», and the order's total now (never with a minimum of 0, § 49 أ). */
 function belowMinimumText(m: { min: number; total: number }): string {
@@ -81,6 +82,8 @@ export interface RouterReply {
   confirmedOrderId?: number;
   /** § 44 د — the customer of that order when the button's partner is not known. Never sent. */
   confirmedCustomerId?: number;
+  /** § 53 ج — after this reply: the order form (once per customer and price list), opened with his open order. */
+  orderForm?: { partnerId: number; name: string; body: string };
 }
 
 /** § 44 د — after a confirmed order: the VAT question follows the confirmation, when due. */
@@ -338,6 +341,8 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
     ]
       .filter(Boolean)
       .join("\n"),
+    // § 53 ج — a valid list: after this reply the order form follows, once per customer and list (his lines in it)
+    ...(list ? { orderForm: { partnerId: partner.id, name: partner.name || "", body: ORDER_FORM_FOLLOW_TEXT } } : {}),
   };
 }
 
@@ -412,6 +417,15 @@ async function handleButton(
     return await handleVatButton(env, t);
   }
   if (t === "أبغى أطلب") {
+    // § 53 ج — the order form of the valid list (with none: «الأسعار تتحدث…»); the text of before when it cannot go
+    if (partner?.id && partner.x_whatsapp_number) {
+      try {
+        const { answerOrderFormAsk } = await import("./order-form");
+        if (await answerOrderFormAsk(env, { partnerId: partner.id, name: partner.name || "", whatsapp: String(partner.x_whatsapp_number) })) return { text: "" };
+      } catch (e) {
+        console.warn("[order-form] «أبغى أطلب» failed — the text of before", (e as Error)?.message);
+      }
+    }
     return { text: "تمام 👍 أرسل لي الأصناف اللي تبيها والكميات، وأنا أجهّز الطلب." };
   }
   if (t === "أبغى أعرف أكثر") {
@@ -887,6 +901,17 @@ async function editOrderButton(env: Env, orderId: number, partner: OdooPartner |
   }
   // edit_order → return to draft so new messages append lines again
   await updateOrderState(env, orderId, "draft");
+  // § 53 ج — a quotation the order form made: «تعديل» opens the form with the order's quantities
+  try {
+    const { isFormOrder, reopenOrderForm } = await import("./order-form");
+    if (await isFormOrder(env, orderId)) {
+      const { getOrderCustomer } = await import("./odoo");
+      const cust = await getOrderCustomer(env, orderId);
+      if (cust?.phone && (await reopenOrderForm(env, orderId, { partnerId: cust.id, name: cust.name, whatsapp: cust.phone }))) return { text: "" };
+    }
+  } catch (e) {
+    console.warn(`[order-form] «تعديل» of order ${orderId} could not open the form — the text of before`, (e as Error)?.message);
+  }
   return {
     text: "تفضّل، عدّل — قل لي إيش تبغى تغيّر (تزيد، تحذف، أو تبدل صنف).",
   };

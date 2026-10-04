@@ -1724,6 +1724,22 @@ export default {
       }
     }
 
+    // § 53 ج — the ONE trial of the order form: to Baraa's own number, while his window is
+    // open, once a day. His reply creates no order (src/order-form.ts sendOrderFormTest).
+    if (request.method === "POST" && url.pathname === "/odoo/hook/order-form-test") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      try {
+        const { sendOrderFormTest } = await import("./order-form");
+        return json({ ok: true, ...(await sendOrderFormTest(env)) });
+      } catch (e) {
+        return json({ ok: false, error: (e as Error).message }, 500);
+      }
+    }
+
     if (request.method === "POST" && url.pathname === "/webhook") {
       const raw = await request.text();
       const sig = request.headers.get("x-hub-signature-256");
@@ -2326,11 +2342,18 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
     // sender is (a supplier, a team member, Baraa's own trial). No other routing.
     if (msg.flow) {
       try {
-        const { handlePriceFlowReply } = await import("./price-flow");
-        const r = await handlePriceFlowReply(env, msg, ctx);
-        console.log(`[price-flow] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} ${r.action}${r.saved !== undefined ? ` saved=${r.saved}` : ""}${r.why ? ` (${r.why})` : ""}`);
+        const { isOrderFormToken, handleOrderFormReply } = await import("./order-form");
+        if (isOrderFormToken(msg.flow.token ?? "")) {
+          // § 53 ج — the customer's order form: its quantities become his order, and the quotation follows
+          const r = await handleOrderFormReply(env, msg, ctx);
+          console.log(`[order-form] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} ${r.action}${r.orderId ? ` order=${r.orderId}` : ""}`);
+        } else {
+          const { handlePriceFlowReply } = await import("./price-flow");
+          const r = await handlePriceFlowReply(env, msg, ctx);
+          console.log(`[price-flow] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} ${r.action}${r.saved !== undefined ? ` saved=${r.saved}` : ""}${r.why ? ` (${r.why})` : ""}`);
+        }
       } catch (e) {
-        console.error("[price-flow] reply failed", (e as Error)?.message);
+        console.error("[flow] reply failed", (e as Error)?.message);
       }
       await markSeen(env, msg.messageId);
       continue;
@@ -2873,6 +2896,19 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       continue;
     }
 
+    // § 53 ج — «اطلب» / «أبي أطلب»: the order form of the valid list (or, with none, «الأسعار تتحدث…»)
+    if (msg.type === "text") {
+      try {
+        const { wantsOrderForm, answerOrderFormAsk } = await import("./order-form");
+        if (wantsOrderForm(msg.text) && (await answerOrderFormAsk(env, { partnerId: partner.id, name: partner.name || msg.profileName || "", whatsapp: msg.from }, ctx))) {
+          await markSeen(env, msg.messageId);
+          continue;
+        }
+      } catch (e) {
+        console.warn("[order-form] «اطلب» failed — the bot answers", (e as Error)?.message);
+      }
+    }
+
     let intent: import("./types").Intent = "other";
     if (msg.type === "text") {
       const c = await classifyIntent(env, msg.text, senderType);
@@ -2981,6 +3017,11 @@ async function sendReply(
     await sendText(env, to, reply.text, { ctx, purpose });
   }
   if (reply.followUp) await sendReply(env, to, reply.followUp, ctx);
+  // § 53 ج — after a customer's first order message of the list's day: the order form, opened with what he wrote
+  if (reply.orderForm) {
+    const { offerOrderForm } = await import("./order-form");
+    await offerOrderForm(env, { partnerId: reply.orderForm.partnerId, name: reply.orderForm.name, whatsapp: to }, { auto: true, body: reply.orderForm.body, ctx });
+  }
 }
 
 function json(obj: unknown, status = 200): Response {

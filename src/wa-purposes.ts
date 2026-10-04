@@ -78,6 +78,10 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // and its three steps: the bot answering his tap / text (his window is open),
   // stale with the step (60 minutes).
   customer_vat_ask: { label: "سؤال الرقم الضريبي", kind: "reply", important: false, ttl: { hours: 1 } },
+  // § 53 ج — the customer's order form (a WhatsApp Flow with the day's sale prices): inside the
+  // 24h window only, never a template and never held; what cannot go is simply not sent (the text
+  // order stays). The gateway refuses it for a price source's or a supplier's number.
+  customer_order_form: op("نموذج الطلب"),
   customer_feedback: { label: "طلب التقييم", kind: "marketing", important: false, ttl: "day" },
   customer_inactive: { label: "تذكير الغياب", kind: "marketing", important: false, ttl: "day" },
   // ---- suppliers
@@ -148,6 +152,9 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // § 51 — the one trial of the price Flow to Baraa's own number («🧪 تجربة»),
   // inside his window only, and the answers to his trial reply.
   price_flow_test: op("تجربة نموذج الأسعار", false, { hours: 1 }),
+  // § 53 ج — the one trial of the order form to Baraa's own number («🧪 تجربة»), inside his
+  // window only, and the answers to his trial reply (no order is created).
+  order_flow_test: op("تجربة نموذج الطلب", false, { hours: 1 }),
   // ---- § 34: «فتح المحادثة» — one UTILITY template per recipient category,
   // sent when a critical message is held (src/wa-opener.ts). Template only:
   // never held itself.

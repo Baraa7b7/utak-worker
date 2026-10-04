@@ -20,7 +20,8 @@
 // x_planned_stops (empty / 0 = none), — § 46 أ — x_expected_cartons (the carton
 // share of the board), and — § 48 أ — x_min_profit_sar «الربح الأدنى للكرتون
 // (ريال)» (the suggested profitable price), and — § 48 و — x_outlier_ratio
-// «نسبة السعر الشاذ». § 47's x_min_margin_pct «الهامش الأدنى ٪» stays on the
+// «نسبة السعر الشاذ», and — § 53 ب — x_market_uplift_pct «زيادة على سعر السوق ٪»
+// (0 = the sale price is the market price). § 47's x_min_margin_pct «الهامش الأدنى ٪» stays on the
 // record, hidden, and is read by nothing.
 
 import type { Env } from "./config";
@@ -28,7 +29,7 @@ import { call } from "./odoo";
 import { LINE_FIELDS, linesOn, loadRoster, toCalendarLine, type CalendarLine } from "./team-roster";
 import { riyadhDateKey } from "./hours";
 import { PRICE_OUTLIER_RATIO } from "./config";
-import { DEFAULT_MIN_PROFIT_SAR } from "./pricing-engine";
+import { DEFAULT_MIN_PROFIT_SAR, upliftOf } from "./pricing-engine";
 
 export const COST_MODEL = "x_operating_cost";
 export const CONFIG_MODEL = "x_pricing_config";
@@ -163,13 +164,15 @@ export interface PricingSettings {
   minProfit: number;
   /** § 48 و — نسبة السعر الشاذ: a price that moved this many times (or more) from the same source's last one, either way, is an outlier. PRICE_OUTLIER_RATIO (1.5) when the record carries none, or a value that is not above 1. */
   outlierRatio: number;
+  /** § 53 ب — زيادة على سعر السوق ٪: the sale price = the market price × (1 + this ÷ 100), up to the nearest 0.5. 0 (the default, an empty or a negative value) = the market price as it is. */
+  marketUpliftPct: number;
 }
 
 /** The active x_pricing_config on `day` (the one the menu opens). Null when none. Throws on Odoo trouble. */
 export async function readPricingSettings(env: Env, day: string = riyadhDateKey()): Promise<PricingSettings | null> {
-  const [r] = await call<Array<{ id: number; x_waste_pct: number | false; x_min_order_sar: number | false; x_planned_stops: number | false; x_expected_cartons: number | false; x_min_profit_sar?: number | false; x_outlier_ratio?: number | false }>>(env, CONFIG_MODEL, "search_read", {
+  const [r] = await call<Array<{ id: number; x_waste_pct: number | false; x_min_order_sar: number | false; x_planned_stops: number | false; x_expected_cartons: number | false; x_min_profit_sar?: number | false; x_outlier_ratio?: number | false; x_market_uplift_pct?: number | false }>>(env, CONFIG_MODEL, "search_read", {
     domain: [["x_is_active", "=", true], ["x_active_from", "<=", day], "|", ["x_active_to", "=", false], ["x_active_to", ">=", day]],
-    fields: ["id", "x_waste_pct", "x_min_order_sar", "x_planned_stops", "x_expected_cartons", "x_min_profit_sar", "x_outlier_ratio"],
+    fields: ["id", "x_waste_pct", "x_min_order_sar", "x_planned_stops", "x_expected_cartons", "x_min_profit_sar", "x_outlier_ratio", "x_market_uplift_pct"],
     order: "x_active_from desc, id desc",
     limit: 1,
   });
@@ -184,6 +187,7 @@ export async function readPricingSettings(env: Env, day: string = riyadhDateKey(
     expectedCartons: cartons > 0 ? Math.floor(cartons) : null,
     minProfit: typeof r.x_min_profit_sar === "number" ? Math.max(0, r.x_min_profit_sar) : DEFAULT_MIN_PROFIT_SAR,
     outlierRatio: typeof r.x_outlier_ratio === "number" && r.x_outlier_ratio > 1 ? r.x_outlier_ratio : PRICE_OUTLIER_RATIO,
+    marketUpliftPct: upliftOf(r.x_market_uplift_pct),
   };
 }
 

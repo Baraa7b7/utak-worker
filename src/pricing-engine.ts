@@ -44,6 +44,14 @@
 // source whose role is «سوق» sends market observations only (src/price-sources.ts),
 // and a purchase price on one of his rows is never a purchase offer.
 //
+// § 53 ب — «زيادة على سعر السوق ٪» (x_pricing_config.x_market_uplift_pct, 0 by
+// default): the sale price = the market price × (1 + the uplift ÷ 100), rounded
+// UP to the nearest 0.5 riyal (market 30, uplift 3 % → 30.90 → 31). Every
+// comparison of the rule — the suggested price, the unit profit, the exception
+// — is made on the price AFTER the uplift, and «اعتمد بسعر السوق» approves that
+// price. With an uplift of 0 nothing is rounded and nothing changes: the sale
+// price is the market price, exactly.
+//
 // Only a source with «مصدر أسعار» counts (a supplier's own row: x_supplier_id
 // ticked; an offer: its source partner ticked, or the Work Contact of a ticked
 // employee). Offers marked x_utak_simulation are left out. Each source counts
@@ -82,7 +90,10 @@ export interface PricingLine extends EngineItem {
   market: number | null;
   marketCount: number;
   outlier: { purchase: boolean; market: boolean };
+  /** The sale price of the rule: the market price after «زيادة على سعر السوق ٪» (§ 53 ب); the market price itself at 0. */
   sale: number | null;
+  /** § 53 ب — the uplift the sale price was made with (0 = none). */
+  upliftPct: number;
   unitProfit: number | null;
   displayMargin: number | null;
   /** § 47 ب — net purchase + waste + the carton share; null without a purchase price. */
@@ -141,6 +152,24 @@ const halalas = (x: number): number => Math.round(Math.round((Number(x) || 0) * 
 /** Up to the nearest SUGGESTED_STEP (a float's noise above a step does not push it to the next). */
 export function ceilToStep(x: number, step: number = SUGGESTED_STEP): number {
   return round2(Math.ceil(x / step - 1e-6) * step);
+}
+
+/** § 53 ب — «زيادة على سعر السوق ٪» as the rule reads it: a number above zero, else 0 (no uplift). */
+export function upliftOf(pct: unknown): number {
+  const n = Number(pct);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+/**
+ * § 53 ب — the sale price of a market price: market × (1 + uplift ÷ 100), UP to
+ * the nearest 0.5 riyal. No uplift (0, empty, negative): the market price as it
+ * is — nothing is rounded. Pure.
+ */
+export function upliftedSale(market: number, upliftPct: unknown): number {
+  const pct = upliftOf(upliftPct);
+  if (!(pct > 0) || !(market > 0)) return market;
+  // whole halalas first: 30 × 1.03 is 30.900000000000002 in a float
+  return ceilToStep(halalas(market * (1 + pct / 100)) / 100);
 }
 
 export interface PriceFloor {
@@ -211,14 +240,21 @@ export function offersLine(offers: EngineOffer[]): string {
     .map((o) => `${o.sourceName}: ${o.kind === "purchase" ? "شراء" : "سوق"} ${money(o.price)}${o.outlier ? " (شاذ)" : ""}`).join(" · ");
 }
 
+/** «سعر السوق 28»; with an uplift «سعر السوق 28 بعد الزيادة 3٪ = 29». */
+function belowProfitLead(market: number, sale: number, upliftPct: number): string {
+  return upliftPct > 0 ? `سعر السوق ${money(market)} بعد الزيادة ${money(upliftPct)}٪ = ${money(sale)}` : `سعر السوق ${money(market)}`;
+}
+
 /**
  * The rule, for every item. Pure. `vat` (§ 41 أ): the unit profit net of VAT
  * from the cutoff. `floor` (§ 47 ب, § 48 أ): the carton share and the minimum
  * profit a carton the suggested price is made from; without a share the rule
- * before § 47.
+ * before § 47. `upliftPct` (§ 53 ب): «زيادة على سعر السوق ٪», 0 = the sale price
+ * is the market price as it is.
  */
-export function computePricing(items: EngineItem[], offers: EngineOffer[], wastePct: number, vat: VatContext = NO_VAT, floor: FloorContext = NO_FLOOR): PricingLine[] {
+export function computePricing(items: EngineItem[], offers: EngineOffer[], wastePct: number, vat: VatContext = NO_VAT, floor: FloorContext = NO_FLOOR, upliftPct: number = 0): PricingLine[] {
   const latest = latestPerSource(offers);
+  const uplift = upliftOf(upliftPct);
   return items.map((it) => {
     const its = latest.filter((o) => o.productId === it.productId && o.packagingId === it.packagingId);
     // § 47 أ — the lowest offer: the numbers as they are (every one is net of VAT)
@@ -227,30 +263,32 @@ export function computePricing(items: EngineItem[], offers: EngineOffer[], waste
     const p = purchases[0] ?? null;
     const purchase = p?.price ?? null;
     const market = median(markets.map((o) => o.price));
-    const profit = purchase !== null && market !== null
-      ? round2(vatProfit(market, purchase, wastePct, vat.ratePct)) : null;
+    // § 53 ب — the sale price: the market price after the uplift (the market price itself at 0)
+    const sale = market !== null ? upliftedSale(market, uplift) : null;
+    const profit = purchase !== null && sale !== null
+      ? round2(vatProfit(sale, purchase, wastePct, vat.ratePct)) : null;
     const fl = priceFloor({ purchase, wastePct, opShare: floor.opShare, vatRatePct: vat.ratePct, minProfit: floor.minProfit });
     const suggested = fl?.suggested ?? null;
     const outlier = { purchase: !!p?.outlier, market: markets.some((o) => o.outlier) };
     const exceptions: ExceptionCode[] = [];
     if (purchase === null) exceptions.push("no_purchase");
     if (market === null) exceptions.push("no_market");
-    if (purchase !== null && market !== null) {
-      // § 47 ب — profitable = the market price reaches the suggested price
-      if (suggested !== null) { if (market < suggested - 0.0001) exceptions.push("below_profit"); }
+    if (purchase !== null && sale !== null) {
+      // § 47 ب — profitable = the market price (§ 53 ب: after the uplift) reaches the suggested price
+      if (suggested !== null) { if (sale < suggested - 0.0001) exceptions.push("below_profit"); }
       else if (profit !== null && profit <= 0) exceptions.push("no_profit");
     }
     if (outlier.purchase || outlier.market) exceptions.push("outlier");
     const reason = exceptions.map((c) => c === "no_profit" ? `${REASON[c]} (${money(profit as number)})`
-      : c === "below_profit" ? `سعر السوق ${money(market as number)} أقل من السعر المربح ${money(suggested as number)}`
+      : c === "below_profit" ? `${belowProfitLead(market as number, sale as number, uplift)} أقل من السعر المربح ${money(suggested as number)}`
       : c === "outlier" ? `${REASON[c]}: ${[outlier.purchase ? "الشراء" : "", outlier.market ? "السوق" : ""].filter(Boolean).join(" و")}` : REASON[c]).join("، ");
     return {
       ...it,
       key: `${it.productId}:${it.packagingId}`,
       purchase, purchaseOffer: p, market, marketCount: markets.length, outlier,
-      sale: market,
+      sale, upliftPct: uplift,
       unitProfit: profit,
-      displayMargin: purchase !== null && market !== null ? displayMarginPct(purchase, market) : null,
+      displayMargin: purchase !== null && sale !== null ? displayMarginPct(purchase, sale) : null,
       fullCost: fl?.fullCost ?? null, breakEven: fl?.breakEven ?? null, suggested,
       exceptions, reason,
       offersText: offersLine(its),
@@ -274,7 +312,8 @@ export interface LineVerdict { status: LineStatus; sale: number; excluded: boole
 export function lineVerdict(p: PricingLine, decision: Decision | null, manualPrice: number): LineVerdict {
   if (decision === "skip") return { status: "unpublished", sale: 0, excluded: true, reason: "براء: لا تنشر" };
   if (decision === "market") {
-    const price = manualPrice > 0 ? manualPrice : p.market ?? 0;
+    // § 53 ب — «سعر السوق» of the decision is the rule's sale price: the market price after the uplift
+    const price = manualPrice > 0 ? manualPrice : p.sale ?? 0;
     if (price > 0) return { status: "manual", sale: round2(price), excluded: false, reason: "براء: اعتمد بسعر السوق" };
   }
   if (decision === "profit") {
@@ -283,7 +322,7 @@ export function lineVerdict(p: PricingLine, decision: Decision | null, manualPri
   }
   if (decision === "edit" && manualPrice > 0) return { status: "manual", sale: round2(manualPrice), excluded: false, reason: "براء: سعر معدّل" };
   if (p.exceptions.length) return { status: "exception", sale: 0, excluded: true, reason: p.reason };
-  return { status: "auto", sale: round2(p.market as number), excluded: false, reason: "" };
+  return { status: "auto", sale: round2(p.sale as number), excluded: false, reason: "" };
 }
 
 /**
@@ -304,16 +343,27 @@ export function fixedPrice(l: { x_decision?: string | false; x_manual_price?: nu
  * The sale price a stored line must carry (the publication checks it): auto →
  * market; manual → the decided price, else — «اعتمد بالسعر المربح» chosen in
  * Odoo without a price — the line's suggested price, else the market price.
+ * § 53 ب — «market» here is the market price after the line's uplift.
  */
-export function saleRule(l: { x_status: string | false; x_market_price: number; x_manual_price: number; x_decision?: string | false; x_suggested_price?: number; x_manual_for?: string | false }): number {
-  if (l.x_status === "auto") return round2(Number(l.x_market_price) || 0);
+export function saleRule(l: { x_status: string | false; x_market_price: number; x_manual_price: number; x_decision?: string | false; x_suggested_price?: number; x_manual_for?: string | false; x_uplift_pct?: number | false }): number {
+  if (l.x_status === "auto") return round2(marketSale(l));
   if (l.x_status === "manual") {
     const fixed = fixedPrice(l);
     if (fixed > 0) return round2(fixed);
     if (l.x_decision === "profit") return round2(Number(l.x_suggested_price) || 0);
-    return round2(Number(l.x_market_price) || 0);
+    return round2(marketSale(l));
   }
   return 0;
+}
+
+/**
+ * § 53 ب — what a stored line sells for at «سعر السوق»: its market price after
+ * the uplift the engine wrote on it (x_uplift_pct «زيادة السوق ٪»; 0 or empty =
+ * the market price as it is). 0 = no market price.
+ */
+export function marketSale(l: { x_market_price: number; x_uplift_pct?: number | false }): number {
+  const market = Number(l.x_market_price) || 0;
+  return market > 0 ? upliftedSale(market, l.x_uplift_pct) : 0;
 }
 
 // ---------------------------------------------------------------- Odoo reads

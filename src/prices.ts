@@ -42,6 +42,10 @@
 // minutes on a draft or a missed day, «🔄 إعادة الحساب» pressed or not — the
 // day's state is never changed by it and nothing is sent.
 //
+// § 53 ب — «زيادة على سعر السوق ٪» of the settings: the rule's sale price is the
+// market price after it (rounded up to 0.5), written on each line with the
+// uplift it was made with (x_uplift_pct). 0 = the market price, as before.
+//
 // Nothing here writes list_price or standard_price.
 
 import type { Env } from "./config";
@@ -56,7 +60,7 @@ import { arabicDate, maskPhone } from "./wa-params";
 import { riyadhDateKey, riyadhDayMinuteMs, riyadhMinutes } from "./hours";
 import { waDigits } from "./wa-window";
 import {
-  computePricing, fixedPrice, lineVerdict, readActiveItems, readDayOffers, saleRule, type Decision, type LineStatus, type LineVerdict,
+  computePricing, fixedPrice, lineVerdict, marketSale, readActiveItems, readDayOffers, saleRule, upliftOf, type Decision, type LineStatus, type LineVerdict,
 } from "./pricing-engine";
 import { loadPriceSources, MARKET_ASK_MINUTE, MARKET_REPLY_WINDOW_MIN } from "./price-sources";
 import { readPricingSettings } from "./operating-cost";
@@ -135,6 +139,8 @@ export interface DayLine {
   x_offers: string | false;
   // § 40 ج — the engine and Baraa's decision
   x_market_price: number;
+  /** § 53 ب — «زيادة السوق ٪» the engine made this line's sale price with (0 / empty = none). */
+  x_uplift_pct?: number | false;
   x_market_count: number;
   x_unit_profit: number;
   x_status: LineStatus | false;
@@ -165,7 +171,7 @@ const DAY_FIELDS = ["id", "x_date", "x_state", "x_name", "x_approved_at", "x_app
 const LINE_FIELDS = [
   "id", "x_sequence", "x_product_tmpl_id", "x_packaging_id", "x_supplier_id", "x_daily_price_id", "x_default_price_id",
   "x_source_price", "x_cost_price", "x_is_outlier", "x_outlier_ok", "x_margin_pct", "x_sale_price", "x_excluded", "x_blocked", "x_offers",
-  "x_market_price", "x_market_count", "x_unit_profit", "x_status", "x_reason", "x_decision", "x_manual_price", "x_decided_at", "x_manual_for",
+  "x_market_price", "x_uplift_pct", "x_market_count", "x_unit_profit", "x_status", "x_reason", "x_decision", "x_manual_price", "x_decided_at", "x_manual_for",
   ...BOARD_LINE_FIELDS,
 ];
 
@@ -268,12 +274,12 @@ export async function refreshPriceDay(env: Env, opts: { day?: string; force?: bo
   const inputs = await readBoardInputs(env, day, now, !!opts.force);
   const share = boardShare(inputs.cost, settings.expectedCartons, inputs.actual, inputs.costReason);
   const floor: FloorInputs = { wastePct: settings.wastePct, opShare: share.share, minProfit: settings.minProfit, vatRatePct: vat.ratePct };
-  const plan = computePricing(items, offers, settings.wastePct, vat, { opShare: share.share, minProfit: settings.minProfit });
+  const plan = computePricing(items, offers, settings.wastePct, vat, { opShare: share.share, minProfit: settings.minProfit }, settings.marketUpliftPct);
   const rec = found ?? (await ensureDay(env, day));
   const lines = await readLines(env, rec.id);
   // the inputs' fingerprint (the stored fallback of a supplier row is one of them: a value typed over it is put back)
   const fingerprint = () => fnv1a(JSON.stringify([
-    rec.id, rec.x_state, settings.wastePct, settings.minProfit, vat.ratePct, [...sources.partnerIds].sort((a, b) => a - b),
+    rec.id, rec.x_state, settings.wastePct, settings.minProfit, settings.marketUpliftPct, vat.ratePct, [...sources.partnerIds].sort((a, b) => a - b),
     [share.cost, share.cartons, share.basis, share.expected],
     offers.map((o) => [o.model, o.rowId, o.kind, o.price, o.outlier, o.partnerId, o.saleStored ?? 0]),
     items.map((i) => [i.productId, i.packagingId]),
@@ -302,10 +308,10 @@ export async function refreshPriceDay(env: Env, opts: { day?: string; force?: bo
     const v = lineVerdict(p, decision, fixed);
     counts[v.status]++;
     const src = p.purchaseOffer;
-    // § 46 أ — the board's sale is the approved price, else the market price (the rule: sale = market);
+    // § 46 أ — the board's sale is the approved price, else the rule's (the market price; § 53 ب: after the uplift);
     // § 48 ج — without an approved price the line also carries the preview at the suggested price
     const b = boardLine({
-      purchase: p.purchase, sale: v.sale > 0 ? v.sale : p.market, approved: v.sale > 0, wastePct: settings.wastePct,
+      purchase: p.purchase, sale: v.sale > 0 ? v.sale : p.sale, approved: v.sale > 0, wastePct: settings.wastePct,
       vatRatePct: vat.ratePct, opShare: share.share, minProfit: settings.minProfit,
     });
     board.push(b.x_board_status);
@@ -320,6 +326,7 @@ export async function refreshPriceDay(env: Env, opts: { day?: string; force?: bo
       x_outlier_ok: false,
       x_margin_pct: p.displayMargin ?? 0,
       x_market_price: p.market ?? 0,
+      x_uplift_pct: p.upliftPct,
       x_market_count: p.marketCount,
       x_unit_profit: p.unitProfit ?? 0,
       x_offers: p.offersText || false,
@@ -377,11 +384,11 @@ export async function refreshPriceDay(env: Env, opts: { day?: string; force?: bo
 
 // ---------------------------------------------------------------- the board (§ 46 أ)
 
-/** A stored line on the board: its purchase (net as written), its approved sale price else its market price (then with the preview, § 48 ج). */
+/** A stored line on the board: its purchase (net as written), its approved sale price else its market price — § 53 ب: after its uplift — (then with the preview, § 48 ج). */
 function storedBoardLine(l: DayLine, wastePct: number, vatRatePct: number | null, opShare: number | null, minProfit: number) {
   return boardLine({
     purchase: Number(l.x_cost_price) || 0,
-    sale: Number(l.x_sale_price) > 0 ? Number(l.x_sale_price) : Number(l.x_market_price) || 0,
+    sale: Number(l.x_sale_price) > 0 ? Number(l.x_sale_price) : marketSale(l),
     approved: Number(l.x_sale_price) > 0,
     wastePct, vatRatePct, opShare, minProfit,
   });
@@ -821,6 +828,9 @@ export function exceptionText(day: string, l: DayLine, deadline: string): string
   const cost = Number(l.x_cost_price) > 0 ? money(l.x_cost_price) : "—";
   const market = Number(l.x_market_price) > 0 ? `${money(l.x_market_price)}${Number(l.x_market_count) > 1 ? ` (${l.x_market_count} مشاهدات)` : ""}` : "—";
   const profit = Number(l.x_cost_price) > 0 && Number(l.x_market_price) > 0 ? ` · ربح الوحدة: ${money(l.x_unit_profit)}` : "";
+  // § 53 ب — with an uplift the sale price of «اعتمد بسعر السوق» is not the market price: both are shown
+  const uplift = upliftOf(l.x_uplift_pct);
+  const uplifted = uplift > 0 && Number(l.x_market_price) > 0 ? `البيع بعد الزيادة ${money(uplift)}٪: ${money(marketSale(l))}` : "";
   // § 47 ب — the two numbers of the decision: the market price above, the suggested profitable price here
   const suggested = Number(l.x_suggested_price) > 0
     ? `السعر المربح المقترح: ${money(Number(l.x_suggested_price))}${Number(l.x_break_even) > 0 ? ` · أقل سعر بيع بدون خسارة: ${money(Number(l.x_break_even))}` : ""}`
@@ -829,6 +839,7 @@ export function exceptionText(day: string, l: DayLine, deadline: string): string
     `⚠️ استثناء في أسعار اليوم (${arabicDate(day)})`,
     `${lineName(l)}${pk ? ` (${pk})` : ""}`,
     `الشراء (بدون ضريبة): ${cost} · السوق: ${market}${profit}`,
+    uplifted,
     suggested,
     `السبب: ${l.x_reason || "—"}`,
     `قرارك قبل ${deadline}، وإلا لا يُنشر اليوم.`,
@@ -840,7 +851,8 @@ export function exceptionText(day: string, l: DayLine, deadline: string): string
  * and the market price does not reach it (a market price below it, or none).
  */
 export function offersProfitChoice(l: DayLine): boolean {
-  const suggested = Number(l.x_suggested_price) || 0, market = Number(l.x_market_price) || 0;
+  // § 53 ب — the market price after its uplift is what the rule compares
+  const suggested = Number(l.x_suggested_price) || 0, market = marketSale(l);
   return suggested > 0 && (!(market > 0) || market < suggested - 0.0001);
 }
 
@@ -848,7 +860,7 @@ export function offersProfitChoice(l: DayLine): boolean {
 export function exceptionChoices(l: DayLine): Array<{ id: string; title: string; description?: string }> {
   return [
     ...(offersProfitChoice(l) ? [{ id: `pexc_p_${l.id}`, title: PROFIT_BUTTON_TITLE, description: `${money(Number(l.x_suggested_price))} ر.س` }] : []),
-    ...(Number(l.x_market_price) > 0 ? [{ id: `pexc_m_${l.id}`, title: "اعتمد بسعر السوق", description: `${money(Number(l.x_market_price))} ر.س` }] : []),
+    ...(Number(l.x_market_price) > 0 ? [{ id: `pexc_m_${l.id}`, title: "اعتمد بسعر السوق", description: `${money(marketSale(l))} ر.س` }] : []),
     { id: `pexc_s_${l.id}`, title: "لا تنشر" },
     { id: `pexc_e_${l.id}`, title: "عدّل" },
   ];
@@ -971,11 +983,12 @@ export async function handlePriceExceptionButton(env: Env, payload: string, now:
     return ok ? `✅ ${name}: يُنشر بالسعر المربح ${money(suggested)} ر.س.${missedTail(day)}` : `القرار مسجّل مسبقاً على ${name}.`;
   }
   if (mm[1] === "m") {
-    const market = Math.round((Number(l.x_market_price) || 0) * 100) / 100;
+    // § 53 ب — the market price after the line's uplift (the number his message showed)
+    const market = Math.round(marketSale(l) * 100) / 100;
     if (!(market > 0)) return `لا سعر سوق لـ ${name} اليوم: اختر «لا تنشر» أو «عدّل».`;
     const ok = await decide(env, l, { x_decision: "market", x_manual_price: market, x_manual_for: "market", x_status: "manual", x_reason: "براء: اعتمد بسعر السوق", x_sale_price: market, x_excluded: false }, now);
     if (ok) await boardAfterDecision(env, day.id, now);
-    return ok ? `✅ ${name}: يُنشر بسعر السوق ${money(market)} ر.س.${missedTail(day)}` : `القرار مسجّل مسبقاً على ${name}.`;
+    return ok ? `✅ ${name}: يُنشر بسعر السوق${upliftOf(l.x_uplift_pct) > 0 ? " بعد الزيادة" : ""} ${money(market)} ر.س.${missedTail(day)}` : `القرار مسجّل مسبقاً على ${name}.`;
   }
   const ok = await decide(env, l, { x_decision: "skip", x_status: "unpublished", x_reason: "براء: لا تنشر", x_sale_price: 0, x_excluded: true }, now);
   if (ok) await boardAfterDecision(env, day.id, now);

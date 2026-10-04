@@ -49,6 +49,12 @@ const F9 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20260928-s44.
 const F10 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261001-s49.json", import.meta.url), "utf8"));
 const REAL: Record<string, string[]> = { ...F1, ...F2, ...F3, ...F4, ...F5, ...F6, ...F7, ...F8, ...F9, ...F10 };
 const SELECTIONS: Record<string, string[]> = { ...F1._selections, ...F2._selections, ...F3._selections, ...F4._selections, ...F5._selections, ...F6._selections, ...F7._selections, ...F8._selections, ...F9._selections, ...F10._selections };
+// § 53 — the tenant's fields now for the models § 53 touched (x_market_uplift_pct, x_uplift_pct, the purpose customer_pay_remind_iban): read last, they win
+{
+  const f53 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261004-s53.json", import.meta.url), "utf8"));
+  for (const m of ["x_pricing_config", "x_price_day_line"]) REAL[m] = f53[m];
+  SELECTIONS["x_whatsapp_template.x_purpose"] = f53._selections["x_whatsapp_template.x_purpose"];
+}
 // added on the tenant by scripts/archive/wa-20260925-supplier-nudge-purpose.mjs (selection #4025)
 SELECTIONS["x_whatsapp_template.x_purpose"] = [...SELECTIONS["x_whatsapp_template.x_purpose"], "supplier_price_nudge"];
 const rejected: string[] = [];

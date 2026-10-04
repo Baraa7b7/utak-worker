@@ -53,6 +53,12 @@ const F9 = load("./fixtures-odoo-fields-20260928-s44.json");
 const F10 = load("./fixtures-odoo-fields-20261001-s49.json");
 const REAL: Record<string, string[]> = { ...F1, ...F2, ...F3, ...F4, ...F5, ...F6, ...F7, ...F8, ...F9, ...F10 };
 const SELECTIONS: Record<string, string[]> = { ...F1._selections, ...F2._selections, ...F3._selections, ...F4._selections, ...F5._selections, ...F6._selections, ...F7._selections, ...F8._selections, ...F9._selections, ...F10._selections };
+// § 53 — the tenant's fields now for the models § 53 touched (x_market_uplift_pct, x_uplift_pct, the purpose customer_pay_remind_iban): read last, they win
+{
+  const f53 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261004-s53.json", import.meta.url), "utf8"));
+  for (const m of ["x_pricing_config", "x_price_day_line"]) REAL[m] = f53[m];
+  SELECTIONS["x_whatsapp_template.x_purpose"] = f53._selections["x_whatsapp_template.x_purpose"];
+}
 const rejected: string[] = [];
 function known(model: string, name: string): boolean {
   const list = REAL[model];

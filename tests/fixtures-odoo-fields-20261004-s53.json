@@ -1,5 +1,5 @@
 {
- "_source": "fields_get on utakfresh.odoo.com, 2026-10-04T19:33Z (read-only), § 53 (the market uplift, the pay reminder with the IBAN, the order and registration forms): every field of each model, and the selection values.",
+ "_source": "fields_get on utakfresh.odoo.com, 2026-10-04T20:15Z (read-only), § 53 (the market uplift, the pay reminder with the IBAN, the order and registration forms): every field of each model, and the selection values.",
  "_selections": {
   "x_price_day.x_op_basis": [
    "expected",
@@ -937,7 +937,8 @@
    "restaurant",
    "hotel",
    "cafe",
-   "other"
+   "other",
+   "juice"
   ],
   "res.partner.x_doc_lang": [
    "ar",
@@ -2494,6 +2495,7 @@
   "x_ai_reason",
   "x_avg_response_time_minutes",
   "x_contact_class",
+  "x_contact_name",
   "x_customer_type",
   "x_delivery_latitude",
   "x_delivery_longitude",

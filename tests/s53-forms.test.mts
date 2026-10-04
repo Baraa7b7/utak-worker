@@ -437,4 +437,201 @@ console.log("\n[ج] the purposes and the code's own words");
   assert("the Flow's id in the worker is the one Meta gave", /^\d{15,16}$/.test(OF.ORDER_FLOW_ID) && srcOf("order-form.ts").includes(`export const ORDER_FLOW_ID = "${OF.ORDER_FLOW_ID}"`));
 }
 
+// ================================================================ [د] the registration form
+const RF = await import("../src/register-form.ts");
+const VA = await import("../src/vat-ask.ts");
+const NEWC = 520, NEWC_PHONE = "966500000520";
+const VAT_OK = "310123456700003";
+/** A NEW customer (created after § 53's deployment), his window open; the customer of before carries an older create_date. */
+function regWorld(riyadh = `${DAY} 10:00`): any {
+  const env = world(riyadh);
+  Object.assign(table("res.partner").get(C1)!, { create_date: "2026-09-20 08:00:00", x_vat_status: "unknown", vat: false, x_vat_ask_count: 0 });
+  seed("res.partner", { id: NEWC, name: "أبو فهد", x_whatsapp_number: "+" + NEWC_PHONE, customer_rank: 1, x_contact_class: "customer", create_date: "2026-10-05 07:00:00", x_vat_status: "unknown", vat: false, x_vat_ask_count: 0 });
+  openWindow(env, NEWC_PHONE);
+  return env;
+}
+const newc = { partnerId: NEWC, whatsapp: "+" + NEWC_PHONE };
+const regFlows = (d: string) => flowsTo(d).filter((b: any) => par(b).flow_id === RF.REGISTER_FLOW_ID);
+const orderFlows = (d: string) => flowsTo(d).filter((b: any) => par(b).flow_id === OF.ORDER_FLOW_ID);
+const regReply = (env: any, from: string, token: string, values: Record<string, unknown>) =>
+  quiet(() => RF.handleRegisterFormReply(env, { from: "+" + from, messageId: `wamid.G${++wamid}`, flow: { token, values } }));
+const partner = (id: number) => table("res.partner").get(id)! as any;
+const FULL = { shop: "عصائر الريان", activity: "juice", contact: "فهد العتيبي", legal: "مؤسسة الريان التجارية", vat: VAT_OK, district: "الملز" };
+/** The classifier answers `intent`, then the extractor `items` (the webhook asks both for a text). */
+function withClaude<T>(intent: string, items: unknown, fn: () => Promise<T>): Promise<T> {
+  const real = globalThis.fetch;
+  let n = 0;
+  globalThis.fetch = (async (input: unknown, init?: any) => {
+    const url = typeof input === "string" ? input : (input as any)?.url ?? String(input);
+    if (url.includes("anthropic.com")) return new Response(JSON.stringify({ content: [{ type: "text", text: JSON.stringify(n++ % 2 === 0 ? { intent, confidence: 0.95 } : items) }] }), { status: 200 });
+    return real(input as any, init);
+  }) as typeof fetch;
+  return fn().finally(() => { globalThis.fetch = real; });
+}
+const TOMATO3 = [{ product_id: 1, product_name_raw: "طماطم", packaging_id: 11, quantity: 3 }];
+
+console.log("\n[د] utak_register_v1 at Meta is the form the worker fills: one screen, no endpoint");
+{
+  const json = LIB.buildRegisterFlowJson();
+  const kids = json.screens[0].layout.children;
+  const inputs = kids.filter((c: any) => c.type === "TextInput");
+  const drop = kids.find((c: any) => c.type === "Dropdown");
+  assert("one screen REGISTER, terminal, and no endpoint", json.screens.length === 1 && json.screens[0].id === RF.REGISTER_FLOW_SCREEN && json.screens[0].terminal === true && json.data_api_version === undefined && LIB.REGISTER_FLOW_NAME === "utak_register_v1");
+  assert("its fields in order: اسم المحل (required), النشاط, اسم المسؤول, الاسم النظامي, الرقم الضريبي, الحي", JSON.stringify(kids.filter((c: any) => c.type === "TextInput" || c.type === "Dropdown").map((c: any) => [c.name, c.label, c.required])) === JSON.stringify([["shop", "اسم المحل", true], ["activity", "النشاط", false], ["contact", "اسم المسؤول", false], ["legal", "الاسم النظامي", false], ["vat", "الرقم الضريبي", false], ["district", "الحي", false]]));
+  assert("the legal name and the VAT number say they are optional, and the VAT number its rule", /اختياري/.test(inputs.find((c: any) => c.name === "legal")["helper-text"]) && /اختياري — 15 رقماً يبدأ وينتهي بـ 3/.test(inputs.find((c: any) => c.name === "vat")["helper-text"]) && inputs.find((c: any) => c.name === "vat")["input-type"] === "number");
+  assert("every label holds in Meta's twenty characters", kids.every((c: any) => !c.label || [...c.label].length <= 20));
+  assert("the activity's choices: بقالة / تموينات, مطعم, محل عصير, فندق / تموين, أخرى — the worker's, each a customer type of the tenant", JSON.stringify(drop["data-source"].map((o: any) => o.title)) === JSON.stringify(["بقالة / تموينات", "مطعم", "محل عصير", "فندق / تموين", "أخرى"])
+    && JSON.stringify(Object.fromEntries(drop["data-source"].map((o: any) => [o.id, o.title]))) === JSON.stringify(RF.REGISTER_ACTIVITIES)
+    && drop["data-source"].every((o: any) => JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261004-s53.json", import.meta.url), "utf8"))._selections["res.partner.x_customer_type"].includes(o.id)));
+  assert("«إرسال» completes with the six fields", kids.at(-1).type === "Footer" && kids.at(-1).label === "إرسال" && JSON.stringify(Object.keys(kids.at(-1)["on-click-action"].payload)) === JSON.stringify(["shop", "activity", "contact", "legal", "vat", "district"]));
+  assert("every key the worker sends is declared on the screen, and every declared key is sent", JSON.stringify(Object.keys(RF.registerFormData("x")).sort()) === JSON.stringify(Object.keys(json.screens[0].data).sort()) && Object.values(RF.registerFormData("x", { shop: "أ" })).every((v) => typeof v === "string"));
+}
+
+console.log("\n[د] the VAT number is § 44's: 15 digits, the first and the last «3»");
+{
+  const ok = (vat: string) => RF.parseRegisterValues({ shop: "محل", vat });
+  assert("a valid number, in Western or Arabic digits, with spaces", ok(VAT_OK).vat === VAT_OK && ok("٣١٠١٢٣٤٥٦٧٠٠٠٠٣").vat === VAT_OK && ok(" 3101 2345 6700 003 ").vat === VAT_OK && ok(VAT_OK).problems.length === 0);
+  assert("14 or 16 digits, a first or a last digit that is not 3, letters: refused", ["31012345670003", "3101234567000033", "210123456700003", "310123456700004", "31012345670000A", "abc"].every((v) => ok(v).problems.join() === "vat" && ok(v).vat === ""));
+  assert("no number at all is no problem (the field is optional)", ok("").problems.length === 0 && ok("").vat === "" && ok("   ").problems.length === 0);
+  assert("the same rule as the text question's (src/vat-ask.ts parseVatNumber)", VA.parseVatNumber(VAT_OK) === VAT_OK && VA.parseVatNumber("310123456700004") === null);
+  assert("the shop's name is required; an activity that is not in the list is none", RF.parseRegisterValues({ shop: "  " }).problems.join() === "shop" && RF.parseRegisterValues({ shop: "محل", activity: "bakery" }).values.activity === "" && RF.parseRegisterValues({ shop: "محل", activity: "juice" }).values.activity === "juice");
+  assert("with a number: «مسجّل»; without: «غير مسجّل» and no number written", RF.registerVals(RF.parseRegisterValues(FULL)).x_vat_status === "registered" && RF.registerVals(RF.parseRegisterValues(FULL)).vat === VAT_OK && RF.registerVals(RF.parseRegisterValues({ shop: "محل" })).x_vat_status === "not_registered" && !("vat" in RF.registerVals(RF.parseRegisterValues({ shop: "محل" }))));
+}
+
+console.log("\n[د] a NEW customer's first purchase-like message: his reply, then the registration form — once");
+{
+  const env = regWorld(); published(DAY);
+  await withClaude("place_order", TOMATO3, () => say(env, NEWC_PHONE, text("طماطم كرتون 3")));
+  const got = sentTo(NEWC_PHONE);
+  const f = regFlows(NEWC_PHONE);
+  assert("the reply of before, then ONE form under «سجّل محلك»", got.length === 2 && /بديت لك طلب جديد/.test(bodyOf(got[0])) && f.length === 1 && got[1] === f[0] && par(f[0]).flow_cta === "سجّل محلك" && par(f[0]).flow_action_payload.screen === "REGISTER" && bodyOf(f[0]) === RF.REGISTER_FIRST_TEXT, kinds(NEWC_PHONE));
+  assert("…one form at a time: the order form waits for his next message", orderFlows(NEWC_PHONE).length === 0);
+  assert("the form opens empty, with its line above the fields", dataOf(f[0]).note === RF.REGISTER_NOTE && dataOf(f[0]).i_shop === "" && dataOf(f[0]).i_vat === "");
+  await withClaude("place_order", TOMATO3, () => say(env, NEWC_PHONE, text("طماطم كرتون 3")));
+  assert("his second order message: no second registration form (the order form follows now)", regFlows(NEWC_PHONE).length === 1 && orderFlows(NEWC_PHONE).length === 1, kinds(NEWC_PHONE));
+  assert("no field rejected by the schema gate", rejected.length === 0, rejected.join(" | "));
+}
+{
+  const env = regWorld(); published(DAY);
+  await withClaude("greeting", [], () => say(env, NEWC_PHONE, text("السلام عليكم")));
+  assert("a greeting is not a purchase: no form yet", regFlows(NEWC_PHONE).length === 0 && sentTo(NEWC_PHONE).length === 1, kinds(NEWC_PHONE));
+}
+
+console.log("\n[د] a customer of before (#31, #105: created before § 53) never gets it");
+{
+  const env = regWorld(); published(DAY);
+  await withClaude("place_order", TOMATO3, () => say(env, C1_PHONE, text("طماطم كرتون 3")));
+  assert("his first order message: the reply and the order form — no registration form", regFlows(C1_PHONE).length === 0 && orderFlows(C1_PHONE).length === 1, kinds(C1_PHONE));
+  assert("…and it is remembered: his next messages cost no read", env.MSG_DEDUP.store.get(`rform_first:v1:${C1}`) === "before" && (await quiet(() => RF.registerFormDue(env, C1))) === false);
+  const st = await quiet(() => RF.readRegisterState(env, C1));
+  assert("he is not «new» (created 2026-09-20); a customer created 2026-10-05 is", st?.isNew === false && (await quiet(() => RF.readRegisterState(env, NEWC)))?.isNew === true && RF.REGISTER_NEW_SINCE_UTC === "2026-10-04 20:00:00");
+  // his confirmed order: § 44's question, as before
+  const ask = await quiet(() => VA.maybeAskVat(env, C1, 1));
+  assert("after his confirmed order he is asked § 44's question in text, with «نعم» / «لا» — not the form", !!ask && !ask.registerForm && (ask.buttons ?? []).length === 2 && /ضريبة القيمة المضافة/.test(String(ask.bodyBeforeButtons)), JSON.stringify(ask));
+}
+
+console.log("\n[د] a NEW customer's confirmed order: the form in place of § 44's question");
+{
+  const env = regWorld(); published(DAY);
+  table("res.partner").get(NEWC)!.x_delivery_neighborhood = "الملز";
+  const order = seed("x_daily_order", { x_customer_id: NEWC, x_state: "waiting_confirmation", x_order_date: DAY, x_price_date: DAY, x_created_via: "whatsapp", x_delivery_neighborhood: "الملز" });
+  seed("x_daily_order_line", { x_order_id: order, x_product_tmpl_id: 1, x_packaging_id: 11, x_quantity: 3, x_unit_price: 31, x_status: "pending" });
+  await say(env, NEWC_PHONE, { type: "interactive", interactive: { type: "button_reply", button_reply: { id: `confirm_order_${order}`, title: "تأكيد الطلب ✅" } } });
+  const got = sentTo(NEWC_PHONE);
+  const f = regFlows(NEWC_PHONE);
+  assert("the confirmation, then the registration form — and no «هل منشأتك مسجلة…» question", table("x_daily_order").get(order)!.x_state === "confirmed" && /تم التأكيد/.test(bodyOf(got[0])) && f.length === 1 && bodyOf(f[0]) === RF.REGISTER_VAT_TEXT && !got.some((b: any) => /هل منشأتك مسجلة/.test(bodyOf(b))), kinds(NEWC_PHONE));
+  assert("it counts as an ask (1 of 3), and no text step is opened", partner(NEWC).x_vat_ask_count === 1 && !env.MSG_DEDUP.store.get(VA.vatKey(NEWC)));
+  partner(NEWC).x_vat_ask_count = 3;
+  assert("after three asks: nothing more", (await quiet(() => VA.maybeAskVat(env, NEWC, 999))) === null);
+}
+
+console.log("\n[د] «إرسال»: ONE write on his card, in the fields that exist");
+{
+  const env = regWorld();
+  await quiet(() => RF.sendRegisterForm(env, newc));
+  const token = tokenOf(regFlows(NEWC_PHONE)[0]);
+  graph.length = 0;
+  const before = JSON.stringify(partner(NEWC));
+  await say(env, NEWC_PHONE, nfm(token, FULL));
+  const p = partner(NEWC);
+  assert("the shop's name is his name; the activity, the person in charge, the legal name and the district on their fields", p.name === "عصائر الريان" && p.x_customer_type === "juice" && p.x_contact_name === "فهد العتيبي" && p.x_legal_name === "مؤسسة الريان التجارية" && p.x_delivery_neighborhood === "الملز" && p.street === "الملز", JSON.stringify([p.name, p.x_customer_type, p.x_contact_name, p.x_legal_name, p.x_delivery_neighborhood, p.street]));
+  assert("the VAT number and «مسجّل» (§ 44's fields)", p.vat === VAT_OK && p.x_vat_status === "registered" && before !== JSON.stringify(p));
+  const texts = textsTo(NEWC_PHONE);
+  assert("he is told, and asked for the delivery location by an ordinary message, as today", texts.length === 1 && texts[0].startsWith("تم تسجيل محلك ✅ عصائر الريان") && texts[0].includes(RF.REGISTER_LOCATION_ASK), texts[0]);
+  assert("Baraa gets one line: the shop, the activity, the person, the district, the VAT number", ownerTexts().some((t) => /عميل سجّل محله من النموذج: عصائر الريان/.test(t) && /محل عصير/.test(t) && /فهد العتيبي/.test(t) && /الملز/.test(t) && t.includes(VAT_OK)));
+  assert("after it he is not asked about the VAT again (text or form)", (await quiet(() => VA.maybeAskVat(env, NEWC, 5))) === null && (await quiet(() => RF.registerFormDue(env, NEWC))) === false);
+  // the location, as today
+  graph.length = 0;
+  await say(env, NEWC_PHONE, { type: "location", location: { latitude: 24.69, longitude: 46.72, name: "الملز" } });
+  assert("his location message is saved as today", /حفظنا موقعك للتوصيل/.test(textsTo(NEWC_PHONE)[0] ?? "") && Number(p.x_delivery_latitude) === 24.69, textsTo(NEWC_PHONE)[0]);
+  // the same token again
+  graph.length = 0;
+  const again = await regReply(env, NEWC_PHONE, token, { ...FULL, shop: "اسم آخر" });
+  assert("the same form again: not written a second time", again.action === "duplicate" && partner(NEWC).name === "عصائر الريان" && textsTo(NEWC_PHONE)[0] === RF.REGISTER_USED_TEXT);
+  assert("no field rejected by the schema gate (x_contact_name and «juice» are on the tenant)", rejected.length === 0, rejected.join(" | "));
+}
+{
+  const env = regWorld();
+  await quiet(() => RF.sendRegisterForm(env, newc));
+  const r = await regReply(env, NEWC_PHONE, tokenOf(regFlows(NEWC_PHONE)[0]), { shop: "بقالة السلام", activity: "grocery", contact: "", legal: "", vat: "", district: "" });
+  const p = partner(NEWC);
+  assert("only the shop's name and its activity, no VAT number: «غير مسجّل», no number, nothing else touched", r.action === "saved" && p.name === "بقالة السلام" && p.x_customer_type === "grocery" && p.x_vat_status === "not_registered" && !p.vat && !p.x_contact_name && !p.x_legal_name && !p.street);
+  assert("…and he is not asked again", (await quiet(() => VA.maybeAskVat(env, NEWC, 5))) === null);
+}
+
+console.log("\n[د] a VAT number that is not one: nothing is written, the form opens again with what he typed");
+{
+  const env = regWorld();
+  await quiet(() => RF.sendRegisterForm(env, newc));
+  const token = tokenOf(regFlows(NEWC_PHONE)[0]);
+  graph.length = 0;
+  const bad = await regReply(env, NEWC_PHONE, token, { ...FULL, vat: "310123456700004" });
+  const f = regFlows(NEWC_PHONE);
+  const p = partner(NEWC);
+  assert("nothing on his card (not the name, not the activity)", bad.action === "invalid" && bad.problems?.join() === "vat" && p.name === "أبو فهد" && !p.x_customer_type && !p.vat && p.x_vat_status === "unknown");
+  assert("the form again, saying why, with every text he typed (the wrong number too)", f.length === 1 && bodyOf(f[0]) === RF.REGISTER_BAD_VAT_TEXT && dataOf(f[0]).i_shop === "عصائر الريان" && dataOf(f[0]).i_vat === "310123456700004" && dataOf(f[0]).i_district === "الملز" && dataOf(f[0]).i_contact === "فهد العتيبي");
+  const ok = await regReply(env, NEWC_PHONE, tokenOf(f[0]), FULL);
+  assert("corrected: saved", ok.action === "saved" && partner(NEWC).vat === VAT_OK && partner(NEWC).x_vat_status === "registered");
+  const env2 = regWorld();
+  await quiet(() => RF.sendRegisterForm(env2, newc));
+  const noShop = await regReply(env2, NEWC_PHONE, tokenOf(regFlows(NEWC_PHONE)[0]), { ...FULL, shop: "  " });
+  assert("no shop name: nothing written, the form again", noShop.action === "invalid" && noShop.problems?.join() === "shop" && partner(NEWC).name === "أبو فهد" && bodyOf(regFlows(NEWC_PHONE).at(-1)) === RF.REGISTER_NO_SHOP_TEXT);
+}
+
+console.log("\n[د] the token is this number's; the form is never held, never a template, never Baraa's");
+{
+  const env = regWorld();
+  await quiet(() => RF.sendRegisterForm(env, newc));
+  const token = tokenOf(regFlows(NEWC_PHONE)[0]);
+  const other = await regReply(env, C1_PHONE, token, FULL);
+  assert("another number's reply with his token: nothing written", other.action === "unknown" && partner(NEWC).name === "أبو فهد" && partner(C1).name === "مطعم الوادي" && textsTo(C1_PHONE).at(-1) === RF.REGISTER_UNKNOWN_TEXT);
+  const closed = await quiet(() => RF.sendRegisterForm(env, { partnerId: CUST2, whatsapp: "+" + CUST2_PHONE }));
+  assert("a window that is closed: nothing sent, nothing held, no template", closed.sent === false && closed.reason === "window_closed" && sentTo(CUST2_PHONE).length === 0 && heldFor(env, CUST2_PHONE).length === 0);
+  openWindow(env, OWNER, 1);
+  const mine = await quiet(() => RF.sendRegisterForm(env, { partnerId: 1, whatsapp: "+" + OWNER }));
+  assert("Baraa's number is never a customer to register", mine.sent === false && mine.reason === "owner" && flowsTo(OWNER).length === 0);
+  const d = gatewayDecision(await quiet(() => sendViaGateway(env, { purpose: "register_flow_test", to: "+" + NEWC_PHONE, content: { kind: "session", body: { type: "text", text: { body: "x" } } } })));
+  assert("the trial's purpose reaches Baraa's number alone", d?.action === "refused" && /OwnerOnlyPurpose/.test(String((d as any).reason)));
+}
+
+console.log("\n[د] the one trial to Baraa: marked «🧪 تجربة», once a day, nothing written in Odoo");
+{
+  const env = regWorld(`${DAY} 23:30`);
+  openWindow(env, OWNER, 1);
+  const t = await quiet(() => RF.sendRegisterFormTest(env));
+  const f = flowsTo(OWNER);
+  assert("one form to his own number, marked in its text and in the line above the fields", t.sent === true && f.length === 1 && bodyOf(f[0]).startsWith("🧪 تجربة") && String(dataOf(f[0]).note).startsWith("🧪 تجربة") && par(f[0]).flow_id === RF.REGISTER_FLOW_ID);
+  assert("a second trial the same day: not sent", (await quiet(() => RF.sendRegisterFormTest(env))).reason === "already_today" && flowsTo(OWNER).length === 1);
+  graph.length = 0;
+  await say(env, OWNER, nfm(tokenOf(f[0]), { ...FULL, vat: "123" }));
+  const ans = textsTo(OWNER);
+  assert("his reply is answered with what he typed — and that the VAT number is not one", ans.length === 1 && ans[0].startsWith("🧪 تجربة — وصلت بيانات المحل") && /عصائر الريان/.test(ans[0]) && /محل عصير/.test(ans[0]) && /123 \(غير صحيح/.test(ans[0]) && /لم يُكتب شيء في Odoo/.test(ans[0]), ans[0]);
+  assert("NOTHING of the form is written in Odoo: no partner carries the shop's name, an activity, a person in charge, a legal name or a VAT number", !(rows("res.partner") as any[]).some((r) => r.name === "عصائر الريان" || r.x_customer_type || r.x_contact_name || r.x_legal_name || r.vat || r.x_vat_status === "registered" || r.x_vat_status === "not_registered"));
+}
+{
+  const purposes = (await import("../src/wa-purposes.ts")).PURPOSES;
+  assert("customer_register_form and register_flow_test are known to the gateway", purposes.customer_register_form?.kind === "operational" && purposes.register_flow_test?.kind === "operational");
+  assert("the Flow's id in the worker is the one Meta gave", /^\d{15,16}$/.test(RF.REGISTER_FLOW_ID) && RF.REGISTER_FLOW_ID !== OF.ORDER_FLOW_ID && srcOf("register-form.ts").includes(`export const REGISTER_FLOW_ID = "${RF.REGISTER_FLOW_ID}"`));
+}
+
 done();

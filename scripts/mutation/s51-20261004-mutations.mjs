@@ -211,7 +211,7 @@ const M = [
   ["د", "the trial shows no last price", [[PF,
     "hintsFrom: ref ? { partnerId: ref.partnerId, supplier: true } : undefined });", "hintsFrom: undefined });"]], T],
   ["د", "the owner guard refuses the trial", [[GW,
-    "new Set([\"price_flow_test\", \"order_flow_test\", \"owner_alert\",", "new Set([\"order_flow_test\", \"owner_alert\","]], T],
+    "new Set([\"price_flow_test\", \"order_flow_test\", \"register_flow_test\", \"owner_alert\",", "new Set([\"order_flow_test\", \"register_flow_test\", \"owner_alert\","]], T],
   ["د", "the trial route needs no token", [[IX,
     "url.pathname === \"/odoo/hook/price-flow-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (!expected || !timingSafeEqual(providedToken, expected)) {",
     "url.pathname === \"/odoo/hook/price-flow-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (false) {"]], T],

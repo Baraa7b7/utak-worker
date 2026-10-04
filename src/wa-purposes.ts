@@ -82,6 +82,9 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // 24h window only, never a template and never held; what cannot go is simply not sent (the text
   // order stays). The gateway refuses it for a price source's or a supplier's number.
   customer_order_form: op("نموذج الطلب"),
+  // § 53 د — the new customer's registration form (a WhatsApp Flow): inside the 24h window only,
+  // never a template and never held.
+  customer_register_form: op("نموذج تسجيل العميل"),
   customer_feedback: { label: "طلب التقييم", kind: "marketing", important: false, ttl: "day" },
   customer_inactive: { label: "تذكير الغياب", kind: "marketing", important: false, ttl: "day" },
   // ---- suppliers
@@ -155,6 +158,8 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // § 53 ج — the one trial of the order form to Baraa's own number («🧪 تجربة»), inside his
   // window only, and the answers to his trial reply (no order is created).
   order_flow_test: op("تجربة نموذج الطلب", false, { hours: 1 }),
+  // § 53 د — the one trial of the registration form to Baraa's own number (nothing written in Odoo).
+  register_flow_test: op("تجربة نموذج التسجيل", false, { hours: 1 }),
   // ---- § 34: «فتح المحادثة» — one UTILITY template per recipient category,
   // sent when a critical message is held (src/wa-opener.ts). Template only:
   // never held itself.

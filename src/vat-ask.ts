@@ -180,7 +180,7 @@ async function endUnanswered(env: Env, f: VatFlow, why: string, fromTick: boolea
 
 // ---------------------------------------------------------------- the question
 
-const PARTNER_FIELDS = ["id", "name", "vat", "x_vat_status", "x_vat_ask_count"];
+const PARTNER_FIELDS = ["id", "name", "vat", "x_vat_status", "x_vat_ask_count", "create_date"];
 
 /**
  * After a confirmed order: the question (buttons) when his status is «غير
@@ -190,7 +190,7 @@ const PARTNER_FIELDS = ["id", "name", "vat", "x_vat_status", "x_vat_ask_count"];
 export async function maybeAskVat(env: Env, partnerId: number, orderId: number, now: number = Date.now()): Promise<RouterReply | null> {
   if (!partnerId) return null;
   try {
-    const [p] = await call<Array<{ id: number; name: string; vat: string | false; x_vat_status: string | false; x_vat_ask_count: number | false }>>(
+    const [p] = await call<Array<{ id: number; name: string; vat: string | false; x_vat_status: string | false; x_vat_ask_count: number | false; create_date?: string | false }>>(
       env, "res.partner", "read", { ids: [partnerId], fields: PARTNER_FIELDS },
     );
     if (!p || vatStatusOf(p) !== "unknown") return null;
@@ -201,6 +201,14 @@ export async function maybeAskVat(env: Env, partnerId: number, orderId: number, 
     if (open && now - open.at < VAT_WAIT_MIN * MIN) return null;
     const claim = await claimButton(env, `vat_ask:${partnerId}:${orderId}`, STATE_TTL);
     if (!claim.claimed) return null;
+    // § 53 د — a NEW customer (created from § 53 on): the registration form in place of the question and
+    // its three text steps — the same count, at most VAT_MAX_ASKS. A customer of before is asked as before.
+    const { REGISTER_NEW_SINCE_UTC, REGISTER_VAT_TEXT } = await import("./register-form");
+    if (typeof p.create_date === "string" && p.create_date >= REGISTER_NEW_SINCE_UTC) {
+      await call(env, "res.partner", "write", { ids: [partnerId], vals: { x_vat_ask_count: count + 1 } });
+      console.log(`[vat-ask] partner=${partnerId} order=${orderId} ask=${count + 1}: the registration form`);
+      return { registerForm: { partnerId, body: REGISTER_VAT_TEXT }, purpose: VAT_PURPOSE };
+    }
     const f: VatFlow = { partnerId, orderId, name: String(p.name || ""), step: "ask", at: now, nonce: nonce(), askNo: count + 1 };
     await call(env, "res.partner", "write", { ids: [partnerId], vals: { x_vat_ask_count: count + 1 } });
     await writeFlow(env, f);

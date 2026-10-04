@@ -1724,6 +1724,22 @@ export default {
       }
     }
 
+    // § 53 د — the ONE trial of the registration form: to Baraa's own number, while his window is
+    // open, once a day. His reply writes nothing in Odoo (src/register-form.ts sendRegisterFormTest).
+    if (request.method === "POST" && url.pathname === "/odoo/hook/register-form-test") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      try {
+        const { sendRegisterFormTest } = await import("./register-form");
+        return json({ ok: true, ...(await sendRegisterFormTest(env)) });
+      } catch (e) {
+        return json({ ok: false, error: (e as Error).message }, 500);
+      }
+    }
+
     // § 53 ج — the ONE trial of the order form: to Baraa's own number, while his window is
     // open, once a day. His reply creates no order (src/order-form.ts sendOrderFormTest).
     if (request.method === "POST" && url.pathname === "/odoo/hook/order-form-test") {
@@ -2347,6 +2363,11 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           // § 53 ج — the customer's order form: its quantities become his order, and the quotation follows
           const r = await handleOrderFormReply(env, msg, ctx);
           console.log(`[order-form] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} ${r.action}${r.orderId ? ` order=${r.orderId}` : ""}`);
+        } else if ((await import("./register-form")).isRegisterFormToken(msg.flow.token ?? "")) {
+          // § 53 د — the new customer's registration: its fields go on his card
+          const { handleRegisterFormReply } = await import("./register-form");
+          const r = await handleRegisterFormReply(env, msg, ctx);
+          console.log(`[register-form] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} ${r.action}${r.problems?.length ? ` (${r.problems.join(",")})` : ""}`);
         } else {
           const { handlePriceFlowReply } = await import("./price-flow");
           const r = await handlePriceFlowReply(env, msg, ctx);
@@ -2917,7 +2938,19 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
 
     const reply: RouterReply = await dispatch(env, { msg, intent, senderType, partner });
 
+    // § 53 د — a NEW customer's first purchase-like message: the registration form follows the reply
+    // (once), and the order form waits for his next message — one form at a time
+    let registerDue = false;
+    if (msg.type === "text" && (intent === "place_order" || intent === "add_to_order" || intent === "request_quotation" || intent === "product_inquiry")) {
+      const { registerFormDue } = await import("./register-form");
+      registerDue = await registerFormDue(env, partner.id);
+      if (registerDue) delete reply.orderForm;
+    }
     await sendReply(env, msg.from, reply, ctx);
+    if (registerDue) {
+      const { sendFirstRegisterForm } = await import("./register-form");
+      await sendFirstRegisterForm(env, { partnerId: partner.id, whatsapp: msg.from }, ctx);
+    }
     // 2026-09-25 (STATUS § 30) — after the reply, so this text is answered as
     // today; the result steers the next ones.
     if (msg.type === "text" && !screened) {
@@ -3021,6 +3054,15 @@ async function sendReply(
   if (reply.orderForm) {
     const { offerOrderForm } = await import("./order-form");
     await offerOrderForm(env, { partnerId: reply.orderForm.partnerId, name: reply.orderForm.name, whatsapp: to }, { auto: true, body: reply.orderForm.body, ctx });
+  }
+  // § 53 د — a NEW customer's confirmed order: the registration form, in place of § 44's VAT questions
+  if (reply.registerForm) {
+    try {
+      const { sendRegisterForm } = await import("./register-form");
+      await sendRegisterForm(env, { partnerId: reply.registerForm.partnerId, whatsapp: to }, { body: reply.registerForm.body, ctx });
+    } catch (e) {
+      console.warn("[register-form] the form after the confirmation failed", (e as Error)?.message);
+    }
   }
 }
 

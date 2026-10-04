@@ -84,6 +84,8 @@ export interface RouterReply {
   confirmedCustomerId?: number;
   /** § 53 ج — after this reply: the order form (once per customer and price list), opened with his open order. */
   orderForm?: { partnerId: number; name: string; body: string };
+  /** § 53 د — after this reply: the registration form (a new customer's confirmed order, in place of § 44's questions). */
+  registerForm?: { partnerId: number; body: string };
 }
 
 /** § 44 د — after a confirmed order: the VAT question follows the confirmation, when due. */

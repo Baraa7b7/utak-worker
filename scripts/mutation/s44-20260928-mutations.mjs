@@ -63,7 +63,7 @@ const M = [
   ["د", "no limit of three asks", [[VA,
     "    if (count >= VAT_MAX_ASKS) return null;\n", ""]], T],
   ["د", "the ask counter not incremented", [[VA,
-    "vals: { x_vat_ask_count: count + 1 } }", "vals: { x_vat_ask_count: count } }"]], T],
+    "vals: { x_vat_ask_count: count + 1 } });\n    await writeFlow(env, f);", "vals: { x_vat_ask_count: count } });\n    await writeFlow(env, f);"]], T],
   ["د", "a second question while one is open", [[VA,
     "    if (open && now - open.at < VAT_WAIT_MIN * MIN) return null;\n", ""]], T],
   ["د", "any 15 digits taken as a VAT number (not 3…3)", [[VA,

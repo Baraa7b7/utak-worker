@@ -143,8 +143,10 @@ const M = [
     "domain: [[SOURCE_FIELD, \"=\", true], [\"supplier_rank\", \"=\", 0], [\"customer_rank\", \"=\", 0],", "domain: [[SOURCE_FIELD, \"=\", true], [\"supplier_rank\", \"=\", 0],"]], T],
   ["ب", "a partner that is no price source counts as an outside source", [[PS,
     "domain: [[SOURCE_FIELD, \"=\", true], [\"supplier_rank\", \"=\", 0], [\"customer_rank\", \"=\", 0],", "domain: [[\"supplier_rank\", \"=\", 0], [\"customer_rank\", \"=\", 0],"]], T],
+  // § 53 أ — the closed-number check behind the lookup catches the same number: both are switched off
   ["ب", "the outside source is routed as a customer", [[IX,
-    "      sourceMatch = !t && !sup && !cus && src ? { id: src.id, name: src.name } : null;", "      sourceMatch = null;"]], T],
+    "      sourceMatch = !t && !sup && !cus && src ? { id: src.id, name: src.name } : null;", "      sourceMatch = null;"], [IX,
+    "            sourceMatch = { id: closed.id, name: closed.name };\n", ""]], T],
   ["ب", "the outside source's message falls through to the customer path", [[IX,
     "    if (sourceMatch) {\n      await outsideSourceMessage(env, sourceMatch, msg, ctx);\n      await markSeen(env, msg.messageId);\n      continue;\n    }\n", ""]], T],
   ["ب", "a customer partner is made for the outside source's number", [[IX,

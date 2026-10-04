@@ -174,7 +174,7 @@ const M = [
   ["د", "a simulation row of the day is read by the engine", [[EN,
     "[\"x_supplier_id\", \"in\", ids], [\"x_utak_simulation\", \"!=\", true]],", "[\"x_supplier_id\", \"in\", ids], [\"x_utak_simulation\", \"=\", true]],"]], T],
   ["د", "a source's unreadable reply is an ordinary message again (no alert, «استخدم الأزرار»)", [[PS,
-    "    return { saved: 0, reply: MARKET_UNREAD_TEXT };", "    return null;"]], T],
+    "    return { saved: 0, reply: marketUnreadText(src.role ?? null) };", "    return null;"]], T],
   ["د", "the unreadable reply: Baraa is not told", [[PS,
     "        await sendOwnerAlert(env, marketUnreadAlert(src.name, text, check.dropped.length));\n", ""]], T],
   ["د", "the unreadable reply: the alert repeats with every delivery of the message", [[PS,

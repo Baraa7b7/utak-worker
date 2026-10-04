@@ -229,7 +229,7 @@ const M = [
   ["د", "the supplier's reply is read without his role", [[SU,
     "messageText, \"supplier\", await partnerPriceRole(env, supplier.id));", "messageText, \"supplier\");"]], TS],
   ["د", "a «سوق» source is still told to write «شراء» beside a purchase price", [[PS,
-    "  if (role === \"market\") return `صباح الخير ${first} 🌿 أرسل أسعار السوق اليوم لو سمحت: اسم الصنف كاملاً والتعبئة وسعر السوق لكل صنف.`;\n", ""]], TS],
+    "  if (role === \"market\") return `صباح الخير ${first} 🌿 أرسل أسعار السوق اليوم لو سمحت: اسم الصنف كاملاً والتعبئة وسعر السوق لكل صنف. ${MARKET_VAT_LINE}`;\n", ""]], TS],
   ["د", "the 02:30 ask is sent without the source's role", [[PS,
     "    const text = marketAskText(t.name, t.role);", "    const text = marketAskText(t.name);"]], TS],
   ["د", "Odoo: Omar's role is written «شراء»", [[UI,

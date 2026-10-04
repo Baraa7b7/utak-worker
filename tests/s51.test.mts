@@ -43,7 +43,7 @@ const worker = (await import("../src/index.ts")).default;
 // @ts-ignore — plain .mjs helper
 const LIB = await import("../scripts/lib/s51-price-flow.mjs");
 
-const TPL_ASK = "utak_supplier_ask_v2", TPL_NUDGE = "utak_supplier_price_nudge", TPL_FLOW = "utak_price_ask_flow_v1";
+const TPL_ASK = "utak_supplier_ask_v2", TPL_NUDGE = "utak_supplier_price_nudge", TPL_FLOW = "utak_price_ask_flow_v2";
 /** The supplier templates as on the tenant, and the Flow's template in the state given (null = no row). */
 function templates(flow: [string, string] | null = null): void {
   const row = (purpose: string, name: string, n: number, status = "APPROVED", category = "UTILITY") =>
@@ -51,7 +51,7 @@ function templates(flow: [string, string] | null = null): void {
   row("supplier_ask", TPL_ASK, 2);
   row("supplier_confirm", "utak_supplier_confirm_v1", 2);
   row("supplier_price_nudge", TPL_NUDGE, 2);
-  if (flow) row("price_ask_flow", TPL_FLOW, 3, flow[0], flow[1]);
+  if (flow) row("price_ask_flow", TPL_FLOW, 1, flow[0], flow[1]);
 }
 const world = (riyadh = `${DAY} 02:00`, flow: [string, string] | null = null): any => { const env = fresh(riyadh); cost(500); templates(flow); claudeCalls = 0; metaListReads = 0; metaTemplates = []; return env; };
 const flowsTo = (d: string) => sentTo(d).filter((b: any) => b?.interactive?.type === "flow");
@@ -84,33 +84,29 @@ function activeProducts(n: number): void {
 }
 
 // ================================================================ [أ] the form
-console.log("\n[أ] the Flow at Meta is the form the worker fills: one screen, fifteen optional number fields, no endpoint");
+console.log("\n[أ] utak_price_ask_v1 as it stays at Meta (§ 52 sends v2: tests/s52.test.mts): one screen, fifteen optional number fields, no endpoint");
 {
   const json = LIB.buildFlowJson();
   const screen = json.screens[0];
   const inputs = screen.layout.children.filter((c: any) => c.type === "TextInput");
   const footer = screen.layout.children.find((c: any) => c.type === "Footer");
   assert("ONE screen, terminal, and no endpoint (no data_api_version, no routing_model): the data travels with the message", json.screens.length === 1 && screen.terminal === true && json.data_api_version === undefined && json.routing_model === undefined);
-  assert("the screen is the one the worker navigates to, and the Flow's slots are the worker's", screen.id === FL.PRICE_FLOW_SCREEN && LIB.FLOW_SCREEN === FL.PRICE_FLOW_SCREEN && LIB.FLOW_SLOTS === FL.PRICE_FLOW_SLOTS && inputs.length === FL.PRICE_FLOW_SLOTS, `${screen.id} ${inputs.length}`);
+  assert("its screen and its fifteen slots, as published (a published Flow's JSON is frozen)", screen.id === "PRICES" && LIB.FLOW_SCREEN === "PRICES" && LIB.FLOW_SLOTS === 15 && inputs.length === 15, `${screen.id} ${inputs.length}`);
   assert("fifteen fields p1 … p15: numeric, optional, each with its label, hint, visibility and initial value from the data",
-    FL.PRICE_FLOW_SLOTS === 15 && inputs.every((c: any, i: number) => c.name === `p${i + 1}` && c["input-type"] === "number" && c.required === false
+    inputs.every((c: any, i: number) => c.name === `p${i + 1}` && c["input-type"] === "number" && c.required === false
       && c.label === `\${data.l${i + 1}}` && c["helper-text"] === `\${data.h${i + 1}}` && c.visible === `\${data.v${i + 1}}` && c["init-value"] === `\${data.i${i + 1}}`));
   assert("the heading and the line above the fields come from the data (one Flow for «شراء» and «سوق»)", screen.layout.children[0].type === "TextHeading" && screen.layout.children[0].text === "${data.title}" && screen.layout.children[1].text === "${data.note}");
   assert("«إرسال» completes the Flow with the fifteen fields", footer?.label === "إرسال" && footer["on-click-action"].name === "complete"
     && JSON.stringify(Object.keys(footer["on-click-action"].payload)) === JSON.stringify(Array.from({ length: 15 }, (_, i) => `p${i + 1}`)) && footer["on-click-action"].payload.p7 === "${form.p7}");
-  const env = world();
-  const prep = await quiet(() => FL.prepareFlowAsk(env, ahmedSrc));
-  assert("every key the worker sends is declared on the screen, and every declared key is sent (62: the heading, the note, 15 × 4)",
-    JSON.stringify(Object.keys(prep!.data).sort()) === JSON.stringify(Object.keys(screen.data).sort()) && Object.keys(prep!.data).length === 62, Object.keys(prep!.data).length.toString());
-  assert("…each of its declared type (a string, or a boolean for «shown»)", Object.entries(prep!.data).every(([k, v]) => typeof v === (screen.data[k].type === "boolean" ? "boolean" : "string")));
-  assert("the line above the fields: «الأسعار بدون ضريبة. اترك الخانة فاضية لو الصنف غير متوفر.»", prep!.data.note === "الأسعار بدون ضريبة. اترك الخانة فاضية لو الصنف غير متوفر." && LIB.FLOW_NOTE === FL.PRICE_FLOW_NOTE);
-  const t = LIB.templatePayload(FL.PRICE_FLOW_ID);
-  assert("the template: UTILITY, three variables, ONE FLOW button «أدخل الأسعار» that navigates to the screen of this Flow", t.name === FL.PRICE_FLOW_TEMPLATE && t.category === "UTILITY" && LIB.FLOW_TEMPLATE.purpose === FL.PRICE_FLOW_PURPOSE
-    && t.components[1].buttons.length === 1 && t.components[1].buttons[0].type === "FLOW" && t.components[1].buttons[0].text === FL.PRICE_FLOW_CTA && t.components[1].buttons[0].flow_id === FL.PRICE_FLOW_ID
-    && t.components[1].buttons[0].flow_action === "navigate" && t.components[1].buttons[0].navigate_screen === FL.PRICE_FLOW_SCREEN, JSON.stringify(t.components[1]));
-  const filled = LIB.FLOW_TEMPLATE.body.replace(/\{\{(\d)\}\}/g, (_: string, n: string) => FL.flowAskParams("أحمد حسان", "purchase", "2026-10-05")[Number(n) - 1]);
-  assert("the text inside the window is the template's own text", filled === FL.flowAskText("أحمد حسان", "purchase", "2026-10-05") && /^صباح الخير أحمد 🌿 طلب أسعار الشراء من يو تاك ليوم 5 أكتوبر 2026\. اضغط «أدخل الأسعار» وعبّ سعر كل صنف \(بدون ضريبة\)\.$/.test(filled), filled);
-  assert("{{2}} follows the role: «أسعار الشراء» / «أسعار السوق»", FL.flowAskParams("عمر المجهلي", "market", DAY)[1] === "أسعار السوق" && FL.flowAskParams("أحمد", "purchase", DAY)[1] === "أسعار الشراء");
+  assert("62 data keys on its screen: the heading, the note, 15 × 4", Object.keys(screen.data).length === 62 && screen.data.title.type === "string" && screen.data.v15.type === "boolean" && screen.data.i15.type === "string");
+  assert("the line above its fields says «الأسعار بدون ضريبة.» — and so does the worker's line for a purchase price (§ 52 ج: the line follows the role)",
+    LIB.FLOW_NOTE === "الأسعار بدون ضريبة. اترك الخانة فاضية لو الصنف غير متوفر." && FL.flowNote("purchase") === LIB.FLOW_NOTE, FL.flowNote("purchase"));
+  const t = LIB.templatePayload(FL.PRICE_FLOW_V1_ID);
+  assert("its template (filed MARKETING by Meta, never used): UTILITY as submitted, ONE FLOW button «أدخل الأسعار» that navigates to its screen", t.name === "utak_price_ask_flow_v1" && t.category === "UTILITY" && LIB.FLOW_TEMPLATE.purpose === FL.PRICE_FLOW_PURPOSE
+    && t.components[1].buttons.length === 1 && t.components[1].buttons[0].type === "FLOW" && t.components[1].buttons[0].text === FL.PRICE_FLOW_CTA && t.components[1].buttons[0].flow_id === "1086052444016554"
+    && t.components[1].buttons[0].flow_action === "navigate" && t.components[1].buttons[0].navigate_screen === "PRICES", JSON.stringify(t.components[1]));
+  assert("the text inside the window: the greeting, the role's noun, the day, and the role's VAT line", /^صباح الخير أحمد 🌿 طلب أسعار الشراء من يو تاك ليوم 5 أكتوبر 2026\. اضغط «أدخل الأسعار» وعبّ سعر كل صنف \(بدون ضريبة\)\.$/.test(FL.flowAskText("أحمد حسان", "purchase", "2026-10-05")), FL.flowAskText("أحمد حسان", "purchase", "2026-10-05"));
+  assert("the noun follows the role: «أسعار الشراء» / «أسعار السوق»", /طلب أسعار السوق من يو تاك/.test(FL.flowAskText("عمر المجهلي", "market", DAY)) && /طلب أسعار الشراء من يو تاك/.test(FL.flowAskText("أحمد", "purchase", DAY)));
 }
 
 console.log("\n[أ] a slot: «الصنف — التعبئة» as its label, «آخر سعر: X» as its hint");
@@ -147,10 +143,10 @@ console.log("\n[أ] the items: every product «نشط للبيع» in the engine
   seed("x_price_offer", { x_product_tmpl_id: 1, x_packaging_id: 11, x_source_partner_id: DRIVER, x_date: "2026-10-02", x_purchase_price: 0, x_market_price: 30, x_status: "valid", x_utak_simulation: false });
   const p = (await quiet(() => FL.prepareFlowAsk(env, ahmedSrc)))!;
   assert("four items, in the engine's order, each with its product and its default packaging", p.record.items.map((i: any) => `${i.slot}:${i.productId}/${i.packagingId}`).join() === "1:1/11,2:2/21,3:3/31,4:4/41" && p.total === 4, JSON.stringify(p.record.items));
-  assert("…four fields shown, eleven hidden; the heading is the role's", [1, 2, 3, 4].every((n) => p.data[`v${n}`] === true) && p.data.v5 === false && p.data.v15 === false && p.data.title === "أسعار الشراء اليوم");
+  assert("…four fields shown, eleven hidden; the heading is the role's", [1, 2, 3, 4].every((n) => p.data[`v${n}`] === true) && p.data.v5 === false && p.data.v15 === false && p.data.sub === "أسعار الشراء اليوم");
   assert("the hint is the source's OWN last price, the newest (21, not 19), never a simulation row's", p.data.h1 === "آخر سعر: 21" && p.data.h2 === "لا سعر سابق", `${p.data.h1} | ${p.data.h2}`);
   const m = (await quiet(() => FL.prepareFlowAsk(env, omarSrc)))!;
-  assert("a «سوق» source: «أسعار السوق اليوم», and ITS last market observation (30) — not the supplier's price", m.data.title === "أسعار السوق اليوم" && m.data.h1 === "آخر سعر: 30" && m.record.kind === "market", `${m.data.title} | ${m.data.h1}`);
+  assert("a «سوق» source: «أسعار السوق اليوم», and ITS last market observation (30) — not the supplier's price", m.data.sub === "أسعار السوق اليوم" && m.data.h1 === "آخر سعر: 30" && m.record.kind === "market", `${m.data.sub} | ${m.data.h1}`);
   assert("a token for every send: unique, and it names the day and the source", p.record.token !== m.record.token && p.record.token.startsWith(`pf1.${DAY.replace(/-/g, "")}.${AHMED}.`) && m.record.token.startsWith(`pf1.${DAY.replace(/-/g, "")}.${DRIVER}.`));
   const kept = await FL.readFlowToken(env, p.record.token);
   assert("…kept with the day, the number it goes to, and the item of every slot", kept?.day === DAY && kept.to === AHMED_PHONE && kept.partnerId === AHMED && kept.items.length === 4 && kept.items[2].productId === 3 && kept.items[2].packagingId === 31, JSON.stringify(kept));
@@ -165,11 +161,11 @@ console.log("\n[أ] the items: every product «نشط للبيع» in the engine
   const env = world();
   activeProducts(16);
   const p = (await quiet(() => FL.prepareFlowAsk(env, ahmedSrc)))!;
-  const alerts = ownerTexts().filter((t) => /نموذج الأسعار يتسع لـ 15/.test(t));
+  const alerts = ownerTexts().filter((t) => /نموذج الأسعار تتسع لـ 15 خانة/.test(t));
   assert("sixteen items: the first fifteen in the form…", p.record.items.length === 15 && p.total === 16 && p.record.items[14].productId === 15 && !p.record.items.some((i: any) => i.productId === 16));
-  assert("…and Baraa told at once which one has no field", alerts.length === 1 && /الأصناف النشطة للبيع 16/.test(alerts[0]) && /صنف 16/.test(alerts[0]), ownerTexts().join(" | "));
+  assert("…and Baraa told at once which one has no field", alerts.length === 1 && /فيها 16 صنفاً نشطاً للبيع/.test(alerts[0]) && /بلا خانة: صنف 16\./.test(alerts[0]), ownerTexts().join(" | "));
   await quiet(() => FL.prepareFlowAsk(env, omarSrc));
-  assert("…once a day (the next ask of the day: no second alert)", ownerTexts().filter((t) => /نموذج الأسعار يتسع لـ 15/.test(t)).length === 1);
+  assert("…once a day (the next ask of the day: no second alert)", ownerTexts().filter((t) => /نموذج الأسعار تتسع لـ 15 خانة/.test(t)).length === 1);
 }
 
 // ================================================================ [ب] the ask
@@ -181,9 +177,9 @@ console.log("\n[ب] 02:00 — the supplier: the Flow inside his window, its temp
   await quiet(() => SUP.askAllSuppliersForPrices(withAutoSendJob(env, "ask_suppliers")));
   const f = flowsTo(AHMED_PHONE);
   assert("inside his 24h window: ONE interactive `flow` message, no template at all", f.length === 1 && sentTo(AHMED_PHONE).length === 1 && f[0].type === "interactive", JSON.stringify(sentTo(AHMED_PHONE).map((b: any) => b.template?.name ?? b.interactive?.type)));
-  assert("…the Flow of Meta, opened on its screen with the data (navigate — no endpoint)", par(f[0]).flow_id === FL.PRICE_FLOW_ID && par(f[0]).flow_action === "navigate" && par(f[0]).flow_action_payload.screen === "PRICES" && par(f[0]).flow_message_version === "3" && f[0].interactive.action.name === "flow", JSON.stringify(par(f[0])).slice(0, 300));
-  assert("…the button «أدخل الأسعار», and the template's text above it", par(f[0]).flow_cta === "أدخل الأسعار" && bodyOf(f[0]) === FL.flowAskText("أحمد حسان", "purchase", DAY), bodyOf(f[0]));
-  assert("…a field for EVERY active item (four), not only the two on his card", [1, 2, 3, 4].every((n) => dataOf(f[0])[`v${n}`] === true) && dataOf(f[0]).title === "أسعار الشراء اليوم");
+  assert("…the Flow of Meta, opened on its screen with the data (navigate — no endpoint)", par(f[0]).flow_id === FL.PRICE_FLOW_ID && par(f[0]).flow_action === "navigate" && par(f[0]).flow_action_payload.screen === FL.PRICE_FLOW_SCREEN && par(f[0]).flow_message_version === "3" && f[0].interactive.action.name === "flow", JSON.stringify(par(f[0])).slice(0, 300));
+  assert("…the button «أدخل الأسعار», and the ask's text above it", par(f[0]).flow_cta === "أدخل الأسعار" && bodyOf(f[0]) === FL.flowAskText("أحمد حسان", "purchase", DAY), bodyOf(f[0]));
+  assert("…a field for EVERY active item (four), not only the two on his card", [1, 2, 3, 4].every((n) => dataOf(f[0])[`v${n}`] === true) && dataOf(f[0]).sub === "أسعار الشراء اليوم");
   assert("…the ask is logged as an ask (the 05:00 reminder and the reliability score read this log)", askLogs().length === 1 && askLogs()[0].x_supplier_id === AHMED && askLogs()[0].x_status === "sent", JSON.stringify(askLogs()));
   const rec = await FL.readFlowToken(env, tokenOf(f[0]));
   assert("…its token is kept for this number and this day", rec?.to === AHMED_PHONE && rec.day === DAY && rec.supplier === true && rec.kind === "purchase");
@@ -197,9 +193,9 @@ console.log("\n[ب] 02:00 — the supplier: the Flow inside his window, its temp
   const t = tplTo(AHMED_PHONE, TPL_FLOW);
   const comps = t[0]?.template?.components ?? [];
   const btn = comps.find((c: any) => c.type === "button");
-  assert("outside his window, the template APPROVED and UTILITY: utak_price_ask_flow_v1, and not the old ask", t.length === 1 && sentTo(AHMED_PHONE).length === 1, JSON.stringify(sentTo(AHMED_PHONE).map((b: any) => b.template?.name ?? b.interactive?.type)));
-  assert("…{{1}} his first name, {{2}} «أسعار الشراء», {{3}} the day", JSON.stringify(comps.find((c: any) => c.type === "body")?.parameters.map((p: any) => p.text)) === JSON.stringify(["أحمد", "أسعار الشراء", "3 أكتوبر 2026"]), JSON.stringify(comps));
-  assert("…its FLOW button carries this send's token and the form's data", btn?.sub_type === "flow" && btn.index === "0" && btn.parameters[0].type === "action" && btn.parameters[0].action.flow_token.startsWith("pf1.") && btn.parameters[0].action.flow_action_data.v4 === true && btn.parameters[0].action.flow_action_data.title === "أسعار الشراء اليوم", JSON.stringify(btn));
+  assert("outside his window, the template APPROVED and UTILITY: utak_price_ask_flow_v2, and not the old ask", t.length === 1 && sentTo(AHMED_PHONE).length === 1, JSON.stringify(sentTo(AHMED_PHONE).map((b: any) => b.template?.name ?? b.interactive?.type)));
+  assert("…{{1}} the day, and nothing else", JSON.stringify(comps.find((c: any) => c.type === "body")?.parameters.map((p: any) => p.text)) === JSON.stringify(["3 أكتوبر 2026"]), JSON.stringify(comps));
+  assert("…its FLOW button carries this send's token and the form's data", btn?.sub_type === "flow" && btn.index === "0" && btn.parameters[0].type === "action" && btn.parameters[0].action.flow_token.startsWith("pf1.") && btn.parameters[0].action.flow_action_data.v4 === true && btn.parameters[0].action.flow_action_data.sub === "أسعار الشراء اليوم", JSON.stringify(btn));
   assert("…logged as an ask", askLogs().length === 1);
 }
 {
@@ -213,7 +209,7 @@ console.log("\n[ب] 02:00 — the supplier: the Flow inside his window, its temp
   table("res.partner").get(AHMED)!.x_price_role = "market";
   openWindow(env, AHMED_PHONE, 60);
   await quiet(() => SUP.askAllSuppliersForPrices(withAutoSendJob(env, "ask_suppliers")));
-  assert("the supplier's form follows «دور الأسعار» on his card: a «سوق» supplier is asked for «أسعار السوق اليوم»", dataOf(flowsTo(AHMED_PHONE)[0]).title === "أسعار السوق اليوم" && /طلب أسعار السوق/.test(bodyOf(flowsTo(AHMED_PHONE)[0])), JSON.stringify(dataOf(flowsTo(AHMED_PHONE)[0]).title));
+  assert("the supplier's form follows «دور الأسعار» on his card: a «سوق» supplier is asked for «أسعار السوق اليوم»", dataOf(flowsTo(AHMED_PHONE)[0]).sub === "أسعار السوق اليوم" && /طلب أسعار السوق/.test(bodyOf(flowsTo(AHMED_PHONE)[0])), JSON.stringify(dataOf(flowsTo(AHMED_PHONE)[0]).sub));
 }
 for (const [label, state] of [["PENDING at Meta", ["PENDING", "UTILITY"]], ["REJECTED", ["REJECTED", "UTILITY"]], ["filed MARKETING by Meta (even APPROVED)", ["APPROVED", "MARKETING"]], ["not registered", null]] as Array<[string, [string, string] | null]>) {
   const env = world(`${DAY} 02:00`, state);
@@ -286,7 +282,7 @@ console.log("\n[ب] 02:30 — the market source: the Flow inside his window, the
   openWindow(env, DRIVER_PHONE, 20);
   const r = await quiet(() => PS.runMarketAsk(env, Date.now(), 6 * 60));
   const f = flowsTo(DRIVER_PHONE);
-  assert("Omar inside his window: ONE Flow titled «أسعار السوق اليوم», no text ask beside it", r.asks?.[0]?.action === "sent" && f.length === 1 && sentTo(DRIVER_PHONE).length === 1 && dataOf(f[0]).title === "أسعار السوق اليوم" && /طلب أسعار السوق/.test(bodyOf(f[0])), JSON.stringify(sentTo(DRIVER_PHONE).map((b: any) => b.text?.body ?? b.interactive?.type)));
+  assert("Omar inside his window: ONE Flow titled «أسعار السوق اليوم», no text ask beside it", r.asks?.[0]?.action === "sent" && f.length === 1 && sentTo(DRIVER_PHONE).length === 1 && dataOf(f[0]).sub === "أسعار السوق اليوم" && /طلب أسعار السوق/.test(bodyOf(f[0])), JSON.stringify(sentTo(DRIVER_PHONE).map((b: any) => b.text?.body ?? b.interactive?.type)));
   const rec = await FL.readFlowToken(env, tokenOf(f[0]));
   assert("…its token: the employee, a «سوق» source that is no supplier", rec?.partnerId === DRIVER && rec.employeeId === OMAR_EMP && rec.kind === "market" && rec.supplier === false);
   assert("…the 90 minutes of a free-text reply start too (the text reply stays accepted)", await PS.awaitingMarketReply(env, DRIVER_PHONE, Date.now() + 60_000));
@@ -306,7 +302,7 @@ console.log("\n[ب] 02:30 — the market source: the Flow inside his window, the
   table("hr.employee").get(OMAR_EMP)!.x_price_role = "market";
   const r = await quiet(() => PS.runMarketAsk(env, Date.now(), 6 * 60));
   const t = tplTo(DRIVER_PHONE, TPL_FLOW);
-  assert("outside his window with the template usable: the template, {{2}} «أسعار السوق»", r.asks?.[0]?.action === "sent" && t.length === 1 && t[0].template.components.find((c: any) => c.type === "body").parameters[1].text === "أسعار السوق", JSON.stringify(r));
+  assert("outside his window with the template usable: the template, its form titled «أسعار السوق اليوم»", r.asks?.[0]?.action === "sent" && t.length === 1 && t[0].template.components.find((c: any) => c.sub_type === "flow").parameters[0].action.flow_action_data.sub === "أسعار السوق اليوم", JSON.stringify(r));
 }
 {
   const env = world(`${DAY} 02:30`, ["PENDING", "MARKETING"]);
@@ -334,7 +330,7 @@ console.log("\n[ب] 02:30 — the market source: the Flow inside his window, the
   openWindow(env, DRIVER_PHONE, 20);
   await quiet(() => PS.runMarketAsk(env, Date.now(), 6 * 60));
   assert("no active item: no Flow — the text ask of before", flowsTo(DRIVER_PHONE).length === 0 && sentTo(DRIVER_PHONE).length === 1 && /أرسل أسعار السوق اليوم/.test(bodyOf(sentTo(DRIVER_PHONE)[0])));
-  assert("Omar's text: «ولو معك سعر شراء اكتب «شراء» جنب رقمه…» is gone — no word of «شراء» in the ask of a source without a role", !/شراء/.test(PS.marketAskText("عمر المجهلي")) && /الصنف والتعبئة والسعر لكل صنف\.$/.test(PS.marketAskText("عمر المجهلي")), PS.marketAskText("عمر المجهلي"));
+  assert("Omar's text: «ولو معك سعر شراء اكتب «شراء» جنب رقمه…» is gone — no word of «شراء» in the ask of a source without a role", !/شراء/.test(PS.marketAskText("عمر المجهلي")) && /الصنف والتعبئة والسعر لكل صنف\. اكتب السعر زي ما ينباع في السوق \(شامل الضريبة\)\.$/.test(PS.marketAskText("عمر المجهلي")), PS.marketAskText("عمر المجهلي"));
 }
 
 // ================================================================ [ج] the reply
@@ -414,7 +410,7 @@ console.log("\n[ج] the reply: Meta's nfm_reply, read with no extractor");
   const env3 = world(`${DAY} 03:00`);
   const p3 = (await quiet(() => FL.prepareFlowAsk(env3, { ...ahmedSrc, role: null })))!;
   const p4 = (await quiet(() => FL.prepareFlowAsk(env3, { ...omarSrc, role: null })))!;
-  assert("no role: a supplier's numbers are purchase prices, any other source's market observations", p3.record.kind === "purchase" && p3.data.title === "أسعار الشراء اليوم" && p4.record.kind === "market" && p4.data.title === "أسعار السوق اليوم");
+  assert("no role: a supplier's numbers are purchase prices, any other source's market observations", p3.record.kind === "purchase" && p3.data.sub === "أسعار الشراء اليوم" && p4.record.kind === "market" && p4.data.sub === "أسعار السوق اليوم");
 }
 {
   const env = world(`${DAY} 03:00`);
@@ -494,14 +490,14 @@ console.log("\n[د] the one trial to Baraa: inside his window, once a day, nothi
   const out = await res.json() as any;
   const f = flowsTo(OWNER);
   assert("his window open: ONE Flow to Baraa's number — to nobody else, and never a template", out.sent === true && f.length === 1 && graph.length === 1 && graph[0].to === OWNER, JSON.stringify(out));
-  assert("…marked «🧪 تجربة» in its heading and its text, with today's items and the purchase source's last prices", String(dataOf(f[0]).title).startsWith("🧪 تجربة") && bodyOf(f[0]).startsWith("🧪 تجربة") && dataOf(f[0]).v4 === true && dataOf(f[0]).h1 === "آخر سعر: 21", `${dataOf(f[0]).title} | ${dataOf(f[0]).h1}`);
+  assert("…marked «🧪 تجربة» in its heading and its text, with today's items and the purchase source's last prices", String(dataOf(f[0]).t1).startsWith("🧪 تجربة") && bodyOf(f[0]).startsWith("🧪 تجربة") && dataOf(f[0]).v4 === true && dataOf(f[0]).h1 === "آخر سعر: 21", `${dataOf(f[0]).t1} | ${dataOf(f[0]).h1}`);
   const second = await (await quiet(() => worker.fetch(new Request("https://w.test/odoo/hook/price-flow-test?token=HOOK", { method: "POST" }), hook, ctx))).json() as any;
   assert("a second call the same day: nothing sent", second.sent === false && second.reason === "already_today" && graph.length === 1, JSON.stringify(second));
   const before = JSON.stringify([dpRows(), offerRows(), askLogs(), rows("x_price_day")]);
   await quiet(() => worker.fetch(signed(inbound(OWNER, nfm(tokenOf(f[0]), { p1: "22", p4: "22.5" }))), env, ctx));
   const ack = sentTo(OWNER).at(-1);
   assert("Baraa's trial reply: NOTHING written in Odoo (no price, no offer, no log, no price day)", JSON.stringify([dpRows(), offerRows(), askLogs(), rows("x_price_day")]) === before);
-  assert("…answered as a real one, marked as a trial, with «تعديل»", /^🧪 تجربة — وصلت ✅ طماطم 22، بصل 22\.50\.\n\(تجربة: لم يُكتب شيء في Odoo\)$/.test(bodyOf(ack)) && par(ack).flow_cta === "تعديل" && String(dataOf(ack).title).startsWith("🧪 تجربة"), bodyOf(ack));
+  assert("…answered as a real one, marked as a trial, with «تعديل»", /^🧪 تجربة — وصلت ✅ طماطم 22، بصل 22\.50\.\n\(تجربة: لم يُكتب شيء في Odoo\)$/.test(bodyOf(ack)) && par(ack).flow_cta === "تعديل" && String(dataOf(ack).t1).startsWith("🧪 تجربة"), bodyOf(ack));
   await reply(env, OWNER, tokenOf(ack), { p1: "25" });
   assert("…«تعديل» on the trial is a trial too", JSON.stringify([dpRows(), offerRows(), askLogs(), rows("x_price_day")]) === before && /^🧪 تجربة — وصلت ✅ طماطم 25\./.test(bodyOf(sentTo(OWNER).at(-1))));
 }

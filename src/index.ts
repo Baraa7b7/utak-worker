@@ -2129,20 +2129,27 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
     let teamMatch: Awaited<ReturnType<typeof findTeamMemberByWhatsApp>> | null = null;
     let supplierMatch: Awaited<ReturnType<typeof findSupplierByWhatsApp>> | null = null;
     let customerMatchForRoute: OdooPartner | null = null;
+    // § 52 ب — an outside price source (a partner «مصدر أسعار» that is neither a
+    // supplier, a customer nor the team — رائد): never a customer. No customer
+    // partner is made for its number, and no welcome or customer reply reaches it.
+    let sourceMatch: { id: number; name: string } | null = null;
     try {
       const {
         findCustomerByWhatsApp,
         findSupplierByWhatsApp: fs,
         findTeamMemberByWhatsApp: ft,
       } = await import("./odoo");
-      const [t, sup, cus] = await Promise.all([
+      const { findOutsideSource } = await import("./price-sources");
+      const [t, sup, cus, src] = await Promise.all([
         ft(env, msg.from).catch(() => null),
         fs(env, msg.from).catch(() => null),
         findCustomerByWhatsApp(env, msg.from).catch(() => null),
+        findOutsideSource(env, msg.from).catch(() => null),
       ]);
       teamMatch = t;
       supplierMatch = sup;
       customerMatchForRoute = cus;
+      sourceMatch = !t && !sup && !cus && src ? { id: src.id, name: src.name } : null;
 
       const { ingestInbound, phoneTail } = await import("./wa-inbox");
       const ingest = await ingestInbound(
@@ -2164,7 +2171,8 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         },
         {
           team: t ? { id: t.id, name: t.name } : null,
-          supplier: sup ? { id: sup.id, name: sup.name } : null,
+          // the outside source's messages land on its own partner's conversation, as a supplier's do
+          supplier: sup ? { id: sup.id, name: sup.name } : sourceMatch,
           customer: cus ? { id: cus.id, name: cus.name, x_contact_class: cus.x_contact_class } : null,
         },
       );
@@ -2321,7 +2329,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       // used to stop here with no reply and no alert. Now: an honest reply
       // (the message reached the team, no speech-to-text) and an immediate
       // owner alert. Team, supplier and owner media keep the old behaviour.
-      if (!teamMatch && !supplierMatch && ingestRoute !== "owner" && !isOwnerNumber(env, msg.from)) {
+      if (!teamMatch && !supplierMatch && !sourceMatch && ingestRoute !== "owner" && !isOwnerNumber(env, msg.from)) {
         try {
           // 2026-09-25 (STATUS § 30) — a number waiting for review as not a
           // customer (or decided personal / team / supplier): nothing automated.
@@ -2357,6 +2365,10 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         } catch (e) {
           console.warn("[media] supplier handling failed", (e as Error)?.message);
         }
+        await owedPriceForm(env, msg.from);
+      } else if (!teamMatch && sourceMatch) {
+        // § 52 ب — an outside price source's voice note / image: never the customer's reply
+        await outsideSourceMessage(env, sourceMatch, msg, ctx);
       }
       await markSeen(env, msg.messageId);
       continue;
@@ -2536,12 +2548,16 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       if (action) {
         const replyText = await handleSupplierButton(env, supplier, action);
         if (replyText) await sendText(env, msg.from, replyText, { ctx, purpose: "bot_reply" });
+        await owedPriceForm(env, msg.from);
         await markSeen(env, msg.messageId);
         continue;
       }
       const enriched = await enrichSupplier(env, supplier);
       const replyText = await handleSupplierReply(env, enriched, msg.text, msg.messageId);
       if (replyText) await sendText(env, msg.from, replyText, { ctx, purpose: "bot_reply" });
+      // § 52 و — he was asked by the old text template and this message carried no price that was
+      // kept: his window has just opened, so the form goes now (once a day).
+      await owedPriceForm(env, msg.from);
       await markSeen(env, msg.messageId);
       continue;
     }
@@ -2603,6 +2619,15 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         await markSeen(env, msg.messageId);
         continue;
       }
+    }
+
+    // § 52 ب — an outside price source (رائد): its prices within 90 minutes of the ask or the
+    // reminder, the form owed after the old template, else «وصلتنا رسالتك» and a line to Baraa.
+    // Nothing below this point (the customer path) ever runs for it.
+    if (sourceMatch) {
+      await outsideSourceMessage(env, sourceMatch, msg, ctx);
+      await markSeen(env, msg.messageId);
+      continue;
     }
 
     // § 40 ب — a price source that is a partner (not a supplier, not the
@@ -2869,6 +2894,46 @@ async function enrichSupplier(env: Env, supplier: OdooPartner): Promise<OdooPart
     x_supplied_product_ids: extra?.x_supplied_product_ids ?? [],
     x_whatsapp_number: extra?.x_whatsapp_number ?? supplier.x_whatsapp_number ?? "",
   };
+}
+
+/** § 52 و — after a price source's message: the form owed to him after the old text template (once a day). Never throws. */
+async function owedPriceForm(env: Env, from: string): Promise<boolean> {
+  try {
+    const { sendOwedFlow } = await import("./price-flow");
+    return await sendOwedFlow(env, from);
+  } catch (e) {
+    console.warn("[price-flow] the owed form failed", (e as Error)?.message);
+    return false;
+  }
+}
+
+/**
+ * § 52 ب — a message from an outside price source (a partner «مصدر أسعار» that is
+ * neither a supplier, a customer nor the team). A text within 90 minutes of the
+ * ask or the reminder is read as prices; then the form owed after the old
+ * template; else «وصلتنا رسالتك» and one line to Baraa. Never a customer reply.
+ */
+async function outsideSourceMessage(env: Env, source: { id: number; name: string }, msg: import("./types").NormalizedMessage, ctx?: ExecutionContext): Promise<void> {
+  let handled = false;
+  if (msg.type === "text" && msg.text) {
+    try {
+      const { tryMarketReply } = await import("./price-sources");
+      const r = await tryMarketReply(env, { partnerId: source.id, name: source.name }, msg.from, msg.text, msg.messageId);
+      if (r) { await sendText(env, msg.from, r, { ctx, purpose: "bot_reply" }); handled = true; }
+    } catch (e) {
+      console.warn("[market-reply] outside source failed", (e as Error)?.message);
+    }
+  }
+  if (await owedPriceForm(env, msg.from)) handled = true;
+  if (handled) return;
+  try {
+    const { OUTSIDE_SOURCE_ACK, outsideSourceAlert } = await import("./price-sources");
+    await sendText(env, msg.from, OUTSIDE_SOURCE_ACK, { ctx, purpose: "bot_reply" });
+    const { sendOwnerAlert } = await import("./templates");
+    await sendOwnerAlert(env, outsideSourceAlert(source.name, msg.from, msg.text || `[${msg.type}]`));
+  } catch (e) {
+    console.warn("[outside-source] the acknowledgement failed", (e as Error)?.message);
+  }
 }
 
 /** STATUS § 37 — a reply of the supplier-payment flow: a list (the suppliers), else buttons or text. */

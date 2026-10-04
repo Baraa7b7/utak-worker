@@ -81,6 +81,10 @@ export async function flushTeamQueue(env: Env, to: string): Promise<number> {
     if (marketAsk) {
       const { riyadhDateKey } = await import("./hours");
       if (l.ask_day !== riyadhDateKey()) { console.log(`[pending_loc] stale market ask (${String(l.ask_day)}) dropped`); continue; }
+      // § 52 و — his prices of today already arrived (the 05:00 reminder's form, answered before
+      // «بدء الدوام»): the queued ask is not sent on top of them.
+      const { pricesArrived } = await import("./price-flow");
+      if (await pricesArrived(env, to, riyadhDateKey())) { console.log("[pending_loc] market ask dropped: today's prices already arrived"); continue; }
     }
     // § 51 — today's ask as a WhatsApp Flow (a field per active item): the member
     // just tapped, so his window is open. When it cannot go, its text below.

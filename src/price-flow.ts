@@ -29,6 +29,24 @@
 //     that opens the same form with what was sent. The newest row of a source
 //     is the one the engine reads (src/pricing-engine.ts latestPerSource).
 //   • The free-text reply stays as it was.
+//
+// § 52 (2026-10-04) — utak_price_ask_v2: PAGES BY CATEGORY. Four generic pages
+// of fifteen fields (scripts/lib/s52-price-flow.mjs), still with no endpoint:
+// all the data goes with the message to the first page and the others read it
+// from there. The worker fills the pages, in order, with the categories that
+// have an item today — فواكه (#5), خضار (#6), ورقيات (#7), then «أخرى» for an
+// item of none of them — so «التالي» never opens an empty page and «إرسال» sits
+// on the last page that has items. A category of more than fifteen: the first
+// fifteen, and Baraa's one alert a day. v1 stays at Meta, unused.
+//   • The line above the fields follows the source's role: «الأسعار بدون ضريبة.»
+//     for a purchase price, «اكتب السعر زي ما ينباع في السوق (شامل الضريبة).» for
+//     a market observation (the engine compares it, as it is, with the
+//     VAT-inclusive suggested price).
+//   • Outside the window: the template utak_price_ask_flow_v2 for every source,
+//     only while Meta holds it APPROVED and UTILITY.
+//   • A source that was asked by the old text template (his window was closed)
+//     and then writes or taps anything before his prices arrive that day gets
+//     the form at once — his window has just opened — once a day.
 
 import type { Env } from "./config";
 import type { NormalizedMessage } from "./types";
@@ -43,18 +61,36 @@ import { arabicDate } from "./wa-params";
 import { readActiveItems } from "./pricing-engine";
 import type { PriceKind, PriceRole } from "./price-sources";
 
-/** utak_price_ask_v1 at Meta (PUBLISHED 2026-10-04; a published Flow's JSON is frozen). */
-export const PRICE_FLOW_ID = "1086052444016554";
-export const PRICE_FLOW_SCREEN = "PRICES";
-export const PRICE_FLOW_SLOTS = 15;
-export const PRICE_FLOW_TEMPLATE = "utak_price_ask_flow_v1";
+/** utak_price_ask_v2 at Meta (PUBLISHED 2026-10-04, § 52; a published Flow's JSON is frozen). */
+export const PRICE_FLOW_ID = "1123704886881420";
+/** utak_price_ask_v1 (§ 51): still at Meta, no longer sent. */
+export const PRICE_FLOW_V1_ID = "1086052444016554";
+/** The first page: the only screen a message (or a template's FLOW button) opens. */
+export const PRICE_FLOW_SCREEN = "PAGE_A";
+export const PRICE_FLOW_PAGES = 4;
+/** The fields of one page — of one category. */
+export const PRICE_FLOW_PAGE_SLOTS = 15;
+export const PRICE_FLOW_SLOTS = PRICE_FLOW_PAGES * PRICE_FLOW_PAGE_SLOTS;
+export const PRICE_FLOW_TEMPLATE = "utak_price_ask_flow_v2";
+/** § 52 هـ — the pages in this order (product.category ids; a child category counts as its root), then «أخرى». */
+export const FLOW_CATEGORIES: ReadonlyArray<{ id: number; title: string }> = [{ id: 5, title: "فواكه" }, { id: 6, title: "خضار" }, { id: 7, title: "ورقيات" }];
+export const FLOW_OTHER_TITLE = "أخرى";
+/** The one page of a form whose token carries no pages (a v1 token, § 51). */
+export const FLOW_PLAIN_TITLE = "الأصناف";
 /** The gateway purpose of a Flow ask, and its template's x_purpose. */
 export const PRICE_FLOW_PURPOSE = "price_ask_flow";
 /** The one trial to Baraa and its answers (allowed to the owner's number). */
 export const PRICE_FLOW_TEST_PURPOSE = "price_flow_test";
 export const PRICE_FLOW_CTA = "أدخل الأسعار";
 export const PRICE_FLOW_EDIT_CTA = "تعديل";
-export const PRICE_FLOW_NOTE = "الأسعار بدون ضريبة. اترك الخانة فاضية لو الصنف غير متوفر.";
+/** § 52 ج — the VAT line of a role: a purchase price is net of VAT, a market observation is the price it sells at (VAT inside). */
+export const VAT_LINE: Readonly<Record<PriceKind, string>> = {
+  purchase: "الأسعار بدون ضريبة.",
+  market: "اكتب السعر زي ما ينباع في السوق (شامل الضريبة).",
+};
+export const PRICE_FLOW_EMPTY_NOTE = "اترك الخانة فاضية لو الصنف غير متوفر.";
+/** The line above the fields, by the source's role. */
+export const flowNote = (kind: PriceKind): string => `${VAT_LINE[kind]} ${PRICE_FLOW_EMPTY_NOTE}`;
 /** Meta's limits of a TextInput: its label and its helper text. */
 export const LABEL_MAX = 20;
 export const HINT_MAX = 80;
@@ -67,17 +103,24 @@ const SIM_FIELD = "x_utak_simulation";
 
 const firstName = (name: string): string => String(name || "").trim().split(/\s+/)[0] ?? "";
 export const kindNoun = (kind: PriceKind): string => (kind === "purchase" ? "أسعار الشراء" : "أسعار السوق");
-export const flowTitle = (kind: PriceKind, test = false): string => `${test ? `${TEST_MARK} — ` : ""}${kindNoun(kind)} اليوم`;
-/** {{1}} {{2}} {{3}} of utak_price_ask_flow_v1: the first name, «أسعار الشراء» / «أسعار السوق», the day. */
-export const flowAskParams = (name: string, kind: PriceKind, day: string): string[] => [firstName(name), kindNoun(kind), arabicDate(day)];
-/** The ask inside the window: the template's own text. */
+/** The line under a page's heading: «أسعار الشراء اليوم» / «أسعار السوق اليوم». */
+export const flowTitle = (kind: PriceKind): string => `${kindNoun(kind)} اليوم`;
+/** A page's heading: its category; the trial's starts with «🧪 تجربة». */
+export const pageTitle = (category: string, test = false): string => `${test ? `${TEST_MARK} — ` : ""}${category}`;
+/** {{1}} of utak_price_ask_flow_v2 («طلب تحديث الأسعار ليوم {{1}} حسب الاتفاق مع يو تاك. …»): the day. */
+export const flowAskParams = (day: string): string[] => [arabicDate(day)];
+/** What the button asks for, by the role (§ 52 ج). */
+const FILL_LINE: Readonly<Record<PriceKind, string>> = {
+  purchase: "اضغط «أدخل الأسعار» وعبّ سعر كل صنف (بدون ضريبة).",
+  market: "اضغط «أدخل الأسعار» واكتب السعر زي ما ينباع في السوق (شامل الضريبة).",
+};
+/** The ask inside the window (free text: no template is used there). */
 export function flowAskText(name: string, kind: PriceKind, day: string): string {
-  const [n, noun, date] = flowAskParams(name, kind, day);
-  return `صباح الخير ${n} 🌿 طلب ${noun} من يو تاك ليوم ${date}. اضغط «أدخل الأسعار» وعبّ سعر كل صنف (بدون ضريبة).`;
+  return `صباح الخير ${firstName(name)} 🌿 طلب ${kindNoun(kind)} من يو تاك ليوم ${arabicDate(day)}. ${FILL_LINE[kind]}`;
 }
 /** The 05:00 reminder inside the window, with the same button. */
-export const flowNudgeText = (needBy: string): string =>
-  `تذكير من يو تاك: ما وصلتنا أسعارك اليوم للحين، نحتاجها قبل الساعة ${needBy} لو سمحت. اضغط «أدخل الأسعار» وعبّ سعر كل صنف (بدون ضريبة).`;
+export const flowNudgeText = (needBy: string, kind: PriceKind = "purchase"): string =>
+  `تذكير من يو تاك: ما وصلتنا ${kind === "market" ? "أسعار السوق" : "أسعارك"} اليوم للحين، نحتاجها قبل الساعة ${needBy} لو سمحت. ${FILL_LINE[kind]}`;
 export const FLOW_UNKNOWN_TEXT = "هذا النموذج غير صالح الآن، ولم يُحفظ منه شيء 🌿 انتظر طلب الأسعار القادم.";
 export const flowExpiredText = (why: "day" | "published"): string =>
   why === "published" ? "أسعار اليوم نُشرت، وهذا النموذج ما عاد يستقبل: لم يُحفظ شيء 🌿" : "هذا نموذج يوم سابق وانتهى وقته: لم يُحفظ شيء 🌿 انتظر طلب أسعار اليوم.";
@@ -119,9 +162,18 @@ export interface FlowItem {
   hint: string;
 }
 
-/** The 62 keys of the screen: the heading, the line above the fields, and l/h/v/i of every slot. */
-export function flowData(title: string, items: FlowItem[], init: Record<number, number> = {}): Record<string, string | boolean> {
-  const data: Record<string, string | boolean> = { title, note: PRICE_FLOW_NOTE };
+/**
+ * The 249 keys of the first page (every page reads them from it): the line
+ * under the heading, the line above the fields, each page's heading (t<k>) and
+ * whether a page follows it (m<k>: «التالي», else «إرسال»), and l/h/v/i of every
+ * slot. `pages` = the headings of the pages that have items, in order.
+ */
+export function flowData(sub: string, note: string, pages: string[], items: FlowItem[], init: Record<number, number> = {}): Record<string, string | boolean> {
+  const data: Record<string, string | boolean> = { sub, note };
+  for (let k = 1; k <= PRICE_FLOW_PAGES; k++) {
+    data[`t${k}`] = pages[k - 1] ?? "-";
+    if (k < PRICE_FLOW_PAGES) data[`m${k}`] = k < pages.length;
+  }
   for (let n = 1; n <= PRICE_FLOW_SLOTS; n++) {
     const it = items.find((x) => x.slot === n);
     data[`l${n}`] = it ? it.label : "-";
@@ -169,28 +221,77 @@ export async function lastPrices(env: Env, src: { partnerId: number; supplier: b
   return out;
 }
 
+const m2oId = (v: unknown): number => (Array.isArray(v) ? Number(v[0]) || 0 : Number(v) || 0);
+
+/**
+ * § 52 هـ — each product's page: the id of its category among FLOW_CATEGORIES
+ * (its own, or the root it sits under), 0 = «أخرى»; and each page's heading as
+ * Odoo names the category. Two reads. A failed read throws: the caller sends
+ * the ask of before rather than a form with every item under «أخرى».
+ */
+export async function productPages(env: Env, productIds: number[]): Promise<{ of: Map<number, number>; titles: Map<number, string> }> {
+  const titles = new Map<number, string>(FLOW_CATEGORIES.map((c) => [c.id, c.title]));
+  const of = new Map<number, number>();
+  if (!productIds.length) return { of, titles };
+  const prods = await call<Array<{ id: number; categ_id: unknown }>>(env, "product.template", "search_read", {
+    domain: [["id", "in", productIds]], fields: ["id", "categ_id"], limit: 500,
+  });
+  const cats = new Map((await call<Array<{ id: number; name: string; parent_id: unknown }>>(env, "product.category", "search_read", {
+    domain: [], fields: ["id", "name", "parent_id"], limit: 500,
+  })).map((c) => [c.id, c]));
+  for (const c of FLOW_CATEGORIES) { const name = clean(String(cats.get(c.id)?.name ?? "")); if (name) titles.set(c.id, name); }
+  for (const p of prods) {
+    let page = 0;
+    for (let c = cats.get(m2oId(p.categ_id)), hops = 0; c && hops < 20; c = cats.get(m2oId(c.parent_id)), hops++) {
+      if (titles.has(c.id)) { page = c.id; break; }
+    }
+    of.set(p.id, page);
+  }
+  return { of, titles };
+}
+
+export interface FlowItems {
+  items: FlowItem[];
+  /** The headings of the pages that have items, in order (فواكه، خضار، ورقيات، أخرى — the empty ones left out). */
+  pages: string[];
+  /** Every item «نشط للبيع». */
+  total: number;
+  /** The categories of more than fifteen items, and the names left without a field. */
+  over: Array<{ title: string; total: number }>;
+  left: string[];
+}
+
 /**
  * The items of the form: every product «نشط للبيع» with its default packaging,
- * in the engine's order (src/pricing-engine.ts readActiveItems), the first
- * fifteen. `total` is how many there are.
+ * in the engine's order (src/pricing-engine.ts readActiveItems), grouped by
+ * category into the pages — the first fifteen of each. A category with no item
+ * takes no page, so slot numbers follow the pages that exist (1–15, 16–30, …).
  */
-export async function flowItems(env: Env, hints: { partnerId: number; supplier: boolean }, kind: PriceKind): Promise<{ items: FlowItem[]; total: number; left: string[] }> {
+export async function flowItems(env: Env, hints: { partnerId: number; supplier: boolean }, kind: PriceKind): Promise<FlowItems> {
   const all = await readActiveItems(env, []);
-  const shown = all.slice(0, PRICE_FLOW_SLOTS);
-  const last = await lastPrices(env, hints, kind, shown.map((i) => i.productId));
-  const twice = new Set(shown.map((i) => i.productId).filter((id, i, a) => a.indexOf(id) !== i));
-  const items = shown.map((it, i) => {
+  const { of, titles } = await productPages(env, [...new Set(all.map((i) => i.productId))]);
+  const groups = [...FLOW_CATEGORIES.map((c) => ({ title: titles.get(c.id) ?? c.title, items: all.filter((i) => (of.get(i.productId) ?? 0) === c.id) })),
+    { title: FLOW_OTHER_TITLE, items: all.filter((i) => !(of.get(i.productId) ?? 0)) }].filter((g) => g.items.length);
+  const shown = groups.flatMap((g, k) => g.items.slice(0, PRICE_FLOW_PAGE_SLOTS).map((it, j) => ({ it, slot: k * PRICE_FLOW_PAGE_SLOTS + j + 1 })));
+  const last = await lastPrices(env, hints, kind, shown.map((x) => x.it.productId));
+  const twice = new Set(shown.map((x) => x.it.productId).filter((id, i, a) => a.indexOf(id) !== i));
+  const items = shown.map(({ it, slot }) => {
     const t = slotTexts(it.productName, it.packagingName, last.get(`${it.productId}:${it.packagingId}`) ?? null);
     const name = twice.has(it.productId) ? `${clean(it.productName)} (${clean(it.packagingName)})` : clean(it.productName);
-    return { slot: i + 1, productId: it.productId, packagingId: it.packagingId, name, label: t.label, hint: t.hint };
+    return { slot, productId: it.productId, packagingId: it.packagingId, name, label: t.label, hint: t.hint };
   });
-  return { items, total: all.length, left: all.slice(PRICE_FLOW_SLOTS).map((i) => clean(i.productName)) };
+  return {
+    items, pages: groups.map((g) => g.title), total: all.length,
+    over: groups.filter((g) => g.items.length > PRICE_FLOW_PAGE_SLOTS).map((g) => ({ title: g.title, total: g.items.length })),
+    left: groups.flatMap((g) => g.items.slice(PRICE_FLOW_PAGE_SLOTS).map((i) => clean(i.productName))),
+  };
 }
 
 // ---------------------------------------------------------------- flow_token
 
 export interface FlowRecord {
-  v: 1;
+  /** 1 = a token of utak_price_ask_v1 (§ 51, one page, no `pages`); 2 = of v2. */
+  v: 1 | 2;
   token: string;
   /** The Riyadh day the prices are for. */
   day: string;
@@ -202,6 +303,8 @@ export interface FlowRecord {
   supplier: boolean;
   kind: PriceKind;
   items: FlowItem[];
+  /** § 52 — the headings of the form's pages, in order («تعديل» opens the same pages). */
+  pages?: string[];
   createdAt: number;
   /** The trial to Baraa: its reply writes nothing in Odoo. */
   test?: boolean;
@@ -222,7 +325,7 @@ export async function readFlowToken(env: Env, token: string): Promise<FlowRecord
   try {
     const raw = await env.MSG_DEDUP.get(flowTokenKey(token));
     const rec = raw ? (JSON.parse(raw) as FlowRecord) : null;
-    return rec && rec.v === 1 && Array.isArray(rec.items) ? rec : null;
+    return rec && (rec.v === 1 || rec.v === 2) && Array.isArray(rec.items) ? rec : null;
   } catch { return null; }
 }
 async function writeFlowToken(env: Env, rec: FlowRecord): Promise<void> {
@@ -237,8 +340,9 @@ export interface FlowAskOpts {
   body?: string;
   cta?: string;
   test?: boolean;
-  /** «تعديل»: the same items, opened with what was sent. */
+  /** «تعديل»: the same items on the same pages, opened with what was sent. */
   items?: FlowItem[];
+  pages?: string[];
   init?: Record<number, number>;
   parent?: string;
   /** The source whose last prices fill the hints, when it is not the recipient (the trial). */
@@ -278,44 +382,46 @@ export function flowSession(text: string, token: string, data: Record<string, st
 }
 
 /**
- * Everything one ask needs: the items, the token (kept in KV) and the two
- * shapes of the message. Null when no item is active for sale. More than
- * fifteen: the first fifteen, and Baraa is told once a day.
+ * Everything one ask needs: the items on their pages, the token (kept in KV)
+ * and the two shapes of the message. Null when no item is active for sale. A
+ * category of more than fifteen: its first fifteen, and Baraa is told once a day.
  */
 export async function prepareFlowAsk(env: Env, src: FlowSource, opts: FlowAskOpts = {}): Promise<PreparedFlow | null> {
   const now = opts.now ?? Date.now();
   const day = riyadhDateKey(new Date(now));
   const kind = sourceKind(src);
   let items = opts.items ?? null;
+  // a token with no pages (v1, § 51): its items sit on one page
+  let pages = opts.pages?.length ? opts.pages : [FLOW_PLAIN_TITLE];
   let total = items?.length ?? 0;
   if (!items) {
     const built = await flowItems(env, opts.hintsFrom ?? src, kind);
-    items = built.items; total = built.total;
-    if (total > PRICE_FLOW_SLOTS) await alertOverflow(env, day, total, built.left);
+    items = built.items; pages = built.pages; total = built.total;
+    if (built.left.length) await alertOverflow(env, day, built.over, built.left);
   }
   if (!items.length) return null;
   const record: FlowRecord = {
-    v: 1, token: newFlowToken(day, src.partnerId), day, to: waDigits(src.whatsapp), partnerId: src.partnerId, employeeId: src.employeeId ?? null,
-    name: src.name, supplier: src.supplier, kind, items, createdAt: now,
+    v: 2, token: newFlowToken(day, src.partnerId), day, to: waDigits(src.whatsapp), partnerId: src.partnerId, employeeId: src.employeeId ?? null,
+    name: src.name, supplier: src.supplier, kind, items, pages, createdAt: now,
     ...(opts.test ? { test: true } : {}), ...(opts.parent ? { parent: opts.parent } : {}), ...(opts.init ? { init: opts.init } : {}),
   };
   await writeFlowToken(env, record);
-  const data = flowData(flowTitle(kind, !!opts.test), items, opts.init ?? {});
+  const data = flowData(flowTitle(kind), flowNote(kind), pages.map((t) => pageTitle(t, !!opts.test)), items, opts.init ?? {});
   const text = opts.body ?? `${opts.test ? `${TEST_MARK} — ` : ""}${flowAskText(src.name, kind, day)}`;
   return {
     record, data, total,
     session: flowSession(text, record.token, data, opts.cta ?? PRICE_FLOW_CTA),
-    template: { kind: "template", purpose: PRICE_FLOW_PURPOSE, params: flowAskParams(src.name, kind, day), flow: { token: record.token, data } },
+    template: { kind: "template", purpose: PRICE_FLOW_PURPOSE, params: flowAskParams(day), flow: { token: record.token, data } },
   };
 }
 
-/** More items than fields: Baraa's one alert a day, with the ones left out. */
-async function alertOverflow(env: Env, day: string, total: number, left: string[]): Promise<void> {
+/** A category of more items than a page's fields: Baraa's one alert a day, with the ones left out. */
+async function alertOverflow(env: Env, day: string, over: Array<{ title: string; total: number }>, left: string[]): Promise<void> {
   const claim = await claimButton(env, `pflow_over:${day}`, 26 * 60 * 60);
   if (!claim.claimed) return;
   try {
     const { sendOwnerAlert } = await import("./templates");
-    await sendOwnerAlert(env, `⚠️ الأصناف النشطة للبيع ${total}، ونموذج الأسعار يتسع لـ ${PRICE_FLOW_SLOTS} خانة: دخل أول ${PRICE_FLOW_SLOTS}، وبقي بلا خانة: ${left.join("، ")}. أطفئ «نشط للبيع» عمّا لا يُباع اليوم، أو اطلب سعره نصاً.`);
+    await sendOwnerAlert(env, `⚠️ صفحة الفئة في نموذج الأسعار تتسع لـ ${PRICE_FLOW_PAGE_SLOTS} خانة، و${over.map((o) => `«${o.title}» فيها ${o.total} صنفاً نشطاً للبيع`).join("، و")}: دخل أول ${PRICE_FLOW_PAGE_SLOTS}، وبقي بلا خانة: ${left.join("، ")}. أطفئ «نشط للبيع» عمّا لا يُباع اليوم، أو اطلب سعره نصاً.`);
   } catch (e) {
     console.warn("[price-flow] the overflow alert failed", (e as Error)?.message);
   }
@@ -405,6 +511,71 @@ export async function sendFlowAsk(env: Env, src: FlowSource, opts: FlowAskOpts =
     return { via, duplicate: false, reason: d ? `${d.action}${"reason" in d ? `: ${d.reason}` : "code" in d ? `: ${d.code}` : ""}` : "no_decision" };
   }
   return { via, duplicate: false, token: p.record.token };
+}
+
+// ---------------------------------------------------------------- the form owed after the old template (§ 52 و)
+
+const DAY_TTL = 26 * 60 * 60;
+const owedKey = (digits: string): string => `pflow_owed:v1:${waDigits(digits)}`;
+const arrivedKey = (day: string, digits: string): string => `pflow_in:v1:${day}:${waDigits(digits)}`;
+
+/**
+ * This source was asked today by the old text template (his window was closed
+ * and the Flow's template is not usable): the form is owed to him. His next
+ * message opens his window, and sendOwedFlow sends it then.
+ */
+export async function markFlowOwed(env: Env, src: FlowSource, now: number = Date.now()): Promise<void> {
+  const to = waDigits(src.whatsapp);
+  if (!to) return;
+  try {
+    await env.MSG_DEDUP.put(owedKey(to), JSON.stringify({ day: riyadhDateKey(new Date(now)), src: { ...src, whatsapp: to } }), { expirationTtl: DAY_TTL });
+  } catch { /* he answers the template in text, as before § 52 */ }
+}
+export async function clearFlowOwed(env: Env, digits: string): Promise<void> {
+  try { await env.MSG_DEDUP.delete(owedKey(digits)); } catch { /* expires on its own */ }
+}
+/** This number's prices of the day arrived (a text reply read, or a form): nothing more is owed or queued for it today. */
+export async function markPricesArrived(env: Env, digits: string, day: string): Promise<void> {
+  if (!waDigits(digits)) return;
+  try { await env.MSG_DEDUP.put(arrivedKey(day, digits), "1", { expirationTtl: DAY_TTL }); } catch { /* the reminder reads Odoo as well */ }
+  await clearFlowOwed(env, digits);
+}
+export async function pricesArrived(env: Env, digits: string, day: string): Promise<boolean> {
+  try { return !!(await env.MSG_DEDUP.get(arrivedKey(day, digits))); } catch { return false; }
+}
+
+/**
+ * After a source's message (any message or button) was handled: the form owed
+ * to him goes now — today's, before his prices arrived and before the day's
+ * publication, ONCE a day for the number. True when it went.
+ */
+export async function sendOwedFlow(env: Env, from: string, now: number = Date.now()): Promise<boolean> {
+  const to = waDigits(from);
+  if (!to) return false;
+  let owed: { day: string; src: FlowSource } | null = null;
+  try {
+    const raw = await env.MSG_DEDUP.get(owedKey(to));
+    owed = raw ? JSON.parse(raw) : null;
+  } catch { return false; }
+  if (!owed?.src) return false;
+  const day = riyadhDateKey(new Date(now));
+  if (owed.day !== day) { await clearFlowOwed(env, to); return false; }
+  if (await pricesArrived(env, to, day)) { await clearFlowOwed(env, to); return false; }
+  if (await dayPublished(env, day).catch(() => false)) { await clearFlowOwed(env, to); return false; }
+  const claim = await claimButton(env, `pflow_owed_sent:${day}:${to}`, DAY_TTL);
+  if (!claim.claimed) return false;
+  try {
+    const r = await sendFlowAsk(env, { ...owed.src, whatsapp: to }, { now });
+    if (!r.via) { await releaseButton(env, claim); return false; }
+    await finishButton(env, claim, DAY_TTL);
+    await clearFlowOwed(env, to);
+    console.log(`[price-flow] the form owed after the old template went to …${to.slice(-4)} (${r.via})`);
+    return true;
+  } catch (e) {
+    await releaseButton(env, claim);
+    console.warn("[price-flow] the owed form failed", (e as Error)?.message);
+    return false;
+  }
 }
 
 // ---------------------------------------------------------------- the reply
@@ -580,7 +751,7 @@ export async function handlePriceFlowReply(env: Env, msg: Pick<NormalizedMessage
   const answer = async (ack: FlowAck, init: Record<number, number>, text?: string) => {
     const body = text ?? flowAckText(ack);
     const edit = await prepareFlowAsk(env, { partnerId: rec.partnerId, employeeId: rec.employeeId, name: rec.name, whatsapp: to, supplier: rec.supplier, role: rec.kind },
-      { now, items: rec.items, init, parent: rec.token, test: rec.test, body, cta: PRICE_FLOW_EDIT_CTA }).catch(() => null);
+      { now, items: rec.items, pages: rec.pages, init, parent: rec.token, test: rec.test, body, cta: PRICE_FLOW_EDIT_CTA }).catch(() => null);
     const r = edit ? await sendViaGateway(env, { purpose, to, content: edit.session, ctx }) : null;
     // the answer reaches him even if the button could not go
     if (gatewayDecision(r)?.action !== "session") await say(body);
@@ -601,6 +772,8 @@ export async function handlePriceFlowReply(env: Env, msg: Pick<NormalizedMessage
     for (const s of w.saved) values[s.item.slot] = s.price;
     await writeFlowToken(env, { ...rec, usedAt: now, values });
     await finishButton(env, claim, TOKEN_TTL);
+    // § 52 و — his prices arrived: no form is owed, and a queued ask of today is dropped
+    if (!rec.test && w.saved.length) await markPricesArrived(env, to, rec.day);
     if (kept.length && !rec.test) await alertOwner(env, `ℹ️ «${rec.name}» أفرغ في تعديل نموذج الأسعار خانة: ${kept.map((k) => `${k.item.name} (كان ${money(k.price)})`).join("، ")}. السعر السابق باقٍ في Odoo: الخانة الفاضية لا تلغيه.`);
     await answer({ saved: w.saved, invalid: entries.invalid, unsaved: w.unsaved, kept, test: rec.test }, values);
     console.log(`[price-flow] reply partner=${rec.partnerId} kind=${rec.kind} saved=${w.saved.length} empty=${entries.empty.length} invalid=${entries.invalid.length} unsaved=${w.unsaved.length}${rec.test ? " (test: nothing written)" : ""}`);
@@ -622,7 +795,8 @@ export async function sendFlowTest(env: Env, now: number = Date.now()): Promise<
   const owner = waDigits(String(env.OWNER_WHATSAPP ?? ""));
   if (!owner) return { sent: false, reason: "no_owner" };
   if (!(await readWindow(env, owner, now)).open) return { sent: false, reason: "window_closed" };
-  const claim = await claimButton(env, `pflow_test:${riyadhDateKey(new Date(now))}`, 26 * 60 * 60);
+  // one trial a day of THIS Flow (the key carries its id: v1's trial of the same day does not count)
+  const claim = await claimButton(env, `pflow_test:${PRICE_FLOW_ID}:${riyadhDateKey(new Date(now))}`, 26 * 60 * 60);
   if (!claim.claimed) return { sent: false, reason: "already_today" };
   try {
     // the hints a «شراء» source would see: the first supplier among the sources

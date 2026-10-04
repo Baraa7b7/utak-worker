@@ -52,12 +52,14 @@ const MARKER_TTL = 12 * 60 * 60;
  * him), a «شراء» source for his purchase prices; a source without a role gets
  * the text of before (§ 40 ب / § 47 أ).
  */
+/** § 52 ج — the VAT line of a market observation: the price as it sells in the market, VAT inside (the engine compares it with the VAT-inclusive suggested price). */
+export const MARKET_VAT_LINE = "اكتب السعر زي ما ينباع في السوق (شامل الضريبة).";
 export const marketAskText = (name: string, role: PriceRole | null = null): string => {
   const first = String(name || "").split(" ")[0];
-  if (role === "market") return `صباح الخير ${first} 🌿 أرسل أسعار السوق اليوم لو سمحت: اسم الصنف كاملاً والتعبئة وسعر السوق لكل صنف.`;
+  if (role === "market") return `صباح الخير ${first} 🌿 أرسل أسعار السوق اليوم لو سمحت: اسم الصنف كاملاً والتعبئة وسعر السوق لكل صنف. ${MARKET_VAT_LINE}`;
   if (role === "purchase") return `صباح الخير ${first} 🌿 أرسل أسعار الشراء اليوم لو سمحت: اسم الصنف كاملاً والتعبئة وسعر الشراء لكل صنف، بدون ضريبة.`;
   // § 51 — «ولو معك سعر شراء اكتب «شراء» جنب رقمه…» is gone: the ask no longer invites a purchase price.
-  return `صباح الخير ${first} 🌿 أرسل أسعار السوق اليوم لو سمحت: الصنف والتعبئة والسعر لكل صنف.`;
+  return `صباح الخير ${first} 🌿 أرسل أسعار السوق اليوم لو سمحت: الصنف والتعبئة والسعر لكل صنف. ${MARKET_VAT_LINE}`;
 };
 export const marketAckText = (n: number): string => `وصلتنا أسعار السوق (${n} صنف) 🌿 الله يعطيك العافية.`;
 /** § 41 و (the live run) — the items whose offer Odoo did not take: named, to be sent again. */
@@ -72,6 +74,16 @@ export const marketUnsavedText = (names: string[], none = false): string =>
  * «استخدم الأزرار», and nobody knew his prices were lost).
  */
 export const MARKET_UNREAD_TEXT = "ما قدرنا نقرأ الأسعار من رسالتك 🌿 اكتب في كل سطر اسم الصنف كاملاً ثم السعر، مثل «رمان كبير 26»، ولسعر الشراء «رمان كبير 26 شراء 22».";
+/**
+ * § 52 و — by the source's role: a «سوق» source is never told to write «شراء»
+ * (every number of his is a market observation): its example is a market price;
+ * a «شراء» source's is a purchase price. No role: the text of § 48 د (the
+ * keyword rule still reads «شراء» beside a number).
+ */
+export const marketUnreadText = (role: PriceRole | null = null): string =>
+  role === "market" ? `ما قدرنا نقرأ الأسعار من رسالتك 🌿 اكتب في كل سطر اسم الصنف كاملاً ثم سعر السوق، مثل «رمان كبير 26». ${MARKET_VAT_LINE}`
+    : role === "purchase" ? "ما قدرنا نقرأ الأسعار من رسالتك 🌿 اكتب في كل سطر اسم الصنف كاملاً ثم سعر الشراء، مثل «رمان كبير 22». الأسعار بدون ضريبة."
+      : MARKET_UNREAD_TEXT;
 export const marketUnreadAlert = (name: string, text: string, dropped: number): string =>
   `🤔 رد من «${name}» على طلب أسعار السوق لم نفهمه كأسعار، ولم يُحفظ أي سعر${dropped ? ` (استُبعد ${dropped})` : ""}. طلبنا منه كتابة اسم الصنف كاملاً.\n\nالنص: ${text.length > 600 ? `${text.slice(0, 600)}…` : text}`;
 const hasNumber = (text: string): boolean => /[0-9٠-٩۰-۹]/.test(text);
@@ -355,6 +367,24 @@ export async function partnerPriceRole(env: Env, partnerId: number): Promise<Pri
   }
 }
 
+/**
+ * § 52 ب — an OUTSIDE price source by its number: a partner flagged «مصدر
+ * أسعار» that is neither a supplier nor a customer (رائد, a market source who
+ * is not an employee). The webhook routes it here before the customer path: it
+ * never gets a welcome, a quotation or any customer message, and no customer
+ * partner is created for its number. Null when the number is none.
+ */
+export async function findOutsideSource(env: Env, e164: string): Promise<{ id: number; name: string; role: PriceRole | null } | null> {
+  const rows = await call<Array<{ id: number; name: string; x_price_role?: string | false }>>(env, "res.partner", "search_read", {
+    domain: [[SOURCE_FIELD, "=", true], ["supplier_rank", "=", 0], ["customer_rank", "=", 0], "|", ["x_whatsapp_number", "=", e164], ["phone", "=", e164]],
+    fields: ["id", "name", ROLE_FIELD], order: "id asc", limit: 1,
+  });
+  return rows[0] ? { id: rows[0].id, name: rows[0].name, role: asRole(rows[0].x_price_role) } : null;
+}
+export const OUTSIDE_SOURCE_ACK = "وصلتنا رسالتك في يو تاك، والفريق بيراجعها ويرد عليك 🌿";
+export const outsideSourceAlert = (name: string, from: string, what: string): string =>
+  `💬 رسالة من مصدر الأسعار «${name}» (${from}) خارج طلب الأسعار: ${what.length > 400 ? `${what.slice(0, 400)}…` : what}\nرددنا بأن الفريق بيراجعها؛ افتح محادثته في «💬 المحادثات».`;
+
 // ---------------------------------------------------------------- the 02:30 ask and the 90-minute window
 
 interface Marker { day: string; at: number | null }
@@ -372,6 +402,48 @@ async function readMarker(env: Env, digits: string): Promise<Marker | null> {
 
 export interface AskResult { name: string; action: "sent" | "queued" | "held" | "off" | "claimed_before" | "refused" | "no_number" }
 
+interface MarketTarget { partnerId: number; employeeId: number | null; name: string; whatsapp: string; role: PriceRole | null }
+/** Who the 02:30 ask and its 05:00 reminder go to: every source that is not a supplier — the flagged employees, and the outside partners. */
+function marketTargets(src: PriceSources): MarketTarget[] {
+  const emp = new Set(src.employees.map((e) => e.partnerId));
+  return [
+    ...src.employees.filter((e) => e.partnerId).map((e) => ({ partnerId: e.partnerId, employeeId: e.employeeId as number | null, name: e.name, whatsapp: e.whatsapp, role: e.role })),
+    ...src.partners.filter((p) => !p.supplier && !emp.has(p.partnerId)).map((p) => ({ partnerId: p.partnerId, employeeId: null, name: p.name, whatsapp: p.whatsapp, role: p.role })),
+  ];
+}
+
+/**
+ * § 52 ب — outside the source's window, with no usable Flow template: the old
+ * text template utak_supplier_ask_v2 («نحتاج أسعارك اليوم لهالأصناف: …») with
+ * today's items — every product «نشط للبيع». The form is then owed to an outside
+ * source: his reply opens his window (src/price-flow.ts sendOwedFlow). A
+ * member's form already waits in his team queue. True when it went.
+ */
+export async function askByOldTemplate(env: Env, t: { partnerId: number; employeeId: number | null; name: string; whatsapp: string; role: PriceRole | null }, nowMs: number): Promise<boolean> {
+  const { TMPL_SUPPLIER_ASK } = await import("./config");
+  const { getTemplateByPurpose } = await import("./odoo");
+  const { supplierAskParams } = await import("./templates");
+  const { joinCapped } = await import("./wa-params");
+  const { readActiveItems } = await import("./pricing-engine");
+  const tmpl = await getTemplateByPurpose(env, TMPL_SUPPLIER_ASK, (name) => supplierAskParams(name, "", "").length);
+  if (!tmpl) return false;
+  const names = [...new Set((await readActiveItems(env, [])).map((i) => String(i.productName).replace(/^\[[^\]]*\]\s*/, "").replace(/\s+/g, " ").trim()).filter(Boolean))];
+  if (!names.length) return false;
+  const name = String(t.name || "").replace(/\s+/g, " ").trim();
+  const list = joinCapped(names, Math.max(400, 780 - name.length), "، ", (n) => `وغيرها (${n})`).text;
+  const d = gatewayDecision(await sendViaGateway(env, {
+    purpose: TMPL_SUPPLIER_ASK, to: `+${t.whatsapp}`,
+    content: { kind: "template", row: tmpl, params: supplierAskParams(tmpl.x_meta_template_id, name, list) },
+    noHold: true, noHoldReason: "يُرسل طلب الأسعار نصاً",
+  }));
+  if (d?.action !== "template") return false;
+  if (!t.employeeId) {
+    const { markFlowOwed } = await import("./price-flow");
+    await markFlowOwed(env, { partnerId: t.partnerId, employeeId: null, name: t.name, whatsapp: t.whatsapp, supplier: false, role: t.role }, nowMs);
+  }
+  return true;
+}
+
 /** 02:30 Riyadh (the every-5-minutes tick, until the publication time): the ask to every source that is not a supplier, once a day. */
 export async function runMarketAsk(env: Env, nowMs: number, untilMinute: number): Promise<{ action: string; asks?: AskResult[] }> {
   const m = riyadhMinutes(new Date(nowMs));
@@ -383,11 +455,7 @@ export async function runMarketAsk(env: Env, nowMs: number, untilMinute: number)
   const { withAutoSendJob } = await import("./auto-send-guard");
   const jenv = withAutoSendJob(env, MARKET_ASK_PURPOSE);
   const src = await loadPriceSources(env);
-  const emp = new Set(src.employees.map((e) => e.partnerId));
-  const targets: Array<{ partnerId: number; employeeId: number | null; name: string; whatsapp: string; role: PriceRole | null }> = [
-    ...src.employees.filter((e) => e.partnerId).map((e) => ({ ...e })),
-    ...src.partners.filter((p) => !p.supplier && !emp.has(p.partnerId)).map((p) => ({ ...p, employeeId: null })),
-  ];
+  const targets = marketTargets(src);
   const asks: AskResult[] = [];
   for (const t of targets) {
     if (!t.whatsapp) { asks.push({ name: t.name, action: "no_number" }); continue; }
@@ -445,6 +513,9 @@ export async function runMarketAsk(env: Env, nowMs: number, untilMinute: number)
         }
       } else if (await byFlow()) {
         await writeMarketAskMarker(env, t.whatsapp, day, nowMs); action = "sent";
+      } else if (await askByOldTemplate(jenv, t, nowMs).catch((e) => { console.warn(`[market-ask] ${t.name}: the old template failed — the text ask`, (e as Error)?.message); return false; })) {
+        // § 52 ب — an outside source (not an employee: no «بدء الدوام» to wait for) whose window is closed
+        await writeMarketAskMarker(env, t.whatsapp, day, nowMs); action = "sent";
       } else {
         const d = gatewayDecision(await sendViaGateway(jenv, { purpose: MARKET_ASK_PURPOSE, to: `+${t.whatsapp}`, content: textContent(text) }));
         if (d?.action === "session") { await writeMarketAskMarker(env, t.whatsapp, day, nowMs); action = "sent"; }
@@ -458,6 +529,67 @@ export async function runMarketAsk(env: Env, nowMs: number, untilMinute: number)
     console.log(`[market-ask] ${day} ${t.name}: ${action}`);
   }
   return { action: "ran", asks };
+}
+
+/** 05:00 Riyadh. */
+export const MARKET_NUDGE_MINUTE = 5 * 60;
+export const MARKET_NUDGE_JOB = "market_price_nudge";
+export interface NudgeResult { name: string; action: "flow" | "template" | "old_template" | "replied" | "off" | "claimed_before" | "refused" | "no_number" }
+
+/** This source sent a price today (an offer row of the day, simulation left out). */
+async function hasOffersToday(env: Env, partnerId: number, day: string): Promise<boolean> {
+  const n = await call<number>(env, OFFER_MODEL, "search_count", { domain: [["x_date", "=", day], ["x_source_partner_id", "=", partnerId], [SIM_FIELD, "!=", true]] });
+  return Number(n) > 0;
+}
+
+/**
+ * § 52 و — 05:00 Riyadh (the every-5-minutes tick, until the publication time):
+ * ONE reminder a day to each market source that has not sent a price today —
+ * the form inside its window with the reminder's text; outside it the Flow's
+ * template if Meta holds it UTILITY, else utak_supplier_ask_v2 with today's
+ * items (the 02:30 rule). An employee on his day off is not reminded; one who
+ * has not tapped «بدء الدوام» yet is (the reminder is the nudge to start).
+ */
+export async function runMarketNudge(env: Env, nowMs: number, untilMinute: number): Promise<{ action: string; nudges?: NudgeResult[] }> {
+  const m = riyadhMinutes(new Date(nowMs));
+  if (m < MARKET_NUDGE_MINUTE) return { action: "before" };
+  if (m >= untilMinute) return { action: "after" }; // the day's prices are due: no reminder after them
+  const day = riyadhDateKey(new Date(nowMs));
+  const { withAutoSendJob } = await import("./auto-send-guard");
+  const jenv = withAutoSendJob(env, MARKET_NUDGE_JOB);
+  const targets = marketTargets(await loadPriceSources(env));
+  const nudges: NudgeResult[] = [];
+  for (const t of targets) {
+    if (!t.whatsapp) { nudges.push({ name: t.name, action: "no_number" }); continue; }
+    const claim = await claimButton(env, `mask_nudge:${day}:p${t.partnerId}`, 26 * 60 * 60);
+    if (!claim.claimed) { nudges.push({ name: t.name, action: "claimed_before" }); continue; }
+    let action: NudgeResult["action"] = "refused";
+    try {
+      const { sendFlowAsk, flowNudgeText, sourceKind } = await import("./price-flow");
+      if (await hasOffersToday(env, t.partnerId, day)) action = "replied";
+      else if (t.employeeId && await (async () => { const { attendanceHold } = await import("./attendance"); const h = await attendanceHold(env, t.partnerId, nowMs); return h.hold && h.phase !== "before"; })()) action = "off";
+      else {
+        const { cutoffLabel } = await import("./templates");
+        const { ORDERING_HOURS_OPEN } = await import("./config");
+        const nudgeSrc = { partnerId: t.partnerId, employeeId: t.employeeId, name: t.name, whatsapp: t.whatsapp, supplier: false, role: t.role };
+        const r = await sendFlowAsk(jenv, nudgeSrc, { now: nowMs, body: flowNudgeText(cutoffLabel(ORDERING_HOURS_OPEN), sourceKind(nudgeSrc)) }).catch((e) => {
+          console.warn(`[market-nudge] ${t.name}: the Flow reminder failed — the old template`, (e as Error)?.message);
+          return null;
+        });
+        if (r?.via) action = r.via === "session" ? "flow" : "template";
+        else if (r?.duplicate) action = "claimed_before";
+        else if (await askByOldTemplate(jenv, t, nowMs)) action = "old_template";
+        // a text reply within 90 minutes of the reminder is read as prices, as after the ask
+        if (action === "flow" || action === "template" || action === "old_template") await writeMarketAskMarker(env, t.whatsapp, day, nowMs);
+      }
+    } catch (e) {
+      console.warn(`[market-nudge] ${t.name} failed`, (e as Error)?.message);
+    }
+    await finishButton(env, claim, 26 * 60 * 60);
+    nudges.push({ name: t.name, action });
+    console.log(`[market-nudge] ${day} ${t.name}: ${action}`);
+  }
+  return { action: "ran", nudges };
 }
 
 /** The team queue flushed an ask (src/team-queue.ts): today's reaches the member now; another day's is dropped. */
@@ -526,7 +658,7 @@ export async function handleMarketReply(
       }
       await finishButton(env, claim, 26 * 60 * 60);
     }
-    return { saved: 0, reply: MARKET_UNREAD_TEXT };
+    return { saved: 0, reply: marketUnreadText(src.role ?? null) };
   }
   const day = riyadhDateKey(new Date(nowMs));
   // § 48 و — «نسبة السعر الشاذ» of the settings (1.5 when it cannot be read)
@@ -550,6 +682,8 @@ export async function handleMarketReply(
     }
   }
   if (!saved) return unsaved.length ? { saved, reply: marketUnsavedText(unsaved, true) } : null;
+  // § 52 و — his prices arrived: no form is owed to him, and a queued ask of today is dropped
+  try { const { markPricesArrived } = await import("./price-flow"); await markPricesArrived(env, src.digits, day); } catch { /* the reminder reads Odoo as well */ }
   if (check.dropped.length) console.log(`[market-reply] ${src.name}: dropped ${check.dropped.map((d) => `${d.item.product_id}:${d.reason}`).join(", ")}`);
   try {
     const { refreshPriceDay } = await import("./prices");

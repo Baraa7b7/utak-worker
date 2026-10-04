@@ -1013,6 +1013,8 @@ export async function handlePriceEditReply(env: Env, text: string, now: number =
 export interface PricesTick {
   /** § 40 ب — 02:30 «أرسل أسعار السوق اليوم» to the sources that are not suppliers. */
   marketAsk?: { action: string } | { error: string };
+  /** § 52 و — 05:00: the reminder to a market source that sent no price today. */
+  marketNudge?: { action: string } | { error: string };
   refresh?: RefreshReport | { error: string };
   /** § 40 ج — the exceptions to Baraa. */
   exceptions?: { action: string } | { error: string };
@@ -1071,6 +1073,11 @@ export async function runPricesTick(env: Env, now: number = Date.now(), ctx?: Ex
     const { runMarketAsk } = await import("./price-sources");
     out.marketAsk = await runMarketAsk(env, now, dl);
   } catch (e) { out.marketAsk = { error: (e as Error)?.message ?? String(e) }; }
+  // § 52 و — 05:00: one reminder to a market source that sent no price today
+  try {
+    const { runMarketNudge } = await import("./price-sources");
+    out.marketNudge = await runMarketNudge(env, now, dl);
+  } catch (e) { out.marketNudge = { error: (e as Error)?.message ?? String(e) }; }
   try {
     out.refresh = m >= ENGINE_FROM_MINUTE && m < dl + DEADLINE_WINDOW_MIN
       ? await refreshPriceDay(env, { now })

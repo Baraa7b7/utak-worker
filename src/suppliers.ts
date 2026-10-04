@@ -205,9 +205,8 @@ export async function askAllSuppliersForPrices(env: Env): Promise<void> {
       // go — the template pending, refused or filed MARKETING — the ask below
       // goes exactly as before, in this same run.
       const { partnerPriceRole } = await import("./price-sources");
-      const flow = await priceFlow.sendFlowAsk(env, {
-        partnerId: s.id, name: supplierName, whatsapp: s.x_whatsapp_number, supplier: true, role: await partnerPriceRole(env, s.id),
-      }).catch((e) => {
+      const flowSrc = { partnerId: s.id, name: supplierName, whatsapp: s.x_whatsapp_number, supplier: true, role: await partnerPriceRole(env, s.id) };
+      const flow = await priceFlow.sendFlowAsk(env, flowSrc).catch((e) => {
         console.warn(`[cron 02:00] supplier ${s.id}: the Flow ask failed — the template ask instead`, (e as Error)?.message);
         return null;
       });
@@ -251,6 +250,9 @@ export async function askAllSuppliersForPrices(env: Env): Promise<void> {
       }
       sent++;
       console.log(`[cron 02:00] asked supplier ${s.id} (${s.name}) log=${logId}`);
+      // § 52 و — he got the old text template (his window is closed): the form is
+      // owed to him, and goes with his first message of the day (his window opens then).
+      await priceFlow.markFlowOwed(env, flowSrc);
       // 2026-09-23 — the manual logWaMessage that used to follow here wrote
       // a second x_wa_message row for the same send: the gateway's echo
       // already logs it (with the wamid). Removed; one row per send.
@@ -445,6 +447,10 @@ export async function handleSupplierReply(
   }
 
   await writePartner(env, supplier.id, { x_last_price_submission: nowOdoo() });
+  // § 52 و — his prices arrived by text: the form owed after the old template is not sent
+  if (created > 0 && supplier.x_whatsapp_number) {
+    try { const { markPricesArrived } = await import("./price-flow"); await markPricesArrived(env, supplier.x_whatsapp_number, riyadhDateKey()); } catch { /* the form may still go: his text prices stay */ }
+  }
 
   // 2026-09-25 (STATUS § 35) — «💰 أسعار اليوم» follows the prices at once
   // (the */5 tick would within five minutes). Never blocks the reply.
@@ -607,9 +613,11 @@ export async function nudgeLateSuppliers(env: Env): Promise<{ nudged: number; sk
       // § 51 — the reminder carries the same «أدخل الأسعار» button: the Flow
       // inside his window with the reminder's text, its template outside it;
       // when neither can go, the reminder of before.
-      const { sendFlowAsk, flowNudgeText } = await import("./price-flow");
+      const { sendFlowAsk, flowNudgeText, sourceKind } = await import("./price-flow");
       const { partnerPriceRole } = await import("./price-sources");
-      const flow = await sendFlowAsk(env, { partnerId: p.id, name, whatsapp: p.x_whatsapp_number, supplier: true, role: await partnerPriceRole(env, p.id) }, { body: flowNudgeText(needBy) })
+      const flowSrc = { partnerId: p.id, name, whatsapp: p.x_whatsapp_number, supplier: true, role: await partnerPriceRole(env, p.id) };
+      // § 52 ج — the reminder's VAT line follows his role («بدون ضريبة» for a purchase price)
+      const flow = await sendFlowAsk(env, flowSrc, { body: flowNudgeText(needBy, sourceKind(flowSrc)) })
         .catch((e) => {
           console.warn(`[supplier nudge] ${p.name}: the Flow reminder failed — the reminder of before`, (e as Error)?.message);
           return null;
@@ -621,8 +629,11 @@ export async function nudgeLateSuppliers(env: Env): Promise<{ nudged: number; sk
       const r = await sendTemplateByPurpose(env, p.x_whatsapp_number, TMPL_SUPPLIER_PRICE_NUDGE, [name, needBy], [], undefined,
         { fallback: [textContent(supplierNudgeText(needBy))] });
       const d = gatewayDecision(r);
-      if (d?.action === "template" || d?.action === "session") nudged++;
-      else {
+      if (d?.action === "template" || d?.action === "session") {
+        nudged++;
+        // § 52 و — reminded by the old text template: the form is owed, and goes with his first message
+        if (d.action === "template") await (await import("./price-flow")).markFlowOwed(env, flowSrc);
+      } else {
         if (d?.action === "held") console.warn(`[supplier nudge] ${p.name}: held until they write — ${d.reason}`);
         skipped++;
       }

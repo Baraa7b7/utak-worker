@@ -171,7 +171,10 @@ console.log("\n[أ] a purchase price is never a sale price; the free texts that 
   assert("the supplier's «تعديل الأسعار» reply: «السعر بدون ضريبة»", /السعر بدون ضريبة/.test(SUP.SUPPLIER_EDIT_TEXT), SUP.SUPPLIER_EDIT_TEXT);
   assert("the 05:00 reminder as text: «الأسعار بدون ضريبة»", /الأسعار بدون ضريبة/.test(SUP.supplierNudgeText("6:00 صباحاً")) && /قبل الساعة 6:00 صباحاً/.test(SUP.supplierNudgeText("6:00 صباحاً")));
   const src = ["../src/prices.ts", "../src/price-sources.ts", "../src/suppliers.ts", "../src/pricing-board.ts", "../src/pricing-engine.ts"].map((f) => readFileSync(new URL(f, import.meta.url), "utf8")).join("\n");
-  assert("no text of the price flow tells a source its purchase price is «شامل» the tax", !/(سعر|أسعار)[^"`\n]{0,40}شامل[ة]? (ال)?ضريب/.test(src));
+  // § 52 ج — the one «شامل الضريبة» in these files is the MARKET line («اكتب السعر زي ما ينباع في السوق (شامل الضريبة).»): a market
+  // observation is the price it sells at, VAT inside. It never sits in a «شراء» source's ask.
+  assert("no text of the price flow tells a source its purchase price is «شامل» the tax", !/(سعر|أسعار)[^"`\n]{0,40}شامل[ة]? (ال)?ضريب/.test(src.split(PS.MARKET_VAT_LINE).join(""))
+    && !/شامل/.test(PS.marketAskText("أحمد", "purchase")) && !/شامل/.test(PS.marketUnreadText("purchase")) && !/شامل/.test(SUP.supplierNudgeText("6:00 صباحاً")) && !/شامل/.test(SUP.SUPPLIER_EDIT_TEXT));
 }
 
 // ================================================================ [ب] the profitable price

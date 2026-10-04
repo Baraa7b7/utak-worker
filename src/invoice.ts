@@ -53,7 +53,8 @@ import {
   type PartyInfo,
 } from "./pdf-template";
 import type { CompanyInfo } from "./company";
-import { readCompanyInfo } from "./company";
+import { readCompanyInfoWithBank } from "./company";
+import { bankTransferLine, withBankLine } from "./bank-line";
 import { toLegalFooterAr } from "./legal-footer";
 import { parseOdooUtc, resolveZatcaQr, zatcaQrSvg, type ZatcaQr } from "./zatca-qr";
 import { BUYER_TAX_FIELDS, buyerTaxInfo, riyadhDateTime, taxInvoiceBreakdown, taxInvoiceKind, type BuyerTax } from "./tax-invoice";
@@ -291,6 +292,11 @@ async function issueAndDispatchInvoice(
     console.warn(`[invoice] PDF pipeline failed`, (e as Error).message);
   }
 
+  // § 52 أ — the bank-transfer line of the two free texts below (the customer's
+  // invoice and the collector's request): one cached read, "" when there is no
+  // valid account — the texts then go as they were.
+  const bankLine = await bankTransferLine(env);
+
   // § 41 ج — the invoice reaches the customer now, at «تم التسليم», once
   // (x_invoice_sent_at claimed before the send, released if it fails).
   await sendIssuedInvoice(env, invoiceId, invoiceNumber, () => dispatchInvoiceToCustomer(env, {
@@ -303,6 +309,7 @@ async function issueAndDispatchInvoice(
     tax,
     pdfUrl,
     lines: pricedLines,
+    bankLine,
   }));
 
   const collectors = await getCollectorTeamMembers(env);
@@ -318,6 +325,7 @@ async function issueAndDispatchInvoice(
     customerName: order.customer_name,
     neighborhood: order.neighborhood,
     total,
+    bankLine,
   });
   // STATUS § 34 — a third session button: the collector's note to Baraa
   // (the template utak_collection_request keeps its two).
@@ -382,6 +390,8 @@ interface CustomerInvoiceSend {
   tax: number;
   pdfUrl: string | null;
   lines: Array<{ product: string; packaging: string; qty: number; unit: number; line_total: number }>;
+  /** § 52 أ — the bank-transfer line of the free text ("" = none). Never a template variable. */
+  bankLine: string;
 }
 
 /**
@@ -397,7 +407,7 @@ async function dispatchInvoiceToCustomer(env: Env, a: CustomerInvoiceSend): Prom
   const invoiceDate = arabicDate(a.invoiceDateYmd);
   // ح1: one line — the multi-line {{3}} was refused by Meta (#132018).
   const linesFormatted = joinCapped(a.lines.map(p => `${p.product} × ${p.qty} = ${p.line_total} ر.س`)).text;
-  const customerText = buildCustomerInvoiceText(a.invoiceNumber, a.lines, a.subtotal, a.total, a.tax);
+  const customerText = buildCustomerInvoiceText(a.invoiceNumber, a.lines, a.subtotal, a.total, a.tax, a.bankLine);
   const textTemplate: GwOption = {
     kind: "template",
     purpose: T.CUSTOMER_INVOICE,
@@ -479,6 +489,7 @@ export async function sendInvoiceDocumentToCustomer(env: Env, invoiceId: number)
     tax: invoice.tax,
     pdfUrl,
     lines,
+    bankLine: await bankTransferLine(env),
   });
 }
 
@@ -774,6 +785,8 @@ export async function sendDailyCollectionSummary(env: Env): Promise<CollectionSu
 
   const s = buildCollectionSummary(unpaid, new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10));
   report.total = s.grandTotal;
+  // § 52 أ — the list as text carries the bank-transfer line (the template's four variables do not)
+  const listText = withBankLine(s.text, await bankTransferLine(env));
   for (const c of collectors) {
     try {
       // STATUS § 31 — after the shift / on a day off: the list waits for the
@@ -783,7 +796,7 @@ export async function sendDailyCollectionSummary(env: Env): Promise<CollectionSu
         continue;
       }
       const resp = await sendTemplateByPurpose(env, c.whatsapp, T.COLLECTION_SUMMARY, s.params, [], undefined,
-        { fallback: [textContent(s.text)] });
+        { fallback: [textContent(listText)] });
       report.sends.push({ to: tail(c.whatsapp), ...outcome(resp) });
     } catch (e) {
       console.warn(`[collection-cron] send to ${tail(c.whatsapp)} failed`, (e as Error).message);
@@ -801,7 +814,7 @@ export async function sendCollectorBacklog(env: Env, to: string): Promise<number
   const unpaid = await getUnpaidInvoicesWithCustomer(env);
   if (unpaid.length === 0) return 0;
   const s = buildCollectionSummary(unpaid, new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10));
-  const r = await sendText(env, to, s.text, { purpose: "collection_summary" });
+  const r = await sendText(env, to, withBankLine(s.text, await bankTransferLine(env)), { purpose: "collection_summary" });
   return r.ok ? 1 : 0;
 }
 
@@ -814,6 +827,7 @@ function buildCustomerInvoiceText(
   subtotal: number,
   total: number,
   tax: number = 0,
+  bankLine: string = "",
 ): string {
   const linesText = lines
     .map((l) => `• ${l.product} ${l.packaging} × ${l.qty} = ${l.line_total} ر.س`)
@@ -828,6 +842,8 @@ function buildCustomerInvoiceText(
   return [
     `🧾 فاتورتك رقم ${number}`, ``, linesText, ``,
     ...totals, ``,
+    // § 52 أ — where to transfer, under the total
+    ...(bankLine ? [bankLine, ``] : []),
     `شكراً لتعاملكم مع UTAK 🌿`,
   ].join("\n");
 }
@@ -837,13 +853,17 @@ function buildCollectorRequestText(args: {
   customerName: string;
   neighborhood: string;
   total: number;
+  /** § 52 أ — "" = none. */
+  bankLine?: string;
 }): string {
   const neigh = args.neighborhood ? ` (${args.neighborhood})` : "";
   return [
     `💰 طلب تحصيل`, ``,
     `العميل: ${args.customerName}${neigh}`,
     `الفاتورة: ${args.invoiceNumber}`,
-    `المبلغ: ${args.total} ر.س`, ``,
+    `المبلغ: ${args.total} ر.س`,
+    // § 52 أ — where the customer transfers to (the text only: the template's variables are untouched)
+    ...(args.bankLine ? [args.bankLine] : []), ``,
     `اختر طريقة التحصيل:`,
   ].join("\n");
 }
@@ -1112,6 +1132,8 @@ export function renderInvoiceHTML(data: InvoicePDFData, company?: CompanyInfo): 
       isTaxInvoice ? data.zatcaQr : undefined,
     ),
     footerNote: data.paymentTerms ?? (lang === "en" ? UI.invoicePaymentTerms.en : UI.invoicePaymentTerms.ar),
+    // § 52 أ — «للتحويل: … — IBAN …» under the payment terms (the same Arabic line in every language)
+    bankLine: company?.bankLine,
     // The footer's dashed placeholder stays off: the real ZATCA QR (tax
     // invoices only, 2026-09-24) sits in the totals block, bottom-right.
     showZatcaQR: false,
@@ -1141,7 +1163,8 @@ export async function generateInvoicePDF(
   data: InvoicePDFData,
   env: Env,
 ): Promise<Uint8Array> {
-  const company = await readCompanyInfo(env);
+  // § 52 أ — with the bank-transfer line (its read never throws: the invoice goes without it)
+  const company = await readCompanyInfoWithBank(env);
   const html = renderInvoiceHTML(data, company);
   // 2026-09-22 (item 4): every printed page carries the "صفحة X من Y" strip
   // in the reserved bottom margin. The lang picks the label text.

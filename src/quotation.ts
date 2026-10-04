@@ -29,7 +29,7 @@ import {
   type PageMetrics,
   type PartyInfo,
 } from "./pdf-template";
-import { readCompanyInfo, type CompanyInfo } from "./company";
+import { readCompanyInfoWithBank, type CompanyInfo } from "./company";
 import { toLegalFooterAr } from "./legal-footer";
 import { UI, resolveDocLang, type DocLang } from "./i18n";
 import { formatDateEn, fromPartyFor, itemCellHTML, labelForBillTo, labelForFrom, labelForTerms, taglineFor, thanksLine } from "./doc-shell";
@@ -198,6 +198,8 @@ export function renderQuotationHTML(data: QuotationPDFData, company?: CompanyInf
     footerNote: lang === "en"
       ? (data.vatInclusive ? `${UI.quotationValidity.en} ${UI.vatInclusiveNote.en}.` : UI.quotationValidity.en)
       : (data.vatInclusive ? `${QUOTATION_FOOTER}. ${UI.vatInclusiveNote.ar}` : QUOTATION_FOOTER),
+    // § 52 أ — «للتحويل: … — IBAN …» under the terms (the same Arabic line in every language)
+    bankLine: company?.bankLine,
     showZatcaQR: false,
     legalFooterBar,
     pageMetrics,
@@ -217,7 +219,8 @@ export async function generateQuotationPDF(
   data: QuotationPDFData,
   env: Env,
 ): Promise<Uint8Array> {
-  const company = await readCompanyInfo(env);
+  // § 52 أ — with the bank-transfer line (its read never throws: the quotation goes without it)
+  const company = await readCompanyInfoWithBank(env);
   const lang: DocLang = resolveDocLang({ docLang: data.lang, isTaxInvoice: false });
   return await htmlToPDF(renderQuotationHTML(data, company), env, {
     footerHtml: buildGotenbergFooterHtml(lang),
@@ -537,8 +540,8 @@ export async function createAndDispatchQuotationForRecord(
 
   let html: string;
   try {
-    // Company read here too (legal footer + seal), as generateQuotationPDF does.
-    html = renderQuotationHTML(data, await readCompanyInfo(env));
+    // Company read here too (legal footer + seal, and § 52 أ the bank-transfer line), as generateQuotationPDF does.
+    html = renderQuotationHTML(data, await readCompanyInfoWithBank(env));
   } catch (e) {
     console.error(
       "[q-issue] step 3 FAILED:",

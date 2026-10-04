@@ -10,6 +10,7 @@
 
 import type { Env } from "./config";
 import { call } from "./odoo";
+import { bankTransferLine } from "./bank-line";
 
 export interface CompanyInfo {
   nameAr: string;
@@ -40,6 +41,22 @@ export interface CompanyInfo {
   // documents only — never on a draft or preview.
   stampImage?: string;
   signatureImage?: string;
+  // § 52 أ — «للتحويل: … — IBAN …» (src/bank-line.ts), set by
+  // readCompanyInfoWithBank for the documents that carry payment terms (the
+  // invoice, the quotation). Absent when there is no valid account to show.
+  bankLine?: string;
+}
+
+/**
+ * § 52 أ — the company of a document with payment terms (the invoice, the
+ * quotation): readCompanyInfo, and the bank-transfer line when the bank
+ * journal has a valid account. The line's read never throws and is cached
+ * (src/bank-line.ts), so it cannot break the document.
+ */
+export async function readCompanyInfoWithBank(env: Env): Promise<CompanyInfo> {
+  const company = await readCompanyInfo(env);
+  const bankLine = await bankTransferLine(env);
+  return bankLine ? { ...company, bankLine } : company;
 }
 
 // Odoo BCP-47 codes for the active languages on this tenant. The pair is

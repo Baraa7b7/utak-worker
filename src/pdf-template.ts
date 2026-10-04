@@ -390,7 +390,24 @@ export function renderLegalFooterBar(info: LegalFooterInfo, lang: DocLang = "ar"
   return parts.join("\n    ");
 }
 
-function renderFooter(footerNote: string, showZatcaQR: boolean, termsLabel: string = "شروط الدفع", thanksTextOverride?: string, leftSlotHTML?: string): string {
+/**
+ * § 52 أ — the bank-transfer line («للتحويل: … — IBAN …», src/bank-line.ts)
+ * under the payment terms: the same Arabic line in every document language,
+ * an RTL line of its own (no max-width: it stays on one line where the column
+ * allows), the IBAN in one unbreakable left-to-right run so it is never split
+ * across two lines. "" for no line.
+ */
+export function renderBankLineHTML(line: string | undefined, lang: DocLang = "ar"): string {
+  const text = (line ?? "").trim();
+  if (!text) return "";
+  const at = text.lastIndexOf("IBAN ");
+  const head = at > 0 ? text.slice(0, at) : text;
+  const iban = at > 0 ? text.slice(at) : "";
+  const ibanHTML = iban ? `<bdi dir="ltr" style="white-space: nowrap;">${escapeHTML(iban)}</bdi>` : "";
+  return `<div data-utak="bank-line" dir="rtl" style="font-size: 10px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; line-height: 1.7;${lang === "en" ? " text-align: left;" : ""}">${escapeHTML(head)}${ibanHTML}</div>`;
+}
+
+function renderFooter(footerNote: string, showZatcaQR: boolean, termsLabel: string = "شروط الدفع", thanksTextOverride?: string, leftSlotHTML?: string, bankLineHTML: string = ""): string {
   // The left cell of the terms row: the seal + signature on an issued doc
   // (bottom-left of the last page, no extra row), else the QR placeholder or
   // an 80px reserve that keeps the grid symmetric.
@@ -402,13 +419,16 @@ function renderFooter(footerNote: string, showZatcaQR: boolean, termsLabel: stri
   // Legacy Arabic default preserved for the byte-parity path (which never
   // passes thanksTextOverride).
   const thanks = thanksTextOverride ?? `شكراً لثقتكم في ${BRAND_INFO.nameAr}`;
+  // § 52 أ — under the terms, in the same column. Nothing (not even a line
+  // break) without a line: the page is byte-identical to what it was.
+  const bankRow = bankLineHTML ? `\n          ${bankLineHTML}` : "";
   return `<div style="position: relative;">
       <div style="height: 0; border-top: ${BRAND_RULES.row};"></div>
       <div style="height: 20px;"></div>
       <div style="display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: flex-start;">
         <div style="display: flex; flex-direction: column; gap: 6px;">
           <div style="font-size: ${BRAND_TYPE.label.size}; font-weight: ${BRAND_TYPE.label.weight}; color: ${BRAND_COLORS.inkMuted}; letter-spacing: ${BRAND_TYPE.label.tracking};">${escapeHTML(termsLabel)}</div>
-          <div style="font-size: 10px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; line-height: 1.7; max-width: 62%;">${escapeHTML(footerNote)}</div>
+          <div style="font-size: 10px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; line-height: 1.7; max-width: 62%;">${escapeHTML(footerNote)}</div>${bankRow}
         </div>
         ${qrCell}
       </div>
@@ -455,6 +475,10 @@ export interface RenderPDFShellOptions {
   bodyHTML: string;            // caller-owned body (table, lines, whatever the doc needs)
   totalsHTML?: string;         // optional totals block (invoice / quotation yes; delivery note no)
   footerNote?: string;         // "الدفع خلال ٣٠ يوماً..." — defaults per doc type
+  /** § 52 أ — «للتحويل: … — IBAN …» under the footer note (the invoice, the
+   *  quotation). Undefined or "" = no line and the page as it was. Not shown
+   *  when the footer note is hidden. */
+  bankLine?: string;
   showZatcaQR?: boolean;       // true for tax invoice; false for other docs
   pageMetrics: PageMetrics;
   /**
@@ -644,7 +668,7 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
 
     <div style="flex: 1; min-height: ${m.tailMin};"></div>
 
-    ${renderFooter(footerNote, showZatcaQR)}${legalBarByteParity}
+    ${renderFooter(footerNote, showZatcaQR, undefined, undefined, undefined, renderBankLineHTML(opts.bankLine))}${legalBarByteParity}
   </div>
 </div>
 </body>
@@ -691,7 +715,7 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
   const sealBeside = !!(opts.sealBesideTotals && opts.footerSealHTML && !opts.hideFooterNote);
   const footerBlock = opts.hideFooterNote
     ? ""
-    : renderFooter(footerNote, showZatcaQR, termsLabel, inlineThanks, sealBeside ? undefined : opts.footerSealHTML);
+    : renderFooter(footerNote, showZatcaQR, termsLabel, inlineThanks, sealBeside ? undefined : opts.footerSealHTML, renderBankLineHTML(opts.bankLine, lang));
   // One grid cell holding both: the totals keep their full width (content
   // sits on the end side), the seal block sits on the start side, bottoms
   // aligned. Height = the taller of the two.

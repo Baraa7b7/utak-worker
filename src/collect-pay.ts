@@ -39,6 +39,7 @@ import { gatewayDecision, sendViaGateway } from "./wa-gateway";
 import { sendOwnerAlert } from "./templates";
 import { riyadhHHMM } from "./hours";
 import { waDigits } from "./wa-window";
+import { bankTransferLine, withBankLine } from "./bank-line";
 
 export type CollectMethod = "cash" | "transfer";
 /** The choice, the amount, the reminder and the alert all wait this long. */
@@ -238,7 +239,10 @@ export async function askCollection(env: Env, invoiceId: number, method: Collect
   // a newer prompt: his next text is not an amount for an older one
   await clearAmountPointer(env, who.id);
   console.log(`[collect-pay] ask inv=${invoiceId} ${method} remaining=${remaining} nonce=${p.nonce} by=${who.id}`);
-  return { bodyBeforeButtons: choiceText(p, remaining), buttons: choiceButtons(p, remaining) };
+  // § 52 أ — «تحويل 🏦»: where the customer transfers to, under the prompt (the collection request
+  // that went as a template could not carry it). Never for «نقد»; "" when there is no valid account.
+  const bankLine = method === "transfer" ? await bankTransferLine(env) : "";
+  return { bodyBeforeButtons: withBankLine(choiceText(p, remaining), bankLine), buttons: choiceButtons(p, remaining) };
 }
 
 /** «المبلغ كامل»: the open balance, once per prompt. */

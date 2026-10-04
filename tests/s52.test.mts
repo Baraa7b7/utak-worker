@@ -303,7 +303,7 @@ console.log("\n[د] approved today, filed MARKETING tomorrow: the template is re
   const env = world(`${DAY} 02:00`, ["APPROVED", "UTILITY"]);
   metaTemplates = [{ id: "943336198400535", name: TPL_FLOW, language: "ar", status: "APPROVED", category: "UTILITY" }];
   await quiet(() => SUP.askAllSuppliersForPrices(withAutoSendJob({ ...env, META_WABA_ID: "WABA" }, "ask_suppliers")));
-  assert("still UTILITY at Meta: nothing written, and the template is used", metaReads === 1 && !(rows("x_whatsapp_template") as any[]).some((r) => r.x_last_synced) && tplTo(AHMED_PHONE, TPL_FLOW).length === 1, kinds(AHMED_PHONE));
+  assert("still UTILITY at Meta: nothing written (no write is even asked of Odoo), and the template is used", metaReads === 1 && !(rows("x_whatsapp_template") as any[]).some((r) => r.x_last_synced) && !odooLog.some((l) => l.model === "x_whatsapp_template" && l.method === "write") && tplTo(AHMED_PHONE, TPL_FLOW).length === 1, kinds(AHMED_PHONE));
   const env2 = world(`${DAY} 02:00`, ["APPROVED", "UTILITY"]);
   metaDown = true;
   await quiet(() => SUP.askAllSuppliersForPrices(withAutoSendJob({ ...env2, META_WABA_ID: "WABA" }, "ask_suppliers")));

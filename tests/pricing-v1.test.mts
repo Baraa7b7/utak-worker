@@ -240,6 +240,8 @@ const item = (product: number, packaging: number, cost: number, market: number |
   ({ product_id: product, packaging_id: packaging, cost_price: cost, market_price: market, available_qty: qty, actual_weight_kg: null, notes: null });
 // § 51 — the ask goes as a WhatsApp Flow (a field per active item) when it can, as its text otherwise: either is «the ask»
 const askTexts = (digits: string) => sentTo(digits).filter((b) => (b?.type === "text" && /أرسل أسعار السوق اليوم/.test(String(b.text?.body ?? ""))) || b?.interactive?.type === "flow");
+/** § 51 — with no item «نشط للبيع» there is no form to offer: the ask goes (or waits) as its text, the path of before § 51. */
+const setActive = (on: boolean) => { for (const id of [1, 2]) table("product.template").get(id)!.x_is_active_for_sale = on; };
 const queueOf = (env: any, digits: string) => JSON.parse(env.MSG_DEDUP.store.get(`pending_loc:+${digits}`) ?? "[]");
 const omar = { partnerId: DRIVER, name: "عمر المجهلي" };
 
@@ -326,8 +328,10 @@ console.log("\n[ب] Omar: 02:30 «أرسل أسعار السوق اليوم» th
   const env = fresh("2026-10-03 02:30", { onAttendance: false }); sources();
   openWindow(env, DRIVER_PHONE, 30);
   const cronEnv = { ...env, AUTO_SEND_JOB: "team_attendance" };
-  const { sendText } = await import("../src/meta.ts");
+  const { sendButtons, sendText } = await import("../src/meta.ts");
   await quiet(() => sendText(cronEnv, `+${DRIVER_PHONE}`, "نص آلي سابق اليوم", { purpose: "team_task" }));
+  // § 51 — the ask is an interactive message now (the Flow): an earlier interactive one of that job, too
+  await quiet(() => sendButtons(cronEnv, `+${DRIVER_PHONE}`, "أزرار آلية سابقة اليوم", [{ id: "x", title: "تم" }], { purpose: "team_task" }));
   const P = await import("../src/prices.ts");
   await quiet(() => P.runPricesTick(cronEnv, Date.now()));
   assert("in the */5 cron's own env: the ask goes (its own auto-send job, not a «duplicate» of another text)", askTexts(DRIVER_PHONE).length === 1,
@@ -343,8 +347,10 @@ console.log("\n[ب] Omar: 02:30 «أرسل أسعار السوق اليوم» th
 console.log("\n[ب] outside his window → the team queue; the 90 minutes start when the ask reaches him");
 {
   const env = fresh("2026-10-03 02:30", { onAttendance: false }); sources();
+  setActive(false);                                   // § 51 — no form to offer: the text alone is queued (the Flow in the queue: tests/s51.test.mts)
   await quiet(() => PS.runMarketAsk(env, Date.now(), 360));
-  assert("outside his window: nothing sent, the ask waits in the team queue", askTexts(DRIVER_PHONE).length === 0
+  setActive(true);
+  assert("outside his window: nothing sent, the ask waits in the team queue", askTexts(DRIVER_PHONE).length === 0 && queueOf(env, DRIVER_PHONE).every((i: any) => !i.flow)
     && queueOf(env, DRIVER_PHONE).some((i: any) => i.purpose === "market_price_ask" && i.ask_day === "2026-10-03"), JSON.stringify(queueOf(env, DRIVER_PHONE)));
   extractOut = { prices: [item(1, 11, 24)], unrecognized: [] };
   setRiyadh("2026-10-03 02:50");
@@ -352,7 +358,7 @@ console.log("\n[ب] outside his window → the team queue; the 90 minutes start 
   assert("before the ask reached him: a message is not read as prices", early === null && offers().length === 0);
   setRiyadh("2026-10-03 03:00"); openWindow(env, DRIVER_PHONE, 0);
   await quiet(() => flushTeamQueue(env, `+${DRIVER_PHONE}`));
-  assert("03:00, the queue flushed (his message / tap): the ask reaches him", askTexts(DRIVER_PHONE).length === 1);
+  assert("03:00, the queue flushed (his message / tap): the ask reaches him", askTexts(DRIVER_PHONE).length === 1 && askTexts(DRIVER_PHONE)[0].type === "text");
   setRiyadh("2026-10-03 04:25");
   const rep = await quiet(() => PS.tryMarketReply(env, omar, `+${DRIVER_PHONE}`, "طماطم 24", "wamid.O1"));
   assert("his reply 85 minutes after: a market observation (24), and «وصلتنا أسعار السوق (1 صنف)»",

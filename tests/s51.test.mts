@@ -293,6 +293,15 @@ console.log("\n[ب] 02:30 — the market source: the Flow inside his window, the
   assert("Ahmed (a supplier, asked at 02:00) is not in the 02:30 run", sentTo(AHMED_PHONE).length === 0);
 }
 {
+  // the live cron's env: its sends carry the job «team_attendance»; an earlier interactive message to Omar in that job today
+  const env = world(`${DAY} 02:30`);
+  openWindow(env, DRIVER_PHONE, 20);
+  const cronEnv = { ...env, AUTO_SEND_JOB: "team_attendance" };
+  await quiet(() => META.sendButtons(cronEnv, `+${DRIVER_PHONE}`, "أزرار آلية سابقة اليوم", [{ id: "x", title: "تم" }], { purpose: "team_task" }));
+  await quiet(() => PS.runMarketAsk(cronEnv, Date.now(), 6 * 60));
+  assert("in the */5 cron's own env the Flow goes under the ask's own auto-send job (not a «duplicate» of another interactive message of that job)", flowsTo(DRIVER_PHONE).length === 1 && sentTo(DRIVER_PHONE).length === 2, JSON.stringify(sentTo(DRIVER_PHONE).map((b: any) => b.text?.body ?? b.interactive?.type)));
+}
+{
   const env = world(`${DAY} 02:30`, ["APPROVED", "UTILITY"]);
   table("hr.employee").get(OMAR_EMP)!.x_price_role = "market";
   const r = await quiet(() => PS.runMarketAsk(env, Date.now(), 6 * 60));

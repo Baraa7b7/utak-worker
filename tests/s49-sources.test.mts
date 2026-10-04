@@ -81,9 +81,19 @@ console.log("\n[د] «دور الأسعار»: a «سوق» source's numbers are
 {
   const env = fresh(`${DAY} 02:35`); cost(500);
   table("hr.employee").get(7000 + DRIVER)!.x_price_role = "market";
+  // § 51 — with no item «نشط للبيع» there is no form to offer: the ask is its text, which follows the role
+  for (const p of table("product.template").values()) p.x_is_active_for_sale = false;
   openWindow(env, DRIVER_PHONE);
   const r = await quiet(() => PS.runMarketAsk(env, Date.now(), 6 * 60));
-  // § 51 — inside his window the ask is the Flow, titled by his role (its text, checked above, when the Flow cannot go)
+  const ask = String(sentTo(DRIVER_PHONE)[0]?.text?.body ?? "");
+  assert("02:30 — Omar («سوق») is asked for the market prices alone: no «اكتب شراء جنب رقمه» in his ask", r.asks?.[0]?.action === "sent" && /أسعار السوق اليوم/.test(ask) && /اسم الصنف كاملاً/.test(ask) && !/شراء/.test(ask), JSON.stringify([r, ask]));
+}
+{
+  const env = fresh(`${DAY} 02:35`); cost(500);
+  table("hr.employee").get(7000 + DRIVER)!.x_price_role = "market";
+  openWindow(env, DRIVER_PHONE);
+  const r = await quiet(() => PS.runMarketAsk(env, Date.now(), 6 * 60));
+  // § 51 — inside his window, with items active, the ask is the Flow, titled by his role
   const sentAsk = sentTo(DRIVER_PHONE)[0] as any;
   const ask = String(sentAsk?.interactive?.body?.text ?? sentAsk?.text?.body ?? "");
   const title = String(sentAsk?.interactive?.action?.parameters?.flow_action_payload?.data?.title ?? "");

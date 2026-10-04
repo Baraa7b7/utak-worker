@@ -108,6 +108,8 @@ const M = [
     "{ body: flowNudgeText(needBy) })", "{})"]], T],
   ["ب", "05:00: the reminder's Flow text asks for no deadline", [[PF,
     "نحتاجها قبل الساعة ${needBy} لو سمحت. اضغط «أدخل الأسعار»", "نحتاجها لو سمحت. اضغط «أدخل الأسعار»"]], T],
+  ["ب", "02:30: the Flow is sent under the cron's job (a «duplicate» of another interactive message that day)", [[PS,
+    "        const r = await sendFlowAsk(jenv, flowSrc, { now: nowMs });", "        const r = await sendFlowAsk(env, flowSrc, { now: nowMs });"]], T],
   ["ب", "02:30: Omar inside his window gets the text, not the Flow", [[PS,
     "        } else if (await byFlow()) {", "        } else if (false) {"]], T],
   ["ب", "02:30: the 90 minutes do not start with the Flow", [[PS,

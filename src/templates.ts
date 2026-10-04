@@ -169,6 +169,13 @@ export const T = {
   CUSTOMER_INVOICE_PDF: "customer_invoice_pdf",
   CUSTOMER_QUOTATION_PDF: "customer_quotation_pdf",
   CUSTOMER_PAY_REMIND: "customer_pay_remind",
+  /**
+   * § 53 هـ — utak_pay_remind_iban_v1 (UTILITY, 3 vars: invoice number, amount,
+   * due date; the company's IBAN in its fixed text): the 08:00 pay reminder
+   * while Meta holds it APPROVED and UTILITY, else CUSTOMER_PAY_REMIND's as before
+   * (src/outreach.ts). The lookup purpose of that template alone.
+   */
+  CUSTOMER_PAY_REMIND_IBAN: "customer_pay_remind_iban",
   CUSTOMER_INACTIVE: "customer_inactive",
   CUSTOMER_FEEDBACK: "customer_feedback",
   /** utak_order_update (UTILITY, 2 vars): order number + what changed. 2026-09-24 (ح3). */

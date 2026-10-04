@@ -66,6 +66,10 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   customer_payment_received: crit(op("إيصال الدفع", true), "إيصال الدفع"),
   customer_payment_ack: op("تأكيد استلام الدفعة"),
   customer_pay_remind: op("تذكير الدفع", true),
+  // § 53 هـ — the lookup purpose of utak_pay_remind_iban_v1 (UTILITY, [invoice
+  // number, amount, due date], the IBAN in its fixed text): the 08:00 reminder's
+  // first choice; not APPROVED or not UTILITY → customer_pay_remind's template in the same send.
+  customer_pay_remind_iban: op("تذكير الدفع بالآيبان", true),
   // § 35 — today's approved prices to every customer: critical, held for the
   // day outside the window. Not «important»: the publication report counts
   // the held ones (no alert per customer).

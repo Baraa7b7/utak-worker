@@ -15,6 +15,14 @@
 //   • the feedback request goes out at most once every FEEDBACK_EVERY_DAYS;
 //   • both MARKETING messages skip customers who sent «إيقاف» (optout.ts);
 //   • a task that throws alerts the owner instead of a console line only.
+//
+// § 53 هـ (2026-10-04) — the pay reminder carries the company's IBAN:
+// utak_pay_remind_iban_v1 («تذكير بالفاتورة رقم {{1}} بمبلغ {{2}} ر.س، المستحقة
+// بتاريخ {{3}}. للتحويل: … IBAN …», UTILITY, submitted once) goes first while
+// Meta holds it APPROVED and UTILITY and the IBAN in its fixed text is still
+// the account on the bank journal BNK1 (src/bank-line.ts); else the template
+// of customer_pay_remind (utak_pay_remind_v3), as before, in the same send.
+// Filed MARKETING → never used, and the template of before stays.
 // ============================================================
 import type { Env } from "./config";
 import { riyadhDateKey } from "./hours";
@@ -22,6 +30,9 @@ import { call } from "./odoo";
 import { readMarketingOptouts } from "./optout";
 import { markPayRemindSent } from "./pay-claim";
 import { sendOwnerAlert, sendTemplateByPurpose, T } from "./templates";
+import { bankTransferLine } from "./bank-line";
+import { arabicDate } from "./wa-params";
+import type { GwTemplate } from "./wa-gateway";
 import { isCustomerAutomationHeld, SCREEN_FIELDS, type ScreenState } from "./screening";
 
 /** م2 — pending Baraa (س3): one reminder every N days, at most MAX per debt. */
@@ -34,6 +45,12 @@ export const FEEDBACK_EVERY_DAYS = 7;
 /** م3 — «inactive» = no order for N days; nudged at most once every M days. */
 export const INACTIVE_AFTER_DAYS = 14;
 export const INACTIVE_EVERY_DAYS = 30;
+
+/** § 53 هـ — the template of the reminder with the IBAN, and the transfer line written in its fixed text. */
+export const PAY_REMIND_IBAN_TEMPLATE = "utak_pay_remind_iban_v1";
+export const PAY_REMIND_IBAN_LINE = "للتحويل: شركة يوتاك — البنك السعودي الأول — IBAN SA59 4500 0000 1682 9572 3001";
+/** «الدفع خلال ٣٠ يوماً من تاريخ الفاتورة» (the invoice's printed terms, src/i18n.ts): an invoice is due this many days after its date. */
+export const INVOICE_DUE_DAYS = 30;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const kvPayRemind = (custId: number) => `payremind:v1:${custId}`;
@@ -136,9 +153,47 @@ async function readPayRemindState(env: Env, custId: number): Promise<PayRemindSt
   try { return raw ? (JSON.parse(raw) as PayRemindState) : null; } catch { return null; }
 }
 
+export interface CustomerDebt {
+  amount: number;
+  invoices: string[];
+  /** § 53 هـ — the date of the oldest invoice still owed (YYYY-MM-DD; "" when Odoo carries none). */
+  firstDate: string;
+}
+
+/** The day an invoice of `invoiceDate` is due, by its printed terms. */
+export function invoiceDueDate(invoiceDate: string): string {
+  return new Date(Date.parse(`${invoiceDate}T12:00:00Z`) + INVOICE_DUE_DAYS * DAY_MS).toISOString().slice(0, 10);
+}
+
+/**
+ * § 53 هـ — {{1}} {{2}} {{3}} of utak_pay_remind_iban_v1: the invoice number
+ * (the numbers, when the customer owes more than one: still one reminder per
+ * customer, with the total), the amount owed, and the due date of the oldest
+ * invoice. Null when the debt carries no invoice date (then the old template).
+ */
+export function ibanRemindParams(debt: CustomerDebt): string[] | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(debt.firstDate) || !debt.invoices.length) return null;
+  return [debt.invoices.join("، "), debt.amount.toFixed(2), arabicDate(invoiceDueDate(debt.firstDate))];
+}
+
+/**
+ * § 53 هـ — may the template with the IBAN go? Only while the transfer line read
+ * from Odoo (the account on the bank journal BNK1, checked: SA, 24 characters,
+ * mod 97) IS the line in the template's fixed text. An account changed or
+ * archived in Odoo, or Odoo unreadable → false: a reminder never carries an
+ * IBAN that is no longer the company's. Never throws.
+ */
+export async function payRemindIbanCurrent(env: Env): Promise<boolean> {
+  try {
+    return (await bankTransferLine(env)) === PAY_REMIND_IBAN_LINE;
+  } catch {
+    return false;
+  }
+}
+
 /** Owed per customer from unpaid, non-simulation invoices at least MIN_AGE days old. */
-export async function owedByCustomer(env: Env): Promise<Map<number, { amount: number; invoices: string[] }>> {
-  type Inv = { id: number; x_invoice_number: string; x_total: number; x_order_id: M2O };
+export async function owedByCustomer(env: Env): Promise<Map<number, CustomerDebt>> {
+  type Inv = { id: number; x_invoice_number: string; x_total: number; x_order_id: M2O; x_invoice_date?: string | false };
   const invoices = await call<Inv[]>(env, "x_invoice", "search_read", {
     // Same rule as the 18:00 collection list: simulation / test invoices are
     // never chased. § 41 ج — by x_utak_simulation (§ 38), not x_is_simulation:
@@ -149,10 +204,10 @@ export async function owedByCustomer(env: Env): Promise<Map<number, { amount: nu
       ["x_invoice_date", "<=", riyadhYmdAgo(PAY_REMIND_MIN_AGE_DAYS)],
       ["x_utak_simulation", "!=", true],
     ],
-    fields: ["id", "x_invoice_number", "x_total", "x_order_id"],
+    fields: ["id", "x_invoice_number", "x_total", "x_order_id", "x_invoice_date"],
     limit: 500,
   });
-  const out = new Map<number, { amount: number; invoices: string[] }>();
+  const out = new Map<number, CustomerDebt>();
   if (invoices.length === 0) return out;
 
   const payments = await call<Array<{ x_invoice_id: M2O; x_amount: number }>>(env, "x_payment", "search_read", {
@@ -177,9 +232,11 @@ export async function owedByCustomer(env: Env): Promise<Map<number, { amount: nu
     const cust = inv.x_order_id ? custOf.get(inv.x_order_id[0]) : 0;
     const owed = round2((inv.x_total || 0) - (paid.get(inv.id) ?? 0));
     if (!cust || owed <= 0.005) continue;
-    const row = out.get(cust) ?? { amount: 0, invoices: [] };
+    const row = out.get(cust) ?? { amount: 0, invoices: [], firstDate: "" };
     row.amount = round2(row.amount + owed);
     row.invoices.push(inv.x_invoice_number);
+    const date = typeof inv.x_invoice_date === "string" ? inv.x_invoice_date.slice(0, 10) : "";
+    if (date && (!row.firstDate || date < row.firstDate)) row.firstDate = date;
     out.set(cust, row);
   }
   return out;
@@ -193,6 +250,8 @@ export async function sendPaymentReminders(env: Env): Promise<{ sent: number; ca
   const owed = await owedByCustomer(env);
   const today = riyadhDateKey();
   let sent = 0, capped = 0;
+  // § 53 هـ — read once, and only when a reminder is due: is the template's IBAN still the company's?
+  let ibanCurrent: boolean | null = null;
   for (const cust of await readPartners(env, [...owed.keys()])) {
     const wa = waOf(cust);
     const debt = owed.get(cust.id)!;
@@ -200,8 +259,13 @@ export async function sendPaymentReminders(env: Env): Promise<{ sent: number; ca
     const d = payRemindDecision(await readPayRemindState(env, cust.id), debt.amount, today);
     if (!d.send) { capped++; continue; }
     try {
-      const resp = await sendTemplateByPurpose(env, wa, T.CUSTOMER_PAY_REMIND,
-        [cust.name || "", debt.amount.toFixed(2)]);
+      const before: GwTemplate = { kind: "template", purpose: T.CUSTOMER_PAY_REMIND, params: [cust.name || "", debt.amount.toFixed(2)] };
+      const withIban = ibanRemindParams(debt);
+      ibanCurrent ??= await payRemindIbanCurrent(env);
+      // the template with the IBAN first (the gateway sends it only APPROVED and UTILITY), else the one of before
+      const resp = withIban && ibanCurrent
+        ? await sendTemplateByPurpose(env, wa, T.CUSTOMER_PAY_REMIND_IBAN, withIban, [], undefined, { requestPurpose: T.CUSTOMER_PAY_REMIND, fallback: [before] })
+        : await sendTemplateByPurpose(env, wa, T.CUSTOMER_PAY_REMIND, before.params);
       if (!resp?.ok) continue; // ح6 records and alerts the failure; the slot is not used up
       await env.MSG_DEDUP.put(kvPayRemind(cust.id), JSON.stringify(d.next), { expirationTtl: 45 * 86400 });
       await markPayRemindSent(env, cust.id, debt.amount);

@@ -184,6 +184,31 @@ async function fetchAllMetaTemplates(env: Env): Promise<MetaTemplate[]> {
   return collected;
 }
 
+/**
+ * § 52 د — ONE template's status and category as Meta holds them now (one GET
+ * by name), copied to its Odoo row(s) only when they differ. For a template
+ * that must be re-checked right before it is used: Meta files a template
+ * MARKETING after approving it (§ 34, § 51), and the daily sync is at 05:00.
+ * «missing» when Meta does not list it (the row is left as it is). Throws on
+ * Meta or Odoo trouble.
+ */
+export async function syncOneTemplate(env: Env, name: string): Promise<"changed" | "same" | "missing"> {
+  const res = await fetch(
+    `https://graph.facebook.com/${env.META_GRAPH_VERSION}/${env.META_WABA_ID}/message_templates?name=${encodeURIComponent(name)}&limit=50&fields=id,name,language,status,category`,
+    { headers: { Authorization: `Bearer ${env.META_ACCESS_TOKEN}` } },
+  );
+  if (!res.ok) throw new Error(`Meta template read failed: HTTP ${res.status}`);
+  const t = ((await res.json()) as { data?: Array<Pick<MetaTemplate, "id" | "name" | "status" | "category">> }).data?.find((x) => x.name === name);
+  if (!t) return "missing";
+  const rows = await call<Array<{ id: number; x_meta_status?: string | false; x_category?: string | false }>>(env, "x_whatsapp_template", "search_read", {
+    domain: [["x_meta_template_id", "=", name]], fields: ["id", "x_meta_status", "x_category"], limit: 5,
+  });
+  const off = rows.filter((r) => String(r.x_meta_status || "") !== t.status || String(r.x_category || "") !== t.category);
+  if (!off.length) return "same";
+  await call(env, "x_whatsapp_template", "write", { ids: off.map((r) => r.id), vals: { x_meta_status: t.status, x_category: t.category, x_last_synced: nowOdoo() } });
+  return "changed";
+}
+
 async function loadOdooTemplates(env: Env): Promise<OdooTemplateRow[]> {
   return await call<OdooTemplateRow[]>(env, "x_whatsapp_template", "search_read", {
     domain: [],

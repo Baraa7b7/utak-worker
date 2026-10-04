@@ -25,6 +25,7 @@ const TQ = "src/team-queue.ts";
 const IX = "src/index.ts";
 const EN = "src/pricing-engine.ts";
 const PR = "src/prices.ts";
+const TS = "src/wa-template-sync.ts";
 const LIB = "scripts/lib/s52-price-flow.mjs";
 const DOC = "docs/OPERATING-DAY.md";
 
@@ -123,6 +124,18 @@ const M = [
     "    if (utility.some((r) => String(r.x_meta_status || \"\").toUpperCase() === \"APPROVED\")) return \"ready\";", "    if (utility.length) return \"ready\";"]], T],
   ["د", "a MARKETING template counts as usable", [[PF,
     "    const utility = rows.filter((r) => String(r.x_category || \"\").toUpperCase() === \"UTILITY\");", "    const utility = rows;"]], T],
+  ["د", "a usable template is not checked at Meta before the ask (re-filed MARKETING, it is still sent)", [[PF,
+    "  if (state !== \"pending\" && state !== \"ready\") return state;", "  if (state !== \"pending\") return state;"]], T],
+  ["د", "the check before the ask does not write Meta's category", [[TS,
+    "vals: { x_meta_status: t.status, x_category: t.category, x_last_synced: nowOdoo() } });\n  return \"changed\";", "vals: { x_meta_status: t.status, x_last_synced: nowOdoo() } });\n  return \"changed\";"]], T],
+  ["د", "the check before the ask does not write Meta's status (an evening approval waits for 05:00)", [[TS,
+    "vals: { x_meta_status: t.status, x_category: t.category, x_last_synced: nowOdoo() } });\n  return \"changed\";", "vals: { x_category: t.category, x_last_synced: nowOdoo() } });\n  return \"changed\";"]], "tests/s51.test.mts"],
+  ["د", "the check before the ask writes the row even when nothing changed", [[TS,
+    "  if (!off.length) return \"same\";\n", ""]], T],
+  ["د", "a template whose name contains this one's is taken for it", [[TS,
+    ".data?.find((x) => x.name === name);", ".data?.find((x) => x.name.includes(name));"]], T],
+  ["د", "the check before the ask is a full sync of every template", [[PF,
+    "    await syncOneTemplate(env, PRICE_FLOW_TEMPLATE);", "    await (await import(\"./wa-template-sync\")).runTemplateSync(env);"]], T],
   // ---------------------------------------------------------------- ب رائد
   ["ب", "a supplier counts as an outside source", [[PS,
     "domain: [[SOURCE_FIELD, \"=\", true], [\"supplier_rank\", \"=\", 0], [\"customer_rank\", \"=\", 0],", "domain: [[SOURCE_FIELD, \"=\", true], [\"customer_rank\", \"=\", 0],"]], T],

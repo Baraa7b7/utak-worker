@@ -454,17 +454,24 @@ export async function flowTemplateReady(env: Env): Promise<boolean> {
 }
 
 /**
- * Before the 02:00 ask: a Flow template still PENDING in Odoo is read again
- * from Meta (the daily sync runs at 05:00, after the ask), so an approval that
- * arrived in the evening is used the same night. A refused or MARKETING one is
- * left alone. Never throws.
+ * Before the 02:00 ask: the Flow template's status and category are read again
+ * from Meta — this template alone, one GET (the daily sync runs at 05:00,
+ * after the ask):
+ *   • while Odoo holds it PENDING: an approval that arrived in the evening is
+ *     used the same night;
+ *   • § 52 د — while Odoo holds it usable: Meta files a template MARKETING
+ *     after approving it (§ 34, § 51), and a MARKETING template is dropped —
+ *     the row is corrected before the template is used, and the ask of before
+ *     goes instead.
+ * A refused or MARKETING row is left alone (never used, never read again
+ * here). Never throws; a read that fails leaves the row as it is.
  */
 export async function refreshFlowTemplate(env: Env): Promise<FlowTemplateState | "synced" | "failed"> {
   const state = await flowTemplateState(env);
-  if (state !== "pending") return state;
+  if (state !== "pending" && state !== "ready") return state;
   try {
-    const { runTemplateSync } = await import("./wa-template-sync");
-    await runTemplateSync(env);
+    const { syncOneTemplate } = await import("./wa-template-sync");
+    await syncOneTemplate(env, PRICE_FLOW_TEMPLATE);
     const { clearTemplateCache } = await import("./wa-gateway");
     clearTemplateCache();
     return "synced";

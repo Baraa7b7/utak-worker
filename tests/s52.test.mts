@@ -22,11 +22,11 @@ import { OWNER, ctx, graph, heldFor, inbound, odooLog, openWindow, quiet, rows, 
 import { AHMED, AHMED_PHONE, DAY, DRIVER, DRIVER_PHONE, OMAR_EMP, assert, cost, done, fresh, ownerTexts, rejected, setExtract } from "./s46-kit.mts";
 
 let metaTemplates: any[] = [];
-let claudeCalls = 0;
+let claudeCalls = 0, metaReads = 0, metaDown = false;
 const kitFetch = globalThis.fetch;
 globalThis.fetch = (async (input: unknown, init?: any) => {
   const url = typeof input === "string" ? input : (input as any)?.url ?? String(input);
-  if (url.includes("/message_templates")) return new Response(JSON.stringify({ data: metaTemplates }), { status: 200 });
+  if (url.includes("/message_templates")) { metaReads++; return metaDown ? new Response("{}", { status: 500 }) : new Response(JSON.stringify({ data: metaTemplates }), { status: 200 }); }
   if (url.includes("anthropic.com")) claudeCalls++;
   return kitFetch(input as any, init);
 }) as typeof fetch;
@@ -59,7 +59,7 @@ function templates(flow: [string, string] | null = null): void {
 }
 /** The tenant's categories, the four products as fruits (as the order's preview), Omar a «سوق» source, Ahmed «شراء». */
 const world = (riyadh = `${DAY} 02:00`, flow: [string, string] | null = null, raed = false): any => {
-  const env = fresh(riyadh); cost(500); templates(flow); claudeCalls = 0; metaTemplates = []; setExtract(null);
+  const env = fresh(riyadh); cost(500); templates(flow); claudeCalls = 0; metaReads = 0; metaDown = false; metaTemplates = []; setExtract(null);
   for (const [id, name] of [[1, "Goods"], [5, "فواكه"], [6, "خضار"], [7, "ورقيات"]] as Array<[number, string]>) seed("product.category", { id, name, parent_id: false });
   for (const id of [1, 2, 3, 4]) table("product.template").get(id)!.categ_id = 5;
   table("hr.employee").get(OMAR_EMP)!.x_price_role = "market";
@@ -284,6 +284,35 @@ for (const [label, state, usable] of [["APPROVED and UTILITY", ["APPROVED", "UTI
     assert(`the template ${label}: the gateway is not even asked for it (no «skipped» line in his conversation, no token left behind)`, askedOfGateway === false && heldFor(env, AHMED_PHONE).length === 0 && heldFor(env, RAED_PHONE).length === 0);
     assert(`the template ${label}: never used — Ahmed and Raed get utak_supplier_ask_v2, Omar's ask waits in his team queue`, flowTpl(AHMED_PHONE) === 0 && flowTpl(RAED_PHONE) === 0 && flowTpl(DRIVER_PHONE) === 0 && oldTpl(AHMED_PHONE) === 1 && oldTpl(RAED_PHONE) === 1 && sentTo(DRIVER_PHONE).length === 0, [kinds(AHMED_PHONE), kinds(DRIVER_PHONE), kinds(RAED_PHONE)].join(" "));
   }
+}
+
+console.log("\n[د] approved today, filed MARKETING tomorrow: the template is read again from Meta before every night's ask");
+{
+  const env = world(`${DAY} 02:00`, ["APPROVED", "UTILITY"], true);
+  metaTemplates = [{ id: "943336198400535", name: TPL_FLOW, language: "ar", status: "APPROVED", category: "MARKETING" }];
+  await quiet(() => SUP.askAllSuppliersForPrices(withAutoSendJob({ ...env, META_WABA_ID: "WABA" }, "ask_suppliers")));
+  const row = (rows("x_whatsapp_template") as any[]).find((r) => r.x_meta_template_id === TPL_FLOW);
+  assert("APPROVED and UTILITY in Odoo, moved to MARKETING at Meta since: ONE read of this template before the 02:00 ask, and its row corrected", metaReads === 1 && row.x_category === "MARKETING" && row.x_meta_status === "APPROVED", JSON.stringify([metaReads, row.x_category]));
+  assert("…so it is not used that night: Ahmed gets utak_supplier_ask_v2, and the form is owed to him", tplTo(AHMED_PHONE, TPL_FLOW).length === 0 && tplTo(AHMED_PHONE, TPL_ASK).length === 1 && !!env.MSG_DEDUP.store.get(`pflow_owed:v1:${AHMED_PHONE}`), kinds(AHMED_PHONE));
+  setRiyadh(`${DAY} 02:30`);
+  await quiet(() => PS.runMarketAsk(env, Date.now(), 6 * 60));
+  assert("…nor at 02:30 for Raed (the old template), and Meta is not read a second time for it", tplTo(RAED_PHONE, TPL_FLOW).length === 0 && tplTo(RAED_PHONE, TPL_ASK).length === 1 && metaReads === 1, kinds(RAED_PHONE));
+  assert("…only this template's row is written (no full sync at 02:00)", (rows("x_whatsapp_template") as any[]).filter((r) => r.x_last_synced).length === 1);
+}
+{
+  const env = world(`${DAY} 02:00`, ["APPROVED", "UTILITY"]);
+  metaTemplates = [{ id: "943336198400535", name: TPL_FLOW, language: "ar", status: "APPROVED", category: "UTILITY" }];
+  await quiet(() => SUP.askAllSuppliersForPrices(withAutoSendJob({ ...env, META_WABA_ID: "WABA" }, "ask_suppliers")));
+  assert("still UTILITY at Meta: nothing written, and the template is used", metaReads === 1 && !(rows("x_whatsapp_template") as any[]).some((r) => r.x_last_synced) && tplTo(AHMED_PHONE, TPL_FLOW).length === 1, kinds(AHMED_PHONE));
+  const env2 = world(`${DAY} 02:00`, ["APPROVED", "UTILITY"]);
+  metaDown = true;
+  await quiet(() => SUP.askAllSuppliersForPrices(withAutoSendJob({ ...env2, META_WABA_ID: "WABA" }, "ask_suppliers")));
+  assert("Meta cannot be read: the row stays as Odoo holds it, and the ask still goes (by the template)", tplTo(AHMED_PHONE, TPL_FLOW).length === 1 && (rows("x_whatsapp_template") as any[]).find((r) => r.x_meta_template_id === TPL_FLOW).x_category === "UTILITY", kinds(AHMED_PHONE));
+  metaDown = false;
+  const env3 = world(`${DAY} 02:00`, ["APPROVED", "UTILITY"]);
+  metaTemplates = [{ id: "1", name: `${TPL_FLOW}_old`, language: "ar", status: "REJECTED", category: "MARKETING" }];
+  await quiet(() => SUP.askAllSuppliersForPrices(withAutoSendJob({ ...env3, META_WABA_ID: "WABA" }, "ask_suppliers")));
+  assert("another template whose name only contains this one's is not taken for it", (rows("x_whatsapp_template") as any[]).find((r) => r.x_meta_template_id === TPL_FLOW).x_meta_status === "APPROVED" && tplTo(AHMED_PHONE, TPL_FLOW).length === 1);
 }
 
 // ================================================================ [ب] رائد

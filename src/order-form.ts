@@ -113,12 +113,15 @@ function cut(s: string, max: number): string {
 const clean = (s: string): string => String(s ?? "").replace(/^\[[^\]]*\]\s*/, "").replace(/\s+/g, " ").trim();
 const qty = (n: number): string => (Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100));
 
+/** The hint of an item no list ever priced — the trial's alone: a customer's form holds published prices only. */
+export const ORDER_NO_PRICE_HINT = "بلا سعر منشور";
 /** A slot's label — the item's name — and its hint: «كرتون · السعر 31 ر.س شامل الضريبة». */
 export function orderSlotTexts(product: string, packaging: string, price: number, vat: boolean): { label: string; hint: string } {
   const k = clean(packaging);
+  const priced = price > 0 ? `السعر ${money(price)} ر.س${vat ? " شامل الضريبة" : ""}` : ORDER_NO_PRICE_HINT;
   return {
     label: cut(clean(product), ORDER_LABEL_MAX),
-    hint: cut(`${k ? `${k} · ` : ""}السعر ${money(price)} ر.س${vat ? " شامل الضريبة" : ""}`, ORDER_HINT_MAX),
+    hint: cut(`${k ? `${k} · ` : ""}${priced}`, ORDER_HINT_MAX),
   };
 }
 
@@ -147,22 +150,28 @@ export interface OrderFormItems {
 type M2O = [number, string] | false;
 const m2o = (v: M2O | number | undefined): [number, string] => (Array.isArray(v) ? v : typeof v === "number" ? [v, ""] : [0, ""]);
 
-/** The published lines of a list: approved, not left out, a price above zero — in the list's own order. */
-export async function listItems(env: Env, list: Pick<ValidList, "dayId">): Promise<Array<{ productId: number; productName: string; packagingId: number; packagingName: string; price: number }>> {
-  const lines = await call<Array<{ id: number; x_product_tmpl_id: M2O; x_packaging_id: M2O; x_sale_price: number | false; x_excluded: boolean; x_status: string | false }>>(env, "x_price_day_line", "search_read", {
-    domain: [["x_day_id", "=", list.dayId], [SIM_FIELD, "!=", true], ["x_excluded", "=", false], ["x_sale_price", ">", 0], ["x_status", "in", ["auto", "manual"]]],
-    fields: ["id", "x_product_tmpl_id", "x_packaging_id", "x_sale_price", "x_excluded", "x_status"],
+/**
+ * The published lines of a list: approved, not left out, a price above zero — in the list's own order.
+ * `everyLine` (the trial to Baraa alone, when no list was published): every line of the day, at what it
+ * would sell for when it has a price — approved, else suggested, else the market — and with none otherwise.
+ */
+export async function listItems(env: Env, list: Pick<ValidList, "dayId">, everyLine = false): Promise<Array<{ productId: number; productName: string; packagingId: number; packagingName: string; price: number }>> {
+  const lines = await call<Array<{ id: number; x_product_tmpl_id: M2O; x_packaging_id: M2O; x_sale_price: number | false; x_excluded: boolean; x_status: string | false; x_suggested_price?: number | false; x_market_price?: number | false }>>(env, "x_price_day_line", "search_read", {
+    domain: everyLine ? [["x_day_id", "=", list.dayId], [SIM_FIELD, "!=", true]]
+      : [["x_day_id", "=", list.dayId], [SIM_FIELD, "!=", true], ["x_excluded", "=", false], ["x_sale_price", ">", 0], ["x_status", "in", ["auto", "manual"]]],
+    fields: ["id", "x_product_tmpl_id", "x_packaging_id", "x_sale_price", "x_excluded", "x_status", "x_suggested_price", "x_market_price"],
     order: "x_sequence asc, id asc", limit: 500,
   });
+  const priceOf = (l: (typeof lines)[number]): number => Number(l.x_sale_price) || (everyLine ? Number(l.x_suggested_price) || Number(l.x_market_price) || 0 : 0);
   return lines.map((l) => ({
     productId: m2o(l.x_product_tmpl_id)[0], productName: m2o(l.x_product_tmpl_id)[1],
-    packagingId: m2o(l.x_packaging_id)[0], packagingName: m2o(l.x_packaging_id)[1], price: Number(l.x_sale_price) || 0,
-  })).filter((l) => l.productId > 0 && l.packagingId > 0 && l.price > 0);
+    packagingId: m2o(l.x_packaging_id)[0], packagingName: m2o(l.x_packaging_id)[1], price: priceOf(l),
+  })).filter((l) => l.productId > 0 && l.packagingId > 0 && (everyLine || l.price > 0));
 }
 
 /** The items on their pages: grouped by category, the first fifteen of each; a category with no item takes no page. */
-export async function orderFormItems(env: Env, list: ValidList): Promise<OrderFormItems> {
-  const all = await listItems(env, list);
+export async function orderFormItems(env: Env, list: ValidList, everyLine = false): Promise<OrderFormItems> {
+  const all = await listItems(env, list, everyLine);
   if (!all.length) return { items: [], pages: [], total: 0, over: [], left: [] };
   const { of, titles } = await productPages(env, [...new Set(all.map((i) => i.productId))]);
   const groups = [...FLOW_CATEGORIES.map((c) => ({ title: titles.get(c.id) ?? c.title, items: all.filter((i) => (of.get(i.productId) ?? 0) === c.id) })),
@@ -561,7 +570,7 @@ export async function handleOrderFormReply(env: Env, msg: Pick<NormalizedMessage
   if (rec.test) {
     const total = Math.round(entries.wanted.reduce((s, w) => s + w.item.price * w.quantity, 0) * 100) / 100;
     const body = entries.wanted.length
-      ? `${ORDER_TEST_MARK} — وصل طلبك: ${entries.wanted.map((w) => `${w.item.name} × ${qty(w.quantity)}`).join("، ")}. المجموع ${money(total)} ر.س.\n(تجربة: لم يُنشأ طلب، ولا عرض سعر)`
+      ? `${ORDER_TEST_MARK} — وصل طلبك: ${entries.wanted.map((w) => `${w.item.name} × ${qty(w.quantity)}`).join("، ")}.${total > 0 ? ` المجموع ${money(total)} ر.س.` : ""}\n(تجربة: لم يُنشأ طلب، ولا عرض سعر)`
       : `${ORDER_TEST_MARK} — وصل النموذج بلا كميات.\n(تجربة: لم يُنشأ طلب)`;
     const again = await sendOrderForm(env, who, { now: nowMs, test: true, items: rec.items, pages: rec.pages, init: typed, body, cta: ORDER_FORM_EDIT_CTA, list: { dayId: 0, day: rec.listDay, publishedAtMs: null, validUntilMs: rec.validUntilMs }, ctx }).catch(() => ({ sent: false }));
     if (!again.sent) await say(body);
@@ -649,8 +658,10 @@ export async function reopenOrderForm(env: Env, orderId: number, who: OrderFormW
 
 /**
  * ONE order form to Baraa's own number, marked «🧪 تجربة»: only while his
- * window is open (nothing held), once a day. The valid list, else the last
- * published one. His reply is answered and creates no order.
+ * window is open (nothing held), once a day. The valid list; with none (or one
+ * without an item), the last real day's lines as they stand — each at what it
+ * would sell for, or «بلا سعر منشور» — so the form is seen before the first
+ * publication. His reply is answered and creates no order.
  */
 export async function sendOrderFormTest(env: Env, now: number = Date.now()): Promise<OrderFormResult> {
   const owner = waDigits(String(env.OWNER_WHATSAPP ?? ""));
@@ -660,15 +671,17 @@ export async function sendOrderFormTest(env: Env, now: number = Date.now()): Pro
   if (!claim.claimed) return { sent: false, reason: "already_today" };
   try {
     let list = await validPriceList(env, now);
-    if (!list) {
-      // no valid list tonight: the last published one shows the form (a trial creates no order)
+    let built = list ? await orderFormItems(env, list) : null;
+    if (!list || !built?.items.length) {
+      // no valid list with an item tonight: the last real day's lines show the form (a trial creates no order)
       const [last] = await call<Array<{ id: number; x_date: string }>>(env, "x_price_day", "search_read", {
-        domain: [["x_state", "=", "published"], [SIM_FIELD, "!=", true]], fields: ["id", "x_date"], order: "x_date desc, id desc", limit: 1,
+        domain: [[SIM_FIELD, "!=", true]], fields: ["id", "x_date"], order: "x_date desc, id desc", limit: 1,
       });
-      if (last) list = { dayId: last.id, day: last.x_date, publishedAtMs: null, validUntilMs: now + 60 * 60_000 };
+      list = last ? { dayId: last.id, day: last.x_date, publishedAtMs: null, validUntilMs: now + 60 * 60_000 } : null;
+      built = list ? await orderFormItems(env, list, true) : null;
     }
-    if (!list) { await releaseButton(env, claim); return { sent: false, reason: "no_list" }; }
-    const r = await sendOrderForm(env, { partnerId: 0, name: "براء", whatsapp: owner }, { now, list, test: true });
+    if (!list || !built) { await releaseButton(env, claim); return { sent: false, reason: "no_list" }; }
+    const r = await sendOrderForm(env, { partnerId: 0, name: "براء", whatsapp: owner }, { now, list, test: true, items: built.items, pages: built.pages });
     if (!r.sent) { await releaseButton(env, claim); return r; }
     await finishButton(env, claim, DAY_TTL);
     return r;

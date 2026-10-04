@@ -418,7 +418,22 @@ console.log("\n[ج] the one trial to Baraa: marked «🧪 تجربة», inside h
   const env = world(`${NEXT} 23:30`); published(DAY);   // no list is valid tonight
   openWindow(env, OWNER, 1);
   const t = await quiet(() => OF.sendOrderFormTest(env));
-  assert("no valid list tonight: the trial shows the last published list (it creates nothing)", t.sent === true && flowsTo(OWNER).length === 1 && dataOf(flowsTo(OWNER)[0]).l1 === "طماطم", JSON.stringify(t));
+  assert("no valid list tonight: the trial shows the last real day's lines (it creates nothing)", t.sent === true && flowsTo(OWNER).length === 1 && dataOf(flowsTo(OWNER)[0]).l1 === "طماطم" && dataOf(flowsTo(OWNER)[0]).h1 === "كرتون · السعر 31 ر.س شامل الضريبة", JSON.stringify(t));
+  // the tenant tonight: no day was ever published with an item, and today's lines carry no price at all
+  const bare = world(`${DAY} 23:30`);
+  openWindow(bare, OWNER, 1);
+  const missed = seed("x_price_day", { x_date: DAY, x_state: "missed", x_utak_simulation: false });
+  seed("x_price_day_line", { x_day_id: missed, x_sequence: 1, x_product_tmpl_id: 1, x_packaging_id: 11, x_market_price: 0, x_sale_price: 0, x_suggested_price: 0, x_status: "exception", x_excluded: true, x_utak_simulation: false });
+  seed("x_price_day_line", { x_day_id: missed, x_sequence: 2, x_product_tmpl_id: 2, x_packaging_id: 21, x_market_price: 27, x_sale_price: 0, x_suggested_price: 29, x_status: "exception", x_excluded: true, x_utak_simulation: false });
+  const tb = await quiet(() => OF.sendOrderFormTest(bare));
+  const fb = flowsTo(OWNER);
+  assert("no list ever published, the day's lines without an approved price: the trial still shows the form — «بلا سعر منشور», or the price the line would sell for (29)", tb.sent === true && fb.length === 1 && dataOf(fb[0]).l1 === "طماطم" && dataOf(fb[0]).h1 === "كرتون · بلا سعر منشور" && dataOf(fb[0]).h2 === "جرم · السعر 29 ر.س شامل الضريبة" && bodyOf(fb[0]).startsWith("🧪 تجربة"), JSON.stringify([tb, dataOf(fb[0]).h1, dataOf(fb[0]).h2]));
+  openWindow(bare, C1_PHONE);
+  const cust = await quiet(() => OF.sendOrderForm(bare, c1));
+  assert("…a customer gets no form from such a day (no valid list), and «اطلب» is answered «الأسعار تتحدث…»", cust.sent === false && cust.reason === "no_list" && flowsTo(C1_PHONE).length === 0 && (await quiet(() => OF.orderFormItems(bare, { dayId: missed, day: DAY, publishedAtMs: null, validUntilMs: 0 }))).items.length === 0);
+  graph.length = 0;
+  await say(bare, OWNER, nfm(tokenOf(fb[0]), { q1: "2" }));
+  assert("his reply to it: answered with no total (no price), and no order", /وصل طلبك: طماطم كرتون × 2\.\n\(تجربة: لم يُنشأ طلب/.test(bodyOf(sentTo(OWNER)[0])) && rows("x_daily_order").length === 0, bodyOf(sentTo(OWNER)[0]));
   const closedEnv = world(`${DAY} 23:30`); published(DAY);
   closedEnv.MSG_DEDUP.store.delete(`wa_win:v1:${OWNER}`);
   const c = await quiet(() => OF.sendOrderFormTest(closedEnv));

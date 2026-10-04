@@ -36,7 +36,9 @@ console.log("\n[د] «دور الأسعار»: a «سوق» source's numbers are
   assert("«شراء»: a single number is his purchase offer", p1.purchase === 62 && p1.market === undefined, JSON.stringify(p1));
   assert("a number the message does not state is still never kept, whatever the role", PS.classifyOffer({ cost_price: 99 }, "رمان 26", "observer", "market").market === undefined);
   assert("the 02:30 ask follows the role: «سوق» is asked for market prices alone, «شراء» for purchase prices without VAT, none for the prices with no word of «شراء» (§ 51)",
-    !/شراء/.test(PS.marketAskText("عمر المجهلي", "market")) && /اسم الصنف كاملاً/.test(PS.marketAskText("عمر المجهلي", "market")) && /أسعار الشراء/.test(PS.marketAskText("خالد", "purchase")) && /بدون ضريبة/.test(PS.marketAskText("خالد", "purchase")) && /الصنف والتعبئة والسعر لكل صنف\.$/.test(PS.marketAskText("عمر")) && !/شراء/.test(PS.marketAskText("عمر")));
+    !/شراء/.test(PS.marketAskText("عمر المجهلي", "market")) && /اسم الصنف كاملاً/.test(PS.marketAskText("عمر المجهلي", "market")) && /أسعار الشراء/.test(PS.marketAskText("خالد", "purchase")) && /بدون ضريبة/.test(PS.marketAskText("خالد", "purchase")) && /الصنف والتعبئة والسعر لكل صنف\. /.test(PS.marketAskText("عمر")) && !/شراء/.test(PS.marketAskText("عمر"))
+    // § 52 ج — the ask of market prices ends with the market VAT line
+    && PS.marketAskText("عمر").endsWith(PS.MARKET_VAT_LINE) && PS.marketAskText("عمر المجهلي", "market").endsWith(PS.MARKET_VAT_LINE) && !/شامل/.test(PS.marketAskText("خالد", "purchase")));
 }
 {
   const env = fresh(`${DAY} 03:00`); cost(500);
@@ -96,7 +98,8 @@ console.log("\n[د] «دور الأسعار»: a «سوق» source's numbers are
   // § 51 — inside his window, with items active, the ask is the Flow, titled by his role
   const sentAsk = sentTo(DRIVER_PHONE)[0] as any;
   const ask = String(sentAsk?.interactive?.body?.text ?? sentAsk?.text?.body ?? "");
-  const title = String(sentAsk?.interactive?.action?.parameters?.flow_action_payload?.data?.title ?? "");
+  // § 52 — the role's noun is the line under the page's heading («sub»; v1 carried it as «title»)
+  const title = String(sentAsk?.interactive?.action?.parameters?.flow_action_payload?.data?.sub ?? "");
   assert("02:30 — Omar («سوق») is asked for the market prices alone (the Flow «أسعار السوق اليوم» since § 51): no «شراء» anywhere in his ask", r.asks?.[0]?.action === "sent" && /أسعار السوق/.test(ask) && title === "أسعار السوق اليوم" && !/شراء/.test(ask + title), JSON.stringify([r, ask, title]));
 }
 {

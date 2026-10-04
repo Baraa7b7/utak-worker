@@ -149,9 +149,9 @@ const M = [
   ["ب", "02:30: an outside source outside its window gets no template (its ask is held)", [[PS,
     "      } else if (await askByOldTemplate(jenv, t, nowMs).catch(", "      } else if (false && await askByOldTemplate(jenv, t, nowMs).catch("]], T],
   ["ب", "the old template carries no item of today", [[PS,
-    "params: supplierAskParams(tmpl.x_meta_template_id, name, list) },\n    noHold: true,", "params: supplierAskParams(tmpl.x_meta_template_id, name, \"\") },\n    noHold: true,"]], T],
-  ["ب", "the old template is held when it cannot go", [[PS,
-    "    noHold: true, noHoldReason: \"يُرسل طلب الأسعار نصاً\",\n  }));\n  if (d?.action !== \"template\") return false;", "  }));\n  if (d?.action !== \"template\" && d?.action !== \"held\") return false;"]], T],
+    "params: supplierAskParams(tmpl.x_meta_template_id, name, list) },\n  }));", "params: supplierAskParams(tmpl.x_meta_template_id, name, \"\") },\n  }));"]], T],
+  ["ب", "an old template that did not go still counts as the ask (no text ask, a form owed)", [[PS,
+    "  if (d?.action !== \"template\") return false;\n  if (!t.employeeId) {", "  if (!t.employeeId) {"]], T],
   ["ب", "the outside source waits in a team queue it never flushes", [[PS,
     "...src.partners.filter((p) => !p.supplier && !emp.has(p.partnerId)).map((p) => ({ partnerId: p.partnerId, employeeId: null,", "...src.partners.filter((p) => !p.supplier && !emp.has(p.partnerId)).map((p) => ({ partnerId: p.partnerId, employeeId: 1,"]], T],
   // ---------------------------------------------------------------- و the form after the old template

@@ -434,7 +434,6 @@ export async function askByOldTemplate(env: Env, t: { partnerId: number; employe
   const d = gatewayDecision(await sendViaGateway(env, {
     purpose: TMPL_SUPPLIER_ASK, to: `+${t.whatsapp}`,
     content: { kind: "template", row: tmpl, params: supplierAskParams(tmpl.x_meta_template_id, name, list) },
-    noHold: true, noHoldReason: "يُرسل طلب الأسعار نصاً",
   }));
   if (d?.action !== "template") return false;
   if (!t.employeeId) {

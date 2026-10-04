@@ -270,6 +270,8 @@ for (const [label, state, usable] of [["APPROVED and UTILITY", ["APPROVED", "UTI
   const env = world(`${DAY} 02:00`, state, true);
   metaTemplates = [{ id: "943336198400535", name: TPL_FLOW, language: "ar", status: state[0], category: state[1], components: [] }];
   await quiet(() => SUP.askAllSuppliersForPrices(withAutoSendJob({ ...env, META_WABA_ID: "WABA" }, "ask_suppliers")));
+  // (read here, before Omar's 02:30 ask: a member's text that cannot go is «skipped» on its way to his team queue)
+  const askedOfGateway = (rows("x_wa_message") as any[]).some((r) => r.x_status === "skipped") || [...env.MSG_DEDUP.store.keys()].some((k: string) => k.startsWith("pflow:v1:"));
   setRiyadh(`${DAY} 02:30`);
   await quiet(() => PS.runMarketAsk(env, Date.now(), 6 * 60));
   const flowTpl = (d: string) => tplTo(d, TPL_FLOW).length, oldTpl = (d: string) => tplTo(d, TPL_ASK).length;
@@ -279,6 +281,7 @@ for (const [label, state, usable] of [["APPROVED and UTILITY", ["APPROVED", "UTI
     assert("…its one variable is the day, and its button carries this send's token and the form's data", JSON.stringify(c.find((x: any) => x.type === "body").parameters.map((x: any) => x.text)) === JSON.stringify(["3 أكتوبر 2026"]) && tokenOf(tplTo(RAED_PHONE, TPL_FLOW)[0]).startsWith("pf1.") && dataOf(tplTo(RAED_PHONE, TPL_FLOW)[0]).sub === "أسعار السوق اليوم" && dataOf(tplTo(RAED_PHONE, TPL_FLOW)[0]).t1 === "فواكه", JSON.stringify(c).slice(0, 200));
     assert("…no form is owed to a source that got the form's own template", ![...env.MSG_DEDUP.store.keys()].some((k: string) => k.startsWith("pflow_owed:")));
   } else {
+    assert(`the template ${label}: the gateway is not even asked for it (no «skipped» line in his conversation, no token left behind)`, askedOfGateway === false && heldFor(env, AHMED_PHONE).length === 0 && heldFor(env, RAED_PHONE).length === 0);
     assert(`the template ${label}: never used — Ahmed and Raed get utak_supplier_ask_v2, Omar's ask waits in his team queue`, flowTpl(AHMED_PHONE) === 0 && flowTpl(RAED_PHONE) === 0 && flowTpl(DRIVER_PHONE) === 0 && oldTpl(AHMED_PHONE) === 1 && oldTpl(RAED_PHONE) === 1 && sentTo(DRIVER_PHONE).length === 0, [kinds(AHMED_PHONE), kinds(DRIVER_PHONE), kinds(RAED_PHONE)].join(" "));
   }
 }
@@ -323,6 +326,13 @@ console.log("\n[ب] رائد — an outside market source: 02:30 with Omar, and 
   assert("…still no customer partner for his number, no welcome template, no quotation", rows("res.partner").length === partners && !sentTo(RAED_PHONE).some((b: any) => /welcome|quotation|order/.test(String(b.template?.name ?? ""))) && rows("x_daily_order").length === 0);
 }
 {
+  const env = world(`${DAY} 02:30`, null, true);
+  for (const r of rows("x_whatsapp_template") as any[]) if (r.x_meta_template_id === TPL_ASK) r.x_meta_status = "PENDING";
+  const r = await quiet(() => PS.runMarketAsk(env, Date.now(), 6 * 60));
+  const held = heldFor(env, RAED_PHONE);
+  assert("outside his window and the old template cannot go either (not approved): it is not held and no form is owed — his ask is the text of before, kept by the gateway until he writes", r.asks?.find((a: any) => a.name === "رائد")?.action === "held" && sentTo(RAED_PHONE).length === 0 && held.length === 1 && held[0].purpose === "market_price_ask" && !env.MSG_DEDUP.store.get(`pflow_owed:v1:${RAED_PHONE}`), JSON.stringify([r.asks, held.map((h: any) => h.purpose)]));
+}
+{
   const env = world(`${DAY} 14:00`, null, true);
   const partners = rows("res.partner").length;
   await say(env, RAED_PHONE, text("السلام عليكم، أبغى كرتون طماطم"));
@@ -335,6 +345,7 @@ console.log("\n[ب] رائد — an outside market source: 02:30 with Omar, and 
 {
   const env = world(`${DAY} 14:00`, null, true);
   seed("res.partner", { id: 881, name: "عميل ومصدر", x_whatsapp_number: "+966500000881", x_price_source: true, customer_rank: 1, supplier_rank: 0 });
+  table("res.partner").get(AHMED)!.customer_rank = 0;                 // as Odoo holds it: a supplier's customer rank is 0, not empty
   assert("an outside source is a flagged partner that is neither a supplier nor a customer: Raed is; Ahmed (a supplier) and a customer who is also a source are not; an unknown number is not",
     (await PS.findOutsideSource(env, "+" + RAED_PHONE))?.id === RAED && (await PS.findOutsideSource(env, "+" + AHMED_PHONE)) === null && (await PS.findOutsideSource(env, "+966500000881")) === null && (await PS.findOutsideSource(env, "+966500009999")) === null);
   table("res.partner").get(RAED)!.x_price_source = false;

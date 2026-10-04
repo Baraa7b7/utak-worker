@@ -1707,6 +1707,23 @@ export default {
       return json({ status: "accepted" }, 202);
     }
 
+    // § 51 — the ONE trial of the price Flow: to Baraa's own number (no other
+    // recipient can be named), while his 24h window is open, once a day. His
+    // reply writes nothing in Odoo (src/price-flow.ts sendFlowTest).
+    if (request.method === "POST" && url.pathname === "/odoo/hook/price-flow-test") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      try {
+        const { sendFlowTest } = await import("./price-flow");
+        return json({ ok: true, ...(await sendFlowTest(env)) });
+      } catch (e) {
+        return json({ ok: false, error: (e as Error).message }, 500);
+      }
+    }
+
     if (request.method === "POST" && url.pathname === "/webhook") {
       const raw = await request.text();
       const sig = request.headers.get("x-hub-signature-256");
@@ -2279,6 +2296,21 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         await markSeen(env, msg.messageId);
         continue;
       }
+    }
+
+    // § 51 — a WhatsApp Flow's reply (the price form): read by its flow_token
+    // with no extractor, written and answered in src/price-flow.ts, whoever the
+    // sender is (a supplier, a team member, Baraa's own trial). No other routing.
+    if (msg.flow) {
+      try {
+        const { handlePriceFlowReply } = await import("./price-flow");
+        const r = await handlePriceFlowReply(env, msg, ctx);
+        console.log(`[price-flow] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} ${r.action}${r.saved !== undefined ? ` saved=${r.saved}` : ""}${r.why ? ` (${r.why})` : ""}`);
+      } catch (e) {
+        console.error("[price-flow] reply failed", (e as Error)?.message);
+      }
+      await markSeen(env, msg.messageId);
+      continue;
     }
 
     // 2026-09-20 (inbox) — bot routing runs only on text / button / location.

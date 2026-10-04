@@ -73,6 +73,7 @@ export function parseWebhook(payload: unknown): NormalizedMessage[] {
         let buttonId: string | undefined;
         let location: NormalizedMessage["location"] | undefined;
         let media: NormalizedMessage["media"] | undefined;
+        let flow: NormalizedMessage["flow"] | undefined;
 
         if (m.type === "text") {
           text = m?.text?.body ?? "";
@@ -85,6 +86,10 @@ export function parseWebhook(payload: unknown): NormalizedMessage[] {
           } else if (list) {
             buttonId = list.id;
             text = list.title ?? "";
+          } else if (m?.interactive?.nfm_reply) {
+            // § 51 — a Flow's reply: the fields and the flow_token of response_json
+            flow = parseFlowReply(m.interactive.nfm_reply);
+            text = flowReplyText(flow);
           }
         } else if (m.type === "button") {
           // template quick-reply button
@@ -137,11 +142,31 @@ export function parseWebhook(payload: unknown): NormalizedMessage[] {
           buttonId,
           location,
           media,
+          flow,
         });
       }
     }
   }
   return out;
+}
+
+// ---- § 51: a WhatsApp Flow's reply (interactive nfm_reply) ----
+// response_json is a JSON string: the `complete` payload of the Flow and its
+// flow_token. Unreadable JSON gives an empty token, which no Flow accepts.
+export function parseFlowReply(nfm: { response_json?: unknown }): NonNullable<NormalizedMessage["flow"]> {
+  let obj: Record<string, unknown> = {};
+  try {
+    const raw = typeof nfm?.response_json === "string" ? JSON.parse(nfm.response_json) : nfm?.response_json;
+    if (raw && typeof raw === "object" && !Array.isArray(raw)) obj = raw as Record<string, unknown>;
+  } catch { /* an empty reply */ }
+  const { flow_token, ...values } = obj;
+  return { token: typeof flow_token === "string" ? flow_token : "", values };
+}
+
+/** The reply as one line of the inbox: the values that were filled, in the form's order. */
+export function flowReplyText(flow: NonNullable<NormalizedMessage["flow"]>): string {
+  const filled = Object.values(flow.values).map((v) => String(v ?? "").trim()).filter(Boolean);
+  return `📝 رد النموذج${filled.length ? `: ${filled.join(" · ")}` : " (بلا قيم)"}`;
 }
 
 // ============================================================

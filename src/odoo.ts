@@ -968,8 +968,8 @@ export async function createDailyPrice(
     actual_weight_kg: number | null;
     source_message_id: string;
     raw_reply: string;
-    /** 2026-09-25 — "pending" marks an outlier price for review; it is still used. */
-    extraction_status?: "extracted" | "pending";
+    /** 2026-09-25 — "pending" marks an outlier price for review; it is still used. § 51 — "flow": typed in the price Flow, no extractor. */
+    extraction_status?: "extracted" | "pending" | "flow";
   },
 ): Promise<number> {
   // 2026-09-25 — the Riyadh day, as the 21:15 purchase list reads it

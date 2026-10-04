@@ -10,6 +10,7 @@
 // - handleSupplierButton:        the confirmation's «تعديل الأسعار» / «توقف اليوم» / «شكراً».
 
 import type { Env } from "./config";
+import { isSimRun } from "./config";
 import { joinCapped } from "./wa-params";
 import {
   ORDERING_HOURS_OPEN,
@@ -121,6 +122,13 @@ export async function askAllSuppliersForPrices(env: Env): Promise<void> {
     return;
   }
 
+  // § 51 — the ask goes as a WhatsApp Flow when it can (src/price-flow.ts): a
+  // field per item «نشط للبيع». Its template's approval is read again from
+  // Meta first while Odoo still holds it PENDING — the daily sync runs at
+  // 05:00, after this ask (a simulation run never reads Meta, § 41 و).
+  const priceFlow = await import("./price-flow");
+  if (!isSimRun(env)) await priceFlow.refreshFlowTemplate(env);
+
   // batch: fetch all product names once for suppliers in this run
   const allProductIds = [...new Set(suppliers.flatMap((s) => s.x_supplied_product_ids || []))];
   const catalog = allProductIds.length
@@ -191,6 +199,30 @@ export async function askAllSuppliersForPrices(env: Env): Promise<void> {
         "، ",
         (n) => `وغيرها (${n})`,
       ).text;
+
+      // § 51 — the Flow first: the interactive message inside his window, its
+      // UTILITY template (utak_price_ask_flow_v1) outside it. When neither can
+      // go — the template pending, refused or filed MARKETING — the ask below
+      // goes exactly as before, in this same run.
+      const { partnerPriceRole } = await import("./price-sources");
+      const flow = await priceFlow.sendFlowAsk(env, {
+        partnerId: s.id, name: supplierName, whatsapp: s.x_whatsapp_number, supplier: true, role: await partnerPriceRole(env, s.id),
+      }).catch((e) => {
+        console.warn(`[cron 02:00] supplier ${s.id}: the Flow ask failed — the template ask instead`, (e as Error)?.message);
+        return null;
+      });
+      if (flow?.duplicate) {
+        skippedDuplicate++;
+        console.warn(`[cron 02:00] supplier ${s.id} skipped duplicate (already asked today, by Flow)`);
+        continue;
+      }
+      if (flow?.via) {
+        const flowLog = await createSupplierAskLog(env, s.id);
+        sent++;
+        console.log(`[cron 02:00] asked supplier ${s.id} (${s.name}) by Flow (${flow.via}) log=${flowLog}`);
+        continue;
+      }
+      if (flow?.reason) console.log(`[cron 02:00] supplier ${s.id}: no Flow (${flow.reason}) — the template ask`);
 
       // STATUS § 33 — the resolved row goes to the gateway, which sends it only
       // if Meta approved it as UTILITY (the legacy utak_supplier_daily_ask is
@@ -572,6 +604,18 @@ export async function nudgeLateSuppliers(env: Env): Promise<{ nudged: number; sk
     await env.MSG_DEDUP.put(nudgeKey(l.id), riyadhHHMM(), { expirationTtl: 2 * 24 * 3600 });
     try {
       const name = String(p.name || "").replace(/\s+/g, " ").trim();
+      // § 51 — the reminder carries the same «أدخل الأسعار» button: the Flow
+      // inside his window with the reminder's text, its template outside it;
+      // when neither can go, the reminder of before.
+      const { sendFlowAsk, flowNudgeText } = await import("./price-flow");
+      const { partnerPriceRole } = await import("./price-sources");
+      const flow = await sendFlowAsk(env, { partnerId: p.id, name, whatsapp: p.x_whatsapp_number, supplier: true, role: await partnerPriceRole(env, p.id) }, { body: flowNudgeText(needBy) })
+        .catch((e) => {
+          console.warn(`[supplier nudge] ${p.name}: the Flow reminder failed — the reminder of before`, (e as Error)?.message);
+          return null;
+        });
+      if (flow?.via) { nudged++; continue; }
+      if (flow?.duplicate) { skipped++; continue; }
       // STATUS § 33 — the approved template, else the same reminder as text
       // inside the supplier's window (held for it otherwise, until the day ends).
       const r = await sendTemplateByPurpose(env, p.x_whatsapp_number, TMPL_SUPPLIER_PRICE_NUDGE, [name, needBy], [], undefined,

@@ -281,7 +281,8 @@ await step("رد أحمد بأسعاره", "02:20", async () => {
 });
 await step("طلب عمر 02:30", "02:30", async () => {
   await tick();
-  check("عمر: «أرسل أسعار السوق اليوم» (نص داخل نافذته)", anyText(msgsTo(TEAM.omar), /أرسل أسعار السوق اليوم/), JSON.stringify(msgsTo(TEAM.omar)));
+  // § 51 — the ask is a WhatsApp Flow («أدخل الأسعار») when it can go as one, its text otherwise
+  check("عمر: طلب الأسعار داخل نافذته (نموذج «أدخل الأسعار» أو نص «أرسل أسعار السوق اليوم»)", anyText(msgsTo(TEAM.omar), /أرسل أسعار السوق اليوم|أدخل الأسعار/), JSON.stringify(msgsTo(TEAM.omar)));
 });
 await step("رد عمر بأسعار السوق", "02:45", async () => {
   await say(TEAM.omar, "رمان وسط 19\nافوكادو 60\nرمان كبير 26 شراء 22\nرمان صغير سوق 12 شراء 11.5");

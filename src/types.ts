@@ -53,6 +53,12 @@ export interface NormalizedMessage {
     voice?: boolean;     // WhatsApp sends audio with voice=true for push-to-talk
     caption?: string;
   };
+  // § 51 — a WhatsApp Flow's reply (interactive nfm_reply): its flow_token and
+  // the fields as the user sent them (src/price-flow.ts reads them by token).
+  flow?: {
+    token: string;
+    values: Record<string, unknown>;
+  };
 }
 
 export interface OdooPartner {

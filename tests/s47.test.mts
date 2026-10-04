@@ -165,7 +165,9 @@ console.log("\n[أ] a purchase price is never a sale price; the free texts that 
   row(DAY);                                                 // a newer row of today, again with a purchase price alone
   const got = await quiet(() => OD.getLatestSalePrice(env, 3, 31, DAY));
   assert("…today's row the worker wrote (with its x_sale_price) is today's price, a newer purchase-only row beside it ignored", got.price === 30.36 && got.source === "today", JSON.stringify(got));
-  assert("Omar's 02:30 ask: «…سعر الشراء بدون ضريبة»", /اكتب «شراء» جنب رقمه، وسعر الشراء بدون ضريبة/.test(PS.marketAskText("عمر المجهلي")), PS.marketAskText("عمر المجهلي"));
+  // § 51 — «ولو معك سعر شراء اكتب «شراء» جنب رقمه…» was deleted from the ask of a source without a role; a «شراء» source's ask still says «بدون ضريبة»
+  assert("the 02:30 ask of a «شراء» source: «…سعر الشراء لكل صنف، بدون ضريبة»; the ask of a source without a role no longer invites a purchase price",
+    /سعر الشراء لكل صنف، بدون ضريبة/.test(PS.marketAskText("عمر المجهلي", "purchase")) && !/شراء/.test(PS.marketAskText("عمر المجهلي")), PS.marketAskText("عمر المجهلي"));
   assert("the supplier's «تعديل الأسعار» reply: «السعر بدون ضريبة»", /السعر بدون ضريبة/.test(SUP.SUPPLIER_EDIT_TEXT), SUP.SUPPLIER_EDIT_TEXT);
   assert("the 05:00 reminder as text: «الأسعار بدون ضريبة»", /الأسعار بدون ضريبة/.test(SUP.supplierNudgeText("6:00 صباحاً")) && /قبل الساعة 6:00 صباحاً/.test(SUP.supplierNudgeText("6:00 صباحاً")));
   const src = ["../src/prices.ts", "../src/price-sources.ts", "../src/suppliers.ts", "../src/pricing-board.ts", "../src/pricing-engine.ts"].map((f) => readFileSync(new URL(f, import.meta.url), "utf8")).join("\n");

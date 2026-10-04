@@ -238,7 +238,8 @@ function sources(): void {
 const offers = () => rows("x_price_offer");
 const item = (product: number, packaging: number, cost: number, market: number | null = null, qty: number | null = null) =>
   ({ product_id: product, packaging_id: packaging, cost_price: cost, market_price: market, available_qty: qty, actual_weight_kg: null, notes: null });
-const askTexts = (digits: string) => sentTo(digits).filter((b) => b?.type === "text" && /أرسل أسعار السوق اليوم/.test(String(b.text?.body ?? "")));
+// § 51 — the ask goes as a WhatsApp Flow (a field per active item) when it can, as its text otherwise: either is «the ask»
+const askTexts = (digits: string) => sentTo(digits).filter((b) => (b?.type === "text" && /أرسل أسعار السوق اليوم/.test(String(b.text?.body ?? ""))) || b?.interactive?.type === "flow");
 const queueOf = (env: any, digits: string) => JSON.parse(env.MSG_DEDUP.store.get(`pending_loc:+${digits}`) ?? "[]");
 const omar = { partnerId: DRIVER, name: "عمر المجهلي" };
 
@@ -308,7 +309,7 @@ console.log("\n[ب] Omar: 02:30 «أرسل أسعار السوق اليوم» th
   setRiyadh("2026-10-03 02:30");
   const P = await import("../src/prices.ts");
   const tick = await quiet(() => P.runPricesTick(env, Date.now()));
-  assert("02:30, in the */5 prices tick: the ask as text inside his window", askTexts(DRIVER_PHONE).length === 1 && (tick.marketAsk as any)?.action === "ran", JSON.stringify(tick.marketAsk));
+  assert("02:30, in the */5 prices tick: the ask inside his window (a Flow since § 51)", askTexts(DRIVER_PHONE).length === 1 && (tick.marketAsk as any)?.action === "ran", JSON.stringify(tick.marketAsk));
   assert("Ahmed (a supplier: asked at 02:00) gets no market ask — not sent, not held, not in the run",
     askTexts(AHMED_PHONE).length === 0 && heldFor(env, AHMED_PHONE).length === 0 && ((tick.marketAsk as any)?.asks ?? []).every((a: any) => a.name !== "أحمد حسان"),
     JSON.stringify(tick.marketAsk));
@@ -330,7 +331,7 @@ console.log("\n[ب] Omar: 02:30 «أرسل أسعار السوق اليوم» th
   const P = await import("../src/prices.ts");
   await quiet(() => P.runPricesTick(cronEnv, Date.now()));
   assert("in the */5 cron's own env: the ask goes (its own auto-send job, not a «duplicate» of another text)", askTexts(DRIVER_PHONE).length === 1,
-    JSON.stringify(sentTo(DRIVER_PHONE).map((b) => b.text?.body)));
+    JSON.stringify(sentTo(DRIVER_PHONE).map((b) => b.text?.body ?? b.interactive?.type)));
 }
 {
   const env = fresh("2026-10-03 02:30", { onAttendance: false });   // Omar not flagged

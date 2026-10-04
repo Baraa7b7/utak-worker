@@ -19,7 +19,7 @@ import { sendButtons, sendLocation, sendText } from "./meta";
 // customer gets «في الطريق» (src/out-for-delivery.ts).
 export type TeamQueueItem =
   | { latitude: number; longitude: number; name?: string; address?: string; purpose?: string }
-  | { text: string; buttons?: Array<{ id: string; title: string }>; purpose?: string; ask_day?: string }
+  | { text: string; buttons?: Array<{ id: string; title: string }>; purpose?: string; ask_day?: string; /** § 51 — the ask as a Flow message (its interactive body); `text` goes when it cannot. */ flow?: Record<string, unknown> }
   | { route_start: number; driver?: string };
 
 /** Long enough for a task queued at 21:15 to wait for the next day's tap. */
@@ -81,6 +81,22 @@ export async function flushTeamQueue(env: Env, to: string): Promise<number> {
     if (marketAsk) {
       const { riyadhDateKey } = await import("./hours");
       if (l.ask_day !== riyadhDateKey()) { console.log(`[pending_loc] stale market ask (${String(l.ask_day)}) dropped`); continue; }
+    }
+    // § 51 — today's ask as a WhatsApp Flow (a field per active item): the member
+    // just tapped, so his window is open. When it cannot go, its text below.
+    if (marketAsk && l.flow && typeof l.flow === "object") {
+      try {
+        const { gatewayDecision, sendViaGateway } = await import("./wa-gateway");
+        const r = await sendViaGateway(env, { purpose: "price_ask_flow", to, content: { kind: "session", body: l.flow as Record<string, unknown> }, noHold: true, noHoldReason: "يُرسل طلب الأسعار نصاً" });
+        if (gatewayDecision(r)?.action === "session") {
+          sent++;
+          const { onQueuedAskFlushed } = await import("./price-sources");
+          await onQueuedAskFlushed(env, to, l.ask_day);
+          continue;
+        }
+      } catch (e) {
+        console.warn("[pending_loc] the Flow ask failed — its text instead", (e as Error)?.message);
+      }
     }
     if (typeof l?.text === "string" && l.text) {
       const buttons = Array.isArray(l.buttons) ? (l.buttons as Array<{ id: string; title: string }>) : [];

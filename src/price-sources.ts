@@ -56,7 +56,8 @@ export const marketAskText = (name: string, role: PriceRole | null = null): stri
   const first = String(name || "").split(" ")[0];
   if (role === "market") return `صباح الخير ${first} 🌿 أرسل أسعار السوق اليوم لو سمحت: اسم الصنف كاملاً والتعبئة وسعر السوق لكل صنف.`;
   if (role === "purchase") return `صباح الخير ${first} 🌿 أرسل أسعار الشراء اليوم لو سمحت: اسم الصنف كاملاً والتعبئة وسعر الشراء لكل صنف، بدون ضريبة.`;
-  return `صباح الخير ${first} 🌿 أرسل أسعار السوق اليوم لو سمحت: الصنف والتعبئة والسعر لكل صنف. ولو معك سعر شراء اكتب «شراء» جنب رقمه، وسعر الشراء بدون ضريبة.`;
+  // § 51 — «ولو معك سعر شراء اكتب «شراء» جنب رقمه…» is gone: the ask no longer invites a purchase price.
+  return `صباح الخير ${first} 🌿 أرسل أسعار السوق اليوم لو سمحت: الصنف والتعبئة والسعر لكل صنف.`;
 };
 export const marketAckText = (n: number): string => `وصلتنا أسعار السوق (${n} صنف) 🌿 الله يعطيك العافية.`;
 /** § 41 و (the live run) — the items whose offer Odoo did not take: named, to be sent again. */
@@ -394,6 +395,33 @@ export async function runMarketAsk(env: Env, nowMs: number, untilMinute: number)
     if (!claim.claimed) { asks.push({ name: t.name, action: "claimed_before" }); continue; }
     const text = marketAskText(t.name, t.role);
     let action: AskResult["action"] = "refused";
+    // § 51 — the ask as a WhatsApp Flow (a field per item «نشط للبيع»): sent now
+    // when the member is on shift or the source is a partner — inside the
+    // window, or by its template outside it — and queued with the text for a
+    // member who has not tapped «بدء الدوام» yet. The text of before goes
+    // whenever the Flow cannot.
+    const flowSrc = { partnerId: t.partnerId, employeeId: t.employeeId, name: t.name, whatsapp: t.whatsapp, supplier: false, role: t.role };
+    const byFlow = async (): Promise<boolean> => {
+      try {
+        const { sendFlowAsk } = await import("./price-flow");
+        const r = await sendFlowAsk(jenv, flowSrc, { now: nowMs });
+        if (!r.via && r.reason) console.log(`[market-ask] ${t.name}: no Flow (${r.reason}) — the text ask`);
+        return !!r.via;
+      } catch (e) {
+        console.warn(`[market-ask] ${t.name}: the Flow ask failed — the text ask`, (e as Error)?.message);
+        return false;
+      }
+    };
+    const queuedFlow = async (): Promise<{ flow?: Record<string, unknown> }> => {
+      try {
+        const { prepareFlowAsk } = await import("./price-flow");
+        const p = await prepareFlowAsk(env, flowSrc, { now: nowMs });
+        return p ? { flow: p.session.body } : {};
+      } catch (e) {
+        console.warn(`[market-ask] ${t.name}: the Flow could not be prepared — the text alone is queued`, (e as Error)?.message);
+        return {};
+      }
+    };
     try {
       if (t.employeeId) {
         const { attendanceHold } = await import("./attendance");
@@ -401,18 +429,22 @@ export async function runMarketAsk(env: Env, nowMs: number, untilMinute: number)
         if (h.hold) {
           if (h.phase === "before") {
             const { enqueueTeamItems } = await import("./team-queue");
-            await enqueueTeamItems(env, `+${t.whatsapp}`, [{ text, purpose: MARKET_ASK_PURPOSE, ask_day: day }], h.queueTtl);
+            await enqueueTeamItems(env, `+${t.whatsapp}`, [{ text, purpose: MARKET_ASK_PURPOSE, ask_day: day, ...(await queuedFlow()) }], h.queueTtl);
             action = "queued";
           } else action = "off";
+        } else if (await byFlow()) {
+          await writeMarketAskMarker(env, t.whatsapp, day, nowMs); action = "sent";
         } else {
           const d = gatewayDecision(await sendViaGateway(jenv, { purpose: MARKET_ASK_PURPOSE, to: `+${t.whatsapp}`, content: textContent(text), noHold: true, noHoldReason: "طابور الفريق حتى «بدء الدوام»" }));
           if (d?.action === "session") { await writeMarketAskMarker(env, t.whatsapp, day, nowMs); action = "sent"; }
           else if (d?.action === "skipped") {
             const { enqueueTeamItems } = await import("./team-queue");
-            await enqueueTeamItems(env, `+${t.whatsapp}`, [{ text, purpose: MARKET_ASK_PURPOSE, ask_day: day }]);
+            await enqueueTeamItems(env, `+${t.whatsapp}`, [{ text, purpose: MARKET_ASK_PURPOSE, ask_day: day, ...(await queuedFlow()) }]);
             action = "queued";
           }
         }
+      } else if (await byFlow()) {
+        await writeMarketAskMarker(env, t.whatsapp, day, nowMs); action = "sent";
       } else {
         const d = gatewayDecision(await sendViaGateway(jenv, { purpose: MARKET_ASK_PURPOSE, to: `+${t.whatsapp}`, content: textContent(text) }));
         if (d?.action === "session") { await writeMarketAskMarker(env, t.whatsapp, day, nowMs); action = "sent"; }

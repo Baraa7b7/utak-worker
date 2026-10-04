@@ -231,7 +231,7 @@ export function sessionText(body: Record<string, unknown>): string {
     type?: string;
     text?: { body?: string };
     location?: { latitude?: number; longitude?: number; name?: string; address?: string };
-    interactive?: { body?: { text?: string }; action?: { buttons?: Array<{ reply?: { title?: string } }>; sections?: Array<{ rows?: Array<{ title?: string }> }> } };
+    interactive?: { body?: { text?: string }; action?: { buttons?: Array<{ reply?: { title?: string } }>; sections?: Array<{ rows?: Array<{ title?: string }> }>; parameters?: { flow_cta?: string } } };
     document?: { filename?: string };
     template?: unknown;
   };
@@ -245,6 +245,8 @@ export function sessionText(body: Record<string, unknown>): string {
     const btns = (b.interactive?.action?.buttons ?? []).map((btn) => btn?.reply?.title ?? "").filter(Boolean).map((t) => `🔘 ${t}`);
     // § 37 — a list message: one «🔘» line per row
     for (const sec of b.interactive?.action?.sections ?? []) for (const row of sec?.rows ?? []) if (row?.title) btns.push(`🔘 ${row.title}`);
+    // § 51 — a Flow message: its one button
+    if (b.interactive?.action?.parameters?.flow_cta) btns.push(`🔘 ${b.interactive.action.parameters.flow_cta}`);
     return [text, ...btns].filter(Boolean).join("\n");
   }
   if (b.type === "document") return `📎 ${b.document?.filename ?? "مستند"}`;

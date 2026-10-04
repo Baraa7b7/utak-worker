@@ -68,8 +68,10 @@ const M = [
     "      [\"x_sale_price\", \">\", 0], // § 47 أ — a row with a purchase price alone is not a sale price\n", ""]], T],
   ["أ", "the stale fallback stops at a row with a purchase price alone", [[OD,
     "      [\"x_sale_price\", \">\", 0], // § 47 أ\n", ""]], T],
-  ["أ", "Omar's ask does not say the purchase price is without VAT", [[PS,
-    "اكتب «شراء» جنب رقمه، وسعر الشراء بدون ضريبة.`;", "اكتب «شراء» جنب رقمه.`;"]], T],
+  // § 51 — the sentence «ولو معك سعر شراء اكتب «شراء» جنب رقمه…» was deleted from the ask of a source without a
+  // role; «بدون ضريبة» is now said by the ask of a «شراء» source (and by the Flow, tests/s51.test.mts).
+  ["أ", "the ask of a «شراء» source does not say the purchase price is without VAT", [[PS,
+    "والتعبئة وسعر الشراء لكل صنف، بدون ضريبة.`;", "والتعبئة وسعر الشراء لكل صنف.`;"]], T],
   ["أ", "the supplier's «تعديل الأسعار» reply does not say «بدون ضريبة»", [[SU,
     "(الصنف، التعبئة، السعر بدون ضريبة)", "(الصنف، التعبئة، السعر)"]], T],
   ["أ", "the 05:00 reminder as text does not say «بدون ضريبة»", [[SU,

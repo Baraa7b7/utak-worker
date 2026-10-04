@@ -84,6 +84,12 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // supplier (Omar): a team member's waits in the team queue for his tap; a
   // held one is stale after the 06:00 publication.
   market_price_ask: op("طلب أسعار السوق", false, { untilMinute: 6 * 60 }),
+  // § 51 — the price ask as a WhatsApp Flow (a field per active item), to a
+  // supplier (02:00, the 05:00 reminder) and to any other source (02:30): the
+  // interactive message inside the window, utak_price_ask_flow_v1 outside it.
+  // Never held: what cannot go as a Flow goes as the ask of before § 51, under
+  // its own purpose (so a Flow that Meta refuses never blocks that ask).
+  price_ask_flow: op("نموذج طلب الأسعار"),
   // § 37 — the supplier's notice of a payment Baraa approved: critical
   // («مهمة»): text inside his window, utak_supplier_payment_sent (UTILITY)
   // outside it, else held three days with his «فتح المحادثة» when usable.
@@ -135,6 +141,9 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // Template only (never held).
   owner_price_review: op("قالب استثناءات الأسعار"),
   owner_window: op("نافذة المالك 06:00"),
+  // § 51 — the one trial of the price Flow to Baraa's own number («🧪 تجربة»),
+  // inside his window only, and the answers to his trial reply.
+  price_flow_test: op("تجربة نموذج الأسعار", false, { hours: 1 }),
   // ---- § 34: «فتح المحادثة» — one UTILITY template per recipient category,
   // sent when a critical message is held (src/wa-opener.ts). Template only:
   // never held itself.

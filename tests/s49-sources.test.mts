@@ -35,8 +35,8 @@ console.log("\n[د] «دور الأسعار»: a «سوق» source's numbers are
   const p1 = PS.classifyOffer({ cost_price: null, market_price: 62 }, "افوكادو سوق 62", "supplier", "purchase");
   assert("«شراء»: a single number is his purchase offer", p1.purchase === 62 && p1.market === undefined, JSON.stringify(p1));
   assert("a number the message does not state is still never kept, whatever the role", PS.classifyOffer({ cost_price: 99 }, "رمان 26", "observer", "market").market === undefined);
-  assert("the 02:30 ask follows the role: «سوق» is asked for market prices alone, «شراء» for purchase prices without VAT, none as before",
-    !/شراء/.test(PS.marketAskText("عمر المجهلي", "market")) && /اسم الصنف كاملاً/.test(PS.marketAskText("عمر المجهلي", "market")) && /أسعار الشراء/.test(PS.marketAskText("خالد", "purchase")) && /بدون ضريبة/.test(PS.marketAskText("خالد", "purchase")) && /اكتب «شراء» جنب رقمه/.test(PS.marketAskText("عمر")));
+  assert("the 02:30 ask follows the role: «سوق» is asked for market prices alone, «شراء» for purchase prices without VAT, none for the prices with no word of «شراء» (§ 51)",
+    !/شراء/.test(PS.marketAskText("عمر المجهلي", "market")) && /اسم الصنف كاملاً/.test(PS.marketAskText("عمر المجهلي", "market")) && /أسعار الشراء/.test(PS.marketAskText("خالد", "purchase")) && /بدون ضريبة/.test(PS.marketAskText("خالد", "purchase")) && /الصنف والتعبئة والسعر لكل صنف\.$/.test(PS.marketAskText("عمر")) && !/شراء/.test(PS.marketAskText("عمر")));
 }
 {
   const env = fresh(`${DAY} 03:00`); cost(500);
@@ -83,8 +83,11 @@ console.log("\n[د] «دور الأسعار»: a «سوق» source's numbers are
   table("hr.employee").get(7000 + DRIVER)!.x_price_role = "market";
   openWindow(env, DRIVER_PHONE);
   const r = await quiet(() => PS.runMarketAsk(env, Date.now(), 6 * 60));
-  const ask = String(sentTo(DRIVER_PHONE)[0]?.text?.body ?? "");
-  assert("02:30 — Omar («سوق») is asked for the market prices alone: no «اكتب شراء جنب رقمه» in his ask", r.asks?.[0]?.action === "sent" && /أسعار السوق اليوم/.test(ask) && /اسم الصنف كاملاً/.test(ask) && !/شراء/.test(ask), JSON.stringify([r, ask]));
+  // § 51 — inside his window the ask is the Flow, titled by his role (its text, checked above, when the Flow cannot go)
+  const sentAsk = sentTo(DRIVER_PHONE)[0] as any;
+  const ask = String(sentAsk?.interactive?.body?.text ?? sentAsk?.text?.body ?? "");
+  const title = String(sentAsk?.interactive?.action?.parameters?.flow_action_payload?.data?.title ?? "");
+  assert("02:30 — Omar («سوق») is asked for the market prices alone (the Flow «أسعار السوق اليوم» since § 51): no «شراء» anywhere in his ask", r.asks?.[0]?.action === "sent" && /أسعار السوق/.test(ask) && title === "أسعار السوق اليوم" && !/شراء/.test(ask + title), JSON.stringify([r, ask, title]));
 }
 {
   const env = fresh(`${DAY} 03:10`); cost(500);

@@ -104,6 +104,8 @@ export interface GwTemplate {
   params?: string[] | ((templateName: string) => string[]);
   buttons?: QuickReplyPayload[];
   header?: HeaderMedia;
+  /** § 51 — the template's FLOW button: this send's flow_token and the first screen's data. */
+  flow?: { token: string; data: Record<string, unknown> };
 }
 
 export type GwOption = GwSession | GwTemplate;
@@ -188,7 +190,8 @@ function refused(message: string, type: string, status: number): Response {
 //                     exceptions with «عرض الاستثناءات» (§ 45 ب)
 //   • owner_order_confirmed — a confirmed order with «تم التسليم ✅», the
 //                     delivery on the spot (§ 49 ج)
-const OWNER_ALLOWED_PURPOSES: ReadonlySet<string> = new Set(["owner_alert", "owner_summary", "owner_window", "conv_open_owner", "owner_team_note", "owner_prices", "owner_price_exception", "owner_price_review", "owner_order_confirmed"]);
+//   • price_flow_test — the one trial of the price Flow and its answers (§ 51)
+const OWNER_ALLOWED_PURPOSES: ReadonlySet<string> = new Set(["price_flow_test", "owner_alert", "owner_summary", "owner_window", "conv_open_owner", "owner_team_note", "owner_prices", "owner_price_exception", "owner_price_review", "owner_order_confirmed"]);
 
 function ownerDigits(env: Env): string {
   return waDigits(String(env.OWNER_WHATSAPP ?? ""));
@@ -324,6 +327,14 @@ function buildTemplateBody(opt: GwTemplate, name: string, language: string): Rec
       sub_type: "quick_reply",
       index: String(b.index),
       parameters: [{ type: "payload", payload: b.payload }],
+    });
+  }
+  if (opt.flow) {
+    components.push({
+      type: "button",
+      sub_type: "flow",
+      index: "0",
+      parameters: [{ type: "action", action: { flow_token: opt.flow.token, flow_action_data: opt.flow.data } }],
     });
   }
   return { type: "template", template: { name, language: { code: language || "ar" }, components } };

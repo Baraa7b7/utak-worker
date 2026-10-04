@@ -62,6 +62,7 @@ import { extractRealWamid, generateFakeWamid, recordOutbound, synthesizeMetaResp
 import { arabicDate, maskPhone, sanitizeTemplateBody } from "./wa-params";
 import { META_PAYMENT_ISSUE, isPaymentIssue, recordSendFailure, sendWhat } from "./send-failure";
 import { categoryAllowed, expiryFor, purposePolicy } from "./wa-purposes";
+import { CUSTOMER_PRICE_PURPOSES, closedKindLabel, priceClosedNumber, type ClosedNumber } from "./price-privacy";
 import { markWindowClosed, readWindow, waDigits, type WindowState } from "./wa-window";
 import {
   enqueueHeld, putBack, queueItemId, queuedNumbers, readQueue, sentMarkKey, SENT_MARK_TTL,
@@ -423,6 +424,21 @@ async function simulationPaymentNotice(env: Env, req: GatewayRequest): Promise<s
   }
 }
 
+/** § 53 أ — one line to Baraa per source or supplier and Riyadh day: a price-bearing customer message was stopped for a source or a supplier. Never throws. */
+async function alertPriceClosed(env: Env, purpose: string, to: string, closed: ClosedNumber): Promise<void> {
+  try {
+    // by the partner, not by how the number was written («0550…» and «+966550…» are one)
+    const key = `price_closed_alert:v1:${riyadhDateKey()}:${closed.id}`;
+    if (await kvGet(env, key)) return;
+    await kvPut(env, key, new Date().toISOString(), 26 * 3600);
+    const label = purposePolicy(purpose)?.label ?? purpose;
+    const { sendOwnerAlert } = await import("./templates");
+    await sendOwnerAlert(env, `🔒 حُجبت رسالة «${label}» عن ${closedKindLabel(closed.kind)} «${closed.name}» (${maskPhone(to)}): أسعار البيع لا تصل مصدر أسعار ولا مورداً. لو على رقمه شريك عميل ثانٍ فراجعه في «📋 مراجعة الأرقام».`);
+  } catch (e) {
+    console.warn("[price-privacy] the alert failed", (e as Error)?.message);
+  }
+}
+
 // ------------------------------------------------------------------ the gateway
 
 export async function sendViaGateway(env: Env, req: GatewayRequest): Promise<Response> {
@@ -440,6 +456,33 @@ export async function sendViaGateway(env: Env, req: GatewayRequest): Promise<Res
     if (!OWNER_ALLOWED_PURPOSES.has(p)) {
       console.warn(`[owner-guard] blocked purpose=${p}`);
       return refused(`owner-guard: purpose=${p} not permitted for owner recipient`, "OwnerGuardBlocked", 403);
+    }
+  }
+
+  // ---- § 53 أ: price privacy by role (src/price-privacy.ts), never bypassed ----
+  {
+    // what is the owner's alone — the exceptions with the purchase price and the profit, his copy of
+    // the list, his alerts and summaries — reaches his number alone, whoever the caller addressed
+    const p = req.guardPurpose ?? req.purpose;
+    if (OWNER_ALLOWED_PURPOSES.has(p) && !isOwnerRecipient(env, to)) {
+      console.warn(`[price-privacy] blocked purpose=${p} to=${maskPhone(to)} — an owner's purpose to another number`);
+      return refused(`price-privacy: purpose=${p} goes to the owner alone`, "OwnerOnlyPurpose", 403);
+    }
+    // our sale prices as a customer reads them (the day's list, a quotation, the order form) never
+    // reach a price source or a supplier; a number that cannot be verified is refused, not guessed
+    if (CUSTOMER_PRICE_PURPOSES.has(req.purpose)) {
+      let closed: ClosedNumber | null;
+      try {
+        closed = await priceClosedNumber(env, to);
+      } catch (e) {
+        console.warn(`[price-privacy] purpose=${req.purpose} to=${maskPhone(to)} not verified — refused`, (e as Error)?.message);
+        return refused(`price-privacy: تعذّر التحقق من أن الرقم ليس لمصدر أسعار أو مورد (purpose=${req.purpose})`, "PricePrivacyUnverified", 503);
+      }
+      if (closed) {
+        console.warn(`[price-privacy] blocked purpose=${req.purpose} to=${maskPhone(to)} — ${closed.kind} #${closed.id}`);
+        await alertPriceClosed(env, req.purpose, to, closed);
+        return refused(`price-privacy: ${closedKindLabel(closed.kind)} «${closed.name}» لا تصله أسعار البيع (purpose=${req.purpose})`, "PricePrivacy", 403);
+      }
     }
   }
 

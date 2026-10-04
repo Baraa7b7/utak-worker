@@ -141,7 +141,7 @@ console.log("\n[هـ] utak_price_ask_v2 at Meta is the form the worker fills: fo
 console.log("\n[هـ] the pages follow the categories: فواكه، خضار، ورقيات، then «أخرى» — an empty one takes no page");
 {
   const env = world();
-  seed("x_daily_price", { x_product_tmpl_id: 1, x_packaging_id: 11, x_supplier_id: AHMED, x_price_sar: 21, x_date: "2026-10-02", x_extraction_status: "extracted" });
+  seed("x_daily_price", { x_product_tmpl_id: 1, x_packaging_id: 11, x_supplier_id: AHMED, x_price_sar: 21, x_date: "2026-10-02", x_extraction_status: "extracted", x_source_message_id: "wamid.SENT" });
   const p = (await quiet(() => FL.prepareFlowAsk(env, ahmedSrc)))!;
   assert("today: four items, all fruits — ONE page «فواكه» with four fields, and «إرسال» on it (no page follows)",
     JSON.stringify(p.record.pages) === JSON.stringify(["فواكه"]) && p.data.t1 === "فواكه" && p.data.m1 === false && p.data.m2 === false && p.data.m3 === false && [1, 2, 3, 4].every((n) => p.data[`v${n}`] === true) && p.data.v5 === false && p.total === 4, JSON.stringify([p.record.pages, p.data.t1, p.data.m1]));

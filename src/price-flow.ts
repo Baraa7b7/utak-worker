@@ -30,6 +30,11 @@
 //     is the one the engine reads (src/pricing-engine.ts latestPerSource).
 //   • The free-text reply stays as it was.
 //
+// § 53 أ — the hint is the source's OWN number or nothing: «آخر سعر» reads only
+// the rows he sent himself (a row with his message's id — never one typed in
+// Odoo under his name), and an OUTSIDE source (رائد: neither a supplier nor an
+// employee) gets no «آخر سعر» at all — his fields say «السعر بالريال».
+//
 // § 52 (2026-10-04) — utak_price_ask_v2: PAGES BY CATEGORY. Four generic pages
 // of fifteen fields (scripts/lib/s52-price-flow.mjs), still with no endpoint:
 // all the data goes with the message to the first page and the others read it
@@ -95,6 +100,8 @@ export const flowNote = (kind: PriceKind): string => `${VAT_LINE[kind]} ${PRICE_
 export const LABEL_MAX = 20;
 export const HINT_MAX = 80;
 export const NO_LAST_PRICE = "لا سعر سابق";
+/** § 53 أ — the hint of an outside source's field: no price at all, his own or anyone's. */
+export const NO_PRICE_HINT = "السعر بالريال";
 export const TEST_MARK = "🧪 تجربة";
 const TOKEN_TTL = 36 * 60 * 60;
 const SIM_FIELD = "x_utak_simulation";
@@ -142,10 +149,11 @@ const clean = (s: string): string => String(s ?? "").replace(/^\[[^\]]*\]\s*/, "
  * characters hold it; a longer one keeps the product alone, and its packaging
  * opens the hint. The hint is never empty («لا سعر سابق»).
  */
-export function slotTexts(product: string, packaging: string, last: number | null): { label: string; hint: string } {
+export function slotTexts(product: string, packaging: string, last: number | null, noPrice = false): { label: string; hint: string } {
   const p = clean(product), k = clean(packaging);
   const full = k ? `${p} — ${k}` : p;
-  const lastText = last !== null && last > 0 ? `آخر سعر: ${money(last)}` : NO_LAST_PRICE;
+  // § 53 أ — `noPrice`: the hint of an outside source carries no number, whatever `last` is
+  const lastText = noPrice ? NO_PRICE_HINT : last !== null && last > 0 ? `آخر سعر: ${money(last)}` : NO_LAST_PRICE;
   if (chars(full).length <= LABEL_MAX) return { label: full, hint: lastText };
   return { label: cut(p, LABEL_MAX), hint: cut([k, lastText].filter(Boolean).join(" · "), HINT_MAX) };
 }
@@ -195,8 +203,15 @@ export interface FlowSource {
   role: PriceRole | null;
 }
 export const sourceKind = (s: { supplier: boolean; role: PriceRole | null }): PriceKind => s.role ?? (s.supplier ? "purchase" : "market");
+/** § 53 أ — an outside price source: a partner that is neither a supplier nor an employee (رائد). It is shown no price at all. */
+export const isOutsideSource = (s: { supplier: boolean; employeeId?: number | null }): boolean => !s.supplier && !s.employeeId;
 
-/** The source's last value of each item, newest first (one read): «آخر سعر». Simulation left out; a failed read gives none. */
+/**
+ * The source's last value of each item, newest first (one read): «آخر سعر».
+ * § 53 أ — his own rows alone (the partner filter) and only those he sent
+ * himself (x_source_message_id: a reply or a form of his, never a row typed in
+ * Odoo). Simulation left out; a failed read gives none.
+ */
 export async function lastPrices(env: Env, src: { partnerId: number; supplier: boolean }, kind: PriceKind, productIds: number[]): Promise<Map<string, number>> {
   const out = new Map<string, number>();
   if (!src.partnerId || !productIds.length) return out;
@@ -206,7 +221,7 @@ export async function lastPrices(env: Env, src: { partnerId: number; supplier: b
   const f = daily ? "x_price_sar" : kind === "purchase" ? "x_purchase_price" : "x_market_price";
   try {
     const rows = await call<Array<Record<string, unknown>>>(env, model, "search_read", {
-      domain: [[who, "=", src.partnerId], ["x_product_tmpl_id", "in", productIds], [f, ">", 0], [SIM_FIELD, "!=", true]],
+      domain: [[who, "=", src.partnerId], ["x_product_tmpl_id", "in", productIds], [f, ">", 0], ["x_source_message_id", "!=", false], [SIM_FIELD, "!=", true]],
       fields: ["x_product_tmpl_id", "x_packaging_id", f], order: "x_date desc, id desc", limit: 400,
     });
     for (const r of rows) {
@@ -267,16 +282,18 @@ export interface FlowItems {
  * category into the pages — the first fifteen of each. A category with no item
  * takes no page, so slot numbers follow the pages that exist (1–15, 16–30, …).
  */
-export async function flowItems(env: Env, hints: { partnerId: number; supplier: boolean }, kind: PriceKind): Promise<FlowItems> {
+export async function flowItems(env: Env, hints: { partnerId: number; supplier: boolean; employeeId?: number | null }, kind: PriceKind): Promise<FlowItems> {
   const all = await readActiveItems(env, []);
   const { of, titles } = await productPages(env, [...new Set(all.map((i) => i.productId))]);
   const groups = [...FLOW_CATEGORIES.map((c) => ({ title: titles.get(c.id) ?? c.title, items: all.filter((i) => (of.get(i.productId) ?? 0) === c.id) })),
     { title: FLOW_OTHER_TITLE, items: all.filter((i) => !(of.get(i.productId) ?? 0)) }].filter((g) => g.items.length);
   const shown = groups.flatMap((g, k) => g.items.slice(0, PRICE_FLOW_PAGE_SLOTS).map((it, j) => ({ it, slot: k * PRICE_FLOW_PAGE_SLOTS + j + 1 })));
-  const last = await lastPrices(env, hints, kind, shown.map((x) => x.it.productId));
+  // § 53 أ — an outside source (neither a supplier nor an employee): no last price is read or shown
+  const outside = isOutsideSource(hints);
+  const last = outside ? new Map<string, number>() : await lastPrices(env, hints, kind, shown.map((x) => x.it.productId));
   const twice = new Set(shown.map((x) => x.it.productId).filter((id, i, a) => a.indexOf(id) !== i));
   const items = shown.map(({ it, slot }) => {
-    const t = slotTexts(it.productName, it.packagingName, last.get(`${it.productId}:${it.packagingId}`) ?? null);
+    const t = slotTexts(it.productName, it.packagingName, last.get(`${it.productId}:${it.packagingId}`) ?? null, outside);
     const name = twice.has(it.productId) ? `${clean(it.productName)} (${clean(it.packagingName)})` : clean(it.productName);
     return { slot, productId: it.productId, packagingId: it.packagingId, name, label: t.label, hint: t.hint };
   });
@@ -345,8 +362,8 @@ export interface FlowAskOpts {
   pages?: string[];
   init?: Record<number, number>;
   parent?: string;
-  /** The source whose last prices fill the hints, when it is not the recipient (the trial). */
-  hintsFrom?: { partnerId: number; supplier: boolean };
+  /** The source whose last prices fill the hints, when it is not the recipient (the trial to Baraa — never another recipient: prepareFlowAsk). */
+  hintsFrom?: { partnerId: number; supplier: boolean; employeeId?: number | null };
 }
 export interface PreparedFlow {
   record: FlowRecord;
@@ -395,7 +412,8 @@ export async function prepareFlowAsk(env: Env, src: FlowSource, opts: FlowAskOpt
   let pages = opts.pages?.length ? opts.pages : [FLOW_PLAIN_TITLE];
   let total = items?.length ?? 0;
   if (!items) {
-    const built = await flowItems(env, opts.hintsFrom ?? src, kind);
+    // § 53 أ — another source's last prices fill the hints of the trial to Baraa alone
+    const built = await flowItems(env, opts.test && opts.hintsFrom ? opts.hintsFrom : src, kind);
     items = built.items; pages = built.pages; total = built.total;
     if (built.left.length) await alertOverflow(env, day, built.over, built.left);
   }

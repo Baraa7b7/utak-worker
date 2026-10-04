@@ -554,14 +554,18 @@ export interface PriceRecipient {
  * screening (§ 30: waiting for review, «شخصي», team, supplier), not a team
  * member (§ 31), not Baraa. One per number. The gateway still applies the
  * allowlist on sim.
+ * § 53 أ — never a price source or a supplier: not the partner itself («مصدر
+ * أسعار», a supplier rank), and not another partner that carries one's number
+ * (src/price-privacy.ts). The gateway refuses them again, send by send.
  */
 export async function priceRecipients(env: Env): Promise<PriceRecipient[]> {
   const partners = await call<Array<{
     id: number; name: string; x_whatsapp_number: string | false; x_wa_marketing_optout?: boolean;
     x_contact_class?: string | false; x_review_pending?: boolean; x_ai_intent?: string | false;
+    supplier_rank?: number; x_price_source?: boolean;
   }>>(env, "res.partner", "search_read", {
     domain: [["customer_rank", ">", 0], ["x_whatsapp_number", "!=", false]],
-    fields: ["id", "name", "x_whatsapp_number", "x_wa_marketing_optout", "x_contact_class", "x_review_pending", "x_ai_intent"],
+    fields: ["id", "name", "x_whatsapp_number", "x_wa_marketing_optout", "x_contact_class", "x_review_pending", "x_ai_intent", "supplier_rank", "x_price_source"],
     order: "id asc",
     limit: 5000,
   });
@@ -570,11 +574,15 @@ export async function priceRecipients(env: Env): Promise<PriceRecipient[]> {
   const team = new Set((await loadRoster(env).catch(() => ({ members: [] as Array<{ whatsapp?: string }> }))).members
     .map((m) => waDigits(String(m.whatsapp ?? ""))).filter(Boolean));
   const owner = waDigits(String(env.OWNER_WHATSAPP ?? ""));
+  // § 53 أ — the numbers of the price sources and the suppliers (unreadable: the gateway refuses each send it cannot verify)
+  const { closedNumbers, sameNumber } = await import("./price-privacy");
+  const closed = await closedNumbers(env).catch(() => [] as Array<{ digits: string }>);
   const seen = new Set<string>();
   const out: PriceRecipient[] = [];
   for (const p of partners) {
     const d = waDigits(String(p.x_whatsapp_number || ""));
     if (!d || seen.has(d) || d === owner || team.has(d)) continue;
+    if (p.x_price_source === true || (Number(p.supplier_rank) || 0) > 0 || closed.some((c) => sameNumber(c.digits, d))) continue;
     if (p.x_wa_marketing_optout === true || isCustomerAutomationHeld(p)) continue;
     seen.add(d);
     out.push({ id: p.id, name: p.name, phone: `+${d}` });

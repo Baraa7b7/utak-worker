@@ -2150,6 +2150,21 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       supplierMatch = sup;
       customerMatchForRoute = cus;
       sourceMatch = !t && !sup && !cus && src ? { id: src.id, name: src.name } : null;
+      // § 53 أ — a number of a price source or a supplier that the lookups did not give (a read that
+      // failed, a number kept in «phone» alone, a customer partner made earlier on the same number):
+      // it never enters the customer path — no customer partner, no welcome, no quotation.
+      if (!t && !sup && !sourceMatch && !(await import("./wa-gateway")).isOwnerRecipient(env, msg.from)) {
+        try {
+          const { priceClosedNumber } = await import("./price-privacy");
+          const closed = await priceClosedNumber(env, msg.from);
+          if (closed) {
+            console.warn(`[price-privacy] inbound from a ${closed.kind} number (#${closed.id}) that no lookup matched — kept out of the customer path`);
+            sourceMatch = { id: closed.id, name: closed.name };
+          }
+        } catch (e) {
+          console.warn("[price-privacy] the number could not be checked — the gateway still refuses a price-bearing send", (e as Error)?.message);
+        }
+      }
 
       const { ingestInbound, phoneTail } = await import("./wa-inbox");
       const ingest = await ingestInbound(

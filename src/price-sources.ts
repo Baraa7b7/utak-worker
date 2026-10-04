@@ -80,8 +80,12 @@ export const MARKET_UNREAD_TEXT = "ما قدرنا نقرأ الأسعار من 
  * a «شراء» source's is a purchase price. No role: the text of § 48 د (the
  * keyword rule still reads «شراء» beside a number).
  */
-export const marketUnreadText = (role: PriceRole | null = null): string =>
-  role === "market" ? `ما قدرنا نقرأ الأسعار من رسالتك 🌿 اكتب في كل سطر اسم الصنف كاملاً ثم سعر السوق، مثل «رمان كبير 26». ${MARKET_VAT_LINE}`
+export const marketUnreadText = (role: PriceRole | null = null, outside = false): string =>
+  // § 53 أ — an outside source is shown no price, not even an example's: no number in his text
+  outside ? (role === "purchase"
+    ? "ما قدرنا نقرأ الأسعار من رسالتك 🌿 اكتب في كل سطر اسم الصنف كاملاً ثم سعره. الأسعار بدون ضريبة."
+    : `ما قدرنا نقرأ الأسعار من رسالتك 🌿 اكتب في كل سطر اسم الصنف كاملاً ثم سعر السوق. ${MARKET_VAT_LINE}`)
+  : role === "market" ? `ما قدرنا نقرأ الأسعار من رسالتك 🌿 اكتب في كل سطر اسم الصنف كاملاً ثم سعر السوق، مثل «رمان كبير 26». ${MARKET_VAT_LINE}`
     : role === "purchase" ? "ما قدرنا نقرأ الأسعار من رسالتك 🌿 اكتب في كل سطر اسم الصنف كاملاً ثم سعر الشراء، مثل «رمان كبير 22». الأسعار بدون ضريبة."
       : MARKET_UNREAD_TEXT;
 export const marketUnreadAlert = (name: string, text: string, dropped: number): string =>
@@ -626,7 +630,7 @@ export async function activeCatalog(env: Env): Promise<{ products: Array<{ id: n
  */
 export async function handleMarketReply(
   env: Env,
-  src: { partnerId: number; employeeId?: number | null; name: string; digits: string; /** § 49 د — «دور الأسعار» */ role?: PriceRole | null },
+  src: { partnerId: number; employeeId?: number | null; name: string; digits: string; /** § 49 د — «دور الأسعار» */ role?: PriceRole | null; /** § 53 أ — a partner source that is not an employee (رائد) */ outside?: boolean },
   text: string,
   messageId: string,
   nowMs: number = Date.now(),
@@ -657,7 +661,7 @@ export async function handleMarketReply(
       }
       await finishButton(env, claim, 26 * 60 * 60);
     }
-    return { saved: 0, reply: marketUnreadText(src.role ?? null) };
+    return { saved: 0, reply: marketUnreadText(src.role ?? null, src.outside === true) };
   }
   const day = riyadhDateKey(new Date(nowMs));
   // § 48 و — «نسبة السعر الشاذ» of the settings (1.5 when it cannot be read)
@@ -710,6 +714,6 @@ export async function tryMarketReply(
   const src = await loadPriceSources(env);
   const emp = src.employees.find((e) => e.partnerId === who.partnerId);
   if (!emp && !src.partners.some((p) => p.partnerId === who.partnerId && !p.supplier)) return null;
-  const r = await handleMarketReply(env, { partnerId: who.partnerId, employeeId: emp?.employeeId ?? who.employeeId ?? null, name: who.name, digits, role: sourceRole(src, who.partnerId) }, text, messageId, nowMs);
+  const r = await handleMarketReply(env, { partnerId: who.partnerId, employeeId: emp?.employeeId ?? who.employeeId ?? null, name: who.name, digits, role: sourceRole(src, who.partnerId), outside: !emp }, text, messageId, nowMs);
   return r?.reply ?? null;
 }

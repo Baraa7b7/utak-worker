@@ -137,10 +137,10 @@ console.log("\n[أ] the items: every product «نشط للبيع» in the engine
 }
 {
   const env = world();
-  seed("x_daily_price", { x_product_tmpl_id: 1, x_packaging_id: 11, x_supplier_id: AHMED, x_price_sar: 19, x_date: "2026-09-30", x_extraction_status: "extracted" });
-  seed("x_daily_price", { x_product_tmpl_id: 1, x_packaging_id: 11, x_supplier_id: AHMED, x_price_sar: 21, x_date: "2026-10-02", x_extraction_status: "extracted" });
-  seed("x_daily_price", { x_product_tmpl_id: 2, x_packaging_id: 21, x_supplier_id: AHMED, x_price_sar: 99, x_date: "2026-10-02", x_extraction_status: "extracted", x_utak_simulation: true });
-  seed("x_price_offer", { x_product_tmpl_id: 1, x_packaging_id: 11, x_source_partner_id: DRIVER, x_date: "2026-10-02", x_purchase_price: 0, x_market_price: 30, x_status: "valid", x_utak_simulation: false });
+  seed("x_daily_price", { x_product_tmpl_id: 1, x_packaging_id: 11, x_supplier_id: AHMED, x_price_sar: 19, x_date: "2026-09-30", x_extraction_status: "extracted", x_source_message_id: "wamid.SENT" });
+  seed("x_daily_price", { x_product_tmpl_id: 1, x_packaging_id: 11, x_supplier_id: AHMED, x_price_sar: 21, x_date: "2026-10-02", x_extraction_status: "extracted", x_source_message_id: "wamid.SENT" });
+  seed("x_daily_price", { x_product_tmpl_id: 2, x_packaging_id: 21, x_supplier_id: AHMED, x_price_sar: 99, x_date: "2026-10-02", x_extraction_status: "extracted", x_utak_simulation: true, x_source_message_id: "wamid.SENT" });
+  seed("x_price_offer", { x_product_tmpl_id: 1, x_packaging_id: 11, x_source_partner_id: DRIVER, x_date: "2026-10-02", x_purchase_price: 0, x_market_price: 30, x_status: "valid", x_utak_simulation: false, x_source_message_id: "wamid.SENT" });
   const p = (await quiet(() => FL.prepareFlowAsk(env, ahmedSrc)))!;
   assert("four items, in the engine's order, each with its product and its default packaging", p.record.items.map((i: any) => `${i.slot}:${i.productId}/${i.packagingId}`).join() === "1:1/11,2:2/21,3:3/31,4:4/41" && p.total === 4, JSON.stringify(p.record.items));
   assert("…four fields shown, eleven hidden; the heading is the role's", [1, 2, 3, 4].every((n) => p.data[`v${n}`] === true) && p.data.v5 === false && p.data.v15 === false && p.data.sub === "أسعار الشراء اليوم");
@@ -482,7 +482,7 @@ console.log("\n[ج] the token: this number's, this day's, before the publication
 console.log("\n[د] the one trial to Baraa: inside his window, once a day, nothing written in Odoo");
 {
   const env = world(`${DAY} 23:00`, ["APPROVED", "UTILITY"]);
-  seed("x_daily_price", { x_product_tmpl_id: 1, x_packaging_id: 11, x_supplier_id: AHMED, x_price_sar: 21, x_date: "2026-10-02", x_extraction_status: "extracted" });
+  seed("x_daily_price", { x_product_tmpl_id: 1, x_packaging_id: 11, x_supplier_id: AHMED, x_price_sar: 21, x_date: "2026-10-02", x_extraction_status: "extracted", x_source_message_id: "wamid.SENT" });
   const hook = { ...env, ODOO_HOOK_TOKEN: "HOOK" };
   const denied = await quiet(() => worker.fetch(new Request("https://w.test/odoo/hook/price-flow-test?token=nope", { method: "POST" }), hook, ctx));
   assert("the trial route needs the hook token", denied.status === 401 && graph.length === 0);

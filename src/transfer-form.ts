@@ -66,8 +66,8 @@ import { parseCustodyAmount } from "./custody-form";
 import { readReceiptPhotos } from "./receipt-form";
 import { priceClosedNumber } from "./price-privacy";
 
-/** utak_transfer_v1 at Meta (filled in once the Flow is created; a published Flow's JSON is frozen). */
-export const TRANSFER_FLOW_ID = "0";
+/** utak_transfer_v1 at Meta, published 2026-10-05 (a published Flow's JSON is frozen). */
+export const TRANSFER_FLOW_ID = "1089772170263768";
 export const TRANSFER_FLOW_SCREEN = "TRANSFER_A";
 /** The form, and the answers to the customer's own «إرسال». */
 export const TRANSFER_PURPOSE = "customer_transfer_form";

@@ -54,8 +54,8 @@ import {
   undoExpenseEntry, type ExpenseEntry, type ExpensePay, type ExpensePhotoFile, type ExpensePlan, type ExpenseRecord, type PocketWhy,
 } from "./expense-accounting";
 
-/** utak_expense_v1 at Meta: filled in when the Flow is created there (a published Flow's JSON is frozen). */
-export const EXPENSE_FLOW_ID = "0";
+/** utak_expense_v1 at Meta, published 2026-10-05 (a published Flow's JSON is frozen). */
+export const EXPENSE_FLOW_ID = "1084220070882916";
 export const EXPENSE_FLOW_SCREEN = "EXPENSE_A";
 /** The gateway purpose of the form, of its answers and of «↩️ تراجع»: the owner's number alone. */
 export const EXPENSE_PURPOSE = "expense_form";

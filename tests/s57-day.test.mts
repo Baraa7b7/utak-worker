@@ -90,7 +90,7 @@ const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "u
 // ================================================================ [4] the older checks read the screen after § 57
 {
   const s56 = read("scripts/s56-20261005-odoo.mjs"), s48 = read("scripts/s48-20261001-ui.mjs"), shots = read("scripts/s56-20261005-shots.mts");
-  assert("§ 56's verify compares the form with § 56's arch carried through § 57, and the two labels with § 57's", s56.includes(`import { FIELD_LABELS, dayArch57 } from "./lib/s57-ui.mjs";`) && s56.includes("v.arch_db === dayArch57(dayArch(was.arch))") && s56.includes("(FIELD_LABELS[d.name] ?? d.field_description)"));
+  assert("§ 56's verify compares the form with § 56's arch carried through § 57, and the two labels with § 57's", s56.includes(`import { FIELD_LABELS, dayArch57 } from "./lib/s57-ui.mjs";`) && s56.includes("dayArch57Of(v.arch_db) === dayArch57(dayArch(was.arch))") && s56.includes("(FIELD_LABELS[d.name] ?? d.field_description)"));
   assert("§ 48's verify reads the day's table through § 57 (the class and the stylesheet are not a change of its columns)", s48.includes(`from "./lib/s57-ui.mjs"`) && s48.includes("FORM_CLASS"));
   assert("the drawn pictures follow: the form's class, its stylesheet and the cell names Odoo gives a list, and § 57's label", shots.includes(`await import("./lib/s57-ui.mjs")`) && shots.includes("UI57.DAY_STYLE") && shots.includes("UI57.FORM_CLASS") && shots.includes("UI57.TILE") && shots.includes('data-name="${c.name}"') && shots.includes('name="${c.name}"'));
 }

@@ -15,6 +15,9 @@
 import { APPLY, ROLLBACK, VERIFY, call, checker, log, rollbackFile } from "./lib/s40-kit.mjs";
 import { BODY_MARK, COLUMNS, DAY_MODEL, VIEW_DAY } from "./lib/s56-ui.mjs";
 import { AVG_LABEL, AVG_LABEL_56, BOTTOM_ROOM_PX, DAY_STYLE, FIELD_LABELS, FORM_CLASS, FORM_OPEN, TILE, TWO_LINE_COLUMN, dayArch57 } from "./lib/s57-ui.mjs";
+// § 58 ج + د (2026-10-05): the sheet's body sits in the first page of a notebook, with a target under the tiles, three tabs and one link more
+// (scripts/lib/s58-ui.mjs) — the verify reads the form with those parts taken off
+import { dayArch57Of } from "./lib/s58-ui.mjs";
 
 const RB = new URL("./artifacts/s57-20261005-day-rollback.json", import.meta.url);
 const ALL = { active_test: false };
@@ -49,7 +52,7 @@ if (VERIFY) {
   check(`${DAY_MODEL} carries no chatter (is_mail_thread ${model?.is_mail_thread}), the form names none and nothing inherits it: the empty half was the sheet's max-width, not a chatter`, model?.is_mail_thread === false && !/<chatter|oe_chatter|message_ids/.test(v?.arch_db ?? "<chatter") && (v?.inherit_children_ids ?? [1]).length === 0, JSON.stringify([model, v?.inherit_children_ids]));
   const was = rb.before.views[VIEW_DAY];
   check(`the form #${v?.id} carries § 57's class`, !!v?.arch_db.startsWith(FORM_OPEN), String(v?.arch_db).slice(0, 80));
-  if (was) check("…and is the one of § 56 with the class, the stylesheet and the tile's label, and nothing else: its header (the buttons) byte for byte", v.arch_db === dayArch57(was.arch) && headerOf(v.arch_db) === headerOf(was.arch) && headerOf(was.arch).length > 0 && was.arch.includes(BODY_MARK), `${v.arch_db.length} against ${dayArch57(was.arch).length} characters`);
+  if (was) check("…and is the one of § 56 with the class, the stylesheet and the tile's label, and nothing else: its header (the buttons) byte for byte", dayArch57Of(v.arch_db) === dayArch57(was.arch) && headerOf(v.arch_db) === headerOf(was.arch) && headerOf(was.arch).length > 0 && was.arch.includes(BODY_MARK), `${v.arch_db.length} against ${dayArch57(was.arch).length} characters`);
   const arch = await rendered(v.id);
   const style = /<style>([\s\S]*?)<\/style>/.exec(arch)?.[1] ?? "";
   check(`it renders with the class on the form and ONE stylesheet, as written (${DAY_STYLE.length} characters), inside the sheet`, new RegExp(`<form[^>]*class="${FORM_CLASS}"`).test(arch) && arch.split("<style").length === 2 && flat(style) === flat(DAY_STYLE) && arch.indexOf("<sheet>") < arch.indexOf("<style>") && arch.indexOf("<style>") < arch.indexOf(BODY_MARK), flat(style).slice(0, 200));

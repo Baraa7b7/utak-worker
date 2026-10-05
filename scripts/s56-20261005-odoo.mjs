@@ -24,6 +24,8 @@ import {
 } from "./lib/s56-ui.mjs";
 // § 57 أ (2026-10-05): the form carries its own class and stylesheet, and the average's label says «(المنشور)» (scripts/lib/s57-ui.mjs)
 import { FIELD_LABELS, dayArch57 } from "./lib/s57-ui.mjs";
+// § 58 ج + د (2026-10-05): the body sits in the first page of a notebook, with a target, three tabs and one link more (scripts/lib/s58-ui.mjs): taken off before the comparison
+import { dayArch57Of } from "./lib/s58-ui.mjs";
 
 const FIELDS_ONLY = process.argv.includes("--fields");
 const RB = new URL("./artifacts/s56-20261005-odoo-rollback.json", import.meta.url);
@@ -69,7 +71,7 @@ if (VERIFY) {
     check(`the form #${v?.id} carries § 56's body`, false, "the view is still the one of before § 56: run --apply (after the worker's code is deployed and the days are filled)");
     done();
   }
-  if (was) check(`the form #${v.id} is the one of before § 56 with its body replaced (and § 57's class, stylesheet and label), and nothing else: its header (the buttons), the links, the banners and «تقرير النشر» byte for byte`, v.arch_db === dayArch57(dayArch(was.arch)) && headerOf(v.arch_db) === headerOf(was.arch) && headerOf(was.arch).length > 0, `${v.arch_db.length} against ${dayArch57(dayArch(was.arch)).length} characters`);
+  if (was) check(`the form #${v.id} is the one of before § 56 with its body replaced (and § 57's class, stylesheet and label), and nothing else: its header (the buttons), the links, the banners and «تقرير النشر» byte for byte`, dayArch57Of(v.arch_db) === dayArch57(dayArch(was.arch)) && headerOf(v.arch_db) === headerOf(was.arch) && headerOf(was.arch).length > 0, `${v.arch_db.length} against ${dayArch57(dayArch(was.arch)).length} characters`);
   const arch = await rendered(v.id);
   check("it renders: «🔄 إعادة الحساب», «نشر المعتمد الآن», the day before and after, and the four links, as they were", ["🔄 إعادة الحساب", "نشر المعتمد الآن", "◀ اليوم السابق", "اليوم التالي ▶", "📅 الأيام السابقة", "📥 عروض المصادر", "📦 الأصناف", "⚙️ الإعدادات"].every((s) => arch.includes(`string="${s}"`)), arch.slice(0, 300));
   const order = (names) => names.map((n) => arch.indexOf(n)).every((at, i, all) => at >= 0 && (i === 0 || at > all[i - 1]));

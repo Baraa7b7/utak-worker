@@ -211,7 +211,7 @@ const M = [
     "  if (arch.includes(BODY_MARK)) return arch;\n", ""]], T],
   ["ج", "the explanation loses § 54's rule", [[LIB,
     "export const DAY_NOTE_56 = `${PROFIT_RULE} ${NOTE_54}`;", "export const DAY_NOTE_56 = `${PROFIT_RULE} ${DAY_NOTE}`;"]], T],
-  ["ج", "the chart's field is created without Odoo's sanitizer (shown in a sandboxed frame, outside the page's styles)", [[LIB,
+  ["ج", "the chart's field is created without Odoo's sanitizer (it would take a script from any internal user)", [[LIB,
     "  sanitize: true, sanitize_overridable: false, sanitize_tags: true,", "  sanitize: false, sanitize_overridable: false, sanitize_tags: false,"]], T],
   ["ج", "the chart's style attributes are sanitized away", [[LIB,
     "sanitize_attributes: true, sanitize_style: false, sanitize_form: true, strip_style: false, strip_classes: false,", "sanitize_attributes: true, sanitize_style: true, sanitize_form: true, strip_style: true, strip_classes: false,"]], T],

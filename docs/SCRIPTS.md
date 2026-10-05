@@ -11,7 +11,10 @@
 | `payroll-monthly-entry.mjs YYYY-MM` | قيد الرواتب اليدوي (`docs/EXPENSES.md`) |
 | `acct-20260921-setup` و`acct-20260923-{sale,purchase,expense}-setup` | إعداد المحاسبة (idempotent)، يسميها الوركر في رسائل الخطأ |
 | `s49-20261001-step0.mjs` و`s46-20261001-after-deploy.mjs` | فحوص قبل النشر وبعده (القاعدتان 7 و8) |
-| `s55-20261005-fields-fixture.mjs` (وقبله `s54-…` و`s53-…` و`s52-…` و`s51-…` و`s49-…`) | توليد بصمة المخطط للاختبارات |
+| `s56-20261005-fields-fixture.mjs` (وقبله `s55-…` و`s54-…` و`s53-…` و`s52-…` و`s51-…` و`s49-…`) | توليد بصمة المخطط للاختبارات |
+| `s56-20261005-odoo.mjs` (+ `lib/s56-ui.mjs`) | حقول «📊 اليوم» وجسم شاشتها: جاف ← `--apply --fields` (الحقول، قبل نشر الكود) ← `--apply` (العرض، بعد نشر الكود وتعبئة الأيام) ← `--verify`؛ `--rollback` يعيد العرض والحقول تبقى |
+| `s56-20261005-days.mts` | شاشة يوم لن يحسبه المحرك من جديد (يوم سابق، أو اليوم بعد ساعات المحرك) بدالة الوركر نفسها من أسطره كما هي: حقول الشاشة وحدها. جاف ← `--apply` ← `--verify` (الرسم المخزَّن حرفاً بحرف) |
+| `s56-20261005-shots.mts` | بعد أي تعديل في شكل «📊 اليوم» أو رسمها: صور الفاتح والداكن والجوال بـ CSS الخاص بـ Odoo نفسه، وقياس التباين (النص ≥ 4.5، والمرسوم ≥ 3) |
 | `s55-20261005-flows.mjs` (+ `lib/s55-flows.mjs`) | نماذج § 55 عند Meta (`utak_owner_review_v2` لمراجعة براء، ونماذج التشغيل): `--create` و`--publish` و`--preview` (رابط المعاينة يفتح في المتصفح بلا دخول)، واسم النموذج لواحد منها؛ المنشور لا يُعدَّل. و`s54-20261005-flows.mjs` لـ v1 الباقي عند Meta |
 | `s55-20261005-trial.mjs review\|delivery\|receipt\|carload\|custody` (وقبله `s54-…-trial`) | تجربة مراجعة الأسعار (ونماذج § 55) إلى رقم براء من prod المنشور (جاف افتراضياً، `--send` مرة في اليوم لكل واحدة؛ لا يكتب ولا ينشر) |
 | `s54-20261005-preview.mts [اليوم] [--form]` | قراءة فقط: نص رسالة 04:00 (والنموذج) ليوم من الـ tenant كما يبنيه الوركر (بشكل § 55) |
@@ -20,7 +23,7 @@
 | `s53-20261004-trial.mjs order\|register` | تجربة نموذج الطلب أو التسجيل إلى رقم براء من prod المنشور (جاف افتراضياً، `--send` مرة في اليوم لكل نموذج) |
 | `s52-20261004-price-flow.mjs` (+ `lib/s52-price-flow.mjs`) | Flow v2 (صفحات حسب الفئة) وقالبه عند Meta: `--status` يقرأ حالتهما، ولا إعادة تقديم لقالب مرفوض أو MARKETING. و`s51-20261004-price-flow.mjs` لـ v1 الباقي عند Meta |
 | `s52-20261004-trial.mjs` (وقبله `s51-…-trial`) | التجربة الوحيدة لنموذج الأسعار إلى رقم براء من prod المنشور (جاف افتراضياً، `--send` مرة في اليوم) |
-| `s55-…-odoo`، `s54-…-odoo`، `s53-…-odoo`، `s52-…-odoo`، `s51-…-odoo`، `s49-…-odoo`، `s48-…-{ui,day50,odoo}`، `s47-…-{day50,odoo}`، `s46-…-{wa-menu,product-setup,board}` | تراجع Odoo لـ § 46–§ 55 (`--rollback`) — STATUS § 1 |
+| `s56-…-{odoo,days}`، `s55-…-odoo`، `s54-…-odoo`، `s53-…-odoo`، `s52-…-odoo`، `s51-…-odoo`، `s49-…-odoo`، `s48-…-{ui,day50,odoo}`، `s47-…-{day50,odoo}`، `s46-…-{wa-menu,product-setup,board}` | تراجع Odoo لـ § 46–§ 56 (`--rollback`) — STATUS § 1 |
 | `cutover-prod.mts`، `s42-20260927-prelaunch-mark.mts`، `s45-…-{omar-friday,mark-quotes}` | التحويل sim ← prod وتراجعه، ووسم سجلات المحاكاة |
 | `brand-20260924-{render-samples,render-docs,paper-scan,qr-cream-read}` | بعد أي تعديل في PDF: الختم و QR والتذييل ولون الورق |
 | `s41-full-day-sim.mts` (+ `sim-report`، `sim-snapshot`، `sim-mark`) | المحاكاة الشاملة ليوم كامل (`--odoo=fake`) |

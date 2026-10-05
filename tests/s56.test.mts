@@ -299,7 +299,7 @@ const text = (html: string) => html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " "
   const dayOnly = String(UI.DAY_BODY).replace(UI.LINE_LIST, "").replace(/<kanban[\s\S]*?<\/kanban>/, "").replace(UI.LINE_FORM, "");
   assert("every field the body names exists on its model", names(lineArch).every((f) => SCHEMA.x_price_day_line.includes(f)) && names(dayOnly).every((f) => SCHEMA.x_price_day.includes(f)) && names(lineArch).length >= 28 && names(dayOnly).length >= 20,
     JSON.stringify([names(lineArch).filter((f) => !SCHEMA.x_price_day_line.includes(f)), names(dayOnly).filter((f) => !SCHEMA.x_price_day.includes(f))]));
-  assert("the chart's field keeps Odoo's sanitizer (so the form shows it inside the page), with the style attribute and the classes as written", UI.CHART_FIELD.ttype === "html" && UI.CHART_FIELD.sanitize === true && UI.CHART_FIELD.sanitize_tags === true && UI.CHART_FIELD.sanitize_attributes === true && UI.CHART_FIELD.sanitize_style === false && UI.CHART_FIELD.strip_style === false && UI.CHART_FIELD.strip_classes === false);
+  assert("the chart's field keeps Odoo's sanitizer, with the style attribute and the classes as written — and the chart carries no <style> (Odoo would move it into a sandboxed frame, outside the page's colours)", UI.CHART_FIELD.ttype === "html" && UI.CHART_FIELD.sanitize === true && UI.CHART_FIELD.sanitize_tags === true && UI.CHART_FIELD.sanitize_attributes === true && UI.CHART_FIELD.sanitize_style === false && UI.CHART_FIELD.strip_style === false && UI.CHART_FIELD.strip_classes === false);
   const wellFormed = (xml: string): string => {
     const stack: string[] = [];
     for (const m of xml.matchAll(/<(\/?)([\w-]+)((?:\s+[\w:-]+="[^"<]*")*)\s*(\/?)>/g)) {

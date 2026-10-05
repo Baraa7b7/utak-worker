@@ -30,9 +30,11 @@ export const LINE_FIELDS = [
 ];
 /**
  * The chart's field keeps Odoo's sanitizer (tags and attributes): what the worker writes is div / span
- * with class, style, title and dir only, which the sanitizer stores as written — and a sanitized
- * field is shown INSIDE the form, in the page's own stylesheet (light and dark). A field without
- * sanitizing would be shown in a sandboxed frame, outside it. The style attribute is kept as written.
+ * with class, style, title and dir only, which the sanitizer stores as written (verified on the
+ * tenant, byte for byte) — nothing is gained by switching it off, and a field without it would take a
+ * script from any internal user. The style attribute and the classes are kept as written. The form
+ * shows the value INSIDE the page, in the page's own stylesheet (light and dark), because it carries
+ * no <style>: Odoo moves a value with one into a sandboxed frame.
  */
 export const CHART_FIELD = {
   name: "x_chart_html", ttype: "html", field_description: "الرسم البياني",

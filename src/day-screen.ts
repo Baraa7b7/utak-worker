@@ -15,10 +15,12 @@
 //
 // The chart is plain HTML with inline CSS — div and span only, no SVG, no <style>, no script, and
 // only the attributes class / style / title / dir — so Odoo's sanitizer stores it as it is written
-// and the form shows it INSIDE the page (a field without sanitizing is shown in a sandboxed frame,
-// outside the page's stylesheet). Every colour is the page's own: the text colour (currentColor)
-// for the marks, Odoo's text-success / text-danger / text-muted for the rest — so the chart follows
-// the light and the dark theme. A sign, a shape or a mark always says what a colour says.
+// (the field keeps it), and the form shows it INSIDE the page: Odoo (saas~19.4, html_editor) moves
+// an HTML value into a sandboxed frame, outside the page's stylesheet, as soon as it carries a
+// <style> or anything else of a <head>. Every colour is the page's own: the text colour
+// (currentColor) for the marks, Odoo's text-success / text-danger / text-muted for the rest — so
+// the chart follows the light and the dark theme. A sign, a shape or a mark always says what a
+// colour says.
 //   1. «سعرنا مقابل السوق»: a row an item on ONE axis in riyals — ■ the purchase with the VAT, ○ the
 //      market price, ◆ our price (the one decided, else the suggested one) — and its profit, signed.
 //   2. «ربح الكرتون»: a column an item around a zero line, the value written on it.

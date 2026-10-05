@@ -201,10 +201,11 @@ export function chartAxis(values: number[]): ChartAxis | null {
   if (!v.length) return null;
   const min = Math.min(...v), max = Math.max(...v);
   const raw = (max - min || max * 0.2) / 7, mag = 10 ** Math.floor(Math.log10(raw)), n = raw / mag;
-  let step = r6((n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * mag);
-  let lo = r6(Math.floor(r6(min / step)) * step), hi = r6(Math.ceil(r6(max / step)) * step);
+  // the step is never below a seventh of the range, so the bounds hold eight steps at most
+  const step = r6((n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * mag);
+  const lo = r6(Math.floor(r6(min / step)) * step);
+  let hi = r6(Math.ceil(r6(max / step)) * step);
   if (hi <= lo) hi = r6(lo + step);
-  if (r6((hi - lo) / step) > 8) { step = r6(step * 2); lo = r6(Math.floor(r6(min / step)) * step); hi = r6(Math.ceil(r6(max / step)) * step); }
   const ticks: number[] = [];
   for (let t = lo; t <= hi + step / 1e3; t = r6(t + step)) ticks.push(t);
   return { lo, hi, step, ticks };

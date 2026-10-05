@@ -16,8 +16,10 @@
 // § 55 أ (2026-10-05) — the same review, made plain: the texts below are § 55's (src/price-review.ts).
 // Who gets it, when, the versions, the snapshot, what each button does, the decisions written and the
 // publication are § 54's, unchanged. What reads differently:
-//   • an item's line: its mark first (✅ ❌ ⚠️ 🔻), no purchase price, no «الفرق», «ربحنا» signed —
-//     «✅ موز أمريكي — سوق 70 | ربحنا بسعر السوق: +1.13 ← انشر بـ 70» — and under an outlier what moved;
+//   • an item's line: its mark first (✅ ❌ ⚠️ 🔻), the purchase price with the same price × 1.15 beside it
+//     («شامل», always two decimals: 55 → 63.25, 15 → 17.25, 12 → 13.80, 22 → 25.30), the market, no «الفرق»,
+//     «ربحنا» signed —
+//     «✅ موز أمريكي — شراء 55 (63.25 شامل) · سوق 70 | ربحنا بسعر السوق: +1.13 ← انشر بـ 70» — and under an outlier what moved;
 //   • «ربحنا» = the board's net of a carton: round2(price ÷ 1.15) − the full cost. In this world (a
 //     share of 1.99, waste 5 %) the full cost = purchase × 1.05 + 1.99: banana 59.74, medium 17.74,
 //     small 14.59, large 25.09 — every profit below is worked out from that by hand;
@@ -205,7 +207,7 @@ console.log("\n[أ] the stored day: the engine writes the rule on the lines, and
   assert("…and the setting read: «suggested»", (await OC.readPricingSettings(env, DAY))?.aboveSuggested === "suggested");
   await review(env);
   // § 55 — «ربحنا» at the price it is published at: 71.50 ÷ 1.15 = 62.17, − 59.74 = +2.43
-  assert("…the review proposes it by the same setting: «✅ موز أمريكي — سوق 75 | ربحنا بالمقترح 71.50: +2.43 ← انشر بـ 71.50»", bodyOf(owner().at(-1)).split("\n").includes("✅ موز أمريكي — سوق 75 | ربحنا بالمقترح 71.50: +2.43 ← انشر بـ 71.50"), bodyOf(owner().at(-1)));
+  assert("…the review proposes it by the same setting: «✅ موز أمريكي — شراء 55 (63.25 شامل) · سوق 75 | ربحنا بالمقترح 71.50: +2.43 ← انشر بـ 71.50»", bodyOf(owner().at(-1)).split("\n").includes("✅ موز أمريكي — شراء 55 (63.25 شامل) · سوق 75 | ربحنا بالمقترح 71.50: +2.43 ← انشر بـ 71.50"), bodyOf(owner().at(-1)));
   assert("…and says it goes out by itself at that price: «لو ما ضغطت شي، الساعة 6 ينتشر تلقائياً: موز أمريكي 71.50»", bodyOf(owner().at(-1)).split("\n").at(-1) === "لو ما ضغطت شي، الساعة 6 ينتشر تلقائياً: موز أمريكي 71.50", bodyOf(owner().at(-1)));
   setRiyadh(`${DAY} 06:00`);
   const dl = await quiet(() => PR.checkPricesDeadline(env));
@@ -229,11 +231,13 @@ console.log("\n[ب] ONE message with every item, from 04:00, with three buttons"
   assert("its title: «📋 مراجعة أسعار اليوم — السبت 3 أكتوبر 2026»", L[0] === "📋 مراجعة أسعار اليوم — السبت 3 أكتوبر 2026", L[0]);
   assert("its second line says what «ربحنا» is: «(الربح = صافي الكرتون بعد الضريبة والتالف والتشغيل)»", L[1] === "(الربح = صافي الكرتون بعد الضريبة والتالف والتشغيل)" && RV.PROFIT_NOTE === L[1] && L[2] === "", JSON.stringify(L.slice(0, 3)));
   // § 55 — the mark first, the market, «ربحنا» signed, the decision: 70 ÷ 1.15 = 60.87, − 59.74 = +1.13
-  assert("the banana's line, as the order writes it: «✅ موز أمريكي — سوق 70 | ربحنا بسعر السوق: +1.13 ← انشر بـ 70»", L[3] === "✅ موز أمريكي — سوق 70 | ربحنا بسعر السوق: +1.13 ← انشر بـ 70", body);
-  assert("medium pomegranate, a loss at the market price (17.39 − 17.74): «❌ … ربحنا بسعر السوق: −0.35 ← لا تنشر»", L[4] === "❌ رمان وسط — سوق 20 | ربحنا بسعر السوق: −0.35 ← لا تنشر", body);
-  assert("small pomegranate, no market price: «لا سعر سوق», the profit at the suggested price (16.96 − 14.59), «انشر بـ 19.50»", L[5] === "✅ رمان صغير — لا سعر سوق | ربحنا بالمقترح 19.50: +2.37 ← انشر بـ 19.50", body);
-  assert("large pomegranate, a loss at the market price (24.35 − 25.09): «❌ … ربحنا بسعر السوق: −0.74 ← لا تنشر»", L[6] === "❌ رمان كبير — سوق 28 | ربحنا بسعر السوق: −0.74 ← لا تنشر", body);
-  assert("no purchase price and no «الفرق» on any line (the form carries the purchase price), and no summary of counts", !/شراء|الفرق|للنشر ·|بلا قرارك/.test(body), body);
+  assert("the banana's line, as the order writes it: «✅ موز أمريكي — شراء 55 (63.25 شامل) · سوق 70 | ربحنا بسعر السوق: +1.13 ← انشر بـ 70»", L[3] === "✅ موز أمريكي — شراء 55 (63.25 شامل) · سوق 70 | ربحنا بسعر السوق: +1.13 ← انشر بـ 70", body);
+  assert("medium pomegranate, a loss at the market price (17.39 − 17.74): «❌ … ربحنا بسعر السوق: −0.35 ← لا تنشر»", L[4] === "❌ رمان وسط — شراء 15 (17.25 شامل) · سوق 20 | ربحنا بسعر السوق: −0.35 ← لا تنشر", body);
+  assert("small pomegranate, no market price: «لا سعر سوق», the profit at the suggested price (16.96 − 14.59), «انشر بـ 19.50»", L[5] === "✅ رمان صغير — شراء 12 (13.80 شامل) · لا سعر سوق | ربحنا بالمقترح 19.50: +2.37 ← انشر بـ 19.50", body);
+  assert("large pomegranate, a loss at the market price (24.35 − 25.09): «❌ … ربحنا بسعر السوق: −0.74 ← لا تنشر»", L[6] === "❌ رمان كبير — شراء 22 (25.30 شامل) · سوق 28 | ربحنا بسعر السوق: −0.74 ← لا تنشر", body);
+  // the purchase as entered (net of VAT) and × 1.15 beside it: 55 → 63.25, 15 → 17.25, 12 → 13.80, 22 → 25.30
+  assert("the purchase price is on every line, before the market, with the same price × 1.15 beside it («شامل», two decimals) — still no «الفرق», and no summary of counts", [["55", "63.25"], ["15", "17.25"], ["12", "13.80"], ["22", "25.30"]].every(([p, v], i) => L[3 + i].split(" — ")[1].startsWith(`شراء ${p} (${v} شامل) · `))
+    && !/الفرق|للنشر ·|بلا قرارك/.test(body), body);
   assert("three lines under the table say what each choice does: what «نفّذ المقترح» publishes, what it does not, and what goes out at 6 with no tap (the banana alone)", L.length === 11 && L[7] === ""
     && L[8] === "لو ضغطت «نفّذ المقترح» ينتشر: موز أمريكي 70، رمان صغير 19.50" && L[9] === "وما ينتشر: رمان وسط، رمان كبير" && L[10] === "لو ما ضغطت شي، الساعة 6 ينتشر تلقائياً: موز أمريكي 70", JSON.stringify(L.slice(7)));
   assert("one category: no heading line", !body.includes("— فواكه —"), body);
@@ -257,7 +261,7 @@ console.log("\n[ب] ONE message with every item, from 04:00, with three buttons"
   const L2 = b2.split("\n");
   // 24 ÷ 1.15 = 20.87, − 17.74 = +3.13
   assert("…titled «🔄 تحديث مراجعة أسعار اليوم (05:10)», naming what changed, with the new line", L2[0] === "🔄 تحديث مراجعة أسعار اليوم (05:10) — السبت 3 أكتوبر 2026" && L2[1] === RV.PROFIT_NOTE && L2[2] === "تغيّر: رمان وسط." && L2[3] === ""
-    && L2[5] === "✅ رمان وسط — سوق 24 | ربحنا بسعر السوق: +3.13 ← انشر بـ 24", b2);
+    && L2[5] === "✅ رمان وسط — شراء 15 (17.25 شامل) · سوق 24 | ربحنا بسعر السوق: +3.13 ← انشر بـ 24", b2);
   assert("…and its three lines follow the new numbers: three published by «نفّذ المقترح», the large one not, two by themselves", JSON.stringify(L2.slice(-3)) === JSON.stringify(["لو ضغطت «نفّذ المقترح» ينتشر: موز أمريكي 70، رمان وسط 24، رمان صغير 19.50", "وما ينتشر: رمان كبير", "لو ما ضغطت شي، الساعة 6 ينتشر تلقائياً: موز أمريكي 70، رمان وسط 24"]), JSON.stringify(L2.slice(-3)));
   assert("…its buttons carry version 2", buttonIds(owner()[1])[0] === `prv_a_${dayOf().id}_2`);
   const before = lineWrites();
@@ -304,7 +308,7 @@ console.log("\n[ب] the length of the message: 4, 20 and 40 items");
     lineId: i + 1, productId: i + 1, name: `صنف طويل الاسم رقم ${i + 1}`, purchase: 55, market: 70, sale: 70, upliftPct: 0, breakEven: 68.7, suggested: 71.5,
     proposal: { kind: "market", price: 70, why: "below_suggested", outlier: false, auto: true }, decision: null, decidedPrice: 0, fullCost: 59.74, vatPct: 15,
   }));
-  const itemLine = (r: any) => `✅ ${r.name} — سوق 70 | ربحنا بسعر السوق: +1.13 ← انشر بـ 70`;
+  const itemLine = (r: any) => `✅ ${r.name} — شراء 55 (63.25 شامل) · سوق 70 | ربحنا بسعر السوق: +1.13 ← انشر بـ 70`;
   /** The item's line is in the text exactly once, whole. */
   const once = (text: string, r: any) => text.split("\n").filter((l) => l === itemLine(r)).length === 1;
   const named = (n: number) => mk(n).map((r) => `${r.name} 70`).join("، ");
@@ -336,27 +340,33 @@ console.log("\n[ب] the length of the message: 4, 20 and 40 items");
   assert("…as the three lines say them, by name — and by number under a table sent as text («صنفان», «صنف واحد»)", JSON.stringify(RV.choiceLines(mixed, dl)) === JSON.stringify(["لو ضغطت «نفّذ المقترح» ينتشر: صنف طويل الاسم رقم 1 70، صنف طويل الاسم رقم 3 19.50", "وما ينتشر: صنف طويل الاسم رقم 2", "لو ما ضغطت شي، الساعة 6 ينتشر تلقائياً: صنف طويل الاسم رقم 1 70"])
     && JSON.stringify(RV.choiceLines(mixed, dl, { compact: true })) === JSON.stringify(["لو ضغطت «نفّذ المقترح» ينتشر: صنفان", "وما ينتشر: صنف واحد", "لو ما ضغطت شي، الساعة 6 ينتشر تلقائياً: صنف واحد"]), JSON.stringify(RV.choiceLines(mixed, dl)));
   assert("an outlier's line opens with ⚠️ (16.96 − 14.59 = +2.37), and a second line under it says a price moved — «عن آخر سعر» while the earlier one is not known", RV.rowMark(mixed[2]) === "⚠️"
-    && JSON.stringify(RV.reviewItemLines(mixed[2])) === JSON.stringify(["⚠️ صنف طويل الاسم رقم 3 — لا سعر سوق | ربحنا بالمقترح 19.50: +2.37 ← انشر بـ 19.50", "⚠️ سعر الشراء تغيّر كثير عن آخر سعر، تأكد منه"]), JSON.stringify(RV.reviewItemLines(mixed[2])));
+    && JSON.stringify(RV.reviewItemLines(mixed[2])) === JSON.stringify(["⚠️ صنف طويل الاسم رقم 3 — شراء 12 (13.80 شامل) · لا سعر سوق | ربحنا بالمقترح 19.50: +2.37 ← انشر بـ 19.50", "⚠️ سعر الشراء تغيّر كثير عن آخر سعر، تأكد منه"]), JSON.stringify(RV.reviewItemLines(mixed[2])));
   assert("…with the two numbers when the earlier price is known: «⚠️ سعر الشراء تغيّر كثير (8 ← 12)، تأكد منه»; a market outlier: «⚠️ سعر السوق تغيّر كثير (30 ← 45)، تأكد منه»; both: a line each",
     JSON.stringify(RV.movedLines({ ...mixed[2], moved: [{ kind: "purchase", last: 8, now: 12 }] })) === JSON.stringify(["⚠️ سعر الشراء تغيّر كثير (8 ← 12)، تأكد منه"])
     && JSON.stringify(RV.movedLines({ ...mixed[2], moved: [{ kind: "market", last: 30, now: 45 }] })) === JSON.stringify(["⚠️ سعر السوق تغيّر كثير (30 ← 45)، تأكد منه"])
     && JSON.stringify(RV.movedLines({ ...mixed[2], moved: [{ kind: "purchase", last: 8, now: 12 }, { kind: "market", last: 0, now: 45 }] })) === JSON.stringify(["⚠️ سعر الشراء تغيّر كثير (8 ← 12)، تأكد منه", "⚠️ سعر السوق تغيّر كثير عن آخر سعر، تأكد منه"]));
   assert("…in the message the second line stays under its item (the next item after it)", RV.buildReviewTexts(day, [{ title: "فواكه", rows: [{ ...mixed[2], moved: [{ kind: "purchase", last: 8, now: 12 }] }, mixed[0]] }], dl).body.split("\n").slice(3, 6).join("\n")
-    === ["⚠️ صنف طويل الاسم رقم 3 — لا سعر سوق | ربحنا بالمقترح 19.50: +2.37 ← انشر بـ 19.50", "⚠️ سعر الشراء تغيّر كثير (8 ← 12)، تأكد منه", itemLine(mixed[0])].join("\n"));
-  assert("…and an outlier Baraa already decided waits for nothing: its own mark, «قرارك: …», no second line", JSON.stringify(RV.reviewItemLines({ ...mixed[2], decision: "profit", decidedPrice: 19.5, moved: [{ kind: "purchase", last: 8, now: 12 }] })) === JSON.stringify(["✅ صنف طويل الاسم رقم 3 — لا سعر سوق | ربحنا بالمقترح 19.50: +2.37 ← قرارك: انشر بـ 19.50"]));
-  assert("no purchase price: «لا سعر شراء» in place of the profit, ❌ and «لا تنشر»", RV.reviewLine({ ...mk(1)[0], name: "خس", purchase: 0, fullCost: 0, proposal: { kind: "skip", price: 0, why: "no_purchase", outlier: false, auto: false } }) === "❌ خس — سوق 70 | لا سعر شراء ← لا تنشر");
+    === ["⚠️ صنف طويل الاسم رقم 3 — شراء 12 (13.80 شامل) · لا سعر سوق | ربحنا بالمقترح 19.50: +2.37 ← انشر بـ 19.50", "⚠️ سعر الشراء تغيّر كثير (8 ← 12)، تأكد منه", itemLine(mixed[0])].join("\n"));
+  assert("…and an outlier Baraa already decided waits for nothing: its own mark, «قرارك: …», no second line", JSON.stringify(RV.reviewItemLines({ ...mixed[2], decision: "profit", decidedPrice: 19.5, moved: [{ kind: "purchase", last: 8, now: 12 }] })) === JSON.stringify(["✅ صنف طويل الاسم رقم 3 — شراء 12 (13.80 شامل) · لا سعر سوق | ربحنا بالمقترح 19.50: +2.37 ← قرارك: انشر بـ 19.50"]));
+  // whole halalas, half up: 22 × 1.15 = 25.30, 20 → 23.00, 21.37 → 24.5755 → 24.58, 20.50 → 23.575 → 23.58
+  assert("the purchase price as entered and × 1.15 beside it, always with two decimals: «شراء 22 (25.30 شامل)», «شراء 20 (23.00 شامل)», «شراء 21.37 (24.58 شامل)», «شراء 20.50 (23.58 شامل)» — and nothing without a purchase price",
+    RV.purchaseText({ purchase: 22 }) === "شراء 22 (25.30 شامل)" && RV.purchaseText({ purchase: 20 }) === "شراء 20 (23.00 شامل)" && RV.purchaseText({ purchase: 21.37 }) === "شراء 21.37 (24.58 شامل)" && RV.purchaseText({ purchase: 20.5 }) === "شراء 20.50 (23.58 شامل)"
+    && RV.purchaseText({ purchase: 55 }) === "شراء 55 (63.25 شامل)" && RV.purchaseText({ purchase: 10 }) === "شراء 10 (11.50 شامل)" && RV.purchaseText({ purchase: 0 }) === "", JSON.stringify([22, 20, 21.37, 20.5, 0].map((purchase) => RV.purchaseText({ purchase }))));
+  assert("no purchase price: nothing is written for it before the market, «لا سعر شراء» in place of the profit, ❌ and «لا تنشر»", RV.reviewLine({ ...mk(1)[0], name: "خس", purchase: 0, fullCost: 0, proposal: { kind: "skip", price: 0, why: "no_purchase", outlier: false, auto: false } }) === "❌ خس — سوق 70 | لا سعر شراء ← لا تنشر");
+  assert("a purchase price with neither a market price nor a suggested one: the two prices alone, no profit — «❌ X — شراء 55 (63.25 شامل) · لا سعر سوق ← لا تنشر»", RV.reviewLine({ ...mk(1)[0], name: "X", market: 0, sale: 0, breakEven: 0, suggested: 0, proposal: { kind: "skip", price: 0, why: "no_price", outlier: false, auto: false } }) === "❌ X — شراء 55 (63.25 شامل) · لا سعر سوق ← لا تنشر",
+    RV.reviewLine({ ...mk(1)[0], name: "X", market: 0, sale: 0, breakEven: 0, suggested: 0, proposal: { kind: "skip", price: 0, why: "no_price", outlier: false, auto: false } }));
   const lifted = { ...mk(1)[0], name: "موز", sale: 72.5, upliftPct: 3, proposal: { kind: "market", price: 72.5, why: "above_suggested", outlier: false, auto: true } };
   assert("with an uplift the decision names the price after it: «انشر بـ 72.50»", RV.decisionText(lifted) === "انشر بـ 72.50", RV.decisionText(lifted));
   // 72.50 ÷ 1.15 = 63.04, − 59.74 = +3.30
-  assert("…the line keeps the market as observed (70) with the price after the uplift beside it, and «ربحنا» is at the price it is published at (72.50)", RV.reviewLine(lifted) === "✅ موز — سوق 70 (بعد الزيادة 72.50) | ربحنا بسعر السوق: +3.30 ← انشر بـ 72.50", RV.reviewLine(lifted));
+  assert("…the line keeps the market as observed (70) with the price after the uplift beside it, and «ربحنا» is at the price it is published at (72.50)", RV.reviewLine(lifted) === "✅ موز — شراء 55 (63.25 شامل) · سوق 70 (بعد الزيادة 72.50) | ربحنا بسعر السوق: +3.30 ← انشر بـ 72.50", RV.reviewLine(lifted));
   // a row Baraa decided: «قرارك: …», and the profit at HIS price — 72 ÷ 1.15 = 62.61 → +2.87; 68 → 59.13 → −0.61; 68.70 («بدون خسارة») → 59.74 → 0.00
   const mine = (decision: string, decidedPrice: number) => RV.reviewLine({ ...mk(1)[0], name: "موز", decision, decidedPrice });
   assert("a row Baraa already decided: «← قرارك: انشر بـ 70», «← قرارك: لا تنشر» (❌, the profit he leaves at the market price), a manual price «ربحنا بسعرك 72: +2.87»",
-    mine("market", 70) === "✅ موز — سوق 70 | ربحنا بسعر السوق: +1.13 ← قرارك: انشر بـ 70" && mine("skip", 0) === "❌ موز — سوق 70 | ربحنا بسعر السوق: +1.13 ← قرارك: لا تنشر" && mine("edit", 72) === "✅ موز — سوق 70 | ربحنا بسعرك 72: +2.87 ← قرارك: انشر بـ 72", JSON.stringify([mine("market", 70), mine("skip", 0), mine("edit", 72)]));
+    mine("market", 70) === "✅ موز — شراء 55 (63.25 شامل) · سوق 70 | ربحنا بسعر السوق: +1.13 ← قرارك: انشر بـ 70" && mine("skip", 0) === "❌ موز — شراء 55 (63.25 شامل) · سوق 70 | ربحنا بسعر السوق: +1.13 ← قرارك: لا تنشر" && mine("edit", 72) === "✅ موز — شراء 55 (63.25 شامل) · سوق 70 | ربحنا بسعرك 72: +2.87 ← قرارك: انشر بـ 72", JSON.stringify([mine("market", 70), mine("skip", 0), mine("edit", 72)]));
   assert("the marks: ✅ published with a profit above zero, 🔻 published with none (his price below «بدون خسارة», or at it exactly: 0.00), ❌ not published, ⚠️ an outlier still waiting",
-    mine("edit", 68) === "🔻 موز — سوق 70 | ربحنا بسعرك 68: −0.61 ← قرارك: انشر بـ 68" && mine("edit", 68.7) === "🔻 موز — سوق 70 | ربحنا بسعرك 68.70: 0.00 ← قرارك: انشر بـ 68.70"
+    mine("edit", 68) === "🔻 موز — شراء 55 (63.25 شامل) · سوق 70 | ربحنا بسعرك 68: −0.61 ← قرارك: انشر بـ 68" && mine("edit", 68.7) === "🔻 موز — شراء 55 (63.25 شامل) · سوق 70 | ربحنا بسعرك 68.70: 0.00 ← قرارك: انشر بـ 68.70"
     && JSON.stringify([mk(1)[0], mixed[1], mixed[2]].map(RV.rowMark)) === JSON.stringify(["✅", "❌", "⚠️"]), JSON.stringify([mine("edit", 68), mine("edit", 68.7)]));
-  assert("a row without its full cost (a snapshot of before § 55): the profit is simply left out of the line", RV.reviewLine({ ...mk(1)[0], name: "موز", fullCost: undefined, vatPct: undefined }) === "✅ موز — سوق 70 ← انشر بـ 70", RV.reviewLine({ ...mk(1)[0], name: "موز", fullCost: undefined, vatPct: undefined }));
+  assert("a row without its full cost (a snapshot of before § 55): the profit is simply left out of the line", RV.reviewLine({ ...mk(1)[0], name: "موز", fullCost: undefined, vatPct: undefined }) === "✅ موز — شراء 55 (63.25 شامل) · سوق 70 ← انشر بـ 70", RV.reviewLine({ ...mk(1)[0], name: "موز", fullCost: undefined, vatPct: undefined }));
   assert("the form's choices: no «بالمقترح» without a suggested price (no purchase price), no «بسعر السوق» without a market price", JSON.stringify(RV.reviewOptions({ ...mk(1)[0], purchase: 0, fullCost: 0, breakEven: 0, suggested: 0 }).map((o) => o.id)) === JSON.stringify(["market", "skip", "manual"])
     && JSON.stringify(RV.reviewOptions({ ...mk(1)[0], market: 0, sale: 0 }).map((o) => o.id)) === JSON.stringify(["profit", "skip", "manual"]));
   assert("nothing by itself: «لو ما ضغطت شي، الساعة 6 ينتشر تلقائياً: لا شيء»; nothing to publish, nothing left out: «لا شيء» too", RV.choiceLines([mixed[2]], dl)[2] === "لو ما ضغطت شي، الساعة 6 ينتشر تلقائياً: لا شيء"
@@ -376,7 +386,7 @@ console.log("\n[ب] the length of the message: 4, 20 and 40 items");
   const at = (lead: string) => table20.indexOf(`\n${lead}`);
   assert("…by category: «— فواكه —» (the four), «— خضار —» (eight), «— أخرى —» (eight)", at("— فواكه —") > 0 && at("— فواكه —") < at("✅ موز أمريكي — ") && at("— خضار —") < at("✅ صنف 100 — ") && at("— أخرى —") < at("✅ صنف 200 — ") && at("— خضار —") > at("❌ رمان كبير — "), table20);
   // purchase 10 → the full cost 12.49 (10 + 0.50 + 1.99); at the market price 16: 13.91 − 12.49 = +1.42
-  assert("…each of the sixteen others on its line: «✅ صنف 100 — سوق 16 | ربحنا بسعر السوق: +1.42 ← انشر بـ 16»", [...Array.from({ length: 8 }, (_, i) => 100 + i), ...Array.from({ length: 8 }, (_, i) => 200 + i)].every((id) => table20.split("\n").filter((l) => l === `✅ صنف ${id} — سوق 16 | ربحنا بسعر السوق: +1.42 ← انشر بـ 16`).length === 1), table20);
+  assert("…each of the sixteen others on its line: «✅ صنف 100 — شراء 10 (11.50 شامل) · سوق 16 | ربحنا بسعر السوق: +1.42 ← انشر بـ 16»", [...Array.from({ length: 8 }, (_, i) => 100 + i), ...Array.from({ length: 8 }, (_, i) => 200 + i)].every((id) => table20.split("\n").filter((l) => l === `✅ صنف ${id} — شراء 10 (11.50 شامل) · سوق 16 | ربحنا بسعر السوق: +1.42 ← انشر بـ 16`).length === 1), table20);
   const others = [...Array.from({ length: 8 }, (_, i) => `صنف ${100 + i} 16`), ...Array.from({ length: 8 }, (_, i) => `صنف ${200 + i} 16`)].join("، ");
   assert("…and the same text closes with the three lines by name: eighteen published by «نفّذ المقترح», the two losses not, seventeen by themselves (the small pomegranate waits for him)", JSON.stringify(table20.split("\n").slice(-4))
     === JSON.stringify(["", `لو ضغطت «نفّذ المقترح» ينتشر: موز أمريكي 70، رمان صغير 19.50، ${others}`, "وما ينتشر: رمان وسط، رمان كبير", `لو ما ضغطت شي، الساعة 6 ينتشر تلقائياً: موز أمريكي 70، ${others}`]), table20.split("\n").slice(-3).join(" ⏎ "));
@@ -392,16 +402,16 @@ console.log("\n[ب] an outlier still waiting: under its line, the price before a
   assert("the engine marks the banana's line «سعر شاذ: الشراء»: the rule's decision (the market 70) is kept, but not by itself", line(1).x_is_outlier === true && line(1).x_reason === "سعر شاذ: الشراء" && line(1).x_status === "exception", JSON.stringify([line(1).x_is_outlier, line(1).x_reason, line(1).x_status]));
   const r = await review(env);
   const L = bodyOf(owner()[0]).split("\n");
-  assert("⚠️ opens its line, and under it: «⚠️ سعر الشراء تغيّر كثير (22 ← 55)، تأكد منه» — Ahmed's price before this one, and today's", r.action === "sent" && r.count === 4 && L[3] === "⚠️ موز أمريكي — سوق 70 | ربحنا بسعر السوق: +1.13 ← انشر بـ 70" && L[4] === "⚠️ سعر الشراء تغيّر كثير (22 ← 55)، تأكد منه"
-    && L[5] === "❌ رمان وسط — سوق 20 | ربحنا بسعر السوق: −0.35 ← لا تنشر", bodyOf(owner()[0]));
+  assert("⚠️ opens its line, and under it: «⚠️ سعر الشراء تغيّر كثير (22 ← 55)، تأكد منه» — Ahmed's price before this one, and today's", r.action === "sent" && r.count === 4 && L[3] === "⚠️ موز أمريكي — شراء 55 (63.25 شامل) · سوق 70 | ربحنا بسعر السوق: +1.13 ← انشر بـ 70" && L[4] === "⚠️ سعر الشراء تغيّر كثير (22 ← 55)، تأكد منه"
+    && L[5] === "❌ رمان وسط — شراء 15 (17.25 شامل) · سوق 20 | ربحنا بسعر السوق: −0.35 ← لا تنشر", bodyOf(owner()[0]));
   assert("…«نفّذ المقترح» would publish it at 70, and nothing goes out by itself (an outlier waits for him)", JSON.stringify(L.slice(-3)) === JSON.stringify(["لو ضغطت «نفّذ المقترح» ينتشر: موز أمريكي 70، رمان صغير 19.50", "وما ينتشر: رمان وسط، رمان كبير", "لو ما ضغطت شي، الساعة 6 ينتشر تلقائياً: لا شيء"]), JSON.stringify(L.slice(-3)));
   const waiting = await RV.dayReviewRows(env, dayOf());
   assert("the two numbers are read for the outlier alone: the same supplier's last row before this one (22, not the older 30) and this one (55)", JSON.stringify(waiting.map((x) => x.moved ?? null)) === JSON.stringify([[{ kind: "purchase", last: 22, now: 55 }], null, null, null]), JSON.stringify(waiting.map((x) => x.moved ?? null)));
   await tap(env, `prv_r_${dayOf().id}_1`);
-  assert("the form says it first on the item's line: «⚠️ سعر الشراء تغيّر كثير (22 ← 55)، تأكد منه · شراء 55 · سوق 70 · ربحنا بسعر السوق: +1.13»", dataOf(flows()[0]).x1 === "⚠️ سعر الشراء تغيّر كثير (22 ← 55)، تأكد منه · شراء 55 · سوق 70 · ربحنا بسعر السوق: +1.13" && dataOf(flows()[0]).s1 === "market", dataOf(flows()[0]).x1);
+  assert("the form says it first on the item's line: «⚠️ سعر الشراء تغيّر كثير (22 ← 55)، تأكد منه · شراء 55 (63.25 شامل) · سوق 70 · ربحنا بسعر السوق: +1.13»", dataOf(flows()[0]).x1 === "⚠️ سعر الشراء تغيّر كثير (22 ← 55)، تأكد منه · شراء 55 (63.25 شامل) · سوق 70 · ربحنا بسعر السوق: +1.13" && dataOf(flows()[0]).s1 === "market", dataOf(flows()[0]).x1);
   await tap(env, `prv_a_${dayOf().id}_1`);
   const decided = (await RV.dayReviewRows(env, dayOf()))[0];
-  assert("once he approved it, it waits for nothing: ✅, «قرارك: انشر بـ 70», no second line", line(1).x_decision === "market" && line(1).x_sale_price === 70 && !decided.moved && JSON.stringify(RV.reviewItemLines(decided)) === JSON.stringify(["✅ موز أمريكي — سوق 70 | ربحنا بسعر السوق: +1.13 ← قرارك: انشر بـ 70"]), JSON.stringify(RV.reviewItemLines(decided)));
+  assert("once he approved it, it waits for nothing: ✅, «قرارك: انشر بـ 70», no second line", line(1).x_decision === "market" && line(1).x_sale_price === 70 && !decided.moved && JSON.stringify(RV.reviewItemLines(decided)) === JSON.stringify(["✅ موز أمريكي — شراء 55 (63.25 شامل) · سوق 70 | ربحنا بسعر السوق: +1.13 ← قرارك: انشر بـ 70"]), JSON.stringify(RV.reviewItemLines(decided)));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 
@@ -441,7 +451,7 @@ console.log("\n[ب] his window closed at 04:00: nothing held, the template, and 
   assert("06:00 passed with nothing published («فات الموعد»), then his first message at 06:40: the review arrives", dl.action === "missed" && !!late && bodyOf(late).startsWith("📋 مراجعة أسعار اليوم"), JSON.stringify([dl.action, kinds()]));
   assert("…saying, in place of what goes out by itself: «فات موعد الساعة 6 وما انتشرت أسعار اليوم: ضغطك «نفّذ المقترح» الآن ينشر فوراً.»", JSON.stringify(bodyOf(late).split("\n").slice(-3))
     === JSON.stringify(["لو ضغطت «نفّذ المقترح» ينتشر: رمان صغير 19.50", "وما ينتشر: موز أمريكي، رمان وسط، رمان كبير", "فات موعد الساعة 6 وما انتشرت أسعار اليوم: ضغطك «نفّذ المقترح» الآن ينشر فوراً."]) && !bodyOf(late).includes("ينتشر تلقائياً"), bodyOf(late));
-  assert("…an item with no purchase price reads «❌ موز أمريكي — لا سعر سوق | لا سعر شراء ← لا تنشر»", bodyOf(late).split("\n").includes("❌ موز أمريكي — لا سعر سوق | لا سعر شراء ← لا تنشر") && bodyOf(late).split("\n").includes("✅ رمان صغير — لا سعر سوق | ربحنا بالمقترح 19.50: +2.37 ← انشر بـ 19.50"), bodyOf(late));
+  assert("…an item with no purchase price reads «❌ موز أمريكي — لا سعر سوق | لا سعر شراء ← لا تنشر»", bodyOf(late).split("\n").includes("❌ موز أمريكي — لا سعر سوق | لا سعر شراء ← لا تنشر") && bodyOf(late).split("\n").includes("✅ رمان صغير — شراء 12 (13.80 شامل) · لا سعر سوق | ربحنا بالمقترح 19.50: +2.37 ← انشر بـ 19.50"), bodyOf(late));
 }
 
 {
@@ -529,7 +539,7 @@ console.log("\n[ب] «✅ نفّذ المقترح»");
   await quiet(() => PR.refreshPriceDay(env, { force: true }));
   await review(env);
   // his price 23 ÷ 1.15 = 20.00, − 17.74 = +2.26
-  assert("a line he decided in Odoo shows as «← قرارك: انشر بـ 23» in the review, with the profit at HIS price", bodyOf(owner()[0]).split("\n").includes("✅ رمان وسط — سوق 20 | ربحنا بالمقترح 23: +2.26 ← قرارك: انشر بـ 23"), bodyOf(owner()[0]));
+  assert("a line he decided in Odoo shows as «← قرارك: انشر بـ 23» in the review, with the profit at HIS price", bodyOf(owner()[0]).split("\n").includes("✅ رمان وسط — شراء 15 (17.25 شامل) · سوق 20 | ربحنا بالمقترح 23: +2.26 ← قرارك: انشر بـ 23"), bodyOf(owner()[0]));
   assert("…and the three lines count it as published — by the button, and at 6 with no tap (his decision stands by itself)", JSON.stringify(bodyOf(owner()[0]).split("\n").slice(-3)) === JSON.stringify(["لو ضغطت «نفّذ المقترح» ينتشر: موز أمريكي 70، رمان وسط 23، رمان صغير 19.50", "وما ينتشر: رمان كبير", "لو ما ضغطت شي، الساعة 6 ينتشر تلقائياً: موز أمريكي 70، رمان وسط 23"]), bodyOf(owner()[0]));
   await tap(env, `prv_a_${dayOf().id}_1`);
   assert("«نفّذ المقترح» leaves his own decision as it is and decides the three others", line(2).x_decision === "profit" && line(2).x_sale_price === 23 && line(1).x_decision === "market" && line(3).x_decision === "profit" && line(4).x_decision === "skip", JSON.stringify([1, 2, 3, 4].map((p) => line(p).x_decision)));
@@ -611,8 +621,9 @@ console.log("\n[ج] utak_owner_review_v2: the Flow at Meta against what the work
   assert("…431 = a heading for each of the six pages, «a page follows» for the first five, and x / y / l / o / s / i / v of the sixty slots", ["x", "y", "l", "o", "s", "i", "v"].every((k) => Array.from({ length: 60 }, (_, i) => `${k}${i + 1}`).every((key) => key in data) && !(`${k}61` in data))
     && [1, 2, 3, 4, 5, 6].every((k) => `t${k}` in data) && [1, 2, 3, 4, 5].every((k) => `m${k}` in data) && !("m6" in data) && 6 + 5 + 60 * 7 === 431);
   assert("four items on one page: «اعتمد» on it (m1 false), the other slots hidden with one harmless option", data.t1 === "فواكه" && data.m1 === false && data.v4 === true && data.v5 === false && JSON.stringify(data.o5) === JSON.stringify([{ id: "skip", title: "-" }]) && data.s5 === "skip" && data.l5 === "-" && data.x5 === "-" && data.y5 === "-");
-  assert("an item's two lines as the Flow's example writes them: its numbers with «ربحنا» at the market price, and the suggested price against the market", data.x1 === "شراء 10 · سوق 14 · ربحنا بسعر السوق: +0.34" && data.y1 === "سعرنا المقترح 16 = أعلى من السوق بـ 2 (+14.3%)" && data.x1 === built.items[0].info && data.y1 === built.items[0].info2
-    && first.data.x1.__example__ === "شراء 22 · سوق 28 · ربحنا بسعر السوق: −0.74" && first.data.y1.__example__ === "سعرنا المقترح 31.50 = أعلى من السوق بـ 3.50 (+12.5%)", JSON.stringify([data.x1, data.y1]));
+  // 10 × 1.15 = 11.50
+  assert("an item's two lines: its numbers — the purchase with × 1.15 beside it, the market, «ربحنا» at the market price — and the suggested price against the market", data.x1 === "شراء 10 (11.50 شامل) · سوق 14 · ربحنا بسعر السوق: +0.34" && data.y1 === "سعرنا المقترح 16 = أعلى من السوق بـ 2 (+14.3%)" && data.x1 === built.items[0].info && data.y1 === built.items[0].info2, JSON.stringify([data.x1, data.y1]));
+  assert("…the published Flow's own examples stay as they were sent to Meta (its JSON is frozen): a first line of before «شامل» — a line of text like any other — and the second line as the worker writes it", first.data.x1.__example__ === "شراء 22 · سوق 28 · ربحنا بسعر السوق: −0.74" && first.data.y1.__example__ === "سعرنا المقترح 31.50 = أعلى من السوق بـ 3.50 (+12.5%)" && first.data.x1.type === "string" && typeof data.x1 === "string", JSON.stringify([first.data.x1.__example__, first.data.y1.__example__]));
   const g11 = RV.reviewFormItems([{ title: "فواكه", rows: rowsOf(11) }, { title: "خضار", rows: rowsOf(3) }]);
   assert("a category of eleven continues on the next page («فواكه (2)»), then the next category: nothing is dropped", JSON.stringify(g11.pages) === JSON.stringify(["فواكه", "فواكه (2)", "خضار"]) && g11.items.length === 14 && g11.items[9].slot === 10 && g11.items[10].slot === 11 && g11.items[11].slot === 21 && g11.left.length === 0, JSON.stringify([g11.pages, g11.items.map((i: any) => i.slot)]));
   const d11 = RV.reviewFormData(g11.pages, g11.items);
@@ -643,9 +654,9 @@ console.log("\n[ج] «✏️ عدّل»: the form opens on the proposed decision
   const d = dataOf(flows()[0]);
   assert("…its data: exactly the 431 keys of the Flow's first page", JSON.stringify(Object.keys(d).sort()) === JSON.stringify(Object.keys(LIB.reviewDataModel()).sort()) && Object.keys(d).length === 431, String(Object.keys(d).length));
   assert("the page «فواكه», four items, «اعتمد» on it", d.t1 === "فواكه" && d.m1 === false && [1, 2, 3, 4].every((n) => d[`v${n}`] === true) && d.v5 === false && JSON.stringify([1, 2, 3, 4].map((n) => d[`l${n}`])) === JSON.stringify(["موز أمريكي", "رمان وسط", "رمان صغير", "رمان كبير"]));
-  // § 55 — two lines an item. The first: the purchase (it is here, not in the message), the market, «ربحنا» at the market price
-  assert("the banana's first line: «شراء 55 · سوق 70 · ربحنا بسعر السوق: +1.13»; the large pomegranate's: «شراء 22 · سوق 28 · ربحنا بسعر السوق: −0.74»", d.x1 === "شراء 55 · سوق 70 · ربحنا بسعر السوق: +1.13" && d.x2 === "شراء 15 · سوق 20 · ربحنا بسعر السوق: −0.35" && d.x4 === "شراء 22 · سوق 28 · ربحنا بسعر السوق: −0.74", JSON.stringify([d.x1, d.x2, d.x4]));
-  assert("…and the small pomegranate's, without a market price: «شراء 12 · لا سعر سوق»", d.x3 === "شراء 12 · لا سعر سوق", d.x3);
+  // § 55 — two lines an item. The first: the purchase with × 1.15 beside it (as in the message), the market, «ربحنا» at the market price
+  assert("the banana's first line: «شراء 55 (63.25 شامل) · سوق 70 · ربحنا بسعر السوق: +1.13»; the large pomegranate's: «شراء 22 (25.30 شامل) · سوق 28 · ربحنا بسعر السوق: −0.74»", d.x1 === "شراء 55 (63.25 شامل) · سوق 70 · ربحنا بسعر السوق: +1.13" && d.x2 === "شراء 15 (17.25 شامل) · سوق 20 · ربحنا بسعر السوق: −0.35" && d.x4 === "شراء 22 (25.30 شامل) · سوق 28 · ربحنا بسعر السوق: −0.74", JSON.stringify([d.x1, d.x2, d.x4]));
+  assert("…and the small pomegranate's, without a market price: «شراء 12 (13.80 شامل) · لا سعر سوق»", d.x3 === "شراء 12 (13.80 شامل) · لا سعر سوق", d.x3);
   // the second: the suggested price against the market as observed — 71.50 − 70 = 1.50 (2.1 %), 23 − 20 = 3 (15 %), 31.50 − 28 = 3.50 (12.5 %)
   assert("the second line, where our suggested price stands: «سعرنا المقترح 71.50 = أعلى من السوق بـ 1.50 (+2.1%)», «… 23 = أعلى من السوق بـ 3 (+15%)», «… 31.50 = أعلى من السوق بـ 3.50 (+12.5%)»", d.y1 === "سعرنا المقترح 71.50 = أعلى من السوق بـ 1.50 (+2.1%)" && d.y2 === "سعرنا المقترح 23 = أعلى من السوق بـ 3 (+15%)" && d.y4 === "سعرنا المقترح 31.50 = أعلى من السوق بـ 3.50 (+12.5%)", JSON.stringify([d.y1, d.y2, d.y4]));
   assert("…without a market price: «سعرنا المقترح 19.50 — لا سعر سوق للمقارنة»", d.y3 === "سعرنا المقترح 19.50 — لا سعر سوق للمقارنة", d.y3);
@@ -653,7 +664,8 @@ console.log("\n[ج] «✏️ عدّل»: the form opens on the proposed decision
   // market 75: 71.50 − 75 = −3.50, of 75 = −4.7 %
   assert("…a suggested price below the market, at it, and none: «… = أقل من السوق بـ 3.50 (−4.7%)», «… = سعر السوق», «لا سعر مقترح»", RV.reviewCompare({ ...banana, market: 75, sale: 75 }) === "سعرنا المقترح 71.50 = أقل من السوق بـ 3.50 (−4.7%)" && RV.reviewCompare({ ...banana, market: 71.5, sale: 71.5 }) === "سعرنا المقترح 71.50 = سعر السوق"
     && RV.reviewCompare({ ...banana, suggested: 0 }) === "لا سعر مقترح" && RV.reviewCompare(banana) === d.y1 && RV.reviewInfo(banana) === d.x1, JSON.stringify([RV.reviewCompare({ ...banana, market: 75, sale: 75 }), RV.reviewCompare({ ...banana, market: 71.5, sale: 71.5 })]));
-  assert("…an outlier's first line opens with what moved: «⚠️ سعر الشراء تغيّر كثير (22 ← 55)، تأكد منه · شراء 55 · سوق 70 · ربحنا بسعر السوق: +1.13»", RV.reviewInfo({ ...banana, proposal: { ...banana.proposal, outlier: true, auto: false }, moved: [{ kind: "purchase", last: 22, now: 55 }] }) === "⚠️ سعر الشراء تغيّر كثير (22 ← 55)، تأكد منه · شراء 55 · سوق 70 · ربحنا بسعر السوق: +1.13");
+  assert("…an item without a purchase price: «لا سعر شراء · سوق 70» (no «شامل», no profit)", RV.reviewInfo({ ...banana, purchase: 0, fullCost: 0 }) === "لا سعر شراء · سوق 70", RV.reviewInfo({ ...banana, purchase: 0, fullCost: 0 }));
+  assert("…an outlier's first line opens with what moved: «⚠️ سعر الشراء تغيّر كثير (22 ← 55)، تأكد منه · شراء 55 (63.25 شامل) · سوق 70 · ربحنا بسعر السوق: +1.13»", RV.reviewInfo({ ...banana, proposal: { ...banana.proposal, outlier: true, auto: false }, moved: [{ kind: "purchase", last: 22, now: 55 }] }) === "⚠️ سعر الشراء تغيّر كثير (22 ← 55)، تأكد منه · شراء 55 (63.25 شامل) · سوق 70 · ربحنا بسعر السوق: +1.13");
   // every choice with its own profit: the banana at 71.50 → 62.17 − 59.74 = +2.43, at 70 → +1.13; the large one at 31.50 → 27.39 − 25.09 = +2.30, at 28 → −0.74
   assert("the banana's choices: «بالمقترح 71.50 (ربح +2.43)», «بسعر السوق 70 (ربح +1.13)», «لا تنشر», «سعر يدوي» — none opens with «انشر»", JSON.stringify(d.o1) === JSON.stringify([{ id: "profit", title: "بالمقترح 71.50 (ربح +2.43)" }, { id: "market", title: "بسعر السوق 70 (ربح +1.13)" }, { id: "skip", title: "لا تنشر" }, { id: "manual", title: "سعر يدوي" }]), JSON.stringify(d.o1));
   assert("…the large pomegranate's, as the Flow's example: «بالمقترح 31.50 (ربح +2.30)», «بسعر السوق 28 (ربح −0.74)»", JSON.stringify(d.o4) === JSON.stringify([{ id: "profit", title: "بالمقترح 31.50 (ربح +2.30)" }, { id: "market", title: "بسعر السوق 28 (ربح −0.74)" }, { id: "skip", title: "لا تنشر" }, { id: "manual", title: "سعر يدوي" }]) && JSON.stringify(d.o4) === JSON.stringify(LIB.reviewDataModel().o1.__example__), JSON.stringify(d.o4));
@@ -786,7 +798,7 @@ console.log("\n[د] no decision until 06:00");
   await engine(env); await review(env);
   const B = bodyOf(owner()[0]).split("\n");
   // the apple: 30 + waste 1.50 + the share 1.99 = 33.49; 45 ÷ 1.15 = 39.13, − 33.49 = +5.64
-  assert("the review marks the outlier ⚠️: «⚠️ تفاح — سوق 45 | ربحنا بسعر السوق: +5.64 ← انشر بـ 45», and under it which price moved (Omar's first price of it: «عن آخر سعر»)", B[7] === "⚠️ تفاح — سوق 45 | ربحنا بسعر السوق: +5.64 ← انشر بـ 45" && B[8] === "⚠️ سعر السوق تغيّر كثير عن آخر سعر، تأكد منه" && B[9] === "" && B.length === 13, bodyOf(owner()[0]));
+  assert("the review marks the outlier ⚠️: «⚠️ تفاح — شراء 30 (34.50 شامل) · سوق 45 | ربحنا بسعر السوق: +5.64 ← انشر بـ 45», and under it which price moved (Omar's first price of it: «عن آخر سعر»)", B[7] === "⚠️ تفاح — شراء 30 (34.50 شامل) · سوق 45 | ربحنا بسعر السوق: +5.64 ← انشر بـ 45" && B[8] === "⚠️ سعر السوق تغيّر كثير عن آخر سعر، تأكد منه" && B[9] === "" && B.length === 13, bodyOf(owner()[0]));
   assert("…three published by «نفّذ المقترح» (the apple too), two not, one ⚠️ — and one by itself: the banana alone", JSON.stringify(B.slice(-3)) === JSON.stringify(["لو ضغطت «نفّذ المقترح» ينتشر: موز أمريكي 70، رمان صغير 19.50، تفاح 45", "وما ينتشر: رمان وسط، رمان كبير", "لو ما ضغطت شي، الساعة 6 ينتشر تلقائياً: موز أمريكي 70"])
     && JSON.stringify(RV.reviewCounts(await RV.dayReviewRows(env, dayOf()))) === JSON.stringify({ publish: 3, skip: 2, warn: 1, auto: 1 }), JSON.stringify(B.slice(-3)));
   setRiyadh(`${DAY} 06:00`);
@@ -821,7 +833,7 @@ console.log("\n[هـ] the trial to Baraa: «🧪 تجربة», today's data, not
   const msg = owner().at(-1);
   const M = bodyOf(msg).split("\n");
   assert("one message to Baraa alone, titled «🧪 تجربة — 📋 مراجعة أسعار اليوم …», with the day's four lines as at 04:00", t.sent && t.items === 4 && owner().length === n + 1 && M[0] === "🧪 تجربة — 📋 مراجعة أسعار اليوم — السبت 3 أكتوبر 2026" && M[1] === RV.PROFIT_NOTE
-    && JSON.stringify(M.slice(3, 7)) === JSON.stringify(["✅ موز أمريكي — سوق 70 | ربحنا بسعر السوق: +1.13 ← انشر بـ 70", "❌ رمان وسط — سوق 20 | ربحنا بسعر السوق: −0.35 ← لا تنشر", "✅ رمان صغير — لا سعر سوق | ربحنا بالمقترح 19.50: +2.37 ← انشر بـ 19.50", "❌ رمان كبير — سوق 28 | ربحنا بسعر السوق: −0.74 ← لا تنشر"]) && !bodyOf(msg).includes("قرارك:"), bodyOf(msg));
+    && JSON.stringify(M.slice(3, 7)) === JSON.stringify(["✅ موز أمريكي — شراء 55 (63.25 شامل) · سوق 70 | ربحنا بسعر السوق: +1.13 ← انشر بـ 70", "❌ رمان وسط — شراء 15 (17.25 شامل) · سوق 20 | ربحنا بسعر السوق: −0.35 ← لا تنشر", "✅ رمان صغير — شراء 12 (13.80 شامل) · لا سعر سوق | ربحنا بالمقترح 19.50: +2.37 ← انشر بـ 19.50", "❌ رمان كبير — شراء 22 (25.30 شامل) · سوق 28 | ربحنا بسعر السوق: −0.74 ← لا تنشر"]) && !bodyOf(msg).includes("قرارك:"), bodyOf(msg));
   assert("…and the three lines, as at 04:00 (the day's own publication does not show in the trial)", JSON.stringify(M.slice(-3)) === JSON.stringify(["لو ضغطت «نفّذ المقترح» ينتشر: موز أمريكي 70، رمان صغير 19.50", "وما ينتشر: رمان وسط، رمان كبير", "لو ما ضغطت شي، الساعة 6 ينتشر تلقائياً: موز أمريكي 70"]) && M.length === 11, JSON.stringify(M.slice(-3)));
   assert("…its buttons are the trial's (prvt_…), under the same three titles", buttonIds(msg).every((id) => id.startsWith("prvt_")) && buttonIds(msg).length === 3 && JSON.stringify(buttonTitles(msg)) === JSON.stringify(["✅ نفّذ المقترح", "✏️ عدّل", "⛔ لا تنشر شيء"]), JSON.stringify(buttonIds(msg)));
   await hook(env, OWNER, button(buttonIds(msg)[0], "✅ نفّذ المقترح"));
@@ -830,7 +842,7 @@ console.log("\n[هـ] the trial to Baraa: «🧪 تجربة», today's data, not
   await hook(env, OWNER, button(buttonIds(msg)[1], "✏️ عدّل"));
   const f = flows().at(-1);
   assert("«عدّل» in the trial: the form, its page marked «🧪 تجربة — فواكه», the lists on the proposed decisions", !!f && dataOf(f).t1 === "🧪 تجربة — فواكه" && JSON.stringify([1, 2, 3, 4].map((k) => dataOf(f)[`s${k}`])) === JSON.stringify(["market", "skip", "profit", "skip"]) && bodyOf(f).startsWith("🧪 تجربة — ✏️ عدّل أسعار السبت 3 أكتوبر 2026: 4 أصناف.") && par(f).flow_id === RV.REVIEW_FLOW_ID
-    && dataOf(f).x1 === "شراء 55 · سوق 70 · ربحنا بسعر السوق: +1.13" && dataOf(f).y1 === "سعرنا المقترح 71.50 = أعلى من السوق بـ 1.50 (+2.1%)", JSON.stringify([dataOf(f).t1, dataOf(f).x1, dataOf(f).y1]));
+    && dataOf(f).x1 === "شراء 55 (63.25 شامل) · سوق 70 · ربحنا بسعر السوق: +1.13" && dataOf(f).y1 === "سعرنا المقترح 71.50 = أعلى من السوق بـ 1.50 (+2.1%)", JSON.stringify([dataOf(f).t1, dataOf(f).x1, dataOf(f).y1]));
   await hook(env, OWNER, nfm(tokenOf(f), { d1: "market", d2: "manual", p2: "19", d3: "profit", d4: "skip" }));
   const fr = texts().at(-1) ?? "";
   // the medium pomegranate at his 19: 16.52 − 17.74 = −1.22
@@ -881,7 +893,7 @@ console.log("\n[و] the review is Baraa's alone, and what § 54 puts in Odoo");
   assert("OPERATING-DAY: the review in one message — the form, what is published with no decision, an approval after 06:00, the setting, a manual price below «بدون خسارة»", guide.includes("## مراجعة أسعار اليوم في رسالة واحدة (§ 54)")
     && guide.includes("**بلا قرار حتى 06:00**") && guide.includes("**الاعتماد بعد 06:00**") && guide.includes("«لما يكون السوق أعلى من المقترح»") && /سعر يدوي أقل من «بدون خسارة»\*\* يُقبل/.test(guide));
   // § 55 — the guide shows the message as the worker writes it NOW: the item's line with «ربحنا», and the buttons by their names of today
-  assert("OPERATING-DAY: the 04:00 message as it reads since § 55 — «✅ موز أمريكي — سوق 70 | ربحنا بسعر السوق: +1.13 ← انشر بـ 70» — and its three buttons «✅ نفّذ المقترح», «✏️ عدّل», «⛔ لا تنشر شيء»", guide.includes("✅ موز أمريكي — سوق 70 | ربحنا بسعر السوق: +1.13 ← انشر بـ 70")
+  assert("OPERATING-DAY: the 04:00 message as it reads since § 55 — «✅ موز أمريكي — شراء 55 (63.25 شامل) · سوق 70 | ربحنا بسعر السوق: +1.13 ← انشر بـ 70» — and its three buttons «✅ نفّذ المقترح», «✏️ عدّل», «⛔ لا تنشر شيء»", guide.includes("✅ موز أمريكي — شراء 55 (63.25 شامل) · سوق 70 | ربحنا بسعر السوق: +1.13 ← انشر بـ 70")
     && [RV.REVIEW_BUTTON_ALL, RV.REVIEW_BUTTON_FORM, RV.REVIEW_BUTTON_NONE].every((t) => guide.includes(`«${t}»`)), JSON.stringify([RV.REVIEW_BUTTON_ALL, RV.REVIEW_BUTTON_FORM, RV.REVIEW_BUTTON_NONE].filter((t) => !guide.includes(`«${t}»`))));
   assert("OPERATING-DAY: no instruction to answer an exception per item or to type a price after «عدّل» is left", !/خيار واحد لكل صنف قبل 06:00/.test(guide) && !/ثم يكتب السعر رقماً واحداً خلال 30 دقيقة/.test(guide) && !/رسالة لكل صنف استثنائي/.test(guide) && guide.includes("**ما أُلغي:**"));
   assert("decisions use the fields the line already has: no new field on x_price_day_line", !srcOf("price-review.ts").includes("x_proposal") && Object.keys(RV.decisionVals("edit", 21, 0)).every((k) => fx.x_price_day_line.includes(k)) && Object.keys(RV.decisionVals("skip", 0, 0)).every((k) => fx.x_price_day_line.includes(k)));

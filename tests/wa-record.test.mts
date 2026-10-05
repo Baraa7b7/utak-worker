@@ -255,11 +255,12 @@ console.log("\n[1] every send path writes an x_wa_message row and a Discuss line
   // § 54 ب — the day's review (05:30, a draft day, his window open): an interactive message, recorded as he reads it
   const rev = await quiet(() => notifyPriceReviewMessage(env));
   r = onRecord("📋 مراجعة أسعار اليوم", OWNERP, CH_OWNER);
-  // § 55 — an item's line: its mark, its market price, «ربحنا» and its decision. Before the VAT cutoff and with no day's cost
-  // here, the tomato's full cost is 25 + waste 5 % 1.25 = 26.25: 30 − 26.25 = +3.75; the cucumber has no market and no suggested price.
+  // § 55 — an item's line: its mark, its purchase with × 1.15 beside it (always, also before the VAT cutoff: 25 → 28.75, 14 → 16.10
+  // «شامل»), its market price, «ربحنا» and its decision. Before the VAT cutoff and with no day's cost here, the tomato's full cost is
+  // 25 + waste 5 % 1.25 = 26.25: 30 − 26.25 = +3.75, said «بلا حصة التشغيل»; the cucumber has no market and no suggested price.
   assert("the day's review (one message: every item, an exception waiting for his decision among them): row and line in his channel",
     rev.action === "sent" && !!r.row && !!r.msg && r.row.x_status === "sent" && waRows().filter((x) => x.x_partner_id === OWNERP).length === 1
-      && String(r.row.x_body).split("\n").includes("✅ طماطم — سوق 30 | ربحنا بسعر السوق (بلا حصة التشغيل): +3.75 ← انشر بـ 30") && plain(r.msg.body).split("\n").includes("❌ خيار — لا سعر سوق ← لا تنشر"),
+      && String(r.row.x_body).split("\n").includes("✅ طماطم — شراء 25 (28.75 شامل) · سوق 30 | ربحنا بسعر السوق (بلا حصة التشغيل): +3.75 ← انشر بـ 30") && plain(r.msg.body).split("\n").includes("❌ خيار — شراء 14 (16.10 شامل) · لا سعر سوق ← لا تنشر"),
     JSON.stringify({ rev, rows: waRows().filter((x) => x.x_partner_id === OWNERP).map((x) => x.x_body) }));
   assert("…with its three buttons as «🔘» lines, in the row and in Discuss", ["🔘 ✅ نفّذ المقترح", "🔘 ✏️ عدّل", "🔘 ⛔ لا تنشر شيء"].every((b) => String(r.row?.x_body).split("\n").includes(b) && plain(r.msg?.body).includes(b)), String(r.row?.x_body));
   Object.assign(day, { x_state: "approved", x_approved_by: 2 });

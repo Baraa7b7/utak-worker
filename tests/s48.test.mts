@@ -22,11 +22,11 @@
 // per exception and its «اعتمد بالسعر المربح» button are gone. A decision from the review on a «فات
 // الموعد» day publishes at once; the text that sent him to «نشر المعتمد الآن» for it is gone with them.
 //
-// § 55 (2026-10-05) — the review made plain: an item's line carries «ربحنا» (the board's net of a carton) in
-// place of the purchase price and «الفرق»; the form says the suggested price on a second line («سعرنا
-// المقترح 29 = أعلى من السوق بـ 3 (+11.5%)») and each choice carries its own profit («بالمقترح 29 (ربح
-// +2.22)»); «بدون خسارة» stays on the line in Odoo and in the form's record. The buttons are «✅ نفّذ
-// المقترح», «✏️ عدّل» and «⛔ لا تنشر شيء».
+// § 55 (2026-10-05) — the review made plain: an item's line carries its purchase price with × 1.15 beside
+// it («شراء 20 (23.00 شامل)») and «ربحنا» (the board's net of a carton) in place of «الفرق»; the form says
+// the suggested price on a second line («سعرنا المقترح 29 = أعلى من السوق بـ 3 (+11.5%)») and each choice
+// carries its own profit («بالمقترح 29 (ربح +2.22)»); «بدون خسارة» stays on the line in Odoo and in the
+// form's record. The buttons are «✅ نفّذ المقترح», «✏️ عدّل» and «⛔ لا تنشر شيء».
 //
 // In-memory Odoo + captured Graph (tests/wa-harness.mts, tests/s46-kit.mts). No network, no send.
 //
@@ -150,15 +150,15 @@ console.log("\n[أ] the rule: the market price — § 54: once it reaches «بد
   await quiet(() => PR.refreshPriceDay(env));
   await quiet(() => PRV.notifyPriceReviewMessage(env));
   const text = String(sentTo(OWNER).map((b: any) => b?.interactive?.body?.text ?? "").find((t: string) => t.includes("طماطم")) ?? "");
-  // § 55 — «ربحنا» in place of the purchase and «الفرق»: 26 ÷ 1.15 = 22.61 − the full cost (20 + 1 + 2 = 23) = −0.39
-  assert("the 04:00 review names the item with its market price, what a carton loses there (−0.39) and «لا تنشر» — ❌ first", lineFor(1).x_status === "exception" && lineFor(1).x_full_cost === 23 && text.split("\n").includes("❌ طماطم — سوق 26 | ربحنا بسعر السوق: −0.39 ← لا تنشر"), text);
+  // § 55 — the purchase with × 1.15 beside it (20 → 23.00 «شامل»), and «ربحنا» in place of «الفرق»: 26 ÷ 1.15 = 22.61 − the full cost (20 + 1 + 2 = 23) = −0.39
+  assert("the 04:00 review names the item with its purchase (23.00 «شامل» beside it), its market price, what a carton loses there (−0.39) and «لا تنشر» — ❌ first", lineFor(1).x_status === "exception" && lineFor(1).x_full_cost === 23 && text.split("\n").includes("❌ طماطم — شراء 20 (23.00 شامل) · سوق 26 | ربحنا بسعر السوق: −0.39 ← لا تنشر"), text);
   await quiet(() => PRV.handlePriceReviewButton(env, `prv_r_${dayOf().id}_1`));
   const form = sentTo(OWNER).find((b: any) => b?.interactive?.type === "flow")?.interactive.action.parameters;
   const item = (await PRV.readReviewFormToken(env, String(form?.flow_token)))?.items.find((i: any) => i.name === "طماطم");
   const data = form?.flow_action_payload.data ?? {};
   // § 55 — the suggested price is on the item's second line (y<n>), against the market: 29 − 26 = 3, 3 ÷ 26 = 11.5 %;
   // «بدون خسارة» is no longer in the form's text: it stays on the line in Odoo and in the form's record (the ⚠️ of a manual price below it)
-  assert("…and its form («✏️ عدّل») carries the purchase, the market and the same «ربحنا» on the first line, the new suggested price (29) against the market on the second", data[`x${item?.slot}`] === "شراء 20 · سوق 26 · ربحنا بسعر السوق: −0.39" && data[`y${item?.slot}`] === "سعرنا المقترح 29 = أعلى من السوق بـ 3 (+11.5%)", `${data[`x${item?.slot}`]} | ${data[`y${item?.slot}`]}`);
+  assert("…and its form («✏️ عدّل») carries the purchase, the market and the same «ربحنا» on the first line, the new suggested price (29) against the market on the second", data[`x${item?.slot}`] === "شراء 20 (23.00 شامل) · سوق 26 · ربحنا بسعر السوق: −0.39" && data[`y${item?.slot}`] === "سعرنا المقترح 29 = أعلى من السوق بـ 3 (+11.5%)", `${data[`x${item?.slot}`]} | ${data[`y${item?.slot}`]}`);
   assert("…the break-even (26.45) on the line in Odoo and in the form's record, no longer in its text", lineFor(1).x_break_even === 26.45 && item?.breakEven === 26.45 && !/بدون خسارة|26\.45/.test(`${data[`x${item?.slot}`]}${data[`y${item?.slot}`]}${JSON.stringify(data[`o${item?.slot}`])}`), JSON.stringify([lineFor(1).x_break_even, item?.breakEven]));
   // 29 ÷ 1.15 = 25.22 − 23 = +2.22
   assert("…and its «بالمقترح» choice the same number, with the profit a carton makes there (+2.22)", JSON.stringify(data[`o${item?.slot}`]?.[0]) === JSON.stringify({ id: "profit", title: "بالمقترح 29 (ربح +2.22)" }) && item?.suggested === 29, JSON.stringify(data[`o${item?.slot}`]));

@@ -610,14 +610,18 @@ console.log("\n[ج] the day's review to Baraa (§ 54): from 04:00, ONE message w
       && JSON.stringify(btnTitles(msgs[0])) === JSON.stringify(["✅ نفّذ المقترح", "✏️ عدّل", "⛔ لا تنشر شيء"]), JSON.stringify(msgs[0]?.interactive?.action));
   // § 47 أ — the purchase is net: 20.50 ÷ 1.15 − 20 − 1 = −3.17 ≤ 0 (no carton share in this world: the rule before § 47) → a loss.
   // § 55 — the line shows that net («ربحنا», signed, two decimals) in place of «الفرق 0.50 (3%)» (the market against the purchase), its mark
-  // first, and no purchase price (it was «طماطم: شراء 20 · سوق 20.50 · الفرق 0.50 (3%) ← لا تنشر (خسارة)»)
-  assert("with a market price: the item's line — its mark ❌, the market, «ربحنا» at it with its sign (17.83 − 21 = −3.17; this world has no carton share, and the line says so) — and its proposed decision («لا تنشر»); no «الفرق», no purchase price",
-    body.split("\n").includes("❌ طماطم — سوق 20.50 | ربحنا بسعر السوق (بلا حصة التشغيل): −3.17 ← لا تنشر") && !/الفرق/.test(body) && !/شراء \d/.test(body), body);
-  assert("without a market price: «لا سعر سوق», no profit to show, and — no suggested price to publish at — «لا تنشر»",
-    body.split("\n").includes("❌ خيار — لا سعر سوق ← لا تنشر"), body);
+  // first (it was «طماطم: شراء 20 · سوق 20.50 · الفرق 0.50 (3%) ← لا تنشر (خسارة)»). The purchase price stays on the line, and beside it the
+  // same price × 1.15 («شامل», to set against the market, which includes the VAT): 20 × 1.15 = 23.00
+  assert("with a market price: the item's line — its mark ❌, the purchase 20 and beside it × 1.15 («23.00 شامل»), the market, «ربحنا» at it with its sign (17.83 − 21 = −3.17; this world has no carton share, and the line says so) — and its proposed decision («لا تنشر»); no «الفرق»",
+    body.split("\n").includes("❌ طماطم — شراء 20 (23.00 شامل) · سوق 20.50 | ربحنا بسعر السوق (بلا حصة التشغيل): −3.17 ← لا تنشر") && !/الفرق/.test(body)
+      // every purchase price of the message has its «شامل» beside it, before the market
+      && JSON.stringify(body.match(/شراء \d[^·|\n]*/g)) === JSON.stringify(["شراء 20 (23.00 شامل) ", "شراء 30 (34.50 شامل) "]), body);
+  // cucumber's purchase: 30 × 1.15 = 34.50
+  assert("without a market price: the purchase 30 («34.50 شامل»), «لا سعر سوق», no profit to show, and — no suggested price to publish at — «لا تنشر»",
+    body.split("\n").includes("❌ خيار — شراء 30 (34.50 شامل) · لا سعر سوق ← لا تنشر"), body);
   // § 55 — «0 للنشر · 2 لا تنشر · 0 ⚠️» and «بلا قرارك حتى 06:00: لا يُنشر شيء.» are three lines that name the items
   assert("the message: the day, what «ربحنا» is, and three lines — what «نفّذ المقترح» publishes, what it does not, and what goes out at the deadline (06:00) with no tap",
-    body === ["📋 مراجعة أسعار اليوم — السبت 3 أكتوبر 2026", PROFIT_NOTE, "", "❌ طماطم — سوق 20.50 | ربحنا بسعر السوق (بلا حصة التشغيل): −3.17 ← لا تنشر", "❌ خيار — لا سعر سوق ← لا تنشر", "",
+    body === ["📋 مراجعة أسعار اليوم — السبت 3 أكتوبر 2026", PROFIT_NOTE, "", "❌ طماطم — شراء 20 (23.00 شامل) · سوق 20.50 | ربحنا بسعر السوق (بلا حصة التشغيل): −3.17 ← لا تنشر", "❌ خيار — شراء 30 (34.50 شامل) · لا سعر سوق ← لا تنشر", "",
       "لو ضغطت «نفّذ المقترح» ينتشر: لا شيء", "وما ينتشر: طماطم، خيار", "لو ما ضغطت شي، الساعة 6 ينتشر تلقائياً: لا شيء"].join("\n"), body);
   assert("…and the lines still wait for him in Odoo with the engine's reason (nothing decided by the message itself)",
     lineFor(1)!.x_status === "exception" && lineFor(1)!.x_reason === "ربح الوحدة ≤ 0 (-3.17)" && lineFor(2)!.x_status === "exception" && !lineFor(1)!.x_decision && !lineFor(2)!.x_decision, JSON.stringify([lineFor(1), lineFor(2)]));
@@ -639,7 +643,10 @@ console.log("\n[ج] the day's review to Baraa (§ 54): from 04:00, ONE message w
   await quiet(() => PR.refreshPriceDay(env));   // 11 active products, no offer → 11 lines waiting
   const n = await quiet(() => PRV.notifyPriceReviewMessage(env));
   const body = bodyOf(reviewMsgs()[0]);
-  // § 55 — «0 للنشر · 11 لا تنشر · 0 ⚠️» is the three lines: nothing published by «نفّذ المقترح», the 11 by name, nothing at 06:00
+  // § 55 — «0 للنشر · 11 لا تنشر · 0 ⚠️» is the three lines: nothing published by «نفّذ المقترح», the 11 by name, nothing at 06:00.
+  // These 11 items have no purchase price, so «شراء X (Y شامل)» adds nothing to their lines and the body is as long as it was — the title 43 +
+  // the note 51 + 11 lines (43–44 each: 483) + the three lines (36 + 85 + 46) + 17 line breaks = 761 ≤ 1024: still above the buttons.
+  // The update below, with «صنف جديد»: its title 57 + the note 51 + «تغيّر: …» 16 + 12 lines 530 + the three lines (36 + 95 + 46) + 19 = 850.
   assert("more than 8 items waiting (11): still ONE message — every item on its own line with its decision, no link to Odoo, no per-item messages",
     n.action === "sent" && n.count === 11 && n.parts === 0 && sentTo(OWNER).length === 1 && reviewMsgs().length === 1 && excMsgs().length === 0
       && names.every((x) => body.split("\n").includes(bareLine(x))) && body.split("\n").filter((l) => l.startsWith("❌ ")).length === 11
@@ -664,7 +671,10 @@ console.log("\n[ج] the day's review to Baraa (§ 54): from 04:00, ONE message w
     stale === "stale" && ownerTexts().length === 1 && /نسخة أحدث من مراجعة أسعار اليوم \(04:05\)/.test(ownerTexts()[0]) && rows("x_price_day_line").every((l: any) => !l.x_decision), JSON.stringify({ stale, t: ownerTexts() }));
 }
 {
-  // the shape of the ONE message follows its length, not a count of exceptions (it was: up to 8 a message each, more → a link)
+  // the shape of the ONE message follows its length, not a count of exceptions (it was: up to 8 a message each, more → a link).
+  // § 55 — no item of these two worlds has a purchase price («شراء X (Y شامل)» is written with one only), so their lines are as long as they
+  // were: 8 items = 605 characters (title 43 + note 51 + 8 lines 351 + the three lines 36 + 64 + 46 + 14 line breaks) ≤ 1024 — one message;
+  // such a body passes 1024 at 16 items (15: 977, 16: 1031), and 40 is far over it — the table as text, then the buttons.
   const world = (extra: number) => {
     const env = fresh("2026-10-03 04:00", { onAttendance: false }); sources();
     for (let i = 0; i < extra; i++) {
@@ -775,9 +785,10 @@ console.log("\n[ج] Baraa's decision (§ 54): the three buttons, the lock");
   await quiet(() => PRV.notifyPriceReviewMessage(env));
   const d = dayOf()!, body = bodyOf(reviewMsgs()[0]);
   // § 55 — «ربحنا» in place of «الفرق 8 (40%)»: tomato at the market 28 → 24.35 − 23 = +1.35; cucumber at the suggested 41 → 35.65 − 33.5 = +2.15.
+  // Each line keeps its purchase price, with × 1.15 beside it: 20 → 23.00, 30 → 34.50.
   // «2 للنشر · 0 لا تنشر · 0 ⚠️» and «بلا قرارك حتى 06:00: يُنشر تلقائياً 1 …» are the three lines, by name and price
-  assert("the review shows both — the automatic line too, each ✅ with its profit — and says what «نفّذ المقترح» publishes and what is published without him",
-    body.split("\n").includes("✅ طماطم — سوق 28 | ربحنا بسعر السوق: +1.35 ← انشر بـ 28") && body.split("\n").includes("✅ خيار — لا سعر سوق | ربحنا بالمقترح 41: +2.15 ← انشر بـ 41")
+  assert("the review shows both — the automatic line too, each ✅ with its purchase price («… شامل» beside it) and its profit — and says what «نفّذ المقترح» publishes and what is published without him",
+    body.split("\n").includes("✅ طماطم — شراء 20 (23.00 شامل) · سوق 28 | ربحنا بسعر السوق: +1.35 ← انشر بـ 28") && body.split("\n").includes("✅ خيار — شراء 30 (34.50 شامل) · لا سعر سوق | ربحنا بالمقترح 41: +2.15 ← انشر بـ 41")
       && body.endsWith("\n\nلو ضغطت «نفّذ المقترح» ينتشر: طماطم 28، خيار 41\nوما ينتشر: لا شيء\nلو ما ضغطت شي، الساعة 6 ينتشر تلقائياً: طماطم 28"), body);
   graph.length = 0;
   const s1 = await quiet(() => PRV.handlePriceReviewButton(env, `prv_n_${d.id}_1`));
@@ -841,11 +852,12 @@ console.log("\n[ج] the publication time: automatic lines published, an exceptio
   // § 54 ب — the tick's `exceptions` is `review`: ONE message with both items (it was a message for the cucumber alone);
   // its count is the items that need his decision (the cucumber: the automatic tomato is shown, not counted)
   // § 55 — tomato's «ربحنا» at the market 26 is the unit profit of this world (no carton share): 22.61 − 21 = +1.61 (it was «الفرق 6 (30%)»);
+  // the purchase prices with × 1.15 beside them: 20 → 23.00, 30 → 34.50;
   // «بلا قرارك حتى 06:00: يُنشر تلقائياً 1 …» is the third of the three lines, by name and price
   assert("04:00 tick: the record built, the day's review sent to Baraa — one message, saying what 06:00 will do without him",
     !!dayOf() && (t0.review as any)?.action === "sent" && (t0.review as any)?.count === 1 && sentTo(OWNER).length === 1 && reviewMsgs().length === 1 && excMsgs().length === 0
-      && bodyOf(reviewMsgs()[0]).split("\n").includes("✅ طماطم — سوق 26 | ربحنا بسعر السوق (بلا حصة التشغيل): +1.61 ← انشر بـ 26")
-      && bodyOf(reviewMsgs()[0]).split("\n").includes("❌ خيار — لا سعر سوق ← لا تنشر")
+      && bodyOf(reviewMsgs()[0]).split("\n").includes("✅ طماطم — شراء 20 (23.00 شامل) · سوق 26 | ربحنا بسعر السوق (بلا حصة التشغيل): +1.61 ← انشر بـ 26")
+      && bodyOf(reviewMsgs()[0]).split("\n").includes("❌ خيار — شراء 30 (34.50 شامل) · لا سعر سوق ← لا تنشر")
       && bodyOf(reviewMsgs()[0]).endsWith("\n\nلو ضغطت «نفّذ المقترح» ينتشر: طماطم 26\nوما ينتشر: خيار\nلو ما ضغطت شي، الساعة 6 ينتشر تلقائياً: طماطم 26"), JSON.stringify({ r: t0.review, b: ownerTexts() }));
   setRiyadh("2026-10-03 05:55");
   const t1 = await quiet(() => PR.runPricesTick(env, Date.now()));

@@ -28,8 +28,9 @@
 // its exception by a real loss (cucumber: market 33 under its «بدون خسارة» 33.70; it was 34).
 //
 // § 55 أ (2026-10-05) — re-based on the review's plain wording (the behaviour is § 54's): an item's line
-// opens with its mark and shows «ربحنا» — the board's net of a carton at the price, signed, two decimals —
-// in place of the purchase price and «الفرق»; three lines under the table say what each choice does (the
+// opens with its mark, keeps the purchase price with the same price × 1.15 beside it («شراء 20 (23.00 شامل)»,
+// to set against the market, which includes the VAT) and shows «ربحنا» — the board's net of a carton at the
+// price, signed, two decimals — in place of «الفرق»; three lines under the table say what each choice does (the
 // counts line and «بلا قرارك حتى 06:00…» before); the buttons are «✅ نفّذ المقترح» / «✏️ عدّل» / «⛔ لا تنشر
 // شيء»; the form carries two lines an item (its numbers with «ربحنا», and the suggested price against the
 // market) and every choice its own profit; the confirmation ends each item with «ربحنا» and adds «متوسط
@@ -329,16 +330,18 @@ console.log("\n[ب] the engine on the day, and the day's review: ONE message, it
   const n = await notify(env);
   const body = reviewText(), d = dayOf().id;
   assert("04:00: ONE message for the whole day — the three exceptions (the 3 that need his decision) and the automatic line in it, never a message per item", n.action === "sent" && n.count === 3 && reviews().length === 1 && sentTo(OWNER).length === 1 && ["طماطم", "خيار", "بطاطس", "بصل"].every((x) => itemLines(x, body).length === 1), JSON.stringify({ n, body }));
-  // § 55 — «ربحنا» (29 ÷ 1.15 = 25.22, − the full cost 23 = +2.22) took the place of the purchase price and «الفرق 9 (45%)»
-  assert("(1) the automatic line with its proposed decision, ✅ and its profit: «✅ طماطم — سوق 29 | ربحنا بسعر السوق: +2.22 ← انشر بـ 29»; no «الفرق» and no purchase price in the message",
-    reviewLines(body).includes("✅ طماطم — سوق 29 | ربحنا بسعر السوق: +2.22 ← انشر بـ 29") && !/الفرق/.test(body) && !/شراء \d/.test(body), body);
+  // § 55 — «ربحنا» (29 ÷ 1.15 = 25.22, − the full cost 23 = +2.22) took the place of «الفرق 9 (45%)»; the purchase price stays, with the same
+  // price × 1.15 beside it («شامل»): 20 → 23.00, 26 → 29.90, 18 → 20.70 — on the three lines that have one, and on no other (the onion has none)
+  assert("(1) the automatic line with its proposed decision, ✅, its purchase price («23.00 شامل» beside it) and its profit: «✅ طماطم — شراء 20 (23.00 شامل) · سوق 29 | ربحنا بسعر السوق: +2.22 ← انشر بـ 29»; no «الفرق» in the message",
+    reviewLines(body).includes("✅ طماطم — شراء 20 (23.00 شامل) · سوق 29 | ربحنا بسعر السوق: +2.22 ← انشر بـ 29") && !/الفرق/.test(body)
+      && JSON.stringify(body.match(/شراء \d[^·|\n]*/g)) === JSON.stringify(["شراء 20 (23.00 شامل) ", "شراء 26 (29.90 شامل) ", "شراء 18 (20.70 شامل) "]), body);
   // § 55 — the loss itself, signed (33 ÷ 1.15 = 28.70, − the full cost 29.30 = −0.60), where «الفرق 7 (27%)» stood; «2 للنشر · 2 لا تنشر · 0 ⚠️» and
   // «بلا قرارك حتى 06:00: يُنشر تلقائياً 1 …» are the three lines, by name and price
-  assert("(2) cucumber's line names the market 33 and what it loses at it — «ربحنا بسعر السوق: −0.60» — ❌ «لا تنشر»; the three lines say what «نفّذ المقترح» publishes, what it does not, and what happens without him by 06:00",
-    reviewLines(body).includes("❌ خيار — سوق 33 | ربحنا بسعر السوق: −0.60 ← لا تنشر") && body.endsWith(choiceTail("طماطم 29، بطاطس 26.50", "خيار، بصل", "طماطم 29")), body);
+  assert("(2) cucumber's line names both numbers — the purchase 26 («29.90 شامل») and the market 33 — and what it loses at it — «ربحنا بسعر السوق: −0.60» — ❌ «لا تنشر»; the three lines say what «نفّذ المقترح» publishes, what it does not, and what happens without him by 06:00",
+    reviewLines(body).includes("❌ خيار — شراء 26 (29.90 شامل) · سوق 33 | ربحنا بسعر السوق: −0.60 ← لا تنشر") && body.endsWith(choiceTail("طماطم 29، بطاطس 26.50", "خيار، بصل", "طماطم 29")), body);
   // § 55 — potato at its suggested 26.50: 23.04 − 20.90 = +2.14 (the board's own «real profit» of the approved line, below)
-  assert("(3) potato's line carries the suggested price and its profit: «لا سعر سوق | ربحنا بالمقترح 26.50: +2.14 ← انشر بـ 26.50»; (4) onion's «سوق 30 | لا سعر شراء ← لا تنشر»",
-    reviewLines(body).includes("✅ بطاطس — لا سعر سوق | ربحنا بالمقترح 26.50: +2.14 ← انشر بـ 26.50") && reviewLines(body).includes("❌ بصل — سوق 30 | لا سعر شراء ← لا تنشر"), body);
+  assert("(3) potato's line carries its purchase price, the suggested price and its profit: «شراء 18 (20.70 شامل) · لا سعر سوق | ربحنا بالمقترح 26.50: +2.14 ← انشر بـ 26.50»; (4) onion's — no purchase price, nothing written for it — «سوق 30 | لا سعر شراء ← لا تنشر»",
+    reviewLines(body).includes("✅ بطاطس — شراء 18 (20.70 شامل) · لا سعر سوق | ربحنا بالمقترح 26.50: +2.14 ← انشر بـ 26.50") && reviewLines(body).includes("❌ بصل — سوق 30 | لا سعر شراء ← لا تنشر"), body);
   assert("three reply buttons under it: «✅ نفّذ المقترح» / «✏️ عدّل» / «⛔ لا تنشر شيء» (§ 55: the payloads of § 54)", JSON.stringify(buttonIds(reviews()[0])) === JSON.stringify([`prv_a_${d}_1`, `prv_r_${d}_1`, `prv_n_${d}_1`])
     && JSON.stringify(reviews()[0].interactive.action.buttons.map((x: any) => x.reply.title)) === JSON.stringify([PRV.REVIEW_BUTTON_ALL, PRV.REVIEW_BUTTON_FORM, PRV.REVIEW_BUTTON_NONE])
     && JSON.stringify([PRV.REVIEW_BUTTON_ALL, PRV.REVIEW_BUTTON_FORM, PRV.REVIEW_BUTTON_NONE]) === JSON.stringify(["✅ نفّذ المقترح", "✏️ عدّل", "⛔ لا تنشر شيء"]), JSON.stringify(reviews()[0].interactive.action));
@@ -346,16 +349,16 @@ console.log("\n[ب] the engine on the day, and the day's review: ONE message, it
   const f = await openForm(env);
   const cu = f.item("خيار"), po = f.item("بطاطس"), on = f.item("بصل");
   assert("«✏️ عدّل» → ONE form (a Flow) with the four items", f.action === "form" && forms().length === 1 && !!cu && !!po && !!on && !!f.item("طماطم"), JSON.stringify(f.action));
-  // § 55 — two lines an item. «الفرق 7 · بدون خسارة 33.70 · مقترح 36» left the first: it ends with «ربحنا» at the market price, and the suggested
-  // price has its own line, set against the market as observed: 36 − 33 = 3, 3 ÷ 33 = 9.1 %
-  assert("(2) in the form cucumber carries two lines: its numbers and its profit at the market price — «شراء 26 · سوق 33 · ربحنا بسعر السوق: −0.60» — and the suggested price against the market — «سعرنا المقترح 36 = أعلى من السوق بـ 3 (+9.1%)»",
-    f.data[`x${cu.slot}`] === "شراء 26 · سوق 33 · ربحنا بسعر السوق: −0.60" && f.data[`y${cu.slot}`] === "سعرنا المقترح 36 = أعلى من السوق بـ 3 (+9.1%)" && !/الفرق|بدون خسارة/.test(String(f.data[`x${cu.slot}`]) + String(f.data[`y${cu.slot}`])), JSON.stringify([f.data[`x${cu.slot}`], f.data[`y${cu.slot}`]]));
+  // § 55 — two lines an item. «الفرق 7 · بدون خسارة 33.70 · مقترح 36» left the first: the purchase price has × 1.15 beside it (26 → 29.90), the
+  // line ends with «ربحنا» at the market price, and the suggested price has its own line, set against the market as observed: 36 − 33 = 3, 3 ÷ 33 = 9.1 %
+  assert("(2) in the form cucumber carries two lines: its numbers and its profit at the market price — «شراء 26 (29.90 شامل) · سوق 33 · ربحنا بسعر السوق: −0.60» — and the suggested price against the market — «سعرنا المقترح 36 = أعلى من السوق بـ 3 (+9.1%)»",
+    f.data[`x${cu.slot}`] === "شراء 26 (29.90 شامل) · سوق 33 · ربحنا بسعر السوق: −0.60" && f.data[`y${cu.slot}`] === "سعرنا المقترح 36 = أعلى من السوق بـ 3 (+9.1%)" && !/الفرق|بدون خسارة/.test(String(f.data[`x${cu.slot}`]) + String(f.data[`y${cu.slot}`])), JSON.stringify([f.data[`x${cu.slot}`], f.data[`y${cu.slot}`]]));
   // § 55 — a choice carries its own profit and no longer opens with «انشر»: at the suggested 36 → 31.30 − 29.30 = +2.00, at the market 33 → −0.60
   assert("(2) four choices in ONE list, each price and its profit in its title: «بالمقترح 36 (ربح +2.00)», «بسعر السوق 33 (ربح −0.60)», «لا تنشر», «سعر يدوي» — opened on the proposed «لا تنشر»",
     JSON.stringify(f.data[`o${cu.slot}`]) === JSON.stringify([{ id: "profit", title: "بالمقترح 36 (ربح +2.00)" }, { id: "market", title: "بسعر السوق 33 (ربح −0.60)" }, { id: "skip", title: "لا تنشر" }, { id: "manual", title: "سعر يدوي" }]) && f.data[`s${cu.slot}`] === "skip", JSON.stringify(f.data[`o${cu.slot}`]));
-  assert("(3) potato (no market price): «بالمقترح 26.50 (ربح +2.14)» / «لا تنشر» / «سعر يدوي» — no «بسعر السوق» — opened on «بالمقترح»; its lines «شراء 18 · لا سعر سوق» and «سعرنا المقترح 26.50 — لا سعر سوق للمقارنة»",
+  assert("(3) potato (no market price): «بالمقترح 26.50 (ربح +2.14)» / «لا تنشر» / «سعر يدوي» — no «بسعر السوق» — opened on «بالمقترح»; its lines «شراء 18 (20.70 شامل) · لا سعر سوق» and «سعرنا المقترح 26.50 — لا سعر سوق للمقارنة»",
     JSON.stringify(optionIds(f.data[`o${po.slot}`])) === JSON.stringify(["profit", "skip", "manual"]) && f.data[`o${po.slot}`][0].title === "بالمقترح 26.50 (ربح +2.14)" && f.data[`s${po.slot}`] === "profit"
-      && f.data[`x${po.slot}`] === "شراء 18 · لا سعر سوق" && f.data[`y${po.slot}`] === "سعرنا المقترح 26.50 — لا سعر سوق للمقارنة", JSON.stringify([f.data[`o${po.slot}`], f.data[`x${po.slot}`], f.data[`y${po.slot}`]]));
+      && f.data[`x${po.slot}`] === "شراء 18 (20.70 شامل) · لا سعر سوق" && f.data[`y${po.slot}`] === "سعرنا المقترح 26.50 — لا سعر سوق للمقارنة", JSON.stringify([f.data[`o${po.slot}`], f.data[`x${po.slot}`], f.data[`y${po.slot}`]]));
   assert("(4) onion (no purchase price): «بسعر السوق 30» (no profit beside it: none can be computed) / «لا تنشر» / «سعر يدوي» — no «بالمقترح», no suggested number («لا سعر مقترح») — opened on «لا تنشر»",
     JSON.stringify(optionIds(f.data[`o${on.slot}`])) === JSON.stringify(["market", "skip", "manual"]) && f.data[`o${on.slot}`][0].title === "بسعر السوق 30" && f.data[`s${on.slot}`] === "skip"
       && f.data[`x${on.slot}`] === "لا سعر شراء · سوق 30" && f.data[`y${on.slot}`] === "لا سعر مقترح", JSON.stringify([f.data[`o${on.slot}`], f.data[`x${on.slot}`], f.data[`y${on.slot}`]]));
@@ -388,9 +391,9 @@ console.log("\n[ب] the engine on the day, and the day's review: ONE message, it
   await quiet(() => PR.refreshPriceDay(env));
   await notify(env);
   const t = lineFor(1);
-  // § 55 — ⚠️ opens the line (it stood before the decision, with «(سعر شاذ)» after it), «ربحنا» at the market 31 is 26.96 − 23 = +3.96, and a
-  // second line under it names what moved: Omar's market price before this one (30) ← the outlier (31)
-  const at = reviewLines().indexOf("⚠️ طماطم — سوق 31 | ربحنا بسعر السوق: +3.96 ← انشر بـ 31");
+  // § 55 — ⚠️ opens the line (it stood before the decision, with «(سعر شاذ)» after it), the purchase 20 has × 1.15 beside it (23.00), «ربحنا» at
+  // the market 31 is 26.96 − 23 = +3.96, and a second line under it names what moved: Omar's market price before this one (30) ← the outlier (31)
+  const at = reviewLines().indexOf("⚠️ طماطم — شراء 20 (23.00 شامل) · سوق 31 | ربحنا بسعر السوق: +3.96 ← انشر بـ 31");
   assert("an outlier above the suggested price: it waits for him, proposed at the MARKET price and marked ⚠️ (never at the suggested 29: the market price is the profitable one), and the line under it says what moved — «⚠️ سعر السوق تغيّر كثير (30 ← 31)، تأكد منه»",
     t.x_status === "exception" && t.x_market_price === 31 && at >= 0 && reviewLines()[at + 1] === "⚠️ سعر السوق تغيّر كثير (30 ← 31)، تأكد منه" && itemLines("طماطم").length === 1 && !/طماطم — [^\n]*(بالمقترح|انشر بـ 29)/.test(reviewText()), reviewText());
   // § 55 — «1 للنشر · 3 لا تنشر · 1 ⚠️» left the text (the count itself stays: reviewCounts); «بلا قرارك حتى 06:00: لا يُنشر شيء.» is the third line
@@ -454,9 +457,9 @@ console.log("\n[ب] «بالمقترح» («انشر بالمقترح» before �
   await notify(env);
   const p = lineFor(3);
   const f = await openForm(env), po = f.item("بطاطس");
-  // § 55 — no market price and no suggested one: no «ربحنا» to show on the line, and the form says «لا سعر مقترح» (it was «… مقترح —»)
-  assert("the day's cost «تعذّر»: no suggested price on the line, so no «بالمقترح» — proposed «لا تنشر» («❌ بطاطس — لا سعر سوق ← لا تنشر»), the choices «لا تنشر» / «سعر يدوي», the form's lines «شراء 18 · لا سعر سوق» and «لا سعر مقترح»", p.x_suggested_price === 0 && reviewLines().includes("❌ بطاطس — لا سعر سوق ← لا تنشر")
-    && JSON.stringify(optionIds(f.data[`o${po.slot}`])) === JSON.stringify(["skip", "manual"]) && f.data[`x${po.slot}`] === "شراء 18 · لا سعر سوق" && f.data[`y${po.slot}`] === "لا سعر مقترح", JSON.stringify([p, f.data[`o${po.slot}`], f.data[`x${po.slot}`], f.data[`y${po.slot}`], reviewText()]));
+  // § 55 — no market price and no suggested one: the purchase price (18 → 20.70 «شامل») and no «ربحنا» to show on the line, and the form says «لا سعر مقترح» (it was «… مقترح —»)
+  assert("the day's cost «تعذّر»: no suggested price on the line, so no «بالمقترح» — proposed «لا تنشر» («❌ بطاطس — شراء 18 (20.70 شامل) · لا سعر سوق ← لا تنشر»), the choices «لا تنشر» / «سعر يدوي», the form's lines «شراء 18 (20.70 شامل) · لا سعر سوق» and «لا سعر مقترح»", p.x_suggested_price === 0 && reviewLines().includes("❌ بطاطس — شراء 18 (20.70 شامل) · لا سعر سوق ← لا تنشر")
+    && JSON.stringify(optionIds(f.data[`o${po.slot}`])) === JSON.stringify(["skip", "manual"]) && f.data[`x${po.slot}`] === "شراء 18 (20.70 شامل) · لا سعر سوق" && f.data[`y${po.slot}`] === "لا سعر مقترح", JSON.stringify([p, f.data[`o${po.slot}`], f.data[`x${po.slot}`], f.data[`y${po.slot}`], reviewText()]));
   const r = await quiet(() => PRV.handlePriceReviewButton(env, `prv_a_${dayOf().id}_1`));
   assert("…and «✅ نفّذ المقترح» approves nothing for it (never a guessed price): «لا تنشر», sale 0", /^all:/.test(r) && lineFor(3).x_decision === "skip" && lineFor(3).x_sale_price === 0 && lineFor(3).x_status === "unpublished" && (ownerTexts().at(-1) ?? "").includes("لا صنف للنشر اليوم."), JSON.stringify({ r, l: lineFor(3), t: ownerTexts().at(-1) }));
 }

@@ -44,15 +44,18 @@
 // cost — always with its sign and two decimals («+1.13», «−0.74»):
 //   • a line an item, its mark first: ✅ published with a profit, ❌ «لا تنشر»,
 //     ⚠️ an outlier (and under it «⚠️ سعر الشراء تغيّر كثير (آخر سعر ← اليوم)،
-//     تأكد منه»): «✅ موز — سوق 70 | ربحنا بسعر السوق: +1.13 ← انشر بـ 70»;
+//     تأكد منه»): «✅ موز — شراء 55 (63.25 شامل) · سوق 70 | ربحنا بسعر السوق:
+//     +1.13 ← انشر بـ 70» — the purchase price as entered (net of VAT) and, beside
+//     it, × 1.15 («شامل»), to set against the market price, which includes the VAT;
 //   • under the title «(الربح = صافي الكرتون بعد الضريبة والتالف والتشغيل)»;
 //   • three lines at the bottom say what each choice does: what «نفّذ المقترح»
 //     publishes, what it does not, and what goes out at the publication time
 //     with no tap at all;
 //   • the buttons: «✅ نفّذ المقترح», «✏️ عدّل», «⛔ لا تنشر شيء» — the same
 //     behaviour as § 54's;
-//   • the form (utak_owner_review_v2): two lines an item — «شراء X · سوق Y ·
-//     ربحنا بسعر السوق: ±a» and «سعرنا المقترح P = أعلى/أقل من السوق بـ d (±e%)»
+//   • the form (utak_owner_review_v2): two lines an item — «شراء X (X×1.15
+//     شامل) · سوق Y · ربحنا بسعر السوق: ±a» and «سعرنا المقترح P = أعلى/أقل من
+//     السوق بـ d (±e%)»
 //     — and every choice of the list carries its own profit;
 //   • the confirmation: every published item with its price and its profit, and
 //     «متوسط الربح للكرتون: ±x».
@@ -92,6 +95,8 @@ export const REVIEW_PURPOSE = EXCEPTION_PURPOSE;
 /** The one trial to Baraa and its answers (nothing written, nothing published). */
 export const REVIEW_TEST_PURPOSE = "price_review_test";
 export const REVIEW_TEST_MARK = "🧪 تجربة";
+/** The shape of the message the trial shows: the trial goes once a day for each (§ 55: «2» = the purchase price with its VAT on every line). */
+export const REVIEW_TEST_EDITION = "2";
 /** The three buttons (Meta: a reply button's title holds 20 characters). */
 /** § 55 — «نفّذ المقترح» (was «اعتمد الكل كما هو»), «عدّل» (was «مراجعة»), «لا تنشر شيء» (was «لا تنشر اليوم»): the same three actions. */
 export const REVIEW_BUTTON_ALL_NAME = "نفّذ المقترح";
@@ -258,6 +263,19 @@ export const publishesAsIs = (r: ReviewRow): boolean => (r.decision ? rowOutcome
 
 /** 06:00 → «الساعة 6»; a time that is not on the hour keeps its minutes: «الساعة 06:30». */
 export const clockAr = (minutes: number): string => `الساعة ${minutes % 60 === 0 ? String(Math.floor(minutes / 60)) : hhmm(minutes)}`;
+/** The purchase price is entered net of VAT (§ 47); beside it the review writes it with the VAT, to set against the market price. */
+export const PURCHASE_VAT_FACTOR = 1.15;
+/**
+ * «شراء 22 (25.30 شامل)»: the purchase price as entered and × 1.15 — always, and
+ * always with two decimals (whole halalas, half up: 12.50 → 14.375 → 14.38, where
+ * the float alone gives 14.37). "" without a
+ * purchase price: nothing is written.
+ */
+export function purchaseText(r: Pick<ReviewRow, "purchase">): string {
+  if (!(r.purchase > 0)) return "";
+  const withVat = Math.round(Math.round(r.purchase * PURCHASE_VAT_FACTOR * 1e6) / 1e4) / 100;
+  return `شراء ${money(r.purchase)} (${withVat.toFixed(2)} شامل)`;
+}
 /** «سوق 70»; with an uplift «سوق 30 (بعد الزيادة 31)»; none: «لا سعر سوق». */
 const marketText = (r: ReviewRow): string => (r.market > 0 ? `سوق ${money(r.market)}${r.upliftPct > 0 ? ` (بعد الزيادة ${money(r.sale)})` : ""}` : "لا سعر سوق");
 /** The day's cost could not be read («تعذّر», or no «الكراتين المتوقعة»): the row's full cost holds no carton share, and its profit says so. */
@@ -304,13 +322,14 @@ export function movedLines(r: ReviewRow): string[] {
 }
 
 /**
- * § 55 — an item's line, its mark first: «✅ موز — سوق 70 | ربحنا بسعر السوق:
- * +1.13 ← انشر بـ 70»; without a market price «✅ رمان صغير — لا سعر سوق | ربحنا
- * بالمقترح 19.50: +2.37 ← انشر بـ 19.50». No «الفرق», and no purchase price: the
- * form («✏️ عدّل») carries it.
+ * § 55 — an item's line, its mark first: «❌ رمان كبير — شراء 22 (25.30 شامل) ·
+ * سوق 28 | ربحنا بسعر السوق: −0.74 ← لا تنشر»; without a market price «✅ رمان
+ * صغير — شراء 12 (13.80 شامل) · لا سعر سوق | ربحنا بالمقترح 19.50: +2.37 ← انشر
+ * بـ 19.50». No «الفرق». Without a purchase price nothing is written for it.
  */
 export function reviewLine(r: ReviewRow): string {
-  return `${rowMark(r)} ${r.name} — ${[marketText(r), lineProfit(r)].filter(Boolean).join(" | ")} ← ${decisionText(r)}`;
+  const prices = [purchaseText(r), marketText(r)].filter(Boolean).join(" · ");
+  return `${rowMark(r)} ${r.name} — ${[prices, lineProfit(r)].filter(Boolean).join(" | ")} ← ${decisionText(r)}`;
 }
 /** …and under an outlier's line, what moved. */
 export const reviewItemLines = (r: ReviewRow): string[] => [reviewLine(r), ...movedLines(r)];
@@ -784,9 +803,9 @@ export interface ReviewFormItem {
 const chars = (s: string): string[] => [...String(s ?? "")];
 const cut = (s: string, max: number): string => { const c = chars(s); return c.length > max ? `${c.slice(0, max - 1).join("")}…` : c.join(""); };
 
-/** «شراء 22 · سوق 28 · ربحنا بسعر السوق: −0.74»; no market price: «شراء 12 · لا سعر سوق». An outlier: what moved, first. */
+/** «شراء 22 (25.30 شامل) · سوق 28 · ربحنا بسعر السوق: −0.74»; no market price: «شراء 12 (13.80 شامل) · لا سعر سوق». An outlier: what moved, first. */
 export function reviewInfo(r: ReviewRow): string {
-  const numbers = [r.purchase > 0 ? `شراء ${money(r.purchase)}` : "لا سعر شراء", marketText(r), r.sale > 0 ? profitText(r, "market", r.sale) : ""].filter(Boolean).join(" · ");
+  const numbers = [purchaseText(r) || "لا سعر شراء", marketText(r), r.sale > 0 ? profitText(r, "market", r.sale) : ""].filter(Boolean).join(" · ");
   return cut([...movedLines(r), numbers].join(" · "), REVIEW_INFO_MAX);
 }
 /** «+12.5%», «−4.7%», «+15%»: one decimal at most. */
@@ -1065,7 +1084,7 @@ export async function sendPriceReviewTest(env: Env, now: number = Date.now()): P
   const owner = ownerOf(env);
   if (!owner) return { sent: false, reason: "no_owner" };
   if (!(await readWindow(env, owner, now)).open) return { sent: false, reason: "window_closed" };
-  const claim = await claimButton(env, `prv_test:${REVIEW_FLOW_ID}:${riyadhDateKey(new Date(now))}`, DAY_TTL);
+  const claim = await claimButton(env, `prv_test:${REVIEW_FLOW_ID}:${REVIEW_TEST_EDITION}:${riyadhDateKey(new Date(now))}`, DAY_TTL);
   if (!claim.claimed) return { sent: false, reason: "already_today" };
   try {
     let rec: Pick<DayRecord, "id" | "x_date"> | null = await readDay(env, riyadhDateKey(new Date(now)));

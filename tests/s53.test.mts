@@ -13,11 +13,11 @@
 //        longer the suggested price (29), so the day's two exceptions are markets of 26 and 25 (they
 //        were 28 and 27, automatic at the market price since § 54); what Baraa read in a message per
 //        exception he reads in the review and its form, and «انشر بسعر السوق» is a choice of the form.
-//        § 55 (2026-10-05) — the review made plain: its message carries no purchase price any more
-//        (an item's line is its market price, «ربحنا» — the board's net of a carton, made from the
-//        purchase price — and its decision); the purchase price itself is on the first line of the
-//        form's item, the suggested price against the market on its second, and each choice carries
-//        its own profit. Who reads them is unchanged: Baraa alone.
+//        § 55 (2026-10-05) — the review made plain: an item's line is its purchase price with × 1.15
+//        beside it («شراء 21.37 (24.58 شامل)»), its market price, «ربحنا» — the board's net of a
+//        carton, made from the purchase price — and its decision; the form's item says the same on
+//        its first line, the suggested price against the market on its second, and each choice
+//        carries its own profit. Who reads them is unchanged: Baraa alone.
 //   [هـ] utak_pay_remind_iban_v1: approved UTILITY → it replaces the reminder of before; pending,
 //        refused or MARKETING → the reminder of before; an IBAN that is no longer the company's → never
 //
@@ -277,7 +277,7 @@ console.log("\n[أ] the closed numbers: every price source and supplier, by «x_
 }
 
 // ================================================================ [أ] what is Baraa's reaches Baraa alone
-console.log("\n[أ] the owner's messages — the day's review (the market and «ربحنا»; the purchase price in its form), his copy, his alerts — reach his number alone");
+console.log("\n[أ] the owner's messages — the day's review with the purchase price and the market, his copy, his alerts — reach his number alone");
 {
   const env = world(`${DAY} 04:10`);
   for (const d of [RAED_PHONE, DRIVER_PHONE, AHMED_PHONE, CUST_PHONE]) openWindow(env, d, 1);
@@ -294,7 +294,7 @@ console.log("\n[أ] the owner's messages — the day's review (the market and «
   assert("to Baraa's own number they go as before", mine?.action === "session" && sentTo(OWNER).length === 1, JSON.stringify(mine));
 }
 
-console.log("\n[أ] a real morning: the day's review (market, «ربحنا», the proposed decision — the purchase price and the suggested price in its form) reaches Baraa and nobody else");
+console.log("\n[أ] a real morning: the day's review (purchase, market, «ربحنا», the proposed decision — the suggested price against the market in its form) reaches Baraa and nobody else");
 {
   const env = world(`${DAY} 04:10`);
   for (const d of [RAED_PHONE, DRIVER_PHONE, AHMED_PHONE, CUST_PHONE]) openWindow(env, d, 1);
@@ -303,22 +303,22 @@ console.log("\n[أ] a real morning: the day's review (market, «ربحنا», th
   await quiet(() => PR.refreshPriceDay(env, { force: true }));
   const n = await quiet(() => PRV.notifyPriceReviewMessage(env));
   const mine = ownerTexts().join("\n");
-  // § 55 — the message carries no purchase price any more: «ربحنا» is made from it. The full cost of a purchase of 21.37:
+  // § 55 — the purchase with × 1.15 beside it: 21.37 × 1.15 = 24.5755 → 24.58 «شامل». «ربحنا» is made from the full cost of that purchase:
   // 21.37 + waste 5 % 1.07 + the carton share 2 = 24.44; at the market 25.25: 25.25 ÷ 1.15 = 21.96 − 24.44 = −2.48
-  assert("Baraa reads it all, in ONE message: the market 25.25, what a carton makes there — «ربحنا» −2.48, made from the purchase 21.37 — and the proposed decision", n.action === "sent" && sentTo(OWNER).length === 1 && lineFor(1).x_cost_price === AHMED_PRICE && lineFor(1).x_full_cost === 24.44 && has(mine, 25.25) && mine.split("\n").includes("❌ طماطم — سوق 25.25 | ربحنا بسعر السوق: −2.48 ← لا تنشر"), mine.slice(0, 300));
+  assert("Baraa reads it all, in ONE message: the purchase 21.37 (24.58 «شامل» beside it), the market 25.25, what a carton makes there («ربحنا» −2.48) and the proposed decision", n.action === "sent" && sentTo(OWNER).length === 1 && has(mine, AHMED_PRICE) && has(mine, 24.58) && has(mine, 25.25) && lineFor(1).x_cost_price === AHMED_PRICE && lineFor(1).x_full_cost === 24.44 && mine.split("\n").includes("❌ طماطم — شراء 21.37 (24.58 شامل) · سوق 25.25 | ربحنا بسعر السوق: −2.48 ← لا تنشر"), mine.slice(0, 300));
   const f = await reviewForm(env);
   // the suggested price (24.44 + 2) × 1.15 = 30.406 → 30.50: 5.25 above the market (5.25 ÷ 25.25 = 20.8 %), and 30.50 ÷ 1.15 = 26.52 − 24.44 = +2.08
-  assert("…and in its form («✏️ عدّل») the purchase price itself (21.37, no longer in the message) on the item's first line, the suggested price against the market on its second, sent to his number", f.action === "form" && f.sent.length === 1 && !has(mine, AHMED_PRICE) && f.info("طماطم") === "شراء 21.37 · سوق 25.25 · ربحنا بسعر السوق: −2.48" && f.info2("طماطم") === "سعرنا المقترح 30.50 = أعلى من السوق بـ 5.25 (+20.8%)", `${f.info("طماطم")} | ${f.info2("طماطم")}`);
+  assert("…and in its form («✏️ عدّل») the same purchase price (21.37, 24.58 «شامل») on the item's first line, the suggested price against the market on its second, sent to his number", f.action === "form" && f.sent.length === 1 && f.info("طماطم") === "شراء 21.37 (24.58 شامل) · سوق 25.25 · ربحنا بسعر السوق: −2.48" && f.info2("طماطم") === "سعرنا المقترح 30.50 = أعلى من السوق بـ 5.25 (+20.8%)", `${f.info("طماطم")} | ${f.info2("طماطم")}`);
   assert("…each choice with its own profit, and «بدون خسارة» (28.11) on the line in Odoo and in the form's record", JSON.stringify(f.options("طماطم")) === JSON.stringify([{ id: "profit", title: "بالمقترح 30.50 (ربح +2.08)" }, { id: "market", title: "بسعر السوق 25.25 (ربح −2.48)" }, { id: "skip", title: "لا تنشر" }, { id: "manual", title: "سعر يدوي" }]) && lineFor(1).x_break_even === 28.11 && f.item("طماطم")?.breakEven === 28.11, JSON.stringify([f.options("طماطم"), f.item("طماطم")?.breakEven]));
   assert("رائد, عمر, أحمد and a customer were sent nothing by the engine's run, the review or its form", [RAED_PHONE, DRIVER_PHONE, AHMED_PHONE, CUST_PHONE].every((d) => sentTo(d).length === 0 && heldFor(env, d).length === 0));
-  // the same texts under the review's own purpose (or its trial's), addressed to anybody else: the review's body (its «ربحنا»
-  // is made from the purchase price) and — § 55 — the line of its form that carries the purchase price itself
+  // the same texts under the review's own purpose (or its trial's), addressed to anybody else: the review's body and — § 55 —
+  // the first line of its form's item, which both carry the purchase price itself (and «ربحنا», made from it)
   const leaked: string[] = [];
   for (const p of [PRV.REVIEW_PURPOSE, PRV.REVIEW_TEST_PURPOSE]) for (const d of [RAED_PHONE, DRIVER_PHONE, AHMED_PHONE, CUST_PHONE]) for (const [what, t] of [["review", reviewBody()], ["form", f.info("طماطم")]]) {
     const r = await gw(env, p, "+" + d, t);
     if (r?.action !== "refused" || !/OwnerOnlyPurpose/.test(String((r as any).reason))) leaked.push(`${p}:${what}→${d}`);
   }
-  assert("the review's own text (its «ربحنا») and its form's line (the purchase 21.37), addressed with its purpose (or its trial's) to رائد, عمر, أحمد or a customer, are refused by the gateway («OwnerOnlyPurpose»): nothing sent, nothing held", reviewBody().includes("ربحنا بسعر السوق: −2.48") && has(f.info("طماطم"), AHMED_PRICE) && leaked.length === 0 && [RAED_PHONE, DRIVER_PHONE, AHMED_PHONE, CUST_PHONE].every((d) => sentTo(d).length === 0 && heldFor(env, d).length === 0), leaked.join(" "));
+  assert("the review's own text and its form's line (each carries the purchase 21.37), addressed with its purpose (or its trial's) to رائد, عمر, أحمد or a customer, are refused by the gateway («OwnerOnlyPurpose»): nothing sent, nothing held", has(reviewBody(), AHMED_PRICE) && has(reviewBody(), 24.58) && has(f.info("طماطم"), AHMED_PRICE) && leaked.length === 0 && [RAED_PHONE, DRIVER_PHONE, AHMED_PHONE, CUST_PHONE].every((d) => sentTo(d).length === 0 && heldFor(env, d).length === 0), leaked.join(" "));
   assert("no field rejected by the schema gate", rejected.length === 0, rejected.join(" | "));
 }
 
@@ -454,13 +454,13 @@ console.log("\n[ب] a whole day at 0 %: the lines, the day's review and the publ
   assert("خيار (26) and بطاطس (25): exceptions «سعر السوق … أقل من سعر بدون خسارة 26.45»", l2.x_status === "exception" && l2.x_reason === "سعر السوق 26 أقل من سعر بدون خسارة 26.45" && l3.x_status === "exception" && l3.x_reason === "سعر السوق 25 أقل من سعر بدون خسارة 26.45", JSON.stringify([l2.x_reason, l3.x_reason]));
   await quiet(() => PRV.notifyPriceReviewMessage(env));
   const t = reviewBody();
-  // § 55 — «ربحنا» = the price ÷ 1.15 − the full cost (20 + 1 + 2 = 23): 30 → 26.09 − 23 = +3.09; 26 → 22.61 − 23 = −0.39; 25 → 21.74 − 23 = −1.26
+  // § 55 — the purchase 20 with × 1.15 beside it (23.00 «شامل»); «ربحنا» = the price ÷ 1.15 − the full cost (20 + 1 + 2 = 23): 30 → 26.09 − 23 = +3.09; 26 → 22.61 − 23 = −0.39; 25 → 21.74 − 23 = −1.26
   const tl = t.split("\n");
-  assert("the review has no «بعد الزيادة» anywhere: each item its market, «ربحنا» at that price and its proposed decision — a line an item", !/الزيادة/.test(t) && tl.includes("✅ طماطم — سوق 30 | ربحنا بسعر السوق: +3.09 ← انشر بـ 30") && tl.includes("❌ خيار — سوق 26 | ربحنا بسعر السوق: −0.39 ← لا تنشر") && tl.includes("❌ بطاطس — سوق 25 | ربحنا بسعر السوق: −1.26 ← لا تنشر") && tl.filter((x) => / ← /.test(x)).length === 4, t);
+  assert("the review has no «بعد الزيادة» anywhere: each item its purchase, its market, «ربحنا» at that price and its proposed decision — a line an item", !/الزيادة/.test(t) && tl.includes("✅ طماطم — شراء 20 (23.00 شامل) · سوق 30 | ربحنا بسعر السوق: +3.09 ← انشر بـ 30") && tl.includes("❌ خيار — شراء 20 (23.00 شامل) · سوق 26 | ربحنا بسعر السوق: −0.39 ← لا تنشر") && tl.includes("❌ بطاطس — شراء 20 (23.00 شامل) · سوق 25 | ربحنا بسعر السوق: −1.26 ← لا تنشر") && tl.filter((x) => / ← /.test(x)).length === 4, t);
   assert("…and its three lines under the table say what each choice publishes — طماطم at the market price as it is (30), with or without his tap", JSON.stringify(tl.slice(-3)) === JSON.stringify(["لو ضغطت «نفّذ المقترح» ينتشر: طماطم 30", "وما ينتشر: خيار، بطاطس، بصل", "لو ما ضغطت شي، الساعة 6 ينتشر تلقائياً: طماطم 30"]), tl.slice(-3).join(" | "));
   const f = await reviewForm(env);
   // the suggested 29 against the market 26: 3 above it, 3 ÷ 26 = 11.5 %
-  assert("«بسعر السوق» is offered at 26 in its form (with its profit, −0.39), whose two lines have no «بعد الزيادة» either", f.options("خيار").find((c) => c.id === "market")?.title === "بسعر السوق 26 (ربح −0.39)" && f.info("خيار") === "شراء 20 · سوق 26 · ربحنا بسعر السوق: −0.39" && f.info2("خيار") === "سعرنا المقترح 29 = أعلى من السوق بـ 3 (+11.5%)", JSON.stringify([f.options("خيار"), f.info("خيار"), f.info2("خيار")]));
+  assert("«بسعر السوق» is offered at 26 in its form (with its profit, −0.39), whose two lines have no «بعد الزيادة» either", f.options("خيار").find((c) => c.id === "market")?.title === "بسعر السوق 26 (ربح −0.39)" && f.info("خيار") === "شراء 20 (23.00 شامل) · سوق 26 · ربحنا بسعر السوق: −0.39" && f.info2("خيار") === "سعرنا المقترح 29 = أعلى من السوق بـ 3 (+11.5%)", JSON.stringify([f.options("خيار"), f.info("خيار"), f.info2("خيار")]));
   const ok = await f.answer({ [`d${f.slot("خيار")}`]: "market" });
   const conf = ownerTexts().at(-1) ?? "";
   // the form's other items stay on the choice their list opened on: طماطم «بسعر السوق» 30 (+3.09) — the mean of the two published: (3.09 − 0.39) ÷ 2 = +1.35
@@ -485,10 +485,10 @@ console.log("\n[ب] the same day at 3 %");
   await quiet(() => PRV.notifyPriceReviewMessage(env));
   const t = reviewBody();
   const f = await reviewForm(env);
-  // § 55 — «ربحنا» is made at the price after the uplift (the full cost 23): 31 → 26.96 − 23 = +3.96; 27 → 23.48 − 23 = +0.48; 26 → 22.61 − 23 = −0.39
+  // § 55 — the purchase 20 (23.00 «شامل») first; «ربحنا» is made at the price after the uplift (the full cost 23): 31 → 26.96 − 23 = +3.96; 27 → 23.48 − 23 = +0.48; 26 → 22.61 − 23 = −0.39
   const tl = t.split("\n");
-  assert("the review shows the market as it was observed (30, 26, 25) and the price it would publish «(بعد الزيادة 31)», with «ربحنا» at that price; the form, بطاطس «سوق 25 (بعد الزيادة 26)»", tl.includes("✅ طماطم — سوق 30 (بعد الزيادة 31) | ربحنا بسعر السوق: +3.96 ← انشر بـ 31") && tl.includes("✅ خيار — سوق 26 (بعد الزيادة 27) | ربحنا بسعر السوق: +0.48 ← انشر بـ 27") && tl.includes("❌ بطاطس — سوق 25 (بعد الزيادة 26) | ربحنا بسعر السوق: −0.39 ← لا تنشر")
-    && f.info("بطاطس") === "شراء 20 · سوق 25 (بعد الزيادة 26) · ربحنا بسعر السوق: −0.39", `${t}\n${f.info("بطاطس")}`);
+  assert("the review shows the market as it was observed (30, 26, 25) and the price it would publish «(بعد الزيادة 31)», with «ربحنا» at that price; the form, بطاطس «سوق 25 (بعد الزيادة 26)»", tl.includes("✅ طماطم — شراء 20 (23.00 شامل) · سوق 30 (بعد الزيادة 31) | ربحنا بسعر السوق: +3.96 ← انشر بـ 31") && tl.includes("✅ خيار — شراء 20 (23.00 شامل) · سوق 26 (بعد الزيادة 27) | ربحنا بسعر السوق: +0.48 ← انشر بـ 27") && tl.includes("❌ بطاطس — شراء 20 (23.00 شامل) · سوق 25 (بعد الزيادة 26) | ربحنا بسعر السوق: −0.39 ← لا تنشر")
+    && f.info("بطاطس") === "شراء 20 (23.00 شامل) · سوق 25 (بعد الزيادة 26) · ربحنا بسعر السوق: −0.39", `${t}\n${f.info("بطاطس")}`);
   assert("…its three lines under the table name the prices after the uplift (طماطم 31, خيار 27), with or without his tap", JSON.stringify(tl.slice(-3)) === JSON.stringify(["لو ضغطت «نفّذ المقترح» ينتشر: طماطم 31، خيار 27", "وما ينتشر: بطاطس، بصل", "لو ما ضغطت شي، الساعة 6 ينتشر تلقائياً: طماطم 31، خيار 27"]), tl.slice(-3).join(" | "));
   // the suggested price is set against the market AS OBSERVED (25, before the uplift): 29 − 25 = 4, 4 ÷ 25 = 16 %
   assert("…and its second line compares the suggested 29 with the market as it was observed (25), not with the price after the uplift", f.info2("بطاطس") === "سعرنا المقترح 29 = أعلى من السوق بـ 4 (+16%)", f.info2("بطاطس"));

@@ -153,6 +153,11 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // template and never held. A reply: each answers what he just sent, so one message Meta refused
   // does not stop his next notice for 24h.
   customer_transfer_form: { label: "نموذج إشعار التحويل", kind: "reply", important: false, ttl: { hours: 2 } },
+  // § 58 أ — «لو حوّلت أو عندك ملاحظة على الطلب، اضغط هنا 👇» with «🏦 أرسلت تحويل» and «⚠️ عندي
+  // ملاحظة» (src/after-delivery.ts): ONE time an order, after its invoice or «تم التسليم» reached the
+  // customer — inside his 24h window only, never a template and never held. A reply: it follows what
+  // was just sent to him, so one refusal does not stop the next order's.
+  customer_after_delivery: { label: "زرّا التحويل والملاحظة بعد التسليم", kind: "reply", important: false, ttl: { hours: 2 } },
   // § 57 د — Baraa's decision on a notice as the customer reads it («استلمنا تحويلك» / «ما وصلنا
   // التحويل»): it may come hours after the notice, so outside his window it waits for it, and Baraa
   // is told that it waits. A reply: each answers ONE notice, so a line Meta refused does not stop
@@ -231,6 +236,12 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // § 57 د — the one trial of the transfer-notice form to Baraa's own number («🧪 تجربة»), inside
   // his window only, and the answers to his trial reply (nothing written, nobody else told).
   transfer_form_test: op("تجربة نموذج إشعار التحويل", false, { hours: 1 }),
+  // § 58 هـ — the three trials of § 58 to Baraa's own number («🧪 تجربة»), inside his window only,
+  // once each: the two buttons after an invoice, the ONE message of «✅ وصل» for two invoices, and the
+  // two target lines of the 21:30 summary (with illustrative numbers that say so). Nothing is written.
+  after_delivery_test: op("تجربة زرّي التحويل والملاحظة", false, { hours: 1 }),
+  transfer_confirmed_test: op("تجربة رسالة «✅ وصل» الموحّدة", false, { hours: 1 }),
+  target_lines_test: op("تجربة سطري الهدف مقابل الفعلي", false, { hours: 1 }),
   // § 57 هـ — the one trial of the complaint form to Baraa's own number («🧪 تجربة»), inside his
   // window only, and the answers to his trial reply (nothing written, nobody else told).
   complaint_form_test: op("تجربة نموذج الملاحظة", false, { hours: 1 }),

@@ -691,9 +691,12 @@ export async function notifyCustomerDelivered(
   // MARKETING utak_delivery_done is never used for it), else the text inside
   // the customer's window.
   const msg = `مرحبا ${customerName || ""} 🌿\nتم توصيل طلبك رقم #${orderId}. الفاتورة النهائية بتوصلك قريباً.\nشكراً لثقتك في UTAK.`;
+  // § 57 هـ — the free text alone carries «⚠️ عندي ملاحظة» (his complaint form, src/complaint-form.ts):
+  // a template's buttons are the ones Meta approved.
+  const { complaintStartButton } = await import("./complaint-form");
   await sendTemplateByPurpose(env, customerPhone, T.CUSTOMER_DELIVERY_DONE,
     (name) => (name === "utak_delivery_done" ? [customerName || ""] : [String(orderId)]), [], undefined,
-    { fallback: [textContent(msg)] });
+    { fallback: [buttonsContent(msg, [complaintStartButton()])] });
 }
 
 // ============================================================

@@ -149,6 +149,20 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // is told that it waits. A reply: each answers ONE notice, so a line Meta refused does not stop
   // the decision of his next notice for 24h.
   customer_transfer_decision: { label: "نتيجة إشعار التحويل", kind: "reply", important: true, ttl: { hours: 48 } },
+  // § 57 هـ — the customer's complaint form «عندي ملاحظة» (a WhatsApp Flow: his orders delivered in
+  // the last seven days and their items, the kind, the quantity, a photo) and the answers to his own
+  // «إرسال»: inside his 24h window only, never a template and never held. A reply: each answers what
+  // he just sent, so one message Meta refused does not stop his next note for 24h.
+  customer_complaint_form: { label: "نموذج الملاحظة (الشكوى)", kind: "reply", important: false, ttl: { hours: 2 } },
+  // § 57 هـ — Baraa's decision on a complaint as the customer reads it (one fixed text a decision):
+  // it may come hours after the note, so outside his window it waits for it, and Baraa is told that
+  // it waits. A reply: each answers ONE note, so a line Meta refused does not stop the next one's.
+  customer_complaint_decision: { label: "قرار الملاحظة (الشكوى)", kind: "reply", important: true, ttl: { hours: 48 } },
+  // § 57 هـ — a customer's complaint to Baraa (the summary, the photo, «تعويض بالطلب القادم» /
+  // «إشعار دائن» / «رفض») and what he reads after a tap: his number alone; outside his window it
+  // waits for his next message. A reply: a note Meta refused (the photo as its header) is sent again
+  // without it, and never stops the next customer's.
+  owner_complaint_notice: { label: "ملاحظة عميل (شكوى)", kind: "reply", important: false, ttl: { hours: 36 } },
   // § 57 د — a customer's transfer notice to Baraa (the receipt, «✅ وصل» / «❌ ما وصل») and what he
   // reads after a tap: his number alone; outside his window it waits for his next message. A reply:
   // a notice Meta refused (the receipt as its header) is sent again without it, and never stops the
@@ -208,6 +222,9 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // § 57 د — the one trial of the transfer-notice form to Baraa's own number («🧪 تجربة»), inside
   // his window only, and the answers to his trial reply (nothing written, nobody else told).
   transfer_form_test: op("تجربة نموذج إشعار التحويل", false, { hours: 1 }),
+  // § 57 هـ — the one trial of the complaint form to Baraa's own number («🧪 تجربة»), inside his
+  // window only, and the answers to his trial reply (nothing written, nobody else told).
+  complaint_form_test: op("تجربة نموذج الملاحظة", false, { hours: 1 }),
   // § 55 ب — the delivery and collection form when Baraa himself delivers (from the car), and its
   // summary: his number alone, inside his window only. A reply to his own tap, as the team's.
   owner_delivery_form: { label: "نموذج التسليم والتحصيل (المالك)", kind: "reply", important: false, ttl: { hours: 2 } },

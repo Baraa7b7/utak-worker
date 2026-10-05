@@ -1825,6 +1825,24 @@ export default {
       }
     }
 
+    // § 57 هـ — the ONE trial of the complaint form: to Baraa's own number, while his window is
+    // open, once a day, listing the latest real delivered order (read-only), else a simulation's,
+    // else a sample. His reply writes nothing and reaches nobody else
+    // (src/complaint-form.ts sendComplaintFormTest).
+    if (request.method === "POST" && url.pathname === "/odoo/hook/complaint-form-test") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      try {
+        const { sendComplaintFormTest } = await import("./complaint-form");
+        return json({ ok: true, ...(await sendComplaintFormTest(env)) });
+      } catch (e) {
+        return json({ ok: false, error: (e as Error).message }, 500);
+      }
+    }
+
     // § 55 هـ — the ONE trial of the custody form: to Baraa's own number, while his window is
     // open, once a day, showing today's real cash collections (read-only). His reply keeps
     // nothing (src/custody-form.ts sendCustodyFormTest).
@@ -2505,6 +2523,11 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           const { handleRegisterFormReply } = await import("./register-form");
           const r = await handleRegisterFormReply(env, msg, ctx);
           console.log(`[register-form] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} ${r.action}${r.problems?.length ? ` (${r.problems.join(",")})` : ""}`);
+        } else if ((await import("./complaint-form")).isComplaintToken(msg.flow.token ?? "")) {
+          // § 57 هـ — the customer's «عندي ملاحظة»: ONE complaint on record, and Baraa's three buttons (nothing is compensated here)
+          const { handleComplaintReply } = await import("./complaint-form");
+          const r = await handleComplaintReply(env, msg, ctx);
+          console.log(`[complaint] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} ${r.action}${r.complaintId ? ` complaint=${r.complaintId}` : ""}${r.problems?.length ? ` (${r.problems.join(",")})` : ""}`);
         } else if ((await import("./car-load")).isCarLoadToken(msg.flow.token ?? "")) {
           // § 55 ج — the driver's car load: the morning's quantities, or the evening's left and damaged
           const { handleCarLoadReply } = await import("./car-load");
@@ -2846,6 +2869,12 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           const { handleTransferDecision } = await import("./transfer-form");
           const r = await handleTransferDecision(env, msg.buttonId!, msg.from, ctx);
           console.log(`[transfer] button ${msg.buttonId} → ${r?.action ?? "not a notice's button"}`);
+        } else if ((msg.type === "interactive" || msg.type === "button") && /^cmp_(comp|credit|reject)_/.test(msg.buttonId ?? "")) {
+          // § 57 هـ — «تعويض بالطلب القادم» / «إشعار دائن» / «رفض» under a customer's complaint: the decision
+          // on its row and one fixed text to the customer — once (src/complaint-form.ts answers him itself, and never throws).
+          const { handleComplaintDecision } = await import("./complaint-form");
+          const r = await handleComplaintDecision(env, msg.buttonId!, msg.from, ctx);
+          console.log(`[complaint] button ${msg.buttonId} → ${r?.action ?? "not a complaint's button"}`);
         } else if ((msg.type === "interactive" || msg.type === "button") && /^dlv_\d+$/.test(msg.buttonId ?? "")) {
           // § 55 ب — «📦 سلّم وحصّل» under a confirmed order: the delivery and collection form, to him
           // (its «إرسال» delivers the order by the delivered quantities, with its payment).

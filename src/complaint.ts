@@ -52,6 +52,20 @@ export async function classifyComplaint(
     return { type, severity };
   } catch { return { type: "other", severity: "medium" }; }
 }
+/**
+ * § 57 هـ — a customer's complaint in words (a keyword above, or Claude's
+ * «complaint» intent): with an order delivered to him in the last seven days
+ * he gets the form «عندي ملاحظة» (src/complaint-form.ts) and NO row is made
+ * yet — his words stay with the form and are written with its note when he
+ * sends it. False — no such order, or a form that could not go: the caller
+ * does what it did before.
+ */
+export async function answerComplaintWithForm(
+  env: Env, customer: { id: number; name?: string }, from: string, text: string,
+): Promise<boolean> {
+  const { offerComplaintForm } = await import("./complaint-form");
+  return (await offerComplaintForm(env, { partnerId: customer.id, name: customer.name || "", whatsapp: from }, { words: text })).sent;
+}
 export async function handleComplaint(
   env: Env, customerId: number, customerName: string, text: string,
 ): Promise<string> {

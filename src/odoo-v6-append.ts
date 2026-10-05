@@ -96,6 +96,10 @@ export async function setOrderConfirmed(env: Env, orderId: number): Promise<void
 // ---- v6.3 Complaints ----
 export type ComplaintType = "quality" | "quantity" | "delay" | "staff_behavior" | "pricing" | "other";
 export type ComplaintSeverity = "low" | "medium" | "high" | "critical";
+/** § 57 هـ — what the customer chose in the form utak_complaint_v1 (x_kind). */
+export type ComplaintKind = "damaged" | "short" | "quality" | "delay" | "other";
+/** § 57 هـ — Baraa's decision from WhatsApp (x_decision). */
+export type ComplaintDecision = "compensate_next" | "credit_note" | "rejected";
 
 export async function createComplaint(
   env: Env,
@@ -105,6 +109,16 @@ export async function createComplaint(
     type: ComplaintType;
     severity: ComplaintSeverity;
     text: string;
+    /**
+     * § 57 هـ — the form's own fields (src/complaint-form.ts), each written only
+     * when the form gave it: a complaint from a plain text has none of them.
+     */
+    kind?: ComplaintKind;
+    orderLineId?: number;
+    productId?: number;
+    affectedQty?: number;
+    /** The customer's picture, base64 (x_photo is a binary field). */
+    photoBase64?: string;
   },
 ): Promise<number | null> {
   const nowStr = new Date().toISOString().replace("T", " ").slice(0, 19);
@@ -117,8 +131,56 @@ export async function createComplaint(
     x_created_at: nowStr,
   };
   if (args.orderId) vals.x_order_id = args.orderId;
+  if (args.kind) vals.x_kind = args.kind;
+  if (args.orderLineId) vals.x_order_line_id = args.orderLineId;
+  if (args.productId) vals.x_product_tmpl_id = args.productId;
+  if (args.affectedQty !== undefined) vals.x_affected_qty = args.affectedQty;
+  if (args.photoBase64) vals.x_photo = args.photoBase64;
   const ids = await v6Call<number[]>(env, "x_complaint", "create", { vals_list: [vals] });
   return Array.isArray(ids) ? ids[0] : (ids as unknown as number);
+}
+
+/** § 57 هـ — a complaint as Baraa's decision reads it: whose it is, and where it stands. */
+export interface ComplaintBrief {
+  id: number;
+  customerId: number;
+  customer: string;
+  status: string;
+  decision: ComplaintDecision | "";
+  decidedAt: string;
+  resolutionNote: string;
+}
+export async function getComplaintBrief(env: Env, complaintId: number): Promise<ComplaintBrief | null> {
+  type Row = { id: number; x_customer_id: [number, string] | false; x_status: string | false; x_decision: ComplaintDecision | false; x_decided_at: string | false; x_resolution_note: string | false };
+  const rows = await v6Call<Row[]>(env, "x_complaint", "search_read", {
+    domain: [["id", "=", complaintId]],
+    fields: ["id", "x_customer_id", "x_status", "x_decision", "x_decided_at", "x_resolution_note"], limit: 1,
+  });
+  const r = rows[0];
+  if (!r || !r.x_customer_id) return null;
+  return {
+    id: r.id, customerId: r.x_customer_id[0], customer: r.x_customer_id[1], status: r.x_status || "",
+    decision: r.x_decision || "", decidedAt: r.x_decided_at || "", resolutionNote: r.x_resolution_note || "",
+  };
+}
+/**
+ * § 57 هـ — Baraa's decision on a complaint: the decision, its moment, a line in
+ * the resolution note and the status. A refusal closes it (dismissed, with its
+ * moment); the two others leave it «investigating» — the compensation and the
+ * credit note are made by hand, and Baraa closes it in Odoo when it is done.
+ * Nothing else is written anywhere.
+ */
+export async function writeComplaintDecision(
+  env: Env, complaintId: number,
+  args: { decision: ComplaintDecision; atMs: number; resolutionNote: string },
+): Promise<void> {
+  const at = new Date(args.atMs).toISOString().replace("T", " ").slice(0, 19);
+  const vals: Record<string, unknown> = {
+    x_decision: args.decision, x_decided_at: at, x_resolution_note: args.resolutionNote,
+    x_status: args.decision === "rejected" ? "dismissed" : "investigating",
+  };
+  if (args.decision === "rejected") vals.x_resolved_at = at;
+  await v6Call(env, "x_complaint", "write", { ids: [complaintId], vals });
 }
 export async function findLatestOrderForCustomer(env: Env, customerId: number): Promise<number | null> {
   const rows = await v6Call<Array<{ id: number }>>(env, "x_daily_order", "search_read", {

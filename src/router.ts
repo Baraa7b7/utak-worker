@@ -42,7 +42,7 @@ import {
   warehouseConfirmedPurchase,
 } from "./team";
 import { markStopDelivered, markStopIssue } from "./odoo";
-import { looksLikeComplaint, handleComplaint } from "./complaint";
+import { looksLikeComplaint, handleComplaint, answerComplaintWithForm } from "./complaint";
 import { handleStandingConfirm, handleStandingEdit, handleStandingSkip } from "./standing";
 import { minimumText, orderMinimum } from "./order-pricing";
 import { quotationZeroGuard } from "./zero-price";
@@ -117,6 +117,12 @@ export async function dispatch(env: Env, input: RouterInput): Promise<RouterRepl
     msg.text &&
     looksLikeComplaint(msg.text)
   ) {
+    // § 57 هـ — with an order delivered in the last seven days: the form «عندي ملاحظة», and no row
+    // yet (his words go with the form). Without one, or when it cannot go: the complaint of before.
+    if (await answerComplaintWithForm(env, partner, msg.from, msg.text)) {
+      await logMessageAnalysis(env, { customerId: partner.id, text: msg.text, intent: "complaint", actionTaken: "complaint:form_sent" });
+      return { text: "" };
+    }
     const reply = await handleComplaint(env, partner.id, partner.name || "", msg.text);
     await logMessageAnalysis(env, {
       customerId: partner.id,
@@ -134,6 +140,12 @@ export async function dispatch(env: Env, input: RouterInput): Promise<RouterRepl
     intent,
     actionTaken: "", // filled below when meaningful
   });
+
+  // § 57 هـ — Claude read it as a complaint (no keyword of ours in it): the same form, on the same
+  // condition. Without it the composed reply below, as before.
+  if (intent === "complaint" && senderType === "customer" && partner?.id && msg.text && (await answerComplaintWithForm(env, partner, msg.from, msg.text))) {
+    return { text: "" };
+  }
 
   switch (intent) {
     case "greeting": {
@@ -471,6 +483,12 @@ async function handleButton(
   {
     const { TRANSFER_BUTTON, answerTransferButton } = await import("./transfer-form");
     if (t === TRANSFER_BUTTON) return await answerTransferButton(env, partner);
+  }
+
+  // ---- § 57 هـ: «⚠️ عندي ملاحظة» under the delivery's free text — the customer's complaint form ----
+  {
+    const { COMPLAINT_BUTTON, answerComplaintButton } = await import("./complaint-form");
+    if (t === COMPLAINT_BUTTON) return await answerComplaintButton(env, partner);
   }
 
   // ---- 2026-09-24 (ح2): closed-hours prompt «سجّله لبكرة» / «لا شكراً» ----

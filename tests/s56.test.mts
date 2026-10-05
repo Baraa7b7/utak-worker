@@ -313,4 +313,13 @@ const text = (html: string) => html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " "
   assert("the arch is well formed: the body alone, and the whole form with it", wellFormed(String(UI.DAY_BODY)) === "" && wellFormed(now) === "" && wellFormed("<a><b></a>") !== "" && wellFormed(`<a x="1">`) !== "", `${wellFormed(String(UI.DAY_BODY))} / ${wellFormed(now)}`);
 }
 
+// ================================================================ the team's guide
+{
+  const guide = readFileSync(new URL("../docs/OPERATING-DAY.md", import.meta.url), "utf8");
+  assert("OPERATING-DAY: how «📊 اليوم» is read — the four numbers, the nine columns in their order, the decision by opening the item", ["«✅ للنشر»", "«❌ لا تنشر»", "«⚠️ سعر شاذ ينتظرك»", "«متوسط ربح الكرتون»", "المعتمد الآن بلا قرار منك"].every((t) => guide.includes(t))
+    && /الصنف · \*\*الشراء \(بدون ضريبة\)\*\* · \*\*الشراء شامل\*\*[^\n]*\*\*السوق\*\* · \*\*ربحنا بسعر السوق ±\*\* · \*\*المقترح \(وربحه\)\*\*[^\n]*\*\*فرق المقترح عن السوق ±\*\*[^\n]*\*\*القرار\*\* · \*\*السبب\*\*/.test(guide) && /اضغط سطر الصنف لتفتح تفاصيله/.test(guide) && guide.includes("«ينتظر قرارك»"));
+  assert("OPERATING-DAY: how the chart is read — «سعرنا مقابل السوق» with its three marks on one axis, an item without a market price, and «ربح الكرتون» around the zero line", guide.includes(`«${DS.CHART_TITLE_PRICES}»`) && guide.includes(`«${DS.CHART_TITLE_PROFIT}»`) && /■ الشراء شامل الضريبة/.test(guide) && /○ السوق/.test(guide) && /◆ سعرنا/.test(guide)
+    && /محور واحد بالريال/.test(guide) && /علامتان فقط و«لا سعر سوق»/.test(guide) && /خط الصفر/.test(guide) && /فوق الخط ربح/.test(guide) && /لا في اللون وحده/.test(guide));
+}
+
 done();

@@ -19,6 +19,7 @@ const T = "tests/s56.test.mts";
 const DS = "src/day-screen.ts";
 const PR = "src/prices.ts";
 const LIB = "scripts/lib/s56-ui.mjs";
+const GUIDE = "docs/OPERATING-DAY.md";
 
 // [part, name, [[file, find, replace], …], test file]
 const M = [
@@ -214,6 +215,11 @@ const M = [
     "  sanitize: true, sanitize_overridable: false, sanitize_tags: true,", "  sanitize: false, sanitize_overridable: false, sanitize_tags: false,"]], T],
   ["ج", "the chart's style attributes are sanitized away", [[LIB,
     "sanitize_attributes: true, sanitize_style: false, sanitize_form: true, strip_style: false, strip_classes: false,", "sanitize_attributes: true, sanitize_style: true, sanitize_form: true, strip_style: true, strip_classes: false,"]], T],
+  // ---------------------------------------------------------------- the team's guide
+  ["ج", "the guide does not say how the chart's three marks are read", [[GUIDE,
+    "**■ الشراء شامل الضريبة**، و**○ السوق**، و**◆ سعرنا**", "ثلاث علامات"]], T],
+  ["ج", "the guide still says «قرار براء» is chosen in the row", [[GUIDE,
+    "   - **اضغط سطر الصنف لتفتح تفاصيله** (الجدول نفسه للقراءة):", "   - **«قرار براء» في السطر نفسه:**"]], T],
 ];
 
 const want = new Set(process.argv.slice(2));

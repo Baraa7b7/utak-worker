@@ -25,7 +25,7 @@ import { C1, C1_PHONE, DAY, assert, done, fresh, rejected, setExtract } from "./
 const MEDIA_BYTES = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4, 5, 6]);
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const wizardCalls: Array<{ vals: any; active: number[] }> = [];
-let gotenbergCalls = 0, gotenbergDown = false, sendSeq = 0;
+let gotenbergCalls = 0, gotenbergDown = false, sendSeq = 0, metaRefusesImage = false;
 const M_A = 5001, M_B = 5002, M_C = 5003;
 const kitFetch = globalThis.fetch;
 globalThis.fetch = (async (input: unknown, init?: any) => {
@@ -39,6 +39,7 @@ globalThis.fetch = (async (input: unknown, init?: any) => {
     return new Response(new Uint8Array([37, 80, 68, 70, 45, 49, 46, 55]), { status: 200, headers: { "Content-Type": "application/pdf" } });
   }
   if (url.includes("graph.facebook.com") && init?.body) {
+    if (metaRefusesImage && JSON.parse(init.body)?.type === "image") return new Response(JSON.stringify({ error: { message: "(#131009) Parameter value is not valid", code: 131009 } }), { status: 400 });
     // a message id of its own for every send, as Meta gives (a repeated id would read as a send already recorded, § 36)
     const res = await kitFetch(input as any, init);
     return res.ok ? new Response(JSON.stringify({ messages: [{ id: `wamid.T${++sendSeq}` }] }), { status: 200 }) : res;
@@ -96,7 +97,7 @@ const COLLECTOR = { id: COLL, name: "سالم", whatsapp: "+" + COLL_PHONE };
  */
 function world(o: { books?: boolean; riyadh?: string } = {}): any {
   const env = fresh(o.riyadh ?? `${DAY} 14:00`); setExtract(null);
-  wizardCalls.length = 0; gotenbergCalls = 0; gotenbergDown = false;
+  wizardCalls.length = 0; gotenbergCalls = 0; gotenbergDown = false; metaRefusesImage = false;
   const twin = (id: number, residual: number, date: string) => seed("account.move", { id, move_type: "out_invoice", state: "posted", commercial_partner_id: [C1, NAME], partner_id: [C1, NAME], amount_residual: residual, payment_state: "not_paid", invoice_date: date });
   const inv = (id: number, orderId: number, number: string, date: string, total: number, move: number) => {
     seed("x_daily_order", { id: orderId, x_customer_id: C1, x_state: "delivered", x_order_date: date, x_utak_simulation: false, x_is_simulation: false });
@@ -231,6 +232,16 @@ console.log("\n[ب2] the collector, then the customer: ONE notice, the customer'
   assert("the two say the same amount: the two sources, and no «المبالغ مختلفة»", notices(env).length === 1 && cap.includes("• المحصّل سالم — 300 ر.س") && cap.includes("• العميل — 300 ر.س") && !cap.includes("المبالغ مختلفة"), cap);
   await tap(env, `trn_ok_${notices(env)[0].id}`);
   assert("«✅ وصل»: ONE payment of 300 on A", JSON.stringify(transfers().map((p) => [p.x_invoice_id, p.x_amount])) === JSON.stringify([[INV_A, 300]]) && neverTwo());
+}
+
+{
+  // Meta refuses the customer's receipt as an image: the two sources still reach Baraa, as text
+  const env = world();
+  await collectorTaps(env, INV_A);
+  metaRefusesImage = true;
+  await customerNotice(env, { ...good, inv: [String(INV_A)], amt: "300" });
+  metaRefusesImage = false;
+  assert("Meta refuses the second source's receipt: Baraa reads the two sources as text — still one notice, still asked once", linkedTo().length === 1 && textsTo(OWNER).some((t: string) => t.startsWith("🔗 مصدر ثانٍ لإشعار تحويل") && t.includes("• المحصّل سالم — 300 ر.س") && t.includes("• العميل — 300 ر.س")) && notices(env).length === 1 && asks().length === 1, JSON.stringify(sentTo(OWNER).map(bodyOf)));
 }
 
 // ================================================================ ب3
@@ -525,6 +536,20 @@ console.log("\n[هـ] the two trials to Baraa: his number alone, inside his wind
   assert("his window closed: neither trial goes, nothing is held — and the day's one time is not spent", closedA.reason === "window_closed" && closedT.reason === "window_closed" && sentTo(OWNER).length === 0 && heldFor(env2, OWNER).length === 0);
   openWindow(env2, OWNER);
   assert("…the same day, his window open: both go", (await quiet(() => AFTER.sendAfterDeliveryTest(env2))).sent && (await quiet(() => TR.sendTransferConfirmedTest(env2))).sent);
+  // the two hooks, as scripts/s58-20261005-trial.mjs calls them on prod
+  const env4 = world();
+  openWindow(env4, OWNER);
+  env4.ODOO_HOOK_TOKEN = "HOOKTOK";
+  graph.length = 0;
+  const hook = (path: string, token = "HOOKTOK", method = "POST") => quiet(() => worker.fetch(new Request(`https://w.test/odoo/hook/${path}?token=${token}`, { method }), env4, ctx));
+  const noToken = await hook("after-delivery-test", "wrong"), noToken2 = await hook("transfer-confirmed-test", "");
+  assert("a hook called without the Odoo hook token: 401, and nothing is sent", noToken.status === 401 && noToken2.status === 401 && sentTo(OWNER).length === 0);
+  const h1 = await hook("after-delivery-test"), h2 = await hook("transfer-confirmed-test");
+  const b1 = await h1.json() as any, b2 = await h2.json() as any;
+  assert("each hook sends its own trial to Baraa: the two buttons, then the ONE message", h1.status === 200 && b1.ok === true && b1.sent === true && h2.status === 200 && b2.ok === true && b2.sent === true && sentTo(OWNER).length === 2
+    && JSON.stringify(buttonsOf(sentTo(OWNER)[0])) === JSON.stringify(["aftest_transfer", "aftest_note"]) && bodyOf(sentTo(OWNER)[1]).includes("استلمنا تحويلك 500 ريال ✅ وسددنا:"), JSON.stringify([b1, b2]));
+  const twice = await (await hook("after-delivery-test")).json() as any;
+  assert("…a second call the same day sends nothing", twice.sent === false && twice.reason === "already_today" && sentTo(OWNER).length === 2);
   const idx = srcOf("index.ts"), gw = srcOf("wa-gateway.ts");
   assert("the two hooks are behind the Odoo hook token, and the two purposes are Baraa's alone", /url\.pathname === "\/odoo\/hook\/after-delivery-test" \|\| url\.pathname === "\/odoo\/hook\/transfer-confirmed-test"/.test(idx) && /for \(const p of \["after_delivery_test", "transfer_confirmed_test", "target_lines_test"\]\)/.test(gw)
     && (PURPOSES as any).after_delivery_test && (PURPOSES as any).transfer_confirmed_test);

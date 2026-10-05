@@ -465,8 +465,9 @@ export const deliveryRefusalText = (orderId: number, problems: string[], again =
 
 /** What the form's payment came to. */
 export type DeliveryPayment =
-  | { kind: "paid"; method: "cash" | "transfer"; amount: number }
-  | { kind: "part"; method: "cash" | "transfer"; amount: number; rest: number }
+  // § 58 ب — a payment recorded from the form is cash: «تحويل» is a notice («noticed»), never a payment
+  | { kind: "paid"; method: "cash"; amount: number }
+  | { kind: "part"; method: "cash"; amount: number; rest: number }
   | { kind: "over"; method: "cash" | "transfer"; amount: number; remaining: number }
   | { kind: "failed"; method: "cash" | "transfer"; amount: number | null; why: string }
   // § 58 ب — «تحويل»: a transfer notice was filed (or linked to the invoice's open one), and nothing is paid until «✅ وصل»
@@ -487,8 +488,7 @@ function entryLine(x: DeliveryEntry): string {
 /** What was recorded, as the one who filled the form reads it. */
 export function paymentLine(p: DeliveryPayment, inv: IssuedInvoice | null, e: Pick<DeliveryEntries, "pay" | "amount">, owner: boolean): string {
   const custody = owner ? "✅ سُجّل في عهدة المحصّل" : "✅ في عهدتك";
-  const took = (method: "cash" | "transfer", amount: number): string =>
-    (method === "cash" ? `${PAY_METHODS.cash} ${money(amount)} ر.س ${custody}` : `${PAY_METHODS.transfer} ${money(amount)} ر.س — ينتظر المطابقة البنكية`);
+  const took = (method: "cash", amount: number): string => `${PAY_METHODS[method]} ${money(amount)} ر.س ${custody}`;
   const told = owner ? "" : " ووصل براء.";
   switch (p.kind) {
     case "paid": return took(p.method, p.amount);
@@ -773,7 +773,7 @@ function deliveryTestAnswer(rec: DeliveryFormRecord, e: DeliveryEntries): string
     `الدفع: ${reported(e)}`,
     e.note ? `ملاحظة: ${e.note}` : "",
     any
-      ? `كان سيُسجَّل التسليم، وتصدر فاتورة بالمسلَّم فقط (قيمته بأسعار الطلب ${money(value)} ر.س)، ${e.pay === "unpaid" ? "وتبقى مستحقة ويصل براء سطر" : `ويُسجَّل الدفع ${e.pay === "cash" ? "في عهدة المحصّل" : "تحويلاً ينتظر المطابقة البنكية"}`}.`
+      ? `كان سيُسجَّل التسليم، وتصدر فاتورة بالمسلَّم فقط (قيمته بأسعار الطلب ${money(value)} ر.س)، ${e.pay === "unpaid" ? "وتبقى مستحقة ويصل براء سطر" : (e.pay === "cash" ? "ويُسجَّل الدفع في عهدة المحصّل" : "ويُسجَّل إشعار تحويل ينتظر «✅ وصل» (لا دفعة قبله)")}.`
       : "كان سيُسجَّل «مشكلة» على التوصيلة بلا تسليم ولا فاتورة، ويبقى الطلب للتسليم.",
     TEST_TAIL,
   ].filter(Boolean).join("\n");

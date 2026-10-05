@@ -211,7 +211,7 @@ const M = [
   ["reply", "a PDF receipt goes as an image", [[TR,
     "const header = !media ? null : /pdf/i.test(media.mime) ? { type: \"document\", document: { id: media.id, filename: `إيصال-${noticeRef(n.id)}.pdf` } } : { type: \"image\", image: { id: media.id } };", "const header = !media ? null : { type: \"image\", image: { id: media.id } };"]], T],
   ["reply", "a notice Meta refuses with its header is not sent again", [[TR,
-    "  if (gatewayDecision(res)?.action !== \"rejected\") return;", "  if (true) return;"]], T],
+    "  if (gatewayDecision(res)?.action !== \"rejected\" || !n.media) return;", "  if (true) return;"]], T],
   ["reply", "Baraa's notice goes under a purpose that is not his", [[TR,
     "export const TRANSFER_OWNER_PURPOSE = \"owner_transfer_notice\";", "export const TRANSFER_OWNER_PURPOSE = \"bot_reply\";"]], T],
   ["reply", "what the image says differently is not told", [[TR,

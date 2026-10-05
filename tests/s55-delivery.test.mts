@@ -414,6 +414,19 @@ console.log("\n[ب8] the payment on the invoice just issued — a transfer, «ل
   assert("he is told: 200 is more than what is due, nothing recorded, the whole invoice is due", /⚠️ تحويل 200 ر\.س أكبر من المتبقي على الفاتورة \(131 ر\.س\): لم يُسجَّل دفع/.test(textsTo(DRIVER_PHONE)[0]) && /ووصل براء/.test(textsTo(DRIVER_PHONE)[0]), textsTo(DRIVER_PHONE)[0]);
   assert("Baraa gets the line with what was reported", ownerTexts().length === 1 && ownerTexts()[0].includes(`• بلّغ تحويل 200 ر.س وهو أكبر من المتبقي (131 ر.س): لم يُسجَّل دفع — الفاتورة ${inv.x_invoice_number}`), ownerTexts()[0]);
   assert("the invoice is due: the collector's request goes", asked(env, inv.id) === 1);
+  assert("§ 58 ب — and no transfer notice is filed for an amount the invoice cannot take", ![...env.MSG_DEDUP.store.keys()].some((k: string) => k.startsWith("transfer_notice:v1:")));
+  assert("no field rejected by the schema gate", rejected.length === 0, rejected.join(" | "));
+}
+{
+  // § 58 ب — the same in CASH: refused whole by the collection itself, said in the form's own two messages
+  const env = world(); const o = onTheWay();
+  const token = await formFor(env, o);
+  graph.length = 0;
+  const r = await reply(env, DRIVER_PHONE, token, FULL("cash", { amt: "200" }));
+  const [inv] = invoicesOf(o);
+  assert("cash above the invoice (200 on 131): NOTHING recorded — it is not cut down to the balance", r.action === "delivered" && r.payment === "over" && rows("x_payment").length === 0 && inv.x_status === "issued");
+  assert("he is told: «⚠️ كاش 200 ر.س أكبر من المتبقي على الفاتورة (131 ر.س): لم يُسجَّل دفع»", /⚠️ كاش 200 ر\.س أكبر من المتبقي على الفاتورة \(131 ر\.س\): لم يُسجَّل دفع/.test(textsTo(DRIVER_PHONE)[0]), textsTo(DRIVER_PHONE)[0]);
+  assert("Baraa gets ONE line — the delivery's own, with the two amounts — and the last guard does not ring beside it", ownerTexts().length === 1 && ownerTexts()[0].includes(`• بلّغ كاش 200 ر.س وهو أكبر من المتبقي (131 ر.س): لم يُسجَّل دفع — الفاتورة ${inv.x_invoice_number}`) && !ownerTexts().some((t: string) => t.includes("دفعة أكبر من المتبقي")), ownerTexts().join(" | "));
   assert("no field rejected by the schema gate", rejected.length === 0, rejected.join(" | "));
 }
 

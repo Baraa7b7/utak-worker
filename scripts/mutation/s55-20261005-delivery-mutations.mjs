@@ -317,8 +317,8 @@ const M = [
     "  const custody = owner ? \"✅ سُجّل في عهدة المحصّل\" : \"✅\";"]], T],
   ["ب", "Baraa's own cash is said to be «في عهدتك»", [[DF, CUSTODY,
     "  const custody = false ? \"✅ سُجّل في عهدة المحصّل\" : \"✅ في عهدتك\";"]], T],
-  ["ب", "a transfer is said to be in his custody", [[DF,
-    "    (method === \"cash\" ? `${PAY_METHODS.cash} ${money(amount)} ر.س ${custody}`", "    (true ? `${PAY_METHODS.cash} ${money(amount)} ر.س ${custody}`"]], T],
+  // («a transfer is said to be in his custody» left with § 58 ب: «تحويل» is a notice, never a payment of the form —
+  //  its line is checked in scripts/mutation/s58-20261005-transfers-mutations.mjs)
   ["ب", "a part payment does not name what stays due", [[DF,
     "    case \"part\": return `${took(p.method, p.amount)} — الباقي ${money(p.rest)} ر.س مستحق`;", "    case \"part\": return took(p.method, p.amount);"]], T],
   ["ب", "«لم يدفع» does not name the amount due", [[DF,

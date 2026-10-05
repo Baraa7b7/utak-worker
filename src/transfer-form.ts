@@ -696,8 +696,9 @@ async function sendOwnerLinked(env: Env, p: PlannedNotice, media: TransferMedia 
   const text = linkedNoticeText(p, extra);
   if (media) {
     const body = /pdf/i.test(media.mime) ? { type: "document", document: { id: media.id, filename: `إيصال-${noticeRef(p.notice.id)}.pdf`, caption: text } } : { type: "image", image: { id: media.id, caption: text } };
-    const res = await sendViaGateway(env, { purpose: TRANSFER_OWNER_PURPOSE, to: owner, content: { kind: "session", body }, ctx });
-    if (gatewayDecision(res)?.action !== "rejected") return;
+    const sent = gatewayDecision(await sendViaGateway(env, { purpose: TRANSFER_OWNER_PURPOSE, to: owner, content: { kind: "session", body }, ctx }));
+    // Meta refused the receipt as it stands: the two sources still reach him, as text
+    if (sent?.action !== "rejected") return;
     console.warn(`[transfer] notice ${p.notice.id}: Meta refused the second source's receipt — sent as text`);
   }
   await tell(env, owner, text, ctx, TRANSFER_OWNER_PURPOSE);

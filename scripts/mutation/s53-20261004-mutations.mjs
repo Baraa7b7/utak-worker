@@ -20,6 +20,7 @@ const PS = "src/price-sources.ts";
 const PP = "src/price-privacy.ts";
 const GW = "src/wa-gateway.ts";
 const PR = "src/prices.ts";
+const RV = "src/price-review.ts";
 const IX = "src/index.ts";
 const EN = "src/pricing-engine.ts";
 const OC = "src/operating-cost.ts";
@@ -112,14 +113,15 @@ const M = [
     "    const sale = market !== null ? upliftedSale(market, uplift) : null;", "    const sale = market;"]], T],
   ["ب", "the unit profit is made from the market price, not the price after the uplift", [[EN,
     "      ? round2(vatProfit(sale, purchase, wastePct, vat.ratePct)) : null;", "      ? round2(vatProfit(market as number, purchase, wastePct, vat.ratePct)) : null;"]], T],
-  ["ب", "the comparison with the suggested price is made on the market price", [[EN,
-    "      if (suggested !== null) { if (sale < suggested - 0.0001) exceptions.push(\"below_profit\"); }", "      if (suggested !== null) { if ((market as number) < suggested - 0.0001) exceptions.push(\"below_profit\"); }"]], T],
+  // § 54 أ — the exception's line is «أقل سعر بيع بدون خسارة» (the suggested price before): the code «loss»
+  ["ب", "the comparison with «بدون خسارة» is made on the market price, not the price after the uplift", [[EN,
+    "      if (breakEven !== null) { if (sale < breakEven - 0.0001) exceptions.push(\"loss\"); }", "      if (breakEven !== null) { if ((market as number) < breakEven - 0.0001) exceptions.push(\"loss\"); }"]], T],
   ["ب", "the exception's reason does not say the price after the uplift", [[EN,
     "  return upliftPct > 0 ? `سعر السوق ${money(market)} بعد الزيادة ${money(upliftPct)}٪ = ${money(sale)}` : `سعر السوق ${money(market)}`;", "  return `سعر السوق ${money(market)}`;"]], T],
   ["ب", "at 0 % the exception's reason names «الزيادة»", [[EN,
     "  return upliftPct > 0 ? `سعر السوق ${money(market)} بعد الزيادة", "  return upliftPct >= 0 ? `سعر السوق ${money(market)} بعد الزيادة"]], T],
   ["ب", "an automatic line is published at the market price, without the uplift", [[EN,
-    "  return { status: \"auto\", sale: round2(p.sale as number), excluded: false, reason: \"\" };", "  return { status: \"auto\", sale: round2(p.market as number), excluded: false, reason: \"\" };"]], T],
+    "  return { status: \"auto\", sale: round2(p.proposal.price), excluded: false,", "  return { status: \"auto\", sale: round2(p.market as number), excluded: false,"]], T],
   ["ب", "«اعتمد بسعر السوق» approves the market price without the uplift", [[EN,
     "    const price = manualPrice > 0 ? manualPrice : p.sale ?? 0;", "    const price = manualPrice > 0 ? manualPrice : p.market ?? 0;"]], T],
   ["ب", "a stored line's «سعر السوق» ignores its uplift", [[EN,
@@ -127,21 +129,20 @@ const M = [
   ["ب", "the line does not carry the uplift it was made with", [[EN,
     "      sale, upliftPct: uplift,", "      sale, upliftPct: 0,"]], T],
   ["ب", "the engine's run does not read the uplift of the settings", [[PR,
-    "{ opShare: share.share, minProfit: settings.minProfit }, settings.marketUpliftPct);", "{ opShare: share.share, minProfit: settings.minProfit });"]], T],
+    "{ opShare: share.share, minProfit: settings.minProfit }, settings.marketUpliftPct, settings.aboveSuggested);", "{ opShare: share.share, minProfit: settings.minProfit }, 0, settings.aboveSuggested);"]], T],
   ["ب", "a change of the uplift does not recompute the day", [[PR,
-    "settings.minProfit, settings.marketUpliftPct, vat.ratePct,", "settings.minProfit, vat.ratePct,"]], T],
+    "settings.minProfit, settings.marketUpliftPct, settings.aboveSuggested, vat.ratePct,", "settings.minProfit, settings.aboveSuggested, vat.ratePct,"]], T],
   ["ب", "the uplift is not written on the line (the publication cannot check its price)", [[PR,
     "      x_uplift_pct: p.upliftPct,\n", ""]], T],
-  ["ب", "the exception's message does not show the price after the uplift", [[PR,
-    "    uplifted,\n", ""]], T],
-  ["ب", "the exception's message shows «البيع بعد الزيادة» at 0 %", [[PR,
-    "  const uplifted = uplift > 0 && Number(l.x_market_price) > 0 ?", "  const uplifted = Number(l.x_market_price) > 0 ?"]], T],
-  ["ب", "«اعتمد بسعر السوق» is offered at the market price without the uplift", [[PR,
-    "description: `${money(marketSale(l))} ر.س` }] : []),", "description: `${money(Number(l.x_market_price))} ر.س` }] : []),"]], T],
-  ["ب", "the tap «اعتمد بسعر السوق» fixes the market price without the uplift", [[PR,
-    "    const market = Math.round(marketSale(l) * 100) / 100;", "    const market = Math.round((Number(l.x_market_price) || 0) * 100) / 100;"]], T],
-  ["ب", "the answer to the tap does not say «بعد الزيادة»", [[PR,
-    "${upliftOf(l.x_uplift_pct) > 0 ? \" بعد الزيادة\" : \"\"}", ""]], T],
+  // § 54 — 3 mutations of the uplift in the exception message went with the message and its tap: «the message does not
+  // show the price after the uplift» (the review's «(بعد الزيادة N٪)»: scripts/mutation/s54-20261005-mutations.mjs), «the
+  // answer to the tap does not say «بعد الزيادة»» (the confirmation names the price alone), and «the tap «اعتمد بسعر
+  // السوق» fixes the market price without the uplift» (one source now: the row's price below, offered and fixed alike).
+  // The two that stay are the review's (src/price-review.ts):
+  ["ب", "the review says «بعد الزيادة» at 0 %", [[RV,
+    "${r.upliftPct > 0 ? ` (بعد الزيادة ${money(r.upliftPct)}٪)`", "${r.upliftPct >= 0 ? ` (بعد الزيادة ${money(r.upliftPct)}٪)`"]], T],
+  ["ب", "«انشر بسعر السوق» is offered (and fixed) at the market price without the uplift", [[RV,
+    "market = Number(l.x_market_price) || 0, sale = marketSale(l);", "market = Number(l.x_market_price) || 0, sale = market;"]], T],
   ["ب", "the settings' uplift is not read (always 0)", [[OC,
     "    marketUpliftPct: upliftOf(r.x_market_uplift_pct),", "    marketUpliftPct: 0,"]], T],
   ["ب", "a negative uplift of the settings is taken as it is", [[OC,

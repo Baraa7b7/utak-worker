@@ -15,10 +15,10 @@ import { readFileSync, writeFileSync } from "node:fs";
 
 const root = new URL("../../", import.meta.url).pathname;
 const T = "tests/s48.test.mts";
-const T47 = "tests/s47.test.mts";
 const EN = "src/pricing-engine.ts";
 const PB = "src/pricing-board.ts";
 const PR = "src/prices.ts";
+const RV = "src/price-review.ts";
 const OC = "src/operating-cost.ts";
 const OD = "src/odoo.ts";
 const PS = "src/price-sources.ts";
@@ -48,15 +48,16 @@ const M = [
   ["أ", "the default minimum profit is 5", [[EN,
     "export const DEFAULT_MIN_PROFIT_SAR = 2;", "export const DEFAULT_MIN_PROFIT_SAR = 5;"]], T],
   ["أ", "«الهامش الأدنى ٪» still read from the settings", [[OC,
-    "\"x_expected_cartons\", \"x_min_profit_sar\", \"x_outlier_ratio\", \"x_market_uplift_pct\"],", "\"x_expected_cartons\", \"x_min_profit_sar\", \"x_outlier_ratio\", \"x_market_uplift_pct\", \"x_min_margin_pct\"],"]], T],
+    "\"x_expected_cartons\", \"x_min_profit_sar\", \"x_outlier_ratio\", \"x_market_uplift_pct\", \"x_above_suggested\"],", "\"x_expected_cartons\", \"x_min_profit_sar\", \"x_outlier_ratio\", \"x_market_uplift_pct\", \"x_above_suggested\", \"x_min_margin_pct\"],"]], T],
   ["أ", "the minimum profit read from «الهامش الأدنى ٪»", [[OC,
     "    minProfit: typeof r.x_min_profit_sar === \"number\" ? Math.max(0, r.x_min_profit_sar) : DEFAULT_MIN_PROFIT_SAR,", "    minProfit: typeof (r as any).x_min_margin_pct === \"number\" ? Math.max(0, (r as any).x_min_margin_pct) : typeof r.x_min_profit_sar === \"number\" ? Math.max(0, r.x_min_profit_sar) : DEFAULT_MIN_PROFIT_SAR,"]], T],
-  ["أ", "a market price equal to the suggested price is an exception", [[EN,
-    "      if (suggested !== null) { if (sale < suggested - 0.0001) exceptions.push(\"below_profit\"); }", "      if (suggested !== null) { if (sale <= suggested) exceptions.push(\"below_profit\"); }"]], T],
+  // § 54 أ — the exception's line is «أقل سعر بيع بدون خسارة» (the suggested price before): the code «loss»
+  ["أ", "a market price equal to «بدون خسارة» is an exception", [[EN,
+    "      if (breakEven !== null) { if (sale < breakEven - 0.0001) exceptions.push(\"loss\"); }", "      if (breakEven !== null) { if (sale <= breakEven) exceptions.push(\"loss\"); }"]], T],
   ["أ", "an automatic line sells at the suggested price, not the market price", [[EN,
-    "  return { status: \"auto\", sale: round2(p.sale as number), excluded: false, reason: \"\" };", "  return { status: \"auto\", sale: round2(p.suggested ?? (p.sale as number)), excluded: false, reason: \"\" };"]], T],
+    "  return { status: \"auto\", sale: round2(p.proposal.price), excluded: false,", "  return { status: \"auto\", sale: round2(p.suggested ?? p.proposal.price), excluded: false,"]], T],
   ["أ", "a change of «الربح الأدنى للكرتون» does not recompute the day", [[PR,
-    "    rec.id, rec.x_state, settings.wastePct, settings.minProfit, settings.marketUpliftPct, vat.ratePct,", "    rec.id, rec.x_state, settings.wastePct, settings.marketUpliftPct, vat.ratePct,"]], T],
+    "    rec.id, rec.x_state, settings.wastePct, settings.minProfit, settings.marketUpliftPct, settings.aboveSuggested, vat.ratePct,", "    rec.id, rec.x_state, settings.wastePct, settings.marketUpliftPct, settings.aboveSuggested, vat.ratePct,"]], T],
   ["ب", "the supplier row's fallback is the purchase × 1.38 again", [[SU,
     "      const sale = fallbackSale(p.cost_price, floorInputs);", "      const sale = round2(p.cost_price * 1.38);"]], T],
   ["ب", "no floor inputs: the fallback is a guessed purchase × 1.38", [[PB,
@@ -169,8 +170,9 @@ const M = [
     "  if ((!decision || decision === \"skip\") && l.x_manual_for) return { x_manual_price: 0, x_manual_for: false };", "  if (!decision && l.x_manual_for) return { x_manual_price: 0, x_manual_for: false };"]], T],
   ["د", "a price Baraa typed with no decision is wiped by the engine", [[PR,
     "  if ((!decision || decision === \"skip\") && l.x_manual_for) return { x_manual_price: 0, x_manual_for: false };", "  if (!decision || decision === \"skip\") return { x_manual_price: 0, x_manual_for: false };"]], T],
-  ["د", "the WhatsApp «اعتمد بالسعر المربح» writes no mark", [[PR,
-    "{ x_decision: \"profit\", x_manual_price: suggested, x_manual_for: \"profit\", x_status: \"manual\",", "{ x_decision: \"profit\", x_manual_price: suggested, x_status: \"manual\","]], T47],
+  // § 54 — 1 mutation («the WhatsApp «اعتمد بالسعر المربح» writes no mark», on tests/s47.test.mts) went with the tap: a
+  // decision from WhatsApp is the review's (src/price-review.ts decisionVals), and its mark x_manual_for is mutated in
+  // scripts/mutation/s54-20261005-mutations.mjs («a decision does not fix its price for itself»).
   ["د", "a simulation row of the day is read by the engine", [[EN,
     "[\"x_supplier_id\", \"in\", ids], [\"x_utak_simulation\", \"!=\", true]],", "[\"x_supplier_id\", \"in\", ids], [\"x_utak_simulation\", \"=\", true]],"]], T],
   ["د", "a source's unreadable reply is an ordinary message again (no alert, «استخدم الأزرار»)", [[PS,
@@ -187,9 +189,11 @@ const M = [
     "كتابة اسم الصنف كاملاً.\\n\\nالنص: ${text.length > 600 ? `${text.slice(0, 600)}…` : text}`;", "كتابة اسم الصنف كاملاً.`;"]], T],
   // ---------------------------------------------------------------- و «💲 التسعير»: the places, the confirmation, the settings, the screens' Python
   ["و", "the missed-day alert still sends Baraa to «💰 أسعار اليوم»", [[PR,
-    "    `لا تُعاد أسعار أمس. قرارك ثم «نشر المعتمد الآن» في ${PLACE_TODAY} ينشر عادي.`,", "    \"لا تُعاد أسعار أمس. قرارك ثم «نشر المعتمد الآن» في «💰 أسعار اليوم» ينشر عادي.\","]], T],
-  ["و", "the late-decision reply names the old place", [[PR,
-    "` السجل «فات الموعد»: انشر من ${PLACE_TODAY} بزر «نشر المعتمد الآن».` : \"\";", "\" السجل «فات الموعد»: انشر من «💰 أسعار اليوم» ← «نشر المعتمد الآن».\" : \"\";"]], T],
+    "أو قرارك ثم «نشر المعتمد الآن» في ${PLACE_TODAY}.`,", "أو قرارك ثم «نشر المعتمد الآن» في «💰 أسعار اليوم».`,"]], T],
+  // § 54 — a decision from the review on a «فات الموعد» day publishes at once: the reply «انشر من … بزر «نشر المعتمد الآن»»
+  // went with the exception's tap. What still sends him to the screen for a late decision: a review whose buttons no longer decide.
+  ["و", "a late decision from a review that is no longer there names the old place", [[RV,
+    "اضغط «${REVIEW_BUTTON_FORM}»، أو قرّر من ${PLACE_TODAY}.`); return \"no_snapshot\"; }", "اضغط «${REVIEW_BUTTON_FORM}»، أو قرّر من «💰 أسعار اليوم».`); return \"no_snapshot\"; }"]], T],
   ["و", "the screen's name is not under «💲 التسعير»", [[PLC,
     "const place = (screen: string): string => `«${PRICING_MENU}» ← «${screen}»`;", "const place = (screen: string): string => `«${screen}»`;"]], T],
   ["و", "«📊 اليوم» is named «💰 أسعار اليوم»", [[PLC,
@@ -291,7 +295,7 @@ const M = [
   ["و", "the menu's name differs from the worker's texts", [[UI,
     "export const MENU = { root: \"💲 التسعير\", today: \"📊 اليوم\",", "export const MENU = { root: \"💲 التسعير\", today: \"📊 أسعار اليوم\","]], T],
   ["و", "the guide still sends Baraa to «💰 أسعار اليوم»", [[DOC,
-    "بعد قرار متأخر من **💲 التسعير ← 📊 اليوم** |", "بعد قرار متأخر من **💰 أسعار اليوم** |"]], T],
+    "«نشر المعتمد الآن» من **💲 التسعير ← 📊 اليوم** |", "«نشر المعتمد الآن» من **💰 أسعار اليوم** |"]], T],
 ];
 
 const want = new Set(process.argv.slice(2));

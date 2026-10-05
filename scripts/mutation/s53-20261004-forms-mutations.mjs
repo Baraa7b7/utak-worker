@@ -113,7 +113,7 @@ const M = [
     "        if (out.sent) { sent++; await markAutoSent(env, list.day, r.whatsapp); }", "        if (out.sent) { sent++; }"]], T],
   // ---------------------------------------------------------------- ج the reply
   ["ج", "an order form's reply is read as a price form's", [[IX,
-    "        if (isOrderFormToken(msg.flow.token ?? \"\")) {", "        if (false) {"]], T],
+    "        } else if (isOrderFormToken(msg.flow.token ?? \"\")) {", "        } else if (false) {"]], T],
   ["ج", "a reply from another number is taken", [[OF,
     "  if (!rec || rec.to !== to) {\n    console.warn(`[order-form] reply with no token of this number", "  if (!rec) {\n    console.warn(`[order-form] reply with no token of this number"]], T],
   ["ج", "a reply after the list expired is written at the old price", [[OF,

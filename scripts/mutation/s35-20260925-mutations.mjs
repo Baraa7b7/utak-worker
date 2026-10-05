@@ -57,9 +57,9 @@ const M = [
     "    if (mismatch.length) {", "    if (false) {"]], T],
   ["publish: no copy / counts for Baraa", [[PR,
     "    for (const part of copy) await sendOwnerMessage(penv, part, OWNER_PRICES_PURPOSE);\n", ""]], T],
-  // § 40 ج — the «بلا هامش» alert became the one line with the undecided exceptions.
-  ["publish: no line with the undecided exceptions", [[PR,
-    "    if (undecided.length) {\n      await sendOwnerAlert(", "    if (false) {\n      await sendOwnerAlert("]], T],
+  // § 54 د — «publish: no line with the undecided exceptions» went with the separate «⏰ لم يُنشر اليوم N…» alert (§ 40 ج's
+  // one line, § 35's «بلا هامش» before it): the publication's own message names what stayed out and why
+  // (scripts/mutation/s54-20261005-mutations.mjs [د] «the 06:00 message does not name what was not published»).
   ["publish: never cut into parts", [[PR,
     "    if (size + it.length + 1 > room && chunks[chunks.length - 1].length) { chunks.push([]); size = 0; }", ""]], T],
   ["publish: not critical (no opener when held)", [["src/wa-purposes.ts",

@@ -188,8 +188,9 @@ function refused(message: string, type: string, status: number): Response {
 //   • owner_prices  — his copy of today's published prices (§ 35)
 //   • owner_price_exception — the day's price review for his decision, its buttons
 //                     and its form (§ 54; § 40 ج's message per exception before it)
-//   • owner_price_review — utak_owner_price_review_v1, the count of the held
-//                     exceptions with «عرض الاستثناءات» (§ 45 ب)
+//   • owner_price_review — utak_owner_price_review_v1, the count of the items
+//                     waiting for his decision with «عرض الاستثناءات» (§ 45 ب;
+//                     § 54: the review is owed, nothing is held)
 //   • owner_order_confirmed — a confirmed order with «تم التسليم ✅», the
 //                     delivery on the spot (§ 49 ج)
 //   • price_flow_test — the one trial of the price Flow and its answers (§ 51)

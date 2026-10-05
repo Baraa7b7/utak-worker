@@ -136,6 +136,8 @@ console.log("\n[أ] the rule: the market price — § 54: once it reaches «بد
   assert("market 40 → published at 40 (the market price, never lowered to the suggested one)", over.exceptions.length === 0 && EN.lineVerdict(over, null, 0).sale === 40);
   assert("market 28.50 (under the new suggested 29.00, above «بدون خسارة» 26.45) → automatic at 28.50 (§ 54: no longer the exception «سعر السوق 28.50 أقل من السعر المربح 29»)", under.exceptions.length === 0 && under.reason === "" && under.suggested === 29 && under.proposal.why === "below_suggested" && EN.lineVerdict(under, null, 0).status === "auto" && EN.lineVerdict(under, null, 0).sale === 28.5, JSON.stringify(under.proposal));
   assert("market 26 (under «بدون خسارة» 26.45) → an exception, with both numbers in its reason", loss.exceptions.join() === "loss" && loss.reason === "سعر السوق 26 أقل من سعر بدون خسارة 26.45" && EN.lineVerdict(loss, null, 0).status === "exception", JSON.stringify(loss));
+  const edge = run([p20, offer({ price: 26.45 })]);
+  assert("market 26.45 = «بدون خسارة» exactly → not a loss: no exception, automatic at 26.45", edge.breakEven === 26.45 && edge.exceptions.length === 0 && edge.reason === "" && EN.lineVerdict(edge, null, 0).status === "auto" && EN.lineVerdict(edge, null, 0).sale === 26.45, JSON.stringify([edge.exceptions, edge.proposal]));
   assert("no market price → an exception carrying the suggested 29.00", none.exceptions.join() === "no_market" && none.suggested === 29 && none.proposal.kind === "profit" && none.proposal.price === 29);
   const env = fresh(`${DAY} 04:00`); cost(500);
   dp(1, 11, 20); market(1, 11, 26);                         // a loss: the line waits for Baraa (28.50 would be automatic since § 54)

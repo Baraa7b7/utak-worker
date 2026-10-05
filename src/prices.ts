@@ -403,8 +403,8 @@ function storedBoardLine(l: DayLine, wastePct: number, vatRatePct: number | null
 /**
  * § 47 ب / § 48 د — what the engine keeps of the price of a decision.
  *   • «اعتمد بالسعر المربح» without a price fixed for it (chosen in Odoo): the
- *     suggested price of this run becomes his price (as the WhatsApp tap keeps
- *     the one he saw), so a later cost change does not move it;
+ *     suggested price of this run becomes his price (as a decision from the
+ *     review keeps the one he saw, § 54), so a later cost change does not move it;
  *   • «اعتمد بسعر السوق» chosen in Odoo follows the day's market price, as
  *     before; a price fixed for ANOTHER decision is dropped, never inherited;
  *   • the decision removed, or «لا تنشر»: a price the worker fixed for an

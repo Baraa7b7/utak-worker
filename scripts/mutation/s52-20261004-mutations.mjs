@@ -104,7 +104,7 @@ const M = [
   ["ج", "the market line says «بدون ضريبة»", [[PS,
     "export const MARKET_VAT_LINE = \"اكتب السعر زي ما ينباع في السوق (شامل الضريبة).\";", "export const MARKET_VAT_LINE = \"الأسعار بدون ضريبة.\";"]], T],
   ["ج", "the engine reads a market observation as net of VAT", [[EN,
-    "      if (suggested !== null) { if (sale < suggested - 0.0001) exceptions.push(\"below_profit\"); }", "      if (suggested !== null) { if (sale * 1.15 < suggested - 0.0001) exceptions.push(\"below_profit\"); }"]], T],
+    "      if (breakEven !== null) { if (sale < breakEven - 0.0001) exceptions.push(\"loss\"); }", "      if (breakEven !== null) { if (sale * 1.15 < breakEven - 0.0001) exceptions.push(\"loss\"); }"]], T],
   ["ج", "the profit keeps the VAT of the market price", [[EN,
     "  return (vatRatePct ? sale / (1 + vatRatePct / 100) : sale) - purchase - waste;", "  return sale - purchase - waste;"]], T],
   // ---------------------------------------------------------------- د the template

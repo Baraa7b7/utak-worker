@@ -194,7 +194,7 @@ const M = [
   ["ج", "Baraa's message of a confirmed order has no «تم التسليم» button", [[OF,
     "      content: buttonsContent(text, [{ id: `delivered_${orderId}`, title: \"تم التسليم ✅\" }]),", "      content: textContent(text),"]], T],
   ["ج", "the owner guard refuses the confirmed order's message", [[GW,
-    "\"owner_price_review\", \"owner_order_confirmed\"]);", "\"owner_price_review\"]);"]], T],
+    "\"owner_price_review\", \"owner_order_confirmed\", \"price_review_test\"]);", "\"owner_price_review\", \"price_review_test\"]);"]], T],
   ["ج", "Baraa's tap on «تم التسليم» is ignored (as every other button of his)", [[IX,
     "        } else if (((msg.type === \"interactive\" || msg.type === \"button\") && /^delivered_\\d+$/.test(msg.buttonId ?? \"\"))\n          || (msg.type === \"text\" && deliverCommandOrderId(msg.text) !== null)) {", "        } else if (false) {"]], T],
   ["ج", "the driver's «تسليم N» is an ordinary message", [[IX,

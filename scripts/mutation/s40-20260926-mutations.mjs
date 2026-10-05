@@ -111,7 +111,8 @@ const M = [
   ["ج", "an even count: the upper middle, not the mean of the two", [[EN,
     "  return round2(v.length % 2 ? v[mid] : (v[mid - 1] + v[mid]) / 2);", "  return round2(v[mid]);"]], T],
   ["ج", "sale = the purchase price", [[EN,
-    "  return { status: \"auto\", sale: round2(p.sale as number), excluded: false, reason: \"\" };", "  return { status: \"auto\", sale: round2(p.purchase as number), excluded: false, reason: \"\" };"]], T],
+    // § 54 أ: the automatic sale is the proposed decision's price (the market price, or the suggested one by the setting)
+    "  return { status: \"auto\", sale: round2(p.proposal.price), excluded: false,", "  return { status: \"auto\", sale: round2(p.purchase as number), excluded: false,"]], T],
   ["ج", "the waste ignored in the unit profit", [[EN,
     // § 41 أ: the engine's unit profit is vatProfit (the waste term inside it); § 47 أ: its one-line shape
     "  const waste = (wastePct / 100) * purchase;\n  return (vatRatePct ?", "  const waste = 0;\n  return (vatRatePct ?"]], T],
@@ -140,38 +141,19 @@ const M = [
   ["ج", "Baraa's decision ignored by the refresh", [[PR,
     "    const decision = (l?.x_decision || null) as Decision | null;", "    const decision = null as Decision | null;"]], T],
   ["ج", "«لا تنشر» not honoured", [[EN,
-    "  if (decision === \"skip\") return { status: \"unpublished\", sale: 0, excluded: true, reason: \"براء: لا تنشر\" };\n", ""]], T],
-  ["ج", "exceptions sent before 04:00", [[PR,
-    "  if (m < exceptionsFromMinutes(env) || m >= dl) return { action: \"outside\" };", "  if (m >= dl) return { action: \"outside\" };"]], T],
-  ["ج", "exceptions sent after the publication time", [[PR,
-    "  if (m < exceptionsFromMinutes(env) || m >= dl) return { action: \"outside\" };", "  if (m < exceptionsFromMinutes(env)) return { action: \"outside\" };"]], T],
-  ["ج", "no KV guard per product and day", [[PR,
-    "  for (const l of exc) if ((await env.MSG_DEDUP.get(`btnlock:v1:${excLock(day, l)}`)) === null) fresh.push(l);", "  for (const l of exc) fresh.push(l);"],
-    [PR, "    const c = await claimButton(env, excLock(day, l), EXC_TTL);\n    if (!c.claimed) continue;", "    const c = await claimButton(env, `${excLock(day, l)}:${Math.random()}`, EXC_TTL);\n    if (!c.claimed) continue;"]], T],
-  ["ج", "more than 8: a message per exception", [[PR,
-    "  if (exc.length > EXCEPTIONS_MANY) {", "  if (false) {"]], T],
-  ["ج", "the threshold at 7", [[PR,
-    "export const EXCEPTIONS_MANY = 8;", "export const EXCEPTIONS_MANY = 7;"]], T],
-  ["ج", "the count message without the review link", [[PR,
-    "        `راجعها في شاشة المراجعة: ${await reviewUrl(env, rec.id)}`,\n", ""]], T],
-  ["ج", "«اعتمد بسعر السوق» offered without a market price", [[PR,
-    // § 47 ب: the choices are built by exceptionChoices (a description beside the title)
-    "    ...(Number(l.x_market_price) > 0 ? [{ id: `pexc_m_${l.id}`, title: \"اعتمد بسعر السوق\", description: `${money(marketSale(l))} ر.س` }] : []),", "    { id: `pexc_m_${l.id}`, title: \"اعتمد بسعر السوق\" },"]], T],
-  ["ج", "«اعتمد بسعر السوق» taken without a market price", [[PR,
-    "    if (!(market > 0)) return `لا سعر سوق لـ ${name} اليوم: اختر «لا تنشر» أو «عدّل».`;\n", ""]], T],
-  ["ج", "no lock: a second decision overwrites the first", [[PR,
-    "  if (l.x_decision) return { l, day, why: `القرار مسجّل مسبقاً على ${lineName(l)}: ${DECISION_LABEL[l.x_decision as Decision]}.` };\n", ""],
-    [PR, "  const lock = await claimButton(env, `pexc_dec:${l.id}`);", "  const lock = await claimButton(env, `pexc_dec:${l.id}:${Math.random()}`);"]], T],
-  ["ج", "«عدّل»: a price after 30 minutes taken", [[PR,
-    "  if (now - pend.at > EDIT_REPLY_MIN * 60_000 || now < pend.at) {", "  if (now < pend.at) {"]], T],
-  ["ج", "«عدّل»: two numbers → the first taken", [[PR,
-    "  if (nums.length !== 1) return", "  if (nums.length < 1) return"]], T],
-  ["ج", "a decision after the publication taken", [[PR,
-    "  if (!day || (day.x_state !== \"draft\" && day.x_state !== \"missed\")) {", "  if (!day) {"]], T],
+    // § 54: the reason's words are DECISION_REASON's (the review writes the same ones)
+    "  if (decision === \"skip\") return { status: \"unpublished\", sale: 0, excluded: true, reason: DECISION_REASON.skip };\n", ""]], T],
+  // § 54 (2026-10-05) — twelve mutations of § 40 ج's message per exception went with it: «exceptions sent before
+  // 04:00» / «… after the publication time», «no KV guard per product and day», «more than 8: a message per
+  // exception», «the threshold at 7», «the count message without the review link», «اعتمد بسعر السوق» offered /
+  // taken without a market price, «no lock: a second decision overwrites the first», «عدّل»'s 30 minutes and its one
+  // number, «a decision after the publication taken». The day is reviewed in ONE message (src/price-review.ts);
+  // its gates — 04:00, the publication time, a published day, a second tap, a choice the item was not offered —
+  // are mutated in scripts/mutation/s54-20261005-mutations.mjs [ب] [ج].
   ["ج", "an exception without a decision published", [[PR,
     "  return (l.x_status === \"auto\" || l.x_status === \"manual\") && !l.x_excluded && Number(l.x_sale_price) > 0;", "  return l.x_status !== \"unpublished\";"]], T],
-  ["ج", "no line to Baraa with the undecided count", [[PR,
-    "    if (undecided.length) {\n      await sendOwnerAlert(", "    if (false) {\n      await sendOwnerAlert("]], T],
+  // § 54 د — «no line to Baraa with the undecided count» went with the separate «⏰ لم يُنشر اليوم N…» alert: the
+  // publication's own message names what stayed out and why (s54 mutations [د]).
   ["ج", "the publication time waits for Baraa (no automatic approval)", [[PR,
     "  if (target.x_state === \"draft\" && lines.some(isPublishable)) {", "  if (false) {"]], T],
   ["ج", "no last refresh at the publication time", [[PR,
@@ -182,10 +164,11 @@ const M = [
     "  if (l.x_status === \"auto\") return round2(marketSale(l));", "  if (l.x_status === \"auto\") return round2(Number((l as any).x_cost_price) || 0);"]], T],
   ["ج", "the display margin ÷ the market price", [[EN,
     "  return purchase > 0 && market > 0 ? round2(((market - purchase) / purchase) * 100) : 0;", "  return purchase > 0 && market > 0 ? round2(((market - purchase) / market) * 100) : 0;"]], T],
+  // § 54: a pexc_ tap decides nothing any more — this branch answers it with OLD_EXCEPTION_TEXT (the review's own
+  // buttons, prv_…: s54 mutations [ب] «the webhook does not know the review's buttons»)
   ["ج", "Baraa's tap not wired in /webhook", [["src/index.ts",
     "/^pexc_[mspe]_\\d+$/.test(msg.buttonId ?? \"\")", "false"]], T],
-  ["ج", "his «عدّل» reply not wired in /webhook", [["src/index.ts",
-    "          const r = await handlePriceEditReply(env, msg.text).catch((e) => {", "          const r = await Promise.resolve(null).catch((e) => { void handlePriceEditReply;"]], T],
+  // § 54 — «his «عدّل» reply not wired in /webhook» went with «عدّل» (handlePriceEditReply): a manual price is the form's field.
   // ---------------------------------------------------------------- د the tiers and the minimum
   ["د", "a tier's «إلى» exclusive (1,000 → no tier)", [[OP,
     "(t.to === null || a <= t.to + 0.0001)", "(t.to === null || a < t.to)"]], T],

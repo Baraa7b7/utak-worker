@@ -74,8 +74,8 @@ const M = [
     "    await markOpenerSentToday(env, owner, d.template, nowMs);\n", ""]], O],
   // § 40 ج — the list gained owner_price_exception after owner_prices.
   ["owner guard: owner_team_note blocked", [[GW,
-    // § 45 ب — …and owner_price_review after it.
-    "\"owner_team_note\", \"owner_prices\", \"owner_price_exception\", \"owner_price_review\", \"owner_order_confirmed\"]", "\"owner_prices\", \"owner_price_exception\", \"owner_price_review\", \"owner_order_confirmed\"]"]], O],
+    // § 45 ب — …and owner_price_review after it; § 54 هـ — …and price_review_test closes the set.
+    "\"owner_team_note\", \"owner_prices\", \"owner_price_exception\", \"owner_price_review\", \"owner_order_confirmed\", \"price_review_test\"]", "\"owner_prices\", \"owner_price_exception\", \"owner_price_review\", \"owner_order_confirmed\", \"price_review_test\"]"]], O],
   // ---- params
   ["params: a customer's {{1}} is the date, not the account number", [[OP,
     "  const ref = category === \"customer\" && partnerId ? String(partnerId) : arabicDate(riyadhDateKey(new Date(now)));",

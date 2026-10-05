@@ -295,6 +295,11 @@ console.log("\n[ب] the day's review while his window is closed: nothing held, t
   setRiyadh(`${PDAY} 04:05`);
   const r = await notify(env);
   assert("the review reached him before and nothing changed since → no template 2 (his window closed now), nothing owed", reviewMsgs().length === 0 && r.action === "sent_before" && dayReviews().length === 1 && !owed(env), JSON.stringify(r));
+  // …then one more item waits for him (بصل), his window still closed: the updated review is owed, and template 2 goes
+  setRiyadh(`${PDAY} 04:10`);
+  seed("x_price_day_line", { x_day_id: dayId(), x_sequence: 3, x_product_tmpl_id: 3, x_packaging_id: 31, x_status: "exception", x_decision: false, x_cost_price: 20, x_market_price: 0, x_reason: "لا سعر سوق" });
+  const more = await notify(env);
+  assert("…a new item after the review reached him, his window closed → template 2 with ALL 3 waiting for his decision (not the 1 that is new), no second review, the update owed", more.action === "window_closed" && more.count === 3 && more.review === "sent" && reviewMsgs().length === 1 && JSON.stringify(tplParams(reviewMsgs()[0])) === JSON.stringify(["2 أكتوبر 2026", "3"]) && dayReviews().length === 1 && owed(env), JSON.stringify({ more, p: reviewMsgs().map(tplParams) }));
 }
 {
   const env = priceEnv(2); closeOwnerWindow(env); t2();

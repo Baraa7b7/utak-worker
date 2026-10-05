@@ -14,7 +14,7 @@ const root = new URL("../../", import.meta.url).pathname;
 const T = "tests/s45.test.mts";
 const OW = "src/owner-window.ts";
 const OS = "src/owner-summary.ts";
-const PR = "src/prices.ts";
+const RV = "src/price-review.ts";
 const IX = "src/index.ts";
 const GW = "src/wa-gateway.ts";
 const PU = "src/wa-purposes.ts";
@@ -59,13 +59,15 @@ const M = [
     "  if (payload === PRICE_REVIEW_PAYLOAD) return flushedSent > 0 ? null : PRICE_REVIEW_NOTHING_TEXT;",
     "  if (payload === PRICE_REVIEW_PAYLOAD) return null;"]], T],
   // ---------------------------------------------------------------- ب template 2
-  ["ب", "template 2 never called from the prices tick", [[PR,
-    "  if (out.count) {\n    const { notifyPriceReview } = await import(\"./owner-window\");",
-    "  if (false) {\n    const { notifyPriceReview } = await import(\"./owner-window\");"]], T],
+  // § 54 — template 2 is called from the day's review (src/price-review.ts notifyPriceReviewMessage, a step of the prices tick)
+  ["ب", "template 2 never called from the prices tick", [[RV,
+    "    if (!late && needing > 0) {\n      const { notifyPriceReview } = await import(\"./owner-window\");",
+    "    if (false) {\n      const { notifyPriceReview } = await import(\"./owner-window\");"]], T],
   ["ب", "template 2 even when his window is open", [[OW,
-    "  if (win.open) return null;\n  const held", "  const held"]], T],
-  ["ب", "template 2 with nothing held for him", [[OW,
-    "  if (!held.length) return null;\n", ""]], T],
+    "  if (win.open) return null;\n  const row", "  const row"]], T],
+  // § 54 — 2 mutations went with the held exception messages: «template 2 with nothing held for him» (notifyPriceReview
+  // no longer reads his queue: the caller says the review is owed) and «a held exception stale before 06:00» (nothing is
+  // held, so nothing expires). The owed review and its 06:00 edge: scripts/mutation/s54-20261005-mutations.mjs.
   ["ب", "template 2 without the daily claim (every tick)", [[OW,
     "const reviewLock = (day: string) => `owner_price_review:${day}`;", "const reviewLock = (day: string) => `owner_price_review:${day}:${Math.random()}`;"]], T],
   ["ب", "template 2 used though not usable", [[OW,
@@ -75,21 +77,18 @@ const M = [
     "  await releaseButton(env, claim);\n  return d?.action", "  await finishButton(env, claim, REVIEW_TTL);\n  return d?.action"],
     [OW, "  if (!row) return \"not_usable\";\n  const claim = await claimButton(env, reviewLock(day), REVIEW_TTL);",
       "  const claim = await claimButton(env, reviewLock(day), REVIEW_TTL);\n  if (!row) { await finishButton(env, claim, REVIEW_TTL); return \"not_usable\"; }"]], T],
-  ["ب", "template 2 counts the new exceptions only, not the undecided", [[PR,
-    "    const review = await notifyPriceReview(env, riyadhDateKey(new Date(now)), out.count, now).catch((e) => {",
-    "    const review = await notifyPriceReview(env, riyadhDateKey(new Date(now)), out.sent ?? out.count, now).catch((e) => {"]], T],
+  ["ب", "template 2 counts the new (changed) items only, not every item waiting for his decision", [[RV,
+    "      review = await notifyPriceReview(env, day, needing, now).catch((e) => {",
+    "      review = await notifyPriceReview(env, day, changed.filter((r) => !r.proposal.auto).length, now).catch((e) => {"]], T],
   ["ب", "template 2 without the day ({{1}})", [[OW,
     "params: [arabicDate(day), String(count)]", "params: [String(count)]"]], T],
   ["ب", "template 2 without its «عرض الاستثناءات» payload", [[OW,
     "params: [arabicDate(day), String(count)], buttons: [{ index: 0, payload: PRICE_REVIEW_PAYLOAD }] },",
     "params: [arabicDate(day), String(count)] },"]], T],
   ["ب", "owner_price_review not in the owner guard", [[GW,
-    "\"owner_price_exception\", \"owner_price_review\", \"owner_order_confirmed\"]);", "\"owner_price_exception\", \"owner_order_confirmed\"]);"]], T],
+    "\"owner_price_exception\", \"owner_price_review\", \"owner_order_confirmed\", \"price_review_test\"]);", "\"owner_price_exception\", \"owner_order_confirmed\", \"price_review_test\"]);"]], T],
   ["ب", "owner_price_review not a known purpose", [[PU,
     "  owner_price_review: op(\"قالب استثناءات الأسعار\"),\n", ""]], T],
-  ["ب", "a held exception stale before 06:00", [[PR,
-    "  const expiresAt = riyadhDayMinuteMs(day, dl);\n  const deadline = hhmm(dl);",
-    "  const expiresAt = riyadhDayMinuteMs(day, dl - 10);\n  const deadline = hhmm(dl);"]], T],
   // ---------------------------------------------------------------- ج Omar on seven days: a planted «Friday off» is caught
   ["ج", "a hard-coded Friday off in the schedule reader (every path)", [["src/team-roster.ts",
     "  const wd = String(odooWeekday(day));\n  return lines.filter((a) => {",

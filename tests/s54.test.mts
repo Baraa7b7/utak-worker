@@ -719,6 +719,10 @@ console.log("\n[و] the review is Baraa's alone, and what § 54 puts in Odoo");
     && noted.startsWith('<div class="text-muted mb-2">الشراء خام بدون ضريبة. القاعدة: سوق بين «بدون خسارة» والمقترح') && noted.endsWith(" «معاينة» = …</div>") && ODOO.noteArch(noted, ODOO.NOTES[0][1], ODOO.NOTES[0][2]) === noted);
   let stopped = false; try { ODOO.noteArch("<form/>", ODOO.NOTES[0][1], ODOO.NOTES[0][2]); } catch { stopped = true; }
   assert("…a screen whose note was changed by hand stops the script", stopped);
+  const guide = readFileSync(new URL("../docs/OPERATING-DAY.md", import.meta.url), "utf8");
+  assert("OPERATING-DAY: the 04:00 message as it reads, its three buttons, the form, and what is published with no decision", guide.includes("## مراجعة أسعار اليوم في رسالة واحدة (§ 54)") && guide.includes("موز أمريكي: شراء 55 · سوق 70 · الفرق 15 (27%) ← انشر بسعر السوق 70")
+    && [RV.REVIEW_BUTTON_ALL, RV.REVIEW_BUTTON_FORM, RV.REVIEW_BUTTON_NONE].every((t) => guide.includes(`«${t}»`)) && guide.includes("**بلا قرار حتى 06:00**") && guide.includes("**الاعتماد بعد 06:00**") && guide.includes("«لما يكون السوق أعلى من المقترح»") && /سعر يدوي أقل من «بدون خسارة»\*\* يُقبل/.test(guide));
+  assert("OPERATING-DAY: no instruction to answer an exception per item or to type a price after «عدّل» is left", !/خيار واحد لكل صنف قبل 06:00/.test(guide) && !/ثم يكتب السعر رقماً واحداً خلال 30 دقيقة/.test(guide) && !/رسالة لكل صنف استثنائي/.test(guide) && guide.includes("**ما أُلغي:**"));
   assert("decisions use the fields the line already has: no new field on x_price_day_line", !srcOf("price-review.ts").includes("x_proposal") && Object.keys(RV.decisionVals("edit", 21, 0)).every((k) => fx.x_price_day_line.includes(k)) && Object.keys(RV.decisionVals("skip", 0, 0)).every((k) => fx.x_price_day_line.includes(k)));
 }
 

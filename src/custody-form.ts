@@ -50,8 +50,8 @@ import { readWindow, waDigits } from "./wa-window";
 import { dayLabel } from "./order-flow";
 import { sendOwnerMessage, T } from "./templates";
 
-/** utak_custody_v1 at Meta (a published Flow's JSON is frozen). "0" until the Flow is created and its id pinned. */
-export const CUSTODY_FLOW_ID = "0";
+/** utak_custody_v1 at Meta (a published Flow's JSON is frozen). */
+export const CUSTODY_FLOW_ID = "1084087254588299";
 export const CUSTODY_FLOW_SCREEN = "CUSTODY_A";
 /** The gateway purpose of the form and of its answers to the collector. */
 export const CUSTODY_PURPOSE = "custody_form";

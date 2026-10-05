@@ -74,8 +74,8 @@ import { riyadhDateKey } from "./hours";
 import { arabicDate } from "./wa-params";
 import { readWindow, waDigits } from "./wa-window";
 
-/** utak_receipt_v1 at Meta. "0" until the Flow is created there: its id is pinned here, and a published Flow's JSON is frozen. */
-export const RECEIPT_FLOW_ID = "0";
+/** utak_receipt_v1 at Meta (a published Flow's JSON is frozen). */
+export const RECEIPT_FLOW_ID = "1581232703689366";
 export const RECEIPT_FLOW_SCREEN = "RECEIPT_A";
 export const RECEIPT_FLOW_CASH_SCREEN = "RECEIPT_B";
 /** The quantity fields of RECEIPT_A, and the cash-market rows of RECEIPT_B. */

@@ -702,4 +702,5 @@ console.log("\n[ج9] the trial to Baraa, its hook, and the purposes");
   assert("the Flow's reply is routed by its token before the price form's reader", idx.indexOf("isCarLoadToken(msg.flow.token") > 0 && idx.indexOf("isCarLoadToken(msg.flow.token") < idx.indexOf("handlePriceFlowReply(env, msg, ctx)"));
 }
 
+assert("its id at Meta: utak_carload_v1 #1128570570118160", CL.CARLOAD_FLOW_ID === "1128570570118160");
 done();

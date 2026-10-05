@@ -146,7 +146,7 @@ console.log("\n[د1] utak_receipt_v1 at Meta is the form the worker fills: two s
     && JSON.stringify(json.routing_model) === JSON.stringify({ RECEIPT_A: ["RECEIPT_B"], RECEIPT_B: [] }) && !("data_api_version" in json) && !JSON.stringify(json).includes("data_exchange") && LIB.RECEIPT_FLOW_NAME === "utak_receipt_v1");
   assert("the worker's constants are the Flow's: the first screen, the thirty slots, the five rows, the photos a reply carries, the button", RC.RECEIPT_FLOW_SCREEN === LIB.RECEIPT_FIRST_SCREEN && RC.RECEIPT_FLOW_CASH_SCREEN === LIB.RECEIPT_CASH_SCREEN
     && RC.RECEIPT_FLOW_SLOTS === LIB.RECEIPT_SLOTS && LIB.RECEIPT_SLOTS === 30 && RC.RECEIPT_CASH_ROWS === LIB.RECEIPT_CASH_ROWS && LIB.RECEIPT_CASH_ROWS === 5 && RC.RECEIPT_PHOTO_MAX === LIB.RECEIPT_PHOTO_MAX && RC.RECEIPT_CTA === LIB.RECEIPT_CTA && count(LIB.RECEIPT_CTA) <= 20);
-  assert("its id is not pinned yet («0»: the Flow is created at Meta after the merge)", RC.RECEIPT_FLOW_ID === "0");
+  assert("its id at Meta: utak_receipt_v1 #1581232703689366", RC.RECEIPT_FLOW_ID === "1581232703689366");
   assert("the components sit directly under SingleColumnLayout (no Form wrapper), within Meta's fifty a screen: 33 and 24", json.screens.every((s: any) => s.layout.type === "SingleColumnLayout" && !s.layout.children.some((c: any) => c.type === "Form") && LIB.screenComponents(s).length <= LIB.SCREEN_COMPONENTS_MAX)
     && kidsA.length === 33 && kidsB.length === 24, JSON.stringify([kidsA.length, kidsB.length]));
   assert("only the last screen ends the Flow", !a.terminal && b.terminal === true && b.success === true);

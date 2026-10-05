@@ -5,11 +5,12 @@
 //          Meta's limit on every text; the kinds and the decisions against Odoo's (scripts/lib/s57-odoo.mjs)
 //   [هـ2]  his delivered orders: his, delivered in the last seven days, the newest first, «الطلب كله»,
 //          the delivered lines — never a simulation's, never another customer's; sixty options at most
-//   [هـ3]  the door of the words: «شكوى» / «مشكلة»; with nothing delivered in seven days, or a form that
-//          cannot go, the complaint of before, word for word
+//   [هـ3]  the door of the words: «شكوى» / «مشكلة» — the row and Baraa's alert at once, as before, and the
+//          form in place of the apology; ONE form at a time; with nothing delivered in seven days, or a
+//          form that cannot go, the complaint of before, word for word
 //   [هـ4]  the door of Claude's «complaint» intent
-//   [هـ5]  the door of the delivery's text: «⚠️ عندي ملاحظة», on the free text alone
-//   [هـ6]  «إرسال»: ONE row with every field, the photo, the two messages
+//   [هـ5]  the door of the delivery's text: «⚠️ عندي ملاحظة», on the free text alone — and the older quick reply
+//   [هـ6]  «إرسال»: ONE row with every field (the one his words made, filled — else a new one), the photo, the two messages
 //   [هـ7]  what refuses the form as a whole, and the fresh form
 //   [هـ8]  the token: the number it was sent to, once; a row that could not be made
 //   [هـ9]  the three decisions: what each writes and says — and nothing else
@@ -162,6 +163,8 @@ const gatewayRecord = (c: any): boolean => (c.model === "x_wa_message" && c.meth
   || (c.model === "res.partner" && c.method === "write" && Object.keys(c.body?.vals ?? {}).join() === "x_wa_channel_id");
 /** Everything a compensation, a credit note or a payment would touch. */
 const books = () => JSON.stringify(["x_daily_order", "x_daily_order_line", "x_invoice", "x_payment", "account.move", "account.move.line", "account.payment", "sale.order"].map((t) => rows(t)));
+/** As if his last form were sent back: the next one may go (ONE form at a time, two hours). */
+const forget = (env: any, partner = C1) => env.MSG_DEDUP.store.delete(CF.complaintPendingKey(partner));
 const OLD_REPLY = "نعتذر عن الإزعاج 🙏 وصلنا ملاحظتك وسنتواصل معك خلال ساعة لحل المشكلة.";
 const MANUAL = "التعويض والإشعار الدائن لا ينفّذهما النظام: الزر يسجّل قرارك ويبلّغ العميل فقط، والتنفيذ يدوي (الدليل: «الإشعار الدائن»).";
 
@@ -247,6 +250,7 @@ console.log("\n[هـ2] his delivered orders: his, in the last seven days, the ne
   assert("no orders: nothing offered", CF.offeredOrders([]).length === 0);
   assert("an order that does not fit ends the list: a smaller, OLDER one is not put in its place", JSON.stringify(CF.offeredOrders([big(1, 29), big(2, 28), big(3, 5), big(4, 0)]).map((o: any) => o.id)) === JSON.stringify([1, 2]));
   graph.length = 0;
+  forget(env);
   const many = await quiet(() => CF.sendComplaintForm(env, c1, { orders: [big(1, 80), big(2, 1)] }));
   assert("the form itself lists sixty options at most, and its token holds exactly the orders it listed", many.sent === true && many.options === 60 && dataOf(flowsTo(C1_PHONE)[0]).items.length === 60 && tokens(env).at(-1).orders.length === 1 && tokens(env).at(-1).orders[0].lines.length === 59);
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
@@ -256,16 +260,21 @@ console.log("\n[هـ2] his delivered orders: his, in the last seven days, the ne
 console.log("\n[هـ3] the door of the words: «شكوى» / «مشكلة» from a customer with an order delivered in seven days");
 for (const word of ["عندي شكوى", "فيه مشكلة في الطلب", "الطماطم تالفة اليوم"]) {
   const env = world();
+  setExtract({ type: "quality", severity: "high" });
   const r = await say(env, C1_PHONE, text(word));
-  const f = flowsTo(C1_PHONE);
-  assert(`«${word}» through the webhook → ONE message: his complaint form, with his three orders`, r.status === 200 && sentTo(C1_PHONE).length === 1 && f.length === 1 && dataOf(f[0]).items.length === 7, JSON.stringify(sentTo(C1_PHONE).map(bodyOf)));
-  assert("…NO complaint row yet, nothing to Baraa, not «وصلنا ملاحظتك», nothing held", complaints().length === 0 && sentTo(OWNER).length === 0 && !textsTo(C1_PHONE).includes(OLD_REPLY) && heldFor(env, C1_PHONE).length === 0 && graph.every((b: any) => b === null || b.to === C1_PHONE));
-  assert("…his own words stay with the form's token, and its text opens with an apology", tokens(env).at(-1).words === word && bodyOf(f[0]) === [CF.COMPLAINT_SORRY_TEXT, `اضغط «عندي ملاحظة»: ${CF.COMPLAINT_HOW_TEXT}`].join("\n"), bodyOf(f[0]));
+  const f = flowsTo(C1_PHONE), row = complaints()[0], tok = tokens(env).at(-1);
+  assert(`«${word}» through the webhook → the customer gets ONE message: his complaint form with his three orders, in place of «نعتذر عن الإزعاج…»`, r.status === 200 && sentTo(C1_PHONE).length === 1 && f.length === 1 && dataOf(f[0]).items.length === 7 && !textsTo(C1_PHONE).includes(OLD_REPLY) && heldFor(env, C1_PHONE).length === 0, JSON.stringify(sentTo(C1_PHONE).map(bodyOf)));
+  assert("…the complaint is made AT ONCE from his words, as before: Claude's type and severity, his latest order, «new» — none of the form's fields yet", complaints().length === 1 && row.x_customer_id === C1 && row.x_message_text === word && row.x_type === "quality" && row.x_severity === "high" && row.x_status === "new" && row.x_order_id === O_UNDATED
+    && !("x_kind" in row) && !("x_order_line_id" in row) && !("x_affected_qty" in row) && !("x_photo" in row), JSON.stringify(row));
+  assert("…Baraa gets «شكوى جديدة» as before, with ONE more line: the form was sent to him", sentTo(OWNER).length === 1 && sentTo(OWNER)[0].type === "text" && bodyOf(sentTo(OWNER)[0]) === [`🟠 شكوى جديدة #${row.id}`, `عميل: ${NAME}`, "النوع: جودة", `الرسالة: "${word}"`, `طلب مرتبط: #${O_UNDATED}`, COMPLAINT.COMPLAINT_FORM_SENT_LINE].join("\n")
+    && !COMPLAINT.COMPLAINT_FORM_SENT_LINE.includes("\n") && COMPLAINT.COMPLAINT_FORM_SENT_LINE.includes("«عندي ملاحظة»"), bodyOf(sentTo(OWNER)[0]));
+  assert("…the form's token holds his words AND that row, and its text opens with an apology", tok.words === word && tok.complaintId === row.id && bodyOf(f[0]) === [CF.COMPLAINT_SORRY_TEXT, `اضغط «عندي ملاحظة»: ${CF.COMPLAINT_HOW_TEXT}`].join("\n"), bodyOf(f[0]));
 }
 {
   assert("the words are the ones the path already knew — «شكوى» and «مشكلة» among them", ["شكوى", "عندي مشكلة", "تالف", "ناقص"].every(COMPLAINT.looksLikeComplaint) && !COMPLAINT.looksLikeComplaint("أبي 3 كرتون طماطم") && !COMPLAINT.looksLikeComplaint(""));
   const src = srcOf("router.ts");
-  assert("the form is asked at the keyword's own place in the router, before the complaint of before", src.indexOf("if (await answerComplaintWithForm(env, partner, msg.from, msg.text)) {") > src.indexOf("looksLikeComplaint(msg.text)") && src.indexOf("if (await answerComplaintWithForm(env, partner, msg.from, msg.text)) {") < src.indexOf("const reply = await handleComplaint(env, partner.id, partner.name || \"\", msg.text);"));
+  assert("the keyword's place in the router hands his number to handleComplaint — the entry that makes the row, tells Baraa and sends the form", src.includes("const reply = await handleComplaint(env, partner.id, partner.name || \"\", msg.text, msg.from);") && src.indexOf("await handleComplaint(env, partner.id") > src.indexOf("looksLikeComplaint(msg.text)")
+    && src.split("await handleComplaint(").length === 2);
 }
 {
   // nothing delivered in the last seven days: what the path did before, word for word
@@ -277,7 +286,7 @@ for (const word of ["عندي شكوى", "فيه مشكلة في الطلب", "�
   assert("nothing delivered in seven days: NO form — «نعتذر عن الإزعاج… وصلنا ملاحظتك», as before", flowsTo(C1_PHONE).length === 0 && JSON.stringify(textsTo(C1_PHONE)) === JSON.stringify([OLD_REPLY]), JSON.stringify(textsTo(C1_PHONE)));
   assert("…the complaint is made from his text as before: Claude's type and severity, his latest order, none of the form's fields", complaints().length === 1 && row.x_customer_id === C1 && row.x_type === "quality" && row.x_severity === "high" && row.x_message_text === "عندي شكوى على الخيار" && row.x_status === "new" && row.x_order_id === O_UNDATED
     && !("x_kind" in row) && !("x_order_line_id" in row) && !("x_product_tmpl_id" in row) && !("x_affected_qty" in row) && !("x_photo" in row), JSON.stringify(row));
-  assert("…and Baraa gets «شكوى جديدة» as before — with no decision button", sentTo(OWNER).length === 1 && bodyOf(sentTo(OWNER)[0]).startsWith(`🟠 شكوى جديدة #${row.id}\nعميل: ${NAME}\nالنوع: جودة\nالرسالة: "عندي شكوى على الخيار"`) && sentTo(OWNER)[0].type === "text", bodyOf(sentTo(OWNER)[0]));
+  assert("…and Baraa gets «شكوى جديدة» as before, to the letter — no line about a form, no decision button", sentTo(OWNER).length === 1 && sentTo(OWNER)[0].type === "text" && bodyOf(sentTo(OWNER)[0]) === [`🟠 شكوى جديدة #${row.id}`, `عميل: ${NAME}`, "النوع: جودة", "الرسالة: \"عندي شكوى على الخيار\"", `طلب مرتبط: #${O_UNDATED}`].join("\n"), bodyOf(sentTo(OWNER)[0]));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 {
@@ -286,7 +295,24 @@ for (const word of ["عندي شكوى", "فيه مشكلة في الطلب", "�
   metaRefusesFlow = true;
   await say(env, C1_PHONE, text("عندي شكوى"));
   metaRefusesFlow = false;
-  assert("a form Meta refuses: the complaint of before — the row from his text, «وصلنا ملاحظتك», Baraa told", complaints().length === 1 && complaints()[0].x_message_text === "عندي شكوى" && textsTo(C1_PHONE).includes(OLD_REPLY) && sentTo(OWNER).some((b: any) => bodyOf(b).includes("شكوى جديدة")) && tokens(env).length === 0);
+  assert("a form Meta refuses: the complaint of before — the row from his text, «وصلنا ملاحظتك», Baraa told with no line about a form — and no token kept", complaints().length === 1 && complaints()[0].x_message_text === "عندي شكوى" && JSON.stringify(textsTo(C1_PHONE)) === JSON.stringify([OLD_REPLY])
+    && sentTo(OWNER).filter((b: any) => bodyOf(b).includes("شكوى جديدة")).length === 1 && !sentTo(OWNER).some((b: any) => bodyOf(b).includes(COMPLAINT.COMPLAINT_FORM_SENT_LINE)) && tokens(env).length === 0, sentTo(OWNER).map(bodyOf).join(" | "));
+  // a caller that does not hand his number (as every caller before § 57): the complaint of before, whole
+  const old = world();
+  const oldReply = await quiet(() => COMPLAINT.handleComplaint(old, C1, NAME, "عندي شكوى"));
+  assert("handleComplaint without his number: the row, Baraa's alert with no line about a form, the apology — and no form", oldReply === OLD_REPLY && complaints().length === 1 && flowsTo(C1_PHONE).length === 0 && sentTo(OWNER).length === 1 && !bodyOf(sentTo(OWNER)[0]).includes(COMPLAINT.COMPLAINT_FORM_SENT_LINE));
+  // the row cannot be made at the time of his words: the form still goes, and its «إرسال» makes the row
+  const noRow = world();
+  odooDown = "x_complaint.create";
+  const noRowReply = await quiet(() => COMPLAINT.handleComplaint(noRow, C1, NAME, "عندي شكوى", C1_PHONE));
+  odooDown = "";
+  const noRowTok = tokens(noRow).at(-1);
+  assert("Odoo cannot make the row when he writes: the form STILL goes (an empty reply), with his words and no row to fill — and Baraa is not told of a complaint that is not on record", noRowReply === "" && flowsTo(C1_PHONE).length === 1 && complaints().length === 0 && noRowTok.words === "عندي شكوى" && !("complaintId" in noRowTok) && sentTo(OWNER).length === 0, JSON.stringify(noRowTok));
+  const noRowSent = await reply(noRow, C1_PHONE, noRowTok.token, good);
+  assert("…its «إرسال» then MAKES the row, with his words", noRowSent.action === "recorded" && complaints().length === 1 && complaints()[0].x_kind === "damaged" && complaints()[0].x_message_text.endsWith("رسالته قبل النموذج: «عندي شكوى»") && ownerNotes().length === 1);
+  const lost = world();
+  for (const id of [O_NEW, O_MID, O_OLD]) table("x_daily_order").get(id)!.x_delivered_at = utc("2026-09-20 10:00");
+  await assertThrows("…with no form to send either, the failure is the caller's, as before", async () => { odooDown = "x_complaint.create"; try { await quiet(() => COMPLAINT.handleComplaint(lost, C1, NAME, "عندي شكوى", C1_PHONE)); } finally { odooDown = ""; } });
   // Odoo fails while his orders are read: the same
   const env2 = world();
   odooDown = "x_daily_order_line";
@@ -316,8 +342,50 @@ for (const word of ["عندي شكوى", "فيه مشكلة في الطلب", "�
   assert("another customer's form lists HIS order alone", other.sent === true && JSON.stringify(dataOf(flowsTo(CUST2_PHONE)[0]).items.map((x: any) => x.id)) === JSON.stringify([`${O_OTHER}:0`, `${O_OTHER}:${L_OTHER}`]));
   table("x_daily_order").get(O_OTHER)!.x_delivered_at = utc("2026-09-20 10:00");
   graph.length = 0;
+  forget(env2, CUST2);
   const none = await quiet(() => CF.sendComplaintForm(env2, { partnerId: CUST2, name: "بقالة النخيل", whatsapp: "+" + CUST2_PHONE }));
   assert("a customer with nothing delivered in the last seven days: no form, no token kept, and it says why", none.sent === false && none.reason === "no_delivered_order" && graph.length === 0 && tokens(env2).length === 1);
+}
+
+{
+  // ONE form at a time: while a form of the last two hours waits for his «إرسال», no second one goes
+  const env = world();
+  await say(env, C1_PHONE, text("عندي شكوى على الطماطم"));
+  const first = flowsTo(C1_PHONE)[0], firstRow = complaints()[0].id;
+  assert("the last form sent to a customer is kept by his partner, for two hours", env.MSG_DEDUP.store.get(CF.complaintPendingKey(C1)) === tokenOf(first) && CF.complaintPendingKey(C1) === `complaint_pending:v1:${C1}` && CF.COMPLAINT_PENDING_SEC === 2 * 3600);
+  setRiyadh(`${DAY} 15:00`); openWindow(env, C1_PHONE);
+  graph.length = 0;
+  await say(env, C1_PHONE, text("والخيار ناقص بعد"));
+  assert("another complaint in words an hour later, the first form not sent back: NO second form — the old path whole (a row, the apology)", flowsTo(C1_PHONE).length === 0 && JSON.stringify(textsTo(C1_PHONE)) === JSON.stringify([OLD_REPLY]) && complaints().length === 2 && complaints()[1].x_message_text === "والخيار ناقص بعد" && tokens(env).length === 1, JSON.stringify(sentTo(C1_PHONE).map(bodyOf)));
+  assert("…and Baraa's alert as before, with no line about a form", sentTo(OWNER).length === 1 && bodyOf(sentTo(OWNER)[0]).startsWith(`🟡 شكوى جديدة #${complaints()[1].id}`) && !bodyOf(sentTo(OWNER)[0]).includes(COMPLAINT.COMPLAINT_FORM_SENT_LINE), bodyOf(sentTo(OWNER)[0]));
+  graph.length = 0;
+  await say(env, C1_PHONE, button("complaint_start"));
+  assert("…a tap on «⚠️ عندي ملاحظة» meanwhile: the line that asks him to write it — no second form", flowsTo(C1_PHONE).length === 0 && JSON.stringify(textsTo(C1_PHONE)) === JSON.stringify([CF.COMPLAINT_WRITE_TEXT]));
+  const waiting = await quiet(() => CF.sendComplaintForm(env, c1));
+  assert("…sendComplaintForm says why: «pending_form»", waiting.sent === false && waiting.reason === "pending_form" && tokens(env).length === 1);
+  const otherCustomer = await quiet(() => CF.sendComplaintForm(env, { partnerId: CUST2, name: "بقالة النخيل", whatsapp: "+" + CUST2_PHONE }));
+  assert("…another customer is not held back by it", otherCustomer.sent === true);
+  // the first form is still his to send: it fills the FIRST row
+  const sentBack = await reply(env, C1_PHONE, tokenOf(first), good);
+  assert("the first form, sent back, fills the row his FIRST words made — the second complaint stays as it is", sentBack.action === "recorded" && sentBack.complaintId === firstRow && complaints().length === 2 && complaints()[0].x_kind === "damaged" && !("x_kind" in complaints()[1]));
+  graph.length = 0;
+  await say(env, C1_PHONE, text("عندي مشكلة ثانية"));
+  assert("a form sent back no longer holds the next one: a new complaint brings a new form at once", flowsTo(C1_PHONE).length === 1 && complaints().length === 3 && tokens(env).at(-1).complaintId === complaints()[2].id);
+  // two hours with no «إرسال»: the next complaint brings a form again
+  const late = world();
+  await say(late, C1_PHONE, text("عندي شكوى"));
+  setRiyadh(`${DAY} 16:01`); openWindow(late, C1_PHONE);
+  graph.length = 0;
+  await say(late, C1_PHONE, text("عندي شكوى للحين"));
+  assert("two hours after a form he never sent back: the next complaint brings a form again", flowsTo(C1_PHONE).length === 1 && complaints().length === 2 && tokens(late).length === 2 && sentTo(OWNER).some((b: any) => bodyOf(b).includes(COMPLAINT.COMPLAINT_FORM_SENT_LINE)));
+  // …and one minute before: still waiting
+  const soon = world();
+  await say(soon, C1_PHONE, text("عندي شكوى"));
+  setRiyadh(`${DAY} 15:59`); openWindow(soon, C1_PHONE);
+  graph.length = 0;
+  await say(soon, C1_PHONE, text("عندي شكوى للحين"));
+  assert("…one minute before the two hours: still the old path", flowsTo(C1_PHONE).length === 0 && textsTo(C1_PHONE).includes(OLD_REPLY));
+  assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 
 // ================================================================ هـ4
@@ -327,7 +395,10 @@ console.log("\n[هـ4] the door of Claude's reading: a message with no keyword t
   setExtract({ intent: "complaint", confidence: 0.9 });
   const word = "الطلب اليوم ما عجبني أبداً";
   await say(env, C1_PHONE, text(word));
-  assert("no keyword of ours in it, Claude says «complaint» → ONE message: the form, his words with its token — no row, nothing to Baraa", !COMPLAINT.looksLikeComplaint(word) && sentTo(C1_PHONE).length === 1 && flowsTo(C1_PHONE).length === 1 && tokens(env).at(-1).words === word && complaints().length === 0 && sentTo(OWNER).length === 0, JSON.stringify(sentTo(C1_PHONE).map(bodyOf)));
+  assert("no keyword of ours in it, Claude says «complaint» → ONE message: the form, his words with its token — no row (this door never made one), nothing to Baraa", !COMPLAINT.looksLikeComplaint(word) && sentTo(C1_PHONE).length === 1 && flowsTo(C1_PHONE).length === 1 && tokens(env).at(-1).words === word && !("complaintId" in tokens(env).at(-1)) && complaints().length === 0 && sentTo(OWNER).length === 0, JSON.stringify(sentTo(C1_PHONE).map(bodyOf)));
+  graph.length = 0;
+  await say(env, C1_PHONE, text(word));
+  assert("…the same message again while that form waits: no second form — Claude's composed reply, as before", flowsTo(C1_PHONE).length === 0 && textsTo(C1_PHONE).length === 1 && complaints().length === 0);
   // nothing delivered in seven days: the composed reply of before — and, as before, no row
   const env2 = world();
   for (const id of [O_NEW, O_MID, O_OLD]) table("x_daily_order").get(id)!.x_delivered_at = utc("2026-09-20 10:00");
@@ -385,6 +456,15 @@ console.log("\n[هـ5] the door of the delivery: «⚠️ عندي ملاحظة�
   await say(env2, C1_PHONE, button("complaint_start"));
   metaRefusesFlow = false;
   assert("the button when the form cannot go: the same line", textsTo(C1_PHONE).includes(CF.COMPLAINT_WRITE_TEXT) && complaints().length === 0);
+  // the quick reply «عندي ملاحظة» of the older templates (its payload is its text) does what the button does
+  const env3 = world();
+  await say(env3, C1_PHONE, button("عندي ملاحظة", "عندي ملاحظة"));
+  assert("the older quick reply «عندي ملاحظة»: the form too — one message, no row", sentTo(C1_PHONE).length === 1 && flowsTo(C1_PHONE).length === 1 && dataOf(flowsTo(C1_PHONE)[0]).items.length === 7 && complaints().length === 0 && CF.COMPLAINT_TEMPLATE_PAYLOAD === "عندي ملاحظة", JSON.stringify(sentTo(C1_PHONE).map(bodyOf)));
+  const env4 = world();
+  for (const id of [O_NEW, O_MID, O_OLD]) table("x_daily_order").get(id)!.x_delivered_at = utc("2026-09-20 10:00");
+  await say(env4, C1_PHONE, button("عندي ملاحظة", "عندي ملاحظة"));
+  assert("…with nothing delivered in seven days: its line of before, to the letter", flowsTo(C1_PHONE).length === 0 && JSON.stringify(textsTo(C1_PHONE)) === JSON.stringify(["تفضّل، اكتب لي ملاحظتك بالتفصيل وسنراجعها فوراً 🙏"]) && CF.COMPLAINT_WRITE_TEXT === "تفضّل، اكتب لي ملاحظتك بالتفصيل وسنراجعها فوراً 🙏");
+  assert("the router reads the two ids in ONE place", srcOf("router.ts").includes("if (t === COMPLAINT_BUTTON || t === COMPLAINT_TEMPLATE_PAYLOAD) return await answerComplaintButton(env, partner);") && !srcOf("router.ts").includes("if (t === \"عندي ملاحظة\")"));
   assert("answerComplaintButton with no partner: the same line, nothing read", (await quiet(() => CF.answerComplaintButton(env2, null))).text === CF.COMPLAINT_WRITE_TEXT && (await quiet(() => CF.answerComplaintButton(env2, { id: C1, name: NAME, x_whatsapp_number: false }))).text === CF.COMPLAINT_WRITE_TEXT);
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
@@ -393,17 +473,20 @@ console.log("\n[هـ5] the door of the delivery: «⚠️ عندي ملاحظة�
 console.log("\n[هـ6] «إرسال»: ONE complaint on record with every field, the customer answered, Baraa told with the photo");
 {
   const env = world();
+  setExtract({ type: "pricing", severity: "critical" });
   await say(env, C1_PHONE, text("عندي شكوى على الطماطم"));
+  const made = { ...complaints()[0] };
+  setRiyadh(`${DAY} 14:30`); openWindow(env, C1_PHONE);
   const f = flowsTo(C1_PHONE)[0];
   const before = books();
   graph.length = 0; odooLog.length = 0;
   const res = await say(env, C1_PHONE, nfm(tokenOf(f), good));
   await settle();
   const row = complaints()[0], id = row?.id;
-  assert("the reply through the webhook → ONE x_complaint row", res.status === 200 && complaints().length === 1, String(complaints().length));
+  assert("the reply through the webhook FILLS the row his words made — still ONE x_complaint row, the same id", res.status === 200 && complaints().length === 1 && id === made.id && made.x_type === "pricing" && made.x_order_id === O_UNDATED && made.x_message_text === "عندي شكوى على الطماطم", String(complaints().length));
   assert("…the customer, the order, the line and its item", row.x_customer_id === C1 && row.x_order_id === O_NEW && row.x_order_line_id === L_TOM && row.x_product_tmpl_id === 1, JSON.stringify(row));
-  assert("…the kind, and the older x_type it maps to (تالف → quality)", row.x_kind === "damaged" && row.x_type === "quality");
-  assert("…the affected quantity as a number, severity «medium», status «new», created now", row.x_affected_qty === 2 && row.x_severity === "medium" && row.x_status === "new" && row.x_created_at === utc(`${DAY} 14:00`));
+  assert("…the kind, and the older x_type it maps to (تالف → quality) in place of the classifier's «pricing»", row.x_kind === "damaged" && row.x_type === "quality");
+  assert("…the affected quantity as a number; the severity Claude gave his words, the status «new» and the moment of his words stay as they were", row.x_affected_qty === 2 && row.x_severity === "critical" && row.x_status === "new" && row.x_created_at === utc(`${DAY} 14:00`));
   assert("…his note, then what he wrote before the form", row.x_message_text === "الكرتون مهروس\nرسالته قبل النموذج: «عندي شكوى على الطماطم»", row.x_message_text);
   assert("…the photo, downloaded from Meta, as base64 in x_photo", row.x_photo === PHOTO_B64 && JSON.stringify(mediaAsked) === JSON.stringify(["CMPPH_F1"]));
   assert("…and nothing but these fields (the pilot worker's own flag aside)", JSON.stringify(Object.keys(row).sort()) === JSON.stringify(["id", "x_affected_qty", "x_created_at", "x_customer_id", "x_is_simulation", "x_kind", "x_message_text", "x_order_id", "x_order_line_id", "x_photo", "x_product_tmpl_id", "x_severity", "x_status", "x_type"]), Object.keys(row).sort().join());
@@ -417,14 +500,18 @@ console.log("\n[هـ6] «إرسال»: ONE complaint on record with every field,
   assert("…with the photo as its header (the media Meta already holds)", n.interactive.header?.type === "image" && n.interactive.header.image.id === "CMPPH_F1");
   assert("…and three buttons: cmp_comp_ «تعويض بالطلب القادم», cmp_credit_ «إشعار دائن», cmp_reject_ «رفض»", JSON.stringify(buttonsOf(n)) === JSON.stringify([{ id: `cmp_comp_${id}`, title: "تعويض بالطلب القادم" }, { id: `cmp_credit_${id}`, title: "إشعار دائن" }, { id: `cmp_reject_${id}`, title: "رفض" }])
     && buttonsOf(n).every((b) => CF.COMPLAINT_DECISION_RE.test(b.id) && count(b.title) <= 20) && count(bodyOf(n)) <= 1024);
-  assert("nothing else is written: the row, and the messages' own records — no order line, no invoice, no payment, no entry", odooWrites().filter((c: any) => !gatewayRecord(c)).length === 1 && odooWrites().filter((c: any) => !gatewayRecord(c))[0].model === "x_complaint" && books() === before, JSON.stringify(odooWrites().filter((c: any) => !gatewayRecord(c)).map((c: any) => `${c.model}.${c.method}`)));
+  const fill = odooWrites().filter((c: any) => !gatewayRecord(c));
+  assert("ONE write, on that row alone, of the form's fields alone — no second row, no status, no order line, no invoice, no payment, no entry", fill.length === 1 && fill[0].model === "x_complaint" && fill[0].method === "write" && JSON.stringify(fill[0].body.ids) === JSON.stringify([made.id])
+    && JSON.stringify(Object.keys(fill[0].body.vals).sort()) === JSON.stringify(["x_affected_qty", "x_kind", "x_message_text", "x_order_id", "x_order_line_id", "x_photo", "x_product_tmpl_id", "x_type"]) && books() === before, JSON.stringify(fill.map((c: any) => [c.model, c.method, Object.keys(c.body.vals ?? c.body.vals_list?.[0] ?? {})])));
   assert("the form's token is marked used", typeof tokens(env)[0].usedAt === "number");
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 {
   // the order as a whole, a delay: no line, no item, no quantity, no photo
   const env = world();
+  odooLog.length = 0;
   const { r, row, id } = await note(env, { item: `${O_MID}:0`, kind: "delay", qty: "", note: "وصل الظهر" });
+  assert("a form with no row behind it (the button's door, Claude's): «إرسال» MAKES the row — severity «medium», status «new»", odooLog.filter((c: any) => c.model === "x_complaint").map((c: any) => c.method).join() === "create" && row.x_severity === "medium" && row.x_status === "new" && row.x_customer_id === C1 && row.x_created_at === utc(`${DAY} 14:00`));
   assert("«الطلب كله» + «تأخير» with no quantity and no photo: recorded — the order alone, x_type «delay»", r.action === "recorded" && row.x_order_id === O_MID && row.x_kind === "delay" && row.x_type === "delay" && row.x_message_text === "وصل الظهر"
     && !("x_order_line_id" in row) && !("x_product_tmpl_id" in row) && !("x_affected_qty" in row) && !("x_photo" in row) && mediaAsked.length === 0, JSON.stringify(row));
   const n = ownerNotes()[0];
@@ -523,9 +610,9 @@ console.log("\n[هـ7] a field that cannot be read: the form is refused as a who
   const fresh2 = flowsTo(C1_PHONE)[0], d = dataOf(fresh2), tok = tokens(env).find((t: any) => t.token === tokenOf(fresh2));
   assert("the fresh form lists the SAME orders and opens the two texts on what he wrote — the note as one line", r.action === "invalid" && d.items.length === 7 && d.qty === "2.5" && d.note === "مهروس كله" && d.t === `عندي ملاحظة — ${NAME}`, JSON.stringify([d.qty, d.note]));
   assert("…its orders come from the first form's token: Odoo is not read again", !odooLog.some((c: any) => c.model === "x_daily_order" || c.model === "x_daily_order_line") && tokenOf(fresh2) !== tokenOf(f) && JSON.stringify(tok.orders.map((o: any) => o.id)) === JSON.stringify([O_NEW, O_MID, O_OLD]));
-  assert("…and his words of before the form go on to the fresh one", tok.words === "عندي شكوى");
+  assert("…and his words of before the form, and the row they made, go on to the fresh one", tok.words === "عندي شكوى" && tok.complaintId === complaints()[0].id && complaints().length === 1);
   const ok = await reply(env, C1_PHONE, tokenOf(fresh2), { ...good, qty: "2.5" });
-  assert("the fresh form, corrected, is recorded — with those words", ok.action === "recorded" && complaints().length === 1 && complaints()[0].x_affected_qty === 2.5 && complaints()[0].x_message_text.endsWith("رسالته قبل النموذج: «عندي شكوى»"));
+  assert("the fresh form, corrected, fills that SAME row — with those words, and no second row", ok.action === "recorded" && ok.complaintId === tok.complaintId && complaints().length === 1 && complaints()[0].x_affected_qty === 2.5 && complaints()[0].x_message_text.endsWith("رسالته قبل النموذج: «عندي شكوى»"));
   // a quantity that was not a number opens empty
   const env2 = world();
   await quiet(() => CF.sendComplaintForm(env2, c1));
@@ -878,7 +965,9 @@ console.log("\n[هـ12] the guide: the team's page on the complaint form");
   assert("…Baraa's three buttons, the second tap, and that nothing else is written", Object.values(CF.COMPLAINT_DECISIONS).every((x: any) => section.includes(`**«${x.title}»**`)) && section.includes("«سبق تسجيله»") && section.includes("**لا يُكتب غير ذلك**"));
   assert("…that the compensation and the credit note stay manual, pointing at «الإشعار الدائن»", section.includes("**التعويض والإشعار الدائن لا ينفّذهما النظام**") && section.includes("**أضف التعويض بنفسك**") && section.includes("**أصدر الإشعار الدائن يدوياً**") && section.includes("«الإشعار الدائن»") && guide.includes("\n## الإشعار الدائن (مرتجع / تالف بعد التسليم)"));
   assert("…what refuses the form, the photo that could not be downloaded, and who never gets it", /يُرفض النموذج كله/.test(section) && section.includes("**بلا صورة والنوع تالف أو جودة**") && /تُسجَّل بلا صورة/.test(section) && /مصدر أسعار/.test(section) && /ولا أي سعر/.test(section));
-  assert("…that no complaint is made when the form goes, and the complaint of before when it cannot", section.includes("**لا تُسجَّل شكوى عند خروج النموذج**") && /يبقى الرد كما كان/.test(section));
+  assert("…that his words make the complaint at once as before, that «إرسال» fills that same one, and the complaint of before when the form cannot go", section.includes("**الشكوى تُسجَّل فوراً من نصه ويصلك «شكوى جديدة» كما كان**") && section.includes("**تُكمَّل الشكوى نفسها**") && /لا يضيع شيء/.test(section) && /يبقى الرد كما كان/.test(section));
+  assert("…that the button under «تم توصيل طلبك» does not show today — the approved template goes first, even inside the window — and how the form reaches him", section.includes("**اليوم لا يظهر هذا الزر عملياً:**") && section.includes("`utak_delivered`") && /القالب يسبق النص العادي حتى داخل النافذة/.test(section) && /من «شكوى» \/ «مشكلة» ومن فهم النظام لرسالته/.test(section));
+  assert("…ONE form at a time, for two hours", section.includes("**نموذج واحد في المرة:**") && /آخر ساعتين/.test(section) && /المسار القديم كاملاً/.test(section));
   assert("…and the trial", /«🧪 تجربة»/.test(section) && /لا يكتب شيئاً في Odoo/.test(section));
 }
 

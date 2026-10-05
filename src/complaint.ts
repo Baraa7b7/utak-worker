@@ -53,11 +53,11 @@ export async function classifyComplaint(
   } catch { return { type: "other", severity: "medium" }; }
 }
 /**
- * § 57 هـ — a customer's complaint in words (a keyword above, or Claude's
- * «complaint» intent): with an order delivered to him in the last seven days
- * he gets the form «عندي ملاحظة» (src/complaint-form.ts) and NO row is made
- * yet — his words stay with the form and are written with its note when he
- * sends it. False — no such order, or a form that could not go: the caller
+ * § 57 هـ — a message Claude read as a complaint (no keyword above in it):
+ * with an order delivered to him in the last seven days he gets the form
+ * «عندي ملاحظة» (src/complaint-form.ts). This door never made a row and makes
+ * none now: his words stay with the form and are written with its note when
+ * he sends it. False — no such order, or a form that could not go: the caller
  * does what it did before.
  */
 export async function answerComplaintWithForm(
@@ -66,16 +66,43 @@ export async function answerComplaintWithForm(
   const { offerComplaintForm } = await import("./complaint-form");
   return (await offerComplaintForm(env, { partnerId: customer.id, name: customer.name || "", whatsapp: from }, { words: text })).sent;
 }
+/** § 57 هـ — the line Baraa's «شكوى جديدة» gains when the customer was sent the form. */
+export const COMPLAINT_FORM_SENT_LINE = "📋 وصله نموذج «عندي ملاحظة»: حين يرسله تُكمَّل هذه الشكوى نفسها، ويصلك ملخصها بأزرار القرار.";
+/**
+ * A customer's complaint in words (a keyword above): the row from his words
+ * and Baraa's «شكوى جديدة», as always.
+ * § 57 هـ — `from` (his number): with an order delivered to him in the last
+ * seven days the form «عندي ملاحظة» goes IN PLACE of the apology line, its
+ * token holds this row, and its «إرسال» fills this same row; Baraa's alert
+ * says the form was sent. No such order, a form already waiting for him, or
+ * one that could not go: the apology line, exactly as before. A form that is
+ * never sent back leaves the row and the alert as they are.
+ */
 export async function handleComplaint(
-  env: Env, customerId: number, customerName: string, text: string,
+  env: Env, customerId: number, customerName: string, text: string, from?: string,
 ): Promise<string> {
-  const [{ type, severity }, orderId] = await Promise.all([
-    classifyComplaint(env, text),
-    findLatestOrderForCustomer(env, customerId),
-  ]);
-  const complaintId = await createComplaint(env, {
-    customerId, orderId: orderId || undefined, type, severity, text,
-  });
+  let made: { complaintId: number | null; type: ComplaintType; severity: ComplaintSeverity; orderId: number | null } | null = null;
+  let failure: unknown = null;
+  try {
+    const [{ type, severity }, orderId] = await Promise.all([
+      classifyComplaint(env, text),
+      findLatestOrderForCustomer(env, customerId),
+    ]);
+    const complaintId = await createComplaint(env, {
+      customerId, orderId: orderId || undefined, type, severity, text,
+    });
+    made = { complaintId, type, severity, orderId };
+  } catch (e) {
+    // the row could not be made: the form may still go, and its «إرسال» makes it then
+    failure = e;
+  }
+  const { offerComplaintForm } = await import("./complaint-form");
+  const formSent = (await offerComplaintForm(env, { partnerId: customerId, name: customerName, whatsapp: from ?? "" }, { words: text, complaintId: made?.complaintId ?? undefined })).sent;
+  if (!made) {
+    if (formSent) return "";
+    throw failure;
+  }
+  const { complaintId, type, severity, orderId } = made;
   const owner = env.OWNER_WHATSAPP;
   if (owner) {
     const emoji = { low: "🟢", medium: "🟡", high: "🟠", critical: "🔴" }[severity];
@@ -88,8 +115,8 @@ export async function handleComplaint(
 النوع: ${typeArabic}
 الرسالة: "${text.slice(0, 200)}"
 ${orderId ? `طلب مرتبط: #${orderId}` : ""}`;
-    try { await sendOwnerAlert(env, notif); }
+    try { await sendOwnerAlert(env, formSent ? `${notif.trimEnd()}\n${COMPLAINT_FORM_SENT_LINE}` : notif); }
     catch (e) { console.error("[complaint] notify failed:", (e as Error).message); }
   }
-  return "نعتذر عن الإزعاج 🙏 وصلنا ملاحظتك وسنتواصل معك خلال ساعة لحل المشكلة.";
+  return formSent ? "" : "نعتذر عن الإزعاج 🙏 وصلنا ملاحظتك وسنتواصل معك خلال ساعة لحل المشكلة.";
 }

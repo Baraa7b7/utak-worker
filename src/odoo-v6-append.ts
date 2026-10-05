@@ -101,6 +101,28 @@ export type ComplaintKind = "damaged" | "short" | "quality" | "delay" | "other";
 /** § 57 هـ — Baraa's decision from WhatsApp (x_decision). */
 export type ComplaintDecision = "compensate_next" | "credit_note" | "rejected";
 
+/**
+ * § 57 هـ — the form's own fields (src/complaint-form.ts), each written only
+ * when the form gave it: a complaint from a plain text has none of them.
+ */
+export interface ComplaintFormFields {
+  kind?: ComplaintKind;
+  orderLineId?: number;
+  productId?: number;
+  affectedQty?: number;
+  /** The customer's picture, base64 (x_photo is a binary field). */
+  photoBase64?: string;
+}
+function complaintFormVals(args: ComplaintFormFields): Record<string, unknown> {
+  const vals: Record<string, unknown> = {};
+  if (args.kind) vals.x_kind = args.kind;
+  if (args.orderLineId) vals.x_order_line_id = args.orderLineId;
+  if (args.productId) vals.x_product_tmpl_id = args.productId;
+  if (args.affectedQty !== undefined) vals.x_affected_qty = args.affectedQty;
+  if (args.photoBase64) vals.x_photo = args.photoBase64;
+  return vals;
+}
+
 export async function createComplaint(
   env: Env,
   args: {
@@ -109,17 +131,7 @@ export async function createComplaint(
     type: ComplaintType;
     severity: ComplaintSeverity;
     text: string;
-    /**
-     * § 57 هـ — the form's own fields (src/complaint-form.ts), each written only
-     * when the form gave it: a complaint from a plain text has none of them.
-     */
-    kind?: ComplaintKind;
-    orderLineId?: number;
-    productId?: number;
-    affectedQty?: number;
-    /** The customer's picture, base64 (x_photo is a binary field). */
-    photoBase64?: string;
-  },
+  } & ComplaintFormFields,
 ): Promise<number | null> {
   const nowStr = new Date().toISOString().replace("T", " ").slice(0, 19);
   const vals: Record<string, unknown> = {
@@ -131,13 +143,24 @@ export async function createComplaint(
     x_created_at: nowStr,
   };
   if (args.orderId) vals.x_order_id = args.orderId;
-  if (args.kind) vals.x_kind = args.kind;
-  if (args.orderLineId) vals.x_order_line_id = args.orderLineId;
-  if (args.productId) vals.x_product_tmpl_id = args.productId;
-  if (args.affectedQty !== undefined) vals.x_affected_qty = args.affectedQty;
-  if (args.photoBase64) vals.x_photo = args.photoBase64;
+  Object.assign(vals, complaintFormVals(args));
   const ids = await v6Call<number[]>(env, "x_complaint", "create", { vals_list: [vals] });
   return Array.isArray(ids) ? ids[0] : (ids as unknown as number);
+}
+/**
+ * § 57 هـ — the form's «إرسال» on a complaint his words already made (the
+ * keyword's door): the order he chose in place of his latest one, the kind's
+ * x_type in place of the classifier's, his note with those words, and the
+ * form's own fields. The customer, the severity and the status stay as they are.
+ */
+export async function updateComplaintFromForm(
+  env: Env, complaintId: number,
+  args: { orderId: number; type: ComplaintType; text: string } & ComplaintFormFields,
+): Promise<void> {
+  await v6Call(env, "x_complaint", "write", {
+    ids: [complaintId],
+    vals: { x_order_id: args.orderId, x_type: args.type, x_message_text: args.text, ...complaintFormVals(args) },
+  });
 }
 
 /** § 57 هـ — a complaint as Baraa's decision reads it: whose it is, and where it stands. */

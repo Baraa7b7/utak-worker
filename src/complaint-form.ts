@@ -17,8 +17,16 @@
 //     template, never held): a text that holds a complaint's word («شكوى»,
 //     «مشكلة», … — looksLikeComplaint); a text Claude reads as a complaint; the
 //     button «⚠️ عندي ملاحظة» under the free text that tells him his order was
-//     delivered. NO x_complaint row is made when the form goes: his own words
-//     stay with the form's token and are written with its note at «إرسال».
+//     delivered (and the quick reply «عندي ملاحظة» of the older templates).
+//   • The WORDS' door keeps what it always did for the record and for Baraa:
+//     the row is made at once from his words and Baraa gets «شكوى جديدة»
+//     (src/complaint.ts handleComplaint) — the form goes in place of the
+//     apology line, its token holds that row, and «إرسال» FILLS that same row.
+//     A form never sent back leaves the row and the alert: nothing is lost.
+//     The two other doors made no row before, and make none until «إرسال».
+//   • ONE form at a time: while a form sent to him in the last two hours has
+//     not been sent back, no second one goes — a complaint in words takes the
+//     old path whole, the button asks him to write it.
 //   • «Delivered» = x_daily_order of THIS customer, delivered or closed, with
 //     x_delivered_at in the last seven days; never a row flagged
 //     x_utak_simulation or x_is_simulation. Its lines are the delivered ones
@@ -33,9 +41,10 @@
 //     or more than was delivered of the item, no quantity for «تالف» / «ناقص» /
 //     «جودة» on an item, no photo for «تالف» / «جودة»: the form is refused as a
 //     whole — one message, with a fresh form — and nothing is written.
-//   • «إرسال»: ONE x_complaint row (the order, the line and its item, x_kind
-//     and the older x_type, the quantity, the photo in x_photo, his note and
-//     his words). A photo that cannot be downloaded does not lose the note: it
+//   • «إرسال»: ONE x_complaint row — the one his words made, filled, else a
+//     new one — (the order, the line and its item, x_kind and the older
+//     x_type, the quantity, the photo in x_photo, his note and his words). A
+//     photo that cannot be downloaded does not lose the note: it
 //     is recorded without it, and Baraa reads that. The customer reads «وصلت
 //     ملاحظتك رقم #… ونرد عليك اليوم»; Baraa gets the summary and the photo,
 //     with «تعويض بالطلب القادم» / «إشعار دائن» / «رفض».
@@ -53,7 +62,7 @@ import type { NormalizedMessage } from "./types";
 import type { RouterReply } from "./router";
 import { call, stripRef } from "./odoo";
 import {
-  createComplaint, getComplaintBrief, getPartnerBasic, writeComplaintDecision,
+  createComplaint, getComplaintBrief, getPartnerBasic, updateComplaintFromForm, writeComplaintDecision,
   type ComplaintBrief, type ComplaintDecision, type ComplaintKind, type ComplaintType,
 } from "./odoo-v6-append";
 import { textContent } from "./meta";
@@ -80,6 +89,8 @@ export const COMPLAINT_TEST_PURPOSE = "complaint_form_test";
 /** The button under the free text that tells the customer his order was delivered. */
 export const COMPLAINT_BUTTON = "complaint_start";
 export const COMPLAINT_BUTTON_TITLE = "⚠️ عندي ملاحظة";
+/** The quick reply of the older templates (the delivery's, the feedback's): its payload is its text. */
+export const COMPLAINT_TEMPLATE_PAYLOAD = "عندي ملاحظة";
 export const COMPLAINT_CTA = "عندي ملاحظة";
 export const COMPLAINT_TITLE = "عندي ملاحظة";
 export const COMPLAINT_TEST_MARK = "🧪 تجربة";
@@ -87,6 +98,8 @@ export const COMPLAINT_TEST_MARK = "🧪 تجربة";
 export const COMPLAINT_DECISION_RE = /^cmp_(comp|credit|reject)_(\d+)$/;
 /** An order is complained about for this many days after its delivery. */
 export const COMPLAINT_DAYS = 7;
+/** A form waits for his «إرسال» this long: until then no second one is sent to him. */
+export const COMPLAINT_PENDING_SEC = 2 * 60 * 60;
 /** The options one form lists (scripts/lib/s57-complaint-flow.mjs): the newest orders first. */
 export const COMPLAINT_OPTIONS_MAX = 60;
 /** The second half of an option's id for a note on the order as a whole. */
@@ -323,6 +336,8 @@ export interface ComplaintToken {
   orders: DeliveredOrder[];
   /** His own message, when the form answered a text: written with the form's note. */
   words?: string;
+  /** The x_complaint his words already made (the keyword's door): «إرسال» fills it, and makes no second one. */
+  complaintId?: number;
   /** The trial to Baraa: its reply writes nothing. */
   test?: boolean;
   usedAt?: number;
@@ -342,6 +357,16 @@ export async function readComplaintToken(env: Env, token: string): Promise<Compl
 async function writeComplaintToken(env: Env, rec: ComplaintToken): Promise<void> {
   await env.MSG_DEDUP.put(complaintTokenKey(rec.token), JSON.stringify(rec), { expirationTtl: TOKEN_TTL });
 }
+/** The last form sent to a customer (its token), by his partner. */
+export const complaintPendingKey = (partnerId: number): string => `complaint_pending:v1:${partnerId}`;
+/** A form sent to him in the last two hours that he has not sent back (a refused one is sent back too). */
+async function pendingForm(env: Env, partnerId: number, now: number): Promise<boolean> {
+  try {
+    const token = await env.MSG_DEDUP.get(complaintPendingKey(partnerId));
+    const rec = token ? await readComplaintToken(env, token) : null;
+    return !!rec && !rec.usedAt && now - rec.createdAt < COMPLAINT_PENDING_SEC * 1000;
+  } catch { return false; }
+}
 
 // ---------------------------------------------------------------- the send
 
@@ -354,6 +379,8 @@ export interface ComplaintFormOpts {
   orders?: DeliveredOrder[];
   /** His own message, when the form answers a text. */
   words?: string;
+  /** The x_complaint his words already made: the form's «إرسال» fills it. */
+  complaintId?: number;
   /** What the two texts open with: what he wrote on a form that was refused. */
   init?: { qty?: string; note?: string };
   test?: boolean;
@@ -403,9 +430,10 @@ export function complaintFormText(o: Pick<ComplaintFormOpts, "words"> = {}): str
 /**
  * One complaint form: the interactive message, inside the number's window
  * only. Nothing is held and no template is used. Not sent — and it says why —
- * to a number of a price source or a supplier, outside the window, or to a
- * customer with no order delivered in the last seven days. Throws on Odoo
- * trouble (the caller does what it did before).
+ * to a number of a price source or a supplier, outside the window, to a
+ * customer who still has a form of the last two hours to send back, or to one
+ * with no order delivered in the last seven days. Throws on Odoo trouble (the
+ * caller does what it did before).
  */
 export async function sendComplaintForm(env: Env, who: ComplaintWho, opts: ComplaintFormOpts = {}): Promise<ComplaintFormResult> {
   const to = waDigits(who.whatsapp);
@@ -414,11 +442,13 @@ export async function sendComplaintForm(env: Env, who: ComplaintWho, opts: Compl
   if (!opts.test && (await priceClosedNumber(env, to))) return { sent: false, reason: "closed_number" };
   const now = opts.now ?? Date.now();
   if (!(await readWindow(env, to, now)).open) return { sent: false, reason: "window_closed" };
+  // ONE form at a time: his next complaint is not answered with a second one while the first waits
+  if (await pendingForm(env, who.partnerId, now)) return { sent: false, reason: "pending_form" };
   const orders = offeredOrders(opts.orders ?? (await deliveredOrders(env, { partnerId: who.partnerId, sinceMs: now - COMPLAINT_DAYS * DAY_MS })));
   if (!orders.length) return { sent: false, reason: "no_delivered_order" };
   const rec: ComplaintToken = {
     v: 1, token: newComplaintToken(who.partnerId), to, partnerId: who.partnerId, name: who.name, createdAt: now, orders,
-    ...(opts.words ? { words: opts.words } : {}), ...(opts.test ? { test: true } : {}),
+    ...(opts.words ? { words: opts.words } : {}), ...(opts.complaintId ? { complaintId: opts.complaintId } : {}), ...(opts.test ? { test: true } : {}),
   };
   await writeComplaintToken(env, rec);
   const mark = opts.test ? `${COMPLAINT_TEST_MARK} — ` : "";
@@ -436,6 +466,7 @@ export async function sendComplaintForm(env: Env, who: ComplaintWho, opts: Compl
     try { await env.MSG_DEDUP.delete(complaintTokenKey(rec.token)); } catch { /* expires on its own */ }
     return { sent: false, reason: d ? `${d.action}${"reason" in d ? `: ${d.reason}` : ""}` : "no_decision" };
   }
+  await env.MSG_DEDUP.put(complaintPendingKey(who.partnerId), rec.token, { expirationTtl: COMPLAINT_PENDING_SEC });
   return { sent: true, token: rec.token, options: (data.items as ComplaintOption[]).length };
 }
 
@@ -455,7 +486,7 @@ export async function offerComplaintForm(env: Env, who: ComplaintWho, opts: Comp
   }
 }
 
-/** «⚠️ عندي ملاحظة» under the delivery's text: the form; with no order delivered in seven days, or when it cannot go, he is asked to write it. */
+/** «⚠️ عندي ملاحظة» under the delivery's text: the form; with no order delivered in seven days, a form still waiting for him, or one that cannot go, he is asked to write it. */
 export async function answerComplaintButton(env: Env, partner: { id: number; name?: string; x_whatsapp_number?: string | false | null } | null): Promise<RouterReply> {
   const number = String(partner?.x_whatsapp_number || "");
   if (!partner?.id || !number) return { text: COMPLAINT_WRITE_TEXT };
@@ -588,7 +619,7 @@ export async function handleComplaintReply(env: Env, msg: Pick<NormalizedMessage
       const text = ["⚠️ ما انحفظت ملاحظتك:", ...problems.map((p) => `• ${why(p)}`), "عبّ النموذج من جديد ثم «إرسال» 👇"].join("\n");
       // the fresh form lists the same orders and opens the two texts on what he wrote (a list's choice and a photo cannot be put back)
       const init = { qty: typeof qty === "number" ? fmtQty(qty) : "", note };
-      const r = await sendComplaintForm(env, who, { now: nowMs, ctx, body: text, orders: rec.orders, words: rec.words, init, test: rec.test }).catch(() => ({ sent: false }));
+      const r = await sendComplaintForm(env, who, { now: nowMs, ctx, body: text, orders: rec.orders, words: rec.words, complaintId: rec.complaintId, init, test: rec.test }).catch(() => ({ sent: false }));
       if (!r.sent) await say(text);
       return { action: "invalid", problems };
     }
@@ -603,13 +634,17 @@ export async function handleComplaintReply(env: Env, msg: Pick<NormalizedMessage
     // ---- a complaint: the photo as a file, then the row, the customer, Baraa
     const { downloadMedia } = await import("./supplier-pay");
     const file = photo ? await downloadMedia(env, photo.id) : null;
-    const id = await createComplaint(env, {
-      customerId: rec.partnerId, orderId: picked.order.id, type: KIND_TO_TYPE[k], severity: "medium",
+    const fields = {
+      orderId: picked.order.id, type: KIND_TO_TYPE[k],
       text: complaintMessageText(note, rec.words), kind: k,
       ...(line ? { orderLineId: line.id, productId: line.productId } : {}),
       ...(amount !== null ? { affectedQty: amount } : {}),
       ...(file ? { photoBase64: file.base64 } : {}),
-    });
+    };
+    // the row his words made when the form went (the keyword's door) is the one filled — never a second one
+    let id = rec.complaintId ?? null;
+    if (id) await updateComplaintFromForm(env, id, fields);
+    else id = await createComplaint(env, { customerId: rec.partnerId, severity: "medium", ...fields });
     if (!id) throw new Error("x_complaint was not created");
     await used();
     await say(complaintReceivedText(id));

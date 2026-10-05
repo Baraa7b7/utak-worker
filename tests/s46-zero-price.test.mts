@@ -118,7 +118,7 @@ console.log("\n[ج] the quotation: not created, «نراجع السعر وأرد
 
 console.log("\n[ج] the invoice at «تم التسليم»: not issued, the delivery goes on, issued by the tick once the price is corrected");
 const invoicesOf = (orderId: number) => rows("x_invoice").filter((i: any) => i.x_order_id === orderId);
-const invoiceSends = () => sentTo(C1_PHONE).filter((b: any) => /فاتورتك رقم/.test(String(b?.text?.body ?? "")) || /invoice/.test(String(b?.template?.name ?? "")));
+const invoiceSends = () => sentTo(C1_PHONE).filter((b: any) => /فاتورتك رقم/.test(String(b?.text?.body ?? b?.interactive?.body?.text ?? "")) || /invoice/.test(String(b?.template?.name ?? "")));
 function onTheWay(day: string, lines: Array<[number, number, number]>): number {
   // the company's sale tax (15 %, price-included), as on the tenant from 2026-10-01
   if (!table("res.company").size) {

@@ -1,8 +1,9 @@
 // Anthropic API wrapper.
-// Three entry points:
+// Entry points:
 //   classifyIntent   — Haiku, cheap, every message
 //   extractOrderItems — Sonnet, only on place_order / add_to_order
 //   composeReply     — Sonnet, only when a Claude-authored reply is required
+//   readDocumentJson — Sonnet, one image or PDF read under the caller's instruction (§ 57 د)
 
 import type { Env } from "./config";
 import {
@@ -189,6 +190,52 @@ export async function extractOrderItems(
   } catch (e) {
     console.error("extractOrderItems parse failed", (e as Error)?.message, raw.slice(0, 200));
     return [];
+  }
+}
+
+// § 57 د — a file read by the extraction model (Sonnet): a photo, or a PDF.
+// The caller's `system` says what to look for and the JSON object to answer
+// with (a transfer receipt today; a supplier's tax invoice next).
+/** What the Messages API takes as an image block; a PDF goes as a document block. */
+const READ_IMAGE_TYPES: ReadonlySet<string> = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const READ_PDF_TYPE = "application/pdf";
+/** The largest file handed to Claude, in base64 characters (about 10 MB of bytes — the Flows' own photo limit). */
+export const READ_DOCUMENT_MAX_BASE64 = 14_000_000;
+
+/**
+ * ONE image or PDF read under `system`, answered as ONE JSON object. Null —
+ * never a throw — when it is not read: a file that is neither an image nor a
+ * PDF, one too large, Claude unreachable or refusing, or an answer that is not
+ * a JSON object. The caller decides what «not read» means.
+ */
+export async function readDocumentJson(
+  env: Env,
+  file: { base64: string; mime: string },
+  system: string,
+  ask = "Read the attached file and answer with the JSON object.",
+): Promise<Record<string, unknown> | null> {
+  const mime = String(file?.mime ?? "").split(";")[0].trim().toLowerCase();
+  const data = String(file?.base64 ?? "");
+  const block = READ_IMAGE_TYPES.has(mime) ? { type: "image", source: { type: "base64", media_type: mime, data } }
+    : mime === READ_PDF_TYPE ? { type: "document", source: { type: "base64", media_type: mime, data } }
+    : null;
+  if (!block || !data || data.length > READ_DOCUMENT_MAX_BASE64) return null;
+  try {
+    const res = await fetch(ANTHROPIC_API_URL, {
+      method: "POST",
+      headers: { "x-api-key": env.ANTHROPIC_API_KEY, "anthropic-version": ANTHROPIC_VERSION, "Content-Type": "application/json" },
+      // the file first, the question after it (as the API reads a document best)
+      body: JSON.stringify({ model: env.CLAUDE_MODEL_REPLY, max_tokens: 1500, system, messages: [{ role: "user", content: [block, { type: "text", text: ask }] }] }),
+    });
+    if (!res.ok) throw new Error(`claude ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    // deno-lint-ignore no-explicit-any
+    const out: any = await res.json();
+    const text = out?.content?.find((b: { type?: string }) => b?.type === "text")?.text ?? "";
+    const parsed = JSON.parse(stripFences(text));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;
+  } catch (e) {
+    console.warn("[claude] the file was not read", (e as Error)?.message);
+    return null;
   }
 }
 

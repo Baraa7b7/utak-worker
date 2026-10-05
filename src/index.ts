@@ -1842,6 +1842,23 @@ export default {
       }
     }
 
+    // § 57 د — the ONE trial of the transfer-notice form: to Baraa's own number, while his window
+    // is open, once a day, listing the oldest real open invoices (read-only) or samples. His reply
+    // writes nothing and reaches nobody else (src/transfer-form.ts sendTransferFormTest).
+    if (request.method === "POST" && url.pathname === "/odoo/hook/transfer-form-test") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      try {
+        const { sendTransferFormTest } = await import("./transfer-form");
+        return json({ ok: true, ...(await sendTransferFormTest(env)) });
+      } catch (e) {
+        return json({ ok: false, error: (e as Error).message }, 500);
+      }
+    }
+
     if (request.method === "POST" && url.pathname === "/webhook") {
       const raw = await request.text();
       const sig = request.headers.get("x-hub-signature-256");
@@ -2481,6 +2498,11 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           const { handleCustodyReply } = await import("./custody-form");
           const r = await handleCustodyReply(env, msg, ctx);
           console.log(`[custody] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} ${r.action}${r.diff !== undefined ? ` diff=${r.diff}` : ""}`);
+        } else if ((await import("./transfer-form")).isTransferToken(msg.flow.token ?? "")) {
+          // § 57 د — the customer's transfer notice: kept, and sent to Baraa for «✅ وصل» / «❌ ما وصل» (nothing is paid here)
+          const { handleTransferReply } = await import("./transfer-form");
+          const r = await handleTransferReply(env, msg, ctx);
+          console.log(`[transfer] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} ${r.action}${r.noticeId ? ` notice=${r.noticeId}` : ""}${r.problems?.length ? ` (${r.problems.join(",")})` : ""}`);
         } else if ((await import("./delivery-form")).isDeliveryFormToken(msg.flow.token ?? "")) {
           // § 55 ب — the delivery and collection form: the delivered quantities, the invoice by them, the payment
           const { handleDeliveryFormReply } = await import("./delivery-form");
@@ -2792,6 +2814,12 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           // from it any more; one line says where the decision is taken now.
           const { OLD_EXCEPTION_TEXT } = await import("./prices");
           await sendText(env, msg.from, OLD_EXCEPTION_TEXT, { ctx, purpose: "owner_alert" });
+        } else if ((msg.type === "interactive" || msg.type === "button") && /^trn_(ok|no)_/.test(msg.buttonId ?? "")) {
+          // § 57 د — «✅ وصل» / «❌ ما وصل» under a customer's transfer notice: the payment over the chosen
+          // invoices, or nothing — once (src/transfer-form.ts answers him itself, and never throws).
+          const { handleTransferDecision } = await import("./transfer-form");
+          const r = await handleTransferDecision(env, msg.buttonId!, msg.from, ctx);
+          console.log(`[transfer] button ${msg.buttonId} → ${r?.action ?? "not a notice's button"}`);
         } else if ((msg.type === "interactive" || msg.type === "button") && /^dlv_\d+$/.test(msg.buttonId ?? "")) {
           // § 55 ب — «📦 سلّم وحصّل» under a confirmed order: the delivery and collection form, to him
           // (its «إرسال» delivers the order by the delivered quantities, with its payment).
@@ -2930,7 +2958,13 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
     // 2026-09-24 (م2) — «حولت» / «دفعت» within 48h of a payment reminder
     // reaches the owner and the collectors instead of the classifier.
     if (msg.type === "text") {
-      const { isPaymentClaim, readPayRemindSent, notifyPaymentClaim, PAY_CLAIM_REPLY } = await import("./pay-claim");
+      const { isPaymentClaim, readPayRemindSent, notifyPaymentClaim, PAY_CLAIM_REPLY, answerClaimWithForm } = await import("./pay-claim");
+      // § 57 د — with an open invoice the same words (and «تحويل 🏦») bring his transfer-notice form:
+      // which invoices, how much, when, the receipt. With none, or a form that cannot go: as before.
+      if (await answerClaimWithForm(env, partner, msg.from, msg.text, ctx)) {
+        await markSeen(env, msg.messageId);
+        continue;
+      }
       const reminded = isPaymentClaim(msg.text) ? await readPayRemindSent(env, partner.id) : null;
       if (reminded) {
         await sendText(env, msg.from, PAY_CLAIM_REPLY, { ctx, purpose: "bot_reply" });
@@ -3268,6 +3302,13 @@ export async function handleCustomerMedia(
   const label = MEDIA_LABEL[msg.type];
   if (!label) return false;
   const kind = msg.type === "audio" && msg.media?.voice ? "رسالة صوتية" : label;
+  // § 57 د — an image or a PDF that Claude reads as a bank-transfer receipt, from a customer with
+  // an open invoice: his transfer-notice form goes, opened on what was read, and nothing below
+  // runs. Not a receipt, not read, no open invoice or a form that cannot go: as before.
+  if (customer && (msg.type === "image" || msg.type === "document") && msg.media?.id) {
+    const { offerTransferFormFromMedia } = await import("./transfer-form");
+    if (await offerTransferFormFromMedia(env, customer, msg.from, msg.media, ctx)) return true;
+  }
   // 2026-09-24 (م2) — an image / document within 48h of a payment reminder
   // is most likely the transfer receipt: it goes to the owner and collectors.
   if (customer && (msg.type === "image" || msg.type === "document")) {

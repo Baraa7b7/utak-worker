@@ -364,8 +364,9 @@ function onTheWay(day: string, qty = 5, extra: Record<string, unknown> = {}): nu
   return id;
 }
 const invoiceOf = (orderId: number) => rows("x_invoice").filter((i: any) => i.x_order_id === orderId);
-/** The customer's invoice message (the text inside the window; a template otherwise). */
-const invoiceSends = () => sentTo(C1_PHONE).filter((b: any) => /فاتورتك رقم/.test(String(b?.text?.body ?? "")) || /invoice/.test(String(b?.template?.name ?? "")));
+/** The customer's invoice message (the text inside the window — § 57 د: under it «🏦 أرسلت تحويل», so a button message; a template otherwise). */
+const invoiceBody = (b: any): string => String(b?.text?.body ?? b?.interactive?.body?.text ?? "");
+const invoiceSends = () => sentTo(C1_PHONE).filter((b: any) => /فاتورتك رقم/.test(invoiceBody(b)) || /invoice/.test(String(b?.template?.name ?? "")));
 /** The order's day and the delivery day both at 30 (the order-day pricing itself is tested in [سعر اليوم]). */
 function deliveryEnv(riyadh: string, day: string): any {
   const env = fresh(riyadh); sources(); publishedTomato(day, 20, 30);
@@ -386,7 +387,7 @@ console.log("\n[ج] «تم التسليم» with nothing collected: the invoice 
   assert("its supply / issue time = the moment of «تم التسليم» (x_issued_at 05:40 UTC = 08:40 Riyadh)", inv.x_issued_at === "2026-09-27 05:40:00", String(inv.x_issued_at));
   assert("its date = that Riyadh day (09-27), its number UTAK-INV-20260927-001", inv.x_invoice_date === "2026-09-27" && inv.x_invoice_number === "UTAK-INV-20260927-001", `${inv.x_invoice_date} ${inv.x_invoice_number}`);
   assert("the customer gets it now, once (x_invoice_sent_at + x_sent_to_customer_at set)", invoiceSends().length === 1 && !!inv.x_invoice_sent_at && !!inv.x_sent_to_customer_at, JSON.stringify(sentTo(C1_PHONE).map((b: any) => b?.text?.body ?? b?.template?.name)));
-  assert("…a plain «فاتورة» before 10-01: no VAT line in the message", !/ضريبة/.test(String(invoiceSends()[0]?.text?.body ?? "")), String(invoiceSends()[0]?.text?.body));
+  assert("…a plain «فاتورة» before 10-01: no VAT line in the message", !/ضريبة/.test(invoiceBody(invoiceSends()[0])), String(invoiceSends()[0]?.text?.body));
   assert("the collector gets the collection request", sentTo("966500000602").length >= 1 || heldFor(env, "966500000602").length >= 1);
   setRiyadh("2026-09-30 08:00");
   const owed = await quiet(() => OUT.owedByCustomer(env));
@@ -590,7 +591,7 @@ console.log("\n[د] 10-01, a customer without a VAT number: «فاتورة ضر�
   assert("QR: 4 the total including VAT 150.00", qr.total === "150.00", qr.total);
   assert("QR: 5 the VAT 19.57", qr.vatTotal === "19.57", qr.vatTotal);
   assert("the total including VAT = the market price × the quantity − the discount (30 × 5 − 0)", data.grandTotal === 30 * 5 - data.discount);
-  const msg = String(invoiceSends()[0]?.text?.body ?? "");
+  const msg = invoiceBody(invoiceSends()[0]);
   assert("the WhatsApp text: net, VAT 15 %, total including VAT", /الإجمالي قبل الضريبة: 130.43/.test(msg) && /ضريبة القيمة المضافة 15%: 19.57/.test(msg) && /الإجمالي شامل الضريبة: 150/.test(msg), msg);
 }
 

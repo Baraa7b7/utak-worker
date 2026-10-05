@@ -139,6 +139,21 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // § 55 هـ — the collector's custody handover (a WhatsApp Flow: the cash expected with him, what
   // he handed over and how) and its answers to him: inside his 24h window only, never held.
   custody_form: op("نموذج تسليم العهدة", false, { hours: 2 }),
+  // § 57 د — the customer's transfer-notice form (a WhatsApp Flow: his open invoices, the amount,
+  // the date, the receipt) and the answers to his own «إرسال»: inside his 24h window only, never a
+  // template and never held. A reply: each answers what he just sent, so one message Meta refused
+  // does not stop his next notice for 24h.
+  customer_transfer_form: { label: "نموذج إشعار التحويل", kind: "reply", important: false, ttl: { hours: 2 } },
+  // § 57 د — Baraa's decision on a notice as the customer reads it («استلمنا تحويلك» / «ما وصلنا
+  // التحويل»): it may come hours after the notice, so outside his window it waits for it, and Baraa
+  // is told that it waits. A reply: each answers ONE notice, so a line Meta refused does not stop
+  // the decision of his next notice for 24h.
+  customer_transfer_decision: { label: "نتيجة إشعار التحويل", kind: "reply", important: true, ttl: { hours: 48 } },
+  // § 57 د — a customer's transfer notice to Baraa (the receipt, «✅ وصل» / «❌ ما وصل») and what he
+  // reads after a tap: his number alone; outside his window it waits for his next message. A reply:
+  // a notice Meta refused (the receipt as its header) is sent again without it, and never stops the
+  // next customer's notice.
+  owner_transfer_notice: { label: "إشعار تحويل عميل", kind: "reply", important: false, ttl: { hours: 36 } },
   // § 55 ب — the delivery and collection form (a WhatsApp Flow: the order's lines with their SALE
   // prices) to the team member who tapped «📦 سلّم وحصّل», and its summary: inside his 24h window
   // only, never a template and never held. The gateway refuses it for a price source's or a
@@ -190,6 +205,9 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // § 55 هـ — the one trial of the custody form to Baraa's own number («🧪 تجربة»), inside his
   // window only, and the answers to his trial reply (nothing is kept).
   custody_form_test: op("تجربة نموذج العهدة", false, { hours: 1 }),
+  // § 57 د — the one trial of the transfer-notice form to Baraa's own number («🧪 تجربة»), inside
+  // his window only, and the answers to his trial reply (nothing written, nobody else told).
+  transfer_form_test: op("تجربة نموذج إشعار التحويل", false, { hours: 1 }),
   // § 55 ب — the delivery and collection form when Baraa himself delivers (from the car), and its
   // summary: his number alone, inside his window only. A reply to his own tap, as the team's.
   owner_delivery_form: { label: "نموذج التسليم والتحصيل (المالك)", kind: "reply", important: false, ttl: { hours: 2 } },

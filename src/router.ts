@@ -467,6 +467,12 @@ async function handleButton(
     }
   }
 
+  // ---- § 57 د: «🏦 أرسلت تحويل» under the invoice's text — the customer's transfer-notice form ----
+  {
+    const { TRANSFER_BUTTON, answerTransferButton } = await import("./transfer-form");
+    if (t === TRANSFER_BUTTON) return await answerTransferButton(env, partner);
+  }
+
   // ---- 2026-09-24 (ح2): closed-hours prompt «سجّله لبكرة» / «لا شكراً» ----
   const mLate = /^late_(yes|no)_(\d+)$/.exec(buttonId);
   if (mLate) {

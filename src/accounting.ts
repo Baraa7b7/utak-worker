@@ -706,6 +706,253 @@ export async function cancelMoveQuietly(env: Env, moveId: number): Promise<void>
   catch (e) { console.warn(`[accounting] move ${moveId} button_cancel:`, (e as Error).message); }
 }
 
+// ---- § 57 د (2026-10-05): a customer's bank transfer, confirmed by Baraa («✅ وصل») ----
+//
+// ONE account.payment for the WHOLE transfer on BNK1, dated the day of the
+// transfer, its memo the receipt's reference, registered on the chosen invoices
+// together (account.payment.register with group_payment): Odoo settles them
+// oldest first and what is left over stays on that payment as the customer's
+// open credit. Every x_payment row of the notice links to it.
+//
+// The locked condition — the payment is proposed later to its line of the
+// uploaded bank statement, and the bank balance moves once: BNK1's inbound
+// method posts to 101003 «Outstanding Receipts» (reconcilable), NOT to the
+// journal's own bank account 101001; the statement line goes 101001 against the
+// suspense 101002, and matching swaps 101002 for 101003. A payment whose debit
+// line sits on the journal's bank account would be counted twice once the
+// statement is uploaded: the guard refuses it.
+
+export interface TransferAccountingRow {
+  /** The x_payment of this invoice's share. */
+  paymentId: number;
+  invoiceNumber: string;
+  /** x_invoice.x_account_move_id; null = an invoice with no accounting twin. */
+  invoiceMoveId: number | null;
+  /** What the custom ledger recorded on this invoice. */
+  amount: number;
+}
+
+export interface TransferAccountingArgs {
+  /** Who and what, for an alert: «مطعم الوادي (TRN-…)». */
+  label: string;
+  /** The invoices that took a share, the oldest first. */
+  rows: TransferAccountingRow[];
+  /** The WHOLE transferred amount: the shares, and the excess that stays his credit. */
+  amount: number;
+  /** The day of the transfer, YYYY-MM-DD. */
+  date: string;
+  /** The payment's memo: the receipt's reference. */
+  reference: string;
+}
+
+/** Every payment the wizard's action names: {res_id}, or a domain [["id", "in", [...]]]. */
+export function paymentIdsFromAction(result: unknown): number[] {
+  if (!result || typeof result !== "object") return [];
+  const r = result as { res_model?: unknown; res_id?: unknown; domain?: unknown };
+  if (r.res_model !== "account.payment") return [];
+  if (typeof r.res_id === "number" && r.res_id > 0) return [r.res_id];
+  for (const leaf of Array.isArray(r.domain) ? r.domain : []) {
+    if (Array.isArray(leaf) && leaf[0] === "id" && leaf[1] === "in" && Array.isArray(leaf[2])) {
+      return leaf[2].filter((id): id is number => typeof id === "number" && id > 0);
+    }
+  }
+  return [];
+}
+
+export interface TransferGuardLine extends GuardLine {
+  account_id: number;
+  /** account.account.reconcile: an outstanding line the statement can be matched with. */
+  reconcile: boolean;
+}
+
+export interface TransferFacts {
+  paymentState: string;
+  paymentPartnerId: number | null;
+  paymentAmount: number;
+  moveId: number | null;
+  moveState: string;
+  lines: TransferGuardLine[];
+  /** account.payment.reconciled_invoice_ids: the invoices this payment settled. */
+  reconciledInvoiceIds: number[];
+  /** Each chosen invoice's open balance after the payment, by its move. */
+  residualAfter: Record<number, number>;
+}
+
+export interface TransferExpectation {
+  expectedPartnerId: number;
+  /** The whole transferred amount. */
+  amount: number;
+  /** account.journal.default_account_id of BNK1 (101001): where a statement line posts. */
+  bankAccountId: number | null;
+  /** The chosen invoices: their open balance before, and the share the custom ledger gave each. */
+  chosen: Array<{ moveId: number; residualBefore: number; amount: number }>;
+}
+
+/**
+ * After action_create_payments on several invoices. The entry, its state, the
+ * partner and the account types are the collection's own checks
+ * (evaluatePaymentGuard); then what a transfer adds: the whole amount on ONE
+ * payment, the debit on a reconcilable account that is NOT the journal's bank
+ * account, nothing settled that he did not choose, and each invoice settled by
+ * exactly its share.
+ */
+export function evaluateTransferGuard(f: TransferFacts & TransferExpectation): GuardResult {
+  // the invoices' states are checked below, by their residuals: «paid» here asks nothing of them
+  const reasons = [...evaluatePaymentGuard({ ...f, invoicePaymentState: "paid", expectFull: true }).reasons];
+  if (Math.abs(roundHalala(f.paymentAmount) - roundHalala(f.amount)) > 0.005) {
+    reasons.push(`مبلغ الدفعة ${f.paymentAmount} ≠ المبلغ المحوّل ${f.amount}`);
+  }
+  if (!f.bankAccountId) reasons.push("تعذّرت قراءة حساب البنك ليومية BNK1");
+  for (const l of f.lines.filter((x) => x.debit > 0)) {
+    if (f.bankAccountId && l.account_id === f.bankAccountId) {
+      reasons.push(`الحساب المدين ${l.account_code} هو حساب البنك نفسه لليومية: المبلغ يُحسب مرتين عند رفع الكشف (المتوقع حساب المقبوضات المعلقة)`);
+    } else if (!l.reconcile) {
+      reasons.push(`الحساب المدين ${l.account_code} لا يقبل المطابقة: الدفعة لن تُقترح على سطر الكشف`);
+    }
+  }
+  const chosen = new Set(f.chosen.map((c) => c.moveId));
+  const other = f.reconciledInvoiceIds.filter((id) => !chosen.has(id));
+  if (other.length) reasons.push(`الدفعة سوّت قيداً لم يختره العميل: ${other.join("، ")}`);
+  for (const c of f.chosen) {
+    const settled = roundHalala(c.residualBefore - (f.residualAfter[c.moveId] ?? c.residualBefore));
+    if (Math.abs(settled - roundHalala(c.amount)) > 0.005) {
+      reasons.push(`القيد ${c.moveId}: سُوّي منه ${settled} والمسجَّل على فاتورته ${roundHalala(c.amount)}`);
+    }
+  }
+  return { ok: reasons.length === 0, reasons };
+}
+
+async function readTransferFacts(env: Env, paymentId: number, moveIds: number[]): Promise<TransferFacts> {
+  type Pay = { id: number; state: string; move_id: [number, string] | false; partner_id: [number, string] | false; amount: number; reconciled_invoice_ids: number[] | false };
+  const [p] = await call<Pay[]>(env, "account.payment", "read", {
+    ids: [paymentId],
+    fields: ["id", "state", "move_id", "partner_id", "amount", "reconciled_invoice_ids"],
+  });
+  const moveId = p?.move_id ? p.move_id[0] : null;
+  let moveState = "";
+  let lines: TransferGuardLine[] = [];
+  if (moveId) {
+    const [m] = await call<Array<{ id: number; state: string }>>(env, "account.move", "read", { ids: [moveId], fields: ["id", "state"] });
+    moveState = m?.state ?? "";
+    type Line = { account_id: [number, string] | false; debit: number; credit: number };
+    const raw = await call<Line[]>(env, "account.move.line", "search_read", {
+      domain: [["move_id", "=", moveId]],
+      fields: ["account_id", "debit", "credit"],
+      limit: 200,
+    });
+    const accIds = [...new Set(raw.map((l) => (l.account_id ? l.account_id[0] : 0)).filter((n) => n > 0))];
+    const accs = accIds.length
+      ? await call<Array<{ id: number; code: string; account_type: string; reconcile: boolean }>>(env, "account.account", "read", { ids: accIds, fields: ["id", "code", "account_type", "reconcile"] })
+      : [];
+    const byId = new Map(accs.map((a) => [a.id, a]));
+    lines = raw.map((l) => {
+      const id = l.account_id ? l.account_id[0] : 0;
+      const a = byId.get(id);
+      return { account_id: id, account_code: a?.code ?? "?", account_type: a?.account_type ?? "?", reconcile: a?.reconcile === true, debit: l.debit ?? 0, credit: l.credit ?? 0 };
+    });
+  }
+  const after = await call<Array<{ id: number; amount_residual: number }>>(env, "account.move", "read", { ids: moveIds, fields: ["id", "amount_residual"] });
+  return {
+    paymentState: p?.state ?? "",
+    paymentPartnerId: p?.partner_id ? p.partner_id[0] : null,
+    paymentAmount: Number(p?.amount) || 0,
+    moveId,
+    moveState,
+    lines,
+    reconciledInvoiceIds: Array.isArray(p?.reconciled_invoice_ids) ? p.reconciled_invoice_ids : [],
+    residualAfter: Object.fromEntries(after.map((m) => [m.id, Number(m.amount_residual) || 0])),
+  };
+}
+
+/**
+ * The notice's ONE account.payment (see the header above). Null — with an alert
+ * to Baraa, and the payment cancelled when one was made — on anything that is
+ * not as it must be: an invoice without its accounting twin (never a payment
+ * that settles only part of what the custom ledger recorded), more than one
+ * payment out of the wizard, any reason of the guard. The x_payment rows stay
+ * as they are either way. NEVER throws.
+ */
+export async function syncTransferToAccounting(env: Env, args: TransferAccountingArgs): Promise<number | null> {
+  if (!isAccountingSyncEnabled(env)) return null;
+  const refuse = async (why: string, cancel: number[] = []): Promise<null> => {
+    for (const id of cancel) await cancelPaymentQuietly(env, id);
+    const msg = `[accounting] تحويل ${args.label}: ${cancel.length ? `الدفعة ${cancel.join("، ")} أُلغيت` : "لم تُسجَّل دفعة"} — ${why}`;
+    console.error(msg);
+    try { await sendOwnerAlert(env, msg); } catch { /* alert must not block */ }
+    return null;
+  };
+  try {
+    if (!args.rows.length) return await refuse("لا فاتورة سُجّل عليها شيء من هذا التحويل");
+    const twinless = args.rows.filter((r) => !r.invoiceMoveId || r.invoiceMoveId <= 0);
+    if (twinless.length) return await refuse(`بلا قيد محاسبي (account.move): ${twinless.map((r) => r.invoiceNumber).join("، ")}. سجّل الدفعة يدوياً`);
+    const [journal] = await call<Array<{ id: number; default_account_id: [number, string] | false }>>(env, "account.journal", "search_read", {
+      domain: [["code", "=", "BNK1"]],
+      fields: ["id", "code", "default_account_id"],
+      limit: 1,
+    });
+    if (!journal) throw new Error("journal BNK1 not found — has scripts/acct-20260921-setup.mjs run?");
+    const moveIds = args.rows.map((r) => r.invoiceMoveId as number);
+    type InvHead = { id: number; commercial_partner_id: [number, string] | false; partner_id: [number, string] | false; amount_residual: number };
+    const heads = await call<InvHead[]>(env, "account.move", "read", { ids: moveIds, fields: ["id", "commercial_partner_id", "partner_id", "amount_residual"] });
+    const partnerOf = (h: InvHead): number => (h.commercial_partner_id ? h.commercial_partner_id[0] : h.partner_id ? h.partner_id[0] : 0);
+    const partners = [...new Set(heads.map(partnerOf))];
+    if (heads.length !== moveIds.length || partners.length !== 1 || !partners[0]) {
+      return await refuse(`قيود الفواتير (${moveIds.join("، ")}) ليست لشريك واحد معروف`);
+    }
+    const before = new Map(heads.map((h) => [h.id, Number(h.amount_residual) || 0]));
+
+    const wizardCtx = { active_model: "account.move", active_ids: moveIds, active_id: moveIds[0] };
+    const [wizardId] = await call<number[]>(env, "account.payment.register", "create", {
+      vals_list: [{
+        journal_id: journal.id,
+        amount: args.amount,
+        payment_date: args.date,
+        communication: args.reference,
+        // ONE payment for the invoices together: without it Odoo makes a payment per invoice, each for its whole balance
+        group_payment: true,
+      }],
+      context: wizardCtx,
+    });
+    const action = await call<unknown>(env, "account.payment.register", "action_create_payments", { ids: [wizardId], context: wizardCtx });
+
+    let made = paymentIdsFromAction(action);
+    if (!made.length) {
+      const rows = await call<Array<{ id: number }>>(env, "account.payment", "search_read", {
+        domain: buildPaymentSearchDomain({ partnerId: partners[0], amount: args.amount, journalId: journal.id, date: args.date }),
+        fields: ["id"],
+        order: "id desc",
+        limit: 1,
+      });
+      made = rows.map((r) => r.id);
+    }
+    if (!made.length) throw new Error("account.payment created but could not be located afterwards");
+    if (made.length > 1) return await refuse(`Odoo أنشأ ${made.length} دفعات بدل دفعة واحدة`, made);
+    const paymentRecId = made[0];
+
+    const facts = await readTransferFacts(env, paymentRecId, moveIds);
+    const guard = evaluateTransferGuard({
+      ...facts,
+      expectedPartnerId: partners[0],
+      amount: args.amount,
+      bankAccountId: journal.default_account_id ? journal.default_account_id[0] : null,
+      chosen: args.rows.map((r) => ({ moveId: r.invoiceMoveId as number, residualBefore: before.get(r.invoiceMoveId as number) ?? 0, amount: r.amount })),
+    });
+    if (!guard.ok) return await refuse(guard.reasons.join("؛ "), [paymentRecId]);
+
+    await call<boolean>(env, "x_payment", "write", {
+      ids: args.rows.map((r) => r.paymentId),
+      vals: { x_account_payment_id: paymentRecId },
+    });
+    console.log(`[accounting] transfer ${args.label}: account.payment ${paymentRecId} (BNK1, ${args.amount}, ${args.date}) ← x_payment ${args.rows.map((r) => r.paymentId).join(",")}`);
+    return paymentRecId;
+  } catch (e) {
+    const msg = `[accounting] تحويل ${args.label}: sync failed: ${(e as Error).message}`;
+    console.error(msg);
+    try { await sendOwnerAlert(env, msg); } catch { /* swallow */ }
+    return null;
+  }
+}
+
 // ---- Small readers used by the admin verify route ----
 
 export interface TrialBalanceRow {

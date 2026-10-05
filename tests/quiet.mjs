@@ -33,7 +33,8 @@ export function quiet(text, { rc = 0 } = {}) {
   while (lines.length && lines[lines.length - 1].trim() === "") lines.pop();
   let pass = 0, fail = 0, tail = false, inFail = false, summaryFailed = 0;
   const keep = new Array(lines.length).fill(false);
-  const tailFails = [];
+  const names = [];
+  const nameOf = (l) => l.trim().replace(/^✗\s*/, "");
   for (let i = 0; i < lines.length; i++) {
     const l = lines[i];
     if (PASS.test(l)) { pass++; inFail = false; continue; }
@@ -41,8 +42,11 @@ export function quiet(text, { rc = 0 } = {}) {
     const counts = /(\d+) passed, (\d+) failed/.exec(l) ?? /^\s*failed\s*:\s*()(\d+)/i.exec(l);
     if (counts) summaryFailed = Math.max(summaryFailed, Number(counts[2]));
     if (FAIL.test(l)) {
-      // after the file's own counts the failed names are listed once more: the same failures
-      if (tail) { tailFails.push(i); inFail = false; continue; }
+      // after the file's own counts the failed names are listed once more: a name already shown
+      // (with its detail) is the same failure; any other «✗» is a failure of its own, wherever it is
+      const name = nameOf(l);
+      if (tail && names.some((n) => n.startsWith(name))) { inFail = false; continue; }
+      names.push(name);
       fail++; keep[i] = true; inFail = true; continue;
     }
     if (WARN.test(l)) { keep[i] = true; inFail = true; continue; }
@@ -52,8 +56,6 @@ export function quiet(text, { rc = 0 } = {}) {
     // the rest of a «✗» whose detail runs over several lines
     if (inFail) keep[i] = true;
   }
-  // a file that names its failures only at its end
-  if (!fail && tailFails.length) { for (const i of tailFails) keep[i] = true; fail = tailFails.length; }
   fail = Math.max(fail, summaryFailed);
   // it died (an exception, a timeout) rather than failed a check: the end of what it printed, as it is
   const last = lines.length ? lines[lines.length - 1] : "";

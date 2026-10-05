@@ -648,6 +648,8 @@ console.log("\n[د] no decision until 06:00");
   const P = PR as any;
   assert("the reasons, one by one: his «لا تنشر», no purchase, no market, a loss, an outlier", P.unpublishedWhy({ x_decision: "skip" }) === "قرارك: لا تنشر" && P.unpublishedWhy({ x_cost_price: 0, x_market_price: 9 }) === "لا سعر شراء" && P.unpublishedWhy({ x_cost_price: 5, x_market_price: 0 }) === "بلا سعر سوق وبلا قرار"
     && P.unpublishedWhy({ x_cost_price: 15, x_market_price: 20, x_break_even: 20.4 }) === "خسارة: السوق 20 أقل من 20.40، وبلا قرار" && P.unpublishedWhy({ x_cost_price: 30, x_market_price: 45, x_break_even: 38, x_is_outlier: true }) === "سعر شاذ وبلا قرار");
+  const many = Array.from({ length: 25 }, (_, i) => ({ x_product_tmpl_id: [i + 1, `صنف ${i + 1}`], x_cost_price: 0 }));
+  assert("a long list of unpublished items stays within a message: twenty named with their reasons, the rest counted", P.unpublishedList(many).split("(لا سعر شراء)").length - 1 === 20 && P.unpublishedList(many).includes("صنف 20 (لا سعر شراء)") && !P.unpublishedList(many).includes("صنف 21") && /، و5 غيرها \(التفاصيل في /.test(P.unpublishedList(many)) && !/غيرها/.test(P.unpublishedList(many.slice(0, 20))), P.unpublishedList(many).slice(-80));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 

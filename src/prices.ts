@@ -640,9 +640,13 @@ export function unpublishedWhy(l: DayLine): string {
   if (l.x_is_outlier) return "سعر شاذ وبلا قرار";
   return String(l.x_reason || "بلا قرار");
 }
-/** «رمان وسط (خسارة: السوق 20 أقل من 20.40، وبلا قرار)، رمان صغير (بلا سعر سوق وبلا قرار)». */
+/** The message names this many unpublished items with their reasons; the rest are counted (a text message's room). */
+export const UNPUBLISHED_NAMED_MAX = 20;
+/** «رمان وسط (خسارة: السوق 20 أقل من 20.40، وبلا قرار)، رمان صغير (بلا سعر سوق وبلا قرار)»; beyond UNPUBLISHED_NAMED_MAX: «… و5 غيرها (التفاصيل في 📊 اليوم)». */
 export function unpublishedList(lines: DayLine[]): string {
-  return lines.map((l) => `${lineName(l)} (${unpublishedWhy(l)})`).join("، ");
+  const named = lines.slice(0, UNPUBLISHED_NAMED_MAX).map((l) => `${lineName(l)} (${unpublishedWhy(l)})`).join("، ");
+  const more = lines.length - UNPUBLISHED_NAMED_MAX;
+  return more > 0 ? `${named}، و${more} غيرها (التفاصيل في ${PLACE_TODAY})` : named;
 }
 /** The worker approves at the deadline without a user; Odoo's button writes x_approved_by. */
 function approvedByHand(day: DayRecord & { x_approved_by?: [number, string] | false }): boolean {

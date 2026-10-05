@@ -49,3 +49,7 @@ scripts/artifacts/s41-sim/*/*.png
 # committed from it. The files tracked before § 50 stay tracked; a new rollback snapshot lives on
 # this disk only (copy it to backups/ or another disk when it matters).
 scripts/artifacts/
+
+# § 55.1 (2026-10-05) — the working copies Claude Code makes for its agents. .claude/settings.json and
+# .claude/hooks/ ARE committed (the project's hook); the worktrees never are.
+.claude/worktrees/

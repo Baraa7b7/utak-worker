@@ -196,6 +196,12 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // § 55 ب — the one trial of the delivery form to Baraa's own number («🧪 تجربة») and the answer to
   // its reply (nothing delivered, no invoice, no payment).
   delivery_form_test: op("تجربة نموذج التسليم", false, { hours: 1 }),
+  // § 57 و — Baraa's expense form («مصروف»): the form, its answers (what was recorded, what refused
+  // it) and the answer of «↩️ تراجع». His number alone, inside his window only: a reply to his own tap.
+  expense_form: { label: "نموذج تسجيل المصروف", kind: "reply", important: false, ttl: { hours: 2 } },
+  // § 57 و — the one trial of the expense form to Baraa's own number («🧪 تجربة») and the answer to
+  // its reply (nothing written in Odoo).
+  expense_form_test: op("تجربة نموذج المصروف", false, { hours: 1 }),
   // ---- § 34: «فتح المحادثة» — one UTILITY template per recipient category,
   // sent when a critical message is held (src/wa-opener.ts). Template only:
   // never held itself.

@@ -1842,6 +1842,23 @@ export default {
       }
     }
 
+    // § 57 و — the ONE trial of the expense form: to Baraa's own number, while his window is
+    // open, once a day. His reply is answered with what would have been recorded, and writes
+    // nothing in Odoo (src/expense-form.ts sendExpenseFormTest).
+    if (request.method === "POST" && url.pathname === "/odoo/hook/expense-form-test") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      try {
+        const { sendExpenseFormTest } = await import("./expense-form");
+        return json({ ok: true, ...(await sendExpenseFormTest(env)) });
+      } catch (e) {
+        return json({ ok: false, error: (e as Error).message }, 500);
+      }
+    }
+
     if (request.method === "POST" && url.pathname === "/webhook") {
       const raw = await request.text();
       const sig = request.headers.get("x-hub-signature-256");
@@ -2486,6 +2503,11 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           const { handleDeliveryFormReply } = await import("./delivery-form");
           const r = await handleDeliveryFormReply(env, msg, ctx);
           console.log(`[delivery-form] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} ${r.action}${r.orderId ? ` order=${r.orderId}` : ""}${r.payment ? ` pay=${r.payment}` : ""}`);
+        } else if ((await import("./expense-form")).isExpenseToken(msg.flow.token ?? "")) {
+          // § 57 و — Baraa's expense form: a posted vendor bill in EXP and its payment, from his number alone
+          const { handleExpenseReply } = await import("./expense-form");
+          const r = await handleExpenseReply(env, msg, ctx);
+          console.log(`[expense] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} ${r.action}${r.moveId ? ` bill=${r.moveId}` : ""}${r.paymentId ? ` payment=${r.paymentId}` : ""}`);
         } else {
           const { handlePriceFlowReply } = await import("./price-flow");
           const r = await handlePriceFlowReply(env, msg, ctx);
@@ -2768,7 +2790,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         // 2026-09-25 (STATUS § 29) — his daily «بدء الدوام» only opens the 24h
         // window (the inbound itself did that); one line says so. Nothing is
         // recorded about him.
-        const { isOwnerWindowPayload, ownerWindowButtonReply } = await import("./owner-window");
+        const { isOwnerWindowPayload, ownerWindowButtonReply, ownerWindowReplyButtons } = await import("./owner-window");
         if ((msg.type === "interactive" || msg.type === "button") && msg.buttonId === "shift_start") {
           const { ownerWindowAck } = await import("./attendance");
           await sendText(env, msg.from, ownerWindowAck(), { ctx, purpose: "owner_alert" });
@@ -2776,7 +2798,11 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           // § 45 ب — «تم الاطلاع» (the 21:30 summary) / «عرض الاستثناءات» (the price review): the tap
           // opened his window and the flush above sent what was held; one line, nothing else.
           const r = ownerWindowButtonReply(msg.buttonId!, flushed?.sent ?? 0);
-          if (r) await sendText(env, msg.from, r, { ctx, purpose: "owner_alert" });
+          // § 57 و — under «تم ✅» of the 21:30 summary: «🧾 تسجيل مصروف» (the owner has no menu in
+          // WhatsApp: this reply is his one regular tap).
+          const under = ownerWindowReplyButtons(env, msg.buttonId!);
+          if (r && under.length) await sendButtons(env, msg.from, r, under, { ctx, purpose: "owner_alert" });
+          else if (r) await sendText(env, msg.from, r, { ctx, purpose: "owner_alert" });
         } else if ((msg.type === "interactive" || msg.type === "button") && /^prvt?_[arn]_\d+_\d+$/.test(msg.buttonId ?? "")) {
           // § 54 — the day's price review: «✅ اعتمد الكل كما هو» / «✏️ مراجعة» / «⛔ لا تنشر اليوم»
           // (and «✏️ تعديل» under a confirmation). It answers him itself.
@@ -2812,6 +2838,12 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
             return { text: "تعذّر تسجيل التسليم الآن. جرّب بعد قليل." } as RouterReply;
           });
           if (reply.text) await sendText(env, msg.from, reply.text, { ctx, purpose: "owner_alert" });
+        } else if (await import("./expense-form").then((m) => m.expenseMessage(env, msg, ctx)).catch((e) => {
+          console.warn("[expense] the owner's message failed", (e as Error)?.message);
+          return false;
+        })) {
+          // § 57 و — «مصروف» / «🧾 تسجيل مصروف»: the expense form went; «↩️ تراجع»: the entry was
+          // taken back (src/expense-form.ts answers him itself).
         }
         // § 54 — «عدّل» (a price typed within 30 minutes) is gone with the per-item exception
         // messages: a text from him is answered by nothing here, as any other text was.

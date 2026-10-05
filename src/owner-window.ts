@@ -24,7 +24,8 @@
 // flushes what is held for him, and — § 54 — sends the review owed to him,
 // built at that moment, before any routing. Then, in the owner branch, never
 // an order or a complaint:
-//   • «تم الاطلاع» → one line, SUMMARY_ACK_TEXT;
+//   • «تم الاطلاع» → one line, SUMMARY_ACK_TEXT — § 57 و: with the button «🧾 تسجيل مصروف»
+//     under it (ownerWindowReplyButtons), his door to the expense form;
 //   • «عرض الاستثناءات» → the review was the answer; one line only when
 //     nothing was waiting.
 
@@ -37,6 +38,8 @@ import { readWindow } from "./wa-window";
 import { arabicDate } from "./wa-params";
 import { claimButton, finishButton, releaseButton } from "./button-lock";
 import { riyadhDateKey, riyadhDayMinuteMs } from "./hours";
+import { isAccountingSyncEnabled } from "./accounting";
+import { expenseButton } from "./expense-form";
 
 export const SUMMARY_TEMPLATE = "utak_owner_daily_summary_v1";
 export const PRICE_REVIEW_TEMPLATE = "utak_owner_price_review_v1";
@@ -126,5 +129,14 @@ export function ownerWindowButtonReply(payload: string, flushedSent: number): st
   if (payload === SUMMARY_ACK_PAYLOAD) return SUMMARY_ACK_TEXT;
   if (payload === PRICE_REVIEW_PAYLOAD) return flushedSent > 0 ? null : PRICE_REVIEW_NOTHING_TEXT;
   return null;
+}
+/**
+ * § 57 و — the buttons under a tap's reply: «🧾 تسجيل مصروف» under «تم ✅» of the 21:30 summary.
+ * The summary itself is a template (its one button cannot change) and the owner has no menu in
+ * WhatsApp, so the session reply to his nightly tap is where the button lives. None while the
+ * accounting is off (nothing could be recorded from it).
+ */
+export function ownerWindowReplyButtons(env: Env, payload: string): Array<{ id: string; title: string }> {
+  return payload === SUMMARY_ACK_PAYLOAD && isAccountingSyncEnabled(env) ? [expenseButton()] : [];
 }
 export const isOwnerWindowPayload = (p: string | undefined | null): boolean => p === SUMMARY_ACK_PAYLOAD || p === PRICE_REVIEW_PAYLOAD;

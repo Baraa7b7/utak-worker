@@ -280,7 +280,7 @@ export function purchaseText(r: Pick<ReviewRow, "purchase">): string {
 const marketText = (r: ReviewRow): string => (r.market > 0 ? `سوق ${money(r.market)}${r.upliftPct > 0 ? ` (بعد الزيادة ${money(r.sale)})` : ""}` : "لا سعر سوق");
 /** The day's cost could not be read («تعذّر», or no «الكراتين المتوقعة»): the row's full cost holds no carton share, and its profit says so. */
 export const NO_SHARE_NOTE = " (بلا حصة التشغيل)";
-const noShare = (r: ReviewRow): boolean => r.purchase > 0 && r.fullCost > 0 && !(r.breakEven > 0);
+export const noShare = (r: ReviewRow): boolean => r.purchase > 0 && r.fullCost > 0 && !(r.breakEven > 0);
 /** «ربحنا بسعر السوق: +1.13», «ربحنا بالمقترح 19.50: +2.37», «ربحنا بسعرك 72: +2.87»; "" when it cannot be computed. */
 function profitText(r: ReviewRow, kind: OutcomeKind, price: number): string {
   const p = profitAt(r, price);
@@ -809,7 +809,7 @@ export function reviewInfo(r: ReviewRow): string {
   return cut([...movedLines(r), numbers].join(" · "), REVIEW_INFO_MAX);
 }
 /** «+12.5%», «−4.7%», «+15%»: one decimal at most. */
-const signedPct = (x: number): string => {
+export const signedPct = (x: number): string => {
   const n = Math.round(x * 10) / 10;
   return `${n > 0 ? "+" : n < 0 ? "−" : ""}${Number.isInteger(n) ? Math.abs(n) : Math.abs(n).toFixed(1)}%`;
 };

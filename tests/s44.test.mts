@@ -50,7 +50,7 @@ const FIX = [
   "fixtures-odoo-fields-20260926-s41.json", "fixtures-odoo-fields-20260927-s42.json",
   // § 44 — fields_get of 2026-09-28 after part د (scripts/archive/s44-20260928-fields-fixture.mjs; last: it wins)
   "fixtures-odoo-fields-20260928-s44.json",
-  "fixtures-odoo-fields-20261001-s49.json", "fixtures-odoo-fields-20261005-s54.json", "fixtures-odoo-fields-20261005-s55.json", // § 46 + § 47: the pricing board's fields on x_price_day / x_price_day_line, x_expected_cartons, product.template.x_utak_new, x_min_margin_pct, x_break_even / x_suggested_price, x_decision «profit» (last: it wins)
+  "fixtures-odoo-fields-20261001-s49.json", "fixtures-odoo-fields-20261005-s54.json", "fixtures-odoo-fields-20261005-s55.json", "fixtures-odoo-fields-20261005-s56.json", // § 46 + § 47: the pricing board's fields on x_price_day / x_price_day_line, x_expected_cartons, product.template.x_utak_new, x_min_margin_pct, x_break_even / x_suggested_price, x_decision «profit» (last: it wins)
 ].map((f) => JSON.parse(readFileSync(new URL(`./${f}`, import.meta.url), "utf8")));
 const REAL: Record<string, string[]> = Object.assign({}, ...FIX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FIX.map((f) => f._selections ?? {}));

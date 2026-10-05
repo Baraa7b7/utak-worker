@@ -64,7 +64,7 @@ import { arabicDate, maskPhone } from "./wa-params";
 import { riyadhDateKey, riyadhMinutes } from "./hours";
 import { waDigits } from "./wa-window";
 import {
-  computePricing, fixedPrice, lineVerdict, marketSale, readActiveItems, readDayOffers, saleMatchesRule, saleRule, type Decision, type LineStatus, type LineVerdict,
+  computePricing, fixedPrice, lineVerdict, marketSale, readActiveItems, readDayOffers, saleMatchesRule, saleRule, type AboveSuggested, type Decision, type LineStatus, type LineVerdict,
 } from "./pricing-engine";
 import { loadPriceSources, MARKET_ASK_MINUTE, MARKET_REPLY_WINDOW_MIN } from "./price-sources";
 import { readPricingSettings } from "./operating-cost";
@@ -169,7 +169,19 @@ export interface DayLine {
   // § 48 ج — the preview of a line without an approved price (0 = none)
   x_preview_sale?: number;
   x_preview_profit?: number;
+  // § 56 — what «📊 اليوم» shows of the line (src/day-screen.ts)
+  x_cost_vat_show?: string | false;
+  x_market_profit?: number;
+  x_market_profit_show?: string | false;
+  x_suggested_profit_show?: string | false;
+  x_gap_show?: string | false;
+  x_outcome_show?: string | false;
 }
+
+/** § 56 — the cells of «📊 اليوم» the worker writes on a line with every run (src/day-screen.ts). */
+export const SCREEN_LINE_FIELDS = ["x_cost_vat_show", "x_market_profit", "x_market_profit_show", "x_suggested_profit_show", "x_gap_show", "x_outcome_show"] as const;
+/** § 56 — …and on the day: the header's four numbers and the chart. */
+export const SCREEN_DAY_FIELDS = ["x_n_publish", "x_n_skip", "x_n_warn", "x_avg_profit", "x_avg_profit_show", "x_chart_html"] as const;
 
 export const DAY_FIELDS = ["id", "x_date", "x_state", "x_name", "x_approved_at", "x_approved_by", "x_published_at"];
 export const LINE_FIELDS = [
@@ -177,6 +189,7 @@ export const LINE_FIELDS = [
   "x_source_price", "x_cost_price", "x_is_outlier", "x_outlier_ok", "x_margin_pct", "x_sale_price", "x_excluded", "x_blocked", "x_offers",
   "x_market_price", "x_uplift_pct", "x_market_count", "x_unit_profit", "x_status", "x_reason", "x_decision", "x_manual_price", "x_decided_at", "x_manual_for",
   ...BOARD_LINE_FIELDS,
+  ...SCREEN_LINE_FIELDS,
 ];
 
 export async function readDay(env: Env, day: string): Promise<DayRecord | null> {
@@ -306,6 +319,8 @@ export async function refreshPriceDay(env: Env, opts: { day?: string; force?: bo
   let updated = 0;
   let seq = lines.reduce((m, l) => Math.max(m, Number(l.x_sequence) || 0), 0);
   const board: BoardStatus[] = [];
+  // § 56 — «📊 اليوم»: what the screen shows of each line as this run leaves it, and of the day
+  const screen = await screenWriter(settings.aboveSuggested, day, rec.x_state);
   for (const p of plan) {
     const l = byKey.get(p.key);
     const decision = (l?.x_decision || null) as Decision | null;
@@ -343,6 +358,7 @@ export async function refreshPriceDay(env: Env, opts: { day?: string; force?: bo
       x_blocked: false,
     };
     if (!l) {
+      Object.assign(want, screen.line({ id: -(creates.length + 1), x_product_tmpl_id: [p.productId, p.productName], x_packaging_id: [p.packagingId, p.packagingName] }, want));
       creates.push({
         // § 49 هـ — the line's stored name is the item's FULL name (the days' chart and the search name a line by it): no cut at 24 characters
         x_day_id: rec.id, x_name: `${fullName(p.productName)} — ${p.packagingName}`, x_sequence: ++seq,
@@ -352,6 +368,7 @@ export async function refreshPriceDay(env: Env, opts: { day?: string; force?: bo
     }
     if (decision && !l.x_decided_at) want.x_decided_at = nowOdoo(now);
     Object.assign(want, keptPrice(l, decision, v, fixed));
+    Object.assign(want, screen.line(l, want));
     const vals = changed(l, want);
     if (Object.keys(vals).length) {
       await call(env, PRICE_LINE_MODEL, "write", { ids: [l.id], vals });
@@ -364,7 +381,8 @@ export async function refreshPriceDay(env: Env, opts: { day?: string; force?: bo
     // the line leaves with no sale price: its board is the one of an unapproved line (the market price, the preview)
     const b = storedBoardLine({ ...l, x_sale_price: 0 }, settings.wastePct, vat.ratePct, share.share, settings.minProfit);
     board.push(b.x_board_status);
-    const vals = changed(l, { x_status: "unpublished", x_reason: OUT_OF_CATALOG_REASON, x_sale_price: 0, x_excluded: true, ...b });
+    const gone = { x_status: "unpublished", x_reason: OUT_OF_CATALOG_REASON, x_sale_price: 0, x_excluded: true, ...b };
+    const vals = changed(l, { ...gone, ...screen.line(l, gone) });
     // § 48 د — a decision taken in Odoo on such a line is seen once (the tick does not ask for the day again)
     if (l.x_decision && !l.x_decided_at) vals.x_decided_at = nowOdoo(now);
     if (Object.keys(vals).length) {
@@ -376,7 +394,7 @@ export async function refreshPriceDay(env: Env, opts: { day?: string; force?: bo
   if (creates.length) await call<number[]>(env, PRICE_LINE_MODEL, "create", { vals_list: creates });
   // § 46 أ — the board's header on the day (never blocks the engine); § 48 و — and how many customers a publication would reach
   try {
-    await call(env, PRICE_DAY_MODEL, "write", { ids: [rec.id], vals: { ...boardHeader(share, board, now), ...(await recipientsCount(env)) } });
+    await call(env, PRICE_DAY_MODEL, "write", { ids: [rec.id], vals: { ...boardHeader(share, board, now), ...screen.header(), ...(await recipientsCount(env)) } });
   } catch (e) {
     console.warn(`[prices] ${day}: the board header was not written`, (e as Error)?.message);
   }
@@ -482,18 +500,70 @@ export async function rewriteBoard(env: Env, dayId: number, opts: { now?: number
   const counts: Record<BoardStatus, number> = { green: 0, yellow: 0, red: 0, none: 0 };
   const values: Array<Record<string, unknown>> = [];
   let updated = 0;
+  // § 56 — «📊 اليوم» follows the board: the line's cells and the day's header with it
+  const screen = await screenWriter(settings.aboveSuggested, day, rec.x_state);
   for (const l of lines) {
     const b = storedBoardLine(l, settings.wastePct, vatRatePct, share.share, settings.minProfit);
     counts[b.x_board_status]++;
     values.push({ id: l.id, name: `${lineName(l)}${Array.isArray(l.x_packaging_id) ? ` — ${l.x_packaging_id[1]}` : ""}`, purchase: Number(l.x_cost_price) || 0, ...b });
-    const vals = changed(l, { ...b });
+    const vals = changed(l, { ...b, ...screen.line(l, { ...b }) });
     if (!Object.keys(vals).length) continue;
     updated++;
     if (!opts.dry) await call(env, PRICE_LINE_MODEL, "write", { ids: [l.id], vals });
   }
-  const header = { ...boardHeader(share, values.map((v) => v.x_board_status as BoardStatus), now), ...(opts.dry ? {} : await recipientsCount(env)) };
+  const header = { ...boardHeader(share, values.map((v) => v.x_board_status as BoardStatus), now), ...screen.header(), ...(opts.dry ? {} : await recipientsCount(env)) };
   if (!opts.dry) await call(env, PRICE_DAY_MODEL, "write", { ids: [dayId], vals: header });
   return { day, dayId, lines: lines.length, updated, counts, ...(opts.dry ? { values, header } : {}) };
+}
+
+/**
+ * § 56 — what «📊 اليوم» shows (src/day-screen.ts), gathered while a run goes over the lines:
+ * `line(l, want)` takes a line as the run leaves it (the stored line, or what a new one will
+ * carry, with the run's values over it) and gives its cells to write with them; `header()` then
+ * gives the day's four numbers and its chart from every line seen. Never blocks the engine: a
+ * screen that cannot be made writes nothing, and the prices go on.
+ */
+async function screenWriter(above: AboveSuggested, day: string, state: DayRecord["x_state"]): Promise<{
+  line: (l: Pick<DayLine, "id" | "x_product_tmpl_id" | "x_packaging_id"> & Partial<DayLine>, want: Record<string, unknown>) => Record<string, unknown>;
+  header: () => Record<string, unknown>;
+}> {
+  const seen: DayLine[] = [];
+  try {
+    const { dayScreen } = await import("./day-screen");
+    return {
+      line: (l, want) => {
+        try {
+          const after = { ...l, ...want } as DayLine;
+          seen.push(after);
+          return dayScreen([after], above, day, state).lines[0];
+        } catch (e) {
+          console.warn(`[prices] ${day}: the screen of a line could not be made`, (e as Error)?.message);
+          return {};
+        }
+      },
+      header: () => {
+        try {
+          return dayScreen(seen, above, day, state).header;
+        } catch (e) {
+          console.warn(`[prices] ${day}: the screen's header could not be made`, (e as Error)?.message);
+          return {};
+        }
+      },
+    };
+  } catch (e) {
+    console.warn(`[prices] ${day}: the screen could not be loaded`, (e as Error)?.message);
+    return { line: () => ({}), header: () => ({}) };
+  }
+}
+
+/** § 56 — after a publication the screen says what went out («نُشر بـ …» / «لم يُنشر»). Never throws (the prices are already out). */
+async function screenAfterPublication(env: Env, dayId: number): Promise<void> {
+  try {
+    const { writeDayScreen } = await import("./day-screen");
+    await writeDayScreen(env, dayId);
+  } catch (e) {
+    console.warn(`[prices] the screen of day ${dayId} after its publication was not written`, (e as Error)?.message);
+  }
 }
 
 /** After a decision on a line: its day's board again. Never throws (the decision is already written). */
@@ -749,6 +819,8 @@ export async function publishPriceDay(env: Env, dayId: number, opts: { ctx?: Exe
     const awaiting = await quoteWaitingAfterPublication(penv, now, opts.ctx);
     // § 53 ج — …and the order form to every customer it reached inside his window (never blocks the publication)
     const forms = await orderFormsAfterPublication(penv, { dayId, day: day.x_date }, inWindow, now, opts.ctx);
+    // § 56 — «📊 اليوم» says what went out (last: never in the way of the customers' messages)
+    await screenAfterPublication(penv, dayId);
     return { action: "published", day: day.x_date, dayId, items: published.length, parts: parts.length, excluded, recipients: recipients.length, counts, ...(awaiting.length ? { awaiting } : {}), ...(forms ? { forms } : {}) };
   } catch (e) {
     // Nothing irreversible is known to have happened only if nothing was sent;

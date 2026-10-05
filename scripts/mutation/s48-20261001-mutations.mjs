@@ -207,7 +207,7 @@ const M = [
   ["و", "a supplier due without a price points at the old «الأسعار اليومية»", [[SPF,
     "        `أدخل سعر المورد لذلك اليوم في ${PLACE_SOURCES} (ردود الشراء)، وتُحسب", "        `أدخل سعر المورد لذلك اليوم في «الأسعار اليومية»، وتُحسب"]], T],
   ["و", "the engine does not write the recipients' count", [[PR,
-    "vals: { ...boardHeader(share, board, now), ...(await recipientsCount(env)) } });", "vals: { ...boardHeader(share, board, now) } });"]], T],
+    "vals: { ...boardHeader(share, board, now), ...screen.header(), ...(await recipientsCount(env)) } });", "vals: { ...boardHeader(share, board, now), ...screen.header() } });"]], T],
   ["و", "a board rewrite does not bring the recipients' count up to date", [[PR,
     "...(opts.dry ? {} : await recipientsCount(env)) };", "};"]], T],
   ["و", "the recipients' count is every customer (the opted-out too)", [[PR,

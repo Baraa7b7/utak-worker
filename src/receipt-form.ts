@@ -690,15 +690,18 @@ async function recordCashRows(env: Env, rec: ReceiptFormRecord, rows: ReceiptCas
   }
 }
 
+/** A photo of the reply as it was downloaded: § 57 ز reads its seller's tax number once the buyer is answered. */
+interface KeptPhoto { id: string; file: { base64: string; mime: string } }
 /**
  * The tax invoice's photo(s) of the reply: each downloaded by its media id and
  * kept on the list. None in the reply, or one that could not be kept: the
  * 60-minute window of «تم الشراء» is opened, and its ask follows. Never throws.
  */
-async function keepPhotos(env: Env, rec: ReceiptFormRecord, photos: ReceiptPhoto[], nowMs: number): Promise<{ saved: number; awaited: boolean }> {
+async function keepPhotos(env: Env, rec: ReceiptFormRecord, photos: ReceiptPhoto[], nowMs: number): Promise<{ saved: number; awaited: boolean; kept: KeptPhoto[] }> {
   // as many as the Flow's picker takes, never more
   const wanted = photos.slice(0, Math.max(1, RECEIPT_PHOTO_MAX));
   let saved = 0;
+  const kept: KeptPhoto[] = [];
   for (const p of wanted) {
     try {
       const { downloadMedia } = await import("./supplier-pay");
@@ -706,6 +709,7 @@ async function keepPhotos(env: Env, rec: ReceiptFormRecord, photos: ReceiptPhoto
       if (!file) continue;
       const { storePurchaseInvoiceFile } = await import("./purchase-invoice");
       if (await storePurchaseInvoiceFile(env, rec.listId, file, { nowMs })) saved++;
+      kept.push({ id: p.id, file });
     } catch (e) {
       console.warn(`[receipt-form] list=${rec.listId}: the form's photo was not kept`, (e as Error)?.message);
     }
@@ -715,7 +719,7 @@ async function keepPhotos(env: Env, rec: ReceiptFormRecord, photos: ReceiptPhoto
     const { openPurchaseInvoiceWindow } = await import("./purchase-invoice");
     await openPurchaseInvoiceWindow(env, rec.partnerId, rec.listId, nowMs);
   }
-  return { saved, awaited };
+  return { saved, awaited, kept };
 }
 
 /** A long text on line boundaries, within a text message's room. */
@@ -842,6 +846,9 @@ export async function handleReceiptFormReply(env: Env, msg: Pick<NormalizedMessa
     const { sendOwnerAlert } = await import("./templates");
     await sendOwnerAlert(env, receiptHalfAlert(rec.listId, halfDone));
   }
+  // § 57 ز — the invoice just kept on the list: its seller's tax number is read for his card, after every
+  // answer above (a reading takes seconds, never throws, and no price is read from it)
+  for (const k of photo.kept) await (await import("./supplier-vat")).readListInvoice(env, rec.listId, { id: k.id }, k.file, ctx);
   console.log(`[receipt-form] list=${rec.listId} received by partner=${rec.partnerId}: ${lines.filter(isDiff).length} difference(s), ${entries.cash.length} cash row(s), photo ${photo.saved}/${entries.photos.length}`);
   return { action: "received", listId: rec.listId, ...(payment && "ref" in payment ? { payment: payment.ref } : {}), photos: photo.saved };
 }

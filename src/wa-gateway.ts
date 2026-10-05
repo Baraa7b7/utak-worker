@@ -204,9 +204,10 @@ function refused(message: string, type: string, status: number): Response {
 //   • custody_form_test — the one trial of the custody form and its answers (§ 55 هـ)
 //   • expense_form — his expense form, its answers and «↩️ تراجع» (§ 57 و)
 //   • expense_form_test — the one trial of the expense form and its answer (§ 57 و)
+//   • supplier_register_form_test — the one trial of the supplier's registration form and its answers (§ 57 ز)
 //   • owner_transfer_notice — a customer's transfer notice with «✅ وصل» / «❌ ما وصل», and the answers to his tap (§ 57 د)
 //   • transfer_form_test — the one trial of the transfer-notice form and its answers (§ 57 د)
-const OWNER_ALLOWED_PURPOSES: ReadonlySet<string> = new Set(["price_flow_test", "order_flow_test", "register_flow_test", "owner_alert", "owner_delivery_form", "delivery_form_test", "expense_form", "expense_form_test", "owner_transfer_notice", "transfer_form_test", "receipt_form_test", "custody_form_test", "owner_summary", "owner_window", "conv_open_owner", "car_load_form_test", "owner_team_note", "owner_prices", "owner_price_exception", "owner_price_review", "owner_order_confirmed", "price_review_test"]);
+const OWNER_ALLOWED_PURPOSES: ReadonlySet<string> = new Set(["price_flow_test", "order_flow_test", "register_flow_test", "owner_alert", "owner_delivery_form", "delivery_form_test", "expense_form", "expense_form_test", "supplier_register_form_test", "owner_transfer_notice", "transfer_form_test", "receipt_form_test", "custody_form_test", "owner_summary", "owner_window", "conv_open_owner", "car_load_form_test", "owner_team_note", "owner_prices", "owner_price_exception", "owner_price_review", "owner_order_confirmed", "price_review_test"]);
 
 function ownerDigits(env: Env): string {
   return waDigits(String(env.OWNER_WHATSAPP ?? ""));

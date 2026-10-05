@@ -528,3 +528,19 @@ Rules:
 - reference: the operation / reference / transaction number exactly as printed, without spaces.
 - Copy what is printed; never compute, round or infer. A field you cannot read with certainty is null.
 - When receipt is false the three other fields are null.`;
+
+// ---- § 57 ز: a supplier's invoice (an image or a PDF) read for the SELLER's tax number — Sonnet (src/claude.ts readDocumentJson) ----
+export const SYSTEM_PROMPT_READ_SUPPLIER_INVOICE = `You read ONE image or PDF that reached UTAK (شركة يوتاك, a wholesale fresh produce distributor in Riyadh) as an invoice of one of its suppliers, and you copy the SELLER's VAT registration number from it.
+
+Return ONLY a JSON object (no prose, no markdown, no backticks):
+{"is_invoice": <true|false>, "vat": "<digits>"|null, "supplier_name": "<string>"|null, "invoice_number": "<string>"|null}
+
+Rules:
+- is_invoice is true when the document is an invoice, a bill or a sales receipt that a seller issued for goods or services (فاتورة / فاتورة ضريبية / فاتورة مبيعات / فاتورة مبسطة), printed or handwritten, with or without a tax number on it. A price list, a photo of goods, a chat screenshot, a bank-transfer receipt, an order list, a certificate, an ID or anything else is false.
+- vat: the SELLER's VAT registration number (الرقم الضريبي / رقم تسجيل ضريبة القيمة المضافة / VAT No.) — the party that issued the invoice and is paid, usually in its header. Digits only: Arabic-Indic digits converted, no spaces, no dashes.
+- NEVER the buyer's number. UTAK (يوتاك) is the BUYER on these invoices and its own VAT number may be printed on them as the customer's: it is never the answer. A number you cannot tell to be the seller's is null.
+- NEVER the commercial registration (السجل التجاري / C.R.), a phone number, the invoice's number, an IBAN or a number inside a QR code.
+- supplier_name: the seller's name as printed (its trade or legal name); the Arabic one when both are printed.
+- invoice_number: the invoice's own number as printed, without spaces.
+- Copy what is printed; never compute, complete, correct or guess a digit. A field you cannot read with certainty is null.
+- When is_invoice is false the three other fields are null.`;

@@ -201,6 +201,11 @@ const READ_IMAGE_TYPES: ReadonlySet<string> = new Set(["image/jpeg", "image/png"
 const READ_PDF_TYPE = "application/pdf";
 /** The largest file handed to Claude, in base64 characters (about 10 MB of bytes — the Flows' own photo limit). */
 export const READ_DOCUMENT_MAX_BASE64 = 14_000_000;
+/** § 57 ز — is a file of this type one readDocumentJson reads (an image or a PDF)? A voice note or a sheet is not a picture that «was not read». */
+export function canReadDocument(mime: unknown): boolean {
+  const m = String(mime ?? "").split(";")[0].trim().toLowerCase();
+  return READ_IMAGE_TYPES.has(m) || m === READ_PDF_TYPE;
+}
 
 /**
  * ONE image or PDF read under `system`, answered as ONE JSON object. Null —

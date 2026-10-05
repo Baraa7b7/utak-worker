@@ -71,11 +71,11 @@ import { DELIVERABLE_STATES } from "./order-flow";
 import { sendOwnerMessage, T } from "./templates";
 
 /**
- * utak_delivery_v1 at Meta. "0": the Flow is not created yet — its JSON is
- * scripts/lib/s55-flows.mjs, and the id is pinned here once Meta has it (a
- * published Flow's JSON is frozen).
+ * utak_delivery_v1 at Meta (published 2026-10-05; its JSON is
+ * scripts/lib/s55-flows.mjs, and a published Flow's JSON is frozen: a change
+ * of its shape is a new Flow and a new id here).
  */
-export const DELIVERY_FLOW_ID = "0";
+export const DELIVERY_FLOW_ID = "1113882387786390";
 export const DELIVERY_FLOW_SCREEN = "DELIVER_A";
 export const DELIVERY_FLOW_SLOTS = 20;
 /** The form and its summary to a team member: they carry sale prices (src/price-privacy.ts). */

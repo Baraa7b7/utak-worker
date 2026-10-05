@@ -73,6 +73,10 @@ const M = [
   ["ب", "«إرسال» does not send the payment", [[LIB,
     "...[\"pay\", \"amt\", \"note\"].map(", "...[\"amt\", \"note\"].map("]], T],
   // ---------------------------------------------------------------- what the worker sends
+  ["ب", "the Flow's id is back to «0» (not the one Meta published)", [[DF,
+    "export const DELIVERY_FLOW_ID = \"1113882387786390\";", "export const DELIVERY_FLOW_ID = \"0\";"]], T],
+  ["ب", "the message opens another Flow", [[DF,
+    "            flow_id: DELIVERY_FLOW_ID,", "            flow_id: \"961075853720270\","]], T],
   ["ب", "the worker fills fifteen slots (the Flow has twenty)", [[DF,
     "export const DELIVERY_FLOW_SLOTS = 20;", "export const DELIVERY_FLOW_SLOTS = 15;"]], T],
   ["ب", "the worker opens another screen", [[DF,

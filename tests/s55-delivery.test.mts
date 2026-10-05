@@ -126,7 +126,7 @@ console.log("\n[ب1] utak_delivery_v1 at Meta is the form the worker fills: one 
     fixed.every((v) => v.length > 0) && [...r, amt, note].every((c) => count(c.label) <= 20) && count(pay.label) <= 30 && [...r, pay].every((c) => c["data-source"].every((o: any) => count(o.title) <= 30)) && [amt, note].every((c) => count(c["helper-text"]) <= 80) && count(s.title) <= 30, JSON.stringify(fixed));
   assert("the worker's own words are the Flow's: the reasons it writes, the payments it reads, the button", JSON.stringify(Object.keys(DF.RETURN_REASONS)) === JSON.stringify(LIB.DELIVERY_REASONS.slice(1).map((o: any) => o.id)) && LIB.DELIVERY_REASONS.slice(1).every((o: any) => (DF.RETURN_REASONS as any)[o.id] === o.title)
     && JSON.stringify(Object.entries(DF.PAY_METHODS)) === JSON.stringify(LIB.DELIVERY_PAY_OPTIONS.map((o: any) => [o.id, o.title])) && LIB.DELIVERY_CTA === DF.DELIVERY_FORM_CTA && !/\p{Extended_Pictographic}/u.test(DF.DELIVERY_FORM_CTA) && count(DF.DELIVERY_FORM_CTA) <= 20);
-  assert("the Flow is not at Meta yet: its id is «0» until it is created and pinned", DF.DELIVERY_FLOW_ID === "0");
+  assert("its id at Meta: utak_delivery_v1 #1113882387786390", DF.DELIVERY_FLOW_ID === "1113882387786390");
 
   const env = world(); const o = onTheWay();
   await tapAs(env, `dlv_${o}`);

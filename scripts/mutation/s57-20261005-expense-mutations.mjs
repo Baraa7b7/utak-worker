@@ -156,7 +156,7 @@ const M = [
   ["القراءة", "a form's «إرسال» records with the accounting off", [[EF,
     "    if (!rec.test && !isAccountingSyncEnabled(env)) {", "    if (false) {"]], T],
   ["القراءة", "an unknown type is not named", [[EF,
-    "  if (!type) problems.push(\"type\");\n", ""]], T],
+    "  if (!type) problems.push(values.type === EXPENSE_REMOVED_TYPE ? \"salaries\" : \"type\");\n", ""]], T],
   ["القراءة", "a bad amount is not named", [[EF,
     "  if (amount === \"invalid\") problems.push(\"amt\");\n", ""]], T],
   ["القراءة", "an amount of zero is taken", [[EF,

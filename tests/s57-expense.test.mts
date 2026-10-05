@@ -167,7 +167,11 @@ const { PURPOSES } = await import("../src/wa-purposes.ts");
 const { sendViaGateway, gatewayDecision } = await import("../src/wa-gateway.ts");
 const worker = (await import("../src/index.ts")).default;
 // @ts-ignore — plain .mjs helpers
-const LIB = await import("../scripts/lib/s57-expense-flow.mjs");
+const LIB = await import("../scripts/lib/s58-expense-flow.mjs"); // § 58 أ 4: utak_expense_v2 — the form the worker sends now
+// @ts-ignore — plain .mjs helpers
+const LIB1 = await import("../scripts/lib/s57-expense-flow.mjs"); // utak_expense_v1, as published in § 57 (frozen at Meta)
+// @ts-ignore — plain .mjs helpers
+const OD58 = await import("../scripts/lib/s58-odoo.mjs");
 
 const TODAY = "2026-10-05", YESTERDAY = "2026-10-04", TOMORROW = "2026-10-06";
 const LABEL = "الاثنين 5 أكتوبر 2026";
@@ -179,7 +183,7 @@ const count = (s: string) => [...String(s)].length;
 /** The lead's table (the order, § 57 و): the type, its account's code, Odoo's name, its id. */
 const TABLE: Array<[string, string, string, string, number]> = [
   ["fuel", "وقود", "400077", "Fuel", 211], ["car_maintenance", "صيانة السيارة", "400042", "Maintenance", 177], ["rent", "إيجار", "400017", "Warehouse Rent", 152],
-  ["salaries", "رواتب وأجور", "400003", "Basic Salary", 138], ["utilities", "كهرباء ومياه واتصالات", "400018", "Water & Electricity", 153],
+  ["utilities", "كهرباء ومياه واتصالات", "400018", "Water & Electricity", 153],
   ["gov", "رسوم حكومية", "400032", "Trade License Fees", 167], ["packaging", "مواد تغليف", "400064", "Consumables", 199], ["other", "أخرى", "400028", "Others", 163],
 ];
 const MISC = 55;
@@ -265,20 +269,28 @@ const everRejected: string[] = [];
 const clean = () => assert("no Odoo field or value outside the schema — in any world so far", rejected.length === 0 && everRejected.length === 0, [...everRejected, ...rejected].join(" | "));
 
 // ================================================================ و1
-console.log("\n[و1] utak_expense_v1 at Meta is the form the worker fills: one screen, no endpoint");
+console.log("\n[و1] utak_expense_v2 at Meta is the form the worker fills: one screen, no endpoint");
 {
   const json = LIB.buildExpenseFlowJson();
   const s = json.screens[0], c = s.layout.children;
   assert("ONE screen, EXPENSE_A — the one the worker opens — terminal; Flow JSON 6.0; FLOW is the Meta script's entry", json.screens.length === 1 && s.id === "EXPENSE_A" && LIB.EXPENSE_SCREEN === EX.EXPENSE_FLOW_SCREEN && s.terminal === true && s.success === true && json.version === "6.0"
-    && LIB.FLOW.key === "expense" && LIB.FLOW.name === "utak_expense_v1" && LIB.EXPENSE_FLOW_NAME === "utak_expense_v1" && LIB.FLOW.build === LIB.buildExpenseFlowJson && LIB.FLOW.first === "EXPENSE_A");
+    && LIB.FLOW.key === "expense" && LIB.FLOW.name === "utak_expense_v2" && LIB.EXPENSE_FLOW_NAME === "utak_expense_v2" && LIB.FLOW.build === LIB.buildExpenseFlowJson && LIB.FLOW.first === "EXPENSE_A");
+  // § 58 أ 4 — «رواتب وأجور» left the list: a published Flow is frozen, so the list without it is a new Flow
+  const v1 = LIB1.buildExpenseFlowJson(), back = LIB.buildExpenseFlowJson();
+  back.screens[0].layout.children[2]["data-source"] = LIB1.EXPENSE_TYPES;
+  assert("utak_expense_v1 stays the record of what § 57 published: its name, its eight types with «رواتب وأجور»", LIB1.EXPENSE_FLOW_NAME === "utak_expense_v1" && LIB1.FLOW.name === "utak_expense_v1" && LIB1.EXPENSE_TYPES.length === 8
+    && v1.screens[0].layout.children[2]["data-source"].some((o: any) => o.id === "salaries" && o.title === "رواتب وأجور"), JSON.stringify(LIB1.EXPENSE_TYPES));
+  assert("…and v2 is v1 without that one type, and nothing else: the same JSON once the list is put back", LIB.REMOVED_TYPE === "salaries" && LIB.EXPENSE_TYPES.length === 7 && !JSON.stringify(json).includes("رواتب") && !JSON.stringify(json).includes("salaries")
+    && JSON.stringify(LIB.EXPENSE_TYPES) === JSON.stringify(LIB1.EXPENSE_TYPES.filter((t: any) => t.id !== "salaries")) && JSON.stringify(back) === JSON.stringify(v1));
+  assert("the Meta script of § 58 walks this one Flow alone", LIB.FLOWS.length === 1 && LIB.FLOWS[0] === LIB.FLOW && JSON.stringify(LIB.FLOW_CATEGORIES) === JSON.stringify(["OTHER"]));
   assert("no endpoint and no Form wrapper: no data_api_version, no data_exchange, no routing model, no «Form» component", !("data_api_version" in json) && !("routing_model" in json) && !JSON.stringify(json).includes("data_exchange") && LIB.screenComponents(s).every((x: any) => x.type !== "Form"));
   assert("twelve components (Meta allows fifty), in the order's own order", LIB.screenComponents(s).length === 12 && LIB.screenComponents(s).length <= LIB.SCREEN_COMPONENTS_MAX
     && JSON.stringify(c.map((x: any) => x.type)) === JSON.stringify(["TextHeading", "TextBody", "Dropdown", "TextInput", "RadioButtonsGroup", "TextInput", "TextInput", "RadioButtonsGroup", "DatePicker", "PhotoPicker", "TextArea", "Footer"])
     && JSON.stringify(c.slice(2, 11).map((x: any) => x.name)) === JSON.stringify(LIB.EXPENSE_FIELDS), JSON.stringify(c.map((x: any) => x.name)));
   assert("the heading and the line come from the data", c[0].text === "${data.t}" && c[1].text === "${data.n}");
-  assert("«نوع المصروف»: type, REQUIRED, the order's eight types, nothing chosen for him", c[2].name === "type" && c[2].label === "نوع المصروف" && c[2].required === true && !("init-value" in c[2])
-    && JSON.stringify(c[2]["data-source"].map((o: any) => o.title)) === JSON.stringify(["وقود", "صيانة السيارة", "إيجار", "رواتب وأجور", "كهرباء ومياه واتصالات", "رسوم حكومية", "مواد تغليف", "أخرى"]));
-  assert("…the worker reads the same eight ids, under the same words", JSON.stringify(XA.EXPENSE_TYPES.map((t: any) => [t.id, t.title])) === JSON.stringify(LIB.EXPENSE_TYPES.map((o: any) => [o.id, o.title])));
+  assert("«نوع المصروف»: type, REQUIRED, the seven types (§ 58: no «رواتب وأجور»), nothing chosen for him", c[2].name === "type" && c[2].label === "نوع المصروف" && c[2].required === true && !("init-value" in c[2])
+    && JSON.stringify(c[2]["data-source"].map((o: any) => o.title)) === JSON.stringify(["وقود", "صيانة السيارة", "إيجار", "كهرباء ومياه واتصالات", "رسوم حكومية", "مواد تغليف", "أخرى"]));
+  assert("…the worker reads the same seven ids, under the same words, and names the one that left",  XA.EXPENSE_REMOVED_TYPE === LIB.REMOVED_TYPE && XA.expenseTypeOf("salaries") === null && JSON.stringify(XA.EXPENSE_TYPES.map((t: any) => [t.id, t.title])) === JSON.stringify(LIB.EXPENSE_TYPES.map((o: any) => [o.id, o.title])));
   assert("«المبلغ كما دُفع»: amt, a number, REQUIRED", c[3].name === "amt" && c[3].label === "المبلغ كما دُفع" && c[3]["input-type"] === "number" && c[3].required === true);
   assert("«فاتورة ضريبية؟»: tax, REQUIRED, yes «نعم» / no «لا», nothing chosen for him", c[4].name === "tax" && c[4].label === "فاتورة ضريبية؟" && c[4].required === true && !("init-value" in c[4])
     && JSON.stringify(c[4]["data-source"]) === JSON.stringify([{ id: "yes", title: "نعم" }, { id: "no", title: "لا" }]));
@@ -397,7 +409,7 @@ console.log("\n[و2] the doors: «مصروف» / «تسجيل مصروف» and t
 }
 
 // ================================================================ و3
-console.log("\n[و3] the eight types, each on its expense account — found by its code");
+console.log("\n[و3] the seven types, each on its expense account — found by its code");
 {
   assert("the constant is the order's table: the type, its words, its account's code", JSON.stringify(XA.EXPENSE_TYPES.map((t: any) => [t.id, t.title, t.code])) === JSON.stringify(TABLE.map(([id, title, code]) => [id, title, code])));
   const ids = doc("ODOO-IDS.md");
@@ -630,7 +642,9 @@ console.log("\n[و7] the photo: attached to the bill; a download that fails does
 console.log("\n[و8] a field that cannot be read: the WHOLE form is refused, nothing is written, and a fresh form goes");
 {
   const BAD: Array<[string, Record<string, unknown>, string]> = [
-    ["a type that is not one of the eight", { type: "travel" }, "type"], ["no type", { type: undefined }, "type"],
+    ["a type that is not one of the seven", { type: "travel" }, "type"], ["no type", { type: undefined }, "type"],
+    // § 58 أ 4 — a form of utak_expense_v1 sent before the list changed: refused whole, by its own line
+    ["«رواتب وأجور» of a form of utak_expense_v1", { type: "salaries" }, "salaries"],
     ["an amount of zero", { amt: "0" }, "amt"], ["a negative amount", { amt: "-5" }, "amt"], ["an amount that is no number", { amt: "مئة" }, "amt"], ["no amount", { amt: "" }, "amt"], ["three decimals", { amt: "12.345" }, "amt"],
     ["«فاتورة ضريبية؟» without an answer", { tax: undefined }, "tax"], ["«فاتورة ضريبية؟» with another word", { tax: "maybe" }, "tax"],
     ["no supplier name", { sup: "" }, "sup"], ["a supplier name of spaces", { sup: "   " }, "sup"],
@@ -648,7 +662,8 @@ console.log("\n[و8] a field that cannot be read: the WHOLE form is refused, not
     assert(`${what} → refused: nothing in Odoo, ONE message — a fresh form naming it`, r.action === "invalid" && JSON.stringify(r.problems) === JSON.stringify([key]) && bookWrites().length === 0 && bills().length === 0 && mediaCalls.length === 0
       && graph.length === 1 && f.length === 1 && tokenOf(f[0]) !== token && bodyOf(f[0]) === ["⚠️ لم يُسجَّل شيء من النموذج:", `• ${EX.EXPENSE_BAD[key]}`, "عبّه من جديد ثم «إرسال» 👇"].join("\n"), `${JSON.stringify(r)} ${bodyOf(f[0])}`);
   }
-  assert("each problem has its own words", Object.keys(EX.EXPENSE_BAD).length === 8 && new Set(Object.values(EX.EXPENSE_BAD)).size === 8);
+  assert("each problem has its own words — «رواتب وأجور» says the salaries have their monthly entry", Object.keys(EX.EXPENSE_BAD).length === 9 && new Set(Object.values(EX.EXPENSE_BAD)).size === 9
+    && EX.EXPENSE_BAD.salaries.includes("«رواتب وأجور»") && EX.EXPENSE_BAD.salaries.includes("بقيدها الشهري"), EX.EXPENSE_BAD.salaries);
 }
 {
   const env = world();
@@ -980,6 +995,8 @@ console.log("\n[و13] the trial to Baraa, its hook, and the purposes");
   }
   assert("the gateway lets both purposes through to Baraa's number, and refuses both to any other", JSON.stringify(out) === JSON.stringify(["refused", "session", "refused", "session"]) && graph.length === 2 && graph.every((b: any) => b.to === OWNER), JSON.stringify(out));
   assert("the Flow's id at Meta is one constant, filled in when the Flow is created there", typeof EX.EXPENSE_FLOW_ID === "string" && /^\d+$/.test(EX.EXPENSE_FLOW_ID) && (srcOf("expense-form.ts").match(/EXPENSE_FLOW_ID = "/g) ?? []).length === 1);
+  assert("…it is utak_expense_v2's (§ 58 أ 4), not the one of v1 with «رواتب وأجور» — and docs/ODOO-IDS.md names both", EX.EXPENSE_FLOW_ID === "2207848546771736" && EX.EXPENSE_FLOW_ID !== "1084220070882916"
+    && doc("ODOO-IDS.md").includes("`utak_expense_v2` #2207848546771736 (`EXPENSE_FLOW_ID`") && doc("ODOO-IDS.md").includes("`utak_expense_v1` #1084220070882916"));
 }
 
 // ================================================================ و14
@@ -992,8 +1009,10 @@ console.log("\n[و14] the guide, the table of accounts, and the pointer in the e
   assert("…it says who, how to open it, the eight types, the three ways of paying, the tax rule, the photo, the undo and the trial", ["لبراء وحده", "«مصروف»", "«🧾 تسجيل مصروف»", "«تم الاطلاع»", "كاش السائق (CSHD)", "البنك (BNK1)", "من جيب براء", "15 رقماً", "بلا ضريبة مدخلات", "«↩️ تراجع»", "24 ساعة", "🧪 تجربة", "EXP", "لا يُحذف"]
     .every((w) => sec.includes(w)) && XA.EXPENSE_TYPES.every((t: any) => sec.includes(t.title)), ["لبراء وحده", "«مصروف»", "«🧾 تسجيل مصروف»", "«تم الاطلاع»", "كاش السائق (CSHD)", "البنك (BNK1)", "من جيب براء", "15 رقماً", "بلا ضريبة مدخلات", "«↩️ تراجع»", "24 ساعة", "🧪 تجربة", "EXP", "لا يُحذف"].filter((w) => !sec.includes(w)).join(","));
   const ids = doc("ODOO-IDS.md");
-  assert("docs/ODOO-IDS.md names the journals of the entry and the tax: EXP #20, BRA #21 with its outbound payment method (#8) and the two accounts Baraa chooses between, tax #43", /EXP[^\n]*#20/.test(ids) && /BRA[^\n]*#21[^\n]*#8[^\n]*205001[^\n]*201021/.test(ids) && /«15% شامل \(مشتريات\)»[^\n]*#43/.test(ids));
-  assert("both documents say «من جيب براء» is hidden TODAY, until the account is set on BRA's outbound payment method — and neither says the journal's default account decides", [sec, ids.slice(ids.indexOf("## حسابات نموذج «تسجيل مصروف»"))].every((t) => t.includes("طريقة الدفع الصادرة") && t.includes("مخفي") && t.includes("201021") && !/الحساب الافتراضي|حسابها الافتراضي/.test(t)));
+  assert("docs/ODOO-IDS.md names the journals of the entry and the tax: EXP #20, BRA #21 with its outbound payment method (#8) and the account it posts to since § 58 (201021; 205001 untouched), tax #43", /EXP[^\n]*#20/.test(ids) && /BRA[^\n]*#21[^\n]*#8[^\n]*201021[^\n]*205001/.test(ids) && /«15% شامل \(مشتريات\)»[^\n]*#43/.test(ids));
+  assert("…the account is the one scripts/s58-20261005-odoo.mjs writes on that line, on the journal the worker reads", OD58.POCKET_ACCOUNT_CODE === "201021" && OD58.POCKET_UNTOUCHED_CODE === "205001" && OD58.POCKET_JOURNAL_CODE === XA.POCKET_JOURNAL_CODE && OD58.POCKET_JOURNAL_ID === 21);
+  assert("both documents say «من جيب براء» is OFFERED since § 58 — BRA's outbound payment method posts to 201021 — and that it hides itself again without that account; neither says it is hidden today", [sec, ids.slice(ids.indexOf("## حسابات نموذج «تسجيل مصروف»"))].every((t) => t.includes("طريقة الدفع الصادرة") && t.includes("201021") && t.includes("معروض") && t.includes("§ 58") && !t.includes("مخفي")));
+  assert("the guide says «رواتب وأجور» left the list and why, and the table of accounts has no row for it", sec.includes("«رواتب وأجور»") && sec.includes("بقيدها الشهري") && !/\| رواتب وأجور \(`salaries`\)/.test(ids) && !/نوع المصروف \|[^\n]*رواتب وأجور/.test(sec));
   const exp = doc("EXPENSES.md");
   assert("docs/EXPENSES.md § 1 points to the form", exp.slice(exp.indexOf("## 1)"), exp.indexOf("## 2)")).includes("«مصروف»") && exp.includes("OPERATING-DAY.md"));
 }

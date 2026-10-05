@@ -34,23 +34,27 @@ import { buildPaymentSearchDomain, extractPaymentIdFromAction, readMoveLinesWith
 
 // ---------------------------------------------------------------- the types and their accounts
 
-export type ExpenseType = "fuel" | "car_maintenance" | "rent" | "salaries" | "utilities" | "gov" | "packaging" | "other";
+export type ExpenseType = "fuel" | "car_maintenance" | "rent" | "utilities" | "gov" | "packaging" | "other";
 export interface ExpenseTypeDef { id: ExpenseType; title: string; code: string }
 /**
- * The eight types of the form, each on an expense account that EXISTS in the
+ * The seven types of the form, each on an expense account that EXISTS in the
  * chart (docs/ODOO-IDS.md has the same table, with Odoo's names and ids). The
  * account is found by this code when an expense is recorded.
+ * § 58 أ 4 — «رواتب وأجور» (400003) left the list: the salaries are recorded by
+ * their monthly entry (docs/EXPENSES.md § 4), and one typed here as well would
+ * be in the books twice.
  */
 export const EXPENSE_TYPES: ReadonlyArray<ExpenseTypeDef> = [
   { id: "fuel", title: "وقود", code: "400077" },
   { id: "car_maintenance", title: "صيانة السيارة", code: "400042" },
   { id: "rent", title: "إيجار", code: "400017" },
-  { id: "salaries", title: "رواتب وأجور", code: "400003" },
   { id: "utilities", title: "كهرباء ومياه واتصالات", code: "400018" },
   { id: "gov", title: "رسوم حكومية", code: "400032" },
   { id: "packaging", title: "مواد تغليف", code: "400064" },
   { id: "other", title: "أخرى", code: "400028" },
 ];
+/** § 58 أ 4 — the type utak_expense_v1 still offers at Meta and no form records any more. */
+export const EXPENSE_REMOVED_TYPE = "salaries";
 export const expenseTypeOf = (id: unknown): ExpenseTypeDef | null => EXPENSE_TYPES.find((t) => t.id === id) ?? null;
 
 export type ExpensePay = "cash" | "bank" | "owner";

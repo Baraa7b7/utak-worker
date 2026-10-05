@@ -1,10 +1,11 @@
 // § 57 و (2026-10-05) — «تسجيل مصروف»: Baraa records an expense from WhatsApp,
 // as a WhatsApp Flow, and the worker enters it in Odoo's books.
 //
-// The Flow (utak_expense_v1; scripts/lib/s57-expense-flow.mjs is its JSON) is
-// ONE screen with no endpoint — its data goes with the message (flow_action
-// navigate): the heading, a line of text, the ways of paying on offer and
-// today's date. He fills the type (one of eight), the amount as paid, «فاتورة
+// The Flow (utak_expense_v2 since § 58 أ 4; scripts/lib/s58-expense-flow.mjs is
+// its JSON — utak_expense_v1 of scripts/lib/s57-expense-flow.mjs without «رواتب
+// وأجور») is ONE screen with no endpoint — its data goes with the message
+// (flow_action navigate): the heading, a line of text, the ways of paying on
+// offer and today's date. He fills the type (one of seven), the amount as paid, «فاتورة
 // ضريبية؟», the supplier's tax number and name, the way it was paid, the date,
 // a photo and a note, then «إرسال».
 //
@@ -21,7 +22,9 @@
 //     of paying it offered. A reply is read from the number it was sent to,
 //     once.
 //   • «خانة لا تُقرأ = النموذج كله يُرفض ولا يُكتب شيء» (§ 55): a type that is not
-//     one of the eight, an amount that is not a number above zero with at most
+//     one of the seven — «رواتب وأجور» of a form of utak_expense_v1 sent before
+//     § 58 is said by its own line: the salaries have their monthly entry —, an
+//     amount that is not a number above zero with at most
 //     two decimals, «فاتورة ضريبية؟» without an answer, no supplier name, a way
 //     of paying that was not offered, a date that is not one or is after today
 //     in Riyadh, or «نعم» without the invoice's photo — one message naming each,
@@ -50,12 +53,15 @@ import { dayLabel } from "./order-flow";
 import { isAccountingSyncEnabled } from "./accounting";
 import { readReceiptPhotos } from "./receipt-form";
 import {
-  EXPENSE_PAY, POCKET_JOURNAL_CODE, POCKET_NO_ACCOUNT_TEXT, expensePayOf, expenseTypeOf, isValidVatNumber, normalizeVatNumber, ownerPocketAvailable, recordExpense, resolveExpense,
+  EXPENSE_PAY, EXPENSE_REMOVED_TYPE, POCKET_JOURNAL_CODE, POCKET_NO_ACCOUNT_TEXT, expensePayOf, expenseTypeOf, isValidVatNumber, normalizeVatNumber, ownerPocketAvailable, recordExpense, resolveExpense,
   undoExpenseEntry, type ExpenseEntry, type ExpensePay, type ExpensePhotoFile, type ExpensePlan, type ExpenseRecord, type PocketWhy,
 } from "./expense-accounting";
 
-/** utak_expense_v1 at Meta, published 2026-10-05 (a published Flow's JSON is frozen). */
-export const EXPENSE_FLOW_ID = "1084220070882916";
+/**
+ * utak_expense_v2 at Meta, published 2026-10-05 (§ 58 أ 4; a published Flow's JSON is frozen).
+ * utak_expense_v1 (#1084220070882916, with «رواتب وأجور») stays published there and is not sent.
+ */
+export const EXPENSE_FLOW_ID = "2207848546771736";
 export const EXPENSE_FLOW_SCREEN = "EXPENSE_A";
 /** The gateway purpose of the form, of its answers and of «↩️ تراجع»: the owner's number alone. */
 export const EXPENSE_PURPOSE = "expense_form";
@@ -96,6 +102,7 @@ export const EXPENSE_NO_POCKET_TEXT: Readonly<Record<PocketWhy, string>> = {
 export const EXPENSE_HOW_TEXT = "اكتب المبلغ كما دفعته. ضريبة المدخلات تُفصل مع «نعم» ورقم ضريبي صحيح وصورة الفاتورة فقط.";
 export const EXPENSE_BAD: Readonly<Record<string, string>> = {
   type: "اختر نوع المصروف من القائمة.",
+  salaries: "«رواتب وأجور» لم تعد في النموذج: الرواتب تُسجَّل بقيدها الشهري، وتسجيلها هنا يكرّرها. اختر نوعاً آخر.",
   amt: "المبلغ رقم أكبر من صفر، بخانتين عشريتين على الأكثر.",
   tax: "اختر «نعم» أو «لا» في «فاتورة ضريبية؟».",
   sup: "اكتب اسم المورد.",
@@ -344,7 +351,8 @@ export interface ExpenseRead {
 export function readExpenseValues(rec: Pick<ExpenseToken, "token" | "pay">, values: Record<string, unknown>, today: string): ExpenseRead {
   const problems: string[] = [];
   const type = expenseTypeOf(values.type);
-  if (!type) problems.push("type");
+  // § 58 أ 4 — a form of utak_expense_v1 sent before the list changed: refused whole, and told why
+  if (!type) problems.push(values.type === EXPENSE_REMOVED_TYPE ? "salaries" : "type");
   const amount = parseExpenseAmount(values.amt);
   if (amount === "invalid") problems.push("amt");
   const taxInvoice = values.tax === "yes" ? true : values.tax === "no" ? false : null;

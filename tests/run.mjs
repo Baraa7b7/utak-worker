@@ -24,7 +24,7 @@ const FILES = [
   "wa-status", "supplier-pay", "wa-important-b3", "wa-important-b4", "pricing-v1", "s41", "s42", "s44", "s45",
   "s46-board", "s46-product", "s46-zero-price", "s46-post-launch", "s47", "s48", "s49", "s49-sources", "s49-ui",
   "s51", "s52", "s52-iban", "s53", "s53-forms", "s54", "s55", "s55-receipt", "s55-car", "s55-custody",
-  "s55-delivery", "s56", "s57-day",
+  "s55-delivery", "s56", "s57-day", "s57-bank",
 ];
 
 const root = new URL("../", import.meta.url).pathname;

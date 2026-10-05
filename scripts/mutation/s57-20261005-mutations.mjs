@@ -6,6 +6,8 @@
 //      table that wraps and clips nothing, «(+2.43)» under its price, room under the last line) and
 //      «متوسط ربح الكرتون (المنشور)» — scripts/lib/s57-ui.mjs, tests/s57-day.test.mts
 //
+//   ج  the bank journal BNK1 and «كشف البنك الأسبوعي» — scripts/s57-20261005-bank.mjs, tests/s57-bank.test.mts
+//
 // RUN IT IN A COPY OF THE TREE (scripts/mutation/s45-20260930-mutations-all.mjs does: `git archive HEAD`):
 // a mutation edits the source in place, so it never runs in the working tree.
 //
@@ -20,6 +22,8 @@ const root = new URL("../../", import.meta.url).pathname;
 const TD = "tests/s57-day.test.mts";
 const UI = "scripts/lib/s57-ui.mjs";
 const GUIDE = "docs/OPERATING-DAY.md";
+const TB = "tests/s57-bank.test.mts";
+const BANK = "scripts/s57-20261005-bank.mjs";
 
 // [part, name, [[file, find, replace], …], test file]
 const M = [
@@ -64,6 +68,21 @@ const M = [
     "     - **«متوسط ربح الكرتون (المنشور)»:** متوسط «ربحنا»", "     - **«متوسط ربح الكرتون»:** متوسط «ربحنا»"]], TD],
   ["أ", "the guide does not say the screen takes the whole width", [[GUIDE,
     "الشاشة **تملأ عرض الشاشة كله**", "الشاشة كما كانت"]], TD],
+  // ---------------------------------------------------------------- ج the bank journal and the weekly statement
+  ["ج", "the bank's source is set to the online synchronisation", [[BANK,
+    "const SOURCE = \"file_import\";", "const SOURCE = \"online_sync\";"]], TB],
+  ["ج", "a source someone else set is overwritten", [[BANK,
+    "else if (j.bank_statements_source !== \"undefined\") throw new Error(", "else if (false) throw new Error("]], TB],
+  ["ج", "the journal is written before its value is kept for the rollback", [[BANK,
+    "    rb.before.journal ??= { id: BNK1, bank_statements_source: j.bank_statements_source }; save();\n", ""]], TB],
+  ["ج", "the script writes another journal", [[BANK,
+    "export const BNK1 = 13;", "export const BNK1 = 19;"]], TB],
+  ["ج", "the guide sends the upload to the journal's settings, not to the bank's card", [[GUIDE,
+    "**المحاسبة ← لوحة المحاسبة ← بطاقة Bank ← «رفع»**", "**المحاسبة ← الإعدادات ← اليوميات**"]], TB],
+  ["ج", "the guide does not say the amount is not counted twice", [[GUIDE,
+    "**المبلغ لا يُحسب مرتين:** رصيد البنك (101001) يتحرك مرة واحدة، من الكشف.", ""]], TB],
+  ["ج", "the guide does not say the first statement starts on the day the account was opened", [[GUIDE,
+    "**أول كشف يبدأ من يوم فتح الحساب**، و", ""]], TB],
 ];
 
 const want = new Set(process.argv.slice(2));

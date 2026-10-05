@@ -49,7 +49,7 @@ export function isPaymentClaim(text: string | null | undefined): boolean {
 
 /** § 57 د — «تحويل» / «تحويل 🏦»: the WHOLE message, and nothing else in it. */
 export function isTransferReply(text: string | null | undefined): boolean {
-  return !!text && normalizeCommand(text).replace(/[\p{Extended_Pictographic}️‍]/gu, "").trim() === "تحويل";
+  return !!text && normalizeCommand(text).replace(/[\p{Extended_Pictographic}\p{Variation_Selector}\p{Join_Control}]/gu, "").trim() === "تحويل";
 }
 
 /**

@@ -633,10 +633,9 @@ console.log("\n[د7] a field that cannot be read refuses the form as a WHOLE: no
   assert("…opened on what he wrote that was right: the two invoices ticked, the date, the reference — the amount empty", JSON.stringify(d.sel) === JSON.stringify([String(INV_A), String(INV_B)]) && d.amt === "" && d.d === DAY && d.ref === "FT26276001" && d.invs.length === 3, JSON.stringify([d.sel, d.amt, d.d, d.ref]));
   const old = await reply(env, C1_PHONE, tokenOf(f), good);
   assert("…the refused form itself is spent", old.action === "duplicate" && notices(env).length === 0);
-  const one = async (values: Record<string, unknown>) => { graph.length = 0; return reply(env, C1_PHONE, tokenOf(flowsTo(C1_PHONE).at(-1) ?? again[0]), values); };
+  // each refusal's fresh form is the one the next reply answers
   let last = again[0];
   const next = async (values: Record<string, unknown>) => { const out = await reply(env, C1_PHONE, tokenOf(last), values); last = flowsTo(C1_PHONE).at(-1); return out; };
-  void one;
   const noInv = await next({ ...good, inv: [] });
   assert("no invoice ticked: refused", noInv.action === "invalid" && JSON.stringify(noInv.problems) === JSON.stringify(["inv"]) && bodyOf(last).includes(TR.TRANSFER_BAD_INVOICES_TEXT) && notices(env).length === 0);
   const notHis = await next({ ...good, inv: [String(INV_A), "424242"] });
@@ -731,6 +730,12 @@ console.log("\n[د9] «✅ وصل», the custom ledger: the chosen invoices, the
   await settle();
   const recorded = (purpose: string) => (rows("x_wa_message") as any[]).filter((m) => new RegExp(`"purpose":"${purpose}"`).test(String(m.x_debug_payload))).map((m) => String(m.x_body));
   assert("the customer's line goes under the decision's purpose, Baraa's under his own", JSON.stringify(recorded("customer_transfer_decision")) === JSON.stringify([TR.TRANSFER_CONFIRMED_TEXT]) && recorded("owner_transfer_notice").length === 2 && recorded("owner_transfer_notice")[1].startsWith("✅ سُجّل تحويل"), JSON.stringify(recorded("owner_transfer_notice")).slice(0, 200));
+  // what Odoo's automation #1 then does for each new x_payment (the collection's own receipt, src/payment-confirm.ts)
+  const PAYCONF = await import("../src/payment-confirm.ts");
+  graph.length = 0;
+  for (const p of pays) await quiet(() => PAYCONF.confirmPaymentToCustomer(env, p.id));
+  assert("each row's own receipt then follows by the collection's path, as after any collection — one a row, in its own words; the notice's fixed line went ONCE", sentTo(C1_PHONE).length === 2 && bodyOf(sentTo(C1_PHONE)[0]).startsWith(`✅ استلمنا دفعتك بمبلغ 300 ريال على فاتورة ${N_A}. شكراً لك`)
+    && bodyOf(sentTo(C1_PHONE)[1]).startsWith(`✅ استلمنا دفعتك بمبلغ 200 ريال على فاتورة ${N_B}. شكراً لك`) && sentTo(C1_PHONE).every((b: any) => !bodyOf(b).includes("استلمنا تحويلك")), JSON.stringify(sentTo(C1_PHONE).map(bodyOf)));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 {
@@ -1005,6 +1010,19 @@ console.log("\n[د12] a second tap on EITHER button: «سبق تسجيله», an
   graph.length = 0;
   const fourth = await tap(env, `trn_no_${id}`);
   assert("the lock lost but the notice marked decided: still «سبق تسجيله»", fourth?.action === "duplicate" && textsTo(OWNER)[0].startsWith("سبق تسجيله: «✅ وصل»") && transfers().length === 2);
+}
+{
+  // the rows read back from Odoo in another order: still the oldest invoice first, in the books and in his message
+  const env = books();
+  const { id } = await notice(env);
+  for (const [k, inv, amount] of [[7100, INV_B, 200], [7101, INV_A, 300]] as const) {
+    seed("x_payment", { id: k, x_invoice_id: inv, x_amount: amount, x_method: "transfer", x_collected_at: utc(`${DAY} 14:00`), x_notes: `إشعار تحويل TRN-${id}` });
+    table("x_invoice").get(inv)!.x_status = "paid";
+  }
+  graph.length = 0;
+  await tap(env, `trn_ok_${id}`);
+  assert("rows that Odoo hands back the newer first: the payment is still registered on the entries the OLDEST first, and Baraa reads them so", JSON.stringify(wizardCalls[0]?.active) === JSON.stringify([M_A, M_B]) && textsTo(OWNER)[0].split("\n").slice(1, 3).join("|") === [`• ${N_A}: 300 ر.س (سُدّدت كاملة)`, `• ${N_B}: 200 ر.س (سُدّدت كاملة)`].join("|")
+    && (rows("x_payment") as any[]).filter((p) => p.x_method === "transfer").length === 2, JSON.stringify(wizardCalls[0]?.active));
 }
 {
   // the customer's window closed when Baraa decides: his line waits for him

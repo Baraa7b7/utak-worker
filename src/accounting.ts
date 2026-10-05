@@ -735,7 +735,7 @@ export interface TransferAccountingRow {
 export interface TransferAccountingArgs {
   /** Who and what, for an alert: «مطعم الوادي (TRN-…)». */
   label: string;
-  /** The invoices that took a share, the oldest first. */
+  /** The invoices that took a share, the oldest first — at least one (with none there is nothing to register a payment on). */
   rows: TransferAccountingRow[];
   /** The WHOLE transferred amount: the shares, and the excess that stays his credit. */
   amount: number;
@@ -882,7 +882,6 @@ export async function syncTransferToAccounting(env: Env, args: TransferAccountin
     return null;
   };
   try {
-    if (!args.rows.length) return await refuse("لا فاتورة سُجّل عليها شيء من هذا التحويل");
     const twinless = args.rows.filter((r) => !r.invoiceMoveId || r.invoiceMoveId <= 0);
     if (twinless.length) return await refuse(`بلا قيد محاسبي (account.move): ${twinless.map((r) => r.invoiceNumber).join("، ")}. سجّل الدفعة يدوياً`);
     const [journal] = await call<Array<{ id: number; default_account_id: [number, string] | false }>>(env, "account.journal", "search_read", {

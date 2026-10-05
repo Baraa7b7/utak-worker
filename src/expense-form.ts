@@ -485,11 +485,14 @@ export async function handleExpenseUndo(env: Env, buttonId: string, ctx?: Execut
 /**
  * § 57 ز reads the supplier's tax number from every supplier-invoice image —
  * «مرفق المصروف» among them. This is its hook: called once an expense stands
- * (the bill posted and paid) with its photo attached. It does nothing yet, and
- * whatever it does later must never throw into the answer.
+ * (the bill posted and paid) with its photo attached. The picture is read for
+ * the bill's partner (src/supplier-vat.ts readExpenseInvoice: a number written
+ * on a card that has none, an alert for one that differs; no form is ever sent
+ * from here), and nothing of it throws into the answer.
  */
-export async function expensePhotoPosted(_env: Env, _a: { partnerId: number; moveId: number; mediaId: string; mime: string }): Promise<void> {
-  /* § 57 ز */
+export async function expensePhotoPosted(env: Env, a: { partnerId: number; moveId: number; mediaId: string; mime: string }): Promise<void> {
+  const { readExpenseInvoice } = await import("./supplier-vat");
+  await readExpenseInvoice(env, a);
 }
 
 // ---------------------------------------------------------------- the reply

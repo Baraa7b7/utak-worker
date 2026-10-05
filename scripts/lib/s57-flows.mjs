@@ -11,7 +11,9 @@
 // None has an endpoint (flow_action navigate, the initial values with the message), and no template is
 // made for any of them: each goes inside its recipient's 24h window only.
 import { FLOW as TRANSFER } from "./s57-transfer-flow.mjs";
+import { FLOW as COMPLAINT } from "./s57-complaint-flow.mjs";
 import { FLOW as EXPENSE } from "./s57-expense-flow.mjs";
+import { FLOW as SUPPLIER } from "./s57-supplier-flow.mjs";
 
 export const FLOW_CATEGORIES = ["OTHER"];
-export const FLOWS = [TRANSFER, EXPENSE];
+export const FLOWS = [TRANSFER, COMPLAINT, EXPENSE, SUPPLIER];

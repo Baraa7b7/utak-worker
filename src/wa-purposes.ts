@@ -101,6 +101,15 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // Never held: what cannot go as a Flow goes as the ask of before § 51, under
   // its own purpose (so a Flow that Meta refuses never blocks that ask).
   price_ask_flow: op("نموذج طلب الأسعار"),
+  // § 57 ز — the supplier's registration form (a WhatsApp Flow: the official name, the CR, the tax
+  // number, the certificate's photo, the IBAN), sent once ever after an invoice of his whose tax
+  // number could not be read, and the answers to his «إرسال». Inside his 24h window only: never a
+  // template and never held — a form his window was closed for waits in KV for his next message
+  // (src/supplier-vat.ts). A reply: its answers are stale once he has moved on.
+  supplier_register_form: { label: "نموذج تسجيل المورد", kind: "reply", important: false, ttl: { hours: 2 } },
+  // § 57 ز — the one trial of that form to Baraa's own number («🧪 تجربة») and the answer to his
+  // «إرسال» (what would have been written; nothing is). The gateway sends it to the owner alone.
+  supplier_register_form_test: op("تجربة نموذج تسجيل المورد", false, { hours: 1 }),
   // § 37 — the supplier's notice of a payment Baraa approved: critical
   // («مهمة»): text inside his window, utak_supplier_payment_sent (UTILITY)
   // outside it, else held three days with his «فتح المحادثة» when usable.

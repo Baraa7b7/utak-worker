@@ -18,6 +18,9 @@
 // src/receipt-form.ts) may carry the photo itself: it is kept on the list by
 // storePurchaseInvoiceFile, the storage of the window. A form with no photo
 // opens this same 60-minute window and sends the same ask.
+//
+// § 57 ز (2026-10-05) — a picture kept here is then read for its seller's tax
+// number (src/supplier-vat.ts readListInvoice), by either way it came.
 
 import type { Env } from "./config";
 import { call } from "./odoo";
@@ -79,6 +82,9 @@ export async function handlePurchaseInvoiceMedia(
   const filename = await storePurchaseInvoiceFile(env, p.listId, file, { filename: media.filename, nowMs });
   if (!filename) return null;
   console.log(`[pinv] list ${p.listId}: purchase tax invoice from partner ${partnerId} (${filename})`);
+  // § 57 ز — the invoice just kept: its seller's tax number is read for his card (never throws; no price is read from it)
+  const { readListInvoice } = await import("./supplier-vat");
+  await readListInvoice(env, p.listId, { id: media.id }, file);
   return PINV_ACK_TEXT;
 }
 

@@ -603,11 +603,12 @@ console.log("\n[و7] the photo: attached to the bill; a download that fails does
   const env = world();
   const r = await send(env, { photo: PHOTO });
   const b = bills()[0], a = rows("ir.attachment") as any[];
-  assert("a photo in the reply is downloaded by its media id and attached to the BILL (ir.attachment, `raw`)", r.action === "recorded" && JSON.stringify(mediaCalls) === JSON.stringify(["EXPH_A1"]) && a.length === 1 && a[0].res_model === "account.move" && a[0].res_id === b.id
+  // the second download is § 57 ز's: the seam below reads the picture for its seller's tax number (tests/s57-supplier-vat.test.mts)
+  assert("a photo in the reply is downloaded by its media id and attached to the BILL (ir.attachment, `raw`)", r.action === "recorded" && JSON.stringify(mediaCalls) === JSON.stringify(["EXPH_A1", "EXPH_A1"]) && a.length === 1 && a[0].res_model === "account.move" && a[0].res_id === b.id
     && a[0].raw === Buffer.from(MEDIA_BYTES).toString("base64") && a[0].mimetype === "image/jpeg" && a[0].name === `مرفق-المصروف-${TODAY}-${b.id}.jpg`, JSON.stringify(a.map((x) => ({ ...x, raw: "…" }))));
   assert("…and the answer says so", bodyOf(last()).includes(EX.EXPENSE_PHOTO_SAVED_TEXT));
   const src = srcOf("expense-form.ts");
-  assert("the seam of § 57 ز: expensePhotoPosted(env, { partnerId, moveId, mediaId, mime }) is exported, called once the expense stands with its photo, and does nothing yet", typeof EX.expensePhotoPosted === "function"
+  assert("the seam of § 57 ز: expensePhotoPosted(env, { partnerId, moveId, mediaId, mime }) is exported, called once the expense stands with its photo, and answers nothing (what it does is § 57 ز's: tests/s57-supplier-vat.test.mts)", typeof EX.expensePhotoPosted === "function"
     && (await EX.expensePhotoPosted(env, { partnerId: 1, moveId: 2, mediaId: "x", mime: "image/jpeg" })) === undefined && /if \(r\.photo === "saved" && read\.photo\) \{\s+try \{ await expensePhotoPosted\(env, \{ partnerId: r\.supplierId, moveId: r\.moveId, mediaId: read\.photo\.id, mime: /.test(src));
 }
 {

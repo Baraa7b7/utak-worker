@@ -1894,6 +1894,23 @@ export default {
       }
     }
 
+    // § 57 ز — the ONE trial of the supplier's registration form: to Baraa's own number, while his
+    // window is open, once a day. His reply is answered with what would have been written on a
+    // supplier's card, and writes nothing in Odoo (src/supplier-vat.ts sendSupplierRegisterFormTest).
+    if (request.method === "POST" && url.pathname === "/odoo/hook/supplier-register-form-test") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      try {
+        const { sendSupplierRegisterFormTest } = await import("./supplier-vat");
+        return json({ ok: true, ...(await sendSupplierRegisterFormTest(env)) });
+      } catch (e) {
+        return json({ ok: false, error: (e as Error).message }, 500);
+      }
+    }
+
     if (request.method === "POST" && url.pathname === "/webhook") {
       const raw = await request.text();
       const sig = request.headers.get("x-hub-signature-256");
@@ -2476,6 +2493,15 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       if (await sendOwedPriceReview(env, Date.now(), ctx)) flushed = { sent: (flushed?.sent ?? 0) + 1 };
     }
 
+    // § 57 ز — the registration form owed to a supplier (the tax number of an invoice of his was not
+    // read while his window was closed): nothing was held for it — it goes with his first message.
+    // An image or a document is read first, where a supplier's media is handled below: it may be the
+    // invoice that makes the form needless, and the owed form follows it there.
+    if (supplierMatch && msg.type !== "image" && msg.type !== "document") {
+      const { sendOwedSupplierRegisterForm } = await import("./supplier-vat");
+      await sendOwedSupplierRegisterForm(env, msg.from, ctx);
+    }
+
     // 2026-09-25 (STATUS § 34) — «عرض التحديث» on a «فتح المحادثة» template:
     // the flush above was the answer. Baraa gets his usual «✅ تم» line; anyone
     // else one line only when nothing was waiting. No other routing.
@@ -2514,6 +2540,11 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           const { handleReceiptFormReply } = await import("./receipt-form");
           const r = await handleReceiptFormReply(env, msg, ctx);
           console.log(`[receipt-form] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} ${r.action}${r.listId ? ` list=${r.listId}` : ""}`);
+        } else if ((await import("./supplier-vat")).isSupplierRegisterToken(msg.flow.token ?? "")) {
+          // § 57 ز — the supplier's registration: the official name, the CR, the tax number, the certificate, the IBAN — on his card
+          const { handleSupplierRegisterReply } = await import("./supplier-vat");
+          const r = await handleSupplierRegisterReply(env, msg, ctx);
+          console.log(`[supplier-vat] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} ${r.action}${r.partnerId ? ` partner=${r.partnerId}` : ""}${r.number ? ` number=${r.number}` : ""}${r.problems?.length ? ` (${r.problems.join(",")})` : ""}`);
         } else if (isOrderFormToken(msg.flow.token ?? "")) {
           // § 53 ج — the customer's order form: its quantities become his order, and the quotation follows
           const r = await handleOrderFormReply(env, msg, ctx);
@@ -2610,6 +2641,12 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           console.warn("[media] supplier handling failed", (e as Error)?.message);
         }
         await owedPriceForm(env, msg.from);
+        // § 57 ز — his image or PDF may be an invoice of his: its tax number is read for his card,
+        // then the registration form owed to him goes if it still is (never throws; no price is read)
+        if (msg.type === "image" || msg.type === "document") {
+          const { supplierSentPicture } = await import("./supplier-vat");
+          await supplierSentPicture(env, supplierMatch, msg.from, msg.media!, ctx);
+        }
       } else if (!teamMatch && sourceMatch) {
         // § 52 ب — an outside price source's voice note / image: never the customer's reply
         await outsideSourceMessage(env, sourceMatch, msg, ctx);

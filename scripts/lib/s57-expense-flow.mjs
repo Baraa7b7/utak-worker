@@ -19,7 +19,7 @@
 //     «السعر اليدوي» of utak_owner_review_v2);
 //   • «اسم المورد» (sup, required);
 //   • «طريقة الدفع» (pay, required): its choices come WITH THE MESSAGE (data.pay), so the worker leaves
-//     «من جيب براء» out when the partner's current-account journal is not in Odoo;
+//     «من جيب براء» out while its journal (BRA) is not in Odoo, or posts its payments to no account;
 //   • «تاريخ المصروف» (date, a DatePicker): opened on today (data.d), and no later day can be picked
 //     (max-date = data.d). Flow JSON 5.0+ carries a DatePicker's dates as «YYYY-MM-DD» strings;
 //   • ONE PhotoPicker `photo` (0–1 photo: the invoice or the receipt);
@@ -124,7 +124,7 @@ export function buildExpenseFlowJson() {
           { type: "RadioButtonsGroup", name: "tax", label: EXPENSE_TAX_LABEL, required: true, "data-source": EXPENSE_TAX_OPTIONS },
           { type: "TextInput", name: "vat", label: EXPENSE_VAT_LABEL, "input-type": "number", required: false, "helper-text": EXPENSE_VAT_HINT },
           { type: "TextInput", name: "sup", label: EXPENSE_SUPPLIER_LABEL, "input-type": "text", required: true, "helper-text": EXPENSE_SUPPLIER_HINT },
-          // the choices come with the message: «من جيب براء» only while its journal is in Odoo
+          // the choices come with the message: «من جيب براء» only while the worker can record it
           { type: "RadioButtonsGroup", name: "pay", label: EXPENSE_PAY_LABEL, required: true, "data-source": "${data.pay}" },
           { type: "DatePicker", name: "date", label: EXPENSE_DATE_LABEL, required: false, "init-value": "${data.d}", "max-date": "${data.d}", "helper-text": EXPENSE_DATE_HINT },
           expensePhotoPicker(),

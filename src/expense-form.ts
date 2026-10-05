@@ -50,8 +50,8 @@ import { dayLabel } from "./order-flow";
 import { isAccountingSyncEnabled } from "./accounting";
 import { readReceiptPhotos } from "./receipt-form";
 import {
-  EXPENSE_PAY, POCKET_JOURNAL_CODE, expensePayOf, expenseTypeOf, isValidVatNumber, normalizeVatNumber, ownerPocketAvailable, recordExpense, resolveExpense,
-  undoExpenseEntry, type ExpenseEntry, type ExpensePay, type ExpensePhotoFile, type ExpensePlan, type ExpenseRecord,
+  EXPENSE_PAY, POCKET_JOURNAL_CODE, POCKET_NO_ACCOUNT_TEXT, expensePayOf, expenseTypeOf, isValidVatNumber, normalizeVatNumber, ownerPocketAvailable, recordExpense, resolveExpense,
+  undoExpenseEntry, type ExpenseEntry, type ExpensePay, type ExpensePhotoFile, type ExpensePlan, type ExpenseRecord, type PocketWhy,
 } from "./expense-accounting";
 
 /** utak_expense_v1 at Meta: filled in when the Flow is created there (a published Flow's JSON is frozen). */
@@ -88,8 +88,11 @@ export const EXPENSE_USED_TEXT = "هذا النموذج سبق إرساله ✅ 
 export const EXPENSE_FAILED_TEXT = "تعذّر إرسال نموذج تسجيل المصروف الآن. جرّب بعد قليل.";
 export const EXPENSE_OFF_TEXT = "المحاسبة مطفأة في هذه البيئة (ACCOUNTING_SYNC): لا يُسجَّل مصروف من هنا، ولم يُكتب شيء.";
 export const EXPENSE_ERROR_TEXT = "تعذّر الوصول إلى Odoo الآن: لم يُسجَّل شيء من النموذج. أعد «إرسال» من النموذج نفسه بعد قليل.";
-/** The line under the form when «من جيب براء» cannot be offered. */
-export const EXPENSE_NO_POCKET_TEXT = `⚠️ خيار «من جيب براء» غير معروض: يومية ${POCKET_JOURNAL_CODE} (حساب جاري الشريك) غير موجودة في Odoo.`;
+/** The line under the form when «من جيب براء» cannot be offered: its journal is not in Odoo, or the journal's outbound payment method has no account. */
+export const EXPENSE_NO_POCKET_TEXT: Readonly<Record<PocketWhy, string>> = {
+  journal: `⚠️ خيار «من جيب براء» غير معروض: يومية ${POCKET_JOURNAL_CODE} غير موجودة في Odoo.`,
+  method: `⚠️ خيار «من جيب براء» غير معروض: ${POCKET_NO_ACCOUNT_TEXT}.`,
+};
 export const EXPENSE_HOW_TEXT = "اكتب المبلغ كما دفعته. ضريبة المدخلات تُفصل مع «نعم» ورقم ضريبي صحيح وصورة الفاتورة فقط.";
 export const EXPENSE_BAD: Readonly<Record<string, string>> = {
   type: "اختر نوع المصروف من القائمة.",
@@ -184,11 +187,11 @@ export interface ExpenseFormOpts {
 }
 export interface ExpenseFormResult { sent: boolean; reason?: string; token?: string; pay?: ExpensePay[] }
 
-/** The four keys of the screen: its heading, the line under it, the ways of paying on offer, today. */
-export function expenseData(day: string, pay: ExpensePay[], mark = ""): Record<string, unknown> {
+/** The four keys of the screen: its heading, the line under it (and `line`: why «من جيب براء» is not offered), the ways of paying on offer, today. */
+export function expenseData(day: string, pay: ExpensePay[], mark = "", line = ""): Record<string, unknown> {
   return {
     t: cut(`${mark}${EXPENSE_TITLE} — ${dayLabel(day)}`, EXPENSE_HEADING_MAX),
-    n: pay.includes("owner") ? EXPENSE_HOW_TEXT : `${EXPENSE_HOW_TEXT}\n${EXPENSE_NO_POCKET_TEXT}`,
+    n: line ? `${EXPENSE_HOW_TEXT}\n${line}` : EXPENSE_HOW_TEXT,
     pay: EXPENSE_PAY.filter((p) => pay.includes(p.id)).map((p) => ({ id: p.id, title: p.title })),
     d: day,
   };
@@ -224,8 +227,9 @@ export function expenseFormText(day: string): string {
 /**
  * One expense form, to Baraa's number and no other: the interactive message,
  * inside his window only. Nothing is held and no template is used. «من جيب
- * براء» is among its ways of paying only while its journal is in Odoo; when it
- * is not, a line says so. Throws on Odoo trouble (the caller says the form
+ * براء» is among its ways of paying only while its journal is in Odoo and the
+ * journal's outbound payment method posts to an account; when it is not, a
+ * line says which of the two. Throws on Odoo trouble (the caller says the form
  * could not go).
  */
 export async function sendExpenseForm(env: Env, opts: ExpenseFormOpts = {}): Promise<ExpenseFormResult> {
@@ -235,15 +239,16 @@ export async function sendExpenseForm(env: Env, opts: ExpenseFormOpts = {}): Pro
   if (!(await readWindow(env, to, now)).open) return { sent: false, reason: "window_closed" };
   const day = riyadhDateKey(new Date(now));
   const pocket = await ownerPocketAvailable(env, now);
-  const pay = EXPENSE_PAY.filter((p) => p.id !== "owner" || pocket).map((p) => p.id);
+  const pay = EXPENSE_PAY.filter((p) => p.id !== "owner" || pocket.ok).map((p) => p.id);
+  const line = pocket.ok ? "" : EXPENSE_NO_POCKET_TEXT[pocket.why];
   const rec: ExpenseToken = { v: 1, token: newExpenseToken(day), day, to, pay, createdAt: now, ...(opts.test ? { test: true } : {}) };
   await writeExpenseToken(env, rec);
   const mark = opts.test ? `${EXPENSE_TEST_MARK} — ` : "";
-  const text = `${mark}${opts.body ?? expenseFormText(day)}${pocket ? "" : `\n${EXPENSE_NO_POCKET_TEXT}`}`;
+  const text = `${mark}${opts.body ?? expenseFormText(day)}${line ? `\n${line}` : ""}`;
   const res = await sendViaGateway(env, {
     purpose: opts.test ? EXPENSE_TEST_PURPOSE : EXPENSE_PURPOSE,
     to,
-    content: expenseSession(text, rec.token, expenseData(day, pay, mark)),
+    content: expenseSession(text, rec.token, expenseData(day, pay, mark, line)),
     noHold: true,
     noHoldReason: "نموذج تسجيل المصروف يُرسل داخل نافذة براء فقط",
     ctx: opts.ctx,

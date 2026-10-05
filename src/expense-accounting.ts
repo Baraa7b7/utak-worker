@@ -15,8 +15,11 @@
 //     partner that exists is never modified here.
 //   • its payment, by account.payment.register on the bill, dated the same day,
 //     from the journal he chose: CSHD (the driver's cash), BNK1 (the bank) or
-//     BRA («من جيب براء»: the partner's current account is that journal's
-//     default account).
+//     BRA («من جيب براء»). On this Odoo a payment gets a journal entry only when
+//     its payment method line carries a payment account, so «من جيب براء» is
+//     recorded only while BRA's OUTBOUND method posts to an account — the
+//     partner's current account, whichever Baraa sets there — and the payment
+//     must credit that account.
 //   • a guard after each of the two (as evaluateInvoiceGuard / evaluatePaymentGuard
 //     of src/accounting.ts). A guard that fails, or a step Odoo refuses: what was
 //     written is undone — the payment cancelled, the bill back to draft — and the
@@ -85,33 +88,59 @@ export const isValidVatNumber = (raw: unknown): boolean => /^3\d{13}3$/.test(nor
 
 // ---------------------------------------------------------------- what Odoo holds (read-only)
 
-export interface ExpenseJournal { id: number; code: string; name: string; defaultAccountId: number }
+export interface ExpenseJournal { id: number; code: string; name: string }
 /** The journals an expense touches, by code: EXP, CSHD, BNK1, BRA — the ones Odoo has. */
 export async function readExpenseJournals(env: Env): Promise<Map<string, ExpenseJournal>> {
-  const rows = await call<Array<{ id: number; code: string; name: string; default_account_id: M2O }>>(env, "account.journal", "search_read", {
+  const rows = await call<ExpenseJournal[]>(env, "account.journal", "search_read", {
     domain: [["code", "in", [EXPENSE_JOURNAL_CODE, ...EXPENSE_PAY.map((p) => p.journal)]]],
-    fields: ["id", "code", "name", "default_account_id"], limit: 10,
+    fields: ["id", "code", "name"], limit: 10,
   });
-  return new Map(rows.map((j) => [j.code, { id: j.id, code: j.code, name: j.name, defaultAccountId: m2oId(j.default_account_id) }]));
+  return new Map(rows.map((j) => [j.code, { id: j.id, code: j.code, name: j.name }]));
 }
-/** «من جيب براء» can be recorded: the journal BRA is in Odoo, with the partner's current account as its default. */
-export const pocketUsable = (journals: Map<string, ExpenseJournal>): boolean => (journals.get(POCKET_JOURNAL_CODE)?.defaultAccountId ?? 0) > 0;
+
+/** Why «من جيب براء» cannot be recorded: its journal is not in Odoo, or the journal's outbound payment method posts to no account. */
+export type PocketWhy = "journal" | "method";
+export type PocketState = { ok: true; accountId: number } | { ok: false; why: PocketWhy };
+/** What Baraa reads when the journal is there and its outbound payment method has no account: the fix is his, in Odoo. */
+export const POCKET_NO_ACCOUNT_TEXT = `يومية ${POCKET_JOURNAL_CODE} بلا حساب على طريقة الدفع الصادرة (تُضبط في Odoo)`;
 
 /**
- * Is «من جيب براء» offered in a form sent now? One read of the journals, kept
- * in KV for ten minutes (as the transfer line of src/bank-line.ts): the form is
- * sent on a tap, and its options need no fresher answer — the journal is read
- * again when the expense is recorded. Throws on Odoo trouble (nothing cached).
+ * Can «من جيب براء» be recorded? A payment of this Odoo gets a journal entry
+ * only when its payment method line carries a payment account (CSHD's point
+ * at 101007, BNK1's at 101003 / 101004); a line without one leaves the payment
+ * with NO entry, and the bill's payable open in the books. So: the journal BRA
+ * is in Odoo, and its OUTBOUND payment methods all post to one and the same
+ * account — which account is Baraa's own setting there, never the worker's
+ * guess (the journal's default account is not read). Read-only.
  */
-export async function ownerPocketAvailable(env: Env, now: number = Date.now()): Promise<boolean> {
+export async function readPocket(env: Env, journals: Map<string, ExpenseJournal>): Promise<PocketState> {
+  const journal = journals.get(POCKET_JOURNAL_CODE);
+  if (!journal) return { ok: false, why: "journal" };
+  const lines = await call<Array<{ id: number; payment_account_id: M2O }>>(env, "account.payment.method.line", "search_read", {
+    domain: [["journal_id", "=", journal.id], ["payment_type", "=", "outbound"]], fields: ["id", "journal_id", "payment_type", "payment_account_id"], limit: 20,
+  });
+  const accounts = [...new Set(lines.map((l) => m2oId(l.payment_account_id)))];
+  return accounts.length === 1 && accounts[0] > 0 ? { ok: true, accountId: accounts[0] } : { ok: false, why: "method" };
+}
+
+export type PocketOffer = { ok: true } | { ok: false; why: PocketWhy };
+/**
+ * Is «من جيب براء» offered in a form sent now — and when not, why? One read of
+ * the journal and its payment methods, kept in KV for ten minutes (as the
+ * transfer line of src/bank-line.ts): the form is sent on a tap, and its
+ * options need no fresher answer — both are read again when the expense is
+ * recorded. Throws on Odoo trouble (nothing cached).
+ */
+export async function ownerPocketAvailable(env: Env, now: number = Date.now()): Promise<PocketOffer> {
   try {
     const raw = await env.MSG_DEDUP.get(POCKET_KV_KEY);
-    const c = raw ? (JSON.parse(raw) as { at: number; ok: boolean }) : null;
-    if (c && c.at > 0 && now - c.at < POCKET_TTL_SECONDS * 1000 && typeof c.ok === "boolean") return c.ok;
+    const c = raw ? (JSON.parse(raw) as { at: number; ok: boolean; why?: PocketWhy }) : null;
+    if (c && c.at > 0 && now - c.at < POCKET_TTL_SECONDS * 1000 && typeof c.ok === "boolean") return c.ok ? { ok: true } : { ok: false, why: c.why === "journal" ? "journal" : "method" };
   } catch { /* a cache that cannot be read is only a slower path */ }
-  const ok = pocketUsable(await readExpenseJournals(env));
-  try { await env.MSG_DEDUP.put(POCKET_KV_KEY, JSON.stringify({ at: now, ok }), { expirationTtl: POCKET_TTL_SECONDS }); } catch { /* read again next time */ }
-  return ok;
+  const state = await readPocket(env, await readExpenseJournals(env));
+  const offer: PocketOffer = state.ok ? { ok: true } : { ok: false, why: state.why };
+  try { await env.MSG_DEDUP.put(POCKET_KV_KEY, JSON.stringify({ at: now, ...offer }), { expirationTtl: POCKET_TTL_SECONDS }); } catch { /* read again next time */ }
+  return offer;
 }
 
 interface AccountRow { id: number; code: string; name: string; account_type: string }
@@ -165,10 +194,14 @@ export async function findExpenseSupplier(env: Env, name: string, vat: string): 
   const p = first(rows.filter((r) => supplierNameKey(r.name) === key));
   return p ? { id: p.id, name: p.name } : null;
 }
-/** A NEW supplier: a company, a supplier and not a customer; his tax number (the entry's: a valid one, or none) and «مسجل في الضريبة» with it. Nothing of WhatsApp. */
+/**
+ * A NEW supplier: a company, a supplier and not a customer, classed «supplier»
+ * (a partner the worker makes is never left «unreviewed»); his tax number (the
+ * entry's: a valid one, or none) and «مسجل في الضريبة» with it. Nothing of WhatsApp.
+ */
 export function newSupplierVals(name: string, vat: string): Record<string, unknown> {
   return {
-    name, is_company: true, supplier_rank: 1, customer_rank: 0,
+    name, is_company: true, supplier_rank: 1, customer_rank: 0, x_contact_class: "supplier",
     ...(vat ? { vat, x_vat_registered: true, x_vat_status: "registered" } : {}),
   };
 }
@@ -197,7 +230,7 @@ export interface ExpensePlan {
   account: { id: number; code: string; name: string };
   /** The journal «المصاريف». */
   journalId: number;
-  pay: { id: ExpensePay; title: string; journalId: number; journalCode: string; /** «من جيب براء»: the code of the partner's current account. */ pocketAccountCode: string | null };
+  pay: { id: ExpensePay; title: string; journalId: number; journalCode: string; /** «من جيب براء»: the code of the account BRA's outbound payment method posts to. */ pocketAccountCode: string | null };
   tax: ExpenseTax | null;
   net: number;
   vat: number;
@@ -231,11 +264,12 @@ export async function resolveExpense(env: Env, e: ExpenseEntry): Promise<{ plan:
   else if (!String(account.account_type).startsWith("expense")) problems.push(`الحساب ${type.code} («${type.title}») نوعه ${account.account_type} وليس حساب مصروف`);
   const tax = e.taxed ? await findInclusivePurchaseTax(env) : null;
   if (e.taxed && !tax) problems.push(`ضريبة المشتريات «${EXPENSE_TAX_NAME}» غير موجودة في Odoo أو ليست شاملة في السعر`);
-  // «من جيب براء» credits the partner's current account: the journal's own default account
+  // «من جيب براء» credits the account of BRA's outbound payment method — read now, never from the form's cache
   let pocketAccountCode: string | null = null;
   if (pay.id === "owner" && pj) {
-    const acc = pj.defaultAccountId ? await accountBy(env, ["id", "=", pj.defaultAccountId]) : null;
-    if (!acc) problems.push(`يومية ${pay.journal} بلا حساب جاري الشريك (الحساب الافتراضي)`);
+    const pocket = await readPocket(env, journals);
+    const acc = pocket.ok ? await accountBy(env, ["id", "=", pocket.accountId]) : null;
+    if (!acc) problems.push(POCKET_NO_ACCOUNT_TEXT);
     else pocketAccountCode = acc.code;
   }
   if (problems.length || !exp || !pj || !account) return { problems };
@@ -306,7 +340,8 @@ const PAYMENT_CREDIT_TYPES: ReadonlySet<string> = new Set(["asset_cash", "asset_
  * state on a payment: its entry is what is posted), with a posted entry, from
  * the journal he chose, to the bill's partner, of the amount paid; the entry
  * debits the payable alone and credits cash / the bank — or, «من جيب براء»,
- * the partner's current account and no other; and the bill is paid / in_payment.
+ * the account of BRA's outbound payment method and no other; and the bill is
+ * paid / in_payment.
  */
 export function evaluateExpensePaymentGuard(f: {
   paymentState: string;

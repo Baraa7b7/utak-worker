@@ -34,15 +34,17 @@ const mediaCalls: string[] = [];
 /** What this file's Odoo does differently, one test at a time. */
 const quirk: Record<string, any> = {};
 const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
-const ACC = { payable: 106, vatIn: 100, cash: 141, bankOut: 142, bank: 143, pocket: 260, income: 70 };
+const ACC = { payable: 106, vatIn: 100, cash: 141, bankOut: 142, bank: 143, pocket: 260, owner: 122, income: 70 };
 const J = { EXP: 20, BILL: 9, CSHD: 19, BNK1: 13, BRA: 21 };
-/** Where each journal's outbound payment posts: the cash itself, the bank's outstanding payments, the partner's current account. */
-const PAY_ACCOUNT: Record<number, number> = { [J.CSHD]: ACC.cash, [J.BNK1]: ACC.bankOut, [J.BRA]: ACC.pocket };
+/** BRA's outbound payment method line, as on the tenant. */
+const BRA_OUT = 8;
+const METHOD = "account.payment.method.line";
 const ACC_M2O: Record<string, Record<string, string>> = {
   "account.move": { journal_id: "account.journal", partner_id: "res.partner", commercial_partner_id: "res.partner" },
   "account.move.line": { account_id: "account.account", tax_line_id: "account.tax", move_id: "account.move" },
   "account.payment": { move_id: "account.move", partner_id: "res.partner", journal_id: "account.journal" },
   "account.journal": { default_account_id: "account.account" },
+  [METHOD]: { journal_id: "account.journal", payment_account_id: "account.account" },
 };
 const refuse = (message: string) => new Response(JSON.stringify({ name: "odoo.exceptions.UserError", message, arguments: [message] }), { status: 500 });
 const linesOf = (move: number) => rows("account.move.line").filter((l: any) => l.move_id === move) as any[];
@@ -99,10 +101,13 @@ function accounting(model: string, method: string, body: any, out: any): Respons
   if (model === "account.payment.register" && method === "action_create_payments") {
     const w = table(model).get(body.ids[0]) as any, bill = table("account.move").get(w._bill) as any;
     const amount = quirk.payAmount ?? w.amount, journal = quirk.payJournal ?? w.journal_id;
-    const entry = quirk.payNoMove ? false : seed("account.move", { move_type: "entry", state: quirk.payMoveState ?? "posted", journal_id: journal, partner_id: bill.partner_id, name: `P${journal}/${bill.id}` });
+    // as on the tenant: a payment gets a journal entry only when its method line carries a payment account
+    const method = rows(METHOD).find((l: any) => l.journal_id === w.journal_id && l.payment_type === "outbound") as any;
+    const credit = quirk.payCreditAccount ?? method?.payment_account_id;
+    const entry = quirk.payNoMove || !credit ? false : seed("account.move", { move_type: "entry", state: quirk.payMoveState ?? "posted", journal_id: journal, partner_id: bill.partner_id, name: `P${journal}/${bill.id}` });
     if (entry) {
       seed("account.move.line", { move_id: entry, account_id: quirk.payDebitAccount ?? ACC.payable, debit: amount, credit: 0, display_type: "payment_term", tax_line_id: false });
-      seed("account.move.line", { move_id: entry, account_id: quirk.payCreditAccount ?? PAY_ACCOUNT[w.journal_id], debit: 0, credit: amount, display_type: "product", tax_line_id: false });
+      seed("account.move.line", { move_id: entry, account_id: credit, debit: 0, credit: amount, display_type: "product", tax_line_id: false });
     }
     const pid = seed("account.payment", {
       state: quirk.payState ?? "paid", partner_id: quirk.payPartner ?? bill.partner_id, journal_id: journal, amount, date: w.payment_date,
@@ -195,12 +200,20 @@ function world(riyadh = `${TODAY} 14:00`, o: { sync?: boolean } = {}): any {
   seed("account.account", { id: ACC.bankOut, code: "101004", name: "Outstanding Payments", account_type: "asset_current" });
   seed("account.account", { id: ACC.bank, code: "101001", name: "Bank", account_type: "asset_cash" });
   seed("account.account", { id: ACC.pocket, code: "205001", name: "جاري المدير — البراء عبدالوهاب", account_type: "liability_current" });
+  seed("account.account", { id: ACC.owner, code: "201021", name: "Owner Current Account", account_type: "liability_current" });
   seed("account.account", { id: ACC.income, code: "500001", name: "Sales", account_type: "income" });
   seed("account.journal", { id: J.EXP, code: "EXP", name: "المصاريف", type: "purchase", default_account_id: 163 });
   seed("account.journal", { id: J.BILL, code: "BILL", name: "Purchases", type: "purchase", default_account_id: 136 });
   seed("account.journal", { id: J.CSHD, code: "CSHD", name: "كاش السائق", type: "cash", default_account_id: ACC.cash });
   seed("account.journal", { id: J.BNK1, code: "BNK1", name: "Bank", type: "bank", default_account_id: ACC.bank });
   seed("account.journal", { id: J.BRA, code: "BRA", name: "مدفوعات البراء الشخصية", type: "credit", default_account_id: ACC.pocket });
+  // the payment method lines: CSHD's post to the cash itself, BNK1's to its outstanding accounts. BRA's outbound
+  // line (#8) carries NO account on the tenant today — «من جيب براء» is hidden there (و5); here Baraa has set 205001.
+  seed(METHOD, { id: 4, journal_id: J.CSHD, payment_type: "inbound", payment_account_id: ACC.cash });
+  seed(METHOD, { id: 5, journal_id: J.CSHD, payment_type: "outbound", payment_account_id: ACC.cash });
+  seed(METHOD, { id: 2, journal_id: J.BNK1, payment_type: "outbound", payment_account_id: ACC.bankOut });
+  seed(METHOD, { id: 7, journal_id: J.BRA, payment_type: "inbound", payment_account_id: false });
+  seed(METHOD, { id: BRA_OUT, journal_id: J.BRA, payment_type: "outbound", payment_account_id: ACC.pocket });
   seed("account.tax", { id: 43, name: "15% شامل (مشتريات)", amount: 15, amount_type: "percent", type_tax_use: "purchase", price_include: true, active: true });
   seed("account.tax", { id: 21, name: "15%", amount: 15, amount_type: "percent", type_tax_use: "purchase", price_include: false, active: true });
   seed("account.tax", { id: 5, name: "15% شامل", amount: 15, amount_type: "percent", type_tax_use: "sale", price_include: true, active: true });
@@ -301,7 +314,7 @@ console.log("\n[و1] utak_expense_v1 at Meta is the form the worker fills: one s
   assert("the message opens utak_expense_v1 on its screen with the data (navigate), under «سجّل المصروف»", par(f).flow_id === EX.EXPENSE_FLOW_ID && par(f).flow_action === "navigate" && par(f).flow_action_payload.screen === "EXPENSE_A" && par(f).flow_message_version === "3"
     && par(f).flow_cta === "سجّل المصروف" && LIB.EXPENSE_CTA === EX.EXPENSE_CTA && count(par(f).flow_cta) <= 20 && bodyOf(f).length <= 1024);
   assert("the two buttons' titles within twenty: «🧾 تسجيل مصروف», «↩️ تراجع»", count(EX.EXPENSE_BUTTON_TITLE) <= 20 && EX.EXPENSE_BUTTON_TITLE === "🧾 تسجيل مصروف" && count(EX.EXPENSE_UNDO_TITLE) <= 20 && EX.EXPENSE_UNDO_TITLE === "↩️ تراجع");
-  assert("a heading longer than eighty characters is cut; the line without «من جيب براء» is within a text's room too", count(EX.expenseData(TODAY, ["cash"], "م".repeat(90)).t as string) === 80 && count(EX.expenseData(TODAY, ["cash", "bank"]).n as string) <= 4096);
+  assert("a heading longer than eighty characters is cut; the line without «من جيب براء» is within a text's room too", count(EX.expenseData(TODAY, ["cash"], "م".repeat(90)).t as string) === 80 && Object.values(EX.EXPENSE_NO_POCKET_TEXT).every((l) => count(EX.expenseData(TODAY, ["cash", "bank"], "", l as string).n as string) <= 4096));
   clean();
 }
 
@@ -459,7 +472,7 @@ for (const [typed, warn] of [["12345", "⚠️ الرقم الضريبي «12345
 }
 
 // ================================================================ و5
-console.log("\n[و5] the three journals — and «من جيب براء» only while the partner's current-account journal is in Odoo");
+console.log("\n[و5] the three journals — and «من جيب براء» only while BRA's outbound payment method posts to an account");
 for (const [pay, journal, credit, state, title] of [["cash", J.CSHD, ACC.cash, "paid", "كاش السائق (CSHD)"], ["bank", J.BNK1, ACC.bankOut, "in_payment", "البنك (BNK1)"], ["owner", J.BRA, ACC.pocket, "paid", "من جيب براء"]] as Array<[string, number, number, string, string]>) {
   const env = world();
   const r = await send(env, { pay, date: YESTERDAY });
@@ -468,43 +481,69 @@ for (const [pay, journal, credit, state, title] of [["cash", J.CSHD, ACC.cash, "
     && linesOf(p.move_id).find((l) => l.credit > 0).account_id === credit && linesOf(p.move_id).find((l) => l.debit > 0).account_id === ACC.payable && b.payment_state === state && bodyOf(last()).includes(`الدفع: ${title}`), bodyOf(last()));
 }
 {
+  // which account «من جيب براء» credits is Baraa's setting on the method line — not the journal's default account
   const env = world();
-  table("account.journal").delete(J.BRA);
+  (table(METHOD).get(BRA_OUT) as any).payment_account_id = ACC.owner;
+  odooLog.length = 0;
+  const r = await send(env, { pay: "owner" });
+  const p = payments()[0];
+  assert("the method line set on 201021 «Owner Current Account» (the journal's default still 205001): the payment credits 201021, and stands", r.action === "recorded" && linesOf(p.move_id).find((l) => l.credit > 0).account_id === ACC.owner && (table("account.journal").get(J.BRA) as any).default_account_id === ACC.pocket);
+  const asked = odooLog.filter((c: any) => c.model === METHOD);
+  assert("of a payment method line the worker reads id, journal_id, payment_type and payment_account_id alone — BRA's outbound ones — and never the journal's default account", asked.length >= 1 && asked.every((c: any) => c.method === "search_read"
+    && JSON.stringify(c.body.fields) === JSON.stringify(["id", "journal_id", "payment_type", "payment_account_id"]) && JSON.stringify(c.body.domain) === JSON.stringify([["journal_id", "=", J.BRA], ["payment_type", "=", "outbound"]]))
+    && !odooLog.some((c: any) => c.model === "account.journal" && (c.body?.fields ?? []).includes("default_account_id")), JSON.stringify(asked.map((c: any) => c.body)));
+}
+{
+  // the tenant today: the journal BRA is there, its outbound payment method posts to NO account
+  const env = world();
+  (table(METHOD).get(BRA_OUT) as any).payment_account_id = false;
   odooLog.length = 0;
   await quiet(() => EX.startExpense(env));
   const f = flowsTo(OWNER)[0], d = dataOf(f);
-  assert("the journal BRA is not in Odoo: «من جيب براء» is left out of the form's choices", JSON.stringify(d.pay) === JSON.stringify([{ id: "cash", title: "كاش السائق (CSHD)" }, { id: "bank", title: "البنك (BNK1)" }]));
-  assert("…and ONE line tells Baraa, above the button and inside the form", bodyOf(f).split("\n").at(-1) === EX.EXPENSE_NO_POCKET_TEXT && String(d.n).split("\n").at(-1) === EX.EXPENSE_NO_POCKET_TEXT && /«من جيب براء» غير معروض: يومية BRA/.test(EX.EXPENSE_NO_POCKET_TEXT) && bodyOf(f).length <= 1024);
+  const LINE = "⚠️ خيار «من جيب براء» غير معروض: يومية BRA بلا حساب على طريقة الدفع الصادرة (تُضبط في Odoo).";
+  assert("BRA's outbound payment method has no account (the tenant today): «من جيب براء» is left out of the form's choices", JSON.stringify(d.pay) === JSON.stringify([{ id: "cash", title: "كاش السائق (CSHD)" }, { id: "bank", title: "البنك (BNK1)" }]));
+  assert("…and ONE line tells Baraa why and where it is fixed, above the button and inside the form", bodyOf(f).split("\n").at(-1) === LINE && String(d.n).split("\n").at(-1) === LINE && EX.EXPENSE_NO_POCKET_TEXT.method === LINE && bodyOf(f).split("\n").length === 3 && bodyOf(f).length <= 1024, bodyOf(f));
   graph.length = 0;
   const r = await reply(env, OWNER, tokenOf(f), { ...GOOD, pay: "owner" });
   assert("a reply that names «من جيب براء» on that form is refused: it was not offered", r.action === "invalid" && JSON.stringify(r.problems) === JSON.stringify(["pay"]) && bills().length === 0);
   // the answer is kept ten minutes
-  const n0 = odooLog.filter((c: any) => c.model === "account.journal").length;
-  seed("account.journal", { id: J.BRA, code: "BRA", name: "مدفوعات البراء الشخصية", type: "credit", default_account_id: ACC.pocket });
+  const n0 = odooLog.filter((c: any) => c.model === METHOD).length;
+  (table(METHOD).get(BRA_OUT) as any).payment_account_id = ACC.pocket;
   await quiet(() => EX.startExpense(env, undefined, ms(`${TODAY} 14:09`)));
-  const cached = dataOf(flowsTo(OWNER).at(-1)).pay.length;
+  const cached = flowsTo(OWNER).at(-1);
   await quiet(() => EX.startExpense(env, undefined, ms(`${TODAY} 14:10`)));
-  assert("the journal is read once and its answer kept ten minutes in KV: a form at +9 min still hides it, at +10 min it is read again and offered", n0 === 1 && cached === 2 && dataOf(flowsTo(OWNER).at(-1)).pay.length === 3
-    && odooLog.filter((c: any) => c.model === "account.journal").length === 2 && XA.POCKET_TTL_SECONDS === 600 && env.MSG_DEDUP.store.has(XA.POCKET_KV_KEY));
+  assert("the journal and its method are read once and the answer — with its reason — kept ten minutes in KV: a form at +9 min still hides it and says why, at +10 min it is read again and offered", n0 === 1 && dataOf(cached).pay.length === 2 && bodyOf(cached).split("\n").at(-1) === LINE
+    && dataOf(flowsTo(OWNER).at(-1)).pay.length === 3 && odooLog.filter((c: any) => c.model === METHOD).length === 2 && XA.POCKET_TTL_SECONDS === 600 && env.MSG_DEDUP.store.has(XA.POCKET_KV_KEY));
 }
 {
   const env = world();
-  (table("account.journal").get(J.BRA) as any).default_account_id = false;
+  table("account.journal").delete(J.BRA);
   await quiet(() => EX.startExpense(env));
-  assert("the journal BRA without the partner's current account as its default: not offered either", dataOf(flowsTo(OWNER)[0]).pay.length === 2 && bodyOf(flowsTo(OWNER)[0]).includes(EX.EXPENSE_NO_POCKET_TEXT));
+  const f = flowsTo(OWNER)[0];
+  assert("the journal BRA is not in Odoo at all: not offered, and the line says THAT", dataOf(f).pay.length === 2 && bodyOf(f).split("\n").at(-1) === "⚠️ خيار «من جيب براء» غير معروض: يومية BRA غير موجودة في Odoo." && String(dataOf(f).n).split("\n").at(-1) === EX.EXPENSE_NO_POCKET_TEXT.journal, bodyOf(f));
+  const pocket = async (lines: Array<number | false>) => {
+    const e = world();
+    table(METHOD).delete(BRA_OUT);
+    lines.forEach((acc, i) => seed(METHOD, { id: 80 + i, journal_id: J.BRA, payment_type: "outbound", payment_account_id: acc }));
+    return quiet(async () => XA.readPocket(e, await XA.readExpenseJournals(e)));
+  };
+  const none = await pocket([]), one = await pocket([ACC.owner]), mixed = await pocket([ACC.pocket, false]), two = await pocket([ACC.pocket, ACC.owner]), same = await pocket([ACC.pocket, ACC.pocket]);
+  assert("readPocket: no outbound method, one without an account among them, or two on different accounts → not recordable; all on ONE account → that account (the inbound method, which has none, is not asked)", JSON.stringify(none) === JSON.stringify({ ok: false, why: "method" })
+    && JSON.stringify(one) === JSON.stringify({ ok: true, accountId: ACC.owner }) && mixed.ok === false && two.ok === false && JSON.stringify(same) === JSON.stringify({ ok: true, accountId: ACC.pocket }), JSON.stringify([none, one, mixed, two, same]));
   // offered when the form was sent, gone when it is answered
   const env2 = world();
   const token = await form(env2);
   table("account.journal").delete(J.BRA);
   graph.length = 0; odooLog.length = 0;
   const r = await reply(env2, OWNER, token, { ...GOOD, pay: "owner" });
-  assert("offered when the form was sent and gone at «إرسال»: nothing is written, and he is told which journal", r.action === "blocked" && bookWrites().length === 0 && bodyOf(last()).includes("يومية الدفع BRA («من جيب براء») غير موجودة في Odoo"), bodyOf(last()));
+  assert("offered when the form was sent and the journal gone at «إرسال»: nothing is written, and he is told which journal", r.action === "blocked" && bookWrites().length === 0 && bodyOf(last()).includes("يومية الدفع BRA («من جيب براء») غير موجودة في Odoo"), bodyOf(last()));
   const env3 = world();
   const t3 = await form(env3);
-  (table("account.journal").get(J.BRA) as any).default_account_id = false;
+  (table(METHOD).get(BRA_OUT) as any).payment_account_id = false;
   graph.length = 0; odooLog.length = 0;
   const r3 = await reply(env3, OWNER, t3, { ...GOOD, pay: "owner" });
-  assert("…and a journal BRA that lost the partner's current account by then: nothing is written either", r3.action === "blocked" && bookWrites().length === 0 && bodyOf(last()).includes("• يومية BRA بلا حساب جاري الشريك (الحساب الافتراضي)"), bodyOf(last()));
+  assert("…and a method that lost its account by then (the form's own answer is not trusted): nothing is written either — no payment without an entry", r3.action === "blocked" && bookWrites().length === 0 && payments().length === 0
+    && bodyOf(last()) === ["⚠️ لم يُسجَّل المصروف، ولم يُكتب شيء في Odoo:", "• يومية BRA بلا حساب على طريقة الدفع الصادرة (تُضبط في Odoo)", "أصلحه في Odoo ثم أعد «إرسال» من النموذج نفسه."].join("\n"), bodyOf(last()));
   clean();
 }
 
@@ -541,13 +580,13 @@ console.log("\n[و6] the supplier: by his tax number, then by his name; none →
   odooLog.length = 0;
   await send(env, { sup: "مؤسسة التغليف الحديث", type: "packaging" });
   const p = rows("res.partner").at(-1) as any;
-  assert("no partner by that name: a NEW one — a company, a supplier, customer rank 0, and nothing else on him (no number, no WhatsApp, no tax number)", rows("res.partner").length === n + 1 && bills()[0].partner_id === p.id
-    && JSON.stringify(Object.fromEntries(Object.entries(p).filter(([k]) => k !== "id"))) === JSON.stringify({ name: "مؤسسة التغليف الحديث", is_company: true, supplier_rank: 1, customer_rank: 0 }), JSON.stringify(p));
+  assert("no partner by that name: a NEW one — a company, a supplier, customer rank 0, classed «supplier» (never left unreviewed), and nothing else on him (no number, no WhatsApp, no tax number)", rows("res.partner").length === n + 1 && bills()[0].partner_id === p.id
+    && JSON.stringify(Object.fromEntries(Object.entries(p).filter(([k]) => k !== "id"))) === JSON.stringify({ name: "مؤسسة التغليف الحديث", is_company: true, supplier_rank: 1, customer_rank: 0, x_contact_class: "supplier" }), JSON.stringify(p));
   assert("…the answer says «مورد جديد»", bodyOf(last()).includes("المورد: مؤسسة التغليف الحديث (مورد جديد)\n"));
   const env2 = world(); env2.PILOT_MODE = "false";
   await send(env2, { tax: "yes", vat: VAT, sup: "محطة الدريس", photo: PHOTO });
   const q = rows("res.partner").at(-1) as any;
-  assert("…created with «نعم» and a valid number: the number, «مسجل في الضريبة», and still no customer rank", JSON.stringify(Object.fromEntries(Object.entries(q).filter(([k]) => k !== "id"))) === JSON.stringify({ name: "محطة الدريس", is_company: true, supplier_rank: 1, customer_rank: 0, vat: VAT, x_vat_registered: true, x_vat_status: "registered" }), JSON.stringify(q));
+  assert("…created with «نعم» and a valid number: the number, «مسجل في الضريبة», and still no customer rank", JSON.stringify(Object.fromEntries(Object.entries(q).filter(([k]) => k !== "id"))) === JSON.stringify({ name: "محطة الدريس", is_company: true, supplier_rank: 1, customer_rank: 0, x_contact_class: "supplier", vat: VAT, x_vat_registered: true, x_vat_status: "registered" }), JSON.stringify(q));
   // a name and a note longer than their room
   const env3 = world();
   const long = "مؤسسة ".repeat(40).trim(), words = "ملاحظة طويلة ".repeat(40).trim();
@@ -952,7 +991,8 @@ console.log("\n[و14] the guide, the table of accounts, and the pointer in the e
   assert("…it says who, how to open it, the eight types, the three ways of paying, the tax rule, the photo, the undo and the trial", ["لبراء وحده", "«مصروف»", "«🧾 تسجيل مصروف»", "«تم الاطلاع»", "كاش السائق (CSHD)", "البنك (BNK1)", "من جيب براء", "15 رقماً", "بلا ضريبة مدخلات", "«↩️ تراجع»", "24 ساعة", "🧪 تجربة", "EXP", "لا يُحذف"]
     .every((w) => sec.includes(w)) && XA.EXPENSE_TYPES.every((t: any) => sec.includes(t.title)), ["لبراء وحده", "«مصروف»", "«🧾 تسجيل مصروف»", "«تم الاطلاع»", "كاش السائق (CSHD)", "البنك (BNK1)", "من جيب براء", "15 رقماً", "بلا ضريبة مدخلات", "«↩️ تراجع»", "24 ساعة", "🧪 تجربة", "EXP", "لا يُحذف"].filter((w) => !sec.includes(w)).join(","));
   const ids = doc("ODOO-IDS.md");
-  assert("docs/ODOO-IDS.md names the journals of the entry and the tax: EXP #20, BRA #21 on 205001, tax #43", /EXP[^\n]*#20/.test(ids) && /BRA[^\n]*#21[^\n]*205001/.test(ids) && /«15% شامل \(مشتريات\)»[^\n]*#43/.test(ids));
+  assert("docs/ODOO-IDS.md names the journals of the entry and the tax: EXP #20, BRA #21 with its outbound payment method (#8) and the two accounts Baraa chooses between, tax #43", /EXP[^\n]*#20/.test(ids) && /BRA[^\n]*#21[^\n]*#8[^\n]*205001[^\n]*201021/.test(ids) && /«15% شامل \(مشتريات\)»[^\n]*#43/.test(ids));
+  assert("both documents say «من جيب براء» is hidden TODAY, until the account is set on BRA's outbound payment method — and neither says the journal's default account decides", [sec, ids.slice(ids.indexOf("## حسابات نموذج «تسجيل مصروف»"))].every((t) => t.includes("طريقة الدفع الصادرة") && t.includes("مخفي") && t.includes("201021") && !/الحساب الافتراضي|حسابها الافتراضي/.test(t)));
   const exp = doc("EXPENSES.md");
   assert("docs/EXPENSES.md § 1 points to the form", exp.slice(exp.indexOf("## 1)"), exp.indexOf("## 2)")).includes("«مصروف»") && exp.includes("OPERATING-DAY.md"));
 }

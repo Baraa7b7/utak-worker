@@ -89,6 +89,8 @@ const TOKEN_TTL = 7 * 24 * 60 * 60;
 const DAY_TTL = 26 * 60 * 60;
 /** A picture is not read twice, and the form waits for his next message, this long. */
 const MEDIA_TTL = 30 * 24 * 60 * 60;
+/** Two pictures of one supplier being read at once: the minutes in which only the first may send his form (his card's count holds after them). */
+const ASK_LOCK_TTL = 10 * 60;
 /** Baraa is told once that a supplier has no number to send the form to. */
 const ONCE_TTL = 365 * 24 * 60 * 60;
 
@@ -174,12 +176,12 @@ export function parseSupplierIban(raw: unknown): string | null {
   if (!typed) return "";
   return ibanProblem(typed) ? null : typed;
 }
-/** A name as it is compared: no marks, one spelling of the letters written two ways, letters and digits only. */
+/** A name as it is compared: letters and digits only (no space, no mark), no stretching, one spelling of the letters written two ways. */
 export function normalName(s: string): string {
   return String(s ?? "").normalize("NFKC").toLowerCase()
-    .replace(/\p{Mn}|ـ/gu, "")
-    .replace(/[أإآٱ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه")
-    .replace(/[^\p{L}\p{N}]+/gu, "");
+    .replace(/[^\p{L}\p{N}]+/gu, "")
+    .replace(/ـ/g, "")
+    .replace(/[أإآٱ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه");
 }
 /** «مؤسسة أحمد حسان للخضار» is «أحمد حسان»: one name holds the other. */
 export function sameSupplierName(a: string, b: string): boolean {
@@ -419,7 +421,7 @@ async function offerRegisterForm(env: Env, card: Card, o: { now: number; ctx?: E
     return { action: "no_number", partnerId: card.id };
   }
   // two pictures of his read at the same moment both find a count of 0: one form, whichever asks first
-  const once = await claimButton(env, `svat_form:${card.id}`, DAY_TTL);
+  const once = await claimButton(env, `svat_form:${card.id}`, ASK_LOCK_TTL);
   if (!once.claimed) return { action: "asked_before", partnerId: card.id };
   const r = await sendSupplierRegisterForm(env, { partnerId: card.id, name: card.name, whatsapp: to }, { now: o.now, ctx: o.ctx, init: { legal: card.legal || card.name } });
   if (!r.sent) {
@@ -430,7 +432,7 @@ async function offerRegisterForm(env: Env, card: Card, o: { now: number; ctx?: E
     await env.MSG_DEDUP.put(supplierOwedKey(to), JSON.stringify({ partnerId: card.id, where: o.where } satisfies SupplierOwed), { expirationTtl: MEDIA_TTL });
     return { action: "form_owed", partnerId: card.id };
   }
-  await finishButton(env, once, DAY_TTL);
+  await finishButton(env, once, ASK_LOCK_TTL);
   // the durable «once ever»: his card says it from now on (Baraa sets it back to 0 to have him asked again)
   try { await call(env, "res.partner", "write", { ids: [card.id], vals: { x_vat_ask_count: 1 } }); } catch (e) {
     console.warn(`[supplier-vat] partner=${card.id}: the form went, its count was not written`, (e as Error)?.message);
@@ -644,8 +646,8 @@ async function keepCertificate(env: Env, partnerId: number, f: SupplierValues): 
   const { downloadMedia } = await import("./supplier-pay");
   const file = await downloadMedia(env, f.photo?.id ?? "");
   if (!file) return false;
+  const ext = /pdf/i.test(file.mime) ? "pdf" : /png/i.test(file.mime) ? "png" : "jpg";
   try {
-    const ext = /pdf/i.test(file.mime) ? "pdf" : /png/i.test(file.mime) ? "png" : "jpg";
     const att = await call<number[]>(env, "ir.attachment", "create", { vals_list: [{ name: `شهادة-الضريبة-${partnerId}.${ext}`, raw: file.base64, mimetype: file.mime, res_model: "res.partner", res_id: partnerId }] });
     // an internal note: it is the team's record, not a message to the card's followers
     await call(env, "res.partner", "message_post", { ids: [partnerId], body: certificateLogLine(f), message_type: "comment", subtype_xmlid: "mail.mt_note", attachment_ids: att });

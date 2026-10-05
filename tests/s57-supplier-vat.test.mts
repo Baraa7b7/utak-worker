@@ -201,7 +201,7 @@ console.log("\n[ز2] the rule: 15 digits, the first and the last «3» — and t
   assert("an IBAN by § 52's check (SA, 24 characters, mod 97): kept compact; empty is «none»; a wrong one is null", BANK.isSaudiIban(IBAN_OK) && !BANK.isSaudiIban(IBAN_BAD)
     && SV.parseSupplierIban(IBAN_OK) === IBAN_OK && SV.parseSupplierIban("sa03 8000 0000 6080 1016 7519") === IBAN_OK && SV.parseSupplierIban("") === "" && SV.parseSupplierIban(undefined) === ""
     && SV.parseSupplierIban(IBAN_BAD) === null && SV.parseSupplierIban("GB82WEST12345698765432") === null && SV.parseSupplierIban(IBAN_OK.slice(0, 23)) === null);
-  assert("a name against a name: one holds the other, whatever the spelling of the same letters", SV.sameSupplierName("مؤسسة أحمد حسان للخضار والفواكه", AHMED_NAME) && SV.sameSupplierName(AHMED_NAME, "احمد حسّان") && SV.sameSupplierName("مؤسسة النخيل", NAKHEEL_NAME)
+  assert("a name against a name: one holds the other, whatever the spelling of the same letters", SV.sameSupplierName("مؤسسة أحمد حسان للخضار والفواكه", AHMED_NAME) && SV.sameSupplierName(AHMED_NAME, "احمد حسّان") && SV.sameSupplierName("أحمـــد  حسان", AHMED_NAME) && SV.sameSupplierName("مؤسسة النخيل", NAKHEEL_NAME)
     && SV.sameSupplierName("Fajr Business Est.", "FAJR BUSINESS"));
   assert("…and another name is another supplier; a name of two letters, or none, matches nothing", !SV.sameSupplierName("مؤسسة الريف الأخضر", AHMED_NAME) && !SV.sameSupplierName("أح", AHMED_NAME) && !SV.sameSupplierName("", AHMED_NAME) && !SV.sameSupplierName(AHMED_NAME, "") && SV.SUPPLIER_NAME_MIN === 3);
 }

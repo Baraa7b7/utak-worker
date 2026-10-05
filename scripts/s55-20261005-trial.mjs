@@ -5,6 +5,9 @@
 //   review    the day's price review as § 55 writes it (src/price-review.ts sendPriceReviewTest), with
 //             today's price lines as they stand; its three buttons and its form (utak_owner_review_v2)
 //             are answered; nothing is written in Odoo and nothing is published.
+//   receipt   the purchases' receipt form (§ 55 د, src/receipt-form.ts sendReceiptFormTest:
+//             utak_receipt_v1) with the latest real purchase list's items; its reply is answered with
+//             what would be done — nothing written, no list confirmed, no photo downloaded.
 //
 //   node scripts/s55-20261005-trial.mjs review            dry-run: what would be called (nothing sent)
 //   node scripts/s55-20261005-trial.mjs review --send     POST its hook on prod, once
@@ -17,7 +20,7 @@ import { writeFileSync } from "node:fs";
 import { call } from "./lib/odoo-cli.mjs";
 
 const HOST = "utak-worker.utak-business.workers.dev";
-const HOOK = { review: "price-review-test" };
+const HOOK = { review: "price-review-test", receipt: "receipt-form-test" };
 const form = process.argv.slice(2).find((a) => a in HOOK);
 if (!form) { console.log(`usage: node scripts/s55-20261005-trial.mjs <${Object.keys(HOOK).join("|")}> [--send]`); process.exit(1); }
 const SEND = process.argv.includes("--send");

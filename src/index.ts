@@ -1773,6 +1773,23 @@ export default {
       }
     }
 
+    // § 55 د — the ONE trial of the purchases' receipt form: to Baraa's own number, while his window
+    // is open, once a day, from the latest real purchase list. His reply writes nothing, confirms
+    // nothing and downloads nothing (src/receipt-form.ts sendReceiptFormTest).
+    if (request.method === "POST" && url.pathname === "/odoo/hook/receipt-form-test") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      try {
+        const { sendReceiptFormTest } = await import("./receipt-form");
+        return json({ ok: true, ...(await sendReceiptFormTest(env)) });
+      } catch (e) {
+        return json({ ok: false, error: (e as Error).message }, 500);
+      }
+    }
+
     if (request.method === "POST" && url.pathname === "/webhook") {
       const raw = await request.text();
       const sig = request.headers.get("x-hub-signature-256");
@@ -2388,6 +2405,11 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           // § 54 ج — Baraa's review of the day's prices: each item's decision goes on its line
           const r = await handlePriceReviewReply(env, msg, ctx);
           console.log(`[price-review] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} ${r.action}${r.written !== undefined ? ` written=${r.written}` : ""}`);
+        } else if ((await import("./receipt-form")).isReceiptFormToken(msg.flow.token ?? "")) {
+          // § 55 د — the buyer's receipt of the purchases: the received quantities, then the list's confirmation
+          const { handleReceiptFormReply } = await import("./receipt-form");
+          const r = await handleReceiptFormReply(env, msg, ctx);
+          console.log(`[receipt-form] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} ${r.action}${r.listId ? ` list=${r.listId}` : ""}`);
         } else if (isOrderFormToken(msg.flow.token ?? "")) {
           // § 53 ج — the customer's order form: its quantities become his order, and the quotation follows
           const r = await handleOrderFormReply(env, msg, ctx);
@@ -2555,6 +2577,13 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           msg: { ...msg, buttonId: `delivered_${deliverCommandOrderId(msg.text)}` }, intent: "other", senderType: "customer",
           partner: { id: teamMember.id, name: teamMember.name, x_whatsapp_number: teamMember.x_whatsapp_number },
         });
+        await sendReply(env, msg.from, reply, ctx);
+      } else if (msg.type === "text" && (await import("./receipt-form").then((m) => m.isReceiptCommand(msg.text, teamMember)))) {
+        // § 55 د — «استلام» / «استلام المشتريات» from the buyer: the receipt form of his open purchase
+        // list, or one line when none is open. His own report, not a task sent to him: like «تسليم 12»
+        // above — and like the list's buttons — it does not wait for «بدء الدوام».
+        const { answerReceiptAsk } = await import("./receipt-form");
+        const reply: RouterReply = await answerReceiptAsk(env, { partnerId: teamMember.id, name: teamMember.name, whatsapp: msg.from }, ctx);
         await sendReply(env, msg.from, reply, ctx);
       } else if (msg.type === "text") {
         const pendingKey = `pending_issue:${teamMember.id}`;

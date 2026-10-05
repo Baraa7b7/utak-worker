@@ -348,8 +348,9 @@ console.log("\n[3] after the shift: the task waits for the next shift, one owner
   const n2 = sentTo(OMAR_PHONE).length;
   await tap(OMAR_PHONE, `${MON} 07:04`);
   const got = sentTo(OMAR_PHONE).slice(n2).map((b) => JSON.stringify(b));
+  // § 55 د — the open list's session form carries «📥 استلام المشتريات» (prc_<list>) in place of «تم الشراء ✅»
   assert("Monday's tap: the two queued routes, the open purchase list, the unpaid list",
-    got.some((b) => b.includes("delivered_2")) && got.some((b) => b.includes("delivered_3")) && got.some((b) => b.includes("purchase_done_")) && got.some((b) => b.includes("INV-88")), got.map((b) => b.slice(0, 60)).join(" | "));
+    got.some((b) => b.includes("delivered_2")) && got.some((b) => b.includes("delivered_3")) && got.some((b) => b.includes("prc_")) && got.some((b) => b.includes("INV-88")), got.map((b) => b.slice(0, 60)).join(" | "));
   assert("…queue emptied", queue(OMAR_PHONE).length === 0);
   // STATUS § 33 — the payment-claim note no longer skips a collector outside
   // his 24h window (the gateway decides now): خالد, off shift, gets it queued

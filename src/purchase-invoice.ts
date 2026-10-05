@@ -13,6 +13,11 @@
 //     to Baraa that day, naming the list(s).
 // The field is also on the supplier payment (x_supplier_payment, filled by
 // hand in Odoo). A simulation list (x_utak_simulation) is never chased.
+//
+// § 55 د (2026-10-05) — the receipt form («📥 استلام المشتريات»,
+// src/receipt-form.ts) may carry the photo itself: it is kept on the list by
+// storePurchaseInvoiceFile, the storage of the window. A form with no photo
+// opens this same 60-minute window and sends the same ask.
 
 import type { Env } from "./config";
 import { call } from "./odoo";
@@ -71,24 +76,43 @@ export async function handlePurchaseInvoiceMedia(
   const { downloadMedia } = await import("./supplier-pay");
   const file = await downloadMedia(env, media.id);
   if (!file) return PINV_RETRY_TEXT;
-  const ext = /pdf/.test(file.mime) ? "pdf" : /png/.test(file.mime) ? "png" : "jpg";
-  const [list] = await call<Array<{ id: number; x_date: string | false; x_tax_invoice_filename: string | false; x_tax_invoice_at: string | false }>>(env, "x_purchase_list", "read", {
-    ids: [p.listId], fields: ["id", "x_date", "x_tax_invoice_filename", "x_tax_invoice_at"],
-  });
-  if (!list) return null;
-  const filename = media.filename || `فاتورة-شراء-${list.x_date || riyadhDateKey(new Date(nowMs))}-${p.listId}.${ext}`;
-  if (!list.x_tax_invoice_filename && !list.x_tax_invoice_at) {
-    await call(env, "x_purchase_list", "write", {
-      ids: [p.listId], vals: { x_tax_invoice: file.base64, x_tax_invoice_filename: filename, x_tax_invoice_at: toOdooUtc(nowMs) },
-    });
-  } else {
-    // a second page / file in the same hour: kept on the list, never overwriting the first
-    await call<number[]>(env, "ir.attachment", "create", {
-      vals_list: [{ name: filename, raw: file.base64, mimetype: file.mime, res_model: "x_purchase_list", res_id: p.listId }],
-    });
-  }
+  const filename = await storePurchaseInvoiceFile(env, p.listId, file, { filename: media.filename, nowMs });
+  if (!filename) return null;
   console.log(`[pinv] list ${p.listId}: purchase tax invoice from partner ${partnerId} (${filename})`);
   return PINV_ACK_TEXT;
+}
+
+/**
+ * One file of a purchase list's tax invoice, kept by the list's id: the first
+ * on the list itself (x_tax_invoice, its name, x_tax_invoice_at), any later one
+ * as an ir.attachment of the list — nothing is overwritten. The 60-minute
+ * window above keeps its files with it, and so does the receipt form's photo
+ * (§ 55 د, src/receipt-form.ts). Returns the file's name; null = no such list.
+ */
+export async function storePurchaseInvoiceFile(
+  env: Env,
+  listId: number,
+  file: { base64: string; mime: string },
+  opts: { filename?: string; nowMs?: number } = {},
+): Promise<string | null> {
+  const nowMs = opts.nowMs ?? Date.now();
+  const ext = /pdf/.test(file.mime) ? "pdf" : /png/.test(file.mime) ? "png" : "jpg";
+  const [list] = await call<Array<{ id: number; x_date: string | false; x_tax_invoice_filename: string | false; x_tax_invoice_at: string | false }>>(env, "x_purchase_list", "read", {
+    ids: [listId], fields: ["id", "x_date", "x_tax_invoice_filename", "x_tax_invoice_at"],
+  });
+  if (!list) return null;
+  const filename = opts.filename || `فاتورة-شراء-${list.x_date || riyadhDateKey(new Date(nowMs))}-${listId}.${ext}`;
+  if (!list.x_tax_invoice_filename && !list.x_tax_invoice_at) {
+    await call(env, "x_purchase_list", "write", {
+      ids: [listId], vals: { x_tax_invoice: file.base64, x_tax_invoice_filename: filename, x_tax_invoice_at: toOdooUtc(nowMs) },
+    });
+  } else {
+    // a second page / file: kept on the list, never overwriting the first
+    await call<number[]>(env, "ir.attachment", "create", {
+      vals_list: [{ name: filename, raw: file.base64, mimetype: file.mime, res_model: "x_purchase_list", res_id: listId }],
+    });
+  }
+  return filename;
 }
 
 export const pinvAlertText = (lists: Array<{ id: number; date: string }>): string =>

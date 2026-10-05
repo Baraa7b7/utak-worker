@@ -138,7 +138,150 @@ export function buildReviewFlowJson() {
   return { version: FLOW_JSON_VERSION, routing_model: reviewRoutingModel(), screens: reviewPages().map(({ k }) => reviewScreen(k)) };
 }
 
+// ================================================================ utak_receipt_v1 (§ 55 د)
+//
+// The buyer's receipt of the day's purchases (src/receipt-form.ts), TWO screens, no endpoint:
+//   RECEIPT_A «ما استلمته من الموردين» — a heading, a line of text, THIRTY number fields g<n>: the
+//             quantity RECEIVED of each item of the purchase list, opened on the quantity ordered. No
+//             price of ours is anywhere in it: the item's name, its packaging, «المطلوب N» and its
+//             supplier's name. «التالي» → RECEIPT_B.
+//   RECEIPT_B «مشتريات السوق النقدي» — a heading, a line saying it is optional, FIVE rows of four
+//             fields — ci<k> the item (a list of the active items), cq<k> the quantity, cp<k> the price
+//             he PAID for a carton, cs<k> the seller's name — then ONE PhotoPicker `photo` (the tax
+//             invoice, optional) and «إرسال» (complete).
+// The data, all on RECEIPT_A (RECEIPT_B reads it from there):
+//   t1 n1        RECEIPT_A's heading and its line          t2 n2   RECEIPT_B's
+//   l<n> h<n>    slot n's label — the item's name (20 characters at Meta) — and its hint:
+//                «التعبئة · المطلوب N · المورد» (80)
+//   i<n>         what the field opens with: the quantity ordered     v<n>   slot n is shown
+//   items        the options of every row's list [{ id: "<product>:<packaging>", title }] (a title holds
+//                30 characters at Meta, a list 200 options)
+// The reply carries g1 … g30, ci / cq / cp / cs of the five rows, `photo` and the flow_token.
+// PhotoPicker (Flow JSON 4.0+), Meta's rules: one a screen; its value a TOP-LEVEL string property of the
+// `complete` payload ("photo": "${form.photo}"), never in a `navigate` payload, never inside If / Switch;
+// no `required` (min-uploaded-photos 0 = optional); max-uploaded-photos stated (the default 30 is
+// refused); it cannot be pre-filled. Without an endpoint the reply's response_json then holds
+// "photo": [{ file_name, mime_type, sha256, id }] and the id is downloaded as any inbound media.
+
+export const FLOW_SUBMIT_LABEL = "إرسال";
+export const RECEIPT_FLOW_NAME = "utak_receipt_v1";
+export const RECEIPT_SCREENS = ["RECEIPT_A", "RECEIPT_B"];
+export const RECEIPT_FIRST_SCREEN = RECEIPT_SCREENS[0];
+export const RECEIPT_CASH_SCREEN = RECEIPT_SCREENS[1];
+export const RECEIPT_SLOTS = 30;
+export const RECEIPT_CASH_ROWS = 5;
+export const RECEIPT_SCREEN_TITLE = "استلام المشتريات";
+export const RECEIPT_CTA = "استلام المشتريات";
+/** The photos one reply may carry (Meta's documents disagree on what a `complete` payload allows: 1 or up to 10). */
+export const RECEIPT_PHOTO_MAX = 1;
+/** The largest photo the picker takes, in KiB (Meta's default is 25600: too much to hand to Odoo as base64). */
+export const RECEIPT_PHOTO_MAX_KB = 10240;
+export const RECEIPT_PHOTO_NAME = "photo";
+export const RECEIPT_PHOTO_LABEL = "صورة الفاتورة الضريبية";
+export const RECEIPT_PHOTO_HINT = "اختياري: صوّر الفاتورة أو اخترها من الصور. لو ما رفعتها هنا أرسلها صورة عادية بعد النموذج.";
+/** A cash-market row's four fields: [name prefix, type, label (20 characters at Meta), helper text]. */
+export const RECEIPT_CASH_FIELDS = [
+  ["ci", "Dropdown", "الصنف", ""],
+  ["cq", "number", "الكمية", "عدد الكراتين اللي اشتريتها"],
+  ["cp", "number", "السعر المدفوع", "سعر الكرتون الواحد كما دفعته، بالريال"],
+  ["cs", "text", "اسم البائع", "المحل أو البائع في السوق"],
+];
+
+/** The slots of RECEIPT_A: 1 … 30. */
+export const receiptSlots = () => Array.from({ length: RECEIPT_SLOTS }, (_, i) => i + 1);
+/** The rows of RECEIPT_B: 1 … 5. */
+export const receiptCashRows = () => Array.from({ length: RECEIPT_CASH_ROWS }, (_, i) => i + 1);
+
+/** RECEIPT_A's data model: every key the worker sends, with Meta's mandatory example. */
+export function receiptDataModel() {
+  const data = {
+    t1: { type: "string", __example__: "ما استلمته من الموردين" },
+    n1: { type: "string", __example__: "أكّد الكمية المستلمة لكل صنف: الخانة فيها المطلوب، عدّلها لو استلمت غيره، واكتب 0 لو ما استلمته." },
+    t2: { type: "string", __example__: "مشتريات السوق النقدي" },
+    n2: { type: "string", __example__: "اختياري: اتركه فاضي لو ما اشتريت شي من السوق النقدي." },
+    items: { type: "array", items: OPTION_ITEMS, __example__: [{ id: "1:11", title: "طماطم — كرتون" }] },
+  };
+  for (const n of receiptSlots()) {
+    data[`l${n}`] = { type: "string", __example__: n === 1 ? "طماطم" : "-" };
+    data[`h${n}`] = { type: "string", __example__: n === 1 ? "كرتون · المطلوب 5 · أحمد حسان" : "-" };
+    data[`i${n}`] = { type: "string", __example__: n === 1 ? "5" : "" };
+    data[`v${n}`] = { type: "boolean", __example__: n === 1 };
+  }
+  return data;
+}
+
+/** A data key as RECEIPT_B reads it: RECEIPT_A's. */
+const cref = (key) => `\${screen.${RECEIPT_FIRST_SCREEN}.data.${key}}`;
+/** Slot n's field on RECEIPT_A: required while it is shown — a quantity received is always stated (0 = none of it). */
+export function receiptSlot(n) {
+  return {
+    type: "TextInput", name: `g${n}`, label: `\${data.l${n}}`, "input-type": "number", required: `\${data.v${n}}`,
+    "helper-text": `\${data.h${n}}`, "init-value": `\${data.i${n}}`, visible: `\${data.v${n}}`,
+  };
+}
+/** The four fields of cash-market row k on RECEIPT_B: none is required (the worker reads a row by its item). */
+export function receiptCashRow(k) {
+  return RECEIPT_CASH_FIELDS.map(([name, type, label, helper]) => (type === "Dropdown"
+    ? { type: "Dropdown", name: `${name}${k}`, label: `${label} ${k}`, required: false, "data-source": cref("items") }
+    : { type: "TextInput", name: `${name}${k}`, label, "input-type": type, required: false, "helper-text": helper }));
+}
+export function receiptPhotoPicker() {
+  return {
+    type: "PhotoPicker", name: RECEIPT_PHOTO_NAME, label: RECEIPT_PHOTO_LABEL, description: RECEIPT_PHOTO_HINT,
+    "min-uploaded-photos": 0, "max-uploaded-photos": RECEIPT_PHOTO_MAX, "max-file-size-kb": RECEIPT_PHOTO_MAX_KB,
+  };
+}
+/** «إرسال»: every quantity of RECEIPT_A, the five rows, and the photo — a top-level property, as Meta requires. */
+export function receiptSubmitPayload() {
+  return {
+    ...Object.fromEntries(receiptSlots().map((n) => [`g${n}`, `\${screen.${RECEIPT_FIRST_SCREEN}.form.g${n}}`])),
+    ...Object.fromEntries(receiptCashRows().flatMap((k) => RECEIPT_CASH_FIELDS.map(([name]) => [`${name}${k}`, `\${form.${name}${k}}`]))),
+    [RECEIPT_PHOTO_NAME]: `\${form.${RECEIPT_PHOTO_NAME}}`,
+  };
+}
+export const receiptRoutingModel = () => ({ [RECEIPT_FIRST_SCREEN]: [RECEIPT_CASH_SCREEN], [RECEIPT_CASH_SCREEN]: [] });
+export function buildReceiptFlowJson() {
+  return {
+    version: FLOW_JSON_VERSION,
+    routing_model: receiptRoutingModel(),
+    screens: [
+      {
+        id: RECEIPT_FIRST_SCREEN,
+        title: RECEIPT_SCREEN_TITLE,
+        data: receiptDataModel(),
+        layout: {
+          type: "SingleColumnLayout",
+          children: [
+            { type: "TextHeading", text: "${data.t1}" },
+            { type: "TextBody", text: "${data.n1}" },
+            ...receiptSlots().map(receiptSlot),
+            { type: "Footer", label: FLOW_NEXT_LABEL, "on-click-action": { name: "navigate", next: { type: "screen", name: RECEIPT_CASH_SCREEN }, payload: {} } },
+          ],
+        },
+      },
+      {
+        id: RECEIPT_CASH_SCREEN,
+        title: RECEIPT_SCREEN_TITLE,
+        terminal: true,
+        success: true,
+        data: {},
+        layout: {
+          type: "SingleColumnLayout",
+          children: [
+            { type: "TextHeading", text: cref("t2") },
+            { type: "TextBody", text: cref("n2") },
+            ...receiptCashRows().flatMap(receiptCashRow),
+            receiptPhotoPicker(),
+            { type: "Footer", label: FLOW_SUBMIT_LABEL, "on-click-action": { name: "complete", payload: receiptSubmitPayload() } },
+          ],
+        },
+      },
+    ],
+  };
+}
+
 /** The Flows of § 55, as the Meta script walks them. */
 export const FLOWS = [
   { key: "review", name: REVIEW_FLOW_NAME, build: buildReviewFlowJson, first: REVIEW_FIRST_SCREEN },
+  { key: "receipt", name: RECEIPT_FLOW_NAME, build: buildReceiptFlowJson, first: RECEIPT_FIRST_SCREEN },
 ];

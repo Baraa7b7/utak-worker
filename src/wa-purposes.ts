@@ -129,6 +129,10 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   shift_ack: op("رد بدء الدوام", false, { hours: 2 }),
   // § 37 — Baraa's decision on the member's supplier payment (approved / rejected with the reason).
   team_sp_decision: op("قرار دفعة المورد", false, { hours: 36 }),
+  // § 55 د — the buyer's receipt form of the purchase list (a WhatsApp Flow: the received quantities,
+  // the cash-market purchases, the invoice's photo): inside his 24h window only, never a template and
+  // never held. It carries no price of ours.
+  purchase_receipt_form: op("نموذج استلام المشتريات"),
   // ---- Baraa
   // alerts wait for his next tap (the 06:00 «بدء الدوام» opens his window);
   // § 34: critical — held, they also send utak_update_owner once a day.
@@ -165,6 +169,9 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // § 54 — the one trial of the day's price review to Baraa's own number («🧪 تجربة»), inside his
   // window only, and the answers to its buttons and its form (nothing written, nothing published).
   price_review_test: op("تجربة مراجعة الأسعار", false, { hours: 1 }),
+  // § 55 د — the one trial of the purchases' receipt form to Baraa's own number («🧪 تجربة»), inside
+  // his window only, and the answer to his trial reply (nothing written, nothing confirmed).
+  receipt_form_test: op("تجربة نموذج استلام المشتريات", false, { hours: 1 }),
   // ---- § 34: «فتح المحادثة» — one UTILITY template per recipient category,
   // sent when a critical message is held (src/wa-opener.ts). Template only:
   // never held itself.

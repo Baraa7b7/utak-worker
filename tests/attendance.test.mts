@@ -223,7 +223,8 @@ console.log("\n[2] no task before the tap; all of them after it");
   const bodies = after.map((b) => JSON.stringify(b));
   assert("tap: «تم تسجيل حضورك» first", String(after[0]?.text?.body ?? "").includes("تم تسجيل حضورك الساعة 05:04"), bodies[0]);
   assert("tap: the route list, the location, both stops with their buttons", bodies.some((b) => b.includes("مسارك اليوم")) && after.some((b) => b.type === "location") && bodies.some((b) => b.includes("delivered_1")) && bodies.some((b) => b.includes("delivery_issue_2")));
-  assert("tap: warehouse → the open purchase list #950 with «تم الشراء»", bodies.some((b) => b.includes("قائمة الشراء #950") && b.includes("purchase_done_950")));
+  // § 55 د — the session form of the open list confirms the purchase by «📥 استلام المشتريات» (prc_<list>), in place of «تم الشراء ✅»
+  assert("tap: warehouse → the open purchase list #950 with «📥 استلام المشتريات»", bodies.some((b) => b.includes("قائمة الشراء #950") && b.includes("prc_950") && !b.includes("purchase_done_950")));
   assert("tap: collector → the unpaid list (INV-77)", bodies.some((b) => b.includes("INV-77")));
   assert("queue emptied", !ENV.MSG_DEDUP.store.has(`pending_loc:+${OMAR_PHONE}`));
   const rw = row(OMAR);

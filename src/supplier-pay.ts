@@ -214,6 +214,9 @@ export function planDues(
   };
   for (const it of items) {
     const qty = Number(it.total_quantity) || 0;
+    // § 55 د — a line of which nothing was received (the receipt form wrote 0) is owed to nobody: no
+    // due line, and no «بلا سعر» alert for it — as it is on no vendor bill (planSupplierBills)
+    if (!(qty > 0)) continue;
     const base = {
       productId: it.product_id, productName: cleanName(it.product_name),
       packagingId: it.packaging_id, packagingName: cleanName(it.packaging_name),
@@ -581,6 +584,8 @@ export interface TeamPaymentInput {
   member: { id: number; name: string };
   receipt?: { base64: string; filename: string } | null;
   wamid?: string;
+  /** § 55 د — «ملاحظة» of the payment (the cash-market rows of the receipt form). None: no note, as before. */
+  note?: string;
 }
 
 /**
@@ -605,6 +610,7 @@ export async function createTeamPayment(env: Env, input: TeamPaymentInput): Prom
     x_date: riyadhDateKey(),
     ...(input.wamid ? { x_source_wamid: input.wamid } : {}),
     ...(input.receipt ? { x_receipt: input.receipt.base64, x_receipt_filename: input.receipt.filename } : {}),
+    ...(input.note ? { x_note: input.note.slice(0, 4000) } : {}),
     ...(isTestMode(env) ? { x_is_simulation: true } : {}),
     ...(env.TRIAL_TAG ? { x_trial_tag: env.TRIAL_TAG } : {}),
   };

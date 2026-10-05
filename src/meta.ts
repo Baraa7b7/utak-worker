@@ -165,7 +165,9 @@ export function parseFlowReply(nfm: { response_json?: unknown }): NonNullable<No
 
 /** The reply as one line of the inbox: the values that were filled, in the form's order. */
 export function flowReplyText(flow: NonNullable<NormalizedMessage["flow"]>): string {
-  const filled = Object.values(flow.values).map((v) => String(v ?? "").trim()).filter(Boolean);
+  // § 55 د — a PhotoPicker's value is a list of files, not a text: «📎 صورة», never «[object Object]»
+  const shown = (v: unknown): string => (Array.isArray(v) ? (v.length ? `📎 صورة${v.length > 1 ? ` × ${v.length}` : ""}` : "") : v && typeof v === "object" ? "📎 صورة" : String(v ?? "").trim());
+  const filled = Object.values(flow.values).map(shown).filter(Boolean);
   return `📝 رد النموذج${filled.length ? `: ${filled.join(" · ")}` : " (بلا قيم)"}`;
 }
 

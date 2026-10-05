@@ -6,6 +6,8 @@
 //
 // Two follow-up flows triggered by button taps (handled in router.ts):
 //   purchase_done_{listId}         → warehouseConfirmedPurchase → build routes → dispatch drivers
+//   prc_{listId}                   → § 55 د: the receipt form (src/receipt-form.ts); its reply writes the
+//                                    received quantities on the list, then warehouseConfirmedPurchase
 //   delivered_{orderId}            → markStopDelivered + reply to customer
 //   delivery_issue_{orderId}       → markStopIssue (note captured from next driver message)
 //
@@ -45,6 +47,7 @@ import type { PurchaseListItem } from "./types";
 import { holdForTask } from "./attendance";
 import { heldPartnerIds } from "./screening";
 import { enqueueTeamItems, type TeamQueueItem } from "./team-queue";
+import { RECEIPT_BUTTON_TITLE, receiptButton } from "./receipt-form";
 
 // ============================================================
 // Customer order notice — 2026-09-24 (ح3)
@@ -287,9 +290,17 @@ function purchaseListTemplateOption(wh: TeamMember, listId: number, items: Purch
   };
 }
 
+/**
+ * The buttons of a purchase list's SESSION message. § 55 د — «📥 استلام
+ * المشتريات» (prc_<list>, src/receipt-form.ts: the received quantities, the
+ * cash-market purchases and the invoice's photo, then the confirmation) takes
+ * the place of «تم الشراء ✅». The Meta template keeps its own quick replies
+ * (purchase_done_<list>: their text is fixed at Meta), and that payload still
+ * confirms the list as ordered.
+ */
 export function purchaseListButtons(listId: number): Array<{ id: string; title: string }> {
   return [
-    { id: `purchase_done_${listId}`, title: "تم الشراء ✅" },
+    receiptButton(listId),
     { id: `purchase_issue_${listId}`, title: "مشكلة ⚠️" },
   ];
 }
@@ -309,7 +320,7 @@ export function renderPurchaseListMessage(items: PurchaseListItem[]): string {
   const lines = items
     .map((it, i) => `${i + 1}. ${it.product_name} — ${it.packaging_name} × ${formatQty(it.total_quantity)}`)
     .join("\n");
-  const footer = `\nاضغط "تم الشراء" لما تخلّص، عشان نجهّز مسارات السواقين.`;
+  const footer = `\nاضغط «${RECEIPT_BUTTON_TITLE}» لما تخلّص وأكّد اللي استلمته، عشان نجهّز مسارات السواقين.`;
   // Meta interactive body max 1024 chars — trim if we somehow overflow
   const full = `${header}\n\n${lines}\n${footer}`;
   return full.length <= 1024 ? full : full.slice(0, 1020) + "…";

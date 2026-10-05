@@ -556,6 +556,24 @@ async function handleButton(
     }
   }
 
+  // ---- § 55 د: «📥 استلام المشتريات» — the receipt form of the purchase list (the buyer alone) ----
+  // Its reply (src/receipt-form.ts) writes what was received and then confirms the list under the
+  // lock of «تم الشراء» below; this tap only opens the form, so it keeps no lock of its own.
+  {
+    const { RECEIPT_BUTTON_RE, openReceiptForm } = await import("./receipt-form");
+    const mReceipt = RECEIPT_BUTTON_RE.exec(buttonId);
+    if (mReceipt) {
+      const listId = Number(mReceipt[1]);
+      await logMessageAnalysis(env, {
+        customerId: partner?.id ?? null,
+        text: buttonId,
+        intent: "purchase_receipt",
+        actionTaken: `button:purchase_receipt:${listId}`,
+      });
+      return await openReceiptForm(env, listId, partner?.id ? { partnerId: partner.id, name: partner.name || "", whatsapp: String(partner.x_whatsapp_number || "") } : null);
+    }
+  }
+
   // ---- v4: warehouse confirmed the purchase list ----
   const mPurchase = /^purchase_done_(\d+)$/.exec(buttonId);
   if (mPurchase) {

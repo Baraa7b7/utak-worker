@@ -608,7 +608,7 @@ export interface TransferOutcome {
 }
 
 /** What a trial's «إرسال» would have recorded, had it been a customer's and Baraa tapped «✅ وصل». */
-export function trialText(chosen: OpenInvoice[], f: { amount: number; date: string; reference: string; note: string; photo: boolean }): string {
+export function trialText(chosen: OpenInvoice[], f: { amount: number; date: string; reference: string; note: string }): string {
   const plan = allocateTransfer(chosen, f.amount);
   return [
     `${TRANSFER_TEST_MARK} — وصل ${TRANSFER_TITLE} ✅`,
@@ -616,7 +616,7 @@ export function trialText(chosen: OpenInvoice[], f: { amount: number; date: stri
     "لو كان إشعار عميل وضغطت «✅ وصل» لسُجّل:",
     ...plan.rows.map((r) => `• ${r.number}: ${fmtSar(r.amount)} ر.س${r.paid ? " (تُسدَّد كاملة)" : " (جزئي)"}`),
     ...(plan.excess > 0 ? [excessLine(plan.excess)] : []),
-    f.photo ? "📸 مع النموذج صورة: كانت ستُحفظ على كل فاتورة مختارة." : "📸 الصورة وصلت قبل النموذج.",
+    "📸 صورة النموذج كانت ستُحفظ على كل فاتورة مختارة.",
     ...(f.note ? [`ملاحظتك: ${f.note}`] : []),
     "(تجربة: لم يُكتب شيء في Odoo، ولم تصل رسالة لأحد غيرك)",
   ].join("\n");
@@ -672,7 +672,7 @@ export async function handleTransferReply(env: Env, msg: Pick<NormalizedMessage,
     const amount = readAmount as number, date = readDate as string, media = anyMedia as TransferMedia;
     if (rec.test) {
       await used();
-      await say(trialText(chosen, { amount, date, reference: typedRef || rec.read?.reference || "", note, photo: !!photo }));
+      await say(trialText(chosen, { amount, date, reference: typedRef, note }));
       return { action: "test", amount };
     }
 

@@ -404,6 +404,8 @@ console.log("\n[د4] the door of the invoice: «🏦 أرسلت تحويل» und
 console.log("\n[د5] the door of the image: read by Claude as a transfer receipt, the form opened on what was read");
 {
   const env = world();
+  // the extraction model has its own name here: the classifier's is «m»
+  env.CLAUDE_MODEL_REPLY = "the-extraction-model";
   setExtract(RECEIPT);
   const r = await say(env, C1_PHONE, image("TRNPH_R1"));
   const f = flowsTo(C1_PHONE), d = dataOf(f[0]);
@@ -414,11 +416,16 @@ console.log("\n[د5] the door of the image: read by Claude as a transfer receipt
   assert("the image stays with the form's token: its media id and what was read", tok.media.id === "TRNPH_R1" && tok.media.mime === "image/jpeg" && JSON.stringify(tok.read) === JSON.stringify({ amount: 500, date: "2026-10-02", reference: "FT26276001" }) && tok.to === C1_PHONE && tok.partnerId === C1);
   assert("not the old «وصلتنا صورة» reply, and no «📎 صورة من عميل» alert to Baraa", !textsTo(C1_PHONE).some((t: string) => t.includes("وصلتنا صورة")) && sentTo(OWNER).length === 0);
   const q = claudeCalls.at(-1);
-  assert("Claude was asked ONCE, by the extraction model, under the receipt's instruction, with the image as a base64 block before the question", claudeCalls.length === 1 && q.model === env.CLAUDE_MODEL_REPLY && q.system === CONFIG.SYSTEM_PROMPT_READ_TRANSFER_RECEIPT && q.messages.length === 1 && q.messages[0].content[0].type === "image"
+  assert("Claude was asked ONCE, by the extraction model (not the classifier's), under the receipt's instruction, with the image as a base64 block before the question", claudeCalls.length === 1 && q.model === "the-extraction-model" && env.CLAUDE_MODEL_CLASSIFY !== q.model && q.system === CONFIG.SYSTEM_PROMPT_READ_TRANSFER_RECEIPT && q.messages.length === 1 && q.messages[0].content[0].type === "image"
     && q.messages[0].content[0].source.type === "base64" && q.messages[0].content[0].source.media_type === "image/jpeg" && q.messages[0].content[0].source.data === Buffer.from(MEDIA_BYTES).toString("base64") && q.messages[0].content[1].type === "text", JSON.stringify(q).slice(0, 300));
+  // a refused form (no invoice ticked): the fresh one still has the photo that came before the first
+  graph.length = 0;
+  const refusedOnce = await reply(env, C1_PHONE, tokenOf(f[0]), { inv: [], amt: "500", date: "2026-10-02", ref: "FT26276001", note: "" });
+  const fresh2 = flowsTo(C1_PHONE)[0], tok2 = JSON.parse(env.MSG_DEDUP.store.get(TR.transferTokenKey(tokenOf(fresh2))));
+  assert("a form refused for another reason: the fresh one keeps the photo that came before it — its token, and its line «صورة إيصالك وصلتنا»", refusedOnce.action === "invalid" && JSON.stringify(refusedOnce.problems) === JSON.stringify(["inv"]) && tok2.media?.id === "TRNPH_R1" && tok2.read?.reference === "FT26276001" && dataOf(fresh2).how === TR.TRANSFER_HOW_WITH_PHOTO_TEXT, JSON.stringify(tok2));
   // «إرسال» with no photo in the form: the earlier one is the notice's
   graph.length = 0;
-  const out = await reply(env, C1_PHONE, tokenOf(f[0]), { inv: [String(INV_A)], amt: "500", date: "2026-10-02", ref: "FT26276001", note: "" });
+  const out = await reply(env, C1_PHONE, tokenOf(fresh2), { inv: [String(INV_A)], amt: "500", date: "2026-10-02", ref: "FT26276001", note: "" });
   assert("«إرسال» without a photo in the form: accepted — the photo that came before it is the notice's", out.action === "noticed" && notices(env)[0].media.id === "TRNPH_R1" && ownerNotices()[0].interactive.header.image.id === "TRNPH_R1", JSON.stringify(out));
   assert("…and Claude is not asked a second time for it", claudeCalls.length === 1);
 }
@@ -455,6 +462,12 @@ console.log("\n[د5] the door of the image: read by Claude as a transfer receipt
   await markPayRemindSent(env5, C1, 620);
   await say(env5, C1_PHONE, image("TRNPH_N3"));
   assert("not a receipt within 48h of a reminder: «وصلنا الإيصال، والمحصّل بيتأكد», as before", flowsTo(C1_PHONE).length === 0 && textsTo(C1_PHONE).includes(CLAIM.PAY_RECEIPT_REPLY));
+  const env7 = world();
+  setExtract(RECEIPT);
+  odooDown = "x_invoice";
+  await say(env7, C1_PHONE, image("TRNPH_R3"));
+  odooDown = "";
+  assert("his invoices cannot be read: the old reply all the same — the image's door never throws, and Claude is not asked", textsTo(C1_PHONE).includes(OLD) && flowsTo(C1_PHONE).length === 0 && claudeCalls.length === 0, JSON.stringify(textsTo(C1_PHONE)));
   const env6 = world();
   setExtract(RECEIPT);
   await say(env6, CUST2_PHONE, { type: "audio", audio: { id: "TRNPH_A1", mime_type: "audio/ogg", voice: true } });
@@ -472,6 +485,10 @@ console.log("\n[د5] the door of the image: read by Claude as a transfer receipt
   claudeCalls.length = 0;
   assert("a file that is neither an image nor a PDF, an empty one, one too large: not read — and Claude is not called", (await quiet(() => CLAUDE.readDocumentJson(env, { base64: "AAAA", mime: "audio/ogg" }, "s"))) === null && (await quiet(() => CLAUDE.readDocumentJson(env, { base64: "", mime: "image/png" }, "s"))) === null
     && (await quiet(() => CLAUDE.readDocumentJson(env, { base64: "A".repeat(CLAUDE.READ_DOCUMENT_MAX_BASE64 + 1), mime: "image/png" }, "s"))) === null && claudeCalls.length === 0);
+  setExtract(RECEIPT); claudeDown = true;
+  const down = await quiet(async () => { try { return [await CLAUDE.readDocumentJson(env, file, "s"), await TR.readTransferReceipt(env, file, DAY)]; } catch (e) { return `threw: ${(e as Error).message}`; } });
+  claudeDown = false;
+  assert("Claude unreachable: readDocumentJson answers null — it NEVER throws — and the receipt is «not read»", JSON.stringify(down) === "[null,null]", JSON.stringify(down));
   setExtract({ a: 1 });
   assert("readDocumentJson is the instruction's own: any system prompt, one JSON object back («image/jpeg; x» is an image)", JSON.stringify(await quiet(() => CLAUDE.readDocumentJson(env, { base64: "AAAA", mime: "image/jpeg; x" }, "another instruction"))) === JSON.stringify({ a: 1 }) && claudeCalls.at(-1).system === "another instruction" && claudeCalls.at(-1).messages[0].content[0].source.media_type === "image/jpeg");
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
@@ -1034,7 +1051,7 @@ console.log("\n[د13] the trial to Baraa, its hook, the purposes, and what the f
   assert("his «إرسال» is answered with what WOULD have been recorded: 80 on the older invoice, 300 on the next, 20 over", r.action === "test" && bodyOf(sentTo(OWNER).at(-1)) === [
     "🧪 تجربة — وصل إشعار تحويل ✅", `المبلغ 400 ر.س — التاريخ ${LABEL} — المرجع FT26276001`, "لو كان إشعار عميل وضغطت «✅ وصل» لسُجّل:",
     "• UTAK-INV-20260901-009: 80 ر.س (تُسدَّد كاملة)", `• ${N_A}: 300 ر.س (تُسدَّد كاملة)`, "زيادة 20 ر.س باقية رصيداً للعميل",
-    "📸 مع النموذج صورة: كانت ستُحفظ على كل فاتورة مختارة.", "ملاحظتك: تجربة", "(تجربة: لم يُكتب شيء في Odoo، ولم تصل رسالة لأحد غيرك)",
+    "📸 صورة النموذج كانت ستُحفظ على كل فاتورة مختارة.", "ملاحظتك: تجربة", "(تجربة: لم يُكتب شيء في Odoo، ولم تصل رسالة لأحد غيرك)",
   ].join("\n"), bodyOf(sentTo(OWNER).at(-1)));
   assert("…and writes NOTHING: no notice in KV, no attachment, no note, no payment, nothing downloaded or read by Claude — and reaches nobody else", notices(env).length === 0 && rows("ir.attachment").length === 0 && money() === before && odooWrites().every(gatewayRecord) && claudeCalls.length === 0
     && graph.filter(Boolean).every((b: any) => b.to === OWNER) && ownerNotices().length === 0 && wizardCalls.length === 0);
@@ -1047,6 +1064,8 @@ console.log("\n[د13] the trial to Baraa, its hook, the purposes, and what the f
   const s = await quiet(() => TR.sendTransferFormTest(env));
   const sd = dataOf(flowsTo(OWNER)[0]);
   assert("nothing real is open: three SAMPLE rows, each saying it is one, and the message says so", s.sent === true && sd.invs.length === 3 && sd.invs.every((x: any) => x.title.startsWith("عيّنة ") && x.description.includes("عيّنة للتجربة، ليست فاتورة")) && bodyOf(flowsTo(OWNER)[0]).endsWith(TR.TRANSFER_TEST_SAMPLE_TEXT), JSON.stringify(sd.invs));
+  const sample = await reply(env, OWNER, tokenOf(flowsTo(OWNER)[0]), { ...good, inv: ["1", "3"], amt: "400" });
+  assert("the samples' trial is answered from the rows it showed (none of them is in Odoo): 300 on «عيّنة 1», 100 of the 120 on «عيّنة 3»", sample.action === "test" && bodyOf(sentTo(OWNER).at(-1)).includes("• عيّنة 1: 300 ر.س (تُسدَّد كاملة)") && bodyOf(sentTo(OWNER).at(-1)).includes("• عيّنة 3: 100 ر.س (جزئي)") && notices(env).length === 0, bodyOf(sentTo(OWNER).at(-1)));
   // the hook
   const hookEnv = { ...env, ODOO_HOOK_TOKEN: "HOOK" };
   const post = (q: string, e: any = hookEnv) => quiet(() => worker.fetch(new Request(`https://w.test/odoo/hook/transfer-form-test${q}`, { method: "POST" }), e, ctx));

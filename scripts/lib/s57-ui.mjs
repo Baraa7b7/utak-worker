@@ -30,8 +30,6 @@
 // applies to it.
 //
 // And «متوسط ربح الكرتون» says what it counts: «متوسط ربح الكرتون (المنشور)» — the items that go out alone.
-import { BODY_MARK } from "./s56-ui.mjs";
-
 export const FORM_CLASS = "utak_day_form";
 export const AVG_LABEL_56 = "متوسط ربح الكرتون";
 export const AVG_LABEL = "متوسط ربح الكرتون (المنشور)";
@@ -63,10 +61,9 @@ const TILE_56 = `<div>${AVG_LABEL_56}</div>`;
 export const TILE = `<div>${AVG_LABEL}</div>`;
 const once = (arch, part) => arch.split(part).length === 2;
 
-/** The tenant's arch with § 57's class, stylesheet and label (an arch that already carries them is left as it is; one that is not § 56's stops the script). */
+/** The tenant's arch with § 57's class, stylesheet and label (an arch that already carries them is left as it is; one that is not § 56's — its opening tag, its sheet after the header, its average's tile, no stylesheet and no chatter — stops the script). */
 export function dayArch57(arch) {
   if (arch.includes(FORM_OPEN)) return arch;
-  if (!arch.includes(BODY_MARK)) throw new Error("📊 اليوم: the form does not carry § 56's body — stop (the view was changed by hand?)");
   const sheet = arch.indexOf(SHEET_OPEN);
   if (!once(arch, FORM_OPEN_56) || !arch.startsWith(FORM_OPEN_56) || !once(arch, TILE_56) || sheet < arch.indexOf("</header>") || arch.includes("<style") || /<chatter|oe_chatter|message_ids/.test(arch)) {
     throw new Error("📊 اليوم: the form's opening tag, its sheet or the average's tile is not § 56's — stop (the view was changed by hand?)");

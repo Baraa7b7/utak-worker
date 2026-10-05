@@ -20,11 +20,14 @@
 //     and dashes tolerated) — and never UTAK's own number, which an invoice
 //     prints as its buyer's.
 //   • Whose it is, when the picture is not from his own chat: the supplier whose
-//     name is the seller's name Claude read (either holds the other, normalised);
-//     with no name read, the only supplier there is. A list's invoice may be a
+//     card already holds the number read; else the one whose name is the
+//     seller's name Claude read (either holds the other, normalised); with no
+//     name read, the only supplier there is. A list's invoice may be a
 //     cash-market seller's, an expense's vendor is whoever Baraa typed: a name
-//     read that is nobody's writes NOTHING — Baraa is told (a list's picture)
-//     with the number, the name and the suppliers.
+//     read that is nobody's writes NOTHING — and for a list's picture Baraa is
+//     told, with the number, the name and the suppliers, while one of them still
+//     has no number (when each has his own, it is another seller's invoice: the
+//     buyer photographs one every day, and nothing is said).
 //   • No number on his card + a valid one read: vat, «مسجل في الضريبة» and
 //     «مسجّل» are written, and Baraa reads «سجّلنا الرقم الضريبي لـ … — فواتيره
 //     من الآن عليها 15%». The same number: nothing at all. Another number: never
@@ -290,8 +293,14 @@ export interface InvoicePicture {
   ctx?: ExecutionContext;
 }
 
-/** The supplier a picture is an invoice of, among those it may be: by the seller's name read; with none read, the only one there is. */
-function whose(cards: Card[], nameRead: string): Card | null {
+/**
+ * The supplier a picture is an invoice of, among those it may be: the one whose
+ * card already holds the number read, under whatever name it is printed; else
+ * the one named by the seller's name read; with none read, the only one there is.
+ */
+function whose(cards: Card[], vat: string, nameRead: string): Card | null {
+  const holder = vat ? cards.find((c) => cardDigits(c.vat) === vat) : undefined;
+  if (holder) return holder;
   if (!nameRead) return cards.length === 1 ? cards[0] : null;
   const named = cards.filter((c) => sameSupplierName(c.name, nameRead) || sameSupplierName(c.legal, nameRead));
   return named.length === 1 ? named[0] : null;
@@ -324,12 +333,13 @@ export async function readSupplierInvoice(env: Env, p: InvoicePicture): Promise<
     if (!canReadDocument(file.mime)) return { action: "not_picture" };
     const reading = await readInvoiceVat(env, file, ownVat);
     if (reading.status === "not_invoice") return { action: "not_invoice" };
-    // his own chat: the picture is his. Any other: the seller's name decides, when one was read
-    const card = p.kind === "chat" ? cards[0] : whose(cards, reading.status === "failed" ? "" : reading.name);
+    // his own chat: the picture is his. Any other: the number when a card holds it, else the seller's name, when one was read
+    const card = p.kind === "chat" ? cards[0] : whose(cards, reading.status === "valid" ? reading.vat : "", reading.status === "failed" ? "" : reading.name);
     const from = fromInvoice(reading.status === "failed" ? "" : reading.invoice, riyadhDateKey(new Date(now)));
     if (!card) {
-      // a list's picture with a number that is nobody's for sure (a cash-market seller's, or one of several suppliers): Baraa's to decide
-      if (reading.status === "valid" && p.kind === "list") {
+      // a list's picture with a number that is nobody's for sure (a cash-market seller's, or one of several suppliers): Baraa's
+      // to decide — while a supplier of the list still has no number. When each has his own, it is another seller's: nothing to say
+      if (reading.status === "valid" && p.kind === "list" && cards.some((c) => !c.vat)) {
         const told = await claimButton(env, `svat_unmatched:${reading.vat}:${p.where}`, DAY_TTL);
         if (told.claimed) { await tellOwner(env, vatUnmatchedText(reading.vat, reading.name, cards.map((c) => c.name), from, p.where)); await finishButton(env, told, DAY_TTL); }
       }

@@ -433,6 +433,17 @@ console.log("\n[ز6] the purchase list's invoice: whose it is");
   assert("the same number on the same list again (the invoice's next page): not said twice", vatCalls().length === 2 && vatLines().length === 1);
 }
 {
+  const env = world(); card(AHMED).vat = VAT_B; setExtract(INVOICE({ supplier_name: "مؤسسة الريف الأخضر للخضار" }));
+  const r = await onList(env, list({ lines: [AHMED, CASH] }), "SVAT_L16");
+  assert("the same picture once every supplier of the list has his number: another seller's invoice (the buyer photographs one every day) — nothing written, and nothing said", r.action === "unmatched" && card(AHMED).vat === VAT_B && cardWrites().length === 0 && graph.filter(Boolean).length === 0 && vatCalls().length === 1);
+}
+{
+  const env = world(); card(AHMED).vat = VAT_A; setExtract(INVOICE({ supplier_name: "مؤسسة ريف الخير للخضار" }));
+  const one = await onList(env, list({ lines: [AHMED, CASH] }), "SVAT_L17");
+  const two = await onList(env, list({ lines: [AHMED, NAKHEEL] }), "SVAT_L18");
+  assert("the number read is already a card's: it is that supplier's under whatever name it is printed — nothing at all, and never another supplier's", one.action === "same" && two.action === "same" && two.partnerId === AHMED && !card(NAKHEEL).vat && cardWrites().length === 0 && graph.filter(Boolean).length === 0);
+}
+{
   const env = world(); setExtract(INVOICE({ supplier_name: "مؤسسة النخيل", vat: VAT_B }));
   const r = await onList(env, list({ lines: [AHMED, NAKHEEL, CASH] }), "SVAT_L5");
   assert("several suppliers on the list → the one whose name is the name read: his card alone", r.action === "registered" && r.partnerId === NAKHEEL && card(NAKHEEL).vat === VAT_B && !card(AHMED).vat && cardWrites().length === 1 && vatLines()[0] === SV.vatRegisteredText(NAKHEEL_NAME, VAT_B, "فاتورة INV-2045"));

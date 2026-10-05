@@ -2617,13 +2617,13 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         } catch (e) {
           console.warn("[media] supplier handling failed", (e as Error)?.message);
         }
+        await owedPriceForm(env, msg.from);
         // § 57 ز — his image or PDF may be an invoice of his: its tax number is read for his card,
         // then the registration form owed to him goes if it still is (never throws; no price is read)
         if (msg.type === "image" || msg.type === "document") {
           const { supplierSentPicture } = await import("./supplier-vat");
           await supplierSentPicture(env, supplierMatch, msg.from, msg.media!, ctx);
         }
-        await owedPriceForm(env, msg.from);
       } else if (!teamMatch && sourceMatch) {
         // § 52 ب — an outside price source's voice note / image: never the customer's reply
         await outsideSourceMessage(env, sourceMatch, msg, ctx);

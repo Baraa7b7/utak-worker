@@ -769,9 +769,10 @@ function deliveryTestAnswer(rec: DeliveryFormRecord, e: DeliveryEntries): string
 /**
  * ONE delivery form to Baraa's own number, marked «🧪 تجربة»: only while his
  * window is open (nothing held), once a day, built from the latest real order
- * that has lines (read only). His reply is answered with what would be done:
- * nothing is written, no order is delivered, no invoice issued, no payment
- * recorded.
+ * that has lines — or, while no real order has one, from the latest order
+ * marked as a simulation (read only either way). His reply is answered with
+ * what would be done: nothing is written, no order is delivered, no invoice
+ * issued, no payment recorded.
  */
 export async function sendDeliveryFormTest(env: Env, now: number = Date.now()): Promise<DeliveryFormResult & { orderId?: number }> {
   const owner = waDigits(String(env.OWNER_WHATSAPP ?? ""));
@@ -780,13 +781,17 @@ export async function sendDeliveryFormTest(env: Env, now: number = Date.now()): 
   const claim = await claimButton(env, `dform_test:${DELIVERY_FLOW_ID}:${riyadhDateKey(new Date(now))}`, DAY_TTL);
   if (!claim.claimed) return { sent: false, reason: "already_today" };
   try {
-    const orders = await call<Array<{ id: number }>>(env, "x_daily_order", "search_read", {
-      domain: [[SIM_FIELD, "!=", true], ["x_line_ids", "!=", false]], fields: ["id"], order: "id desc", limit: 5,
-    });
     let orderId = 0, built: DeliveryLines | null = null;
-    for (const o of orders) {
-      const b = await deliveryLines(env, o.id, now);
-      if (b?.lines.length) { orderId = o.id; built = b; break; }
+    // a real order first; only while none has a line, one marked as a simulation (read only either way)
+    for (const sim of [false, true]) {
+      const orders = await call<Array<{ id: number }>>(env, "x_daily_order", "search_read", {
+        domain: [[SIM_FIELD, sim ? "=" : "!=", true], ["x_line_ids", "!=", false]], fields: ["id"], order: "id desc", limit: 5,
+      });
+      for (const o of orders) {
+        const b = await deliveryLines(env, o.id, now);
+        if (b?.lines.length) { orderId = o.id; built = b; break; }
+      }
+      if (built) break;
     }
     if (!built) { await releaseButton(env, claim); return { sent: false, reason: "no_order" }; }
     const r = await sendDeliveryForm(env, orderId, { kind: "owner", partnerId: null, name: "براء", whatsapp: owner }, { now, test: true, built });

@@ -1774,8 +1774,9 @@ export default {
     }
 
     // § 55 ب — the ONE trial of the delivery and collection form: to Baraa's own number, while his
-    // window is open, once a day, with the latest real order's lines. Its reply delivers nothing,
-    // issues no invoice and records no payment (src/delivery-form.ts sendDeliveryFormTest).
+    // window is open, once a day, with the latest real order's lines (no real order yet: the latest
+    // one marked as a simulation). Its reply delivers nothing, issues no invoice and records no
+    // payment (src/delivery-form.ts sendDeliveryFormTest).
     if (request.method === "POST" && url.pathname === "/odoo/hook/delivery-form-test") {
       const providedToken = url.searchParams.get("token") ?? "";
       const expected = env.ODOO_HOOK_TOKEN ?? "";

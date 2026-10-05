@@ -6,8 +6,9 @@
 //             today's price lines as they stand; its three buttons and its form (utak_owner_review_v2)
 //             are answered; nothing is written in Odoo and nothing is published.
 //   delivery  the delivery and collection form (§ 55 ب, src/delivery-form.ts sendDeliveryFormTest:
-//             utak_delivery_v1), with the latest real order's lines (read only); its reply is answered
-//             with what would be done: nothing is delivered, no invoice issued, no payment recorded.
+//             utak_delivery_v1), with the latest real order's lines — or, while the tenant has no
+//             real order, the latest one marked as a simulation (read only either way); its reply is
+//             answered with what would be done: nothing is delivered, no invoice issued, no payment recorded.
 //   receipt   the purchases' receipt form (§ 55 د, src/receipt-form.ts sendReceiptFormTest:
 //             utak_receipt_v1) with the latest real purchase list's items; its reply is answered with
 //             what would be done — nothing written, no list confirmed, no photo downloaded.

@@ -759,6 +759,26 @@ console.log("\n[ب16] the trial to Baraa: his number alone, his window open, onc
   assert("no field rejected by the schema gate", rejected.length === 0, rejected.join(" | "));
 }
 {
+  // the tenant has no real order with a line yet: the trial is built from the latest order marked as a simulation
+  const env = world(`${DAY} 14:00`);
+  onTheWay([[3, 31, 9, 99]], { x_utak_simulation: true });          // an older simulation order
+  onTheWay([]);                                                     // the only real order has no line: nothing to show of it
+  const sim = onTheWay(TWO, { x_utak_simulation: true, x_state: "delivered" });
+  const n0 = odooLog.length;
+  const r = await quiet(() => DF.sendDeliveryFormTest(env));
+  const f = flowsTo(OWNER);
+  assert("no real order has a line: ONE form to Baraa from the latest order marked as a simulation, marked «🧪 تجربة», under the trial's purpose", r.sent === true && r.orderId === sim && f.length === 1 && sentTo(OWNER).length === 1
+    && bodyOf(f[0]).startsWith(`🧪 تجربة — 📦 تسليم الطلب #${sim} — مطعم الوادي`) && dataOf(f[0]).head === `🧪 تجربة — طلب #${sim} — مطعم الوادي` && dataOf(f[0]).l1 === "طماطم" && dataOf(f[0]).i1 === "3" && dataOf(f[0]).v3 === false && purposes().at(-1) === "delivery_form_test", JSON.stringify(r));
+  assert("…and nothing was written to build it", odooLog.slice(n0).every((c: any) => !["write", "create", "unlink"].includes(c.method) || ["x_wa_message", "mail.message", "discuss.channel"].includes(c.model)));
+  graph.length = 0;
+  const writes = () => odooLog.filter((c: any) => ["write", "create", "unlink"].includes(c.method) && !["x_wa_message", "mail.message", "discuss.channel"].includes(c.model)).length;
+  const w0 = writes();
+  const a = await reply(env, OWNER, tokenOf(f[0]), FULL("cash", { q1: "2", r1: "damaged" }));
+  assert("its reply: the trial's answer — NOTHING written on the simulation order, no invoice, no payment, and no one else got a message", a.action === "test" && writes() === w0 && lineOf(sim, 1).x_quantity === 3 && orderOf(sim).x_state === "delivered" && invoicesOf(sim).length === 0 && rows("x_payment").length === 0
+    && textsTo(OWNER).length === 1 && textsTo(OWNER)[0].endsWith("(تجربة: لم يُسلَّم شيء، ولم تصدر فاتورة، ولم يُسجَّل دفع)") && graph.every((b: any) => b.to === OWNER));
+  assert("no field rejected by the schema gate", rejected.length === 0, rejected.join(" | "));
+}
+{
   const env = world(`${DAY} 14:00`); onTheWay();
   closeOwnerWindow(env);
   const n0 = odooLog.length;

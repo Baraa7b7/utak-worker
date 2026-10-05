@@ -283,14 +283,17 @@ export function buildReceiptFlowJson() {
 // ================================================================ utak_carload_v1
 //
 // ---- utak_carload_v1 (§ 55 ج) ----
-// The car's load, ONE Flow for its two moments (src/car-load.ts). FOUR generic pages (LOAD_A … LOAD_D)
-// of fifteen slots; a slot is TWO optional number fields:
+// The car's load, ONE Flow for its two moments (src/car-load.ts; tests/s55-car.test.mts checks it
+// against what the worker sends). FOUR generic pages (LOAD_A … LOAD_D) of fifteen slots; a slot is TWO
+// optional number fields:
 //   • a<n> — the morning: the quantity loaded; the evening: what is LEFT on the car
 //   • b<n> — the evening alone: what is damaged (hidden in the morning)
 // Meta allows fifty components a screen: 15 × 2 + the heading + the line of text + the `If` and its two
 // footers = 35. The worker fills the pages in order with the categories that HAVE items (فواكه، خضار،
-// ورقيات، أخرى); a category of more than fifteen continues on the next page. «التالي» never opens an
-// empty page, and «إرسال» sits on the last page that has items. No price of any kind is in it.
+// ورقيات، أخرى); a category of more than fifteen continues on the next page, and when that would take
+// more than four pages the items run on, fifteen a page (the first sixty always have a field).
+// «التالي» never opens an empty page, and «إرسال» sits on the last page that has items. No price of
+// any kind is in it.
 //   note         the line under the heading: what to write, by the moment
 //   t<k>         page k's heading: the moment and its category
 //   m<k>         a page follows page k (k = 1 … 3)
@@ -381,9 +384,68 @@ export function buildCarloadFlowJson() {
   return { version: FLOW_JSON_VERSION, routing_model: carloadRoutingModel(), screens: carloadPages().map(({ k }) => carloadScreen(k)) };
 }
 
+// ================================================================ utak_custody_v1
+//
+// ---- utak_custody_v1 (§ 55 هـ) ----
+// The collector's handover of the day's cash (src/custody-form.ts; tests/s55-custody.test.mts checks
+// it against what the worker sends). ONE screen (CUSTODY_A), six components: the heading, the line
+// saying what cash is expected with him, «المبلغ المسلَّم» (a number,
+// required), «طريقة التسليم» (required, nothing chosen for him: «إيداع بنكي» / «تسليم لبراء»), «ملاحظة»
+// (optional) and «إرسال».
+//   t            the heading: «تسليم العهدة — <the day>»
+//   exp          «الكاش المتوقع معك اليوم: 450 ر.س — 3 تحصيلات»
+// The reply carries amt, how (bank | owner) and note, and the flow_token.
+
+export const CUSTODY_FLOW_NAME = "utak_custody_v1";
+export const CUSTODY_SCREEN = "CUSTODY_A";
+export const CUSTODY_SCREEN_TITLE = "تسليم العهدة";
+export const CUSTODY_SUBMIT_LABEL = "إرسال";
+export const CUSTODY_AMOUNT_LABEL = "المبلغ المسلَّم";
+export const CUSTODY_AMOUNT_HINT = "بالريال: كم سلّمت فعلاً";
+export const CUSTODY_HOW_LABEL = "طريقة التسليم";
+export const CUSTODY_NOTE_LABEL = "ملاحظة";
+export const CUSTODY_NOTE_HINT = "اختياري — أي توضيح لبراء";
+/** How the cash was handed over: the id is what the worker reads. */
+export const CUSTODY_HOW = [
+  { id: "bank", title: "إيداع بنكي" },
+  { id: "owner", title: "تسليم لبراء" },
+];
+
+export function custodyDataModel() {
+  return {
+    t: { type: "string", __example__: "تسليم العهدة — السبت 3 أكتوبر 2026" },
+    exp: { type: "string", __example__: "الكاش المتوقع معك اليوم: 450 ر.س — 3 تحصيلات" },
+  };
+}
+export function buildCustodyFlowJson() {
+  return {
+    version: FLOW_JSON_VERSION,
+    screens: [{
+      id: CUSTODY_SCREEN,
+      title: CUSTODY_SCREEN_TITLE,
+      terminal: true,
+      success: true,
+      data: custodyDataModel(),
+      layout: {
+        type: "SingleColumnLayout",
+        children: [
+          { type: "TextHeading", text: "${data.t}" },
+          { type: "TextBody", text: "${data.exp}" },
+          { type: "TextInput", name: "amt", label: CUSTODY_AMOUNT_LABEL, "input-type": "number", required: true, "helper-text": CUSTODY_AMOUNT_HINT },
+          // required, and no init-value: nothing is chosen for him
+          { type: "RadioButtonsGroup", name: "how", label: CUSTODY_HOW_LABEL, required: true, "data-source": CUSTODY_HOW },
+          { type: "TextInput", name: "note", label: CUSTODY_NOTE_LABEL, "input-type": "text", required: false, "helper-text": CUSTODY_NOTE_HINT },
+          { type: "Footer", label: CUSTODY_SUBMIT_LABEL, "on-click-action": { name: "complete", payload: { amt: "${form.amt}", how: "${form.how}", note: "${form.note}" } } },
+        ],
+      },
+    }],
+  };
+}
+
 /** The Flows of § 55, as the Meta script walks them. */
 export const FLOWS = [
   { key: "review", name: REVIEW_FLOW_NAME, build: buildReviewFlowJson, first: REVIEW_FIRST_SCREEN },
   { key: "receipt", name: RECEIPT_FLOW_NAME, build: buildReceiptFlowJson, first: RECEIPT_FIRST_SCREEN },
   { key: "carload", name: CARLOAD_FLOW_NAME, build: buildCarloadFlowJson, first: CARLOAD_FIRST_SCREEN },
+  { key: "custody", name: CUSTODY_FLOW_NAME, build: buildCustodyFlowJson, first: CUSTODY_SCREEN },
 ];

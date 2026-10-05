@@ -457,6 +457,14 @@ async function handleButton(
       if (reply) return reply;
     }
   }
+  // ---- § 55 هـ: the collector's custody button ----
+  {
+    const { CUSTODY_BUTTON, handleCustodyButton } = await import("./custody-form");
+    if (t === CUSTODY_BUTTON) {
+      const reply = await handleCustodyButton(env, t, partner);
+      if (reply) return reply;
+    }
+  }
 
   // ---- 2026-09-24 (ح2): closed-hours prompt «سجّله لبكرة» / «لا شكراً» ----
   const mLate = /^late_(yes|no)_(\d+)$/.exec(buttonId);

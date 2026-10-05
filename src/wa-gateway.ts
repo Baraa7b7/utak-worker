@@ -199,7 +199,8 @@ function refused(message: string, type: string, status: number): Response {
 //   • price_review_test — the one trial of the day's price review and its answers (§ 54)
 //   • receipt_form_test — the one trial of the purchases' receipt form and its answer (§ 55 د)
 //   • car_load_form_test — the one trial of the car-load form and its answers (§ 55 ج)
-const OWNER_ALLOWED_PURPOSES: ReadonlySet<string> = new Set(["price_flow_test", "order_flow_test", "register_flow_test", "owner_alert", "receipt_form_test", "owner_summary", "owner_window", "conv_open_owner", "car_load_form_test", "owner_team_note", "owner_prices", "owner_price_exception", "owner_price_review", "owner_order_confirmed", "price_review_test"]);
+//   • custody_form_test — the one trial of the custody form and its answers (§ 55 هـ)
+const OWNER_ALLOWED_PURPOSES: ReadonlySet<string> = new Set(["price_flow_test", "order_flow_test", "register_flow_test", "owner_alert", "receipt_form_test", "custody_form_test", "owner_summary", "owner_window", "conv_open_owner", "car_load_form_test", "owner_team_note", "owner_prices", "owner_price_exception", "owner_price_review", "owner_order_confirmed", "price_review_test"]);
 
 function ownerDigits(env: Env): string {
   return waDigits(String(env.OWNER_WHATSAPP ?? ""));

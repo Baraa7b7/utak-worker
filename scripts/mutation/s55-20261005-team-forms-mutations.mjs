@@ -1,7 +1,7 @@
-// Mutation check for § 55 ج (2026-10-05) — the team's forms that write nothing in Odoo: the car's
-// load (src/car-load.ts). Each mutation disables ONE guard, runs its test file, and must make it
-// fail. The source is restored in `finally` after every run; a pattern that is not found exactly once
-// stops the script.
+// Mutation check for § 55 ج / هـ (2026-10-05) — the team's two forms that write nothing in Odoo: the
+// car's load (src/car-load.ts) and the custody handover (src/custody-form.ts). Each mutation disables
+// ONE guard, runs its test file, and must make it fail. The source is restored in `finally` after
+// every run; a pattern that is not found exactly once stops the script.
 //
 // RUN IT IN A COPY OF THE TREE (scripts/mutation/s45-20260930-mutations-all.mjs does: `git archive HEAD`):
 // a mutation edits src/ in place, so it never runs in the working tree.
@@ -15,7 +15,9 @@ import { readFileSync, writeFileSync } from "node:fs";
 
 const root = new URL("../../", import.meta.url).pathname;
 const TC = "tests/s55-car.test.mts";
+const TU = "tests/s55-custody.test.mts";
 const CL = "src/car-load.ts";
+const CU = "src/custody-form.ts";
 const IDX = "src/index.ts";
 const RT = "src/router.ts";
 const GW = "src/wa-gateway.ts";
@@ -23,6 +25,8 @@ const LIB = "scripts/lib/s55-flows.mjs";
 const TRIAL = "scripts/s55-20261005-trial.mjs";
 /** The driver's text command, as the team's texts try it (src/index.ts). */
 const CL_TEXT = "        } else if (await import(\"./car-load\").then((m) => m.carLoadText(env, teamMember, msg.text, msg.from, ctx))) {";
+/** The collector's text command, the same way. */
+const CU_TEXT = "        } else if (await import(\"./custody-form\").then((m) => m.custodyText(env, teamMember, msg.text, msg.from, ctx))) {";
 
 // [part, name, [[file, find, replace], …], test file]
 const M = [
@@ -254,6 +258,196 @@ const M = [
     "url.pathname === \"/odoo/hook/carload-form-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (false) {"]], TC],
   ["ج", "the trial script does not know the car-load hook", [[TRIAL,
     ", carload: \"carload-form-test\"", ""]], TC],
+
+  // ================================================================ هـ the Flow and what the worker sends
+  ["هـ", "«المبلغ المسلَّم» is optional in the Flow", [[LIB,
+    "\"input-type\": \"number\", required: true, \"helper-text\": CUSTODY_AMOUNT_HINT },", "\"input-type\": \"number\", required: false, \"helper-text\": CUSTODY_AMOUNT_HINT },"]], TU],
+  ["هـ", "«المبلغ المسلَّم» takes any text", [[LIB,
+    "\"input-type\": \"number\", required: true, \"helper-text\": CUSTODY_AMOUNT_HINT },", "\"input-type\": \"text\", required: true, \"helper-text\": CUSTODY_AMOUNT_HINT },"]], TU],
+  ["هـ", "«طريقة التسليم» is optional in the Flow", [[LIB,
+    "label: CUSTODY_HOW_LABEL, required: true, \"data-source\": CUSTODY_HOW },", "label: CUSTODY_HOW_LABEL, required: false, \"data-source\": CUSTODY_HOW },"]], TU],
+  ["هـ", "a way is chosen for him", [[LIB,
+    "label: CUSTODY_HOW_LABEL, required: true, \"data-source\": CUSTODY_HOW },", "label: CUSTODY_HOW_LABEL, required: true, \"data-source\": CUSTODY_HOW, \"init-value\": \"bank\" },"]], TU],
+  ["هـ", "the Flow's way «تسليم لبراء» has an id the worker does not read", [[LIB,
+    "  { id: \"owner\", title: \"تسليم لبراء\" },", "  { id: \"baraa\", title: \"تسليم لبراء\" },"]], TU],
+  ["هـ", "«إرسال» does not carry the way", [[LIB,
+    "payload: { amt: \"${form.amt}\", how: \"${form.how}\", note: \"${form.note}\" }", "payload: { amt: \"${form.amt}\", note: \"${form.note}\" }"]], TU],
+  ["هـ", "the Flow has no line of the expected cash", [[LIB,
+    "          { type: \"TextBody\", text: \"${data.exp}\" },\n", ""]], TU],
+  ["هـ", "the custody Flow is not in the Meta script's list", [[LIB,
+    "  { key: \"custody\", name: CUSTODY_FLOW_NAME, build: buildCustodyFlowJson, first: CUSTODY_SCREEN },\n", ""]], TU],
+  ["هـ", "the worker opens another screen", [[CU,
+    "export const CUSTODY_FLOW_SCREEN = \"CUSTODY_A\";", "export const CUSTODY_FLOW_SCREEN = \"CUSTODY_B\";"]], TU],
+  ["هـ", "the line of the expected cash is sent empty", [[CU,
+    "CUSTODY_HEADING_MAX), exp: expectedLine(e) };", "CUSTODY_HEADING_MAX), exp: \"\" };"]], TU],
+  ["هـ", "a long heading is not cut to eighty characters", [[CU,
+    "t: cut(`${mark}${CUSTODY_TITLE} — ${dayLabel(day)}`, CUSTODY_HEADING_MAX),", "t: `${mark}${CUSTODY_TITLE} — ${dayLabel(day)}`,"]], TU],
+  ["هـ", "the worker reads «تسليم لبراء» under another word", [[CU,
+    "{ bank: \"إيداع بنكي\", owner: \"تسليم لبراء\" };", "{ bank: \"إيداع بنكي\", owner: \"تسليم للمالك\" };"]], TU],
+  // ---------------------------------------------------------------- هـ the triggers
+  ["هـ", "a message that holds «عهدة» is the command", [[CU,
+    "  return t === \"عهده\" || t === \"تسليم العهده\";", "  return t.includes(\"عهده\");"]], TU],
+  ["هـ", "«عهده» as a phone types it is not the command", [[CU,
+    ".replace(/[أإآ]/g, \"ا\").replace(/ى/g, \"ي\").replace(/ة/g, \"ه\")\n    .replace(/[.!؟?،,\\s]+$/g, \"\").replace(/\\s+/g, \" \");\n  return t === \"عهده\"", ".replace(/[أإآ]/g, \"ا\").replace(/ى/g, \"ي\")\n    .replace(/[.!؟?،,\\s]+$/g, \"\").replace(/\\s+/g, \" \");\n  return t === \"عهده\""]], TU],
+  ["هـ", "the text command is answered for any team member", [[CU,
+    "  if (!custodyCommand(text) || !hasRole(member, CUSTODY_ROLE)) return false;", "  if (!custodyCommand(text)) return false;"]], TU],
+  ["هـ", "the button is answered for any team member", [[CU,
+    "    if (!m || !m.codes.includes(CUSTODY_ROLE)) return null;", "    if (!m) return null;"]], TU],
+  ["هـ", "the button's member is the partner the caller names, not the number that tapped", [[CU,
+    "    const m = memberByNumber(await loadRoster(env), number);\n    if (!m || !m.codes.includes(CUSTODY_ROLE)) return null;", "    const m = (await loadRoster(env)).members.find((x) => x.partnerId === partner.id) ?? null;\n    if (!m || !m.codes.includes(CUSTODY_ROLE)) return null;"]], TU],
+  ["هـ", "another button's id opens the custody form", [[CU,
+    "  if (buttonId !== CUSTODY_BUTTON || !partner?.id || !number) return null;", "  if (!partner?.id || !number) return null;"]], TU],
+  ["هـ", "the role that holds the cash is the buyer's", [[CU,
+    "export const CUSTODY_ROLE = \"collector\";", "export const CUSTODY_ROLE = \"warehouse\";"]], TU],
+  ["هـ", "the collector's text command is not wired in the team's texts", [[IDX, CU_TEXT, "        } else if (false) {"]], TU],
+  ["هـ", "the button is not wired in the router", [[RT,
+    "    if (t === CUSTODY_BUTTON) {", "    if (false) {"]], TU],
+  ["هـ", "the Flow's reply is not routed by its token", [[IDX,
+    "        } else if ((await import(\"./custody-form\")).isCustodyToken(msg.flow.token ?? \"\")) {", "        } else if (false) {"]], TU],
+  ["هـ", "the command is tried before the pending notes", [[IDX, CU_TEXT, "        } else if (false) {"], [IDX,
+    "        if (pendingListId) {\n          const listId = Number(pendingListId);", "        if (await import(\"./custody-form\").then((m) => m.custodyText(env, teamMember, msg.text, msg.from, ctx))) {\n        } else if (pendingListId) {\n          const listId = Number(pendingListId);"]], TU],
+  ["هـ", "the command is tried after the shift's hold", [[IDX, CU_TEXT, "        } else if (false) {"], [IDX,
+    "        } else if (att.hold) {\n          await sendText(env, msg.from, holdText(att), { ctx, purpose: \"bot_reply\" });\n        } else {",
+    "        } else if (att.hold) {\n          await sendText(env, msg.from, holdText(att), { ctx, purpose: \"bot_reply\" });\n        } else if (await import(\"./custody-form\").then((m) => m.custodyText(env, teamMember, msg.text, msg.from, ctx))) {\n        } else {"]], TU],
+  ["هـ", "the form is held outside the window", [[CU,
+    "  if (!(await readWindow(env, to, now)).open) return { sent: false, reason: \"window_closed\" };\n  const day = riyadhDateKey(new Date(now));\n  const e = opts.expected", "  const day = riyadhDateKey(new Date(now));\n  const e = opts.expected"], [CU,
+    "    noHold: true,\n    noHoldReason: \"نموذج تسليم العهدة يُرسل داخل نافذة 24 ساعة فقط\",\n", ""]], TU],
+  ["هـ", "outside his window a line is held for him", [[CU,
+    "    if (!r.sent && r.reason !== \"window_closed\") await tell(", "    if (!r.sent) await tell("]], TU],
+  // ---------------------------------------------------------------- هـ the cash expected
+  ["هـ", "a transfer counts as cash in his hand", [[CU,
+    "      [\"x_method\", \"=\", \"cash\"], [\"x_collected_at\", \">=\", toOdooUtc(from)],", "      [\"x_method\", \"in\", [\"cash\", \"transfer\"]], [\"x_collected_at\", \">=\", toOdooUtc(from)],"]], TU],
+  ["هـ", "every method counts as cash in his hand", [[CU,
+    "      [\"x_method\", \"=\", \"cash\"], [\"x_collected_at\", \">=\", toOdooUtc(from)],", "      [\"x_collected_at\", \">=\", toOdooUtc(from)],"]], TU],
+  ["هـ", "every collector's cash is expected with him", [[CU,
+    "      ...(collectorId ? [[\"x_collected_by\", \"=\", collectorId]] : []),\n", ""]], TU],
+  ["هـ", "the collector's form shows everyone's cash", [[CU,
+    "  const e = opts.expected ?? (await expectedCash(env, who.partnerId, day));", "  const e = opts.expected ?? (await expectedCash(env, null, day));"]], TU],
+  ["هـ", "last night's cash is expected today", [[CU,
+    "[\"x_collected_at\", \">=\", toOdooUtc(from)], ", ""]], TU],
+  ["هـ", "tonight's cash after midnight is expected today", [[CU,
+    "[\"x_collected_at\", \"<\", toOdooUtc(from + DAY_MS)], ", ""]], TU],
+  ["هـ", "the day is UTC's, not Riyadh's", [[CU,
+    "  const from = riyadhDayMinuteMs(day, 0);\n  const pays", "  const from = Date.parse(`${day}T00:00:00Z`);\n  const pays"]], TU],
+  ["هـ", "a simulation payment is expected with him", [[CU,
+    "toOdooUtc(from + DAY_MS)], [SIM_FIELD, \"!=\", true],\n", "toOdooUtc(from + DAY_MS)],\n"]], TU],
+  ["هـ", "a simulation invoice's payment is expected with him", [[CU,
+    "invs.filter((i) => i[SIM_FIELD] === true || simOrders.has(m2oId(i.x_order_id)))", "invs.filter((i) => simOrders.has(m2oId(i.x_order_id)))"]], TU],
+  ["هـ", "a simulation order's payment is expected with him", [[CU,
+    "invs.filter((i) => i[SIM_FIELD] === true || simOrders.has(m2oId(i.x_order_id)))", "invs.filter((i) => i[SIM_FIELD] === true)"]], TU],
+  ["هـ", "the collections are counted with the simulation ones", [[CU,
+    "0), 0)), count: real.length };", "0), 0)), count: pays.length };"]], TU],
+  ["هـ", "the count of the collections is not said", [[CU,
+    "`الكاش المتوقع معك اليوم: ${money(e.total)} ر.س — ${collectionsAr(e.count)}`;", "`الكاش المتوقع معك اليوم: ${money(e.total)} ر.س`;"]], TU],
+  ["هـ", "the collections cannot be read: the form shows a made-up 0", [[CU,
+    "  const e = opts.expected ?? (await expectedCash(env, who.partnerId, day));", "  const e = opts.expected ?? (await expectedCash(env, who.partnerId, day).catch(() => ({ total: 0, count: 0 })));"]], TU],
+  // ---------------------------------------------------------------- هـ the handover and what is said
+  ["هـ", "the difference is expected − handed", [[CU,
+    "      diff: round2(handed - now.total), corrections:", "      diff: round2(now.total - handed), corrections:"]], TU],
+  ["هـ", "the difference's words are swapped", [[CU,
+    "    `الفرق: ${differenceText(f.handed - f.expected)}`,", "    `الفرق: ${differenceText(f.expected - f.handed)}`,"]], TU],
+  ["هـ", "no difference is not «مطابق»", [[CU,
+    "  if (d === 0) return \"مطابق\";\n", ""]], TU],
+  ["هـ", "a shortage is written without its «−»", [[CU,
+    "  return d < 0 ? `−${money(-d)} ر.س (ناقص)` : `+${money(d)} ر.س (زيادة)`;", "  return d < 0 ? `${money(-d)} ر.س (ناقص)` : `+${money(d)} ر.س (زيادة)`;"]], TU],
+  ["هـ", "the minus is an ASCII hyphen", [[CU,
+    "  return d < 0 ? `−${money(-d)} ر.س (ناقص)` : `+${money(d)} ر.س (زيادة)`;", "  return d < 0 ? `-${money(-d)} ر.س (ناقص)` : `+${money(d)} ر.س (زيادة)`;"]], TU],
+  ["هـ", "an excess is written without its «+»", [[CU,
+    "  return d < 0 ? `−${money(-d)} ر.س (ناقص)` : `+${money(d)} ر.س (زيادة)`;", "  return d < 0 ? `−${money(-d)} ر.س (ناقص)` : `${money(d)} ر.س (زيادة)`;"]], TU],
+  ["هـ", "halalas are dropped from an amount", [[CU,
+    "  return Number.isInteger(n) ? String(n) : n.toFixed(2);", "  return String(Math.round(n));"]], TU],
+  ["هـ", "Baraa is told only when there is a difference", [[CU,
+    "    await sendOwnerMessage(env, ownerText(rec.day, rec.collector, f, { note, earlier, unread }), CUSTODY_OWNER_PURPOSE);", "    if (day.diff !== 0) await sendOwnerMessage(env, ownerText(rec.day, rec.collector, f, { note, earlier, unread }), CUSTODY_OWNER_PURPOSE);"]], TU],
+  ["هـ", "Baraa is not told that no entry is made", [[CU,
+    "    CUSTODY_NO_ENTRY_TEXT,\n  ].join(\"\\n\");", "  ].join(\"\\n\");"]], TU],
+  ["هـ", "the collector's note does not reach Baraa", [[CU,
+    "    ...(o.note ? [`ملاحظته: ${o.note}`] : []),\n", ""]], TU],
+  ["هـ", "a note of several lines breaks Baraa's message", [[CU,
+    "cut(String(values.note ?? \"\").replace(/\\s+/g, \" \").trim(), CUSTODY_NOTE_MAX);", "cut(String(values.note ?? \"\").trim(), CUSTODY_NOTE_MAX);"]], TU],
+  ["هـ", "how the cash was handed over is not said", [[CU,
+    "    `الطريقة: ${CUSTODY_HOW[f.how]}`,\n", ""]], TU],
+  ["هـ", "the collector is not answered", [[CU,
+    "    await say(collectorText(rec.day, f));\n", ""]], TU],
+  ["هـ", "a second handover is not said to be a correction", [[CU,
+    "ownerText(rec.day, rec.collector, f, { note, earlier, unread })", "ownerText(rec.day, rec.collector, f, { note, unread })"]], TU],
+  ["هـ", "the correction does not name what was handed over before", [[CU,
+    "`🔁 تصحيح لتسليم سابق اليوم (${hhmm(e.at)}): المسلَّم ${money(e.handed)} ر.س — ${CUSTODY_HOW[e.how]} — المتوقع ${money(e.expected)} ر.س — الفرق ${differenceText(e.diff)}`", "`🔁 تصحيح لتسليم سابق اليوم (${hhmm(e.at)})`"]], TU],
+  ["هـ", "a correction is not counted on the day's record", [[CU,
+    "corrections: earlier ? earlier.corrections + 1 : 0,", "corrections: 0,"]], TU],
+  ["هـ", "the handover is kept one day", [[CU,
+    "export const CUSTODY_KEEP_SEC = 4 * 24 * 60 * 60;", "export const CUSTODY_KEEP_SEC = 24 * 60 * 60;"]], TU],
+  ["هـ", "the handover is the collector's, whatever the day", [[CU,
+    "`custody:v1:${day}:${collectorId}`;", "`custody:v1:${collectorId}`;"]], TU],
+  // ---------------------------------------------------------------- هـ the figure at the reply
+  ["هـ", "the expected cash is not read again at the reply", [[CU,
+    "      now = await expectedCash(env, rec.collectorId, rec.day);", "      now = { total: rec.expected, count: rec.count };"]], TU],
+  ["هـ", "a figure that moved since the form is not said", [[CU,
+    "...(movedSince ? { shown: { total: rec.expected, count: rec.count } } : {}) };", "};"]], TU],
+  ["هـ", "every message says «كان …», moved or not", [[CU,
+    "    const movedSince = now.total !== rec.expected || now.count !== rec.count;", "    const movedSince = true;"]], TU],
+  ["هـ", "collections that cannot be read again are not said to be so", [[CU,
+    "      unread = true;\n", ""]], TU],
+  // ---------------------------------------------------------------- هـ bad values
+  ["هـ", "a negative amount is read", [[CU,
+    "  if (!/^\\d+(\\.\\d{1,2})?$/.test(s)) return \"invalid\";\n  return Number(s);", "  if (!/^-?\\d+(\\.\\d{1,2})?$/.test(s)) return \"invalid\";\n  return Number(s);"]], TU],
+  ["هـ", "three decimals are read", [[CU,
+    "  if (!/^\\d+(\\.\\d{1,2})?$/.test(s)) return \"invalid\";\n  return Number(s);", "  if (!/^\\d+(\\.\\d+)?$/.test(s)) return \"invalid\";\n  return Number(s);"]], TU],
+  ["هـ", "an empty amount is zero", [[CU,
+    "  if (!/^\\d+(\\.\\d{1,2})?$/.test(s)) return \"invalid\";\n  return Number(s);", "  if (s === \"\") return 0;\n  if (!/^\\d+(\\.\\d{1,2})?$/.test(s)) return \"invalid\";\n  return Number(s);"]], TU],
+  ["هـ", "a way the form does not offer is read", [[CU,
+    "(raw === \"bank\" || raw === \"owner\" ? raw : \"invalid\");", "(typeof raw === \"string\" && raw ? (raw as CustodyHow) : \"invalid\");"]], TU],
+  ["هـ", "a bad amount is kept as a handover", [[CU,
+    "    if (handed === \"invalid\" || how === \"invalid\") {\n      await used();", "    if (how === \"invalid\") {\n      await used();"]], TU],
+  ["هـ", "a handover with no way is kept", [[CU,
+    "    if (handed === \"invalid\" || how === \"invalid\") {\n      await used();", "    if (handed === \"invalid\") {\n      await used();"]], TU],
+  ["هـ", "a refused form carries no fresh form", [[CU,
+    "      const r = await sendCustodyForm(env, who, { now: nowMs, ctx, body: text, test: rec.test, ...(rec.test ? { expected: { total: rec.expected, count: rec.count } } : {}) }).catch(() => ({ sent: false }));", "      const r = { sent: false };"]], TU],
+  ["هـ", "a refused form can be sent again", [[CU,
+    "      await used();\n      const problems", "      await releaseButton(env, claim);\n      const problems"]], TU],
+  ["هـ", "the refusal does not say what is wrong with the amount", [[CU,
+    "...(handed === \"invalid\" ? [`• ${CUSTODY_BAD_AMOUNT_TEXT}`] : []), ", ""]], TU],
+  // ---------------------------------------------------------------- هـ the token
+  ["هـ", "a token is read from any number", [[CU,
+    "  if (!rec || rec.to !== to) {", "  if (!rec) {"]], TU],
+  ["هـ", "a token is read twice", [[CU,
+    "  if (!claim.claimed || rec.usedAt) {", "  if (false) {"]], TU],
+  ["هـ", "a form of another day is read", [[CU,
+    "  if (rec.day !== riyadhDateKey(new Date(nowMs))) {", "  if (false) {"]], TU],
+  ["هـ", "the token does not say whose it is", [[CU,
+    "  return `cu1.${day.replace(/-/g, \"\")}.${collectorId}.${rand}`;", "  return `cu1.${rand}`;"]], TU],
+  // ---------------------------------------------------------------- هـ nothing in Odoo
+  ["هـ", "an accounting entry is posted for the handover", [[CU,
+    "    await writeCustody(env, day);\n    await used();", "    await writeCustody(env, day);\n    await call(env, \"account.move\", \"create\", { vals_list: [{ ref: \"custody\" }] });\n    await used();"]], TU],
+  ["هـ", "the handover is written on an invoice in Odoo", [[CU,
+    "    await writeCustody(env, day);\n    await used();", "    await writeCustody(env, day);\n    await call(env, \"x_invoice\", \"write\", { ids: [0], vals: { x_pdf_url: \"custody\" } });\n    await used();"]], TU],
+  ["هـ", "the purchase prices are read with the collections", [[CU,
+    "  const sim = await simulationInvoices(env, pays.map((p) => m2oId(p.x_invoice_id)));", "  await call(env, \"x_daily_price\", \"search_read\", { domain: [], fields: [\"x_price_sar\"], limit: 1 });\n  const sim = await simulationInvoices(env, pays.map((p) => m2oId(p.x_invoice_id)));"]], TU],
+  ["هـ", "a purchase price is written in Baraa's message", [[CU,
+    "    ...(o.unread ? [CUSTODY_NOT_READ_TEXT] : []),\n", "    ...(o.unread ? [CUSTODY_NOT_READ_TEXT] : []),\n    \"سعر الشراء 77.77\",\n"]], TU],
+  // ---------------------------------------------------------------- هـ the trial and the purposes
+  ["هـ", "the trial's purpose is not among the owner's", [[GW,
+    " \"custody_form_test\", \"owner_summary\",", " \"owner_summary\","]], TU],
+  ["هـ", "the trial goes more than once a day", [[CU,
+    "  if (!claim.claimed) return { sent: false, reason: \"already_today\" };\n", ""]], TU],
+  ["هـ", "a trial that did not go spends the day", [[CU,
+    "    if (!r.sent) { await releaseButton(env, claim); return r; }", "    if (!r.sent) return r;"]], TU],
+  ["هـ", "the trial shows a fixed 0, not today's collections", [[CU,
+    "    const expected = await expectedCash(env, null, day).catch(() => ({ total: 0, count: 0 }));", "    const expected = { total: 0, count: 0 };"]], TU],
+  ["هـ", "the trial's reply is kept and reported as a handover", [[CU,
+    "    if (rec.test) {\n      await used();\n      const f: CustodyFigures", "    if (false) {\n      await used();\n      const f: CustodyFigures"]], TU],
+  ["هـ", "the trial is not marked «🧪 تجربة»", [[CU,
+    "  const mark = opts.test ? `${CUSTODY_TEST_MARK} — ` : \"\";", "  const mark = \"\";"]], TU],
+  ["هـ", "the trial is sent under the collector's purpose", [[CU,
+    "    purpose: opts.test ? CUSTODY_TEST_PURPOSE : CUSTODY_PURPOSE,", "    purpose: CUSTODY_PURPOSE,"]], TU],
+  ["هـ", "the trial's answer is sent under the collector's purpose", [[CU,
+    "  const purpose = isOwnerRecipient(env, to) ? CUSTODY_TEST_PURPOSE : CUSTODY_PURPOSE;", "  const purpose = CUSTODY_PURPOSE;"]], TU],
+  ["هـ", "Baraa's message goes under a purpose that is not his", [[CU,
+    "export const CUSTODY_OWNER_PURPOSE = T.OWNER_TEAM_NOTE;", "export const CUSTODY_OWNER_PURPOSE = \"bot_reply\";"]], TU],
+  ["هـ", "the trial's hook asks for no token", [[IDX,
+    "url.pathname === \"/odoo/hook/custody-form-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (!expected || !timingSafeEqual(providedToken, expected)) {",
+    "url.pathname === \"/odoo/hook/custody-form-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (false) {"]], TU],
+  ["هـ", "the trial script does not know the custody hook", [[TRIAL,
+    ", custody: \"custody-form-test\"", ""]], TU],
 ];
 
 const want = new Set(process.argv.slice(2));

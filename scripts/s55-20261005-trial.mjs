@@ -10,6 +10,8 @@
 //             what would be done — nothing written, no list confirmed, no photo downloaded.
 //   carload   the car-load form (src/car-load.ts sendCarLoadFormTest): the morning form over the active
 //             items; its reply is answered with what would be kept, and nothing is kept.
+//   custody   the custody handover form (src/custody-form.ts sendCustodyFormTest): it shows today's
+//             real cash collections (read-only); its reply is answered, and nothing is kept.
 //
 //   node scripts/s55-20261005-trial.mjs review            dry-run: what would be called (nothing sent)
 //   node scripts/s55-20261005-trial.mjs review --send     POST its hook on prod, once
@@ -22,7 +24,7 @@ import { writeFileSync } from "node:fs";
 import { call } from "./lib/odoo-cli.mjs";
 
 const HOST = "utak-worker.utak-business.workers.dev";
-const HOOK = { review: "price-review-test", receipt: "receipt-form-test", carload: "carload-form-test" };
+const HOOK = { review: "price-review-test", receipt: "receipt-form-test", carload: "carload-form-test", custody: "custody-form-test" };
 const form = process.argv.slice(2).find((a) => a in HOOK);
 if (!form) { console.log(`usage: node scripts/s55-20261005-trial.mjs <${Object.keys(HOOK).join("|")}> [--send]`); process.exit(1); }
 const SEND = process.argv.includes("--send");

@@ -308,7 +308,7 @@ const M = [
   ["د", "the trial goes under the team's purpose", [[RC,
     "    purpose: opts.test ? RECEIPT_TEST_PURPOSE : RECEIPT_PURPOSE,", "    purpose: RECEIPT_PURPOSE,"]], T],
   ["د", "the trial's purpose is not the owner's (it may reach any number)", [[GW,
-    "\"owner_alert\", \"receipt_form_test\", \"owner_summary\",", "\"owner_alert\", \"owner_summary\","]], T],
+    "\"owner_alert\", \"receipt_form_test\", ", "\"owner_alert\", "]], T],
   ["د", "the gateway does not know the trial's purpose", [[PUR,
     "  receipt_form_test: op(\"تجربة نموذج استلام المشتريات\", false, { hours: 1 }),\n", ""]], T],
   ["د", "the trial script does not know the receipt form", [[TRIAL,

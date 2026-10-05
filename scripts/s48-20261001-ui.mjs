@@ -35,6 +35,7 @@ import {
   REF_CATEGORIES, VIEW, WINDOW, confirmCode, confirmForm, dayForm, dayList, openDayCode, productsDomain, productsList, productsSearch, settingsCode, settingsForm, sourcesForm,
   sourcesListCode, stepDayCode,
 } from "./lib/s48-ui.mjs";
+import * as S56 from "./lib/s56-ui.mjs";
 
 const RB = new URL("./artifacts/s48-20261001-ui-rollback.json", import.meta.url);
 const DAY = "x_price_day", LINE = "x_price_day_line", CFG = "x_pricing_config", COST = "x_operating_cost", TMPL = "product.template", DP = "x_daily_price", PO = "x_price_offer";
@@ -139,8 +140,15 @@ if (VERIFY) {
   // what the screens render (get_views), and what they compute on the real records
   const dayArch = String((await call(DAY, "get_views", { views: [[v.day, "form"]] }))?.views?.form?.arch ?? "");
   check("the day's screen: the header (cost, share, counts, approval, publication, last run), the comparison at 500, the explanation", ["x_op_cost", "x_op_share", "x_op_share_500", "x_n_green", "x_n_yellow", "x_n_red", "x_n_none", "x_approved_at", "x_published_at", "x_board_at", "x_state"].every((f) => dayArch.includes(`name="${f}"`)) && dayArch.includes("الربح الأدنى للكرتون"));
-  check("…the lines in one editable table: the product, the packaging, the purchase, the source, the market, the observations, break-even, suggested, sale, profit / preview, status, reason, «قرار براء», «السعر المعدّل»", ["x_product_tmpl_id", "x_packaging_id", "x_cost_show", "x_supplier_id", "x_market_show", "x_market_count", "x_even_show", "x_suggested_show", "x_sale_show", "x_profit_show", "x_status", "x_reason", "x_decision", "x_manual_price"].every((f) => dayArch.includes(`name="${f}"`)) && /<list[^>]*editable="bottom"/.test(dayArch));
-  check("…cards on a phone (a kanban of the same lines: the status in words, a coloured side border), and the line's form for the decision", /mode="list,kanban"/.test(dayArch) && dayArch.includes("border-start border-5") && /<kanban/.test(dayArch) && /<form string="سطر السعر"/.test(dayArch));
+  // § 56 (2026-10-05) — the day's body was rebuilt (scripts/lib/s56-ui.mjs): the table is the review's nine columns, read-only, and
+  // «قرار براء», «السعر المعدّل» and every other number (the source, the observations, break-even, sale, profit / preview, the status)
+  // are in the line's own form. (This check failed from § 49 on: it still named the product and the packaging as two columns.)
+  const dayList = /<list[\s\S]*?<\/list>/.exec(dayArch.slice(dayArch.indexOf('name="x_line_ids"')))?.[0] ?? "";
+  const dayColumns = [...dayList.matchAll(/<field name="(\w+)"([^>]*)\/>/g)].filter((m) => !/column_invisible|optional="hide"/.test(m[2])).map((m) => [m[1], /string="([^"]*)"/.exec(m[2])?.[1]]);
+  const lineForm = /<form string="تفاصيل الصنف">[\s\S]*?<\/form>/.exec(dayArch)?.[0] ?? "";
+  check(`…the lines in one table of § 56's nine columns (${S56.COLUMNS.map((c) => c[1]).join(" · ")}), read-only; «قرار براء», «السعر المعدّل» and the numbers behind them in the line's own form`, JSON.stringify(dayColumns) === JSON.stringify(S56.COLUMNS) && !/editable=/.test(dayList)
+    && ["x_decision", "x_manual_price", ...S56.DETAIL_FIELDS].every((f) => lineForm.includes(`name="${f}"`)), JSON.stringify(dayColumns));
+  check("…cards on a phone (a kanban of the same lines: «القرار» with its mark, a coloured side border), and the line's form for the decision", /mode="list,kanban"/.test(dayArch) && dayArch.includes("border-start border-5") && /<kanban/.test(dayArch) && lineForm.includes('name="x_decision"') && /<kanban[\s\S]*name="x_outcome_show"[\s\S]*<\/kanban>/.test(dayArch));
   check(`…the buttons: «🔄 إعادة الحساب» (#${a.refresh}), «نشر المعتمد الآن» → the confirmation (#${a.confirm}), the day before (#${a.prev}) and after (#${a.next}); the publication is never one tap`, dayArch.includes(`name="${a.refresh}"`) && dayArch.includes(`name="${a.confirm}"`) && dayArch.includes(`name="${a.prev}"`) && dayArch.includes(`name="${a.next}"`) && !dayArch.includes(`name="${a.approve}"`));
   check("…and the other four screens one tap away (the row of links)", [a.days, a.openSources, a.products, a.settings].every((id) => dayArch.includes(`name="${id}"`)));
   const confArch = String((await call(DAY, "get_views", { views: [[v.confirm, "form"]] }))?.views?.form?.arch ?? "");

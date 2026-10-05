@@ -144,10 +144,13 @@ if (VERIFY) {
     JSON.stringify(lines.map((l) => [l.id, l.x_item_show, l.x_item_code])));
   for (const l of lines) log(`    #${l.id}: «${l.x_item_show}» · ${l.x_item_code}`);
   const dArch = String((await call(DAY, "get_views", { views: [[v.day, "form"]] }))?.views?.form?.arch ?? "");
-  const listPart = /<list[^>]*editable="bottom"[\s\S]*?<\/list>/.exec(dArch)?.[0] ?? "";
+  // § 56 (2026-10-05) — the day's table is read-only now (scripts/lib/s56-ui.mjs): the lines' own list, editable or not
+  const listPart = /<list[\s\S]*?<\/list>/.exec(dArch.slice(dArch.indexOf('name="x_line_ids"')))?.[0] ?? "";
+  const linePart = /<form string="تفاصيل الصنف">[\s\S]*?<\/form>/.exec(dArch)?.[0] ?? "";
   const firstShown = [...listPart.matchAll(/<field name="(\w+)"([^>]*)\/>/g)].find((m) => !/column_invisible/.test(m[2]));
   check("هـ — «📊 اليوم»: the table's first column is the item's full name; the code is a column of its own, hidden by default; no «[UTAK-…] name» column left", firstShown?.[1] === "x_item_show" && /name="x_item_code"[^>]*optional="hide"/.test(listPart) && !/name="x_product_tmpl_id"/.test(listPart), listPart.slice(0, 400));
-  check("هـ — …«قرار براء» and «السعر المعدّل» still edited in the row, the «—» columns and «معاينة» as before", /name="x_decision"/.test(listPart) && /name="x_manual_price"[^>]*invisible=/.test(listPart) && /name="x_profit_show"[^>]*decoration-it=/.test(listPart) && ["x_cost_show", "x_market_show", "x_even_show", "x_suggested_show", "x_sale_show"].every((f) => listPart.includes(`name="${f}"`)));
+  check("هـ — …«قرار براء» and «السعر المعدّل» still edited in Odoo (§ 56: in the line's own form, its title the item's full name), the «—» columns in the table and «بدون خسارة», «البيع», «معاينة» in that form", /name="x_decision"/.test(linePart) && /name="x_manual_price"[^>]*invisible=/.test(linePart) && /<h2><field name="x_item_show"/.test(linePart)
+    && ["x_cost_show", "x_market_show"].every((f) => listPart.includes(`name="${f}"`)) && ["x_even_show", "x_sale_show", "x_profit_show"].every((f) => linePart.includes(`name="${f}"`)));
   const cardPart = /<kanban[\s\S]*?<\/kanban>/.exec(dArch)?.[0] ?? "";
   check("هـ — the phone's card: the full name first (bold), the code under it in small text", /name="x_item_show"[^>]*class="fw-bold fs-5"/.test(cardPart) && /class="small text-muted"[^>]*>\s*<field name="x_item_code"/.test(cardPart) && cardPart.indexOf('name="x_item_show"') < cardPart.indexOf('name="x_cost_show"') && !/name="x_name"/.test(cardPart), cardPart.slice(0, 500));
   for (const [label, model, view, type] of [["ردود الشراء", DP, v.purchaseList, "list"], ["مشاهدات السوق", PO, v.marketList, "list"], ["📅 الأيام السابقة ← 📈 ربح الأصناف عبر الأيام", LINE, v.boardList, "list"]]) {

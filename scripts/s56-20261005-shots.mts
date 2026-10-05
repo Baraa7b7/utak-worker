@@ -13,16 +13,23 @@
 //
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs scripts/s56-20261005-shots.mts
 //
-// Out (scripts/artifacts/): s56-20261005-chart-day54.html (the chart's HTML as written to x_chart_html),
-//   s56-20261005-day-{light,dark,mobile,mobile-dark}.png, s56-20261005-day-contrast.json
+// Out (scripts/artifacts/): <tag>-chart-day54.html (the chart's HTML as written to x_chart_html),
+//   <tag>-day-{light,dark,mobile,mobile-dark}.png, <tag>-day-contrast.json — <tag> is s57-20261005 from § 57 on
+//   (the screen with its own class and stylesheet, scripts/lib/s57-ui.mjs); § 56's pictures keep their names.
+// § 57 أ: the wide screen was then looked at INSIDE Odoo itself, in Baraa's own Chrome (the four
+//   s57-20261005-day-1440-*.png and s57-20261005-day-measure.json); a phone's width could not be had there.
 import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 
 const ODOO = readFileSync(new URL("../.env.sim-verify", import.meta.url), "utf8").match(/^ODOO_URL=(.*)$/m)![1].trim();
-const out = (name: string) => new URL(`./artifacts/s56-20261005-${name}`, import.meta.url).pathname;
+// § 57 أ (2026-10-05): the pictures are written under the § of the screen as it is now (--tag=s56-20261005 for the old names)
+const TAG = process.argv.find((a) => a.startsWith("--tag="))?.slice(6) ?? "s57-20261005";
+const out = (name: string) => new URL(`./artifacts/${TAG}-${name}`, import.meta.url).pathname;
 const UI = await import("./lib/s56-ui.mjs");
+// § 57 أ: the form's own class and stylesheet (the whole width, a table that wraps), and the average's label
+const UI57 = await import("./lib/s57-ui.mjs");
 const DS = await import("../src/day-screen.ts");
 const FX = JSON.parse(readFileSync(new URL("../tests/fixtures-s56-day54.json", import.meta.url), "utf8"));
 
@@ -55,15 +62,16 @@ const fieldHtml = (rec: Record<string, unknown>) => (_: string, name: string, at
   const v = name === "x_state" ? rec.x_state_label : rec[name];
   return `<span class="o_field_widget ${cls}" data-field="${name}"${inv ? ` invisible="${inv}"` : ""}>${v === false || v === null || v === undefined ? "" : esc(v)}</span>`;
 };
-const top = String(UI.DAY_BODY).slice(0, String(UI.DAY_BODY).indexOf(`<field name="x_chart_html"`)).replace(/<field name="(\w+)"([^>]*)\/>/g, fieldHtml(dayRec));
+const top = String(UI.DAY_BODY).slice(0, String(UI.DAY_BODY).indexOf(`<field name="x_chart_html"`)).replace(`<div>${UI57.AVG_LABEL_56}</div>`, UI57.TILE).replace(/<field name="(\w+)"([^>]*)\/>/g, fieldHtml(dayRec));
+if (!top.includes(UI57.TILE)) throw new Error("the average's tile was not found in the screen's top");
 if (/<field /.test(top)) throw new Error("a field of the screen's top was not rendered");
 // the table: the columns of the arch (the hidden ones apart), each cell with the decoration its column asks for
 const cols = [...String(UI.LINE_LIST).matchAll(/<field name="(\w+)"([^>]*)\/>/g)].map((m) => ({ name: m[1], attrs: m[2] })).filter((c) => !/column_invisible="1"|optional="hide"/.test(c.attrs));
 const deco = (attrs: string, rec: Record<string, unknown>) => [...attrs.matchAll(/decoration-(\w+)="([^"]*)"/g)].filter((m) => new Function("r", `with (r) { return (${m[2].replace(/&gt;/g, ">").replace(/&lt;/g, "<")}); }`)(rec))
   .map((m) => ({ success: "text-success", danger: "text-danger", bf: "fw-bold", muted: "text-muted", it: "fst-italic" } as Record<string, string>)[m[1]] ?? "").join(" ");
-const LIST_HTML = `<div class="o_field_x2many o_field_x2many_list"><div class="o_list_renderer o_renderer table-responsive"><table class="o_list_table table table-sm table-hover position-relative mb-0 o_list_table_ungrouped table-striped"><thead><tr>${
-  cols.map((c) => `<th><span>${/string="([^"]*)"/.exec(c.attrs)?.[1] ?? c.name}</span></th>`).join("")}</tr></thead><tbody>${
-  lineRecs.map((r) => `<tr class="o_data_row">${cols.map((c) => `<td class="o_data_cell cursor-pointer o_field_cell o_list_char ${deco(c.attrs, r)}" data-col="${c.name}">${esc(r[c.name] === false ? "" : r[c.name])}</td>`).join("")}</tr>`).join("")}</tbody></table></div></div>`;
+const LIST_HTML = `<div class="o_field_widget o_field_x2many o_field_x2many_list" name="x_line_ids"><div class="o_list_renderer o_renderer table-responsive"><table class="o_list_table table table-sm table-hover position-relative mb-0 o_list_table_ungrouped table-striped"><thead><tr>${
+  cols.map((c) => `<th data-name="${c.name}"><div class="d-flex align-items-center"><span class="d-block min-w-0 text-truncate flex-grow-1 flex-shrink-1">${/string="([^"]*)"/.exec(c.attrs)?.[1] ?? c.name}</span></div></th>`).join("")}</tr></thead><tbody>${
+  lineRecs.map((r) => `<tr class="o_data_row">${cols.map((c) => `<td class="o_data_cell cursor-pointer o_field_cell o_list_char ${deco(c.attrs, r)}" name="${c.name}" data-col="${c.name}">${esc(r[c.name] === false ? "" : r[c.name])}</td>`).join("")}</tr>`).join("")}</tbody></table></div></div>`;
 // the card: the kanban's template with its expressions evaluated for the record
 const cardTpl = /<t t-name="card">([\s\S]*?)<\/t>\s*$/.exec(String(UI.LINE_CARD))?.[1];
 if (!cardTpl) throw new Error("the card template was not found in scripts/lib/s56-ui.mjs");
@@ -86,11 +94,12 @@ async function css(bundle: string) {
 const page = (cssHref: string, phone: boolean) => `<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="${cssHref}">
 </head><body class="o_web_client" style="overflow-x:hidden">
-<div class="o_action_manager"><div class="o_form_view o_view_controller"><div class="o_form_sheet_bg"><div class="o_form_sheet" id="utak-sheet" data-record='${esc(JSON.stringify(Object.fromEntries(Object.entries(dayRec).filter(([k]) => k !== "x_chart_html"))))}'>
+<div class="o_action_manager"><div class="o_form_view o_view_controller ${UI57.FORM_CLASS}"><div class="o_form_renderer"><div class="o_form_sheet_bg"><div class="o_form_sheet" id="utak-sheet" data-record='${esc(JSON.stringify(Object.fromEntries(Object.entries(dayRec).filter(([k]) => k !== "x_chart_html"))))}'>
+<style>${UI57.DAY_STYLE}</style>
 ${top}
 <div class="o_field_widget o_field_html mb-3" data-field="x_chart_html"><div class="o_readonly">${screen.header.x_chart_html}</div></div>
 ${phone ? CARDS_HTML : LIST_HTML}
-</div></div></div></div>
+</div></div></div></div></div>
 <script>
 const rec = JSON.parse(document.getElementById("utak-sheet").dataset.record);
 // Odoo's own «invisible»: the element is not rendered at all

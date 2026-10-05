@@ -36,6 +36,7 @@ import {
   sourcesListCode, stepDayCode,
 } from "./lib/s48-ui.mjs";
 import * as S56 from "./lib/s56-ui.mjs";
+import { FORM_CLASS } from "./lib/s57-ui.mjs";   // § 57 أ: the day's form carries its own class and stylesheet (the table wraps and clips nothing)
 
 const RB = new URL("./artifacts/s48-20261001-ui-rollback.json", import.meta.url);
 const DAY = "x_price_day", LINE = "x_price_day_line", CFG = "x_pricing_config", COST = "x_operating_cost", TMPL = "product.template", DP = "x_daily_price", PO = "x_price_offer";
@@ -143,10 +144,13 @@ if (VERIFY) {
   // § 56 (2026-10-05) — the day's body was rebuilt (scripts/lib/s56-ui.mjs): the table is the review's nine columns, read-only, and
   // «قرار براء», «السعر المعدّل» and every other number (the source, the observations, break-even, sale, profit / preview, the status)
   // are in the line's own form. (This check failed from § 49 on: it still named the product and the packaging as two columns.)
-  const dayList = /<list[\s\S]*?<\/list>/.exec(dayArch.slice(dayArch.indexOf('name="x_line_ids"')))?.[0] ?? "";
+  const dayList = /<list[\s\S]*?<\/list>/.exec(dayArch.slice(dayArch.indexOf('<field name="x_line_ids"')))?.[0] ?? "";
   const dayColumns = [...dayList.matchAll(/<field name="(\w+)"([^>]*)\/>/g)].filter((m) => !/column_invisible|optional="hide"/.test(m[2])).map((m) => [m[1], /string="([^"]*)"/.exec(m[2])?.[1]]);
   const lineForm = /<form string="تفاصيل الصنف">[\s\S]*?<\/form>/.exec(dayArch)?.[0] ?? "";
-  check(`…the lines in one table of § 56's nine columns (${S56.COLUMNS.map((c) => c[1]).join(" · ")}), read-only; «قرار براء», «السعر المعدّل» and the numbers behind them in the line's own form`, JSON.stringify(dayColumns) === JSON.stringify(S56.COLUMNS) && !/editable=/.test(dayList)
+  // § 57 أ (2026-10-05) — the same nine columns, in a form that takes the whole width: its own class and ONE stylesheet (scripts/lib/s57-ui.mjs)
+  // under which the table wraps and clips nothing. (The list is read from the field itself: the stylesheet names x_line_ids too.)
+  check(`…the lines in one table of § 56's nine columns (${S56.COLUMNS.map((c) => c[1]).join(" · ")}), read-only, wrapped by the form's own stylesheet (§ 57); «قرار براء», «السعر المعدّل» and the numbers behind them in the line's own form`, JSON.stringify(dayColumns) === JSON.stringify(S56.COLUMNS) && !/editable=/.test(dayList)
+    && new RegExp(`<form[^>]*class="${FORM_CLASS}"`).test(dayArch) && dayArch.split("<style").length === 2 && dayArch.indexOf("<style>") < dayArch.indexOf('<field name="x_line_ids"')
     && ["x_decision", "x_manual_price", ...S56.DETAIL_FIELDS].every((f) => lineForm.includes(`name="${f}"`)), JSON.stringify(dayColumns));
   check("…cards on a phone (a kanban of the same lines: «القرار» with its mark, a coloured side border), and the line's form for the decision", /mode="list,kanban"/.test(dayArch) && dayArch.includes("border-start border-5") && /<kanban/.test(dayArch) && lineForm.includes('name="x_decision"') && /<kanban[\s\S]*name="x_outcome_show"[\s\S]*<\/kanban>/.test(dayArch));
   check(`…the buttons: «🔄 إعادة الحساب» (#${a.refresh}), «نشر المعتمد الآن» → the confirmation (#${a.confirm}), the day before (#${a.prev}) and after (#${a.next}); the publication is never one tap`, dayArch.includes(`name="${a.refresh}"`) && dayArch.includes(`name="${a.confirm}"`) && dayArch.includes(`name="${a.prev}"`) && dayArch.includes(`name="${a.next}"`) && !dayArch.includes(`name="${a.approve}"`));

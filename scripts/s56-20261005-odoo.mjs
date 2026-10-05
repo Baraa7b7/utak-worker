@@ -22,6 +22,8 @@ import { APPLY, DROP, ROLLBACK, VERIFY, call, checker, dropCreated, ensureFields
 import {
   BODY_MARK, CHART_FIELD, COLUMNS, DAY_FIELDS, DAY_MODEL, DAY_NOTE_56, DETAIL_FIELDS, LINE_FIELDS, LINE_MODEL, SANITIZE_FLAGS, VIEW_DAY, dayArch,
 } from "./lib/s56-ui.mjs";
+// § 57 أ (2026-10-05): the form carries its own class and stylesheet, and the average's label says «(المنشور)» (scripts/lib/s57-ui.mjs)
+import { FIELD_LABELS, dayArch57 } from "./lib/s57-ui.mjs";
 
 const FIELDS_ONLY = process.argv.includes("--fields");
 const RB = new URL("./artifacts/s56-20261005-odoo-rollback.json", import.meta.url);
@@ -55,7 +57,7 @@ if (VERIFY) {
   const { check, done } = checker();
   for (const [model, defs] of [[LINE_MODEL, LINE_FIELDS], [DAY_MODEL, DAY_FIELDS]]) {
     const f = await call(model, "fields_get", { attributes: ["type", "string"] });
-    check(`${model}: ${defs.map((d) => `${d.name} (${d.ttype})`).join(", ")}`, defs.every((d) => f[d.name]?.type === d.ttype && f[d.name].string === d.field_description), JSON.stringify(defs.map((d) => [d.name, f[d.name]])));
+    check(`${model}: ${defs.map((d) => `${d.name} (${d.ttype})`).join(", ")}`, defs.every((d) => f[d.name]?.type === d.ttype && f[d.name].string === (FIELD_LABELS[d.name] ?? d.field_description)), JSON.stringify(defs.map((d) => [d.name, f[d.name]])));
     await pause();
   }
   const [chart] = await call("ir.model.fields", "search_read", { domain: [["model", "=", DAY_MODEL], ["name", "=", CHART_FIELD.name]], fields: SANITIZE_FLAGS });
@@ -67,11 +69,11 @@ if (VERIFY) {
     check(`the form #${v?.id} carries § 56's body`, false, "the view is still the one of before § 56: run --apply (after the worker's code is deployed and the days are filled)");
     done();
   }
-  if (was) check(`the form #${v.id} is the one of before § 56 with its body replaced, and nothing else: its header (the buttons), the links, the banners and «تقرير النشر» byte for byte`, v.arch_db === dayArch(was.arch) && headerOf(v.arch_db) === headerOf(was.arch) && headerOf(was.arch).length > 0, `${v.arch_db.length} against ${dayArch(was.arch).length} characters`);
+  if (was) check(`the form #${v.id} is the one of before § 56 with its body replaced (and § 57's class, stylesheet and label), and nothing else: its header (the buttons), the links, the banners and «تقرير النشر» byte for byte`, v.arch_db === dayArch57(dayArch(was.arch)) && headerOf(v.arch_db) === headerOf(was.arch) && headerOf(was.arch).length > 0, `${v.arch_db.length} against ${dayArch57(dayArch(was.arch)).length} characters`);
   const arch = await rendered(v.id);
   check("it renders: «🔄 إعادة الحساب», «نشر المعتمد الآن», the day before and after, and the four links, as they were", ["🔄 إعادة الحساب", "نشر المعتمد الآن", "◀ اليوم السابق", "اليوم التالي ▶", "📅 الأيام السابقة", "📥 عروض المصادر", "📦 الأصناف", "⚙️ الإعدادات"].every((s) => arch.includes(`string="${s}"`)), arch.slice(0, 300));
   const order = (names) => names.map((n) => arch.indexOf(n)).every((at, i, all) => at >= 0 && (i === 0 || at > all[i - 1]));
-  check("the order: the date, the state and the publication time, the four large numbers, the chart, the table, then the day's details", order([`name="x_date"`, `name="utak_day_head"`, `name="x_n_publish"`, `name="x_n_skip"`, `name="x_n_warn"`, `name="x_avg_profit_show"`, `name="x_chart_html"`, `name="x_line_ids"`, `name="utak_day_details"`]));
+  check("the order: the date, the state and the publication time, the four large numbers, the chart, the table, then the day's details", order([`name="x_date"`, `name="utak_day_head"`, `name="x_n_publish"`, `name="x_n_skip"`, `name="x_n_warn"`, `name="x_avg_profit_show"`, `name="x_chart_html"`, `<field name="x_line_ids"`, `name="utak_day_details"`]));
   const list = /<list[\s\S]*?<\/list>/.exec(arch)?.[0] ?? "";
   const shown = [...list.matchAll(/<field name="(\w+)"([^>]*)\/>/g)].filter((m) => !/column_invisible|optional="hide"/.test(m[2])).map((m) => [m[1], /string="([^"]*)"/.exec(m[2])?.[1]]);
   check(`the table: ${COLUMNS.map((c) => c[1]).join(" · ")} — nine columns in the review's order, read-only (a row opens the line)`, JSON.stringify(shown) === JSON.stringify(COLUMNS) && !/editable=/.test(list), JSON.stringify(shown));

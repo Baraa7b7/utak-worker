@@ -1,4 +1,4 @@
-# § 55a — every mutation script on HEAD f230794 (git archive copies, 9 in parallel), 2026-10-05T05:18:02.250Z, 3 min
+# § 55 — every mutation script on HEAD 0705e93 (git archive copies, 9 in parallel), 2026-10-05T08:07:12.318Z, 5 min
 === att-20260925
 18/18 caught
 === gw-20260925
@@ -45,8 +45,14 @@
 68/68 caught
 === s54-20261005
 146/146 caught
+=== s55-20261005-delivery
+169/169 caught
 === s55-20261005
-70/70 caught
+78/78 caught
+=== s55-20261005-receipt
+142/142 caught
+=== s55-20261005-team-forms
+197/197 caught
 === shift-20260925
 13/13 caught
 === team-20260925
@@ -56,4 +62,4 @@
 === wa-b4-20260926
 28/28 caught
 
-TOTAL 1729/1729 caught in 28 scripts
+TOTAL 2245/2245 caught in 31 scripts

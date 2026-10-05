@@ -585,6 +585,9 @@ console.log("\n[هـ8] the token: read by the number it was sent to, once — an
   await reply(env2, C1_PHONE, t2, { ...good, photo: [] });
   const reuse = await reply(env2, C1_PHONE, t2, good);
   assert("a refused form's token is spent: the corrected values go by the FRESH form", reuse.action === "duplicate" && complaints().length === 0);
+  env2.MSG_DEDUP.store.delete(`btnlock:v1:complaint_use:${t2}`);
+  const reuse2 = await reply(env2, C1_PHONE, t2, good);
+  assert("…it is MARKED used, not only locked: with its lock lost it is still «سبق إرساله»", reuse2.action === "duplicate" && complaints().length === 0 && typeof tokens(env2).find((t: any) => t.token === t2).usedAt === "number");
 }
 {
   // Odoo cannot make the row: the token is his to send again
@@ -797,8 +800,11 @@ console.log("\n[هـ11] the trial to Baraa, its hook, the purposes, and what the
     "📸 صورة النموذج كانت ستُحفظ مع الملاحظة.", "ملاحظتك: تجربة", "وكان سيصلك ملخصها بأزرار «تعويض بالطلب القادم» و«إشعار دائن» و«رفض».", "(تجربة: لم يُكتب شيء في Odoo، ولم تصل رسالة لأحد غيرك)",
   ].join("\n"), bodyOf(sentTo(OWNER).at(-1)));
   assert("…and writes NOTHING: no complaint, nothing downloaded from Meta — and reaches nobody else, with no decision button", complaints().length === 0 && books() === before && odooWrites().every(gatewayRecord) && mediaAsked.length === 0 && graph.filter(Boolean).every((b: any) => b.to === OWNER) && ownerNotes().length === 0);
-  const twice = await reply(env, OWNER, tokenOf(flowsTo(OWNER)[0]), good);
-  assert("the trial's token is read once too", twice.action === "duplicate" && complaints().length === 0);
+  const trialTok = tokenOf(flowsTo(OWNER)[0]);
+  const twice = await reply(env, OWNER, trialTok, good);
+  env.MSG_DEDUP.store.delete(`btnlock:v1:complaint_use:${trialTok}`);
+  const thrice = await reply(env, OWNER, trialTok, good);
+  assert("the trial's token is read once too — marked used, not only locked", twice.action === "duplicate" && thrice.action === "duplicate" && complaints().length === 0);
   // nothing real was ever delivered: the latest order flagged as a simulation
   setRiyadh("2026-10-04 16:00"); openWindow(env, OWNER);
   for (const o of rows("x_daily_order") as any[]) if (!o.x_utak_simulation && !o.x_is_simulation) o.x_state = "cancelled";

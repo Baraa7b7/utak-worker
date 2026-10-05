@@ -538,12 +538,16 @@ export function trialText(c: Omit<ComplaintSummary, "id" | "name" | "words" | "p
     `• الكمية المتأثرة: ${c.qty !== null ? fmtQty(c.qty) : "لم تُذكر"}`,
     ...(c.photo ? ["📸 صورة النموذج كانت ستُحفظ مع الملاحظة."] : []),
     ...(c.note ? [`ملاحظتك: ${c.note}`] : []),
-    `وكان سيصلك ملخصها بأزرار ${(Object.values(COMPLAINT_DECISIONS)).map((d) => `«${d.title}»`).join(" و")}.`,
+    `وكان سيصلك ملخصها بأزرار ${Object.values(COMPLAINT_DECISIONS).map((d) => `«${d.title}»`).join(" و")}.`,
     "(تجربة: لم يُكتب شيء في Odoo، ولم تصل رسالة لأحد غيرك)",
   ].join("\n");
 }
 
-/** A reply of the complaint form (nfm_reply): read, checked against its token and the orders it listed, recorded, and sent to Baraa. Never throws. */
+/**
+ * A reply of the complaint form (nfm_reply): read, checked against its token
+ * and the orders it listed, recorded, and sent to Baraa. A reply that could
+ * not be recorded says so, and its token is his to send again.
+ */
 export async function handleComplaintReply(env: Env, msg: Pick<NormalizedMessage, "from" | "messageId" | "flow">, ctx?: ExecutionContext, nowMs: number = Date.now()): Promise<ComplaintOutcome> {
   const to = waDigits(msg.from);
   const purpose = isOwnerRecipient(env, to) ? COMPLAINT_TEST_PURPOSE : COMPLAINT_PURPOSE;

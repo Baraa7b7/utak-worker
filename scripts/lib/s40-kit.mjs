@@ -3,7 +3,9 @@
 // every request other than utakfresh.odoo.com is blocked. Each script: dry-run
 // by default, --apply writes the rollback file BEFORE the first write and adds
 // every id the moment it is created, --verify is read-only.
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { basename } from "node:path";
+import { format } from "node:util";
 import { call } from "./odoo-cli.mjs";
 
 globalThis.fetch = ((real) => (input, init) => {
@@ -20,7 +22,43 @@ export const DROP = process.argv.includes("--drop");
 export const UTAK_MENU = 529;          // UTAK
 export const PURCHASE_MENU = 547;      // UTAK ← 🛒 المشتريات
 export const USER_GROUP_ID = 1;        // «Role / User», as on the other UTAK models
-export const log = (...a) => console.log(...a);
+
+// § 55.1 — quiet by default: every line a script logs goes to a file in scripts/artifacts/logs/
+// (<script>-<mode>-<time>.log), and stdout gets every «✗» line in full and, at the end, two lines: the
+// counts with the script's last line, and the log's path. VERBOSE=1 prints every line as before. The
+// plan of a dry-run is in the log («+» what would be created, «✎» what would change, «=» what exists).
+// What is written to Odoo and to the rollback file is the same either way.
+const VERBOSE = process.env.VERBOSE === "1";
+const RUN = basename(process.argv[1] ?? "script").replace(/\.m[jt]s$/, "");
+const MODE = VERIFY ? "verify" : [ROLLBACK ? "rollback" : "", DROP ? "drop" : "", APPLY ? "apply" : "dry"].filter(Boolean).join("-");
+const at = new Date();
+const two = (n) => String(n).padStart(2, "0");
+const LOG = `scripts/artifacts/logs/${RUN}-${MODE}-${at.getFullYear()}${two(at.getMonth() + 1)}${two(at.getDate())}-${two(at.getHours())}${two(at.getMinutes())}${two(at.getSeconds())}.log`;
+const LOG_PATH = new URL(`../../${LOG}`, import.meta.url).pathname;
+const MARKS = ["+", "✎", "=", "✓", "✗"];
+const seen = { lines: 0, last: "", file: null, marks: Object.fromEntries(MARKS.map((m) => [m, 0])) };
+export const log = (...a) => {
+  const text = format(...a);
+  for (const l of text.split("\n")) {
+    seen.lines++;
+    const mark = l.trimStart()[0];
+    if (mark in seen.marks) seen.marks[mark]++;
+    if (l.trim()) seen.last = l.trim();
+  }
+  if (seen.file === null) {
+    // a log that cannot be written never stops a script: its lines go to stdout instead
+    try { mkdirSync(new URL("../artifacts/logs/", import.meta.url), { recursive: true }); writeFileSync(LOG_PATH, ""); seen.file = true; } catch { seen.file = false; }
+  }
+  if (seen.file) appendFileSync(LOG_PATH, text + "\n");
+  if (VERBOSE || !seen.file) console.log(text);
+  else if (/^\s*✗/.test(text)) console.log(text);
+};
+process.on("exit", (code) => {
+  if (VERBOSE || !seen.file || !seen.lines) return;
+  const counts = MARKS.filter((m) => seen.marks[m]).map((m) => `${m} ${seen.marks[m]}`).join(" · ");
+  console.log(`${RUN} ${MODE}${code ? ` (exit ${code})` : ""}: ${counts ? counts + " — " : ""}${seen.last.slice(0, 200)}`);
+  console.log(`log: ${LOG} (${seen.lines} lines)`);
+});
 
 export const find = async (model, domain) => (await call(model, "search_read", { domain, fields: ["id"], limit: 50, context: { active_test: false } })).map((r) => r.id);
 export const one = async (model, domain) => (await find(model, domain))[0];

@@ -55,6 +55,7 @@ import {
 import type { CompanyInfo } from "./company";
 import { readCompanyInfoWithBank } from "./company";
 import { bankTransferLine, withBankLine } from "./bank-line";
+import { fmtSar } from "./collect-pay";
 import { toLegalFooterAr } from "./legal-footer";
 import { parseOdooUtc, resolveZatcaQr, zatcaQrSvg, type ZatcaQr } from "./zatca-qr";
 import { BUYER_TAX_FIELDS, buyerTaxInfo, riyadhDateTime, taxInvoiceBreakdown, taxInvoiceKind, type BuyerTax } from "./tax-invoice";
@@ -584,6 +585,11 @@ export async function handleCollectionButton(
 
   const method: "cash" | "transfer" = m[1] === "collect_cash" ? "cash" : "transfer";
   const invoiceId = Number(m[2]);
+  // § 58 ب — «تحويل» pays nothing from here either: a transfer notice of the collector's, and the payment waits for «✅ وصل»
+  if (method === "transfer") {
+    const { noticeCollectorTransfer } = await import("./transfer-form");
+    return { text: (await noticeCollectorTransfer(env, invoiceId, null, { id: collectorPartnerId ?? 0, name: "", whatsapp: "" })).text };
+  }
   const r = await recordCollection(env, { invoiceId, method, collectedBy: collectorPartnerId });
   return { text: r.text };
 }
@@ -608,6 +614,12 @@ export interface CollectionArgs {
    * whole transfer over its invoices (syncTransferToAccounting) and links every row to it.
    */
   accounting?: boolean;
+  /**
+   * § 58 ب — true: the caller tells Baraa itself about an amount the invoice could not take, so the
+   * last guard does not ring too («✅ وصل» spreads ONE amount over its invoices and says each
+   * shortfall in its own message; the delivery form says the two amounts in its one message).
+   */
+  quietExcess?: boolean;
 }
 
 export interface CollectionOutcome extends CollectionResult {
@@ -617,6 +629,43 @@ export interface CollectionOutcome extends CollectionResult {
   amount?: number;
   /** § 42 ب — the typed amount was more than the open balance (exact): nothing recorded. */
   overLimit?: { remaining: number };
+}
+
+// --------------------------------------------------------------
+// § 58 ب — the last guard before any payment, of any route, transfer or cash:
+// an invoice with nothing left, or with less left than the amount, never takes
+// the excess (cut down to what is left; an amount typed is refused whole, as it
+// was), AND Baraa gets one alert with the invoice and the two amounts. Once per
+// invoice, method and amount in ten minutes: an amount typed again does not
+// ring twice.
+// --------------------------------------------------------------
+export const EXCESS_ALERT_TTL = 10 * 60;
+export interface ExcessPayment {
+  invoiceId: number;
+  number: string;
+  method: "cash" | "transfer";
+  /** The amount asked; null = «المبلغ كامل» (none was named). */
+  asked: number | null;
+  /** What was left on the invoice then. */
+  left: number;
+  /** What was recorded on it (0: nothing). */
+  recorded: number;
+}
+export function excessAlertText(a: Omit<ExcessPayment, "invoiceId">): string {
+  const asked = a.asked === null ? "«المبلغ كامل»" : `${fmtSar(a.asked)} ر.س`;
+  return `⚠️ دفعة أكبر من المتبقي — الفاتورة ${a.number} (${a.method === "cash" ? "نقد 💵" : "تحويل 🏦"}): المبلغ ${asked} والمتبقي ${fmtSar(Math.max(0, a.left))} ر.س. ${a.recorded > 0 ? `سُجّل ${fmtSar(a.recorded)} ر.س فقط، والزيادة لم تُسجَّل على الفاتورة` : "لم يُسجَّل شيء"}.`;
+}
+/** The guard's alert to Baraa. Never throws. */
+export async function alertExcessPayment(env: Env, a: ExcessPayment): Promise<boolean> {
+  try {
+    const claim = await claimButton(env, `pay_excess:${a.invoiceId}:${a.method}:${a.asked === null ? "full" : fmtSar(a.asked)}`, EXCESS_ALERT_TTL);
+    if (!claim.claimed) return false;
+    await sendOwnerAlert(env, excessAlertText(a));
+    return true;
+  } catch (e) {
+    console.warn(`[collection] the excess alert of ${a.number} failed`, (e as Error)?.message);
+    return false;
+  }
 }
 
 /**
@@ -635,7 +684,12 @@ export async function recordCollection(
   if (!invoice) {
     return { text: `الفاتورة رقم ${invoiceId} غير موجودة.`, paymentId: null, fullyPaid: false };
   }
+  // § 58 ب — the last guard: what the invoice could not take is said to Baraa (not for a caller that says it itself)
+  const excess = async (left: number, recorded: number): Promise<void> => {
+    if (!a.quietExcess) await alertExcessPayment(env, { invoiceId, number: invoice.number, method, asked: a.amount ?? null, left, recorded });
+  };
   if (invoice.status === "paid") {
+    await excess(0, 0);
     return { text: `الفاتورة ${invoice.number} تم تحصيلها مسبقاً ✅`, paymentId: null, fullyPaid: true };
   }
 
@@ -648,11 +702,15 @@ export async function recordCollection(
   const remaining = round2(invoice.total - collected);
   let amount = a.amount ?? remaining;
   if (!(amount > 0) || !(remaining > 0)) {
+    if (!(remaining > 0)) await excess(remaining, 0);
     return { text: `لا يوجد مبلغ متبقٍ للتحصيل على الفاتورة ${invoice.number}.`, paymentId: null, fullyPaid: remaining <= 0 };
   }
   if (amount > remaining + 0.005 && a.exact) {
+    await excess(remaining, 0);
     return { text: `المتبقي ${remaining} ر.س فقط على الفاتورة ${invoice.number}.`, paymentId: null, fullyPaid: false, overLimit: { remaining } };
   }
+  // § 58 ب — more than what is left: cut down to it, and the excess is never put on the invoice
+  const cutDown = amount > remaining + 0.005;
   if (amount > remaining) amount = remaining;
   amount = round2(amount);
   const fullyPaid = amount + 0.005 >= remaining;
@@ -668,6 +726,7 @@ export async function recordCollection(
   await writeInvoice(env, invoiceId, fullyPaid
     ? { x_payment_id: paymentId, x_status: "paid" }
     : { x_payment_id: paymentId });
+  if (cutDown) await excess(remaining, amount);
 
   // ح8 second net: the button lock is KV (not atomic across colos). Re-count
   // after the create; more collected than invoiced = a double tap got through.

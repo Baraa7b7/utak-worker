@@ -1880,6 +1880,26 @@ export default {
     // § 57 د — the ONE trial of the transfer-notice form: to Baraa's own number, while his window
     // is open, once a day, listing the oldest real open invoices (read-only) or samples. His reply
     // writes nothing and reaches nobody else (src/transfer-form.ts sendTransferFormTest).
+    // § 58 هـ — the two trials of § 58 أ to Baraa's own number («🧪 تجربة»), only while his window is
+    // open, once a day each: the two buttons after an invoice (src/after-delivery.ts), and the ONE
+    // message of «✅ وصل» for two invoices (src/transfer-form.ts). Nothing is written.
+    if (request.method === "POST" && (url.pathname === "/odoo/hook/after-delivery-test" || url.pathname === "/odoo/hook/transfer-confirmed-test")) {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      try {
+        if (url.pathname === "/odoo/hook/after-delivery-test") {
+          const { sendAfterDeliveryTest } = await import("./after-delivery");
+          return json({ ok: true, ...(await sendAfterDeliveryTest(env)) });
+        }
+        const { sendTransferConfirmedTest } = await import("./transfer-form");
+        return json({ ok: true, ...(await sendTransferConfirmedTest(env)) });
+      } catch (e) {
+        return json({ ok: false, error: (e as Error).message }, 500);
+      }
+    }
     if (request.method === "POST" && url.pathname === "/odoo/hook/transfer-form-test") {
       const providedToken = url.searchParams.get("token") ?? "";
       const expected = env.ODOO_HOOK_TOKEN ?? "";
@@ -2900,6 +2920,12 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           // from it any more; one line says where the decision is taken now.
           const { OLD_EXCEPTION_TEXT } = await import("./prices");
           await sendText(env, msg.from, OLD_EXCEPTION_TEXT, { ctx, purpose: "owner_alert" });
+        } else if ((msg.type === "interactive" || msg.type === "button") && /^aftest_(transfer|note)$/.test(msg.buttonId ?? "")) {
+          // § 58 أ — a button of the trial of the two buttons after an invoice: one line says what it
+          // opens for a customer; no form is opened and nothing is written (src/after-delivery.ts).
+          const { answerAfterDeliveryTest } = await import("./after-delivery");
+          const r = await answerAfterDeliveryTest(env, msg.buttonId!, msg.from, ctx);
+          console.log(`[after-delivery] trial button ${msg.buttonId} → ${r ?? "not Baraa's number"}`);
         } else if ((msg.type === "interactive" || msg.type === "button") && /^trn_(ok|no)_/.test(msg.buttonId ?? "")) {
           // § 57 د — «✅ وصل» / «❌ ما وصل» under a customer's transfer notice: the payment over the chosen
           // invoices, or nothing — once (src/transfer-form.ts answers him itself, and never throws).

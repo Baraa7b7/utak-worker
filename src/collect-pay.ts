@@ -29,6 +29,15 @@
 //
 // Button ids: collect_full_<cash|transfer>_<invoice>_<nonce>,
 //             collect_other_<cash|transfer>_<invoice>_<nonce>.
+//
+// § 58 ب (2026-10-05) — «تحويل 🏦» pays nothing any more. The collector taps as
+// he always did (the open balance, «المبلغ كامل» / «مبلغ آخر», the same locks),
+// and what the last step records is a TRANSFER NOTICE with the source
+// «المحصّل» (src/transfer-form.ts noticeCollectorTransfer): he reads «تمام،
+// سجّلناه — ينتظر تأكيد وصول المبلغ», Baraa gets it with «✅ وصل» / «❌ ما وصل»,
+// and the payment on BNK1 is made in one place — that «✅ وصل». An invoice that
+// already has an open notice (the customer's form, or his own earlier tap)
+// takes no second one: the tap is linked to it. «نقد 💵» is as it was.
 
 import type { Env } from "./config";
 import type { RouterReply } from "./router";
@@ -247,6 +256,20 @@ export async function askCollection(env: Env, invoiceId: number, method: Collect
 
 /** «المبلغ كامل»: the open balance, once per prompt. */
 export async function collectFull(env: Env, invoiceId: number, method: CollectMethod, promptNonce: string, who: Collector): Promise<RouterReply> {
+  // § 58 ب — «تحويل 🏦»: a transfer notice for all that is left, once per prompt — and no payment
+  if (method === "transfer") {
+    const { noticeCollectorTransfer } = await import("./transfer-form");
+    let noticeId = "";
+    const said = await withButtonLock(env, cpRecLock(invoiceId, promptNonce), async () => {
+      const r = await noticeCollectorTransfer(env, invoiceId, null, who);
+      noticeId = r.noticeId ?? "";
+      return r.text;
+    });
+    if (said === ALREADY_DONE_TEXT) return { text: said };
+    await afterRecorded(env, invoiceId, promptNonce, who.id, false);
+    console.log(`[collect-pay] full inv=${invoiceId} transfer → notice ${noticeId || "-"} nonce=${promptNonce}`);
+    return { text: said };
+  }
   const { recordCollection } = await import("./invoice");
   let paymentId: number | null = null, fullyPaid = false;
   const text = await withButtonLock(env, cpRecLock(invoiceId, promptNonce), async () => {
@@ -313,6 +336,23 @@ export async function collectAmountReply(env: Env, who: Collector, text: string,
   // more than the open balance: refused inside recordCollection (exact), read at the moment of the write
   const claim = await claimButton(env, cpRecLock(ptr.invoiceId, ptr.nonce));
   if (!claim.claimed) { await clearAmountPointer(env, who.id); return { text: ALREADY_DONE_TEXT }; }
+  // § 58 ب — «تحويل 🏦» with an amount he typed: a transfer notice at that amount — and no payment
+  if (ptr.method === "transfer") {
+    const { noticeCollectorTransfer } = await import("./transfer-form");
+    let n;
+    try {
+      n = await noticeCollectorTransfer(env, ptr.invoiceId, parsed.value, who, { now });
+    } catch (e) {
+      await releaseButton(env, claim);
+      throw e;
+    }
+    if (n.overLimit) { await releaseButton(env, claim); return again(n.overLimit.remaining); }
+    if (!n.noticeId) { await releaseButton(env, claim); await clearAmountPointer(env, who.id); return { text: n.text }; }
+    await finishButton(env, claim, BUTTON_LOCK_TTL);
+    await afterRecorded(env, ptr.invoiceId, ptr.nonce, who.id, false);
+    console.log(`[collect-pay] amount inv=${ptr.invoiceId} transfer ${parsed.value} → notice ${n.noticeId} nonce=${ptr.nonce}`);
+    return { text: n.text };
+  }
   const { recordCollection } = await import("./invoice");
   let r;
   try {

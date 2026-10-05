@@ -375,9 +375,12 @@ console.log("\n[ب8] the payment on the invoice just issued — a transfer, «ل
   graph.length = 0;
   const r = await reply(env, DRIVER_PHONE, token, FULL("transfer"));
   const [inv] = invoicesOf(o);
-  assert("«تحويل»: a transfer of 131 on the invoice (the bank: it waits for its reconciliation in Odoo), collected by him", r.payment === "paid" && paymentsOf(inv.id).length === 1 && paymentsOf(inv.id)[0].x_method === "transfer" && paymentsOf(inv.id)[0].x_amount === 131 && paymentsOf(inv.id)[0].x_collected_by === DRIVER && inv.x_status === "paid", JSON.stringify(paymentsOf(inv.id)));
-  assert("he is told «تحويل 131 ر.س — ينتظر المطابقة البنكية» — and not «في عهدتك»", textsTo(DRIVER_PHONE)[0].includes("تحويل 131 ر.س — ينتظر المطابقة البنكية") && !textsTo(DRIVER_PHONE)[0].includes("في عهدتك"), textsTo(DRIVER_PHONE)[0]);
-  assert("paid in full: no collection request, nothing to Baraa", asked(env) === 0 && sentTo(OWNER).length === 0);
+  // § 58 ب — «تحويل» pays nothing from the form: a transfer notice with the source «المحصّل», and the payment waits for «✅ وصل»
+  const filed = [...env.MSG_DEDUP.store.entries()].filter(([k]: [string]) => k.startsWith("transfer_notice:v1:")).map(([, v]: [string, string]) => JSON.parse(v));
+  assert("«تحويل»: NO payment on the invoice — a transfer notice of 131 on it, its source the one who delivered", r.payment === "noticed" && paymentsOf(inv.id).length === 0 && inv.x_status === "issued" && filed.length === 1 && filed[0].amount === 131 && filed[0].invoices[0].id === inv.id && filed[0].sources[0].by === "collector" && !filed[0].decided, JSON.stringify(filed));
+  assert("he is told «تحويل 131 ر.س — سجّلناه إشعار تحويل، ولا دفعة حتى يؤكد براء وصول المبلغ» — and not «في عهدتك»", textsTo(DRIVER_PHONE)[0].includes("تحويل 131 ر.س — سجّلناه إشعار تحويل، ولا دفعة حتى يؤكد براء وصول المبلغ") && !textsTo(DRIVER_PHONE)[0].includes("في عهدتك"), textsTo(DRIVER_PHONE)[0]);
+  const ownerButtons = sentTo(OWNER).filter((b: any) => b?.interactive?.type === "button").map((b: any) => b.interactive.action.buttons.map((x: any) => x.reply.id));
+  assert("not paid yet: the collection request goes, and Baraa gets the ONE notice with «✅ وصل» / «❌ ما وصل» — no second line of the delivery", asked(env) === 1 && sentTo(OWNER).length === 1 && JSON.stringify(ownerButtons) === JSON.stringify([[`trn_ok_${filed[0].id}`, `trn_no_${filed[0].id}`]]), JSON.stringify(sentTo(OWNER)).slice(0, 300));
 }
 {
   const env = world(); const o = onTheWay();
@@ -685,7 +688,7 @@ console.log("\n[ب14] § 53: the form and every message of it carry the SALE pri
   const everything = JSON.stringify(graph);
   assert("the reply's messages — his summary, Baraa's line, the customer's invoice, the collector's request — carry none of them, and no word of the purchase side", graph.length >= 4 && !SECRETS.test(everything) && !/شراء|تكلفة|ربح|المقترح/.test(textsTo(DRIVER_PHONE).join("\n") + ownerTexts().join("\n")), String(graph.length));
   assert("the module itself names no field of the purchase side, and no accounting model: the invoice and the payment are the existing paths'", !/x_cost|x_purchase|x_suggested|x_break_even|x_market|x_profit|x_price_sar|x_daily_price|x_price_day|x_price_offer/.test(srcOf("delivery-form.ts")) && !/account\.(move|payment|journal)|syncPaymentToAccounting|createInvoiceRecord|createPaymentRecord/.test(srcOf("delivery-form.ts"))
-    && /await import\("\.\/router"\)/.test(srcOf("delivery-form.ts")) && /recordCollection\(env, \{ invoiceId: inv\.invoiceId, method, amount, collectedBy, exact: true \}\)/.test(srcOf("delivery-form.ts")));
+    && /await import\("\.\/router"\)/.test(srcOf("delivery-form.ts")) && /recordCollection\(env, \{ invoiceId: inv\.invoiceId, quietExcess: true, method, amount, collectedBy, exact: true \}\)/.test(srcOf("delivery-form.ts")));
   assert("no field rejected by the schema gate", rejected.length === 0, rejected.join(" | "));
 }
 

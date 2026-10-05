@@ -381,13 +381,14 @@ const tickAt = async (hm: string) => { setRiyadh(`${DAY} ${hm}`); return quiet((
   await tap(COLL_PHONE, c1.other, "مبلغ آخر");
   assert("a later tap of either button of that prompt: «تم مسبقاً», still one payment", xpay().length === 1 && texts(COLL_PHONE).slice(-2).every((t) => t === ALREADY_DONE_TEXT), JSON.stringify(texts(COLL_PHONE).slice(-2)));
 
-  // --- «تحويل» from the template → «مبلغ آخر» → the amount
+  // --- «نقد» from the template → «مبلغ آخر» → the amount
+  // (§ 58 ب: «تحويل 🏦» records no payment any more — it files a transfer notice, tests/s58-transfers.test.mts)
   ENV = fresh(`${DAY} 13:00`);
   openWindow(ENV, COLL_PHONE, 2);
   const b = invoice(190);
-  await tplTap(COLL_PHONE, `collect_transfer_${b.inv}`, "تحويل 🏦");
+  await tplTap(COLL_PHONE, `collect_cash_${b.inv}`, "نقد 💵");
   const c2 = choiceIds(COLL_PHONE);
-  assert("«تحويل» from the template's quick reply: the same prompt, nothing recorded", c2.full.startsWith(`collect_full_transfer_${b.inv}_`) && xpay().length === 0, JSON.stringify(c2));
+  assert("«نقد» from the template's quick reply: the same prompt, nothing recorded", c2.full.startsWith(`collect_full_cash_${b.inv}_`) && xpay().length === 0, JSON.stringify(c2));
   await tap(COLL_PHONE, c2.other, "مبلغ آخر");
   assert("«مبلغ آخر»: «اكتب المبلغ المستلم رقماً فقط (المتبقي 190 ر.س)», nothing recorded", lastText(COLL_PHONE) === CP.askAmountText(190) && xpay().length === 0, lastText(COLL_PHONE));
   await write(COLL_PHONE, "استلمت الحين");
@@ -397,9 +398,9 @@ const tickAt = async (hm: string) => { setRiyadh(`${DAY} ${hm}`); return quiet((
   await write(COLL_PHONE, "٢٥٠");
   assert("more than the balance (٢٥٠): «المتبقي 190 ر.س فقط» and asked again, nothing recorded", lastText(COLL_PHONE) === CP.overAmountText(190) && xpay().length === 0, lastText(COLL_PHONE));
   await Promise.all([write(COLL_PHONE, "١٠٠"), write(COLL_PHONE, "١٠٠")]);
-  assert("«١٠٠» (Arabic-Indic), sent twice at once: ONE payment of 100 by transfer, the invoice still issued, the order open",
-    xpay().length === 1 && xpay()[0].x_amount === 100 && xpay()[0].x_method === "transfer" && table("x_invoice").get(b.inv)!.x_status === "issued" && table("x_daily_order").get(b.order)!.x_state === "delivered", JSON.stringify(xpay()));
-  assert("…his reply: «تم تسجيل تحصيل جزئي تحويل 🏦 100 ر.س … (المتبقي 90 ر.س)» with «ملاحظة 📝»",
+  assert("«١٠٠» (Arabic-Indic), sent twice at once: ONE payment of 100 in cash, the invoice still issued, the order open",
+    xpay().length === 1 && xpay()[0].x_amount === 100 && xpay()[0].x_method === "cash" && table("x_invoice").get(b.inv)!.x_status === "issued" && table("x_daily_order").get(b.order)!.x_state === "delivered", JSON.stringify(xpay()));
+  assert("…his reply: «تم تسجيل تحصيل جزئي نقد 💵 100 ر.س … (المتبقي 90 ر.س)» with «ملاحظة 📝»",
     texts(COLL_PHONE).some((t) => t.includes("تحصيل جزئي") && t.includes("100 ر.س") && t.includes("المتبقي 90 ر.س")), JSON.stringify(texts(COLL_PHONE).slice(-3)));
   const n0 = xpay().length;
   await write(COLL_PHONE, "50");
@@ -516,14 +517,14 @@ const tickAt = async (hm: string) => { setRiyadh(`${DAY} ${hm}`); return quiet((
   seed("account.account", { id: 1002, code: "102011", account_type: "asset_receivable" });
   const move = seed("account.move", { name: "INV/2026/00001", state: "posted", move_type: "out_invoice", amount_total: 190, amount_residual: 190, payment_state: "not_paid", commercial_partner_id: [CUST, "مطعم الوادي"], partner_id: [CUST, "مطعم الوادي"] });
   const h = invoice(190, { x_account_move_id: move });
-  await tap(COLL_PHONE, `collect_transfer_${h.inv}`);
+  await tap(COLL_PHONE, `collect_cash_${h.inv}`);
   await tap(COLL_PHONE, choiceIds(COLL_PHONE).other, "مبلغ آخر");
   await write(COLL_PHONE, "٢٠٠");
   assert("with accounting: more than the balance creates nothing (no wizard, no payment)", rows("account.payment.register").length === 0 && xpay().length === 0);
   await write(COLL_PHONE, "100");
   const ap1 = rows("account.payment") as any[];
-  assert("the partial 100 → ONE account.payment of 100 (the wizard at 100, bank), linked on the x_payment",
-    ap1.length === 1 && ap1[0].amount === 100 && (rows("account.payment.register") as any[])[0]?.amount === 100 && (rows("account.payment.register") as any[])[0]?.journal_id === 8
+  assert("the partial 100 → ONE account.payment of 100 (the wizard at 100, the driver's cash), linked on the x_payment",
+    ap1.length === 1 && ap1[0].amount === 100 && (rows("account.payment.register") as any[])[0]?.amount === 100 && (rows("account.payment.register") as any[])[0]?.journal_id === 7
       && xpay()[0].x_account_payment_id === ap1[0].id && (table("account.move").get(move) as any).payment_state === "partial", JSON.stringify({ ap1, reg: rows("account.payment.register") }));
   minuteLater(h.inv);
   await tap(COLL_PHONE, `collect_cash_${h.inv}`);

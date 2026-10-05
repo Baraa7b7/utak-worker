@@ -20,7 +20,15 @@
 //   • twice: a KV claim per payment before the send, then the x_wa_message rows
 //     linked to the payment (x_res_model x_payment / x_res_id) — a second tap, a
 //     re-fired webhook, /admin/test-receipt, the sweep or a lost KV key never
-//     send it again.
+//     send it again;
+//   • § 58 أ — never for a row that «✅ وصل» made from a transfer notice
+//     (src/transfer-form.ts): its x_notes names the notice («إشعار تحويل
+//     TRN-…») from the moment it is created, so Odoo's automation #1 — which
+//     fires the receipt as soon as the row exists — finds the mark there. The
+//     ONE message of that transfer («استلمنا تحويلك X ريال ✅ وسددنا: …», with
+//     every receipt's link) is the notice's own. The receipt itself is still
+//     issued and written back on the row. Every other payment — cash, one
+//     created in Odoo — keeps its message exactly as it was.
 
 import type { Env } from "./config";
 import { call } from "./odoo";
@@ -47,6 +55,7 @@ const MIN = 60_000;
 export type PayConfAction =
   | "sent" | "held" | "skipped" | "failed"   // the gateway's answer
   | "already" | "claimed"                    // one message per payment
+  | "transfer_notice"                        // § 58 أ — its message is the transfer notice's ONE message
   | "simulation" | "held_partner" | "no_phone" | "not_found";
 export interface PayConfOutcome {
   action: PayConfAction;
@@ -65,6 +74,14 @@ export interface PayConfReceipt {
 type M2O = [number, string] | false;
 const m2oId = (v: M2O | number | undefined): number => (Array.isArray(v) ? v[0] : typeof v === "number" ? v : 0);
 const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * § 58 أ — the mark of a row made by «✅ وصل» of a transfer notice, as its
+ * x_notes carries it («إشعار تحويل TRN-1a2b3c4d5e», then the reference when
+ * there is one — src/transfer-form.ts writes it with the row).
+ */
+export const TRANSFER_NOTICE_NOTE_RE = /إشعار تحويل TRN-[a-f0-9]{10}(?![a-f0-9])/;
+export const isTransferNoticeNote = (notes: unknown): boolean => typeof notes === "string" && TRANSFER_NOTICE_NOTE_RE.test(notes);
 
 /** {{1}}: «60» or «60.50» — the amount the customer paid. */
 export function paymentAmountLabel(amount: number): string {
@@ -121,9 +138,14 @@ export async function confirmPaymentToCustomer(
   opts: { receipt?: PayConfReceipt; ctx?: ExecutionContext } = {},
 ): Promise<PayConfOutcome> {
   const [pay] = await call<Array<{ id: number; x_invoice_id: M2O; x_amount: number | false } & Record<string, unknown>>>(env, "x_payment", "read", {
-    ids: [paymentId], fields: ["id", "x_invoice_id", "x_amount", SIM_FIELD],
+    ids: [paymentId], fields: ["id", "x_invoice_id", "x_amount", "x_notes", SIM_FIELD],
   });
   if (!pay || !m2oId(pay.x_invoice_id)) return { action: "not_found", paymentId };
+  // § 58 أ — a transfer notice's row: the customer's one message is the notice's («✅ وصل»), never one a row
+  if (isTransferNoticeNote(pay.x_notes)) {
+    console.log(`[payconf] skip payment #${paymentId} — a transfer notice's row: its message is the notice's own`);
+    return { action: "transfer_notice", paymentId, amount: round2(Number(pay.x_amount) || 0) };
+  }
   const invoiceId = m2oId(pay.x_invoice_id);
   const [inv] = await call<Array<{ id: number; x_invoice_number: string | false; x_total: number | false; x_order_id: M2O } & Record<string, unknown>>>(env, "x_invoice", "read", {
     ids: [invoiceId], fields: ["id", "x_invoice_number", "x_total", "x_order_id", SIM_FIELD],

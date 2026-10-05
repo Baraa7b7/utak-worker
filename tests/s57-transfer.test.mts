@@ -195,6 +195,8 @@ const gatewayRecord = (c: any): boolean => (c.model === "x_wa_message" && c.meth
   || (c.model === "res.partner" && c.method === "write" && Object.keys(c.body?.vals ?? {}).join() === "x_wa_channel_id");
 const money = () => JSON.stringify(["x_payment", "x_invoice", "x_daily_order", "account.payment", "account.move", "account.move.line"].map((t) => rows(t)));
 const RECEIPT = { receipt: true, amount: 500, date: "2026-10-02", reference: "FT26276001" };
+/** § 58 أ — the customer's ONE message after «✅ وصل» (its words and its receipts: tests/s58-transfers.test.mts). */
+const confirmed = (t: string) => t.startsWith("استلمنا تحويلك ");
 const LABEL = "3 أكتوبر 2026";
 
 // ================================================================ د1
@@ -721,21 +723,21 @@ console.log("\n[د9] «✅ وصل», the custom ledger: the chosen invoices, the
   assert("…each a TRANSFER, dated the day of the transfer (1 Oct, noon in Riyadh), with the notice and the reference in its note, and no collector", pays.every((p) => p.x_method === "transfer" && p.x_collected_at === "2026-10-01 09:00:00" && p.x_notes === `إشعار تحويل TRN-${id} — المرجع FT26276001` && !p.x_collected_by));
   assert("both invoices are paid, and their orders closed — the third is untouched", table("x_invoice").get(INV_A)!.x_status === "paid" && table("x_invoice").get(INV_B)!.x_status === "paid" && table("x_invoice").get(INV_C)!.x_status === "issued"
     && table("x_daily_order").get(O_A)!.x_state === "closed" && table("x_daily_order").get(O_B)!.x_state === "closed" && table("x_daily_order").get(O_C)!.x_state === "delivered");
-  assert("the customer reads ONE line: «استلمنا تحويلك ✅ شكراً لك»", JSON.stringify(sentTo(C1_PHONE).map(bodyOf)) === JSON.stringify(["استلمنا تحويلك ✅ شكراً لك"]));
+  assert("the customer reads ONE message (§ 58 أ): the amount and what was paid on each invoice", JSON.stringify(sentTo(C1_PHONE).map(bodyOf)) === JSON.stringify([`استلمنا تحويلك 500 ريال ✅ وسددنا: فاتورة ${N_A} (300 ريال)، فاتورة ${N_B} (200 ريال)`]), JSON.stringify(sentTo(C1_PHONE).map(bodyOf)));
   assert("Baraa reads what was recorded", JSON.stringify(textsTo(OWNER)) === JSON.stringify([[
-    `✅ سُجّل تحويل ${NAME}: 500 ر.س — 1 أكتوبر 2026 — المرجع FT26276001`, `• ${N_A}: 300 ر.س (سُدّدت كاملة)`, `• ${N_B}: 200 ر.س (سُدّدت كاملة)`, "أُبلغ العميل: «استلمنا تحويلك ✅ شكراً لك».",
+    `✅ سُجّل تحويل ${NAME}: 500 ر.س — 1 أكتوبر 2026 — المرجع FT26276001`, `• ${N_A}: 300 ر.س (سُدّدت كاملة)`, `• ${N_B}: 200 ر.س (سُدّدت كاملة)`, "أُبلغ العميل برسالة واحدة.",
   ].join("\n")]), textsTo(OWNER).join("\n---\n"));
   assert("ACCOUNTING_SYNC off: no account.payment, no wizard — the x_payment rows alone", wizardCalls.length === 0 && !odooLog.some((c: any) => /^account\./.test(c.model)) && rows("account.payment").length === 0 && pays.every((p) => !p.x_account_payment_id));
   assert("the notice is marked decided", notices(env)[0].decided.how === "ok" && notices(env)[0].decided.excess === 0 && notices(env)[0].decided.at === Date.now());
   await settle();
   const recorded = (purpose: string) => (rows("x_wa_message") as any[]).filter((m) => new RegExp(`"purpose":"${purpose}"`).test(String(m.x_debug_payload))).map((m) => String(m.x_body));
-  assert("the customer's line goes under the decision's purpose, Baraa's under his own", JSON.stringify(recorded("customer_transfer_decision")) === JSON.stringify([TR.TRANSFER_CONFIRMED_TEXT]) && recorded("owner_transfer_notice").length === 2 && recorded("owner_transfer_notice")[1].startsWith("✅ سُجّل تحويل"), JSON.stringify(recorded("owner_transfer_notice")).slice(0, 200));
+  assert("the customer's line goes under the decision's purpose, Baraa's under his own", recorded("customer_transfer_decision").length === 1 && confirmed(recorded("customer_transfer_decision")[0]) && recorded("owner_transfer_notice").length === 2 && recorded("owner_transfer_notice")[1].startsWith("✅ سُجّل تحويل"), JSON.stringify(recorded("owner_transfer_notice")).slice(0, 200));
   // what Odoo's automation #1 then does for each new x_payment (the collection's own receipt, src/payment-confirm.ts)
   const PAYCONF = await import("../src/payment-confirm.ts");
   graph.length = 0;
-  for (const p of pays) await quiet(() => PAYCONF.confirmPaymentToCustomer(env, p.id));
-  assert("each row's own receipt then follows by the collection's path, as after any collection — one a row, in its own words; the notice's fixed line went ONCE", sentTo(C1_PHONE).length === 2 && bodyOf(sentTo(C1_PHONE)[0]).startsWith(`✅ استلمنا دفعتك بمبلغ 300 ريال على فاتورة ${N_A}. شكراً لك`)
-    && bodyOf(sentTo(C1_PHONE)[1]).startsWith(`✅ استلمنا دفعتك بمبلغ 200 ريال على فاتورة ${N_B}. شكراً لك`) && sentTo(C1_PHONE).every((b: any) => !bodyOf(b).includes("استلمنا تحويلك")), JSON.stringify(sentTo(C1_PHONE).map(bodyOf)));
+  const outs: any[] = [];
+  for (const p of pays) outs.push(await quiet(() => PAYCONF.confirmPaymentToCustomer(env, p.id)));
+  assert("§ 58 أ — no row of the notice gets a message of its own: the per-payment confirmation finds the notice's mark in its note and sends nothing", outs.every((o) => o.action === "transfer_notice") && sentTo(C1_PHONE).length === 0, JSON.stringify(outs));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 {
@@ -792,7 +794,7 @@ console.log("\n[د9] «✅ وصل», the custom ledger: the chosen invoices, the
   graph.length = 0;
   const r2 = await tap(env2, `trn_ok_${two.id}`);
   assert("every ticked invoice paid meanwhile: no row at all — the whole amount is his credit, and Baraa and the customer are still told", r2?.action === "confirmed" && r2.payments!.length === 0 && r2.excess === 300 && (rows("x_payment") as any[]).every((p) => p.x_method !== "transfer")
-    && textsTo(OWNER)[0].includes("لم يُسجَّل شيء على فاتورة: المختارة كلها مسدّدة الآن.") && textsTo(C1_PHONE).includes(TR.TRANSFER_CONFIRMED_TEXT));
+    && textsTo(OWNER)[0].includes("لم يُسجَّل شيء على فاتورة: المختارة كلها مسدّدة الآن.") && textsTo(C1_PHONE).some(confirmed));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 
@@ -813,7 +815,7 @@ const books = (riyadh = `${DAY} 14:00`, o: { twins?: boolean } = {}) => { const 
   assert("the debit is on 101003 «Outstanding Receipts» — NOT on the bank account 101001: the statement line will move the bank once", lines.find((l) => l.debit > 0).account_id[0] === 254 && !lines.some((l) => l.account_id[0] === 247));
   assert("the excess stays on the payment as his credit, and Baraa reads it with the line of the books", JSON.stringify(textsTo(OWNER)) === JSON.stringify([[
     `✅ سُجّل تحويل ${NAME}: 560.50 ر.س — 1 أكتوبر 2026 — المرجع FT26276001`, `• ${N_A}: 300 ر.س (سُدّدت كاملة)`, `• ${N_B}: 200 ر.س (سُدّدت كاملة)`,
-    "زيادة 60.50 ر.س باقية رصيداً للعميل", TR.TRANSFER_POSTED_TEXT, "أُبلغ العميل: «استلمنا تحويلك ✅ شكراً لك».",
+    "زيادة 60.50 ر.س باقية رصيداً للعميل", TR.TRANSFER_POSTED_TEXT, "أُبلغ العميل برسالة واحدة.",
   ].join("\n")]), textsTo(OWNER).join("\n---\n"));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
@@ -843,7 +845,7 @@ async function refused(mode: typeof wizard, values: Record<string, unknown> = go
 {
   const bank = await refused("bank");
   assert("THE LOCKED CONDITION — a payment whose debit is on the journal's own bank account (101001) is REFUSED: cancelled, for it would be counted twice once the statement is uploaded", bank.ap.length === 1 && bank.ap[0].state === "canceled" && /الحساب المدين 101001 هو حساب البنك نفسه لليومية: المبلغ يُحسب مرتين عند رفع الكشف/.test(bank.alert) && bank.alert.includes(`الدفعة ${bank.ap[0].id} أُلغيت`), bank.alert);
-  assert("…the x_payment rows stay (the custom ledger), unlinked; Baraa's confirmation says the books were NOT written; the customer is still told", bank.pays.length === 2 && bank.pays.every((p) => !p.x_account_payment_id) && bank.said.includes(TR.TRANSFER_NOT_POSTED_TEXT) && !bank.said.includes(TR.TRANSFER_POSTED_TEXT) && textsTo(C1_PHONE).includes(TR.TRANSFER_CONFIRMED_TEXT), bank.said);
+  assert("…the x_payment rows stay (the custom ledger), unlinked; Baraa's confirmation says the books were NOT written; the customer is still told", bank.pays.length === 2 && bank.pays.every((p) => !p.x_account_payment_id) && bank.said.includes(TR.TRANSFER_NOT_POSTED_TEXT) && !bank.said.includes(TR.TRANSFER_POSTED_TEXT) && textsTo(C1_PHONE).some(confirmed), bank.said);
   const plain = await refused("plain");
   assert("a debit on an account that takes no reconciliation: refused — the payment would never be proposed to its statement line", plain.ap[0].state === "canceled" && /الحساب المدين 101009 لا يقبل المطابقة/.test(plain.alert) && plain.pays.every((p) => !p.x_account_payment_id), plain.alert);
   const other = await refused("other", { ...good, amt: "560.5" });
@@ -970,10 +972,10 @@ console.log("\n[د12] a second tap on EITHER button: «سبق تسجيله», an
   const customer = await tap(env, `trn_ok_${id}`, C1_PHONE), team = await tap(env, `trn_ok_${id}`, WH_PHONE), no = await tap(env, `trn_no_${id}`, C1_PHONE);
   assert("a tap from the customer's number, or a team member's: NOT theirs (null) — nothing written, nothing sent, the notice still undecided", customer === null && team === null && no === null && money() === before && graph.length === 0 && !notices(env)[0].decided);
   await say(env, C1_PHONE, button(`trn_ok_${id}`, "✅ وصل"));
-  assert("…through the webhook the customer gets the answer of a button the worker does not know — and nothing is paid", money() === before && !notices(env)[0].decided && !textsTo(C1_PHONE).includes(TR.TRANSFER_CONFIRMED_TEXT) && sentTo(OWNER).length === 0, JSON.stringify(textsTo(C1_PHONE)));
+  assert("…through the webhook the customer gets the answer of a button the worker does not know — and nothing is paid", money() === before && !notices(env)[0].decided && !textsTo(C1_PHONE).some(confirmed) && sentTo(OWNER).length === 0, JSON.stringify(textsTo(C1_PHONE)));
   graph.length = 0;
   const res = await say(env, OWNER, button(`trn_ok_${id}`, "✅ وصل"));
-  assert("Baraa's own tap through the webhook records it", res.status === 200 && notices(env)[0].decided?.how === "ok" && (rows("x_payment") as any[]).filter((p) => p.x_method === "transfer").length === 2 && textsTo(C1_PHONE).includes(TR.TRANSFER_CONFIRMED_TEXT));
+  assert("Baraa's own tap through the webhook records it", res.status === 200 && notices(env)[0].decided?.how === "ok" && (rows("x_payment") as any[]).filter((p) => p.x_method === "transfer").length === 2 && textsTo(C1_PHONE).some(confirmed));
   graph.length = 0;
   const gone = await tap(env, "trn_ok_0000000000");
   assert("a notice the worker does not hold any more (thirty days): one line, nothing written", gone?.action === "unknown" && JSON.stringify(textsTo(OWNER)) === JSON.stringify([TR.TRANSFER_NOTICE_GONE_TEXT]));
@@ -995,7 +997,7 @@ console.log("\n[د12] a second tap on EITHER button: «سبق تسجيله», an
   graph.length = 0;
   const again = await tap(env, `trn_ok_${id}`);
   const ap = rows("account.payment") as any[];
-  assert("the next tap goes on from A's row, read from Odoo: B takes its 200, the excess is 60.50 — no row twice", again?.action === "confirmed" && JSON.stringify(transfers().map((p) => [p.x_invoice_id, p.x_amount])) === JSON.stringify([[INV_A, 300], [INV_B, 200]]) && again.excess === 60.5 && textsTo(C1_PHONE).includes(TR.TRANSFER_CONFIRMED_TEXT), JSON.stringify(transfers().map((p) => [p.x_invoice_id, p.x_amount])));
+  assert("the next tap goes on from A's row, read from Odoo: B takes its 200, the excess is 60.50 — no row twice", again?.action === "confirmed" && JSON.stringify(transfers().map((p) => [p.x_invoice_id, p.x_amount])) === JSON.stringify([[INV_A, 300], [INV_B, 200]]) && again.excess === 60.5 && textsTo(C1_PHONE).some(confirmed), JSON.stringify(transfers().map((p) => [p.x_invoice_id, p.x_amount])));
   assert("…and the books get ONE payment for the whole 560.50 over BOTH entries, every row linked — Baraa reads the two invoices", wizardCalls.length === 1 && JSON.stringify(wizardCalls[0].active) === JSON.stringify([M_A, M_B]) && ap.length === 1 && ap[0].amount === 560.5 && transfers().every((p) => p.x_account_payment_id === ap[0].id)
     && textsTo(OWNER)[0].split("\n").slice(1, 5).join("|") === [`• ${N_A}: 300 ر.س (سُدّدت كاملة)`, `• ${N_B}: 200 ر.س (سُدّدت كاملة)`, "زيادة 60.50 ر.س باقية رصيداً للعميل", TR.TRANSFER_POSTED_TEXT].join("|"), textsTo(OWNER)[0]);
   // the decision's own mark was lost after everything was written (KV): the tap is taken again — and writes nothing twice
@@ -1125,7 +1127,7 @@ console.log("\n[د14] the guide: the team's page on the transfer notice");
   const at = guide.indexOf("## نموذج «إشعار تحويل» (§ 57)"), section = guide.slice(at, guide.indexOf("\n## ", at + 5));
   assert("OPERATING-DAY carries «نموذج «إشعار تحويل»», once, right before «من يرى أي سعر»", at > 0 && guide.split("## نموذج «إشعار تحويل»").length === 2 && guide.indexOf("\n## ", at + 5) === guide.indexOf("\n## من يرى أي سعر (§ 53)") && at > guide.indexOf("## كشف البنك الأسبوعي (§ 57)"), String(at));
   assert("…the three doors: the button under the invoice's text, «تحويل 🏦» or «حولت», a receipt's photo", section.includes("«🏦 أرسلت تحويل»") && section.includes("«تحويل 🏦»") && /«حولت»/.test(section) && /صورة الإيصال/.test(section));
-  assert("…what the customer reads, to the letter, at each step", section.includes("«وصلنا إشعار تحويلك بمبلغ X — نأكد لك أول ما يوصل الحساب»") && section.includes(`«${TR.TRANSFER_CONFIRMED_TEXT}»`) && section.includes(`«${TR.TRANSFER_NOT_ARRIVED_TEXT}»`));
+  assert("…what the customer reads, to the letter, at each step", section.includes("«وصلنا إشعار تحويلك بمبلغ X — نأكد لك أول ما يوصل الحساب»") && section.includes("«استلمنا تحويلك X ريال ✅ وسددنا: فاتورة Y (مبلغ)، فاتورة Z (مبلغ)»") && section.includes(`«${TR.TRANSFER_NOT_ARRIVED_TEXT}»`));
   assert("…that «إرسال» pays nothing, and what Baraa's two buttons do", section.includes("**لا تُسجَّل دفعة**") && section.includes("«✅ وصل»") && section.includes("«❌ ما وصل»") && section.includes("«سبق تسجيله»"));
   assert("…the oldest first, the excess as his credit, and the bank account moving once", /الأقدم أولاً/.test(section) && /رصيداً للعميل/.test(section) && /101003/.test(section) && /لا يُحسب مرتين|مرة واحدة/.test(section));
   assert("…what refuses the form, and that nothing of it reaches a supplier or a price source", /يُرفض النموذج كله/.test(section) && /بلا صورة/.test(section) && /مصدر أسعار/.test(section));

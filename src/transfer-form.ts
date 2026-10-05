@@ -48,12 +48,36 @@
 //   • A second tap on either button: «سبق تسجيله», and nothing is written.
 //   • The amounts are his own invoices' (the sale side): no purchase price, no
 //     cost and no profit is read, kept or sent here.
+//
+// § 58 ب (2026-10-05) — ONE source for every transfer. Every way a transfer is
+// said files, or updates, ONE notice: the customer's form (and the image, which
+// opens it), the collector's «تحويل 🏦» of a collection request, the delivery
+// form's «تحويل». None of them pays anything: the payment on BNK1 is made in
+// one place, Baraa's «✅ وصل».
+//   • A notice names its sources (who said it, when, how much). The collector's
+//     has no receipt image: Baraa reads «المصدر: المحصّل …», and the collector
+//     reads «تمام، سجّلناه — ينتظر تأكيد وصول المبلغ».
+//   • A second notice on an invoice that has an OPEN notice (not decided yet) is
+//     linked to the first: no second «✅ وصل» is asked, Baraa reads the two
+//     sources in one line-by-line message, and the first message's buttons stay
+//     the only ones. The customer's own figures (he made the transfer: its
+//     amount, day, reference, invoices and image) stand over a collector's;
+//     between two of the same kind the first's stand. A different amount is
+//     said, with the one «✅ وصل» will record.
+//   • The last guard is the collection's own (src/invoice.ts recordCollection):
+//     an invoice with nothing left, or less than the amount, never takes the
+//     excess — «✅ وصل» says each such invoice with its two amounts in Baraa's
+//     one message, so one payment or none is made on an invoice, never two.
+// § 58 أ — after «✅ وصل» the customer reads ONE message: «استلمنا تحويلك X ريال
+// ✅ وسددنا: فاتورة Y (مبلغ)، فاتورة Z (مبلغ)» with each receipt's link. The
+// receipts are issued here (src/receipt.ts issueReceiptForRecord), and the
+// per-payment confirmation sends nothing for such a row (src/payment-confirm.ts).
 
 import type { Env } from "./config";
 import { SYSTEM_PROMPT_READ_TRANSFER_RECEIPT } from "./config";
 import type { NormalizedMessage } from "./types";
 import type { RouterReply } from "./router";
-import { call } from "./odoo";
+import { call, getInvoiceById, getOrderCustomer } from "./odoo";
 import { readDocumentJson } from "./claude";
 import { textContent } from "./meta";
 import { gatewayDecision, isOwnerRecipient, sendViaGateway, type GwSession } from "./wa-gateway";
@@ -109,7 +133,10 @@ const SIM_FIELDS = ["x_utak_simulation", "x_is_simulation"] as const;
 
 /** «إرسال» was read: nothing is paid yet. */
 export const transferReceivedText = (amount: number): string => `وصلنا إشعار تحويلك بمبلغ ${fmtSar(amount)} ر.س — نأكد لك أول ما يوصل الحساب`;
-export const TRANSFER_CONFIRMED_TEXT = "استلمنا تحويلك ✅ شكراً لك";
+/** § 58 ب — what a collector reads after his «تحويل 🏦»: nothing is paid until «✅ وصل». */
+export const COLLECTOR_NOTICED_TEXT = "تمام، سجّلناه — ينتظر تأكيد وصول المبلغ";
+/** § 58 أ — the trial of the ONE message of «✅ وصل» to Baraa (his number alone). */
+export const TRANSFER_CONFIRMED_TEST_PURPOSE = "transfer_confirmed_test";
 export const TRANSFER_NOT_ARRIVED_TEXT = "ما وصلنا التحويل للحين. لو حوّلت أرسل لنا صورة إيصال واضحة، أو انتظر يوم عمل ونراجع مرة ثانية";
 export const TRANSFER_ALREADY_TEXT = "سبق تسجيله";
 export const TRANSFER_UNKNOWN_TEXT = "هذا النموذج غير صالح الآن، ولم يُسجَّل منه شيء. اكتب «تحويل» ونرسل لك نموذجاً جديداً.";
@@ -322,11 +349,22 @@ async function writeTransferToken(env: Env, rec: TransferToken): Promise<void> {
 // ---------------------------------------------------------------- the notice (KV)
 
 /** One invoice's share of a confirmed transfer: its x_payment, and whether the invoice is paid with it. */
-export interface TransferRow { invoiceId: number; number: string; paymentId: number; amount: number; paid: boolean }
+export interface TransferRow { invoiceId: number; number: string; paymentId: number; amount: number; paid: boolean; receiptUrl?: string }
+/** § 58 ب — who said a transfer was made. */
+export type TransferBy = "customer" | "collector";
+export interface TransferSource {
+  by: TransferBy;
+  /** The customer's name, or the collector's. */
+  name: string;
+  at: number;
+  /** The amount this source named, and the invoices (their numbers). */
+  amount: number;
+  invoices: string[];
+}
 export interface TransferNotice {
   v: 1;
   id: string;
-  /** When «إرسال» was read. */
+  /** When the first source was read. */
   at: number;
   partnerId: number;
   name: string;
@@ -339,7 +377,10 @@ export interface TransferNotice {
   date: string;
   reference: string;
   note: string;
-  media: TransferMedia;
+  /** The receipt (a customer's notice always has one; a collector's has none). */
+  media?: TransferMedia;
+  /** § 58 ب — everyone who said it, the first first (a notice of before § 58 has none: its customer). */
+  sources?: TransferSource[];
   /** Baraa's decision, once: what «✅ وصل» recorded is in Odoo (the x_payment rows that name this notice). */
   decided?: { how: "ok" | "no"; at: number; excess?: number };
 }
@@ -354,6 +395,58 @@ export async function readTransferNotice(env: Env, id: string): Promise<Transfer
 }
 async function writeTransferNotice(env: Env, rec: TransferNotice): Promise<void> {
   await env.MSG_DEDUP.put(transferNoticeKey(rec.id), JSON.stringify(rec), { expirationTtl: TRANSFER_KEEP_SEC });
+}
+
+// ---------------------------------------------------------------- § 58 ب: one notice an invoice
+
+export const sourcesOf = (n: TransferNotice): TransferSource[] =>
+  (n.sources?.length ? n.sources : [{ by: "customer", name: n.name, at: n.at, amount: n.amount, invoices: n.invoices.map((i) => i.number) }]);
+export const sourceLabel = (s: Pick<TransferSource, "by" | "name">): string => (s.by === "customer" ? "العميل" : `المحصّل${s.name ? ` ${s.name}` : ""}`);
+/** «• المحصّل عمر — 300 ر.س — الساعة 10:20». */
+export const sourceLine = (s: TransferSource): string => `• ${sourceLabel(s)} — ${fmtSar(s.amount)} ر.س — الساعة ${riyadhHHMM(new Date(s.at))}`;
+/** The open notice of an invoice: the id of the notice that waits for Baraa's decision on it. */
+export const transferOpenKey = (invoiceId: number): string => `transfer_open:v1:${invoiceId}`;
+/** The notice that still waits for «✅ وصل» / «❌ ما وصل» on one of these invoices (the first found), or null. */
+export async function openNoticeOn(env: Env, invoiceIds: number[]): Promise<TransferNotice | null> {
+  for (const id of invoiceIds) {
+    let noticeId: string | null = null;
+    try { noticeId = await env.MSG_DEDUP.get(transferOpenKey(id)); } catch { noticeId = null; }
+    if (!noticeId) continue;
+    const n = await readTransferNotice(env, noticeId);
+    // a decided notice is not open any more: the next transfer on its invoice is a notice of its own
+    if (n && !n.decided) return n;
+  }
+  return null;
+}
+async function markOpen(env: Env, n: TransferNotice): Promise<void> {
+  for (const i of n.invoices) await env.MSG_DEDUP.put(transferOpenKey(i.id), n.id, { expirationTtl: TRANSFER_KEEP_SEC });
+}
+/** What a source says: the notice's own fields, and who says them. */
+export interface NoticeDraft extends Omit<TransferNotice, "v" | "id" | "at" | "decided" | "sources"> { source: TransferSource }
+export interface PlannedNotice {
+  notice: TransferNotice;
+  /** An open notice already stood on one of its invoices: this source was added to it. */
+  linked: boolean;
+  /** The customer's figures took the place of a collector's. */
+  replaced: boolean;
+}
+/**
+ * The notice a source files: a new one — or, when one of its invoices has an
+ * OPEN notice, that one with this source added (no second notice, so no second
+ * «✅ وصل»). The customer's figures stand over a collector's; between two of
+ * the same kind the first's stand. Nothing is written here: the caller writes
+ * the notice, then marks its invoices (keepNotice).
+ */
+export async function planTransferNotice(env: Env, d: NoticeDraft, nowMs: number): Promise<PlannedNotice> {
+  const { source, ...fields } = d;
+  const first = await openNoticeOn(env, d.invoices.map((i) => i.id));
+  if (!first) return { notice: { v: 1, id: newNoticeId(), at: nowMs, ...fields, sources: [source] }, linked: false, replaced: false };
+  const before = sourcesOf(first);
+  const replaced = source.by === "customer" && !before.some((s) => s.by === "customer");
+  const notice: TransferNotice = replaced
+    ? { ...first, ...fields, reference: fields.reference || first.reference, media: fields.media ?? first.media, sources: [...before, source] }
+    : { ...first, reference: first.reference || fields.reference, media: first.media ?? fields.media, sources: [...before, source] };
+  return { notice, linked: true, replaced };
 }
 
 // ---------------------------------------------------------------- the send
@@ -552,15 +645,17 @@ export function ownerNoticeText(n: Pick<TransferNotice, "name" | "invoices" | "a
   return cut(build([`الفواتير (${n.invoices.length}): ${cut(n.invoices.map((i) => shortNumber(i.number)).join("، "), 400)}`]), TRANSFER_BODY_MAX);
 }
 function ownerNoticeSession(n: TransferNotice, text: string, withMedia: boolean): GwSession {
-  const header = /pdf/i.test(n.media.mime) ? { type: "document", document: { id: n.media.id, filename: `إيصال-${noticeRef(n.id)}.pdf` } } : { type: "image", image: { id: n.media.id } };
+  // § 58 ب — a collector's notice has no receipt: no header, and no line about an image that is not there
+  const media = n.media;
+  const header = !media ? null : /pdf/i.test(media.mime) ? { type: "document", document: { id: media.id, filename: `إيصال-${noticeRef(n.id)}.pdf` } } : { type: "image", image: { id: media.id } };
   return {
     kind: "session",
     body: {
       type: "interactive",
       interactive: {
         type: "button",
-        ...(withMedia ? { header } : {}),
-        body: { text: cut(withMedia ? text : `${text}\n${TRANSFER_NO_IMAGE_TEXT}`, TRANSFER_BODY_MAX) },
+        ...(withMedia && header ? { header } : {}),
+        body: { text: cut(withMedia || !media ? text : `${text}\n${TRANSFER_NO_IMAGE_TEXT}`, TRANSFER_BODY_MAX) },
         action: { buttons: [
           { type: "reply", reply: { id: `trn_ok_${n.id}`, title: TRANSFER_OK_TITLE } },
           { type: "reply", reply: { id: `trn_no_${n.id}`, title: TRANSFER_NO_TITLE } },
@@ -574,9 +669,43 @@ async function sendOwnerNotice(env: Env, n: TransferNotice, text: string, ctx?: 
   const owner = waDigits(String(env.OWNER_WHATSAPP ?? ""));
   if (!owner) return;
   const res = await sendViaGateway(env, { purpose: TRANSFER_OWNER_PURPOSE, to: owner, content: ownerNoticeSession(n, text, true), ctx });
-  if (gatewayDecision(res)?.action !== "rejected") return;
+  if (gatewayDecision(res)?.action !== "rejected" || !n.media) return;
   console.warn(`[transfer] notice ${n.id}: Meta refused the receipt as a header — sent without it`);
   await sendViaGateway(env, { purpose: TRANSFER_OWNER_PURPOSE, to: owner, content: ownerNoticeSession(n, text, false), ctx });
+}
+
+/** § 58 ب — «المصدر: المحصّل عمر — بلا صورة إيصال»: under a notice only a collector filed. */
+export const collectorSourceText = (name: string): string => `المصدر: ${sourceLabel({ by: "collector", name })} — بلا صورة إيصال`;
+/** § 58 ب — what Baraa reads when a second source is linked to an open notice: the two sources, and what «✅ وصل» will record. */
+export function linkedNoticeText(p: Pick<PlannedNotice, "notice" | "replaced">, extra: string[] = []): string {
+  const n = p.notice, src = sourcesOf(n);
+  const differ = new Set(src.map((x) => fmtSar(x.amount))).size > 1;
+  return cut([
+    `🔗 مصدر ثانٍ لإشعار تحويل — ${n.name} (${noticeRef(n.id)})`,
+    ...src.map(sourceLine),
+    `الفواتير: ${n.invoices.map((i) => shortNumber(i.number)).join("، ")}`,
+    ...(differ ? [`⚠️ المبالغ مختلفة: «${TRANSFER_OK_TITLE}» يسجّل ${fmtSar(n.amount)} ر.س (${p.replaced ? "مبلغ العميل" : "مبلغ الإشعار الأول"})`] : []),
+    ...extra.filter(Boolean),
+    `رُبط بالإشعار الأول: لا تأكيد ثانٍ، ودفعة واحدة فقط — القرار من رسالته الأولى.`,
+  ].join("\n"), TRANSFER_BODY_MAX);
+}
+/** The second source to Baraa: no button (the first message's two are the only ones); with the receipt when this source brought one. */
+async function sendOwnerLinked(env: Env, p: PlannedNotice, media: TransferMedia | undefined, extra: string[], ctx?: ExecutionContext): Promise<void> {
+  const owner = waDigits(String(env.OWNER_WHATSAPP ?? ""));
+  if (!owner) return;
+  const text = linkedNoticeText(p, extra);
+  if (media) {
+    const body = /pdf/i.test(media.mime) ? { type: "document", document: { id: media.id, filename: `إيصال-${noticeRef(p.notice.id)}.pdf`, caption: text } } : { type: "image", image: { id: media.id, caption: text } };
+    const res = await sendViaGateway(env, { purpose: TRANSFER_OWNER_PURPOSE, to: owner, content: { kind: "session", body }, ctx });
+    if (gatewayDecision(res)?.action !== "rejected") return;
+    console.warn(`[transfer] notice ${p.notice.id}: Meta refused the second source's receipt — sent as text`);
+  }
+  await tell(env, owner, text, ctx, TRANSFER_OWNER_PURPOSE);
+}
+/** The notice as planned is kept, and its invoices marked as waiting on it. */
+async function keepNotice(env: Env, n: TransferNotice): Promise<void> {
+  await writeTransferNotice(env, n);
+  await markOpen(env, n);
 }
 
 /** The line kept in an invoice's log with the receipt. */
@@ -587,7 +716,7 @@ export const noticeLogLine = (n: Pick<TransferNotice, "id" | "name" | "amount" |
  * account.move when it has one; else an ir.attachment on the x_invoice row
  * (which has no log), the line as its description. Throws on Odoo trouble.
  */
-async function keepOnInvoice(env: Env, inv: OpenInvoice, n: TransferNotice, file: { base64: string; mime: string } | null): Promise<void> {
+async function keepOnInvoice(env: Env, inv: OpenInvoice, n: Pick<TransferNotice, "id" | "name" | "amount" | "date" | "reference">, file: { base64: string; mime: string } | null): Promise<void> {
   const line = noticeLogLine(n);
   const ext = /pdf/i.test(file?.mime ?? "") ? "pdf" : /png/i.test(file?.mime ?? "") ? "png" : "jpg";
   const vals = file ? { name: `إيصال-تحويل-${noticeRef(n.id)}.${ext}`, raw: file.base64, mimetype: file.mime } : null;
@@ -605,6 +734,53 @@ export interface TransferOutcome {
   noticeId?: string;
   amount?: number;
   problems?: string[];
+  /** § 58 ب — added to an open notice of one of its invoices: no second confirmation was asked. */
+  linked?: boolean;
+}
+
+// ---------------------------------------------------------------- § 58 ب: the collector's «تحويل 🏦»
+
+export interface CollectorNoticeOutcome {
+  text: string;
+  noticeId?: string;
+  linked?: boolean;
+  amount?: number;
+  /** The amount he typed is more than what is left: nothing was filed (he is asked again). */
+  overLimit?: { remaining: number };
+}
+/**
+ * A transfer a collector says he was shown or told of — the «تحويل 🏦» of a
+ * collection request, the delivery form's «تحويل»: a notice with the source
+ * «المحصّل», and NO payment. `amount` null = all that is left on the invoice.
+ * An invoice that is paid, or has nothing left: one line, nothing filed. An
+ * amount above what is left: nothing filed (overLimit). Baraa gets the notice
+ * with «✅ وصل» / «❌ ما وصل» — or, when the invoice already has an open notice,
+ * the two sources with no second request. Throws on Odoo trouble.
+ */
+export async function noticeCollectorTransfer(env: Env, invoiceId: number, amount: number | null, who: { id: number; name: string; whatsapp: string }, o: { now?: number; ctx?: ExecutionContext } = {}): Promise<CollectorNoticeOutcome> {
+  const nowMs = o.now ?? Date.now();
+  const inv = await getInvoiceById(env, invoiceId);
+  if (!inv) return { text: `الفاتورة رقم ${invoiceId} غير موجودة.` };
+  if (inv.status === "paid") return { text: `الفاتورة ${inv.number} تم تحصيلها مسبقاً ✅` };
+  const prior = await call<Array<{ x_amount: number | false }>>(env, "x_payment", "search_read", { domain: [["x_invoice_id", "=", invoiceId]], fields: ["x_amount"], limit: 200 });
+  const remaining = round2(inv.total - prior.reduce((t, p) => t + (Number(p.x_amount) || 0), 0));
+  if (!(remaining > 0.005)) return { text: `لا يوجد مبلغ متبقٍ للتحصيل على الفاتورة ${inv.number}.` };
+  if (amount !== null && amount > remaining + 0.005) return { text: `المتبقي ${fmtSar(remaining)} ر.س فقط على الفاتورة ${inv.number}.`, overLimit: { remaining } };
+  const sum = round2(amount ?? remaining);
+  const cust = inv.orderId ? await getOrderCustomer(env, inv.orderId).catch(() => null) : null;
+  const planned = await planTransferNotice(env, {
+    partnerId: cust?.id ?? 0, name: cust?.name ?? "", to: waDigits(cust?.phone ?? ""),
+    invoices: [{ id: invoiceId, number: inv.number, remaining }],
+    // he says it now: the day is today's (the customer's own notice, when it comes, names the transfer's day)
+    amount: sum, date: riyadhDateKey(new Date(nowMs)), reference: "", note: "",
+    source: { by: "collector", name: who.name, at: nowMs, amount: sum, invoices: [inv.number] },
+  }, nowMs);
+  const n = planned.notice;
+  await keepNotice(env, n);
+  if (planned.linked) await sendOwnerLinked(env, planned, undefined, [], o.ctx);
+  else await sendOwnerNotice(env, n, ownerNoticeText(n, [collectorSourceText(who.name)]), o.ctx);
+  console.log(`[transfer] notice ${n.id} by the collector ${who.id} invoice=${invoiceId} amount=${sum}${planned.linked ? " — linked to the open notice" : ""}`);
+  return { text: COLLECTOR_NOTICED_TEXT, noticeId: n.id, linked: planned.linked, amount: sum };
 }
 
 /** What a trial's «إرسال» would have recorded, had it been a customer's and Baraa tapped «✅ وصل». */
@@ -681,17 +857,24 @@ export async function handleTransferReply(env: Env, msg: Pick<NormalizedMessage,
     const file = await downloadMedia(env, media.id);
     // the form's own photo is read now (its reference; his amount and date stand); the one before the form was read then
     const said = photo ? (file ? await readTransferReceipt(env, file, today) : null) : rec.read ?? null;
-    const n: TransferNotice = {
-      v: 1, id: newNoticeId(), at: nowMs, partnerId: rec.partnerId, name: rec.name, to,
+    // § 58 ب — ONE notice an invoice: with an open notice on a chosen invoice (the collector's «تحويل 🏦»,
+    // or an earlier form of his), this one is linked to it — no second «✅ وصل» is asked
+    const planned = await planTransferNotice(env, {
+      partnerId: rec.partnerId, name: rec.name, to,
       invoices: chosen.map((i) => ({ id: i.id, number: i.number, remaining: i.remaining })),
       amount, date, reference: typedRef || said?.reference || "", note, media,
-    };
+      source: { by: "customer", name: rec.name, at: nowMs, amount, invoices: chosen.map((i) => i.number) },
+    }, nowMs);
+    const n = planned.notice;
     await writeTransferNotice(env, n);
     await used();
+    await markOpen(env, n);
+    // the line kept with the receipt says what THIS form said (a linked notice may keep the first's figures)
+    const said1 = { id: n.id, name: rec.name, amount, date, reference: typedRef || said?.reference || "" };
     const notKept: string[] = [];
     for (const inv of chosen) {
       try {
-        await keepOnInvoice(env, inv, n, file);
+        await keepOnInvoice(env, inv, said1, file);
         if (!file) notKept.push(inv.number);
       } catch (e) {
         notKept.push(inv.number);
@@ -699,12 +882,14 @@ export async function handleTransferReply(env: Env, msg: Pick<NormalizedMessage,
       }
     }
     await say(transferReceivedText(amount));
-    await sendOwnerNotice(env, n, ownerNoticeText(n, [
+    const extra = [
       said ? mismatchLine({ amount, date }, said) : TRANSFER_UNREAD_TEXT,
       notKept.length ? `⚠️ تعذّر حفظ صورة الإيصال على: ${notKept.join("، ")}` : "",
-    ]), ctx);
-    console.log(`[transfer] notice ${n.id} partner=${rec.partnerId} amount=${amount} date=${date} invoices=${chosen.map((i) => i.id).join(",")}${notKept.length ? ` (receipt not kept on ${notKept.length})` : ""}`);
-    return { action: "noticed", noticeId: n.id, amount };
+    ];
+    if (planned.linked) await sendOwnerLinked(env, planned, media, extra, ctx);
+    else await sendOwnerNotice(env, n, ownerNoticeText(n, extra), ctx);
+    console.log(`[transfer] notice ${n.id} partner=${rec.partnerId} amount=${amount} date=${date} invoices=${chosen.map((i) => i.id).join(",")}${notKept.length ? ` (receipt not kept on ${notKept.length})` : ""}${planned.linked ? ` — linked to the open notice${planned.replaced ? ", his figures stand" : ""}` : ""}`);
+    return { action: "noticed", noticeId: n.id, amount, ...(planned.linked ? { linked: true } : {}) };
   } catch (e) {
     await releaseButton(env, claim);
     throw e;
@@ -726,15 +911,37 @@ export function alreadyText(n: TransferNotice | null): string {
   const d = n?.decided;
   return d && n ? `${TRANSFER_ALREADY_TEXT}: «${d.how === "ok" ? TRANSFER_OK_TITLE : TRANSFER_NO_TITLE}» الساعة ${riyadhHHMM(new Date(d.at))} — ${n.name}، ${fmtSar(n.amount)} ر.س` : TRANSFER_ALREADY_TEXT;
 }
+/** § 58 ب — an invoice that could not take its share of the transfer: what was asked of it, and what was left on it. */
+export interface TransferShort { number: string; asked: number; left: number }
+/** «⚠️ UTAK-INV-…: المبلغ 300 ر.س والمتبقي 0 ر.س — لم يُسجَّل عليها شيء»: the last guard, as Baraa reads it. */
+export const shortLine = (x: TransferShort): string =>
+  `⚠️ ${x.number}: المبلغ ${fmtSar(x.asked)} ر.س والمتبقي ${fmtSar(x.left)} ر.س — ${x.left > 0 ? `سُجّل ${fmtSar(x.left)} ر.س فقط` : "لم يُسجَّل عليها شيء"}`;
+/**
+ * § 58 أ — the customer's ONE message after «✅ وصل»: the amount, each invoice
+ * with what was paid on it, what is left over, and each receipt's link.
+ */
+export function customerConfirmedText(amount: number, rows: Array<Pick<TransferRow, "number" | "amount" | "paid" | "receiptUrl">>, excess: number): string {
+  const links = rows.filter((r) => r.receiptUrl);
+  return [
+    rows.length
+      ? `استلمنا تحويلك ${fmtSar(amount)} ريال ✅ وسددنا: ${rows.map((r) => `فاتورة ${r.number} (${fmtSar(r.amount)} ريال${r.paid ? "" : " — جزئي"})`).join("، ")}`
+      : `استلمنا تحويلك ${fmtSar(amount)} ريال ✅ والفواتير التي اخترتها مسدّدة من قبل.`,
+    ...(excess > 0 ? [`الباقي ${fmtSar(excess)} ريال رصيد لك عندنا.`] : []),
+    ...(links.length === 1 ? [`الإيصال: ${links[0].receiptUrl}`] : links.length ? ["الإيصالات:", ...links.map((r) => `• ${shortNumber(r.number)}: ${r.receiptUrl}`)] : []),
+  ].join("\n");
+}
 /** What Baraa reads after «✅ وصل». */
-export function confirmedText(n: TransferNotice, rows: TransferRow[], excess: number, accounting: "off" | "posted" | "failed" | "none"): string {
+export function confirmedText(n: TransferNotice, rows: TransferRow[], excess: number, accounting: "off" | "posted" | "failed" | "none", shorts: TransferShort[] = []): string {
+  const src = sourcesOf(n);
   return [
     `✅ سُجّل تحويل ${n.name}: ${fmtSar(n.amount)} ر.س — ${dayText(n.date)} — المرجع ${n.reference || "لم يُذكر"}`,
     ...rows.map((r) => `• ${r.number}: ${fmtSar(r.amount)} ر.س${r.paid ? " (سُدّدت كاملة)" : " (جزئي)"}`),
     ...(rows.length ? [] : ["لم يُسجَّل شيء على فاتورة: المختارة كلها مسدّدة الآن."]),
+    ...shorts.map(shortLine),
     ...(excess > 0 ? [`${excessLine(excess)}${accounting === "posted" ? "" : " (لا قيد لها: سجّلها يدوياً لو لزم)"}`] : []),
     ...(accounting === "posted" ? [TRANSFER_POSTED_TEXT] : accounting === "failed" ? [TRANSFER_NOT_POSTED_TEXT] : []),
-    `أُبلغ العميل: «${TRANSFER_CONFIRMED_TEXT}».`,
+    ...(src.length > 1 ? [`المصادر: ${src.map((x) => `${sourceLabel(x)} (${riyadhHHMM(new Date(x.at))})`).join(" · ")}`] : []),
+    n.to ? `أُبلغ العميل برسالة واحدة${rows.some((r) => r.receiptUrl) ? " فيها روابط الإيصالات" : ""}.` : "لم تُرسل رسالة للعميل: لا رقم واتساب له.",
   ].join("\n");
 }
 
@@ -769,7 +976,7 @@ export async function handleTransferDecision(env: Env, buttonId: string, from: s
       // nothing is written anywhere but the notice's own mark
       await writeTransferNotice(env, { ...n, decided: { how, at: nowMs } });
       await finishButton(env, claim, TRANSFER_KEEP_SEC);
-      await tell(env, n.to, TRANSFER_NOT_ARRIVED_TEXT, ctx, TRANSFER_DECISION_PURPOSE);
+      if (n.to) await tell(env, n.to, TRANSFER_NOT_ARRIVED_TEXT, ctx, TRANSFER_DECISION_PURPOSE);
       await say(`❌ ${TRANSFER_TITLE} ${n.name} (${fmtSar(n.amount)} ر.س): ما وصل. لم يُسجَّل شيء، وأُبلغ العميل.`);
       console.log(`[transfer] notice ${id}: not arrived — nothing written`);
       return { action: "declined", noticeId: id };
@@ -788,10 +995,16 @@ export async function handleTransferDecision(env: Env, buttonId: string, from: s
     const numberOf = new Map(n.invoices.map((i) => [i.id, i.number]));
     const rows: TransferRow[] = kept.map((p) => ({ invoiceId: m2oId(p.x_invoice_id), number: numberOf.get(m2oId(p.x_invoice_id)) ?? "", paymentId: p.id, amount: round2(Number(p.x_amount) || 0), paid: false }));
     let left = round2(n.amount - rows.reduce((s, r) => s + r.amount, 0));
+    // § 58 ب — the last guard, said here: an invoice that had less left than its share of the transfer
+    // (a cash collection, or a payment in Odoo, since the notice) takes what is left on it, or nothing
+    const shorts: TransferShort[] = [];
     for (const inv of n.invoices) {
       if (left <= 0.005) break;
       if (rows.some((r) => r.invoiceId === inv.id)) continue;
-      const r = await recordCollection(env, { invoiceId: inv.id, method: "transfer", amount: left, collectedAt, notes, accounting: false });
+      const share = round2(Math.min(left, inv.remaining));
+      const r = await recordCollection(env, { invoiceId: inv.id, quietExcess: true, method: "transfer", amount: left, collectedAt, notes, accounting: false });
+      const got = r.paymentId && r.amount ? r.amount : 0;
+      if (got + 0.005 < share) shorts.push({ number: inv.number, asked: share, left: got });
       // paid in the meantime: its share goes on to the next chosen invoice, and then to the excess
       if (!r.paymentId || !r.amount) continue;
       rows.push({ invoiceId: inv.id, number: inv.number, paymentId: r.paymentId, amount: r.amount, paid: false });
@@ -823,9 +1036,19 @@ export async function handleTransferDecision(env: Env, buttonId: string, from: s
     }
     await writeTransferNotice(env, { ...n, decided: { how, at: nowMs, excess } });
     await finishButton(env, claim, TRANSFER_KEEP_SEC);
-    // the one line of this notice; each row's official receipt follows by the collection's own path (src/payment-confirm.ts)
-    await tell(env, n.to, TRANSFER_CONFIRMED_TEXT, ctx, TRANSFER_DECISION_PURPOSE);
-    await say(confirmedText(n, rows, excess, accounting));
+    // § 58 أ — each row's receipt, issued here without a message of its own (a receipt that cannot be
+    // built now leaves its row without a link; the */5 net issues it, and still sends nothing for it)
+    const { issueReceiptForRecord } = await import("./receipt");
+    for (const r of rows) {
+      try {
+        r.receiptUrl = (await issueReceiptForRecord(env, r.paymentId))?.pdfUrl;
+      } catch (e) {
+        console.warn(`[transfer] notice ${id}: the receipt of payment #${r.paymentId} was not issued`, (e as Error)?.message);
+      }
+    }
+    // the ONE message of this transfer to the customer: what was paid, on which invoices, with the receipts
+    if (n.to) await tell(env, n.to, customerConfirmedText(n.amount, rows, excess), ctx, TRANSFER_DECISION_PURPOSE);
+    await say(confirmedText(n, rows, excess, accounting, shorts));
     console.log(`[transfer] notice ${id}: arrived — x_payment ${rows.map((r) => r.paymentId).join(",") || "-"} excess=${excess} accounting=${accounting}${accountPaymentId ? ` account.payment=${accountPaymentId}` : ""}`);
     return { action: "confirmed", noticeId: id, payments: rows.map((r) => r.paymentId), excess, accountPaymentId };
   } catch (e) {
@@ -870,6 +1093,53 @@ export async function sendTransferFormTest(env: Env, now: number = Date.now()): 
     return r;
   } catch (e) {
     await releaseButton(env, claim);
+    throw e;
+  }
+}
+
+// ---------------------------------------------------------------- § 58 أ: the trial of the one message
+
+export const TRANSFER_CONFIRMED_TEST_LINK = "(رابط الإيصال PDF)";
+/** The trial's text: the customer's ONE message after «✅ وصل», for two invoices. */
+export function confirmedTestText(rows: Array<Pick<OpenInvoice, "number" | "remaining">>, real: boolean): string {
+  const amount = round2(rows.reduce((t, r) => t + r.remaining, 0));
+  return [
+    `${TRANSFER_TEST_MARK} — هكذا تصل العميل رسالة واحدة بعد «${TRANSFER_OK_TITLE}» على تحويل لفاتورتين (بدل رسالة لكل إيصال):`,
+    customerConfirmedText(amount, rows.map((r) => ({ number: r.number, amount: r.remaining, paid: true, receiptUrl: TRANSFER_CONFIRMED_TEST_LINK })), 0),
+    real ? "الفاتورتان حقيقيتان ومفتوحتان الآن (للقراءة فقط)." : "الفاتورتان عيّنتان، ليستا فاتورتين حقيقيتين.",
+    "(تجربة: لم يُكتب شيء في Odoo، ولم تصل رسالة لأحد غيرك)",
+  ].join("\n");
+}
+/**
+ * The ONE message of «✅ وصل» for two invoices, to Baraa's own number, marked
+ * «🧪 تجربة»: only while his window is open (nothing held), once a day. The two
+ * oldest real open invoices (read-only), or two sample rows said to be samples.
+ * Nothing is written, no receipt is issued, and nobody else is told.
+ */
+export async function sendTransferConfirmedTest(env: Env, now: number = Date.now()): Promise<{ sent: boolean; reason?: string }> {
+  const owner = waDigits(String(env.OWNER_WHATSAPP ?? ""));
+  if (!owner) return { sent: false, reason: "no_owner" };
+  if (!(await readWindow(env, owner, now)).open) return { sent: false, reason: "window_closed" };
+  const day = riyadhDateKey(new Date(now));
+  const once = await claimButton(env, `transfer_confirmed_test:${day}`, DAY_TTL);
+  // the day's one trial
+  if (!once.claimed) return { sent: false, reason: "already_today" };
+  try {
+    const real = await openInvoices(env, null, 2).catch(() => []);
+    const rows = real.length === 2 ? real : sampleInvoices(day).slice(0, 2);
+    const res = await sendViaGateway(env, {
+      purpose: TRANSFER_CONFIRMED_TEST_PURPOSE, to: owner, content: textContent(confirmedTestText(rows, real.length === 2)),
+      noHold: true, noHoldReason: "تجربة رسالة «✅ وصل» تُرسل داخل نافذة 24 ساعة فقط",
+    });
+    const d = gatewayDecision(res);
+    if (d?.action !== "session") {
+      await releaseButton(env, once);
+      return { sent: false, reason: d ? `${d.action}${"reason" in d ? `: ${d.reason}` : ""}` : "no_decision" };
+    }
+    await finishButton(env, once, DAY_TTL);
+    return { sent: true };
+  } catch (e) {
+    await releaseButton(env, once);
     throw e;
   }
 }

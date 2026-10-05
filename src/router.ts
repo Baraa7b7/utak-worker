@@ -820,15 +820,24 @@ export async function deliverOrder(env: Env, orderId: number, invoiceOpts: Invoi
   } catch (e) {
     console.warn(`[delivered] invoice dispatch failed for order ${orderId}`, (e as Error).message);
   }
+  // § 58 أ — the customer's number, for the order's one message with the two buttons (below)
+  let afterTo = "";
   // Fetch order + customer to notify
   try {
     const { getOrderCustomer } = await import("./odoo");
     const cust = await getOrderCustomer(env, orderId);
     if (cust) {
+      afterTo = cust.phone;
       await notifyCustomerDelivered(env, cust.phone, cust.name, orderId);
     }
   } catch (e) {
     console.error("[delivered] notify customer failed", (e as Error)?.message);
+  }
+  // § 58 أ — after the invoice and «تم التسليم» (each sent above as it always was): the order's ONE short
+  // message with «🏦 أرسلت تحويل» and «⚠️ عندي ملاحظة», inside the customer's window only (never throws).
+  if (afterTo) {
+    const { offerAfterDelivery } = await import("./after-delivery");
+    await offerAfterDelivery(env, { orderId, to: afterTo });
   }
   if (immediate) return { text: `تم التسليم ✅ — الطلب #${orderId} سُلّم فوراً، وفاتورته تصل العميل الآن.`, delivered: true };
   // STATUS § 38 (م8) — the next stop's customer: «في الطريق» (once per order).

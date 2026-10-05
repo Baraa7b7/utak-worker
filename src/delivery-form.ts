@@ -469,6 +469,8 @@ export type DeliveryPayment =
   | { kind: "part"; method: "cash" | "transfer"; amount: number; rest: number }
   | { kind: "over"; method: "cash" | "transfer"; amount: number; remaining: number }
   | { kind: "failed"; method: "cash" | "transfer"; amount: number | null; why: string }
+  // § 58 ب — «تحويل»: a transfer notice was filed (or linked to the invoice's open one), and nothing is paid until «✅ وصل»
+  | { kind: "noticed"; amount: number; linked: boolean }
   | { kind: "unpaid" }
   | { kind: "no_invoice" };
 export interface IssuedInvoice { invoiceId: number; number: string; total: number }
@@ -491,6 +493,7 @@ export function paymentLine(p: DeliveryPayment, inv: IssuedInvoice | null, e: Pi
   switch (p.kind) {
     case "paid": return took(p.method, p.amount);
     case "part": return `${took(p.method, p.amount)} — الباقي ${money(p.rest)} ر.س مستحق`;
+    case "noticed": return `${PAY_METHODS.transfer} ${money(p.amount)} ر.س — سجّلناه إشعار تحويل، ولا دفعة حتى ${owner ? "تضغط «✅ وصل» على رسالته" : "يؤكد براء وصول المبلغ"}`;
     case "unpaid": return `${PAY_METHODS.unpaid}: ${money(inv?.total ?? 0)} ر.س مستحق`;
     case "over": return `⚠️ ${PAY_METHODS[p.method]} ${money(p.amount)} ر.س أكبر من المتبقي على الفاتورة (${money(p.remaining)} ر.س): لم يُسجَّل دفع، والفاتورة كلها مستحقة. سجّل المبلغ الصحيح من «طلب التحصيل».${told}`;
     case "failed": return `⚠️ لم يُسجَّل الدفع (${reported(e)}): ${p.why}${told}`;
@@ -516,7 +519,8 @@ export function deliverySummaryText(rec: Pick<DeliveryFormRecord, "orderId" | "c
  */
 export function deliveryOwnerText(rec: Pick<DeliveryFormRecord, "orderId" | "customer" | "who">, e: DeliveryEntries, inv: IssuedInvoice | null, p: DeliveryPayment): string {
   const of = inv ? ` — الفاتورة ${inv.number}` : "";
-  const pay = p.kind === "paid" ? ""
+  // § 58 ب — a transfer notice reached Baraa as its own message, with its two buttons: no second line here
+  const pay = p.kind === "paid" || p.kind === "noticed" ? ""
     : p.kind === "unpaid" ? `• ${PAY_METHODS.unpaid}: ${money(inv?.total ?? 0)} ر.س مستحق${of}`
       : p.kind === "part" ? `• دفع جزئي: ${PAY_METHODS[p.method]} ${money(p.amount)} ر.س من ${money(inv?.total ?? 0)} ر.س، والباقي ${money(p.rest)} ر.س مستحق${of}`
         : p.kind === "over" ? `• بلّغ ${PAY_METHODS[p.method]} ${money(p.amount)} ر.س وهو أكبر من المتبقي (${money(p.remaining)} ر.س): لم يُسجَّل دفع${of}`
@@ -693,7 +697,7 @@ async function takeDeliveryFormReply(env: Env, rec: DeliveryFormRecord | null, t
       delivered = await deliverOrder(env, orderId, {
         settle: async (inv) => {
           issued = inv;
-          payment = await recordFormPayment(env, inv, e, rec.who.partnerId);
+          payment = await recordFormPayment(env, inv, e, rec.who.partnerId, rec.who.name);
           return payment.kind === "paid";
         },
       });
@@ -732,13 +736,22 @@ async function takeDeliveryFormReply(env: Env, rec: DeliveryFormRecord | null, t
  * total), refused — nothing recorded — when it is more than what is due;
  * «لم يدفع» records nothing. Never throws.
  */
-async function recordFormPayment(env: Env, inv: IssuedInvoice, e: Pick<DeliveryEntries, "pay" | "amount">, collectedBy: number | null): Promise<DeliveryPayment> {
+async function recordFormPayment(env: Env, inv: IssuedInvoice, e: Pick<DeliveryEntries, "pay" | "amount">, collectedBy: number | null, who: string = ""): Promise<DeliveryPayment> {
   if (e.pay !== "cash" && e.pay !== "transfer") return { kind: "unpaid" };
   const method = e.pay;
   const amount = e.amount ?? inv.total;
   try {
+    // § 58 ب — «تحويل»: a transfer notice with the source «المحصّل» (src/transfer-form.ts), never a payment from here
+    if (method === "transfer") {
+      const { noticeCollectorTransfer } = await import("./transfer-form");
+      const n = await noticeCollectorTransfer(env, inv.invoiceId, amount, { id: collectedBy ?? 0, name: who, whatsapp: "" });
+      if (n.overLimit) return { kind: "over", method, amount, remaining: n.overLimit.remaining };
+      if (!n.noticeId) return { kind: "failed", method, amount: e.amount, why: n.text };
+      return { kind: "noticed", amount, linked: n.linked === true };
+    }
     const { recordCollection } = await import("./invoice");
-    const r = await recordCollection(env, { invoiceId: inv.invoiceId, method, amount, collectedBy, exact: true });
+    // § 58 ب — the form says an amount above what is due in its own two messages: the last guard does not ring too
+    const r = await recordCollection(env, { invoiceId: inv.invoiceId, quietExcess: true, method, amount, collectedBy, exact: true });
     if (r.overLimit) return { kind: "over", method, amount, remaining: r.overLimit.remaining };
     if (!r.paymentId) return { kind: "failed", method, amount: e.amount, why: r.text };
     return r.fullyPaid ? { kind: "paid", method, amount } : { kind: "part", method, amount, rest: round2(inv.total - amount) };

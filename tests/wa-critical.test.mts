@@ -300,7 +300,9 @@ console.log("\n[ح8] money / state buttons: second tap = «تم مسبقاً»")
   const prompts = [a, b].filter((r: any) => r?.buttons?.length === 2);
   assert("concurrent cash+transfer taps: one prompt, nothing recorded yet", prompts.length === 1 && rows("x_payment").length === 0, String(rows("x_payment").length));
   assert("the other tap answered «تم مسبقاً»", [replyText(a), replyText(b)].includes(ALREADY_DONE_TEXT));
-  const full = (prompts[0] as any).buttons[0].id;
+  // § 58 ب — «تحويل 🏦» files a transfer notice and no payment: whichever of the two taps won the prompt,
+  // the money button tested here is the cash one of that prompt (the same lock, per invoice and prompt)
+  const full = String((prompts[0] as any).buttons[0].id).replace("collect_full_transfer_", "collect_full_cash_");
   const [f1, f2] = await Promise.all([tap(env, full, COLL), tap(env, full, COLL)]);
   assert("«المبلغ كامل» tapped twice at once: one payment, the other «تم مسبقاً»", rows("x_payment").length === 1 && [replyText(f1), replyText(f2)].includes(ALREADY_DONE_TEXT), String(rows("x_payment").length));
   const c = await tap(env, `collect_cash_${inv}`, COLL);

@@ -413,6 +413,49 @@ export async function createAndDispatchReceiptForRecord(
   };
 }
 
+/** § 58 أ — a receipt as issued: its number and its public link. */
+export interface IssuedReceipt {
+  paymentId: number;
+  number: string;
+  pdfUrl: string;
+  /** The row already carried its number and link: nothing was built. */
+  reused?: boolean;
+}
+
+/**
+ * § 58 أ — the receipt of a payment WITHOUT its confirmation: built, archived
+ * in R2 and written back on the row; its number and link are returned. «✅ وصل»
+ * of a transfer notice (src/transfer-form.ts) calls this for each of its rows:
+ * its ONE message to the customer carries every receipt's link, and the
+ * confirmation of such a row sends nothing (src/payment-confirm.ts). A row that
+ * already carries both (the Odoo webhook issued it a moment ago, or an earlier
+ * tap did) is reused: nothing is built. Null: no such payment. Throws when the
+ * receipt cannot be built (the caller goes on without its link).
+ */
+export async function issueReceiptForRecord(env: Env, paymentId: number): Promise<IssuedReceipt | null> {
+  const [row] = await call<Array<{ id: number; x_studio_char_1_1: string | false; x_studio_char_2: string | false }>>(env, "x_payment", "read", {
+    ids: [paymentId],
+    fields: ["id", "x_studio_char_1_1", "x_studio_char_2"],
+  });
+  if (!row) return null;
+  if (row.x_studio_char_1_1 && row.x_studio_char_2) {
+    return { paymentId, number: String(row.x_studio_char_1_1), pdfUrl: String(row.x_studio_char_2), reused: true };
+  }
+  const data = await buildReceiptPDFDataFromOdoo(env, paymentId);
+  if (!data) return null;
+  const uploaded = await uploadReceiptToR2(env, await generateReceiptPDF(data, env), data.receiptNumber, env.WORKER_ORIGIN);
+  try {
+    await call<boolean>(env, "x_payment", "write", {
+      ids: [paymentId],
+      vals: { x_studio_char_1_1: data.receiptNumber, x_studio_datetime_1_1: nowOdoo(), x_studio_char_2: uploaded.publicUrl },
+    });
+  } catch (e) {
+    // the link stands (the file is in R2); the */5 net writes the row's fields again
+    console.warn(`[receipt] failed to write-back x_payment fields for ${paymentId} (notice row)`, (e as Error).message);
+  }
+  return { paymentId, number: data.receiptNumber, pdfUrl: uploaded.publicUrl };
+}
+
 function nowOdoo(): string {
   return new Date().toISOString().replace("T", " ").slice(0, 19);
 }

@@ -1,4 +1,4 @@
-# § 55 — every mutation script on HEAD 0705e93 (git archive copies, 9 in parallel), 2026-10-05T08:07:12.318Z, 5 min
+# § 55 — every mutation script on HEAD a3656f1 (git archive copies, 9 in parallel), 2026-10-05T08:20:26.952Z, 5 min
 === att-20260925
 18/18 caught
 === gw-20260925

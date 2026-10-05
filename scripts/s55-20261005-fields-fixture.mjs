@@ -4,8 +4,9 @@
 // x_return_reason «سبب المرتجع» (damaged / short / refused) — with the selection values. It is read AFTER
 // tests/fixtures-odoo-fields-20261005-s54.json in the gate (the last one wins: the tenant's fields now).
 //
-// The file committed with § 55 ب's code is PROVISIONAL (the § 54 dump plus the three fields, written
-// before they existed on the tenant): run this after `scripts/s55-20261005-odoo.mjs --apply`.
+// The file first committed with § 55 ب's code was a stand-in (the § 54 dump plus the three fields, written
+// before they existed on the tenant). This script replaced it from the tenant after
+// `scripts/s55-20261005-odoo.mjs --apply` (2026-10-05): run it again after any later change of fields.
 //
 //   node scripts/s55-20261005-fields-fixture.mjs
 //

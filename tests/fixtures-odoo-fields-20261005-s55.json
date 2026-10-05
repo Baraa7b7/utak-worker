@@ -1,5 +1,5 @@
 {
- "_source": "PROVISIONAL (§ 55 ب, 2026-10-05): tests/fixtures-odoo-fields-20261005-s54.json plus the three fields scripts/s55-20261005-odoo.mjs creates on x_daily_order_line (x_ordered_qty, x_return_qty, x_return_reason: damaged / short / refused). Regenerate from the tenant after --apply: node scripts/s55-20261005-fields-fixture.mjs",
+ "_source": "fields_get on utakfresh.odoo.com, 2026-10-05T07:44Z (read-only), § 55 (the delivery form's three fields on the order's line): every field of each model, and the selection values.",
  "_selections": {
   "x_pricing_config.x_above_suggested": [
    "market",
@@ -139,6 +139,11 @@
    "delivered",
    "closed",
    "cancelled"
+  ],
+  "x_daily_order_line.x_return_reason": [
+   "damaged",
+   "short",
+   "refused"
   ],
   "x_daily_order_line.x_status": [
    "pending",
@@ -1805,11 +1810,6 @@
    "overdue",
    "today",
    "planned"
-  ],
-  "x_daily_order_line.x_return_reason": [
-   "damaged",
-   "short",
-   "refused"
   ]
  },
  "x_pricing_config": [

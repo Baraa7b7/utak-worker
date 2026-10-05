@@ -31,6 +31,8 @@ import { waDigits } from "./wa-window";
 /** The purposes whose content carries our sale prices as a customer reads them. */
 export const CUSTOMER_PRICE_PURPOSES: ReadonlySet<string> = new Set([
   "customer_prices", "customer_quotation", "customer_quotation_pdf", "customer_order_form",
+  // § 55 ب — the team's delivery form and its summary: the order's sale prices and its invoice's total
+  "delivery_form",
 ]);
 
 export type ClosedKind = "source" | "supplier";

@@ -80,9 +80,22 @@ import { formatDateEn, fromPartyFor, itemCellHTML, labelForBillTo, labelForFrom,
 export const INVOICE_CLAIM_TTL = 10 * 60;
 export const INVOICE_DONE_TTL = 30 * 24 * 60 * 60;
 
+/**
+ * § 55 ب — the delivery form (src/delivery-form.ts) takes the payment with the
+ * delivery. `settle` is called once, with the invoice just issued, after it
+ * went to the customer and before the collector's request: the form records
+ * its payment there and answers whether that paid the invoice in full — then
+ * the collector is asked for nothing (it would ask for money already
+ * recorded). Without it — every other path — nothing changes.
+ */
+export interface InvoiceDispatchOpts {
+  settle?: (invoice: { invoiceId: number; number: string; total: number }) => Promise<boolean>;
+}
+
 export async function createAndDispatchInvoiceForOrder(
   env: Env,
   orderId: number,
+  opts: InvoiceDispatchOpts = {},
 ): Promise<{ invoiceId: number; number: string; total: number } | null> {
   const order = await getOrderForInvoicing(env, orderId);
   if (!order) {
@@ -107,7 +120,7 @@ export async function createAndDispatchInvoiceForOrder(
   }
   let issued: { invoiceId: number; number: string; total: number } | null = null;
   try {
-    issued = await issueAndDispatchInvoice(env, orderId, order);
+    issued = await issueAndDispatchInvoice(env, orderId, order, opts);
   } finally {
     if (issued) await finishButton(env, claim, INVOICE_DONE_TTL);
     else await releaseButton(env, claim);
@@ -119,6 +132,7 @@ async function issueAndDispatchInvoice(
   env: Env,
   orderId: number,
   order: NonNullable<Awaited<ReturnType<typeof getOrderForInvoicing>>>,
+  opts: InvoiceDispatchOpts = {},
 ): Promise<{ invoiceId: number; number: string; total: number } | null> {
   const accountingOn = isAccountingSyncEnabled(env);
   // Every line short at delivery: no invoice at all (a zero invoice is never
@@ -311,6 +325,12 @@ async function issueAndDispatchInvoice(
     lines: pricedLines,
     bankLine,
   }));
+
+  // § 55 ب — the delivery form recorded its payment on this invoice and paid it in full: the
+  // collector is asked for nothing. A part payment, «لم يدفع» or a refused amount: the request goes.
+  if (opts.settle && (await opts.settle({ invoiceId, number: invoiceNumber, total }).catch(() => false))) {
+    return { invoiceId, number: invoiceNumber, total };
+  }
 
   const collectors = await getCollectorTeamMembers(env);
   if (collectors.length === 0) {

@@ -30,6 +30,7 @@ export const FIX = [
   "fixtures-odoo-fields-20261004-s52.json",   // § 52: account.journal and res.partner.bank (the transfer line), every model of § 51 again (read last: it wins)
   "fixtures-odoo-fields-20261004-s53.json",   // § 53: x_market_uplift_pct, x_uplift_pct, the purpose customer_pay_remind_iban, every model of § 52 again (read last: it wins)
   "fixtures-odoo-fields-20261005-s54.json",   // § 54: x_pricing_config.x_above_suggested «لما يكون السوق أعلى من المقترح», every model of § 53 again (read last: it wins)
+  "fixtures-odoo-fields-20261005-s55.json",   // § 55: x_daily_order_line.x_ordered_qty / x_return_qty / x_return_reason (the delivery form), every model of § 54 again (read last: it wins)
 ].map((f) => JSON.parse(readFileSync(new URL(`./${f}`, import.meta.url), "utf8")));
 const REAL: Record<string, string[]> = Object.assign({}, ...FIX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FIX.map((f) => f._selections ?? {}));

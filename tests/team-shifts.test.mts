@@ -266,7 +266,7 @@ console.log("\n[3] Friday 02/10: a weekly day off for both; tasks wait for Satur
   // a route for عمر on Friday 10:00: queued with its stops, one alert with the next shift
   setRiyadh(`${FRI} 10:00`);
   await quiet(() => team.sendDriverRoute(ENV, omarMember(), route(3), 13));
-  assert("Friday 10:00 route: not sent to عمر, queued (with the stop's button)", sentTo(OMAR_PHONE).length === 0 && queue(OMAR_PHONE).some((q) => q.buttons?.[0]?.id === "delivered_3"), JSON.stringify(queue(OMAR_PHONE)));
+  assert("Friday 10:00 route: not sent to عمر, queued (with the stop's button)", sentTo(OMAR_PHONE).length === 0 && queue(OMAR_PHONE).some((q) => q.buttons?.[0]?.id === "dlv_3"), JSON.stringify(queue(OMAR_PHONE)));
   assert("…one alert «مهمة لـعمر المجهلي بعد دوامه: مسار التوصيل … (السبت 02:00)»", ownerSays("مهمة لـعمر المجهلي بعد دوامه: مسار التوصيل").length === 1 && ownerSays("(السبت 02:00)").length === 2);
   await tap(OMAR_PHONE, `${FRI} 10:05`);
   assert("his tap on Friday: «اليوم ما عندك دوام حسب جدولك… (السبت 02:00)», no row, the queue stays",
@@ -281,8 +281,8 @@ console.log("\n[3] Friday 02/10: a weekly day off for both; tasks wait for Satur
   await tap(OMAR_PHONE, `${SAT2} 02:10`);
   assert("tap 02:10 (+10): «حاضر»", attRow(OMAR, SAT2)?.x_status === "present" && attRow(OMAR, SAT2)?.x_tapped_at === "2026-10-02 23:10:00", JSON.stringify(attRow(OMAR, SAT2)));
   const after = sentTo(OMAR_PHONE).slice(before);
-  assert("…Friday's route reaches him now (the stop and its «delivered_3» button), the queue is empty",
-    JSON.stringify(after).includes("مطعم الوادي") && JSON.stringify(after).includes("delivered_3") && queue(OMAR_PHONE).length === 0, JSON.stringify(after.map(describe)));
+  assert("…Friday's route reaches him now (the stop and its «dlv_3» button), the queue is empty",
+    JSON.stringify(after).includes("مطعم الوادي") && JSON.stringify(after).includes("dlv_3") && queue(OMAR_PHONE).length === 0, JSON.stringify(after.map(describe)));
   const s2 = await day(SAT2, 2 * 60 + 5, 6 * 60 + 5);
   assert("no reminder or absence for عمر after his tap", !s2.some((x) => x.includes("عمر: utak_shift_start_v2")) && ownerSays("عمر المجهلي لم يسجّل").length === 0, s2.join(" / "));
   assert("06:00: Baraa's template and عثمان's", s2.includes("06:00 براء: utak_shift_start_v2 [براء]") && s2.includes("06:00 عثمان: utak_shift_start_v2 [عثمان عبدالوهاب]"), s2.join(" / "));

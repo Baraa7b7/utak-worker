@@ -308,14 +308,14 @@ console.log("\n[3] after the shift: the task waits for the next shift, one owner
   setRiyadh(`${SUN} 16:00`);
   await quiet(() => team.sendDriverRoute(ENV, omarMember(), route(2), 12));
   assert("after the shift (16:00): nothing to عمر", sentTo(OMAR_PHONE).length === n1, JSON.stringify(sentTo(OMAR_PHONE).slice(n1)).slice(0, 200));
-  assert("…the route is queued for the next shift", queue(OMAR_PHONE).some((q) => q.buttons?.[0]?.id === "delivered_2"));
+  assert("…the route is queued for the next shift", queue(OMAR_PHONE).some((q) => q.buttons?.[0]?.id === "dlv_2"));
   assert("…ONE owner alert «مهمة لـعمر المجهلي بعد دوامه: مسار التوصيل …» with the next shift", ownerSays("مهمة لـعمر المجهلي بعد دوامه: مسار التوصيل").length === 1 && ownerSays("الاثنين 07:00").length === 1, JSON.stringify(ownerSays("مهمة لـ")));
   const ttl = ttls.get(`pending_loc:+${OMAR_PHONE}`) ?? 0;
   const untilMon = (Date.parse(`${MON}T07:00:00+03:00`) - Date.parse(`${SUN}T16:00:00+03:00`)) / 1000;
   assert(`…the queue lives past the next shift start (${Math.round(ttl / 3600)} h ≥ ${Math.round(untilMon / 3600)} h + 36 h)`, ttl >= untilMon + 36 * 3600, String(ttl));
   setRiyadh(`${SUN} 16:30`);
   await quiet(() => team.sendDriverRoute(ENV, omarMember(), route(3), 13));
-  assert("a second route the same evening: queued, no second alert", ownerSays("مسار التوصيل").length === 1 && queue(OMAR_PHONE).some((q) => q.buttons?.[0]?.id === "delivered_3"));
+  assert("a second route the same evening: queued, no second alert", ownerSays("مسار التوصيل").length === 1 && queue(OMAR_PHONE).some((q) => q.buttons?.[0]?.id === "dlv_3"));
   // 18:00 summary and a collection request, 21:15 purchase list: other kinds, one alert each
   const oid = seed("x_daily_order", { x_customer_id: 501, x_delivery_neighborhood: "العليا", x_state: "delivered", x_order_date: SUN });
   seed("x_invoice", { x_invoice_number: "INV-88", x_total: 90, x_order_id: oid, x_status: "issued", x_is_simulation: false });
@@ -350,7 +350,7 @@ console.log("\n[3] after the shift: the task waits for the next shift, one owner
   const got = sentTo(OMAR_PHONE).slice(n2).map((b) => JSON.stringify(b));
   // § 55 د — the open list's session form carries «📥 استلام المشتريات» (prc_<list>) in place of «تم الشراء ✅»
   assert("Monday's tap: the two queued routes, the open purchase list, the unpaid list",
-    got.some((b) => b.includes("delivered_2")) && got.some((b) => b.includes("delivered_3")) && got.some((b) => b.includes("prc_")) && got.some((b) => b.includes("INV-88")), got.map((b) => b.slice(0, 60)).join(" | "));
+    got.some((b) => b.includes("dlv_2")) && got.some((b) => b.includes("dlv_3")) && got.some((b) => b.includes("prc_")) && got.some((b) => b.includes("INV-88")), got.map((b) => b.slice(0, 60)).join(" | "));
   assert("…queue emptied", queue(OMAR_PHONE).length === 0);
   // STATUS § 33 — the payment-claim note no longer skips a collector outside
   // his 24h window (the gateway decides now): خالد, off shift, gets it queued
@@ -366,7 +366,7 @@ console.log("\n[3] after the shift: the task waits for the next shift, one owner
   assert("Thursday 16:00: queued, alert names «الأحد 07:00», the queue lives past Sunday 07:00", sentTo(OMAR_PHONE).length === 0 && ownerSays("الأحد 07:00").length === 1 && thuTtl >= untilSun, `${thuTtl} vs ${untilSun}`);
   setRiyadh(`${FRI} 11:00`);
   await quiet(() => team.sendDriverRoute(ENV, omarMember(), route(5), 15));
-  assert("Friday (day off): queued, a new day → one alert for it", sentTo(OMAR_PHONE).length === 0 && ownerSays("مسار التوصيل").length === 2 && queue(OMAR_PHONE).some((q) => q.buttons?.[0]?.id === "delivered_5"));
+  assert("Friday (day off): queued, a new day → one alert for it", sentTo(OMAR_PHONE).length === 0 && ownerSays("مسار التوصيل").length === 2 && queue(OMAR_PHONE).some((q) => q.buttons?.[0]?.id === "dlv_5"));
   await tap(OMAR_PHONE, `${FRI} 11:05`);
   assert("a tap on Friday: «اليوم ما عندك دوام» + the next shift, nothing released", texts(OMAR_PHONE).at(-1)?.includes("ما عندك دوام") && texts(OMAR_PHONE).at(-1)?.includes("الأحد 07:00") && queue(OMAR_PHONE).length > 0, JSON.stringify(texts(OMAR_PHONE)));
 

@@ -1,8 +1,8 @@
 // § 55 (2026-10-05) — the WhatsApp Flows of § 55, as data.
 //
 // Pure: no network, no worker import. scripts/s55-20261005-flows.mjs sends them to Meta;
-// tests/s55.test.mts checks each against what the worker builds (the pages, the slot count, the data
-// keys, the payload).
+// tests/s55.test.mts and tests/s55-delivery.test.mts check each against what the worker builds (the
+// pages, the slot count, the data keys, the payload).
 //
 // No endpoint: the worker passes ALL the data with the message to the first screen (flow_action
 // navigate), as utak_price_ask_v2, utak_order_v1 and utak_owner_review_v1 do, and a published Flow's
@@ -30,6 +30,22 @@
 //   i<n>         the manual price it opens with     v<n>   slot n is shown
 // The reply carries d<n> (the option's id) and p<n> (the manual price) of every page up to the one
 // «اعتمد» was tapped on, and the flow_token — the same reply as v1's.
+//
+// ---- utak_delivery_v1 (§ 55 ب) ----
+// The delivery and the collection of ONE order, filled by the driver (or Baraa, from the car) at the
+// customer's door. ONE screen (DELIVER_A), TWENTY line slots of two components each:
+//   • a number field q<n>: the quantity DELIVERED, opened on the ordered one. Its label is the item's
+//     name (20 characters at Meta), its hint «التعبئة · المطلوب N · السعر X ر.س شامل الضريبة» (80) —
+//     the SALE price alone (§ 53);
+//   • a list r<n> «السبب» for what was not delivered: «لا نقص» (none), «تالف» (damaged), «ناقص»
+//     (short), «رفضه العميل» (refused) — opened on «لا نقص».
+// Then «طريقة الدفع» (pay: كاش / تحويل / لم يدفع — required, nothing chosen for him), «المبلغ المستلم»
+// (amt, optional: empty = the whole invoice), «ملاحظة» (note) and «إرسال».
+// Meta allows fifty components a screen: the heading + the line of text + 20 × 2 + 3 + the footer = 46.
+//   head         «طلب #12 — مطعم الوادي»          how    one line: how to fill it
+//   l<n> h<n>    slot n's label and hint            i<n>   the quantity it opens with (the ordered one)
+//   v<n>         slot n is shown (and its quantity required)
+// The reply carries q<n> and r<n> of the twenty slots, pay, amt, note, and the flow_token.
 
 export const FLOW_JSON_VERSION = "6.0";
 export const FLOW_CATEGORIES = ["OTHER"];
@@ -442,9 +458,95 @@ export function buildCustodyFlowJson() {
   };
 }
 
+// ================================================================ utak_delivery_v1
+
+export const DELIVERY_FLOW_NAME = "utak_delivery_v1";
+export const DELIVERY_SCREEN = "DELIVER_A";
+export const DELIVERY_SLOTS = 20;
+export const DELIVERY_SCREEN_TITLE = "التسليم والتحصيل";
+export const DELIVERY_CTA = "سلّم وحصّل";
+export const DELIVERY_REASON_LABEL = "السبب";
+/** Why a quantity was not delivered: the ids are x_daily_order_line.x_return_reason's values, and «none». */
+export const DELIVERY_REASONS = [
+  { id: "none", title: "لا نقص" },
+  { id: "damaged", title: "تالف" },
+  { id: "short", title: "ناقص" },
+  { id: "refused", title: "رفضه العميل" },
+];
+export const DELIVERY_PAY_LABEL = "طريقة الدفع";
+export const DELIVERY_PAY_OPTIONS = [
+  { id: "cash", title: "كاش" },
+  { id: "transfer", title: "تحويل" },
+  { id: "unpaid", title: "لم يدفع" },
+];
+export const DELIVERY_AMOUNT_LABEL = "المبلغ المستلم";
+export const DELIVERY_AMOUNT_HINT = "اتركه فاضي لو استلمت قيمة الفاتورة كاملة";
+export const DELIVERY_NOTE_LABEL = "ملاحظة";
+export const DELIVERY_NOTE_HINT = "اختياري — تصل براء مع التسليم";
+
+/** The slots of the one screen: 1 … 20. */
+export const deliverySlots = () => Array.from({ length: DELIVERY_SLOTS }, (_, i) => i + 1);
+
+/** The screen's data model: every key the worker sends, with Meta's mandatory example. */
+export function deliveryDataModel() {
+  const data = {
+    head: { type: "string", __example__: "طلب #12 — مطعم الوادي" },
+    how: { type: "string", __example__: "اكتب الكمية المسلَّمة فعلاً لكل صنف، واختر السبب لو نقص شيء، ثم طريقة الدفع و«إرسال»." },
+  };
+  for (const n of deliverySlots()) {
+    data[`l${n}`] = { type: "string", __example__: n === 1 ? "طماطم" : "-" };
+    data[`h${n}`] = { type: "string", __example__: n === 1 ? "كرتون · المطلوب 3 · السعر 31 ر.س شامل الضريبة" : "-" };
+    data[`v${n}`] = { type: "boolean", __example__: n === 1 };
+    data[`i${n}`] = { type: "string", __example__: n === 1 ? "3" : "0" };
+  }
+  return data;
+}
+
+/** The two components of slot n: the delivered quantity, and why the rest was not delivered. */
+export function deliverySlot(n) {
+  return [
+    // required while it is shown: a quantity is never left empty (0 = none of it was delivered)
+    { type: "TextInput", name: `q${n}`, label: `\${data.l${n}}`, "input-type": "number", required: `\${data.v${n}}`, "helper-text": `\${data.h${n}}`, "init-value": `\${data.i${n}}`, visible: `\${data.v${n}}` },
+    { type: "Dropdown", name: `r${n}`, label: DELIVERY_REASON_LABEL, required: false, "data-source": DELIVERY_REASONS, "init-value": DELIVERY_REASONS[0].id, visible: `\${data.v${n}}` },
+  ];
+}
+/** «إرسال»: the quantity and the reason of every slot, the payment, the amount, the note. */
+export function deliverySubmitPayload() {
+  return Object.fromEntries([
+    ...deliverySlots().flatMap((n) => [[`q${n}`, `\${form.q${n}}`], [`r${n}`, `\${form.r${n}}`]]),
+    ...["pay", "amt", "note"].map((k) => [k, `\${form.${k}}`]),
+  ]);
+}
+export function buildDeliveryFlowJson() {
+  return {
+    version: FLOW_JSON_VERSION,
+    screens: [{
+      id: DELIVERY_SCREEN,
+      title: DELIVERY_SCREEN_TITLE,
+      terminal: true,
+      success: true,
+      data: deliveryDataModel(),
+      layout: {
+        type: "SingleColumnLayout",
+        children: [
+          { type: "TextHeading", text: "${data.head}" },
+          { type: "TextBody", text: "${data.how}" },
+          ...deliverySlots().flatMap(deliverySlot),
+          // nothing is chosen for him: the payment is his own answer
+          { type: "RadioButtonsGroup", name: "pay", label: DELIVERY_PAY_LABEL, required: true, "data-source": DELIVERY_PAY_OPTIONS },
+          { type: "TextInput", name: "amt", label: DELIVERY_AMOUNT_LABEL, "input-type": "number", required: false, "helper-text": DELIVERY_AMOUNT_HINT },
+          { type: "TextArea", name: "note", label: DELIVERY_NOTE_LABEL, required: false, "helper-text": DELIVERY_NOTE_HINT },
+          { type: "Footer", label: FLOW_SUBMIT_LABEL, "on-click-action": { name: "complete", payload: deliverySubmitPayload() } },
+        ],
+      },
+    }],
+  };
+}
+
 /** The Flows of § 55, as the Meta script walks them. */
 export const FLOWS = [
   { key: "review", name: REVIEW_FLOW_NAME, build: buildReviewFlowJson, first: REVIEW_FIRST_SCREEN },
+  { key: "delivery", name: DELIVERY_FLOW_NAME, build: buildDeliveryFlowJson, first: DELIVERY_SCREEN },
   { key: "receipt", name: RECEIPT_FLOW_NAME, build: buildReceiptFlowJson, first: RECEIPT_FIRST_SCREEN },
   { key: "carload", name: CARLOAD_FLOW_NAME, build: buildCarloadFlowJson, first: CARLOAD_FIRST_SCREEN },
   { key: "custody", name: CUSTODY_FLOW_NAME, build: buildCustodyFlowJson, first: CUSTODY_SCREEN },

@@ -9,6 +9,7 @@
 //   prc_{listId}                   → § 55 د: the receipt form (src/receipt-form.ts); its reply writes the
 //                                    received quantities on the list, then warehouseConfirmedPurchase
 //   delivered_{orderId}            → markStopDelivered + reply to customer
+//   dlv_{orderId}                  → § 55 ب: the delivery and collection form (src/delivery-form.ts)
 //   delivery_issue_{orderId}       → markStopIssue (note captured from next driver message)
 //
 // Templates: purchase list / driver route / collection list are pre-registered in
@@ -48,6 +49,7 @@ import { holdForTask } from "./attendance";
 import { heldPartnerIds } from "./screening";
 import { enqueueTeamItems, type TeamQueueItem } from "./team-queue";
 import { RECEIPT_BUTTON_TITLE, receiptButton } from "./receipt-form";
+import { deliveryButton } from "./delivery-form";
 
 // ============================================================
 // Customer order notice — 2026-09-24 (ح3)
@@ -497,8 +499,11 @@ export async function sendDriverRoute(
   const trimmed = body.length <= 1024 ? body : body.slice(0, 1020) + "…";
   const stopBody = (s: RouteStop) =>
     `توصيلة #${s.order_id} — ${s.customer_name}${s.neighborhood ? " (" + s.neighborhood + ")" : ""}\n${s.line_summary}`.slice(0, 1024);
+  // § 55 ب — the stop's session buttons (and their queued form): «📦 سلّم وحصّل» opens the delivery
+  // and collection form (src/delivery-form.ts) where «تم التسليم ✅» delivered the whole order at
+  // once. The template driver_stop below keeps its own quick replies (their text is fixed at Meta).
   const stopButtons = (s: RouteStop) => [
-    { id: `delivered_${s.order_id}`, title: "تم التسليم ✅" },
+    deliveryButton(s.order_id),
     { id: `delivery_issue_${s.order_id}`, title: "فيه مشكلة ⚠️" },
   ];
 

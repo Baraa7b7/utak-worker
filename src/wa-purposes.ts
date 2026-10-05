@@ -139,6 +139,12 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // § 55 هـ — the collector's custody handover (a WhatsApp Flow: the cash expected with him, what
   // he handed over and how) and its answers to him: inside his 24h window only, never held.
   custody_form: op("نموذج تسليم العهدة", false, { hours: 2 }),
+  // § 55 ب — the delivery and collection form (a WhatsApp Flow: the order's lines with their SALE
+  // prices) to the team member who tapped «📦 سلّم وحصّل», and its summary: inside his 24h window
+  // only, never a template and never held. The gateway refuses it for a price source's or a
+  // supplier's number (src/price-privacy.ts). A reply: each answers his own tap / «إرسال», so one
+  // message Meta refused does not stop the next form for 24h (the delivery goes through it).
+  delivery_form: { label: "نموذج التسليم والتحصيل", kind: "reply", important: false, ttl: { hours: 2 } },
   // ---- Baraa
   // alerts wait for his next tap (the 06:00 «بدء الدوام» opens his window);
   // § 34: critical — held, they also send utak_update_owner once a day.
@@ -184,6 +190,12 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // § 55 هـ — the one trial of the custody form to Baraa's own number («🧪 تجربة»), inside his
   // window only, and the answers to his trial reply (nothing is kept).
   custody_form_test: op("تجربة نموذج العهدة", false, { hours: 1 }),
+  // § 55 ب — the delivery and collection form when Baraa himself delivers (from the car), and its
+  // summary: his number alone, inside his window only. A reply to his own tap, as the team's.
+  owner_delivery_form: { label: "نموذج التسليم والتحصيل (المالك)", kind: "reply", important: false, ttl: { hours: 2 } },
+  // § 55 ب — the one trial of the delivery form to Baraa's own number («🧪 تجربة») and the answer to
+  // its reply (nothing delivered, no invoice, no payment).
+  delivery_form_test: op("تجربة نموذج التسليم", false, { hours: 1 }),
   // ---- § 34: «فتح المحادثة» — one UTILITY template per recipient category,
   // sent when a critical message is held (src/wa-opener.ts). Template only:
   // never held itself.

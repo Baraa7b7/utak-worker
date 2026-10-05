@@ -188,11 +188,13 @@ const M = [
   ["ج", "Baraa is not told that a list changed", [[RT,
     "      if (lists.length) {\n        await sendOwnerAlert(env, `🛒", "      if (false) {\n        await sendOwnerAlert(env, `🛒"]], T],
   ["ج", "the invoice is not issued at the delivery on the spot", [[RT,
-    "  // v5: create invoice + dispatch to customer & collector\n  try {\n    const { createAndDispatchInvoiceForOrder } = await import(\"./invoice\");\n    await createAndDispatchInvoiceForOrder(env, orderId);", "  // v5: create invoice + dispatch to customer & collector\n  try {\n    const { createAndDispatchInvoiceForOrder } = await import(\"./invoice\");\n    if (!immediate) await createAndDispatchInvoiceForOrder(env, orderId);"]], T],
+    // § 55 ب — the call carries the delivery form's options (invoiceOpts): the pattern follows the line
+    "  // v5: create invoice + dispatch to customer & collector\n  try {\n    const { createAndDispatchInvoiceForOrder } = await import(\"./invoice\");\n    await createAndDispatchInvoiceForOrder(env, orderId, invoiceOpts);", "  // v5: create invoice + dispatch to customer & collector\n  try {\n    const { createAndDispatchInvoiceForOrder } = await import(\"./invoice\");\n    if (!immediate) await createAndDispatchInvoiceForOrder(env, orderId, invoiceOpts);"]], T],
   ["ج", "the confirmed order does not reach Baraa", [[RT,
     "  await notifyOwnerConfirmed(env, orderId);\n", ""]], T],
-  ["ج", "Baraa's message of a confirmed order has no «تم التسليم» button", [[OF,
-    "      content: buttonsContent(text, [{ id: `delivered_${orderId}`, title: \"تم التسليم ✅\" }]),", "      content: textContent(text),"]], T],
+  // § 55 ب — the button is «📦 سلّم وحصّل» (the delivery and collection form) where it was «تم التسليم ✅»
+  ["ج", "Baraa's message of a confirmed order has no delivery button", [[OF,
+    "      content: buttonsContent(text, [deliveryButton(orderId)]),", "      content: textContent(text),"]], T],
   ["ج", "the owner guard refuses the confirmed order's message", [[GW,
     "\"owner_price_review\", \"owner_order_confirmed\", \"price_review_test\"]);", "\"owner_price_review\", \"price_review_test\"]);"]], T],
   ["ج", "Baraa's tap on «تم التسليم» is ignored (as every other button of his)", [[IX,

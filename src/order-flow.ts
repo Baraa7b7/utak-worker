@@ -27,6 +27,8 @@
 //
 // ج — a confirmed order may be delivered on the spot (from the car): Baraa
 // gets each confirmed order with a «تم التسليم ✅» button (notifyOwnerConfirmed).
+// § 55 ب: that button is «📦 سلّم وحصّل» now — the delivery and collection form
+// (src/delivery-form.ts); «تسليم N» still delivers the whole order at once.
 
 import type { Env } from "./config";
 import { isVatApplicable } from "./config";
@@ -287,6 +289,9 @@ export async function quoteAwaitingOrders(env: Env, nowMs: number = Date.now(), 
  * sells from the car, and the tap delivers the order on the spot (its invoice
  * is issued and sent as at any delivery, and it enters no purchase list).
  * Once per order. Never throws.
+ * § 55 ب — the button is «📦 سلّم وحصّل» now: the delivery and collection form
+ * (src/delivery-form.ts), whose «إرسال» delivers the order the same way, by
+ * the delivered quantities, with its payment. «تسليم N» still delivers it whole.
  */
 export async function notifyOwnerConfirmed(env: Env, orderId: number): Promise<void> {
   if (!env.OWNER_WHATSAPP) return;
@@ -295,6 +300,8 @@ export async function notifyOwnerConfirmed(env: Env, orderId: number): Promise<v
     if (!claim.claimed) return;
     const order = await getOrderForInvoicing(env, orderId);
     if (!order) { await releaseButton(env, claim); return; }
+    // § 55 ب — «📦 سلّم وحصّل» (the delivery and collection form) in place of «تم التسليم ✅»
+    const { DELIVERY_BUTTON_TITLE, deliveryButton } = await import("./delivery-form");
     const price = (l: { unit_price: number | null; price_unit_manual: number | null }) => (l.price_unit_manual ?? 0) > 0 ? (l.price_unit_manual as number) : l.unit_price ?? 0;
     const total = round2(order.lines.reduce((s, l) => s + round2(price(l) * l.quantity), 0));
     const text = [
@@ -302,12 +309,12 @@ export async function notifyOwnerConfirmed(env: Env, orderId: number): Promise<v
       ...order.lines.map((l) => `• ${l.product_name} ${l.packaging_name} × ${l.quantity}`),
       `المجموع: ${money(total)} ر.س${order.price_date ? ` (أسعار ${arabicDate(order.price_date)})` : ""}`,
       order.order_date ? `التوصيل المسجَّل: صباح ${deliveryLabel(order.order_date)}.` : "",
-      `سلّمته من السيارة؟ اضغط «تم التسليم»: تصدر فاتورته وتُرسل له، ولا يدخل قائمة الشراء.`,
+      `سلّمته من السيارة؟ اضغط «${DELIVERY_BUTTON_TITLE}»: تكتب المسلَّم وطريقة الدفع، فتصدر فاتورته بالمسلَّم وتُرسل له، ولا يدخل قائمة الشراء. (أو اكتب «تسليم ${orderId}» لتسليمه كاملاً.)`,
     ].filter(Boolean).join("\n");
     await sendViaGateway({ ...env, AUTO_SEND_JOB: undefined } as Env, {
       purpose: OWNER_CONFIRMED_PURPOSE,
       to: env.OWNER_WHATSAPP,
-      content: buttonsContent(text, [{ id: `delivered_${orderId}`, title: "تم التسليم ✅" }]),
+      content: buttonsContent(text, [deliveryButton(orderId)]),
     });
     await finishButton(env, claim, 7 * 24 * 3600);
   } catch (e) {

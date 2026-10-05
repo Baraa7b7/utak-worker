@@ -449,8 +449,10 @@ console.log("\n[ج] a confirmed order is delivered on the spot, whatever its reg
   const o = orderOfC1()[0];
   graph.length = 0;
   await tap(env, `confirm_order_${o.id}`);
-  const toOwner = sentTo(OWNER).filter((b: any) => b.type === "interactive" && (b.interactive?.action?.buttons ?? []).some((x: any) => x.reply.id === `delivered_${o.id}`));
-  assert("the confirmed order reaches Baraa with a «تم التسليم ✅» button", toOwner.length === 1 && toOwner[0].interactive.action.buttons[0].reply.title === "تم التسليم ✅", JSON.stringify(sentTo(OWNER)).slice(0, 300));
+  // § 55 ب — the button is «📦 سلّم وحصّل» (the delivery and collection form) where it was «تم التسليم ✅»;
+  // the old button of a message sent before still delivers the whole order (the taps below)
+  const toOwner = sentTo(OWNER).filter((b: any) => b.type === "interactive" && (b.interactive?.action?.buttons ?? []).some((x: any) => x.reply.id === `dlv_${o.id}`));
+  assert("the confirmed order reaches Baraa with its delivery button («📦 سلّم وحصّل», § 55)", toOwner.length === 1 && toOwner[0].interactive.action.buttons.length === 1 && toOwner[0].interactive.action.buttons[0].reply.title === "📦 سلّم وحصّل", JSON.stringify(sentTo(OWNER)).slice(0, 300));
   const t = String(toOwner[0]?.interactive?.body?.text);
   assert("…with the customer, the items, the total (3 × 24 = 72) and the registered delivery day", t.includes(`#${o.id}`) && t.includes("مطعم الوادي") && t.includes("• طماطم كرتون × 3") && t.includes("المجموع: 72 ر.س") && t.includes("صباح الاثنين 5 أكتوبر 2026"), t);
   assert("the order's registered delivery is the day after tomorrow (its ordering day is tomorrow)", table("x_daily_order").get(o.id)!.x_order_date === NEXT && table("x_daily_order").get(o.id)!.x_state === "confirmed");

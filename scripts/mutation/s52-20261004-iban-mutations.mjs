@@ -130,11 +130,12 @@ const M = [
   ["هـ", "the line goes into utak_collection_summary's variables", [[IN,
     "T.COLLECTION_SUMMARY, s.params, [], undefined,", "T.COLLECTION_SUMMARY, [...s.params.slice(0, 3), `${s.params[3]} — ${listText}`], [], undefined,"]], T],
   // ---------------------------------------------------------------- ز the schema
-  // § 53 and § 54 — their fixtures are read after § 52's and hold the two models as well: the three lines go
+  // § 53, § 54 and § 55 — their fixtures are read after § 52's and hold the two models as well: the four lines go
   ["ز", "the tests' gate does not load the § 52 fixture (the two models unchecked)", [[KIT,
     "  \"fixtures-odoo-fields-20261004-s52.json\",   // § 52:", "  // § 52:"], [KIT,
     "  \"fixtures-odoo-fields-20261004-s53.json\",   // § 53:", "  // § 53:"], [KIT,
-    "  \"fixtures-odoo-fields-20261005-s54.json\",   // § 54:", "  // § 54:"]], T],
+    "  \"fixtures-odoo-fields-20261005-s54.json\",   // § 54:", "  // § 54:"], [KIT,
+    "  \"fixtures-odoo-fields-20261005-s55.json\",   // § 55:", "  // § 55:"]], T],
 ];
 
 const want = new Set(process.argv.slice(2));

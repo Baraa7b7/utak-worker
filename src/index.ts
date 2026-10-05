@@ -1773,6 +1773,23 @@ export default {
       }
     }
 
+    // § 55 ب — the ONE trial of the delivery and collection form: to Baraa's own number, while his
+    // window is open, once a day, with the latest real order's lines. Its reply delivers nothing,
+    // issues no invoice and records no payment (src/delivery-form.ts sendDeliveryFormTest).
+    if (request.method === "POST" && url.pathname === "/odoo/hook/delivery-form-test") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      try {
+        const { sendDeliveryFormTest } = await import("./delivery-form");
+        return json({ ok: true, ...(await sendDeliveryFormTest(env)) });
+      } catch (e) {
+        return json({ ok: false, error: (e as Error).message }, 500);
+      }
+    }
+
     // § 55 د — the ONE trial of the purchases' receipt form: to Baraa's own number, while his window
     // is open, once a day, from the latest real purchase list. His reply writes nothing, confirms
     // nothing and downloads nothing (src/receipt-form.ts sendReceiptFormTest).
@@ -2463,6 +2480,11 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           const { handleCustodyReply } = await import("./custody-form");
           const r = await handleCustodyReply(env, msg, ctx);
           console.log(`[custody] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} ${r.action}${r.diff !== undefined ? ` diff=${r.diff}` : ""}`);
+        } else if ((await import("./delivery-form")).isDeliveryFormToken(msg.flow.token ?? "")) {
+          // § 55 ب — the delivery and collection form: the delivered quantities, the invoice by them, the payment
+          const { handleDeliveryFormReply } = await import("./delivery-form");
+          const r = await handleDeliveryFormReply(env, msg, ctx);
+          console.log(`[delivery-form] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} ${r.action}${r.orderId ? ` order=${r.orderId}` : ""}${r.payment ? ` pay=${r.payment}` : ""}`);
         } else {
           const { handlePriceFlowReply } = await import("./price-flow");
           const r = await handlePriceFlowReply(env, msg, ctx);
@@ -2769,6 +2791,16 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           // from it any more; one line says where the decision is taken now.
           const { OLD_EXCEPTION_TEXT } = await import("./prices");
           await sendText(env, msg.from, OLD_EXCEPTION_TEXT, { ctx, purpose: "owner_alert" });
+        } else if ((msg.type === "interactive" || msg.type === "button") && /^dlv_\d+$/.test(msg.buttonId ?? "")) {
+          // § 55 ب — «📦 سلّم وحصّل» under a confirmed order: the delivery and collection form, to him
+          // (its «إرسال» delivers the order by the delivered quantities, with its payment).
+          const orderId = Number(msg.buttonId!.slice(4));
+          const { answerDeliveryButton, DELIVERY_FORM_NOT_SENT_TEXT } = await import("./delivery-form");
+          const reply = await answerDeliveryButton(env, orderId, msg.from, ctx).catch((e) => {
+            console.warn("[delivery-form] owner's form failed", (e as Error)?.message);
+            return { text: DELIVERY_FORM_NOT_SENT_TEXT(orderId), sent: false };
+          });
+          if (reply.text) await sendText(env, msg.from, reply.text, { ctx, purpose: "owner_alert" });
         } else if (((msg.type === "interactive" || msg.type === "button") && /^delivered_\d+$/.test(msg.buttonId ?? ""))
           || (msg.type === "text" && deliverCommandOrderId(msg.text) !== null)) {
           // § 49 ج — Baraa sells from the car: «تم التسليم ✅» under a confirmed order (or «تسليم 12»)

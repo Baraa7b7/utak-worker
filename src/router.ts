@@ -52,6 +52,7 @@ import {
 } from "./order-flow";
 import { validPriceList } from "./price-validity";
 import { ORDER_FORM_FOLLOW_TEXT } from "./order-form";
+import type { InvoiceDispatchOpts } from "./invoice";
 
 /** § 40 د — «أقل طلب N ريال، أضف أصنافاً ليكتمل», and the order's total now (never with a minimum of 0, § 49 أ). */
 function belowMinimumText(m: { min: number; total: number }): string {
@@ -644,6 +645,23 @@ async function handleButton(
     };
   }
 
+  // ---- § 55 ب: «📦 سلّم وحصّل» — the delivery and collection form, to the team member who tapped ----
+  // (src/delivery-form.ts reads who he is from his number: anyone else gets nothing.) The form's
+  // «إرسال» delivers the order through deliverOrder below, under the lock of «تم التسليم».
+  {
+    const { DELIVERY_BUTTON_RE, answerDeliveryButton } = await import("./delivery-form");
+    const mForm = DELIVERY_BUTTON_RE.exec(buttonId);
+    if (mForm) {
+      await logMessageAnalysis(env, {
+        customerId: partner?.id ?? null,
+        text: buttonId,
+        intent: "delivery_form",
+        actionTaken: `button:delivery_form:${mForm[1]}`,
+      });
+      return { text: (await answerDeliveryButton(env, Number(mForm[1]), String(partner?.x_whatsapp_number ?? ""))).text };
+    }
+  }
+
   // ---- v4: driver marked stop delivered ----
   // § 49 ج — and the delivery on the spot (from the car): any confirmed order,
   // on a route or not, whatever its registered delivery day.
@@ -747,8 +765,11 @@ async function handleButton(
  * and sent as at any delivery (the zero-price guard and the VAT as they are),
  * and it leaves every purchase list not bought yet: it enters none.
  * An order that is not confirmed is not delivered.
+ * § 55 ب — `invoiceOpts` is the delivery form's alone (its payment on the
+ * invoice just issued, src/invoice.ts InvoiceDispatchOpts): without it this is
+ * «تم التسليم» as it always was.
  */
-export async function deliverOrder(env: Env, orderId: number): Promise<{ text: string; delivered: boolean }> {
+export async function deliverOrder(env: Env, orderId: number, invoiceOpts: InvoiceDispatchOpts = {}): Promise<{ text: string; delivered: boolean }> {
   // ح8: an order already delivered is not delivered, invoiced or announced again.
   const brief = await getOrderBrief(env, orderId);
   if (!brief) return { text: `ما لقينا الطلب #${orderId}.`, delivered: false };
@@ -777,7 +798,7 @@ export async function deliverOrder(env: Env, orderId: number): Promise<{ text: s
   // v5: create invoice + dispatch to customer & collector
   try {
     const { createAndDispatchInvoiceForOrder } = await import("./invoice");
-    await createAndDispatchInvoiceForOrder(env, orderId);
+    await createAndDispatchInvoiceForOrder(env, orderId, invoiceOpts);
   } catch (e) {
     console.warn(`[delivered] invoice dispatch failed for order ${orderId}`, (e as Error).message);
   }

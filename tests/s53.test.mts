@@ -273,7 +273,7 @@ console.log("\n[أ] the closed numbers: every price source and supplier, by «x_
   assert("رائد is a «source», Ahmed a «supplier»; a supplier whose number sits in «phone» alone is there too", list.some((c: any) => c.id === RAED && c.kind === "source") && list.some((c: any) => c.id === AHMED && c.kind === "supplier") && list.some((c: any) => c.id === 884 && c.digits === "966500000884"), JSON.stringify(list));
   assert("عمر (an employee) and the customers are not closed", !list.some((c: any) => c.id === DRIVER || c.id === CUST || c.id === CUST2));
   assert("«0550689078», «966550689078» and «+966550689078» are one number", PP.sameNumber("0550689078", "+" + RAED_PHONE) && PP.sameNumber(RAED_PHONE, "+" + RAED_PHONE) && !PP.sameNumber("+966550689079", RAED_PHONE) && !PP.sameNumber("", RAED_PHONE));
-  assert("what carries our sale prices to a customer: the day's list, the quotation (text and PDF), the order form", JSON.stringify([...PP.CUSTOMER_PRICE_PURPOSES].sort()) === JSON.stringify(["customer_order_form", "customer_prices", "customer_quotation", "customer_quotation_pdf"]));
+  assert("what carries our sale prices to a customer: the day's list, the quotation (text and PDF), the order form — and (§ 55 ب) the team's delivery form", JSON.stringify([...PP.CUSTOMER_PRICE_PURPOSES].sort()) === JSON.stringify(["customer_order_form", "customer_prices", "customer_quotation", "customer_quotation_pdf", "delivery_form"]));
 }
 
 // ================================================================ [أ] what is Baraa's reaches Baraa alone

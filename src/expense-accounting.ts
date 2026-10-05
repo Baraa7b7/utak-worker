@@ -128,10 +128,10 @@ export interface ExpenseTax { id: number; name: string; rate: number }
  * tax that is added on top, the goods' #21, would post 115 for 100 paid).
  */
 export async function findInclusivePurchaseTax(env: Env): Promise<ExpenseTax | null> {
-  type Tax = { id: number; name: string; amount: number; amount_type: string; type_tax_use: string; price_include: boolean; active: boolean };
+  type Tax = { id: number; name: string; amount: number; price_include: boolean; active: boolean };
   const rows = await call<Tax[]>(env, "account.tax", "search_read", {
     domain: [["type_tax_use", "=", "purchase"], ["amount_type", "=", "percent"], ["amount", "=", EXPENSE_TAX_RATE]],
-    fields: ["id", "name", "amount", "amount_type", "type_tax_use", "price_include", "active"], limit: 20,
+    fields: ["id", "name", "amount", "price_include", "active"], limit: 20,
   });
   const ok = rows.filter((t) => t.active !== false && t.price_include === true);
   const t = ok.length === 1 ? ok[0] : ok.find((x) => x.name === EXPENSE_TAX_NAME);
@@ -141,15 +141,15 @@ export async function findInclusivePurchaseTax(env: Env): Promise<ExpenseTax | n
 /** A name as it is compared: every run of spaces (the no-break and the invisible ones too) one space, no case. */
 export const supplierNameKey = (s: unknown): string => String(s ?? "").replace(/[\s\u00a0\u200c-\u200f\u202a-\u202e]+/g, " ").trim().toLowerCase();
 
-export interface ExpenseSupplier { id: number; name: string; by: "vat" | "name" }
+export interface ExpenseSupplier { id: number; name: string }
 /**
  * The supplier of an expense: the partner holding this tax number (an entry
- * carries one only when it is valid), else the partner of exactly this name — a partner
- * that is already a supplier first, then the oldest. Odoo is asked for the
- * names that hold the name's longest word, and the whole name is compared
- * here: a name kept in Odoo with two spaces is still the same name, and one
- * that only contains it is not. Null = none: a new one is made when the
- * expense is recorded. Read-only.
+ * carries one only when it is valid), else the partner of exactly this name —
+ * a partner that is already a supplier first, then the oldest. Odoo is asked
+ * for the names that hold the name's longest word, and the whole name is
+ * compared here: a name kept in Odoo with two spaces is still the same name,
+ * and one that only contains it is not. Null = none: a new one is made when
+ * the expense is recorded. Read-only.
  */
 export async function findExpenseSupplier(env: Env, name: string, vat: string): Promise<ExpenseSupplier | null> {
   type P = { id: number; name: string; supplier_rank: number };
@@ -157,13 +157,13 @@ export async function findExpenseSupplier(env: Env, name: string, vat: string): 
   const first = (rows: P[]): P | null => [...rows].sort((a, b) => Number(b.supplier_rank > 0) - Number(a.supplier_rank > 0) || a.id - b.id)[0] ?? null;
   if (vat) {
     const p = first(await call<P[]>(env, "res.partner", "search_read", { domain: [["vat", "=", vat]], fields, limit: 20 }));
-    if (p) return { id: p.id, name: p.name, by: "vat" };
+    if (p) return { id: p.id, name: p.name };
   }
   const key = supplierNameKey(name);
   const word = key.split(" ").sort((x, y) => y.length - x.length)[0];
   const rows = await call<P[]>(env, "res.partner", "search_read", { domain: [["name", "ilike", word]], fields, limit: 200 });
   const p = first(rows.filter((r) => supplierNameKey(r.name) === key));
-  return p ? { id: p.id, name: p.name, by: "name" } : null;
+  return p ? { id: p.id, name: p.name } : null;
 }
 /** A NEW supplier: a company, a supplier and not a customer; his tax number (the entry's: a valid one, or none) and «مسجل في الضريبة» with it. Nothing of WhatsApp. */
 export function newSupplierVals(name: string, vat: string): Record<string, unknown> {

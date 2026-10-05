@@ -142,6 +142,10 @@ globalThis.fetch = (async (input: unknown, init?: any) => {
     return new Response(JSON.stringify({ url: `https://media.test/${mm[1]}`, mime_type: "image/jpeg", file_size: MEDIA_BYTES.length }), { status: 200 });
   }
   if (url.startsWith("https://media.test/EXPH_")) return new Response(MEDIA_BYTES, { status: 200 });
+  // Meta refuses a Flow message (a Flow that is not published, an id that is not one)
+  if (quirk.metaRefusesFlows && url.includes("graph.facebook.com") && /"type":"flow"/.test(String(init?.body ?? ""))) {
+    return new Response(JSON.stringify({ error: { message: "(#131009) Parameter value is not valid", code: 131009 } }), { status: 400 });
+  }
   const m = /\/json\/2\/([^/]+)\/([^/?]+)/.exec(url);
   if (!m) return kitFetch(input as any, init);
   if (quirk.down && new RegExp(quirk.down).test(`${m[1]}/${m[2]}`)) return new Response(JSON.stringify({ name: "odoo.exceptions.AccessError", message: "boom" }), { status: 500 });
@@ -177,6 +181,8 @@ const MISC = 55;
 
 /** The tenant's books, as they were read on 10-05: the journals, the accounts, the taxes, the cash vendor. Accounting ON, as on prod. */
 function world(riyadh = `${TODAY} 14:00`, o: { sync?: boolean } = {}): any {
+  // the schema gate's list is emptied with every world: what an earlier one refused is kept
+  everRejected.push(...rejected);
   const env = fresh(riyadh); setExtract(null);
   env.ACCOUNTING_SYNC = o.sync === false ? "false" : "true";
   for (const k of Object.keys(quirk)) delete quirk[k];
@@ -241,7 +247,9 @@ const gatewayRecord = (c: any): boolean => (c.model === "x_wa_message" && c.meth
 const bookWrites = () => odooWrites().filter((c: any) => !gatewayRecord(c));
 /** The purpose of every message the gateway recorded as sent. */
 const purposes = (): string[] => rows("x_wa_message").map((m: any) => /"purpose":"([a-z_]+)"/.exec(String(m.x_debug_payload))?.[1] ?? "").filter(Boolean);
-const clean = () => assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
+/** Every Odoo request the schema gate refused, in every world of this file so far. */
+const everRejected: string[] = [];
+const clean = () => assert("no Odoo field or value outside the schema — in any world so far", rejected.length === 0 && everRejected.length === 0, [...everRejected, ...rejected].join(" | "));
 
 // ================================================================ و1
 console.log("\n[و1] utak_expense_v1 at Meta is the form the worker fills: one screen, no endpoint");
@@ -364,6 +372,11 @@ console.log("\n[و2] the doors: «مصروف» / «تسجيل مصروف» and t
   quirk.down = "^account\\.journal/";
   const r = await quiet(() => EX.startExpense(down));
   assert("Odoo cannot be read: one line says the form could not go", r.sent === false && r.reason === "error" && sentTo(OWNER).length === 1 && bodyOf(last()) === EX.EXPENSE_FAILED_TEXT);
+  const refused = world();
+  quirk.metaRefusesFlows = true;
+  const m = await quiet(() => EX.startExpense(refused));
+  assert("Meta refuses the form: he is told it could not go, and its token is not kept", m.sent === false && /^rejected/.test(String(m.reason)) && sentTo(OWNER).some((b: any) => bodyOf(b) === EX.EXPENSE_FAILED_TEXT)
+    && flowsTo(OWNER).length === 0 && ![...refused.MSG_DEDUP.store.keys()].some((k: string) => k.startsWith("expense_t:")), JSON.stringify({ m, sent: sentTo(OWNER).map(bodyOf) }));
   const idx = srcOf("index.ts");
   assert("the Flow's reply is routed by its «ex1.» token after the delivery form and before the price form's reader", idx.indexOf("isExpenseToken(msg.flow.token") > idx.indexOf("isDeliveryFormToken(msg.flow.token") && idx.indexOf("isExpenseToken(msg.flow.token") < idx.indexOf("handlePriceFlowReply(env, msg, ctx)"));
   const src = srcOf("expense-form.ts");
@@ -899,7 +912,7 @@ console.log("\n[و13] the trial to Baraa, its hook, and the purposes");
   const blocked = await reply(env, OWNER, tokenOf(f2), { ...GOOD, date: TOMORROW, tax: "yes", vat: "77", photo: PHOTO, sup: "مصروفات نقدية متنوعة" });
   assert("a trial whose account is not in Odoo says where the real one would have stopped", blocked.action === "test" && bodyOf(last()) === "🧪 تجربة — ⚠️ كان سيتوقف قبل أي كتابة:\n• الحساب 400077 («وقود») غير موجود في دليل الحسابات" && bills().length === 0);
   assert("the trial's words for a wrong number and a known supplier", EX.badVatText("77", true) === "⚠️ الرقم الضريبي «77» غير صحيح (15 رقماً يبدأ بـ 3 وينتهي بـ 3): كان سيُسجَّل بلا ضريبة مدخلات."
-    && EX.expenseTestText({ ...({} as any), supplier: "x", date: TODAY, note: "" }, { type: { title: "وقود" }, account: { code: "400077", name: "Fuel" }, pay: { title: "البنك (BNK1)" }, tax: null, net: 50, vat: 0, total: 50, supplier: { id: 55, name: "مصروفات نقدية متنوعة", by: "name" } } as any, { badVat: "77", photo: false })
+    && EX.expenseTestText({ ...({} as any), supplier: "x", date: TODAY, note: "" }, { type: { title: "وقود" }, account: { code: "400077", name: "Fuel" }, pay: { title: "البنك (BNK1)" }, tax: null, net: 50, vat: 0, total: 50, supplier: { id: 55, name: "مصروفات نقدية متنوعة" } } as any, { badVat: "77", photo: false })
       === ["🧪 تجربة — كان سيُسجَّل: وقود", "الحساب: 400077 Fuel", "المورد: مصروفات نقدية متنوعة (موجود في Odoo)", "الإجمالي 50 ر.س — بلا ضريبة مدخلات", "الدفع: البنك (BNK1)", `التاريخ: ${LABEL}`, "بلا صورة.", EX.badVatText("77", true), "(تجربة: لم يُكتب شيء في Odoo — لا فاتورة ولا دفعة ولا مورد)"].join("\n"));
   // the hook
   const hookEnv = { ...env, ODOO_HOOK_TOKEN: "HOOK" };
@@ -944,4 +957,5 @@ console.log("\n[و14] the guide, the table of accounts, and the pointer in the e
   assert("docs/EXPENSES.md § 1 points to the form", exp.slice(exp.indexOf("## 1)"), exp.indexOf("## 2)")).includes("«مصروف»") && exp.includes("OPERATING-DAY.md"));
 }
 
+clean();
 done();

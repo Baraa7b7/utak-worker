@@ -147,10 +147,10 @@
 | إجراءات الخادم التي تستدعي الوركر (24) | جدولها في الأرشيف، سطر 584 |
 
 ## 7) الاختبارات والطفرات
-- `npm test` (57 ملفاً، نحو دقيقة، 5122 ✓). ملف واحد: `node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/<name>.test.mts`. و`npx tsc --noEmit`.
+- `npm test` (58 ملفاً، نحو دقيقة، 5307 ✓). ملف واحد: `node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/<name>.test.mts`. و`npx tsc --noEmit`.
 - `tests/wa-harness.mts`: Odoo و Meta و KV في الذاكرة. **بوابة المخطط:** `tests/fixtures-odoo-fields-20261005-s54.json` (حقل أو قيمة اختيار ليست في البصمة تُسقط الاختبار؛ والاختبارات الأقدم ذات البوابة الخاصة تأخذ منها النماذج التي تغيّرت). بعد تغيير حقول Odoo تُولَّد بصمة جديدة على نمط `scripts/s54-20261005-fields-fixture.mjs`.
-- **الماسح** (بعد أي تغيير في `src/`): `node scripts/mutation/s41-20260926-mutation-scan.mjs` — كل نمط يطابق مرة واحدة (1692 نمطاً).
-- **كل الطفرات** (على HEAD، في نسخ معزولة، فبعد commit): `node scripts/mutation/s45-20260930-mutations-all.mjs --out=docs/history/sNN-mutations-all.txt` (1666/1666 في 27 سكربتاً). طفرة تعدّل ملفاً خارج `src/` (الدليل، أو `tests/s46-kit.mts`) تلزمها نسخته في HEAD.
+- **الماسح** (بعد أي تغيير في `src/`): `node scripts/mutation/s41-20260926-mutation-scan.mjs` — كل نمط يطابق مرة واحدة (1755 نمطاً).
+- **كل الطفرات** (على HEAD، في نسخ معزولة، فبعد commit): `node scripts/mutation/s45-20260930-mutations-all.mjs --out=docs/history/sNN-mutations-all.txt` (1729/1729 في 28 سكربتاً). طفرة تعدّل ملفاً خارج `src/` (الدليل، أو `tests/s46-kit.mts`) تلزمها نسخته في HEAD.
 - **المعيار:** 0 ✗، و tsc نظيف، والماسح 0 خارج، والطفرات كلها caught. كل حارس جديد له طفرة في `scripts/mutation/sNN-…-mutations.mjs` تعطّله وتُسقط اختباره. سكربت الطفرات لا يُشغَّل في الشجرة الحية.
 
 ## 8) السكربتات (`scripts/`)

@@ -280,8 +280,110 @@ export function buildReceiptFlowJson() {
   };
 }
 
+// ================================================================ utak_carload_v1
+//
+// ---- utak_carload_v1 (§ 55 ج) ----
+// The car's load, ONE Flow for its two moments (src/car-load.ts). FOUR generic pages (LOAD_A … LOAD_D)
+// of fifteen slots; a slot is TWO optional number fields:
+//   • a<n> — the morning: the quantity loaded; the evening: what is LEFT on the car
+//   • b<n> — the evening alone: what is damaged (hidden in the morning)
+// Meta allows fifty components a screen: 15 × 2 + the heading + the line of text + the `If` and its two
+// footers = 35. The worker fills the pages in order with the categories that HAVE items (فواكه، خضار،
+// ورقيات، أخرى); a category of more than fifteen continues on the next page. «التالي» never opens an
+// empty page, and «إرسال» sits on the last page that has items. No price of any kind is in it.
+//   note         the line under the heading: what to write, by the moment
+//   t<k>         page k's heading: the moment and its category
+//   m<k>         a page follows page k (k = 1 … 3)
+//   l<n> h<n>    a<n>'s label — the item's name (20 characters at Meta) — and its hint (80): the
+//                packaging in the morning, «الباقي في السيارة · المحمّل 20 كرتون» in the evening
+//   g<n>         b<n>'s label: «تالف: <the item>» (20)
+//   v<n>         slot n is shown          w<n>   its second field is shown (the evening)
+//   i<n> j<n>    what a<n> and b<n> open with (a form sent again: what is on record, or what he wrote)
+// The reply carries a<n> and b<n> of every page up to the one «إرسال» was tapped on, and the flow_token.
+
+export const CARLOAD_FLOW_NAME = "utak_carload_v1";
+export const CARLOAD_PAGES = ["LOAD_A", "LOAD_B", "LOAD_C", "LOAD_D"];
+export const CARLOAD_FIRST_SCREEN = CARLOAD_PAGES[0];
+export const CARLOAD_PAGE_SLOTS = 15;
+export const CARLOAD_SLOTS = CARLOAD_PAGES.length * CARLOAD_PAGE_SLOTS;
+export const CARLOAD_SCREEN_TITLE = "حمولة السيارة";
+export const CARLOAD_SUBMIT_LABEL = "إرسال";
+
+const carloadPages = () => CARLOAD_PAGES.map((id, k) => ({ id, k: k + 1 }));
+/** The slots of page k (1-based): 1–15, 16–30, … */
+export const carloadPageSlots = (k) => Array.from({ length: CARLOAD_PAGE_SLOTS }, (_, i) => (k - 1) * CARLOAD_PAGE_SLOTS + i + 1);
+
+/** The first page's data model: every key the worker sends, with Meta's mandatory example. */
+export function carloadDataModel() {
+  const data = { note: { type: "string", __example__: "اكتب الكمية المحمّلة جنب كل صنف. الخانة الفاضية = صفر." } };
+  for (const { k } of carloadPages()) {
+    data[`t${k}`] = { type: "string", __example__: k === 1 ? "حمولة الصباح — فواكه" : "-" };
+    if (k < CARLOAD_PAGES.length) data[`m${k}`] = { type: "boolean", __example__: false };
+    for (const n of carloadPageSlots(k)) {
+      data[`l${n}`] = { type: "string", __example__: n === 1 ? "رمان كبير" : "-" };
+      data[`h${n}`] = { type: "string", __example__: n === 1 ? "كرتون · الكمية المحمّلة" : "-" };
+      data[`g${n}`] = { type: "string", __example__: n === 1 ? "تالف: رمان كبير" : "-" };
+      data[`v${n}`] = { type: "boolean", __example__: n === 1 };
+      data[`w${n}`] = { type: "boolean", __example__: false };
+      data[`i${n}`] = { type: "string", __example__: "" };
+      data[`j${n}`] = { type: "string", __example__: "" };
+    }
+  }
+  return data;
+}
+
+/** A data key as page k reads it: its own on the first page, the first page's on the others. */
+const lref = (k, key) => (k === 1 ? `\${data.${key}}` : `\${screen.${CARLOAD_FIRST_SCREEN}.data.${key}}`);
+/** A field's value in the «إرسال» payload of page k: its own form, or an earlier page's. */
+const cformRef = (k, name, n) => {
+  const owner = Math.ceil(n / CARLOAD_PAGE_SLOTS);
+  return owner === k ? `\${form.${name}${n}}` : `\${screen.${CARLOAD_PAGES[owner - 1]}.form.${name}${n}}`;
+};
+function carloadSubmitFooter(k) {
+  const upTo = Array.from({ length: k * CARLOAD_PAGE_SLOTS }, (_, i) => i + 1);
+  return {
+    type: "Footer", label: CARLOAD_SUBMIT_LABEL,
+    "on-click-action": { name: "complete", payload: Object.fromEntries(upTo.flatMap((n) => [[`a${n}`, cformRef(k, "a", n)], [`b${n}`, cformRef(k, "b", n)]])) },
+  };
+}
+function carloadNextFooter(k) {
+  return { type: "Footer", label: FLOW_NEXT_LABEL, "on-click-action": { name: "navigate", next: { type: "screen", name: CARLOAD_PAGES[k] }, payload: {} } };
+}
+/** The two fields of slot n on page k. */
+export function carloadSlot(k, n) {
+  return [
+    { type: "TextInput", name: `a${n}`, label: lref(k, `l${n}`), "input-type": "number", required: false, "helper-text": lref(k, `h${n}`), visible: lref(k, `v${n}`), "init-value": lref(k, `i${n}`) },
+    { type: "TextInput", name: `b${n}`, label: lref(k, `g${n}`), "input-type": "number", required: false, visible: lref(k, `w${n}`), "init-value": lref(k, `j${n}`) },
+  ];
+}
+function carloadScreen(k) {
+  const last = k === CARLOAD_PAGES.length;
+  return {
+    id: CARLOAD_PAGES[k - 1],
+    title: CARLOAD_SCREEN_TITLE,
+    terminal: true,
+    success: true,
+    data: k === 1 ? carloadDataModel() : {},
+    layout: {
+      type: "SingleColumnLayout",
+      children: [
+        { type: "TextHeading", text: lref(k, `t${k}`) },
+        { type: "TextBody", text: lref(k, "note") },
+        ...carloadPageSlots(k).flatMap((n) => carloadSlot(k, n)),
+        last ? carloadSubmitFooter(k) : { type: "If", condition: lref(k, `m${k}`), then: [carloadNextFooter(k)], else: [carloadSubmitFooter(k)] },
+      ],
+    },
+  };
+}
+/** Forward routes only, stated (the «التالي» footers sit inside an `If`). */
+export const carloadRoutingModel = () => Object.fromEntries(CARLOAD_PAGES.map((id, i) => [id, CARLOAD_PAGES[i + 1] ? [CARLOAD_PAGES[i + 1]] : []]));
+export function buildCarloadFlowJson() {
+  return { version: FLOW_JSON_VERSION, routing_model: carloadRoutingModel(), screens: carloadPages().map(({ k }) => carloadScreen(k)) };
+}
+
 /** The Flows of § 55, as the Meta script walks them. */
 export const FLOWS = [
   { key: "review", name: REVIEW_FLOW_NAME, build: buildReviewFlowJson, first: REVIEW_FIRST_SCREEN },
   { key: "receipt", name: RECEIPT_FLOW_NAME, build: buildReceiptFlowJson, first: RECEIPT_FIRST_SCREEN },
+  { key: "carload", name: CARLOAD_FLOW_NAME, build: buildCarloadFlowJson, first: CARLOAD_FIRST_SCREEN },
 ];

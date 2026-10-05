@@ -312,7 +312,7 @@ const M = [
   ["د", "the gateway does not know the trial's purpose", [[PUR,
     "  receipt_form_test: op(\"تجربة نموذج استلام المشتريات\", false, { hours: 1 }),\n", ""]], T],
   ["د", "the trial script does not know the receipt form", [[TRIAL,
-    "{ review: \"price-review-test\", receipt: \"receipt-form-test\" }", "{ review: \"price-review-test\" }"]], T],
+    ", receipt: \"receipt-form-test\"", ""]], T],
   ["د", "the trial goes twice a day", [[RC,
     "claimButton(env, `rcform_test:${RECEIPT_FLOW_ID}:${riyadhDateKey(new Date(now))}`, DAY_TTL)", "claimButton(env, `rcform_test:${RECEIPT_FLOW_ID}:${riyadhDateKey(new Date(now))}:${Math.random()}`, DAY_TTL)"]], T],
   ["د", "the trial ignores his window", [[RC,

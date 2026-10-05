@@ -1790,6 +1790,23 @@ export default {
       }
     }
 
+    // § 55 ج — the ONE trial of the car-load form: to Baraa's own number, while his window is
+    // open, once a day, the morning form over the active items. His reply keeps nothing
+    // (src/car-load.ts sendCarLoadFormTest).
+    if (request.method === "POST" && url.pathname === "/odoo/hook/carload-form-test") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      try {
+        const { sendCarLoadFormTest } = await import("./car-load");
+        return json({ ok: true, ...(await sendCarLoadFormTest(env)) });
+      } catch (e) {
+        return json({ ok: false, error: (e as Error).message }, 500);
+      }
+    }
+
     if (request.method === "POST" && url.pathname === "/webhook") {
       const raw = await request.text();
       const sig = request.headers.get("x-hub-signature-256");
@@ -2419,6 +2436,11 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           const { handleRegisterFormReply } = await import("./register-form");
           const r = await handleRegisterFormReply(env, msg, ctx);
           console.log(`[register-form] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} ${r.action}${r.problems?.length ? ` (${r.problems.join(",")})` : ""}`);
+        } else if ((await import("./car-load")).isCarLoadToken(msg.flow.token ?? "")) {
+          // § 55 ج — the driver's car load: the morning's quantities, or the evening's left and damaged
+          const { handleCarLoadReply } = await import("./car-load");
+          const r = await handleCarLoadReply(env, msg, ctx);
+          console.log(`[car-load] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} ${r.action}${r.items !== undefined ? ` items=${r.items}` : ""}`);
         } else {
           const { handlePriceFlowReply } = await import("./price-flow");
           const r = await handlePriceFlowReply(env, msg, ctx);
@@ -2626,6 +2648,9 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           const { recordTeamNote, TEAM_NOTE_ACK } = await import("./team-note");
           await recordTeamNote(env, { kind: "collection", memberName: teamMember.name, invoiceId, text: msg.text });
           await sendText(env, msg.from, TEAM_NOTE_ACK, { ctx, purpose: "bot_reply" });
+        } else if (await import("./car-load").then((m) => m.carLoadText(env, teamMember, msg.text, msg.from, ctx))) {
+          // § 55 ج — «حمولة» / «نهاية الحمولة» from the driver: the car-load form went (src/car-load.ts).
+          // After the amount, «تسليم N» and the pending notes; before the market reply and the shift's hold.
         } else if ((marketReply = await import("./price-sources").then((m) => m.tryMarketReply(env,
           { partnerId: teamMember.id, employeeId: teamMember.employeeId ?? null, name: teamMember.name }, msg.from, msg.text, msg.messageId))
           .catch((e) => { console.warn("[market-reply] failed", (e as Error)?.message); return null; }))) {

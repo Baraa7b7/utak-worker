@@ -133,6 +133,9 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // the cash-market purchases, the invoice's photo): inside his 24h window only, never a template and
   // never held. It carries no price of ours.
   purchase_receipt_form: op("نموذج استلام المشتريات"),
+  // § 55 ج — the driver's car-load form (a WhatsApp Flow: the morning's load, the evening's left and
+  // damaged) and its answers to him: inside his 24h window only, never a template and never held.
+  car_load_form: op("نموذج حمولة السيارة", false, { hours: 2 }),
   // ---- Baraa
   // alerts wait for his next tap (the 06:00 «بدء الدوام» opens his window);
   // § 34: critical — held, they also send utak_update_owner once a day.
@@ -172,6 +175,9 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // § 55 د — the one trial of the purchases' receipt form to Baraa's own number («🧪 تجربة»), inside
   // his window only, and the answer to his trial reply (nothing written, nothing confirmed).
   receipt_form_test: op("تجربة نموذج استلام المشتريات", false, { hours: 1 }),
+  // § 55 ج — the one trial of the car-load form to Baraa's own number («🧪 تجربة»), inside his window
+  // only, and the answers to his trial reply (nothing is kept).
+  car_load_form_test: op("تجربة نموذج الحمولة", false, { hours: 1 }),
   // ---- § 34: «فتح المحادثة» — one UTILITY template per recipient category,
   // sent when a critical message is held (src/wa-opener.ts). Template only:
   // never held itself.

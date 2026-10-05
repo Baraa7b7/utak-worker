@@ -449,6 +449,15 @@ async function handleButton(
     return { text: "أشكرك على صدقك 🙏 اكتب لي وش نقدر نحسّنه وسنشتغل عليه فوراً." };
   }
 
+  // ---- § 55 ج: the driver's car-load buttons (the morning's form, the evening's) ----
+  {
+    const { carLoadButtonMoment, handleCarLoadButton } = await import("./car-load");
+    if (carLoadButtonMoment(t)) {
+      const reply = await handleCarLoadButton(env, t, partner);
+      if (reply) return reply;
+    }
+  }
+
   // ---- 2026-09-24 (ح2): closed-hours prompt «سجّله لبكرة» / «لا شكراً» ----
   const mLate = /^late_(yes|no)_(\d+)$/.exec(buttonId);
   if (mLate) {

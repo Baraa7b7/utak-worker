@@ -12,6 +12,12 @@
 //     the gateway decides; free text outside the window failed with #131047).
 // Alerts are throttled per customer (PAY_CLAIM_ALERT_EVERY_H) so «حولت» then
 // a receipt then «تمام» does not ring three times.
+//
+// § 57 د (2026-10-05) — a customer with an OPEN invoice who writes one of these
+// words, or «تحويل» / «تحويل 🏦» as his whole message, gets the transfer-notice
+// form instead (src/transfer-form.ts: which invoices, how much, when, the
+// receipt — and Baraa's «✅ وصل» records the payment). With no open invoice, or
+// when the form cannot go, everything above stands as it was.
 // ============================================================
 import type { Env } from "./config";
 import { normalizeCommand } from "./optout";
@@ -39,6 +45,28 @@ const CLAIM_RE =
 
 export function isPaymentClaim(text: string | null | undefined): boolean {
   return !!text && CLAIM_RE.test(normalizeCommand(text));
+}
+
+/** § 57 د — «تحويل» / «تحويل 🏦»: the WHOLE message, and nothing else in it. */
+export function isTransferReply(text: string | null | undefined): boolean {
+  return !!text && normalizeCommand(text).replace(/[\p{Extended_Pictographic}\p{Variation_Selector}\p{Join_Control}]/gu, "").trim() === "تحويل";
+}
+
+/**
+ * § 57 د — a customer's «حولت» / «دفعت» / «تحويل 🏦»: his transfer-notice form
+ * when he has an open invoice. False — another text, no open invoice, or a
+ * form that could not go: the caller does what it did before.
+ */
+export async function answerClaimWithForm(
+  env: Env,
+  customer: { id: number; name: string },
+  from: string,
+  text: string | null | undefined,
+  ctx?: ExecutionContext,
+): Promise<boolean> {
+  if (!isPaymentClaim(text) && !isTransferReply(text)) return false;
+  const { offerTransferForm } = await import("./transfer-form");
+  return (await offerTransferForm(env, { partnerId: customer.id, name: customer.name, whatsapp: from }, { ctx })).sent;
 }
 
 export async function markPayRemindSent(env: Env, partnerId: number, amount: number): Promise<void> {

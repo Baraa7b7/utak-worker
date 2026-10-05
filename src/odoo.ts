@@ -2807,6 +2807,10 @@ export async function createPaymentRecord(
     amount: number;
     method: "cash" | "transfer";
     collectedBy?: number;
+    /** § 57 د — when the money moved, Odoo UTC (a transfer confirmed after its day). Default: now. */
+    collectedAt?: string;
+    /** § 57 د — the row's note (the transfer notice it came from, and its reference). */
+    notes?: string;
   },
 ): Promise<number> {
   const now = new Date().toISOString().replace("T", " ").slice(0, 19);
@@ -2814,9 +2818,10 @@ export async function createPaymentRecord(
     x_invoice_id: vals.invoiceId,
     x_amount: vals.amount,
     x_method: vals.method,
-    x_collected_at: now,
+    x_collected_at: vals.collectedAt || now,
   };
   if (vals.collectedBy) record.x_collected_by = vals.collectedBy;
+  if (vals.notes) record.x_notes = vals.notes;
   const ids = await call<number[]>(env, "x_payment", "create", { vals_list: [record] });
   return ids[0];
 }

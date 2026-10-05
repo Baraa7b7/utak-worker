@@ -441,7 +441,12 @@ async function dispatchInvoiceToCustomer(env: Env, a: CustomerInvoiceSend): Prom
         header: { type: "document", link: a.pdfUrl, filename: `${a.invoiceNumber}.pdf` },
       }
     : null;
-  const options: GwOption[] = [...(pdfTemplate ? [pdfTemplate] : []), textTemplate, textContent(customerText)];
+  // § 57 د — the free text alone carries «🏦 أرسلت تحويل» (his transfer notice, src/transfer-form.ts):
+  // a template's buttons are the ones Meta approved. A button message's body holds 1024 characters,
+  // so a longer invoice goes as the plain text it was, whole.
+  const { TRANSFER_BODY_MAX, transferNoticeButton } = await import("./transfer-form");
+  const sessionInvoice = customerText.length <= TRANSFER_BODY_MAX ? buttonsContent(customerText, [transferNoticeButton()]) : textContent(customerText);
+  const options: GwOption[] = [...(pdfTemplate ? [pdfTemplate] : []), textTemplate, sessionInvoice];
   const resp = await sendViaGateway(env, {
     purpose: T.CUSTOMER_INVOICE,
     to: a.to,
@@ -594,11 +599,22 @@ export interface CollectionArgs {
    * balance is refused (overLimit, nothing recorded) instead of cut down to it.
    */
   exact?: boolean;
+  /** § 57 د — when the money moved (Odoo UTC): a transfer Baraa confirms after its day. Default: now. */
+  collectedAt?: string;
+  /** § 57 د — the payment row's note. */
+  notes?: string;
+  /**
+   * § 57 د — false: no account.payment for THIS row. A transfer notice posts ONE payment for the
+   * whole transfer over its invoices (syncTransferToAccounting) and links every row to it.
+   */
+  accounting?: boolean;
 }
 
 export interface CollectionOutcome extends CollectionResult {
   paymentId: number | null;
   fullyPaid: boolean;
+  /** § 57 د — what was recorded on the invoice (never more than its open balance); absent when nothing was. */
+  amount?: number;
   /** § 42 ب — the typed amount was more than the open balance (exact): nothing recorded. */
   overLimit?: { remaining: number };
 }
@@ -646,6 +662,8 @@ export async function recordCollection(
     amount,
     method,
     collectedBy: a.collectedBy ?? undefined,
+    collectedAt: a.collectedAt,
+    notes: a.notes,
   });
   await writeInvoice(env, invoiceId, fullyPaid
     ? { x_payment_id: paymentId, x_status: "paid" }
@@ -674,7 +692,7 @@ export async function recordCollection(
   // matching x_invoice was itself twinned into account.move (i.e. created
   // after ACCOUNTING_SYNC was flipped on). Legacy x_invoice rows with no
   // move_id are skipped with a warn — never a floating unlinked payment.
-  if (isAccountingSyncEnabled(env)) {
+  if (a.accounting !== false && isAccountingSyncEnabled(env)) {
     try {
       type LinkRow = { id: number; x_account_move_id: [number, string] | false };
       const [link] = await call<LinkRow[]>(env, "x_invoice", "read", {
@@ -712,7 +730,7 @@ export async function recordCollection(
   const text = fullyPaid
     ? `تم تسجيل التحصيل ${how} — الفاتورة ${invoice.number} ✅`
     : `تم تسجيل تحصيل جزئي ${how} ${amount} ر.س — الفاتورة ${invoice.number} (المتبقي ${round2(remaining - amount)} ر.س)`;
-  return { text, paymentId, fullyPaid };
+  return { text, paymentId, fullyPaid, amount };
 }
 
 // --------------------------------------------------------------

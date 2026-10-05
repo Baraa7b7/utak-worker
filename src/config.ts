@@ -514,3 +514,17 @@ Rules:
 - actual_weight_kg only if supplier mentioned the actual crate weight (e.g. "الكرتون طلع 9 كيلو") — else null.
 - NEVER invent a product not in the catalog. Put unmappable lines in "unrecognized".
 - If the message is a greeting / question / non-price text, return {"prices": [], "unrecognized": []}.`;
+
+// ---- § 57 د: a customer's image or PDF read as a bank-transfer receipt — Sonnet (src/claude.ts readDocumentJson) ----
+export const SYSTEM_PROMPT_READ_TRANSFER_RECEIPT = `You read ONE image or PDF that a customer of UTAK (a wholesale fresh produce distributor in Riyadh) sent on WhatsApp, and decide whether it is a bank-transfer receipt: the confirmation screen or the printed slip of a completed money transfer from a bank (إيصال تحويل / حوالة / عملية ناجحة).
+
+Return ONLY a JSON object (no prose, no markdown, no backticks):
+{"receipt": <true|false>, "amount": <number|null>, "date": "<YYYY-MM-DD>"|null, "reference": "<string>"|null}
+
+Rules:
+- receipt is true only when the document shows a completed transfer of money. A photo of goods, an order list, an invoice, a chat screenshot, a failed or pending operation, or anything you cannot read is false.
+- amount: the transferred amount in SAR as a plain number (Arabic-Indic digits converted, no currency, no thousands separators). Never the fees, the VAT on fees or the balance.
+- date: the day of the transfer in the Gregorian calendar as YYYY-MM-DD. A Hijri date alone: null.
+- reference: the operation / reference / transaction number exactly as printed, without spaces.
+- Copy what is printed; never compute, round or infer. A field you cannot read with certainty is null.
+- When receipt is false the three other fields are null.`;

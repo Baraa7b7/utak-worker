@@ -834,12 +834,12 @@ export async function checkPricesDeadline(env: Env, now: number = Date.now()): P
   const hh = hhmm(dl);
   const inDay = lines.filter((l) => l.x_reason !== OUT_OF_CATALOG_REASON);
   const anyPrice = lines.some((l) => Number(l.x_cost_price) > 0 || Number(l.x_market_price) > 0);
-  // § 54 د — the day Baraa closed himself («⛔ لا تنشر اليوم»): one line, no alarm
+  // § 54 د — the day Baraa closed himself («⛔ لا تنشر شيء»): one line, no alarm
   const byOwner = inDay.length > 0 && inDay.every((l) => l.x_decision === "skip");
   await sendOwnerAlert(env, byOwner ? `⛔ أسعار اليوم (${arabicDate(day)}) لم تُنشر بقرارك («لا تنشر»). لا تُعاد أسعار أمس.` : [
     `⏰ أسعار اليوم (${arabicDate(day)}) لم تُنشر حتى ${hh}: لا صنف معتمد (تلقائياً أو منك).`,
     anyPrice ? `لم يُنشر (${inDay.length}): ${unpublishedList(inDay)}.` : "لم يصل سعر من المصادر اليوم.",
-    `لا تُعاد أسعار أمس. «✅ اعتمد الكل» أو «✏️ مراجعة» من رسالة المراجعة ينشر فوراً، أو قرارك ثم «نشر المعتمد الآن» في ${PLACE_TODAY}.`,
+    `لا تُعاد أسعار أمس. «✅ نفّذ المقترح» أو «✏️ عدّل» من رسالة المراجعة ينشر فوراً، أو قرارك ثم «نشر المعتمد الآن» في ${PLACE_TODAY}.`,
   ].join("\n"));
   await finishButton(env, claim);
   return { action: "missed", day, dayId: target.id };
@@ -859,7 +859,7 @@ export const EXCEPTION_PURPOSE = "owner_price_exception";
 /** A choice of a per-item exception message of before § 54: such a message may still sit in Baraa's chat. */
 export const PRICE_EXCEPTION_PAYLOAD = /^pexc_([mspe])_(\d+)$/;
 /** The answer to a tap on one: nothing is decided from it any more. */
-export const OLD_EXCEPTION_TEXT = `هذه رسالة استثناء قديمة، ولم يُسجَّل منها شيء. قرارات الأسعار صارت من رسالة «مراجعة أسعار اليوم» الواحدة (✅ اعتمد الكل / ✏️ مراجعة)، أو من ${PLACE_TODAY}.`;
+export const OLD_EXCEPTION_TEXT = `هذه رسالة استثناء قديمة، ولم يُسجَّل منها شيء. قرارات الأسعار صارت من رسالة «مراجعة أسعار اليوم» الواحدة (✅ نفّذ المقترح / ✏️ عدّل)، أو من ${PLACE_TODAY}.`;
 
 export interface PricesTick {
   /** § 40 ب — 02:30 «أرسل أسعار السوق اليوم» to the sources that are not suppliers. */

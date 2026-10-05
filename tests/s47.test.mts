@@ -27,6 +27,16 @@
 // «انشر بسعر السوق» / «لا تنشر» / «سعر يدوي» are the choices of its form. The day of the four cases keeps
 // its exception by a real loss (cucumber: market 33 under its «بدون خسارة» 33.70; it was 34).
 //
+// § 55 أ (2026-10-05) — re-based on the review's plain wording (the behaviour is § 54's): an item's line
+// opens with its mark and shows «ربحنا» — the board's net of a carton at the price, signed, two decimals —
+// in place of the purchase price and «الفرق»; three lines under the table say what each choice does (the
+// counts line and «بلا قرارك حتى 06:00…» before); the buttons are «✅ نفّذ المقترح» / «✏️ عدّل» / «⛔ لا تنشر
+// شيء»; the form carries two lines an item (its numbers with «ربحنا», and the suggested price against the
+// market) and every choice its own profit; the confirmation ends each item with «ربحنا» and adds «متوسط
+// الربح للكرتون». With the kit's share of 2.00: tomato at 29 → 25.22 − 23 = +2.22; cucumber at its market
+// 33 → 28.70 − 29.30 = −0.60 and at its suggested 36 → 31.30 − 29.30 = +2.00; potato at its suggested
+// 26.50 → 23.04 − 20.90 = +2.14.
+//
 // In-memory Odoo + captured Graph (tests/wa-harness.mts, tests/s46-kit.mts). No network, no send.
 //
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/s47.test.mts
@@ -61,10 +71,10 @@ const reviews = () => sentTo(OWNER).filter((b: any) => b?.type === "interactive"
 const reviewText = () => String(reviews().at(-1)?.interactive?.body?.text ?? "");
 const buttonIds = (b: any): string[] => (b?.interactive?.action?.buttons ?? []).map((x: any) => x.reply.id);
 const notify = (env: any) => quiet(() => PRV.notifyPriceReviewMessage(env));
-/** The review's form («✏️ مراجعة», a Flow) as it was sent: its token, and the data of its pages. */
+/** The review's form («✏️ عدّل», a Flow; «✏️ مراجعة» before § 55) as it was sent: its token, and the data of its pages. */
 const forms = () => sentTo(OWNER).filter((b: any) => b?.interactive?.type === "flow");
 const formOf = (b: any) => ({ token: String(b.interactive.action.parameters.flow_token), data: b.interactive.action.parameters.flow_action_payload.data as Record<string, any> });
-/** «✏️ مراجعة» tapped under the review of the day: the form, and its items by name (slot, choices). */
+/** «✏️ عدّل» tapped under the review of the day: the form, and its items by name (slot, choices). */
 async function openForm(env: any): Promise<{ action: string; token: string; data: Record<string, any>; item: (name: string) => any }> {
   const action = await quiet(() => PRV.handlePriceReviewButton(env, `prv_r_${dayOf().id}_1`));
   const f = formOf(forms().at(-1));
@@ -72,6 +82,11 @@ async function openForm(env: any): Promise<{ action: string; token: string; data
   return { action, ...f, item: (name: string) => rec.items.find((i: any) => i.name === name) };
 }
 const optionIds = (o: any): string[] => (o ?? []).map((x: any) => x.id);
+/** § 55 — the lines of the review's text, and an item's own line in it (its mark, its name, «—»): each item once. */
+const reviewLines = (text = reviewText()): string[] => text.split("\n");
+const itemLines = (name: string, text = reviewText()): string[] => reviewLines(text).filter((l) => /^(✅|❌|⚠️|🔻) /.test(l) && l.includes(` ${name} — `));
+/** …and the three lines that close it: what «نفّذ المقترح» publishes, what it does not, what goes out at 06:00 with no tap. */
+const choiceTail = (out: string, stay: string, auto: string): string => `\n\nلو ضغطت «نفّذ المقترح» ينتشر: ${out}\nوما ينتشر: ${stay}\nلو ما ضغطت شي، الساعة 6 ينتشر تلقائياً: ${auto}`;
 
 // ================================================================ [أ] the purchase price is net
 console.log("\n[أ] the board: the purchase price as written, registered or not (nothing ÷ 1.15)");
@@ -302,7 +317,7 @@ function fourCases(riyadh = `${DAY} 04:00`, cucumberMarket = 33): any {
   return env;
 }
 
-console.log("\n[ب] the engine on the day, and the day's review: ONE message, its buttons, its form and its choices (§ 54)");
+console.log("\n[ب] the engine on the day, and the day's review: ONE message, its buttons, its form and its choices (§ 54; the wording of § 55)");
 {
   const env = fourCases();
   await quiet(() => PR.refreshPriceDay(env));
@@ -313,23 +328,37 @@ console.log("\n[ب] the engine on the day, and the day's review: ONE message, it
   assert("(4) onion: «لا سعر شراء», no suggested price", o.x_status === "exception" && o.x_reason === "لا سعر شراء" && o.x_suggested_price === 0 && o.x_break_even === 0, JSON.stringify(o));
   const n = await notify(env);
   const body = reviewText(), d = dayOf().id;
-  assert("04:00: ONE message for the whole day — the three exceptions (the 3 that need his decision) and the automatic line in it, never a message per item", n.action === "sent" && n.count === 3 && reviews().length === 1 && sentTo(OWNER).length === 1 && ["طماطم", "خيار", "بطاطس", "بصل"].every((x) => body.includes(`${x}: `)), JSON.stringify({ n, body }));
-  assert("(1) the automatic line with its proposed decision: «طماطم: شراء 20 · سوق 29 · الفرق 9 (45%) ← انشر بسعر السوق 29»", body.includes("طماطم: شراء 20 · سوق 29 · الفرق 9 (45%) ← انشر بسعر السوق 29"), body);
-  assert("(2) cucumber's line names both numbers — the purchase 26 and the market 33 — and «لا تنشر (خسارة)»; the message says what happens without him by 06:00", body.includes("خيار: شراء 26 · سوق 33 · الفرق 7 (27%) ← لا تنشر (خسارة)") && body.includes("2 للنشر · 2 لا تنشر · 0 ⚠️") && /بلا قرارك حتى 06:00: يُنشر تلقائياً 1 /.test(body), body);
-  assert("(3) potato's line carries the suggested price: «سوق — ← انشر بالمقترح 26.50»; (4) onion's «شراء — · سوق 30 ← لا تنشر (لا سعر شراء)»", body.includes("بطاطس: شراء 18 · سوق — ← انشر بالمقترح 26.50") && body.includes("بصل: شراء — · سوق 30 ← لا تنشر (لا سعر شراء)"), body);
-  assert("three reply buttons under it: «✅ اعتمد الكل كما هو» / «✏️ مراجعة» / «⛔ لا تنشر اليوم»", JSON.stringify(buttonIds(reviews()[0])) === JSON.stringify([`prv_a_${d}_1`, `prv_r_${d}_1`, `prv_n_${d}_1`])
-    && JSON.stringify(reviews()[0].interactive.action.buttons.map((x: any) => x.reply.title)) === JSON.stringify([PRV.REVIEW_BUTTON_ALL, PRV.REVIEW_BUTTON_FORM, PRV.REVIEW_BUTTON_NONE]), JSON.stringify(reviews()[0].interactive.action));
-  // «✏️ مراجعة»: the choices of every item are in ONE form
+  assert("04:00: ONE message for the whole day — the three exceptions (the 3 that need his decision) and the automatic line in it, never a message per item", n.action === "sent" && n.count === 3 && reviews().length === 1 && sentTo(OWNER).length === 1 && ["طماطم", "خيار", "بطاطس", "بصل"].every((x) => itemLines(x, body).length === 1), JSON.stringify({ n, body }));
+  // § 55 — «ربحنا» (29 ÷ 1.15 = 25.22, − the full cost 23 = +2.22) took the place of the purchase price and «الفرق 9 (45%)»
+  assert("(1) the automatic line with its proposed decision, ✅ and its profit: «✅ طماطم — سوق 29 | ربحنا بسعر السوق: +2.22 ← انشر بـ 29»; no «الفرق» and no purchase price in the message",
+    reviewLines(body).includes("✅ طماطم — سوق 29 | ربحنا بسعر السوق: +2.22 ← انشر بـ 29") && !/الفرق/.test(body) && !/شراء \d/.test(body), body);
+  // § 55 — the loss itself, signed (33 ÷ 1.15 = 28.70, − the full cost 29.30 = −0.60), where «الفرق 7 (27%)» stood; «2 للنشر · 2 لا تنشر · 0 ⚠️» and
+  // «بلا قرارك حتى 06:00: يُنشر تلقائياً 1 …» are the three lines, by name and price
+  assert("(2) cucumber's line names the market 33 and what it loses at it — «ربحنا بسعر السوق: −0.60» — ❌ «لا تنشر»; the three lines say what «نفّذ المقترح» publishes, what it does not, and what happens without him by 06:00",
+    reviewLines(body).includes("❌ خيار — سوق 33 | ربحنا بسعر السوق: −0.60 ← لا تنشر") && body.endsWith(choiceTail("طماطم 29، بطاطس 26.50", "خيار، بصل", "طماطم 29")), body);
+  // § 55 — potato at its suggested 26.50: 23.04 − 20.90 = +2.14 (the board's own «real profit» of the approved line, below)
+  assert("(3) potato's line carries the suggested price and its profit: «لا سعر سوق | ربحنا بالمقترح 26.50: +2.14 ← انشر بـ 26.50»; (4) onion's «سوق 30 | لا سعر شراء ← لا تنشر»",
+    reviewLines(body).includes("✅ بطاطس — لا سعر سوق | ربحنا بالمقترح 26.50: +2.14 ← انشر بـ 26.50") && reviewLines(body).includes("❌ بصل — سوق 30 | لا سعر شراء ← لا تنشر"), body);
+  assert("three reply buttons under it: «✅ نفّذ المقترح» / «✏️ عدّل» / «⛔ لا تنشر شيء» (§ 55: the payloads of § 54)", JSON.stringify(buttonIds(reviews()[0])) === JSON.stringify([`prv_a_${d}_1`, `prv_r_${d}_1`, `prv_n_${d}_1`])
+    && JSON.stringify(reviews()[0].interactive.action.buttons.map((x: any) => x.reply.title)) === JSON.stringify([PRV.REVIEW_BUTTON_ALL, PRV.REVIEW_BUTTON_FORM, PRV.REVIEW_BUTTON_NONE])
+    && JSON.stringify([PRV.REVIEW_BUTTON_ALL, PRV.REVIEW_BUTTON_FORM, PRV.REVIEW_BUTTON_NONE]) === JSON.stringify(["✅ نفّذ المقترح", "✏️ عدّل", "⛔ لا تنشر شيء"]), JSON.stringify(reviews()[0].interactive.action));
+  // «✏️ عدّل»: the choices of every item are in ONE form
   const f = await openForm(env);
   const cu = f.item("خيار"), po = f.item("بطاطس"), on = f.item("بصل");
-  assert("«✏️ مراجعة» → ONE form (a Flow) with the four items", f.action === "form" && forms().length === 1 && !!cu && !!po && !!on && !!f.item("طماطم"), JSON.stringify(f.action));
-  assert("(2) in the form cucumber carries the break-even and the suggested price too: «شراء 26 · سوق 33 · الفرق 7 · بدون خسارة 33.70 · مقترح 36»", f.data[`x${cu.slot}`] === "شراء 26 · سوق 33 · الفرق 7 · بدون خسارة 33.70 · مقترح 36", String(f.data[`x${cu.slot}`]));
-  assert("(2) four choices in ONE list, each price in its title: «انشر بالمقترح (36)», «انشر بسعر السوق (33)», «لا تنشر», «سعر يدوي» — opened on the proposed «لا تنشر»",
-    JSON.stringify(f.data[`o${cu.slot}`]) === JSON.stringify([{ id: "profit", title: "انشر بالمقترح (36)" }, { id: "market", title: "انشر بسعر السوق (33)" }, { id: "skip", title: "لا تنشر" }, { id: "manual", title: "سعر يدوي" }]) && f.data[`s${cu.slot}`] === "skip", JSON.stringify(f.data[`o${cu.slot}`]));
-  assert("(3) potato (no market price): «انشر بالمقترح (26.50)» / «لا تنشر» / «سعر يدوي» — no «انشر بسعر السوق» — opened on «انشر بالمقترح»",
-    JSON.stringify(optionIds(f.data[`o${po.slot}`])) === JSON.stringify(["profit", "skip", "manual"]) && f.data[`o${po.slot}`][0].title === "انشر بالمقترح (26.50)" && f.data[`s${po.slot}`] === "profit" && /سوق — · الفرق — · بدون خسارة 24\.04 · مقترح 26\.50$/.test(f.data[`x${po.slot}`]), JSON.stringify([f.data[`o${po.slot}`], f.data[`x${po.slot}`]]));
-  assert("(4) onion (no purchase price): «انشر بسعر السوق (30)» / «لا تنشر» / «سعر يدوي» — no «انشر بالمقترح», no suggested number — opened on «لا تنشر»",
-    JSON.stringify(optionIds(f.data[`o${on.slot}`])) === JSON.stringify(["market", "skip", "manual"]) && f.data[`o${on.slot}`][0].title === "انشر بسعر السوق (30)" && f.data[`s${on.slot}`] === "skip" && /^شراء — · سوق 30 · .*مقترح —$/.test(f.data[`x${on.slot}`]), JSON.stringify([f.data[`o${on.slot}`], f.data[`x${on.slot}`]]));
+  assert("«✏️ عدّل» → ONE form (a Flow) with the four items", f.action === "form" && forms().length === 1 && !!cu && !!po && !!on && !!f.item("طماطم"), JSON.stringify(f.action));
+  // § 55 — two lines an item. «الفرق 7 · بدون خسارة 33.70 · مقترح 36» left the first: it ends with «ربحنا» at the market price, and the suggested
+  // price has its own line, set against the market as observed: 36 − 33 = 3, 3 ÷ 33 = 9.1 %
+  assert("(2) in the form cucumber carries two lines: its numbers and its profit at the market price — «شراء 26 · سوق 33 · ربحنا بسعر السوق: −0.60» — and the suggested price against the market — «سعرنا المقترح 36 = أعلى من السوق بـ 3 (+9.1%)»",
+    f.data[`x${cu.slot}`] === "شراء 26 · سوق 33 · ربحنا بسعر السوق: −0.60" && f.data[`y${cu.slot}`] === "سعرنا المقترح 36 = أعلى من السوق بـ 3 (+9.1%)" && !/الفرق|بدون خسارة/.test(String(f.data[`x${cu.slot}`]) + String(f.data[`y${cu.slot}`])), JSON.stringify([f.data[`x${cu.slot}`], f.data[`y${cu.slot}`]]));
+  // § 55 — a choice carries its own profit and no longer opens with «انشر»: at the suggested 36 → 31.30 − 29.30 = +2.00, at the market 33 → −0.60
+  assert("(2) four choices in ONE list, each price and its profit in its title: «بالمقترح 36 (ربح +2.00)», «بسعر السوق 33 (ربح −0.60)», «لا تنشر», «سعر يدوي» — opened on the proposed «لا تنشر»",
+    JSON.stringify(f.data[`o${cu.slot}`]) === JSON.stringify([{ id: "profit", title: "بالمقترح 36 (ربح +2.00)" }, { id: "market", title: "بسعر السوق 33 (ربح −0.60)" }, { id: "skip", title: "لا تنشر" }, { id: "manual", title: "سعر يدوي" }]) && f.data[`s${cu.slot}`] === "skip", JSON.stringify(f.data[`o${cu.slot}`]));
+  assert("(3) potato (no market price): «بالمقترح 26.50 (ربح +2.14)» / «لا تنشر» / «سعر يدوي» — no «بسعر السوق» — opened on «بالمقترح»; its lines «شراء 18 · لا سعر سوق» and «سعرنا المقترح 26.50 — لا سعر سوق للمقارنة»",
+    JSON.stringify(optionIds(f.data[`o${po.slot}`])) === JSON.stringify(["profit", "skip", "manual"]) && f.data[`o${po.slot}`][0].title === "بالمقترح 26.50 (ربح +2.14)" && f.data[`s${po.slot}`] === "profit"
+      && f.data[`x${po.slot}`] === "شراء 18 · لا سعر سوق" && f.data[`y${po.slot}`] === "سعرنا المقترح 26.50 — لا سعر سوق للمقارنة", JSON.stringify([f.data[`o${po.slot}`], f.data[`x${po.slot}`], f.data[`y${po.slot}`]]));
+  assert("(4) onion (no purchase price): «بسعر السوق 30» (no profit beside it: none can be computed) / «لا تنشر» / «سعر يدوي» — no «بالمقترح», no suggested number («لا سعر مقترح») — opened on «لا تنشر»",
+    JSON.stringify(optionIds(f.data[`o${on.slot}`])) === JSON.stringify(["market", "skip", "manual"]) && f.data[`o${on.slot}`][0].title === "بسعر السوق 30" && f.data[`s${on.slot}`] === "skip"
+      && f.data[`x${on.slot}`] === "لا سعر شراء · سوق 30" && f.data[`y${on.slot}`] === "لا سعر مقترح", JSON.stringify([f.data[`o${on.slot}`], f.data[`x${on.slot}`], f.data[`y${on.slot}`]]));
   assert("the three titles fit a reply button (≤ 20 characters) and every choice a list option (≤ 30)", [PRV.REVIEW_BUTTON_ALL, PRV.REVIEW_BUTTON_FORM, PRV.REVIEW_BUTTON_NONE].every((x) => [...x].length <= 20)
     && [cu, po, on, f.item("طماطم")].every((it: any) => f.data[`o${it.slot}`].every((x: any) => [...x.title].length <= PRV.REVIEW_OPTION_MAX)) && PRV.REVIEW_OPTION_MAX === 30);
   assert("no template is used for the review or its form (session messages only)", sentTo(OWNER).every((b: any) => b.type !== "template"));
@@ -350,8 +379,8 @@ console.log("\n[ب] the engine on the day, and the day's review: ONE message, it
   const n = await notify(env);
   assert("his window closed: nothing is held and nothing sent (no template usable here) — the review is owed to his next message", n.action === "window_closed" && n.review === "not_usable" && sentTo(OWNER).length === 0 && heldFor(env, OWNER).length === 0 && env.MSG_DEDUP.store.has(`prv_owed:v1:${DAY}`), JSON.stringify({ n, held: heldFor(env, OWNER) }));
   await quiet(() => worker.fetch(signed(inbound(OWNER, { type: "text", text: { body: "صباح الخير" } })), env, harnessCtx));
-  assert("…his next message opens his window: the review goes then, whole — its four items, their choices behind its three buttons — and no template", reviews().length === 1 && ["طماطم", "خيار", "بطاطس", "بصل"].every((x) => reviewText().includes(`${x}: `)) && /^prv_a_\d+_1,prv_r_\d+_1,prv_n_\d+_1$/.test(buttonIds(reviews()[0]).join())
-    && sentTo(OWNER).every((b: any) => b.type !== "template") && heldFor(env, OWNER).length === 0 && !env.MSG_DEDUP.store.has(`prv_owed:v1:${DAY}`), JSON.stringify(sentTo(OWNER).map((b: any) => b.type)));
+  assert("…his next message opens his window: the review goes then, whole — its four items, their choices behind its three buttons — and no template", reviews().length === 1 && ["طماطم", "خيار", "بطاطس", "بصل"].every((x) => itemLines(x).length === 1) && reviewText().endsWith(choiceTail("طماطم 29، بطاطس 26.50", "خيار، بصل", "طماطم 29")) && /^prv_a_\d+_1,prv_r_\d+_1,prv_n_\d+_1$/.test(buttonIds(reviews()[0]).join())
+    && sentTo(OWNER).every((b: any) => b.type !== "template") && heldFor(env, OWNER).length === 0 && !env.MSG_DEDUP.store.has(`prv_owed:v1:${DAY}`), JSON.stringify({ types: sentTo(OWNER).map((b: any) => b.type), text: reviewText() }));
 }
 {
   const env = fresh(`${DAY} 04:00`); cost(500);
@@ -359,23 +388,31 @@ console.log("\n[ب] the engine on the day, and the day's review: ONE message, it
   await quiet(() => PR.refreshPriceDay(env));
   await notify(env);
   const t = lineFor(1);
-  assert("an outlier above the suggested price: it waits for him, proposed at the MARKET price and marked ⚠️ (never «انشر بالمقترح»: the market price is the profitable one)", t.x_status === "exception" && t.x_market_price === 31 && reviewText().includes("طماطم: شراء 20 · سوق 31 · الفرق 11 (55%) ← ⚠️ انشر بسعر السوق 31 (سعر شاذ)") && !/طماطم: [^\n]*انشر بالمقترح/.test(reviewText()), reviewText());
-  assert("…counted «1 ⚠️», and not published without his decision («لا يُنشر شيء»)", reviewText().includes("1 للنشر · 3 لا تنشر · 1 ⚠️") && reviewText().includes("بلا قرارك حتى 06:00: لا يُنشر شيء."), reviewText());
+  // § 55 — ⚠️ opens the line (it stood before the decision, with «(سعر شاذ)» after it), «ربحنا» at the market 31 is 26.96 − 23 = +3.96, and a
+  // second line under it names what moved: Omar's market price before this one (30) ← the outlier (31)
+  const at = reviewLines().indexOf("⚠️ طماطم — سوق 31 | ربحنا بسعر السوق: +3.96 ← انشر بـ 31");
+  assert("an outlier above the suggested price: it waits for him, proposed at the MARKET price and marked ⚠️ (never at the suggested 29: the market price is the profitable one), and the line under it says what moved — «⚠️ سعر السوق تغيّر كثير (30 ← 31)، تأكد منه»",
+    t.x_status === "exception" && t.x_market_price === 31 && at >= 0 && reviewLines()[at + 1] === "⚠️ سعر السوق تغيّر كثير (30 ← 31)، تأكد منه" && itemLines("طماطم").length === 1 && !/طماطم — [^\n]*(بالمقترح|انشر بـ 29)/.test(reviewText()), reviewText());
+  // § 55 — «1 للنشر · 3 لا تنشر · 1 ⚠️» left the text (the count itself stays: reviewCounts); «بلا قرارك حتى 06:00: لا يُنشر شيء.» is the third line
+  const counts = PRV.reviewCounts(await quiet(() => PRV.dayReviewRows(env, dayOf())));
+  assert("…counted one ⚠️ (1 published by «نفّذ المقترح», 3 not), and not published without his decision («الساعة 6 ينتشر تلقائياً: لا شيء»)",
+    JSON.stringify(counts) === JSON.stringify({ publish: 1, skip: 3, warn: 1, auto: 0 }) && reviewLines().filter((l) => l.startsWith("⚠️ ")).length === 2 && reviewText().endsWith(choiceTail("طماطم 31", "خيار، بطاطس، بصل", "لا شيء")), JSON.stringify({ counts, text: reviewText() }));
 }
 
-console.log("\n[ب] «انشر بالمقترح» from the review: the form's answer, the lock, the board, the next run");
+console.log("\n[ب] «بالمقترح» («انشر بالمقترح» before § 55) from the review: the form's answer, the lock, the board, the next run");
 {
   const env = fourCases();
   await quiet(() => PR.refreshPriceDay(env));
   await notify(env);
   const f = await openForm(env);
-  // the form as it comes back: potato on its proposed «انشر بالمقترح»; onion «انشر بالمقترح» too — a choice its list never offered
+  // the form as it comes back: potato on its proposed «بالمقترح»; onion «بالمقترح» too — a choice its list never offered
   const answer = (values: Record<string, unknown>, id: string) => quiet(() => PRV.handlePriceReviewReply(env, { from: "+" + OWNER, messageId: id, flow: { token: f.token, values } }));
   const r1 = await answer({ [`d${f.item("بطاطس").slot}`]: "profit", [`d${f.item("بصل").slot}`]: "profit" }, "wamid.F1");
   const o1 = lineFor(4);
-  assert("on a line without a purchase price «انشر بالمقترح» is no choice: an answer that names it approves nothing (the line takes what its list opened on, «لا تنشر»)", o1.x_decision === "skip" && o1.x_status === "unpublished" && o1.x_sale_price === 0 && !(o1.x_manual_price > 0), JSON.stringify(o1));
+  assert("on a line without a purchase price «بالمقترح» is no choice: an answer that names it approves nothing (the line takes what its list opened on, «لا تنشر»)", o1.x_decision === "skip" && o1.x_status === "unpublished" && o1.x_sale_price === 0 && !(o1.x_manual_price > 0), JSON.stringify(o1));
   const p1 = lineFor(3), conf = ownerTexts().at(-1) ?? "";
-  assert("potato (no market): approved by hand at the suggested 26.50, and ONE confirmation says so", r1.action === "decided" && conf.startsWith("✅ سُجّلت قراراتك") && conf.includes("سيُنشر 06:00:") && conf.includes("• بطاطس — 26.50 ر.س (المقترح)") && p1.x_decision === "profit" && p1.x_manual_price === 26.5 && p1.x_manual_for === "profit" && p1.x_status === "manual" && p1.x_sale_price === 26.5 && p1.x_excluded === false && p1.x_reason === "براء: اعتمد بالسعر المربح" && !!p1.x_decided_at, JSON.stringify({ r1, conf, p1 }));
+  // § 55 — the confirmation ends each item with «ربحنا» (potato +2.14, the tomato its list opened on +2.22) and adds their plain mean: (2.22 + 2.14) ÷ 2 = +2.18
+  assert("potato (no market): approved by hand at the suggested 26.50, and ONE confirmation says so — with its profit, and «متوسط الربح للكرتون: +2.18»", r1.action === "decided" && conf.startsWith("✅ سُجّلت قراراتك") && conf.includes("سيُنشر 06:00:") && conf.split("\n").includes("• بطاطس — 26.50 ر.س (المقترح) · ربحنا +2.14") && conf.split("\n").includes("متوسط الربح للكرتون: +2.18") && p1.x_decision === "profit" && p1.x_manual_price === 26.5 && p1.x_manual_for === "profit" && p1.x_status === "manual" && p1.x_sale_price === 26.5 && p1.x_excluded === false && p1.x_reason === "براء: اعتمد بالسعر المربح" && !!p1.x_decided_at, JSON.stringify({ r1, conf, p1 }));
   assert("…its card follows at once: sale 26.50, net sale 23.04, real profit 23.04 − 20.90 = 2.14 → 🟢 (and no preview: the line is approved)", p1.x_board_sale === 26.5 && p1.x_net_sale === 23.04 && p1.x_real_profit === 2.14 && p1.x_board_status === "green" && p1.x_preview_sale === 0 && p1.x_preview_profit === 0, JSON.stringify(p1));
   // the cucumber (market 33: its goods covered, its «بدون خسارة» 33.70 not) is 🟡 on the board at its market price, and «لا تنشر»
   assert("…and the header's counts: 🟢 2 (tomato, potato) · 🟡 1 (cucumber at its market price) · ⚪ 1 (onion)", dayOf().x_n_green === 2 && dayOf().x_n_yellow === 1 && dayOf().x_n_red === 0 && dayOf().x_n_none === 1 && lineFor(2).x_board_status === "yellow" && lineFor(2).x_decision === "skip" && lineFor(2).x_status === "unpublished", JSON.stringify(dayOf()));
@@ -388,7 +425,7 @@ console.log("\n[ب] «انشر بالمقترح» from the review: the form's an
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 {
-  // through /webhook: a tap on «✅ اعتمد الكل كما هو» arrives as a button_reply
+  // through /webhook: a tap on «✅ نفّذ المقترح» («✅ اعتمد الكل كما هو» before § 55) arrives as a button_reply
   const env = fourCases();
   await quiet(() => PR.refreshPriceDay(env));
   await notify(env);
@@ -397,9 +434,10 @@ console.log("\n[ب] «انشر بالمقترح» from the review: the form's an
   await quiet(() => worker.fetch(signed(inbound(OWNER, { type: "interactive", interactive: { type: "button_reply", button_reply: { id: `prv_a_${dayOf().id}_1`, title: PRV.REVIEW_BUTTON_ALL } } })), env, harnessCtx));
   const t1 = lineFor(1), c1 = lineFor(2), p1 = lineFor(3), o1 = lineFor(4);
   const conf = ownerTexts().find((x) => x.startsWith("✅ سُجّلت قراراتك")) ?? "";
-  assert("through /webhook: «✅ اعتمد الكل كما هو» → every line takes its proposed decision — potato approved at its suggested price, tomato at the market 29, cucumber and onion «لا تنشر»",
+  assert("through /webhook: «✅ نفّذ المقترح» → every line takes its proposed decision — potato approved at its suggested price, tomato at the market 29, cucumber and onion «لا تنشر»",
     p1.x_decision === "profit" && p1.x_status === "manual" && p1.x_sale_price === p1.x_manual_price && p1.x_sale_price === before.p.x_suggested_price && t1.x_decision === "market" && t1.x_sale_price === 29 && c1.x_decision === "skip" && c1.x_sale_price === 0 && o1.x_decision === "skip", JSON.stringify({ t1, c1, p1, o1 }));
-  assert("…and ONE confirmation: what will be published at 06:00 and what will not", sentTo(OWNER).length === 1 && conf.includes("سيُنشر 06:00:") && conf.includes("• طماطم — 29 ر.س (سعر السوق)") && conf.includes("• بطاطس — 26.50 ر.س (المقترح)") && conf.includes("لا يُنشر: خيار، بصل."), JSON.stringify(ownerTexts()));
+  assert("…and ONE confirmation: what will be published at 06:00 — each with its profit, then «متوسط الربح للكرتون: +2.18» — and what will not",
+    sentTo(OWNER).length === 1 && conf === "✅ سُجّلت قراراتك على أسعار السبت 3 أكتوبر 2026.\nسيُنشر 06:00:\n• طماطم — 29 ر.س (سعر السوق) · ربحنا +2.22\n• بطاطس — 26.50 ر.س (المقترح) · ربحنا +2.14\nمتوسط الربح للكرتون: +2.18\nلا يُنشر: خيار، بصل.", JSON.stringify(ownerTexts()));
   // a per-item exception message of before § 54 may still sit in his chat: its list row decides nothing
   const kept = JSON.stringify(lineFor(2));
   graph.length = 0;
@@ -416,10 +454,11 @@ console.log("\n[ب] «انشر بالمقترح» from the review: the form's an
   await notify(env);
   const p = lineFor(3);
   const f = await openForm(env), po = f.item("بطاطس");
-  assert("the day's cost «تعذّر»: no suggested price on the line, so no «انشر بالمقترح» — proposed «لا تنشر (لا سعر سوق ولا مقترح)», the choices «لا تنشر» / «سعر يدوي»", p.x_suggested_price === 0 && reviewText().includes("بطاطس: شراء 18 · سوق — ← لا تنشر (لا سعر سوق ولا مقترح)")
-    && JSON.stringify(optionIds(f.data[`o${po.slot}`])) === JSON.stringify(["skip", "manual"]) && /مقترح —$/.test(f.data[`x${po.slot}`]), JSON.stringify([p, f.data[`o${po.slot}`]]));
+  // § 55 — no market price and no suggested one: no «ربحنا» to show on the line, and the form says «لا سعر مقترح» (it was «… مقترح —»)
+  assert("the day's cost «تعذّر»: no suggested price on the line, so no «بالمقترح» — proposed «لا تنشر» («❌ بطاطس — لا سعر سوق ← لا تنشر»), the choices «لا تنشر» / «سعر يدوي», the form's lines «شراء 18 · لا سعر سوق» and «لا سعر مقترح»", p.x_suggested_price === 0 && reviewLines().includes("❌ بطاطس — لا سعر سوق ← لا تنشر")
+    && JSON.stringify(optionIds(f.data[`o${po.slot}`])) === JSON.stringify(["skip", "manual"]) && f.data[`x${po.slot}`] === "شراء 18 · لا سعر سوق" && f.data[`y${po.slot}`] === "لا سعر مقترح", JSON.stringify([p, f.data[`o${po.slot}`], f.data[`x${po.slot}`], f.data[`y${po.slot}`], reviewText()]));
   const r = await quiet(() => PRV.handlePriceReviewButton(env, `prv_a_${dayOf().id}_1`));
-  assert("…and «✅ اعتمد الكل كما هو» approves nothing for it (never a guessed price): «لا تنشر», sale 0", /^all:/.test(r) && lineFor(3).x_decision === "skip" && lineFor(3).x_sale_price === 0 && lineFor(3).x_status === "unpublished" && (ownerTexts().at(-1) ?? "").includes("لا صنف للنشر اليوم."), JSON.stringify({ r, l: lineFor(3), t: ownerTexts().at(-1) }));
+  assert("…and «✅ نفّذ المقترح» approves nothing for it (never a guessed price): «لا تنشر», sale 0", /^all:/.test(r) && lineFor(3).x_decision === "skip" && lineFor(3).x_sale_price === 0 && lineFor(3).x_status === "unpublished" && (ownerTexts().at(-1) ?? "").includes("لا صنف للنشر اليوم."), JSON.stringify({ r, l: lineFor(3), t: ownerTexts().at(-1) }));
 }
 
 console.log("\n[ب] the decision from Odoo («قرار براء» = «اعتمد بالسعر المربح», no price typed), and the publication");

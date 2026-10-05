@@ -20,7 +20,8 @@ const RV = "src/price-review.ts";
 const OC = "src/operating-cost.ts";
 const IX = "src/index.ts";
 const GW = "src/wa-gateway.ts";
-const LIB = "scripts/lib/s54-flows.mjs";
+// § 55 — the Flow the worker sends is utak_owner_review_v2: the Flow's guards are checked on its JSON (v1's is frozen at Meta and no longer sent)
+const LIB = "scripts/lib/s55-flows.mjs";
 const ODOO = "scripts/lib/s54-odoo.mjs";
 
 // [part, name, [[file, find, replace], …], test file]
@@ -144,7 +145,7 @@ const M = [
   ["ب", "the review sent at his tap is not counted (he also gets «لا مراجعة أسعار بانتظارك»)", [[IX,
     "      if (await sendOwedPriceReview(env, Date.now(), ctx)) flushed = { sent: (flushed?.sent ?? 0) + 1 };", "      await sendOwedPriceReview(env, Date.now(), ctx);"]], T],
   ["ب", "a late review does not say an approval publishes at once", [[RV,
-    "    o.late ? `فات موعد ${deadline} ولم تُنشر أسعار اليوم: اعتمادك الآن ينشر فوراً.` : autoLine(c, deadline),", "    autoLine(c, deadline),"]], T],
+    "    o.late ? `فات موعد ${clockAr(deadlineMin)} وما انتشرت أسعار اليوم", "    false ? `فات موعد ${clockAr(deadlineMin)} وما انتشرت أسعار اليوم"]], T],
   // the text
   ["ب", "the whole review always goes above the buttons (cut at 1024)", [[RV,
     "  if (whole.length <= bodyMax) return { texts: [], body: whole };", "  if (true) return { texts: [], body: whole };"]], T],
@@ -153,31 +154,25 @@ const M = [
   ["ب", "a long table is one text, whatever its length", [[RV,
     "    if (size + line.length + 1 > room && chunks[chunks.length - 1].length) { chunks.push([]); size = 0; }", ""]], T],
   ["ب", "the buttons after a separate table carry no summary", [[RV,
-    "    body: [title, `${rows.length} ${itemsWord(rows.length)} في الجدول أعلاه.`, ...tail].join(\"\\n\").slice(0, bodyMax),", "    body: title,"]], T],
+    "    body: [title, `${rows.length} ${itemsWord(rows.length)} في الجدول أعلاه.`, ...choiceLines(rows, deadlineMin, { late: o.late, compact: true })].join(\"\\n\").slice(0, bodyMax),", "    body: title,"]], T],
   ["ب", "one category gets a heading line too", [[RV,
     "...(groups.length > 1 ? [...(i ? [\"\"] : []), `— ${g.title} —`] : [])", "...(true ? [...(i ? [\"\"] : []), `— ${g.title} —`] : [])"]], T],
   ["ب", "several categories get no heading line", [[RV,
     "...(groups.length > 1 ? [...(i ? [\"\"] : []), `— ${g.title} —`] : [])", "...(false ? [...(i ? [\"\"] : []), `— ${g.title} —`] : [])"]], T],
-  ["ب", "the percentage is of the market price, not of the purchase", [[RV,
-    "(${Math.round(((r.market - r.purchase) / r.purchase) * 100)}%)", "(${Math.round(((r.market - r.purchase) / r.market) * 100)}%)"]], T],
-  ["ب", "the difference is from the price after the uplift", [[RV,
-    "` · الفرق ${money(r.market - r.purchase)} (", "` · الفرق ${money(r.sale - r.purchase)} ("]], T],
-  ["ب", "a line without a market price shows a difference", [[RV,
-    "  const diff = r.purchase > 0 && r.market > 0\n", "  const diff = r.purchase > 0\n"]], T],
-  ["ب", "no market price reads «سوق 0»", [[RV,
-    "· سوق ${r.market > 0 ? money(r.market) : \"—\"}${diff} ← ${decisionText(r)}`;", "· سوق ${money(r.market)}${diff} ← ${decisionText(r)}`;"]], T],
-  ["ب", "no purchase price reads «شراء 0»", [[RV,
-    "  return `${r.name}: شراء ${r.purchase > 0 ? money(r.purchase) : \"—\"} · سوق", "  return `${r.name}: شراء ${money(r.purchase)} · سوق"]], T],
+  // § 55 — «the percentage is of the market price, not of the purchase»: «الفرق» and its percentage left the message (§ 55 أ); «ربحنا» is guarded in s55-20261005-mutations.mjs.
+  // § 55 — «the difference is from the price after the uplift»: «الفرق» left the message (§ 55 أ).
+  // § 55 — «a line without a market price shows a difference»: «الفرق» left the message (§ 55 أ).
+  // § 55 — «no market price reads «سوق 0»»: the line is § 55's; its guard is in s55-20261005-mutations.mjs under the same name.
+  // § 55 — «no purchase price reads «شراء 0»»: the purchase price left the message for the form; its guard is in s55-20261005-mutations.mjs («…in the form»).
   ["ب", "an outlier's line is not marked ⚠️", [[RV,
-    "  return p.outlier ? `⚠️ ${text} (سعر شاذ)` : text;", "  return text;"]], T],
+    "  if (isWarned(r)) return \"⚠️\";", "  if (false) return \"⚠️\";"]], T],
   ["ب", "the decision does not say the price is after the uplift", [[RV,
-    "${r.upliftPct > 0 ? ` (بعد الزيادة ${money(r.upliftPct)}٪)` : \"\"}`\n    : p.kind === \"profit\"", "`\n    : p.kind === \"profit\""]], T],
-  ["ب", "a loss reads «لا تنشر» with no reason", [[RV,
-    "    : `لا تنشر (${SKIP_WHY[p.why] ?? \"خسارة\"})`;", "    : `لا تنشر`;"]], T],
+    "${r.upliftPct > 0 ? ` (بعد الزيادة ${money(r.sale)})` : \"\"}", "${false ? ` (بعد الزيادة ${money(r.sale)})` : \"\"}"]], T],
+  // § 55 — «a loss reads «لا تنشر» with no reason»: the line reads «← لا تنشر» by the order's own format (§ 55 أ): the reason is the signed profit beside it.
   ["ب", "a row Baraa decided shows the proposed decision", [[RV,
-    "  if (!r.decision) return proposalText(r);\n  const o = rowOutcome(r);", "  if (true) return proposalText(r);\n  const o = rowOutcome(r);"]], T],
+    "  return `${o.byOwner ? \"قرارك: \" : \"\"}${o.kind === \"skip\"", "  return `${false ? \"قرارك: \" : \"\"}${o.kind === \"skip\""]], T],
   ["ب", "the summary counts no ⚠️", [[RV,
-    "warn: rows.filter((r) => !r.decision && r.proposal.outlier).length,", "warn: 0,"]], T],
+    "warn: rows.filter(isWarned).length,", "warn: 0,"]], T],
   ["ب", "the summary counts every row as published by itself", [[RV,
     "export const publishesAsIs = (r: ReviewRow): boolean => (r.decision ? rowOutcome(r).kind !== \"skip\" : r.proposal.auto);", "export const publishesAsIs = (r: ReviewRow): boolean => (r.decision ? rowOutcome(r).kind !== \"skip\" : r.proposal.kind !== \"skip\");"]], T],
   ["ب", "a line of an item that left the catalog is in the review", [[RV,
@@ -187,7 +182,7 @@ const M = [
   ["ب", "the review reads «بسعر السوق» whatever the settings say", [[RV,
     "    return (await readPricingSettings(env, day))?.aboveSuggested ?? \"market\";", "    return \"market\";"]], T],
   ["ب", "the second button does not open the form (a fourth title)", [[RV,
-    "export const REVIEW_BUTTON_FORM = \"✏️ مراجعة\";", "export const REVIEW_BUTTON_FORM = \"✏️ مراجعة الأسعار واحداً واحداً\";"]], T],
+    "export const REVIEW_BUTTON_FORM = \"✏️ عدّل\";", "export const REVIEW_BUTTON_FORM = \"✏️ عدّل الأسعار واحداً واحداً\";"]], T],
   // gone: the message per exception
   ["ب", "a tap on an old exception's choice is not answered", [[IX,
     "          await sendText(env, msg.from, OLD_EXCEPTION_TEXT, { ctx, purpose: \"owner_alert\" });", ""]], T],
@@ -230,8 +225,8 @@ const M = [
     "\"data-source\": rref(k, `o${n}`), \"init-value\": rref(k, `s${n}`), visible:", "\"data-source\": rref(k, `o${n}`), visible:"]], T],
   ["ج", "the Flow: the list may be emptied", [[LIB,
     "label: rref(k, `l${n}`), required: rref(k, `v${n}`),", "label: rref(k, `l${n}`), required: false,"]], T],
-  ["ج", "the Flow: sixteen items a page (more than fifty components)", [[LIB,
-    "export const REVIEW_PAGE_SLOTS = 15;", "export const REVIEW_PAGE_SLOTS = 16;"]], T],
+  ["ج", "the Flow: thirteen items a page (more than fifty components)", [[LIB,
+    "export const REVIEW_PAGE_SLOTS = 10;", "export const REVIEW_PAGE_SLOTS = 13;"]], T],
   ["ج", "the Flow: «السعر اليدوي» is a text field", [[LIB,
     "label: REVIEW_MANUAL_LABEL, \"input-type\": \"number\", required: false,", "label: REVIEW_MANUAL_LABEL, \"input-type\": \"text\", required: false,"]], T],
   ["ج", "the Flow: «اعتمد» does not carry the manual prices", [[LIB,
@@ -243,15 +238,14 @@ const M = [
   ["ج", "«انشر بالمقترح» is offered without a suggested price", [[RV,
     "    ...(r.suggested > 0 ? [{ id: \"profit\",", "    ...(true ? [{ id: \"profit\","]], T],
   ["ج", "the options do not show their prices", [[RV,
-    "title: cut(`انشر بسعر السوق (${money(r.sale)})`, REVIEW_OPTION_MAX) }]", "title: \"انشر بسعر السوق\" }]"]], T],
+    "title: pricedOption(r, \"بسعر السوق\", r.sale) }]", "title: \"بسعر السوق\" }]"]], T],
   ["ج", "the list opens on the proposed decision, not on Baraa's own", [[RV,
     "  const want = o.kind === \"edit\" ? \"manual\" : o.kind;", "  const want = r.proposal.kind;"]], T],
   ["ج", "«السعر اليدوي» does not open with the price he typed", [[RV,
     "    manual: o.kind === \"edit\" && o.price > 0 ? money(o.price) : \"\",", "    manual: \"\","]], T],
   ["ج", "a long name is not cut to Meta's twenty characters", [[RV,
     "label: cut(r.name, REVIEW_LABEL_MAX), info: reviewInfo(r),", "label: r.name, info: reviewInfo(r),"]], T],
-  ["ج", "the item's numbers do not carry «بدون خسارة»", [[RV,
-    " · بدون خسارة ${n(r.breakEven)} · مقترح ${n(r.suggested)}`, REVIEW_INFO_MAX);", " · مقترح ${n(r.suggested)}`, REVIEW_INFO_MAX);"]], T],
+  // § 55 — «the item's numbers do not carry «بدون خسارة»»: the form's two lines are § 55's («ربحنا» and where our price stands); «بدون خسارة» stays on the line in Odoo and in the ⚠️ of a manual price below it.
   ["ج", "the sixteenth item of a category is dropped (no second page)", [[RV,
     "    for (let i = 0; i < g.rows.length; i += REVIEW_FLOW_PAGE_SLOTS) {", "    for (let i = 0; i < 1; i += REVIEW_FLOW_PAGE_SLOTS) {"]], T],
   ["ج", "a fifth page is filled (slots the Flow does not have)", [[RV,
@@ -322,7 +316,7 @@ const M = [
   ["د", "the missed day's alert does not say why each item stayed out", [[PR,
     "    anyPrice ? `لم يُنشر (${inDay.length}): ${unpublishedList(inDay)}.` : \"لم يصل سعر من المصادر اليوم.\",", "    anyPrice ? `الأصناف: ${inDay.length}.` : \"لم يصل سعر من المصادر اليوم.\","]], T],
   ["د", "the missed day's alert does not say the review's buttons publish at once", [[PR,
-    "«✅ اعتمد الكل» أو «✏️ مراجعة» من رسالة المراجعة ينشر فوراً، أو قرارك", "قرارك"]], T],
+    "«✅ نفّذ المقترح» أو «✏️ عدّل» من رسالة المراجعة ينشر فوراً، أو قرارك", "قرارك"]], T],
 
   // ---------------------------------------------------------------- هـ the trial, the gateway
   ["هـ", "the trial's buttons decide for real", [[RV,
@@ -334,9 +328,9 @@ const M = [
   ["هـ", "the trial is tried with his window closed", [[RV,
     "  if (!(await readWindow(env, owner, now)).open) return { sent: false, reason: \"window_closed\" };", ""]], T],
   ["هـ", "the trial shows the decisions already taken on the day", [[RV,
-    "aboveSetting(env, rec.x_date)).map((r) => ({ ...r, decision: null, decidedPrice: 0 }));", "aboveSetting(env, rec.x_date));"]], T],
+    "    const rows = (await dayReviewRows(env, rec)).map((r) => ({ ...r, decision: null, decidedPrice: 0 }));", "    const rows = await dayReviewRows(env, rec);"]], T],
   ["هـ", "the trial is not marked «🧪 تجربة»", [[RV,
-    "hhmm(pricesDeadlineMinutes(env).minutes), { test: true });", "hhmm(pricesDeadlineMinutes(env).minutes), {});"]], T],
+    "pricesDeadlineMinutes(env).minutes, { test: true });", "pricesDeadlineMinutes(env).minutes, {});"]], T],
   ["هـ", "the trial's buttons are the real ones", [[RV,
     "buttonsContent(built.body, reviewButtons(rec.id, 1, true)), true))) {", "buttonsContent(built.body, reviewButtons(rec.id, 1, false)), true))) {"]], T],
   ["هـ", "the trial's route needs no token", [[IX,

@@ -9,7 +9,8 @@
 //        «موز: شراء 55 · سوق 70 · الفرق 15 (27%) ← انشر بسعر السوق 70»
 //      (الفرق = the market − the purchase; its percentage of the purchase) with
 //      the item's proposed decision (src/pricing-engine.ts proposeDecision), and
-//      three buttons: «✅ اعتمد الكل كما هو», «✏️ مراجعة», «⛔ لا تنشر اليوم». A
+//      three buttons: «✅ اعتمد الكل كما هو», «✏️ مراجعة», «⛔ لا تنشر اليوم» (§ 55:
+//      «✅ نفّذ المقترح», «✏️ عدّل», «⛔ لا تنشر شيء»). A
 //      table longer than an interactive message's text goes first as plain
 //      text, then the buttons under a summary («N للنشر · M لا تنشر · K ⚠️»).
 //      It goes inside his 24h window only and is never held: with his window
@@ -17,7 +18,7 @@
 //      review is built — fresh — at his first message. A change of a proposal
 //      before he decides sends the review again («🔄 تحديث»), and the buttons of
 //      the older one no longer decide.
-//   ج  «✏️ مراجعة»: the Flow utak_owner_review_v1 (scripts/lib/s54-flows.mjs),
+//   ج  «✏️ مراجعة» (§ 55: «✏️ عدّل»): the Flow utak_owner_review_v1 (scripts/lib/s54-flows.mjs),
 //      no endpoint: pages by category, and for every item its numbers, a list
 //      opened on the proposed decision — «انشر بالمقترح (P)», «انشر بسعر السوق
 //      (Y)» (with a market price only), «لا تنشر», «سعر يدوي» — and «السعر
@@ -34,8 +35,30 @@
 // Nothing here reaches anyone but Baraa: the purposes are the owner's alone
 // (src/wa-gateway.ts). The trial («🧪 تجربة») writes nothing and publishes
 // nothing.
+//
+// § 55 أ (2026-10-05) — the same review, made plain. «الفرق Z (P%)» is gone
+// (it set the market, VAT-inclusive, against the purchase, net of VAT: a large
+// difference on an item that loses). Every item now shows «ربحنا»: the net of a
+// carton as the board computes it (src/pricing-board.ts boardLine) — the sale
+// price ÷ 1.15 − the purchase − the waste − the carton's share of the day's
+// cost — always with its sign and two decimals («+1.13», «−0.74»):
+//   • a line an item, its mark first: ✅ published with a profit, ❌ «لا تنشر»,
+//     ⚠️ an outlier (and under it «⚠️ سعر الشراء تغيّر كثير (آخر سعر ← اليوم)،
+//     تأكد منه»): «✅ موز — سوق 70 | ربحنا بسعر السوق: +1.13 ← انشر بـ 70»;
+//   • under the title «(الربح = صافي الكرتون بعد الضريبة والتالف والتشغيل)»;
+//   • three lines at the bottom say what each choice does: what «نفّذ المقترح»
+//     publishes, what it does not, and what goes out at the publication time
+//     with no tap at all;
+//   • the buttons: «✅ نفّذ المقترح», «✏️ عدّل», «⛔ لا تنشر شيء» — the same
+//     behaviour as § 54's;
+//   • the form (utak_owner_review_v2): two lines an item — «شراء X · سوق Y ·
+//     ربحنا بسعر السوق: ±a» and «سعرنا المقترح P = أعلى/أقل من السوق بـ d (±e%)»
+//     — and every choice of the list carries its own profit;
+//   • the confirmation: every published item with its price and its profit, and
+//     «متوسط الربح للكرتون: ±x».
 
 import type { Env } from "./config";
+import { profitVatRate } from "./config";
 import type { NormalizedMessage } from "./types";
 import { call } from "./odoo";
 import { buttonsContent, textContent } from "./meta";
@@ -54,11 +77,15 @@ import {
   readDay, readLines, refreshPriceDay, weekdayAr, type DayLine, type DayRecord,
 } from "./prices";
 
-/** utak_owner_review_v1 at Meta (a published Flow's JSON is frozen). */
-export const REVIEW_FLOW_ID = "1084593151143621";
+/**
+ * utak_owner_review_v2 at Meta (§ 55: two lines an item; scripts/lib/s55-flows.mjs). A published Flow's
+ * JSON is frozen: utak_owner_review_v1 (#1084593151143621, § 54) stays at Meta and is no longer sent —
+ * a reply of one sent before is still read (the same d<n> / p<n>, by its token).
+ */
+export const REVIEW_FLOW_ID = "1135227635856887";
 export const REVIEW_FLOW_SCREEN = "REVIEW_A";
-export const REVIEW_FLOW_PAGES = 4;
-export const REVIEW_FLOW_PAGE_SLOTS = 15;
+export const REVIEW_FLOW_PAGES = 6;
+export const REVIEW_FLOW_PAGE_SLOTS = 10;
 export const REVIEW_FLOW_SLOTS = REVIEW_FLOW_PAGES * REVIEW_FLOW_PAGE_SLOTS;
 /** The gateway purpose of the review, its form and its answers: the owner's alone. */
 export const REVIEW_PURPOSE = EXCEPTION_PURPOSE;
@@ -66,12 +93,14 @@ export const REVIEW_PURPOSE = EXCEPTION_PURPOSE;
 export const REVIEW_TEST_PURPOSE = "price_review_test";
 export const REVIEW_TEST_MARK = "🧪 تجربة";
 /** The three buttons (Meta: a reply button's title holds 20 characters). */
-export const REVIEW_BUTTON_ALL = "✅ اعتمد الكل كما هو";
-export const REVIEW_BUTTON_FORM = "✏️ مراجعة";
-export const REVIEW_BUTTON_NONE = "⛔ لا تنشر اليوم";
+/** § 55 — «نفّذ المقترح» (was «اعتمد الكل كما هو»), «عدّل» (was «مراجعة»), «لا تنشر شيء» (was «لا تنشر اليوم»): the same three actions. */
+export const REVIEW_BUTTON_ALL_NAME = "نفّذ المقترح";
+export const REVIEW_BUTTON_ALL = `✅ ${REVIEW_BUTTON_ALL_NAME}`;
+export const REVIEW_BUTTON_FORM = "✏️ عدّل";
+export const REVIEW_BUTTON_NONE = "⛔ لا تنشر شيء";
 /** Under a confirmation: the form again. */
-export const REVIEW_BUTTON_EDIT = "✏️ تعديل";
-export const REVIEW_FLOW_CTA = "راجع الأسعار";
+export const REVIEW_BUTTON_EDIT = REVIEW_BUTTON_FORM;
+export const REVIEW_FLOW_CTA = "عدّل الأسعار";
 /** Meta: the text of an interactive message holds this many characters. */
 export const INTERACTIVE_BODY_MAX = 1024;
 /** Meta's limits of the form: a list's label, an option's title, a line of text. */
@@ -102,13 +131,38 @@ export interface ReviewRow {
   /** Baraa's own decision already on the line (WhatsApp or Odoo), and the price it publishes at. */
   decision: Decision | null;
   decidedPrice: number;
+  /** § 55 — the carton's full cost as the board stores it (purchase + waste + the carton share; 0 = none) and the day's VAT rate: «ربحنا» is made from them. */
+  fullCost: number;
+  vatPct: number | null;
+  /** § 55 — an outlier: each price that moved, with the same source's price before it (0 = not read). */
+  moved?: MovedPrice[];
 }
 export type OutcomeKind = "market" | "profit" | "edit" | "skip";
+export interface MovedPrice { kind: "purchase" | "market"; last: number; now: number }
 
 const m2oName = (v: [number, string] | false | undefined): string => (Array.isArray(v) ? v[1] : "");
+const round2 = (n: number): number => Math.round(n * 100) / 100;
 
-/** The rows of a day: every line of the active catalog, its numbers as stored and its proposed decision. */
-export function reviewRows(lines: DayLine[], above: AboveSuggested): ReviewRow[] {
+/**
+ * § 55 — «ربحنا» of a row at a sale price: the board's own net of a carton
+ * (src/pricing-board.ts boardLine: the net sale, rounded, minus the full cost)
+ * = price ÷ 1.15 − the purchase − the waste − the carton share. Null without a
+ * purchase price, a full cost or a price. Pure.
+ */
+export function profitAt(r: Pick<ReviewRow, "purchase" | "fullCost" | "vatPct">, price: number): number | null {
+  if (!(r.purchase > 0) || !(r.fullCost > 0) || !(price > 0)) return null;
+  const d = r.vatPct ? 1 + r.vatPct / 100 : 1;
+  return round2(round2(price / d) - r.fullCost);
+}
+/** «+1.13», «−0.74» (U+2212), «0.00»: two decimals, and its sign whenever it has one. */
+export function signed(x: number): string {
+  const n = round2(x);
+  return `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.abs(n).toFixed(2)}`;
+}
+
+/** The rows of a day: every line of the active catalog, its numbers as stored and its proposed decision. `day`: its VAT rate (§ 55, «ربحنا»). */
+export function reviewRows(lines: DayLine[], above: AboveSuggested, day: string): ReviewRow[] {
+  const vatPct = profitVatRate(day);
   const inDay = lines.filter((l) => l.x_reason !== OUT_OF_CATALOG_REASON);
   const names = inDay.map((l) => fullName(m2oName(l.x_product_tmpl_id)) || "?");
   return inDay.map((l, i) => {
@@ -128,8 +182,68 @@ export function reviewRows(lines: DayLine[], above: AboveSuggested): ReviewRow[]
     return {
       lineId: l.id, productId: m2oId(l.x_product_tmpl_id), name: twice && pk ? `${names[i]} (${pk})` : names[i],
       purchase, market, sale, upliftPct: Number(l.x_uplift_pct) > 0 ? Number(l.x_uplift_pct) : 0, breakEven, suggested, proposal, decision, decidedPrice,
+      fullCost: purchase > 0 ? Number(l.x_full_cost) || 0 : 0, vatPct,
     };
   });
+}
+
+/** One search_read: the worker's own client, or a script's (scripts/s54-20261005-preview.mts). */
+export type SearchRead = (model: string, body: Record<string, unknown>) => Promise<Array<Record<string, unknown>>>;
+/** Which prices of an outlier line moved: the engine's own reason («سعر شاذ: الشراء و السوق»); unreadable = the purchase. */
+function movedKinds(l: DayLine): Array<MovedPrice["kind"]> {
+  const m = /سعر شاذ: ([^،]*)/.exec(String(l.x_reason || ""));
+  const kinds: Array<MovedPrice["kind"]> = [...(m?.[1].includes("الشراء") ? ["purchase" as const] : []), ...(m?.[1].includes("السوق") ? ["market" as const] : [])];
+  return kinds.length ? kinds : ["purchase"];
+}
+/**
+ * § 55 — «(آخر سعر ← اليوم)» of an outlier line: the price that moved, and the
+ * same source's price before it — as the outlier check read it (§ 26: the
+ * supplier's row before this one; a source's offer before this one). A read
+ * that fails leaves the price before at 0 (the line then names no numbers).
+ */
+export async function readMoved(read: SearchRead, day: string, l: DayLine): Promise<MovedPrice[]> {
+  const product = m2oId(l.x_product_tmpl_id), packaging = m2oId(l.x_packaging_id);
+  const item: unknown[][] = [["x_product_tmpl_id", "=", product], ["x_packaging_id", "=", packaging], ["x_utak_simulation", "!=", true]];
+  const before = async (model: string, who: string, partner: number, field: string, notId: number): Promise<number> => {
+    const [r] = await read(model, {
+      domain: [...item, [who, "=", partner], [field, ">", 0], ["x_date", "<=", day], ["id", "!=", notId]], fields: [field], order: "x_date desc, id desc", limit: 1,
+    });
+    return r ? Number(r[field]) || 0 : 0;
+  };
+  const out: MovedPrice[] = [];
+  for (const kind of movedKinds(l)) {
+    let last = 0, now = kind === "purchase" ? Number(l.x_cost_price) || 0 : Number(l.x_market_price) || 0;
+    try {
+      const supplier = m2oId(l.x_supplier_id), dailyId = m2oId(l.x_daily_price_id);
+      if (kind === "purchase" && supplier && dailyId) last = await before("x_daily_price", "x_supplier_id", supplier, "x_price_sar", dailyId);
+      else {
+        // the offer of the day that carries the mark: its source, its number, and that source's number before it
+        const mark = kind === "purchase" ? "x_purchase_outlier" : "x_market_outlier", field = kind === "purchase" ? "x_purchase_price" : "x_market_price";
+        const [o] = await read("x_price_offer", {
+          domain: [...item, ["x_date", "=", day], [mark, "=", true]], fields: ["id", "x_source_partner_id", field], order: "id desc", limit: 1,
+        });
+        if (o) {
+          now = Number(o[field]) || now;
+          last = await before("x_price_offer", "x_source_partner_id", m2oId(o.x_source_partner_id as [number, string] | false), field, Number(o.id));
+        }
+      }
+    } catch (e) {
+      console.warn(`[price-review] line ${l.id}: the price before the outlier could not be read`, (e as Error)?.message);
+    }
+    out.push({ kind, last, now });
+  }
+  return out;
+}
+/** The rows of a stored day as the review sends them: its lines, the setting, and — § 55 — what moved on each outlier still waiting. */
+export async function dayReviewRows(env: Env, day: Pick<DayRecord, "id" | "x_date">): Promise<ReviewRow[]> {
+  const lines = await readLines(env, day.id);
+  const rows = reviewRows(lines, await aboveSetting(env, day.x_date), day.x_date);
+  const byId = new Map(lines.map((l) => [l.id, l]));
+  for (const r of rows) {
+    const l = byId.get(r.lineId);
+    if (l && r.proposal.outlier && !r.decision) r.moved = await readMoved((model, body) => call<Array<Record<string, unknown>>>(env, model, "search_read", body), day.x_date, l);
+  }
+  return rows;
 }
 
 /** What happens to the row as things stand: Baraa's decision, else the proposed one. */
@@ -142,30 +256,64 @@ export const publishesAsIs = (r: ReviewRow): boolean => (r.decision ? rowOutcome
 
 // ---------------------------------------------------------------- the texts
 
-const SKIP_WHY: Record<string, string> = { loss: "خسارة", no_purchase: "لا سعر شراء", no_price: "لا سعر سوق ولا مقترح" };
-
-/** «انشر بسعر السوق 70», «انشر بالمقترح 19.50», «لا تنشر (خسارة)»; an outlier: «⚠️ … (سعر شاذ)». */
-export function proposalText(r: ReviewRow): string {
-  const p = r.proposal;
-  const text = p.kind === "market" ? `انشر بسعر السوق ${money(p.price)}${r.upliftPct > 0 ? ` (بعد الزيادة ${money(r.upliftPct)}٪)` : ""}`
-    : p.kind === "profit" ? `انشر بالمقترح ${money(p.price)}`
-    : `لا تنشر (${SKIP_WHY[p.why] ?? "خسارة"})`;
-  return p.outlier ? `⚠️ ${text} (سعر شاذ)` : text;
+/** 06:00 → «الساعة 6»; a time that is not on the hour keeps its minutes: «الساعة 06:30». */
+export const clockAr = (minutes: number): string => `الساعة ${minutes % 60 === 0 ? String(Math.floor(minutes / 60)) : hhmm(minutes)}`;
+/** «سوق 70»; with an uplift «سوق 30 (بعد الزيادة 31)»; none: «لا سعر سوق». */
+const marketText = (r: ReviewRow): string => (r.market > 0 ? `سوق ${money(r.market)}${r.upliftPct > 0 ? ` (بعد الزيادة ${money(r.sale)})` : ""}` : "لا سعر سوق");
+/** The day's cost could not be read («تعذّر», or no «الكراتين المتوقعة»): the row's full cost holds no carton share, and its profit says so. */
+export const NO_SHARE_NOTE = " (بلا حصة التشغيل)";
+const noShare = (r: ReviewRow): boolean => r.purchase > 0 && r.fullCost > 0 && !(r.breakEven > 0);
+/** «ربحنا بسعر السوق: +1.13», «ربحنا بالمقترح 19.50: +2.37», «ربحنا بسعرك 72: +2.87»; "" when it cannot be computed. */
+function profitText(r: ReviewRow, kind: OutcomeKind, price: number): string {
+  const p = profitAt(r, price);
+  if (p === null) return "";
+  return `ربحنا ${kind === "market" ? "بسعر السوق" : kind === "profit" ? `بالمقترح ${money(price)}` : `بسعرك ${money(price)}`}${noShare(r) ? NO_SHARE_NOTE : ""}: ${signed(p)}`;
 }
-const OUTCOME_LABEL: Record<OutcomeKind, string> = { market: "انشر بسعر السوق", profit: "انشر بالمقترح", edit: "سعر يدوي", skip: "لا تنشر" };
-/** The decision of a row in its line: the proposed one, or «✅ قرارك: …». */
-export function decisionText(r: ReviewRow): string {
-  if (!r.decision) return proposalText(r);
+/** The profit a row's line shows: at the price it is published at; a row that is not published: at the market price, else at the suggested one. */
+function lineProfit(r: ReviewRow): string {
   const o = rowOutcome(r);
-  return `✅ قرارك: ${OUTCOME_LABEL[o.kind]}${o.kind === "skip" ? "" : ` ${money(o.price)}`}`;
+  if (o.kind !== "skip") return profitText(r, o.kind, o.price);
+  if (!(r.purchase > 0)) return "لا سعر شراء";
+  if (r.sale > 0) return profitText(r, "market", r.sale);
+  return r.suggested > 0 ? profitText(r, "profit", r.suggested) : "";
+}
+/** Is the row an outlier still waiting for Baraa's word (⚠️)? */
+export const isWarned = (r: ReviewRow): boolean => !r.decision && r.proposal.outlier;
+/**
+ * The mark a row's line opens with: ⚠️ an outlier still waiting, ❌ not
+ * published, ✅ published with a profit above zero — and 🔻 published with none
+ * (a price at «بدون خسارة» exactly, or Baraa's own price below it).
+ */
+export function rowMark(r: ReviewRow): string {
+  if (isWarned(r)) return "⚠️";
+  const o = rowOutcome(r);
+  if (o.kind === "skip") return "❌";
+  const p = profitAt(r, o.price);
+  return p === null || p > 0 ? "✅" : "🔻";
+}
+/** «انشر بـ 70», «لا تنشر»; Baraa's own decision: «قرارك: انشر بـ 70». */
+export function decisionText(r: ReviewRow): string {
+  const o = rowOutcome(r);
+  return `${o.byOwner ? "قرارك: " : ""}${o.kind === "skip" ? "لا تنشر" : `انشر بـ ${money(o.price)}`}`;
+}
+/** «⚠️ سعر الشراء تغيّر كثير (35 ← 55)، تأكد منه» — a line for each price of an outlier that moved. */
+export function movedLines(r: ReviewRow): string[] {
+  if (!isWarned(r)) return [];
+  const moved = r.moved?.length ? r.moved : [{ kind: "purchase" as const, last: 0, now: 0 }];
+  return moved.map((m) => `⚠️ سعر ${m.kind === "market" ? "السوق" : "الشراء"} تغيّر كثير${m.last > 0 && m.now > 0 ? ` (${money(m.last)} ← ${money(m.now)})` : " عن آخر سعر"}، تأكد منه`);
 }
 
-/** «موز: شراء 55 · سوق 70 · الفرق 15 (27%) ← انشر بسعر السوق 70»; without a market price «سوق —» and no difference. */
+/**
+ * § 55 — an item's line, its mark first: «✅ موز — سوق 70 | ربحنا بسعر السوق:
+ * +1.13 ← انشر بـ 70»; without a market price «✅ رمان صغير — لا سعر سوق | ربحنا
+ * بالمقترح 19.50: +2.37 ← انشر بـ 19.50». No «الفرق», and no purchase price: the
+ * form («✏️ عدّل») carries it.
+ */
 export function reviewLine(r: ReviewRow): string {
-  const diff = r.purchase > 0 && r.market > 0
-    ? ` · الفرق ${money(r.market - r.purchase)} (${Math.round(((r.market - r.purchase) / r.purchase) * 100)}%)` : "";
-  return `${r.name}: شراء ${r.purchase > 0 ? money(r.purchase) : "—"} · سوق ${r.market > 0 ? money(r.market) : "—"}${diff} ← ${decisionText(r)}`;
+  return `${rowMark(r)} ${r.name} — ${[marketText(r), lineProfit(r)].filter(Boolean).join(" | ")} ← ${decisionText(r)}`;
 }
+/** …and under an outlier's line, what moved. */
+export const reviewItemLines = (r: ReviewRow): string[] => [reviewLine(r), ...movedLines(r)];
 
 export interface ReviewGroup { title: string; rows: ReviewRow[] }
 
@@ -189,17 +337,36 @@ export async function reviewGroups(env: Env, rows: ReviewRow[]): Promise<ReviewG
 }
 
 export interface ReviewCounts { publish: number; skip: number; warn: number; auto: number }
-/** «N للنشر · M لا تنشر · K ⚠️», and how many of the N go out without Baraa. */
+/** How many rows are published as things stand, how many are not, how many ⚠️ wait, and how many go out without Baraa. */
 export function reviewCounts(rows: ReviewRow[]): ReviewCounts {
   const publish = rows.filter((r) => rowOutcome(r).kind !== "skip").length;
-  return { publish, skip: rows.length - publish, warn: rows.filter((r) => !r.decision && r.proposal.outlier).length, auto: rows.filter(publishesAsIs).length };
+  return { publish, skip: rows.length - publish, warn: rows.filter(isWarned).length, auto: rows.filter(publishesAsIs).length };
 }
-export const countsLine = (c: ReviewCounts): string => `${c.publish} للنشر · ${c.skip} لا تنشر · ${c.warn} ⚠️`;
-/** What happens with no decision at all (§ 54 د). */
-export function autoLine(c: ReviewCounts, deadline: string): string {
-  return c.auto > 0
-    ? `بلا قرارك حتى ${deadline}: يُنشر تلقائياً ${c.auto} (ما قراره «بسعر السوق» أو حسب الإعداد، وبلا ⚠️)، والباقي لا يُنشر.`
-    : `بلا قرارك حتى ${deadline}: لا يُنشر شيء.`;
+
+/** The title's second line: what «ربحنا» is. */
+export const PROFIT_NOTE = "(الربح = صافي الكرتون بعد الضريبة والتالف والتشغيل)";
+const NOTHING = "لا شيء";
+const named = (rows: ReviewRow[], price: boolean): string => rows.map((r) => (price ? `${r.name} ${money(rowOutcome(r).price)}` : r.name)).join("، ");
+/** «صنف واحد», «صنفان», «18 صنفاً». */
+const counted = (rows: ReviewRow[]): string => (rows.length === 1 ? "صنف واحد" : rows.length === 2 ? "صنفان" : `${rows.length} ${itemsWord(rows.length)}`);
+/**
+ * § 55 — the three lines under the table, what each choice does:
+ *   «لو ضغطت «نفّذ المقترح» ينتشر: موز 70، رمان صغير 19.50»
+ *   «وما ينتشر: رمان وسط، رمان كبير»
+ *   «لو ما ضغطت شي، الساعة 6 ينتشر تلقائياً: لا شيء»
+ * `compact`: the numbers of items in place of their names (the names are then in
+ * the table's own text). After the publication time on a day that was not
+ * published the third line says a tap publishes at once.
+ */
+export function choiceLines(rows: ReviewRow[], deadlineMin: number, o: { late?: boolean; compact?: boolean } = {}): string[] {
+  const out = rows.filter((r) => rowOutcome(r).kind !== "skip"), stay = rows.filter((r) => rowOutcome(r).kind === "skip"), auto = rows.filter(publishesAsIs);
+  const list = (rs: ReviewRow[], price: boolean): string => (!rs.length ? NOTHING : o.compact ? counted(rs) : named(rs, price));
+  return [
+    `لو ضغطت «${REVIEW_BUTTON_ALL_NAME}» ينتشر: ${list(out, true)}`,
+    `وما ينتشر: ${list(stay, false)}`,
+    o.late ? `فات موعد ${clockAr(deadlineMin)} وما انتشرت أسعار اليوم: ضغطك «${REVIEW_BUTTON_ALL_NAME}» الآن ينشر فوراً.`
+      : `لو ما ضغطت شي، ${clockAr(deadlineMin)} ينتشر تلقائياً: ${list(auto, true)}`,
+  ];
 }
 
 export interface ReviewTextOpts {
@@ -214,6 +381,19 @@ export function reviewTitle(day: string, o: ReviewTextOpts = {}): string {
   return `${o.test ? `${REVIEW_TEST_MARK} — ` : ""}${lead} — ${weekdayAr(day)} ${arabicDate(day)}`;
 }
 
+/** A list line longer than a part's room, cut after its commas (nothing lost). */
+export function wrapList(line: string, room: number): string[] {
+  if (line.length <= room) return [line];
+  const out: string[] = [];
+  let cur = "";
+  for (const piece of line.split(/(?<=، )/)) {
+    if (cur && cur.length + piece.length > room) { out.push(cur.trimEnd()); cur = ""; }
+    cur += piece;
+  }
+  if (cur) out.push(cur.trimEnd());
+  return out;
+}
+
 export interface ReviewTexts {
   /** The table as plain text when it does not fit an interactive message (parts of at most PRICE_TEXT_LIMIT). */
   texts: string[];
@@ -223,34 +403,34 @@ export interface ReviewTexts {
 /**
  * The review as it is sent. The whole of it above the buttons while it fits an
  * interactive message's text; else the table first as plain text — cut on line
- * boundaries, «(1/2)» — and the buttons under the summary. Pure.
+ * boundaries, «(1/2)» — with the three choice lines by name after it, and the
+ * buttons under the same three lines by number. Pure.
  */
-export function buildReviewTexts(day: string, groups: ReviewGroup[], deadline: string, o: ReviewTextOpts = {}, bodyMax: number = INTERACTIVE_BODY_MAX, textMax: number = PRICE_TEXT_LIMIT): ReviewTexts {
+export function buildReviewTexts(day: string, groups: ReviewGroup[], deadlineMin: number, o: ReviewTextOpts = {}, bodyMax: number = INTERACTIVE_BODY_MAX, textMax: number = PRICE_TEXT_LIMIT): ReviewTexts {
   const rows = groups.flatMap((g) => g.rows);
   const title = reviewTitle(day, o);
-  const table = groups.flatMap((g, i) => [...(groups.length > 1 ? [...(i ? [""] : []), `— ${g.title} —`] : []), ...g.rows.map(reviewLine)]);
-  const c = reviewCounts(rows);
-  const tail = [
-    countsLine(c),
-    o.late ? `فات موعد ${deadline} ولم تُنشر أسعار اليوم: اعتمادك الآن ينشر فوراً.` : autoLine(c, deadline),
-  ];
+  // an item is one entry: an outlier's second line never leaves its item
+  const table = groups.flatMap((g, i) => [...(groups.length > 1 ? [...(i ? [""] : []), `— ${g.title} —`] : []), ...g.rows.map((r) => reviewItemLines(r).join("\n"))]);
+  const tail = choiceLines(rows, deadlineMin, { late: o.late });
   const changed = o.update?.changed.length ? [`تغيّر: ${o.update.changed.join("، ")}.`] : [];
-  const whole = [title, ...changed, "", ...table, "", ...tail].join("\n");
+  const whole = [title, PROFIT_NOTE, ...changed, "", ...table, "", ...tail].join("\n");
   if (whole.length <= bodyMax) return { texts: [], body: whole };
   const room = Math.max(200, textMax - title.length - 16);
   const chunks: string[][] = [[]];
-  let size = 0;
-  for (const line of table) {
+  // the first part carries the note (and what changed) under its title: they are in its room
+  let size = [PROFIT_NOTE, ...changed].reduce((n, l) => n + l.length + 1, 0);
+  // the choice lines by name close the table's text (a blank line before them)
+  for (const line of [...table, "", ...tail.flatMap((t) => wrapList(t, room))]) {
     if (size + line.length + 1 > room && chunks[chunks.length - 1].length) { chunks.push([]); size = 0; }
-    // a part never opens on the blank line between two categories
+    // a part never opens on a blank line
     if (!line && !chunks[chunks.length - 1].length) continue;
     chunks[chunks.length - 1].push(line);
     size += line.length + 1;
   }
   const n = chunks.length;
   return {
-    texts: chunks.map((part, i) => [n > 1 ? `${title} (${i + 1}/${n})` : title, ...(i === 0 ? changed : []), "", ...part].join("\n")),
-    body: [title, `${rows.length} ${itemsWord(rows.length)} في الجدول أعلاه.`, ...tail].join("\n").slice(0, bodyMax),
+    texts: chunks.map((part, i) => [n > 1 ? `${title} (${i + 1}/${n})` : title, ...(i === 0 ? [PROFIT_NOTE, ...changed] : []), "", ...part].join("\n")),
+    body: [title, `${rows.length} ${itemsWord(rows.length)} في الجدول أعلاه.`, ...choiceLines(rows, deadlineMin, { late: o.late, compact: true })].join("\n").slice(0, bodyMax),
   };
 }
 
@@ -280,8 +460,8 @@ export interface ReviewSnapshot {
 }
 export const snapshotKey = (dayId: number, test = false): string => `${test ? "prvt" : "prv"}:v1:${dayId}`;
 const owedKey = (day: string): string => `prv_owed:v1:${day}`;
-/** What a waiting row shows: a change of any of it is a new review. */
-export const rowSig = (r: ReviewRow): string => [r.lineId, r.purchase, r.market, r.proposal.kind, r.proposal.price, r.proposal.outlier ? 1 : 0].join(":");
+/** What a waiting row shows: a change of any of it is a new review — § 55: its full cost too («ربحنا» is made from it). */
+export const rowSig = (r: ReviewRow): string => [r.lineId, r.purchase, r.market, r.proposal.kind, r.proposal.price, r.proposal.outlier ? 1 : 0, r.fullCost || 0].join(":");
 
 export async function readSnapshot(env: Env, dayId: number, test = false): Promise<ReviewSnapshot | null> {
   try {
@@ -361,7 +541,7 @@ export async function notifyPriceReviewMessage(env: Env, now: number = Date.now(
     if (rec.x_state !== "draft") await settle();
     return { action: "outside" };
   }
-  const rows = reviewRows(await readLines(env, rec.id), await aboveSetting(env, day));
+  const rows = await dayReviewRows(env, rec);
   if (!rows.length) return { action: "none" };
   const waiting = rows.filter((r) => !r.decision);
   if (!waiting.length) { await settle(); return { action: "decided" }; }
@@ -390,8 +570,7 @@ export async function notifyPriceReviewMessage(env: Env, now: number = Date.now(
   const claim = await claimButton(env, `prv_send:${rec.id}:${ver}`, DAY_TTL);
   if (!claim.claimed) return { action: "in_progress", ver };
   try {
-    const deadline = hhmm(dl);
-    const built = buildReviewTexts(day, await reviewGroups(env, rows), deadline, {
+    const built = buildReviewTexts(day, await reviewGroups(env, rows), dl, {
       late,
       ...(prev ? { update: { at: hhmm(m), changed: changed.map((r) => r.name) } } : {}),
     });
@@ -484,7 +663,16 @@ async function publishLate(env: Env, day: DayRecord, now: number, ctx?: Executio
 
 const PUBLISH_LABEL: Record<OutcomeKind, string> = { market: "سعر السوق", profit: "المقترح", edit: "سعر يدوي", skip: "" };
 export interface ConfirmOpts { deadline: string; late?: LateOutcome; notes?: string[]; test?: boolean; head?: string }
-/** The confirmation: what will be published (or was, after the time), what will not, and a ⚠️ line for a manual price below «بدون خسارة». */
+/** «متوسط الربح للكرتون: +1.75» — the mean of «ربحنا» over the items that are published (each item once: no quantity is known yet); "" with none. */
+export function averageProfitLine(rows: ReviewRow[]): string {
+  const profits = rows.map((r) => profitAt(r, rowOutcome(r).price)).filter((p): p is number => p !== null);
+  return profits.length ? `متوسط الربح للكرتون: ${signed(profits.reduce((a, b) => a + b, 0) / profits.length)}` : "";
+}
+/**
+ * The confirmation: what will be published (or was, after the time) — § 55:
+ * each item with its price and «ربحنا» signed, then «متوسط الربح للكرتون» — what
+ * will not, and a ⚠️ line for a manual price below «بدون خسارة».
+ */
 export function confirmationText(day: string, rows: ReviewRow[], o: ConfirmOpts): string {
   const out = rows.filter((r) => (r.decision ? rowOutcome(r).kind !== "skip" : r.proposal.auto));
   const stay = rows.filter((r) => !out.includes(r));
@@ -495,9 +683,9 @@ export function confirmationText(day: string, rows: ReviewRow[], o: ConfirmOpts)
   return [
     o.head ?? `${o.test ? `${REVIEW_TEST_MARK} — ` : ""}✅ سُجّلت قراراتك على أسعار ${weekdayAr(day)} ${arabicDate(day)}.`,
     ...(out.length ? [lead, ...out.map((r) => {
-      const k = rowOutcome(r);
-      return `• ${r.name} — ${money(k.price)} ر.س (${PUBLISH_LABEL[k.kind]}${r.decision ? "" : "، تلقائياً"})`;
-    })] : [o.late ? `فات موعد ${o.deadline}، ولا صنف للنشر: لم يُنشر شيء.` : "لا صنف للنشر اليوم."]).filter(Boolean),
+      const k = rowOutcome(r), profit = profitAt(r, k.price);
+      return `• ${r.name} — ${money(k.price)} ر.س (${PUBLISH_LABEL[k.kind]}${r.decision ? "" : "، تلقائياً"})${profit === null ? "" : ` · ربحنا ${signed(profit)}`}`;
+    }), averageProfitLine(out)] : [o.late ? `فات موعد ${o.deadline}، ولا صنف للنشر: لم يُنشر شيء.` : "لا صنف للنشر اليوم."]).filter(Boolean),
     stay.length ? `لا يُنشر: ${stay.map((r) => `${r.name}${r.decision ? "" : " (بلا قرار)"}`).join("، ")}.` : "",
     ...below.map((r) => `⚠️ ${r.name}: السعر اليدوي ${money(r.decidedPrice)} أقل من سعر بدون خسارة ${money(r.breakEven)}.`),
     ...(o.notes ?? []),
@@ -509,9 +697,9 @@ export function confirmationText(day: string, rows: ReviewRow[], o: ConfirmOpts)
 async function confirmDecisions(env: Env, d: Required<Pick<Decidable, "day">> & { late?: boolean }, now: number, notes: string[], ctx?: ExecutionContext): Promise<void> {
   const day = d.day;
   const late = d.late ? await publishLate(env, day, now, ctx) : undefined;
-  const rows = reviewRows(await readLines(env, day.id), await aboveSetting(env, day.x_date));
+  const rows = await dayReviewRows(env, day);
   const text = confirmationText(day.x_date, rows, { deadline: hhmm(pricesDeadlineMinutes(env).minutes), late, notes });
-  // «✏️ تعديل» while the day can still be decided
+  // «✏️ عدّل» while the day can still be decided
   const again = late === "published" ? null : [{ id: `prv_r_${day.id}_0`, title: REVIEW_BUTTON_EDIT }];
   await say(env, again && text.length <= INTERACTIVE_BODY_MAX ? buttonsContent(text, again) : textContent(text.slice(0, 4000)), false, ctx);
 }
@@ -522,11 +710,11 @@ const riyadhClock = (ms: number): string => hhmm(riyadhMinutes(new Date(ms)));
 /**
  * A tap on one of the review's buttons. Everything it says goes from here;
  * the action is returned for the log.
- *   «✅ اعتمد الكل كما هو» — every row still waiting takes its proposed decision,
+ *   «✅ نفّذ المقترح» — every row still waiting takes its proposed decision,
  *     as that message showed it (an older message than the last sent decides
  *     nothing);
- *   «✏️ مراجعة» — the form, built from the day as it is now;
- *   «⛔ لا تنشر اليوم» — «لا تنشر» on every row.
+ *   «✏️ عدّل» — the form, built from the day as it is now;
+ *   «⛔ لا تنشر شيء» — «لا تنشر» on every row.
  */
 export async function handlePriceReviewButton(env: Env, payload: string, now: number = Date.now(), ctx?: ExecutionContext): Promise<string> {
   const mm = REVIEW_PAYLOAD.exec(String(payload ?? ""));
@@ -549,7 +737,7 @@ export async function handlePriceReviewButton(env: Env, payload: string, now: nu
   if (!claim.claimed) { await tell("سُجّل قرارك من هذه الرسالة مسبقاً ✅"); return "duplicate"; }
   try {
     const lines = new Map((await readLines(env, dayId)).map((l) => [l.id, l]));
-    // «اعتمد الكل»: the rows still waiting, each at what the message showed; «لا تنشر اليوم»: every row
+    // «نفّذ المقترح»: the rows still waiting, each at what the message showed; «لا تنشر شيء»: every row
     const entries: DecisionEntry[] = op === "n"
       ? snap.rows.map((r) => ({ lineId: r.lineId, kind: "skip" as const, price: 0 }))
       : snap.rows.filter((r) => !lines.get(r.lineId)?.x_decision).map((r) => ({ lineId: r.lineId, kind: r.proposal.kind, price: r.proposal.price }));
@@ -576,31 +764,62 @@ export interface ReviewFormItem {
   name: string;
   /** The list's label: the item's name (20 characters at Meta). */
   label: string;
-  /** «شراء X · سوق Y · الفرق Z · بدون خسارة B · مقترح P». */
+  /** «شراء X · سوق Y · ربحنا بسعر السوق: ±a» (an outlier's warning first). */
   info: string;
+  /** § 55 — «سعرنا المقترح P = أعلى/أقل من السوق بـ d (±e%)», or «… لا سعر سوق للمقارنة». */
+  info2?: string;
   options: Array<{ id: string; title: string }>;
   /** The option the list opens on, and the manual price the field opens with. */
   selected: string;
   manual: string;
-  /** What «انشر بالمقترح» and «انشر بسعر السوق» publish at, as the form showed them (0 = not offered). */
+  /** What «بالمقترح» and «بسعر السوق» publish at, as the form showed them (0 = not offered). */
   suggested: number;
   sale: number;
   breakEven: number;
+  /** § 55 — what «ربحنا» of a choice is made from (profitAt); absent on a form sent before § 55. */
+  purchase?: number;
+  fullCost?: number;
+  vatPct?: number | null;
 }
 const chars = (s: string): string[] => [...String(s ?? "")];
 const cut = (s: string, max: number): string => { const c = chars(s); return c.length > max ? `${c.slice(0, max - 1).join("")}…` : c.join(""); };
 
-/** «شراء 55 · سوق 70 · الفرق 15 · بدون خسارة 68.70 · مقترح 71.50»; «—» for what the line has not. */
+/** «شراء 22 · سوق 28 · ربحنا بسعر السوق: −0.74»; no market price: «شراء 12 · لا سعر سوق». An outlier: what moved, first. */
 export function reviewInfo(r: ReviewRow): string {
-  const n = (x: number) => (x > 0 ? money(x) : "—");
-  const market = r.market > 0 && r.upliftPct > 0 ? `${money(r.market)} (بعد الزيادة ${money(r.sale)})` : n(r.market);
-  return cut(`${r.proposal.outlier ? "⚠️ سعر شاذ · " : ""}شراء ${n(r.purchase)} · سوق ${market} · الفرق ${r.purchase > 0 && r.market > 0 ? money(r.market - r.purchase) : "—"} · بدون خسارة ${n(r.breakEven)} · مقترح ${n(r.suggested)}`, REVIEW_INFO_MAX);
+  const numbers = [r.purchase > 0 ? `شراء ${money(r.purchase)}` : "لا سعر شراء", marketText(r), r.sale > 0 ? profitText(r, "market", r.sale) : ""].filter(Boolean).join(" · ");
+  return cut([...movedLines(r), numbers].join(" · "), REVIEW_INFO_MAX);
 }
-/** The choices of an item: «انشر بسعر السوق» only with a market price, «انشر بالمقترح» only with a suggested one. */
+/** «+12.5%», «−4.7%», «+15%»: one decimal at most. */
+const signedPct = (x: number): string => {
+  const n = Math.round(x * 10) / 10;
+  return `${n > 0 ? "+" : n < 0 ? "−" : ""}${Number.isInteger(n) ? Math.abs(n) : Math.abs(n).toFixed(1)}%`;
+};
+/**
+ * § 55 — where our suggested price stands against the market as observed:
+ * «سعرنا المقترح 31.50 = أعلى من السوق بـ 3.50 (+12.5%)», «… = أقل من السوق بـ
+ * 3.50 (−4.7%)», «… = سعر السوق»; no market price: «سعرنا المقترح 19.50 — لا سعر
+ * سوق للمقارنة»; no suggested price: «لا سعر مقترح».
+ */
+export function reviewCompare(r: ReviewRow): string {
+  if (!(r.suggested > 0)) return "لا سعر مقترح";
+  const lead = `سعرنا المقترح ${money(r.suggested)}`;
+  if (!(r.market > 0)) return `${lead} — لا سعر سوق للمقارنة`;
+  const d = round2(r.suggested - r.market);
+  if (d === 0) return `${lead} = سعر السوق`;
+  return `${lead} = ${d > 0 ? "أعلى" : "أقل"} من السوق بـ ${money(Math.abs(d))} (${signedPct((d / r.market) * 100)})`;
+}
+/** The first text that fits Meta's limit of an option's title (never a number cut in the middle). */
+const fits = (candidates: string[], max: number): string => candidates.find((c) => chars(c).length <= max) ?? cut(candidates[candidates.length - 1], max);
+/** «بالمقترح 31.50 (ربح +2.30)», «بسعر السوق 28 (ربح −0.74)»: a choice with its price and its own profit. */
+function pricedOption(r: Pick<ReviewRow, "purchase" | "fullCost" | "vatPct">, lead: string, price: number): string {
+  const p = profitAt(r, price), base = `${lead} ${money(price)}`;
+  return p === null ? cut(base, REVIEW_OPTION_MAX) : fits([`${base} (ربح ${signed(p)})`, `${base} (${signed(p)})`, base], REVIEW_OPTION_MAX);
+}
+/** The choices of an item, each with its profit: «بسعر السوق» only with a market price, «بالمقترح» only with a suggested one. */
 export function reviewOptions(r: ReviewRow): Array<{ id: string; title: string }> {
   return [
-    ...(r.suggested > 0 ? [{ id: "profit", title: cut(`انشر بالمقترح (${money(r.suggested)})`, REVIEW_OPTION_MAX) }] : []),
-    ...(r.sale > 0 ? [{ id: "market", title: cut(`انشر بسعر السوق (${money(r.sale)})`, REVIEW_OPTION_MAX) }] : []),
+    ...(r.suggested > 0 ? [{ id: "profit", title: pricedOption(r, "بالمقترح", r.suggested) }] : []),
+    ...(r.sale > 0 ? [{ id: "market", title: pricedOption(r, "بسعر السوق", r.sale) }] : []),
     { id: "skip", title: "لا تنشر" },
     { id: "manual", title: "سعر يدوي" },
   ];
@@ -612,13 +831,14 @@ function formItem(r: ReviewRow, slot: number): ReviewFormItem {
   const want = o.kind === "edit" ? "manual" : o.kind;
   const selected = options.some((x) => x.id === want) ? want : options.some((x) => x.id === r.proposal.kind) ? r.proposal.kind : "skip";
   return {
-    slot, lineId: r.lineId, name: r.name, label: cut(r.name, REVIEW_LABEL_MAX), info: reviewInfo(r), options, selected,
+    slot, lineId: r.lineId, name: r.name, label: cut(r.name, REVIEW_LABEL_MAX), info: reviewInfo(r), info2: cut(reviewCompare(r), REVIEW_INFO_MAX), options, selected,
     manual: o.kind === "edit" && o.price > 0 ? money(o.price) : "", suggested: r.suggested, sale: r.sale, breakEven: r.breakEven,
+    purchase: r.purchase, fullCost: r.fullCost, vatPct: r.vatPct,
   };
 }
 
 export interface ReviewFormItems { items: ReviewFormItem[]; pages: string[]; left: string[] }
-/** The items on their pages: by category, fifteen a page; a longer category continues on the next («فواكه (2)»). Pure. */
+/** The items on their pages: by category, ten a page; a longer category continues on the next («فواكه (2)»). Pure. */
 export function reviewFormItems(groups: ReviewGroup[]): ReviewFormItems {
   const pages: Array<{ title: string; rows: ReviewRow[] }> = [];
   for (const g of groups) {
@@ -635,7 +855,7 @@ export function reviewFormItems(groups: ReviewGroup[]): ReviewFormItems {
 }
 
 export type ReviewFormData = Record<string, string | boolean | Array<{ id: string; title: string }>>;
-/** The 367 keys of the first page: each page's heading and whether a page follows it, and x/l/o/s/i/v of every slot. */
+/** The 431 keys of the first page: each page's heading and whether a page follows it, and x/y/l/o/s/i/v of every slot. */
 export function reviewFormData(pages: string[], items: ReviewFormItem[]): ReviewFormData {
   const data: ReviewFormData = {};
   for (let k = 1; k <= REVIEW_FLOW_PAGES; k++) {
@@ -645,6 +865,7 @@ export function reviewFormData(pages: string[], items: ReviewFormItem[]): Review
   for (let n = 1; n <= REVIEW_FLOW_SLOTS; n++) {
     const it = items.find((x) => x.slot === n);
     data[`x${n}`] = it ? it.info : "-";
+    data[`y${n}`] = it ? it.info2 ?? "-" : "-";
     data[`l${n}`] = it ? it.label : "-";
     data[`o${n}`] = it ? it.options : [{ id: "skip", title: "-" }];
     data[`s${n}`] = it ? it.selected : "skip";
@@ -706,8 +927,8 @@ export function reviewFormSession(text: string, token: string, data: ReviewFormD
 }
 
 export const reviewFormText = (day: string, n: number, left: string[], test = false): string => [
-  `${test ? `${REVIEW_TEST_MARK} — ` : ""}✏️ مراجعة أسعار ${weekdayAr(day)} ${arabicDate(day)}: ${n} ${itemsWord(n)}.`,
-  `القرار المقترح مختار مسبقاً لكل صنف. غيّر ما تريد، واكتب «السعر اليدوي» مع «سعر يدوي» فقط، ثم «اعتمد» في آخر صفحة.`,
+  `${test ? `${REVIEW_TEST_MARK} — ` : ""}✏️ عدّل أسعار ${weekdayAr(day)} ${arabicDate(day)}: ${n} ${itemsWord(n)}.`,
+  `القرار المقترح مختار مسبقاً لكل صنف، وجنب كل خيار ربحه للكرتون. غيّر ما تريد، واكتب «السعر اليدوي» مع «سعر يدوي» فقط، ثم «اعتمد» في آخر صفحة.`,
   left.length ? `خارج النموذج (يتسع لـ ${REVIEW_FLOW_SLOTS}): ${left.join("، ")} — تبقى على قرارها المقترح.` : "",
 ].filter(Boolean).join("\n");
 
@@ -715,7 +936,7 @@ export const reviewFormText = (day: string, n: number, left: string[], test = fa
 export async function sendReviewForm(env: Env, day: Pick<DayRecord, "id" | "x_date">, now: number, o: { ctx?: ExecutionContext; test?: boolean; rows?: ReviewRow[] } = {}): Promise<{ sent: boolean; reason?: string; token?: string }> {
   const to = ownerOf(env);
   if (!to) return { sent: false, reason: "no_owner" };
-  const rows = o.rows ?? reviewRows(await readLines(env, day.id), await aboveSetting(env, day.x_date));
+  const rows = o.rows ?? await dayReviewRows(env, day);
   const built = reviewFormItems(await reviewGroups(env, rows));
   if (!built.items.length) return { sent: false, reason: "no_items" };
   const rec: ReviewFormRecord = { v: 1, token: newReviewFormToken(day.x_date), day: day.x_date, dayId: day.id, to, items: built.items, pages: built.pages, createdAt: now, ...(o.test ? { test: true } : {}) };
@@ -738,7 +959,7 @@ export interface ReviewFormEntries {
  * Each slot's choice against its item — the token's items, never the client's
  * data: d<slot> is an option the item was offered (anything else, or nothing:
  * the option the list opened on), and p<slot> is read with «سعر يدوي» alone.
- * The prices of «انشر بالمقترح» / «انشر بسعر السوق» are the ones the form showed.
+ * The prices of «بالمقترح» / «بسعر السوق» are the ones the form showed.
  */
 export function readReviewValues(rec: Pick<ReviewFormRecord, "items">, values: Record<string, unknown>): ReviewFormEntries {
   const out: ReviewFormEntries = { decisions: [], noPrice: [] };
@@ -797,9 +1018,14 @@ export async function handlePriceReviewReply(env: Env, msg: Pick<NormalizedMessa
 // ---------------------------------------------------------------- the trial to Baraa
 
 const TEST_TAIL = "(تجربة: لم يُكتب شيء في Odoo، ولم يُنشر شيء)";
+/** « · ربحنا +1.13» of a form's item at a price ("" on a form sent before § 55). */
+function profitNote(item: ReviewFormItem, price: number): string {
+  const p = profitAt({ purchase: item.purchase ?? 0, fullCost: item.fullCost ?? 0, vatPct: item.vatPct ?? null }, price);
+  return p === null ? "" : ` · ربحنا ${signed(p)}`;
+}
 function testFormAnswer(rec: ReviewFormRecord, e: ReviewFormEntries): string {
   const line = (x: ReviewFormEntries["decisions"][number]): string =>
-    `• ${x.item.name} — ${x.kind === "skip" ? "لا تنشر" : `${money(x.price)} ر.س (${PUBLISH_LABEL[x.kind]})`}${x.kind === "edit" && x.item.breakEven > 0 && x.price < x.item.breakEven - 0.0001 ? ` ⚠️ أقل من سعر بدون خسارة ${money(x.item.breakEven)}` : ""}`;
+    `• ${x.item.name} — ${x.kind === "skip" ? "لا تنشر" : `${money(x.price)} ر.س (${PUBLISH_LABEL[x.kind]})${profitNote(x.item, x.price)}`}${x.kind === "edit" && x.item.breakEven > 0 && x.price < x.item.breakEven - 0.0001 ? ` ⚠️ أقل من سعر بدون خسارة ${money(x.item.breakEven)}` : ""}`;
   return [
     `${REVIEW_TEST_MARK} — وصلت قراراتك على أسعار ${weekdayAr(rec.day)} ${arabicDate(rec.day)}:`,
     ...e.decisions.map(line),
@@ -822,7 +1048,7 @@ async function handleTestButton(env: Env, op: string, dayId: number, now: number
     await tell(`${REVIEW_TEST_MARK} — ⛔ كان سيُسجَّل «لا تنشر» على ${snap.rows.length} ${itemsWord(snap.rows.length)}، ولا يُنشر شيء اليوم.\n${TEST_TAIL}`);
     return "test_none";
   }
-  // «اعتمد الكل»: every row at its proposed decision, as the day would be confirmed
+  // «نفّذ المقترح»: every row at its proposed decision, as the day would be confirmed
   const decided = snap.rows.map((r) => ({ ...r, decision: (r.proposal.kind === "skip" ? "skip" : r.proposal.kind) as Decision, decidedPrice: r.proposal.price }));
   await tell(confirmationText(snap.day, decided, { deadline: hhmm(pricesDeadlineMinutes(env).minutes), test: true }));
   return "test_all";
@@ -851,9 +1077,10 @@ export async function sendPriceReviewTest(env: Env, now: number = Date.now()): P
     }
     if (!rec) { await releaseButton(env, claim); return { sent: false, reason: "no_day" }; }
     // as at 04:00: no decision taken yet on any row
-    const rows = reviewRows(await readLines(env, rec.id), await aboveSetting(env, rec.x_date)).map((r) => ({ ...r, decision: null, decidedPrice: 0 }));
+    // (the rows are read with their lines' own decisions set aside first: an outlier Baraa already decided still shows what moved)
+    const rows = (await dayReviewRows(env, rec)).map((r) => ({ ...r, decision: null, decidedPrice: 0 }));
     if (!rows.length) { await releaseButton(env, claim); return { sent: false, reason: "no_items" }; }
-    const built = buildReviewTexts(rec.x_date, await reviewGroups(env, rows), hhmm(pricesDeadlineMinutes(env).minutes), { test: true });
+    const built = buildReviewTexts(rec.x_date, await reviewGroups(env, rows), pricesDeadlineMinutes(env).minutes, { test: true });
     for (const part of built.texts) {
       if (!(await say(env, textContent(part), true))) { await releaseButton(env, claim); return { sent: false, reason: "not_sent" }; }
     }

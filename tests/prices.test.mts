@@ -322,7 +322,7 @@ console.log("\n[3] the publication time (06:00): approved and published by the w
   const missed = txt(OWNER).find((t) => t.startsWith("⏰ أسعار اليوم"))?.split("\n") ?? [];
   assert("…the alert: «لم يُنشر (2)» with each item and its reason, never yesterday's prices, and the review's buttons or «نشر المعتمد الآن»", missed.length === 3
     && missed[0] === "⏰ أسعار اليوم (26 سبتمبر 2026) لم تُنشر حتى 06:00: لا صنف معتمد (تلقائياً أو منك)." && missed[1] === "لم يُنشر (2): طماطم (بلا سعر سوق وبلا قرار)، خيار (لا سعر شراء)."
-    && missed[2].startsWith("لا تُعاد أسعار أمس. «✅ اعتمد الكل» أو «✏️ مراجعة» من رسالة المراجعة ينشر فوراً، أو قرارك ثم «نشر المعتمد الآن» في "), JSON.stringify(missed));
+    && missed[2].startsWith("لا تُعاد أسعار أمس. «✅ نفّذ المقترح» أو «✏️ عدّل» من رسالة المراجعة ينشر فوراً، أو قرارك ثم «نشر المعتمد الآن» في "), JSON.stringify(missed));
   setRiyadh("2026-09-26 07:30");
   Object.assign(lineOf(dayRec()!.id, 1), { x_decision: "edit", x_manual_price: 29 });
   await quiet(() => refreshPriceDay(envM, { force: true }));

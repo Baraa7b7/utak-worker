@@ -5,7 +5,8 @@
 // every decision (src/pricing-board.ts, src/prices.ts). § 47 ب (the suggested profitable price and
 // the rule that reads it) is tests/s47.test.mts. § 54 أ — here a line whose market price is below
 // «أقل سعر بيع بدون خسارة» is an exception (until § 54: below the suggested price), and Baraa's
-// decision on a line is taken in the day's review (src/price-review.ts), no longer by «عدّل».
+// decision on a line is taken in the day's review (src/price-review.ts), no longer by the «عدّل» of an
+// exception's own message (§ 55 gives the name «✏️ عدّل» to the review's button that opens its form).
 //
 // In-memory Odoo + captured Graph (tests/wa-harness.mts, tests/s46-kit.mts). No network, no send.
 //
@@ -180,8 +181,9 @@ console.log("\n[أ] the board follows the day's cost and Baraa's decisions");
   assert("…and (§ 54 أ) a 🟢 line below its suggested price is approved automatically at the market price (23)", lineFor(3).x_status === "auto" && lineFor(3).x_sale_price === 23 && !lineFor(3).x_excluded && lineFor(3).x_break_even === 22.89 && lineFor(3).x_suggested_price === 25.5, JSON.stringify(lineFor(3)));
 }
 {
-  // § 54 ج — Baraa's decision on an item is taken in the review's form («✏️ مراجعة» → the item's list and «السعر اليدوي»):
-  // «عدّل» and the price typed within 30 minutes are gone. The decision lands in the same fields, and the board follows it.
+  // § 54 ج — Baraa's decision on an item is taken in the review's form («✏️ عدّل» since § 55, «✏️ مراجعة» before → the item's list
+  // and «السعر اليدوي»): the «عدّل» of an exception's own message and the price typed within 30 minutes are gone. The decision
+  // lands in the same fields, and the board follows it.
   const formOf = async (e: any) => {
     const token = String(sentTo(OWNER).filter((b: any) => b?.interactive?.type === "flow").at(-1)?.interactive?.action?.parameters?.flow_token ?? "");
     const rec = await PRV.readReviewFormToken(e, token);
@@ -203,7 +205,7 @@ console.log("\n[أ] the board follows the day's cost and Baraa's decisions");
   assert("…and the header's counts: 🟢 2 · 🟡 1 · 🔴 0 · ⚪ 1", d.x_n_green === 2 && d.x_n_yellow === 1 && d.x_n_red === 0 && d.x_n_none === 1, JSON.stringify(d));
   await quiet(() => PR.refreshPriceDay(env, { force: true }));
   assert("the engine's next run keeps his price on the card (sale 40, 🟢 5.48)", lineFor(2).x_board_sale === 40 && lineFor(2).x_real_profit === 5.48 && lineFor(2).x_board_status === "green" && dayOf().x_n_green === 2, JSON.stringify(lineFor(2)));
-  // «✏️ تعديل» under the confirmation: the form again, opened on his decisions — he changes the tomato alone
+  // «✏️ عدّل» under the confirmation (§ 55; «✏️ تعديل» before): the form again, opened on his decisions — he changes the tomato alone
   await quiet(() => PRV.handlePriceReviewButton(env, `prv_r_${dayOf().id}_0`));
   const f2 = await formOf(env);
   const others = () => JSON.stringify([lineFor(2), lineFor(3), lineFor(4)]);

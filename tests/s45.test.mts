@@ -218,6 +218,9 @@ const dayReviews = () => ownerMsgs().filter((b: any) => b?.type === "interactive
 /** Template 2 (utak_owner_price_review_v1). */
 const reviewMsgs = () => ownerMsgs().filter((b: any) => tplName(b) === OW.PRICE_REVIEW_TEMPLATE);
 const buttonIds = (b: any): string[] => (b?.interactive?.action?.buttons ?? []).map((x: any) => x.reply.id);
+const buttonTitles = (b: any): string[] => (b?.interactive?.action?.buttons ?? []).map((x: any) => x.reply.title);
+/** § 55 — the review's text by line: an item is asserted as its whole line (its mark, its market, «ربحنا», its decision). */
+const linesOf = (b: any): string[] => textOf(b).split("\n");
 /** § 54 — nothing is held for the review: it is «owed» (a KV mark of its day) and built at his next message. */
 const owed = (env: any) => env.MSG_DEDUP.store.has(`prv_owed:v1:${PDAY}`);
 const dayId = () => [...table("x_price_day").values()][0].id;
@@ -275,8 +278,9 @@ console.log("\n[ب] the day's review while his window is closed: nothing held, t
   const env = priceEnv(2); t2();   // his window open
   const r = await notify(env);
   const [m] = dayReviews();
-  assert("his window open → the review goes directly — ONE message with both items — and no template 2", r.action === "sent" && dayReviews().length === 1 && ownerMsgs().length === 1 && reviewMsgs().length === 0 && !r.review && /طماطم: شراء 20/.test(textOf(m)) && /خيار: شراء 20/.test(textOf(m)), JSON.stringify({ r, m: ownerMsgs().map((b: any) => tplName(b) ?? textOf(b)) }));
-  assert("…with its three buttons («✅ اعتمد الكل كما هو» / «✏️ مراجعة» / «⛔ لا تنشر اليوم»), and nothing owed or held", JSON.stringify(buttonIds(m)) === JSON.stringify([`prv_a_${dayId()}_1`, `prv_r_${dayId()}_1`, `prv_n_${dayId()}_1`]) && !owed(env) && heldFor(env, OWNER).length === 0, JSON.stringify(buttonIds(m)));
+  // § 55 — a line an item, its mark first; no purchase price in the message (a purchase of 20 with no market and no suggested price: «لا تنشر»)
+  assert("his window open → the review goes directly — ONE message with both items — and no template 2", r.action === "sent" && dayReviews().length === 1 && ownerMsgs().length === 1 && reviewMsgs().length === 0 && !r.review && linesOf(m).includes("❌ طماطم — لا سعر سوق ← لا تنشر") && linesOf(m).includes("❌ خيار — لا سعر سوق ← لا تنشر"), JSON.stringify({ r, m: ownerMsgs().map((b: any) => tplName(b) ?? textOf(b)) }));
+  assert("…with its three buttons («✅ نفّذ المقترح» / «✏️ عدّل» / «⛔ لا تنشر شيء»), and nothing owed or held", JSON.stringify(buttonIds(m)) === JSON.stringify([`prv_a_${dayId()}_1`, `prv_r_${dayId()}_1`, `prv_n_${dayId()}_1`]) && JSON.stringify(buttonTitles(m)) === JSON.stringify(["✅ نفّذ المقترح", "✏️ عدّل", "⛔ لا تنشر شيء"]) && !owed(env) && heldFor(env, OWNER).length === 0, JSON.stringify([buttonIds(m), buttonTitles(m)]));
 }
 {
   const env = priceEnv(2); closeOwnerWindow(env); t2("PENDING");
@@ -327,14 +331,21 @@ console.log("\n[ب] the day's review while his window is closed: nothing held, t
 console.log("\n[ب] «عرض الاستثناءات»: his tap sends the review itself, built then, with its buttons; owed until 06:00, not after on a day still to be published");
 {
   const env = priceEnv(2, `${PDAY} 04:00`); closeOwnerWindow(env); t2();
+  const lines = rows("x_price_day_line");
+  // § 55 — the message carries no purchase price any more: a purchase shows in «ربحنا», made from the line's full cost. The
+  // engine's own numbers of a purchase of 20 (waste 5 % = 1, carton share 2): full cost 23, «بدون خسارة» 26.45, suggested 29.
+  for (const l of lines) Object.assign(l, { x_full_cost: 23, x_break_even: 26.45, x_suggested_price: 29 });
   await notify(env);
   setRiyadh(`${PDAY} 05:55`);
-  const lines = rows("x_price_day_line");
-  Object.assign(lines[0], { x_cost_price: 22 });   // the day moved after the template went: the review is built at his tap, not at 04:00
+  // the day moved after the template went: the review is built at his tap, not at 04:00 —
+  // طماطم's purchase 22: full cost 22 + 1.10 + 2 = 25.10, «بدون خسارة» 28.87, suggested (25.10 + 2) × 1.15 = 31.165 → 31.50
+  Object.assign(lines[0], { x_cost_price: 22, x_full_cost: 25.1, x_break_even: 28.87, x_suggested_price: 31.5 });
   await tapReview(env);
   const rv = dayReviews();
-  assert("05:55: ONE review with both items and the three buttons (prv_a / prv_r / prv_n of the day)", rv.length === 1 && /خيار: شراء 20/.test(textOf(rv[0])) && JSON.stringify(buttonIds(rv[0])) === JSON.stringify([`prv_a_${dayId()}_1`, `prv_r_${dayId()}_1`, `prv_n_${dayId()}_1`]), JSON.stringify(rv.map((b: any) => [textOf(b), buttonIds(b)])));
-  assert("…built at his tap from the day as it is then (طماطم's purchase 22, changed at 05:55 — not the 20 of 04:00)", /طماطم: شراء 22/.test(textOf(rv[0])) && !/طماطم: شراء 20/.test(textOf(rv[0])), textOf(rv[0]));
+  // خيار (still 20): 29 ÷ 1.15 = 25.22 − 23 = +2.22
+  assert("05:55: ONE review with both items and the three buttons (prv_a / prv_r / prv_n of the day)", rv.length === 1 && linesOf(rv[0]).includes("✅ خيار — لا سعر سوق | ربحنا بالمقترح 29: +2.22 ← انشر بـ 29") && linesOf(rv[0]).filter((x) => / ← /.test(x)).length === 2 && JSON.stringify(buttonIds(rv[0])) === JSON.stringify([`prv_a_${dayId()}_1`, `prv_r_${dayId()}_1`, `prv_n_${dayId()}_1`]), JSON.stringify(rv.map((b: any) => [textOf(b), buttonIds(b)])));
+  // طماطم at 05:55: 31.50 ÷ 1.15 = 27.39 − 25.10 = +2.29 (at 04:00 it read «ربحنا بالمقترح 29: +2.22», as خيار)
+  assert("…built at his tap from the day as it is then (طماطم's purchase 22, changed at 05:55 — not the 20 of 04:00: its suggested price and «ربحنا» are the new purchase's)", linesOf(rv[0]).includes("✅ طماطم — لا سعر سوق | ربحنا بالمقترح 31.50: +2.29 ← انشر بـ 31.50") && !/طماطم — لا سعر سوق \| ربحنا بالمقترح 29:/.test(textOf(rv[0])), textOf(rv[0]));
   assert("…no extra line (the review was the answer), nothing held, nothing owed any more", heldFor(env, OWNER).length === 0 && !owed(env) && !ownerMsgs().some((b: any) => textOf(b) === OW.PRICE_REVIEW_NOTHING_TEXT) && ownerMsgs().length === 2, JSON.stringify(ownerMsgs().map((b: any) => tplName(b) ?? textOf(b))));
   await tapReview(env);
   assert("a second tap, nothing waiting → one line saying so, and no second review", ownerMsgs().filter((b: any) => textOf(b) === OW.PRICE_REVIEW_NOTHING_TEXT).length === 1 && dayReviews().length === 1, JSON.stringify(ownerMsgs().map(textOf)));
@@ -357,7 +368,7 @@ console.log("\n[ب] «عرض الاستثناءات»: his tap sends the review 
   setRiyadh(`${PDAY} 06:10`);
   await tapReview(env);
   const rv = dayReviews();
-  assert("after 06:00 on a day that was NOT published and whose review never reached him: his tap sends it, saying an approval publishes at once", rv.length === 1 && /فات موعد 06:00 ولم تُنشر أسعار اليوم: اعتمادك الآن ينشر فوراً\./.test(textOf(rv[0])) && buttonIds(rv[0]).length === 3 && !ownerMsgs().some((b: any) => textOf(b) === OW.PRICE_REVIEW_NOTHING_TEXT), JSON.stringify(ownerMsgs().map(textOf)));
+  assert("after 06:00 on a day that was NOT published and whose review never reached him: his tap sends it, saying an approval publishes at once", rv.length === 1 && linesOf(rv[0]).at(-1) === "فات موعد الساعة 6 وما انتشرت أسعار اليوم: ضغطك «نفّذ المقترح» الآن ينشر فوراً." && !/تلقائياً/.test(textOf(rv[0])) && buttonIds(rv[0]).length === 3 && !ownerMsgs().some((b: any) => textOf(b) === OW.PRICE_REVIEW_NOTHING_TEXT), JSON.stringify(ownerMsgs().map(textOf)));
 }
 
 console.log("\n[ب] the owner guard lets template 2 through; the purpose is known");

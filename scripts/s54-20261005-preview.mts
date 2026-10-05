@@ -1,11 +1,13 @@
 // § 54 (2026-10-05) — what the day's price review would read for a day of the tenant, as it arrives
 // at 04:00 (every row waiting for Baraa's decision): the worker's own text (src/price-review.ts
-// buildReviewTexts) over the day's stored lines. READ-ONLY: five search_read calls, nothing written,
-// nothing sent — this script imports worker code, so it blocks graph.facebook.com.
+// buildReviewTexts) over the day's stored lines — § 55: the line with its mark and «ربحنا», the three
+// choice lines, and what moved on an outlier. READ-ONLY: five search_read calls (and up to three for
+// each outlier), nothing written, nothing sent — this script imports worker code, so it blocks
+// graph.facebook.com.
 //
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs scripts/s54-20261005-preview.mts [YYYY-MM-DD] [--form]
 //
-// No day = today (Riyadh). --form also prints what each item of the form («✏️ مراجعة») shows.
+// No day = today (Riyadh). --form also prints what each item of the form («✏️ عدّل») shows.
 // @ts-ignore — plain .mjs helper
 import { call } from "./lib/odoo-cli.mjs";
 
@@ -36,7 +38,12 @@ const [cfg] = await call("x_pricing_config", "search_read", {
 });
 const above = aboveSuggestedOf(cfg?.x_above_suggested);
 // as at 04:00: no decision taken yet on any row
-const rows = RV.reviewRows(lines, above).map((r) => ({ ...r, decision: null, decidedPrice: 0 }));
+const rows = RV.reviewRows(lines, above, day).map((r) => ({ ...r, decision: null, decidedPrice: 0 }));
+for (const r of rows) {
+  if (!r.proposal.outlier) continue;
+  await pause();
+  r.moved = await RV.readMoved(async (model: string, body: Record<string, unknown>) => { await pause(); return call(model, "search_read", body); }, day, lines.find((l: any) => l.id === r.lineId));
+}
 await pause();
 const prods = await call("product.template", "search_read", { domain: [["id", "in", [...new Set(rows.map((r) => r.productId))]]], fields: ["id", "categ_id"], limit: 500 });
 await pause();
@@ -51,12 +58,12 @@ for (const p of prods) {
   of.set(p.id, page);
 }
 const groups = RV.groupRows(rows, of, titles);
-const built = RV.buildReviewTexts(day, groups, "06:00");
+const built = RV.buildReviewTexts(day, groups, 6 * 60);
 console.log(`day #${rec.id} ${day} (${rec.x_state}) · ${lines.length} line(s), ${rows.length} in the review · «لما يكون السوق أعلى من المقترح» = ${above}${hasSetting ? "" : " (the field does not exist yet)"}\n`);
 for (const t of built.texts) console.log(`──────── text (${t.length} characters)\n${t}\n`);
 console.log(`──────── with the buttons (${built.body.length} characters)\n${built.body}\n[ ${RV.REVIEW_BUTTON_ALL} ] [ ${RV.REVIEW_BUTTON_FORM} ] [ ${RV.REVIEW_BUTTON_NONE} ]`);
 if (process.argv.includes("--form")) {
   const f = RV.reviewFormItems(groups);
   console.log(`\n──────── the form: ${f.pages.map((p, i) => `${i + 1}. ${p}`).join(" · ")}`);
-  for (const it of f.items) console.log(`${it.slot}. ${it.label}\n   ${it.info}\n   ${it.options.map((o) => (o.id === it.selected ? `[${o.title}]` : o.title)).join(" | ")}`);
+  for (const it of f.items) console.log(`${it.slot}. ${it.label}\n   ${it.info}\n   ${it.info2}\n   ${it.options.map((o) => (o.id === it.selected ? `[${o.title}]` : o.title)).join(" | ")}`);
 }

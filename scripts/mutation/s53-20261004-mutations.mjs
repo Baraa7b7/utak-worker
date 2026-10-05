@@ -140,7 +140,7 @@ const M = [
   // السوق» fixes the market price without the uplift» (one source now: the row's price below, offered and fixed alike).
   // The two that stay are the review's (src/price-review.ts):
   ["ب", "the review says «بعد الزيادة» at 0 %", [[RV,
-    "${r.upliftPct > 0 ? ` (بعد الزيادة ${money(r.upliftPct)}٪)`", "${r.upliftPct >= 0 ? ` (بعد الزيادة ${money(r.upliftPct)}٪)`"]], T],
+    "${r.upliftPct > 0 ? ` (بعد الزيادة ${money(r.sale)})`", "${r.upliftPct >= 0 ? ` (بعد الزيادة ${money(r.sale)})`"]], T],
   ["ب", "«انشر بسعر السوق» is offered (and fixed) at the market price without the uplift", [[RV,
     "market = Number(l.x_market_price) || 0, sale = marketSale(l);", "market = Number(l.x_market_price) || 0, sale = market;"]], T],
   ["ب", "the settings' uplift is not read (always 0)", [[OC,

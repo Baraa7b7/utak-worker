@@ -12,18 +12,20 @@
 //     is open at 21:30 but closes before tomorrow's 06:00 (the price
 //     deadline): the text has no button to keep the night open. Not usable →
 //     the text / utak_v2_summary, as before.
-//   • utak_owner_price_review_v1 — the day's price exceptions held for him
-//     while his window is closed (src/prices.ts): «أسعار يو تاك ليوم {{1}}:
-//     {{2}} صنف بانتظار قرارك قبل 06:00.» with the number of undecided
-//     exceptions, once per price day (a KV claim), and one quick reply «عرض
+//   • utak_owner_price_review_v1 — the day's price review owed to him while
+//     his window is closed (§ 54: src/price-review.ts; before § 54 the
+//     exception messages held for him): «أسعار يو تاك ليوم {{1}}: {{2}} صنف
+//     بانتظار قرارك قبل 06:00.» with the number of items waiting for his
+//     decision, once per price day (a KV claim), and one quick reply «عرض
 //     الاستثناءات» (PRICE_REVIEW_PAYLOAD). It never relies on conv_open_owner
-//     (utak_update_owner, MARKETING). Not usable → the exceptions stay held
-//     for his next message, as before.
-// A tap on either is an inbound (src/index.ts): it opens his 24h window and
-// flushes what is held for him — the exceptions with their buttons — before
-// any routing. Then, in the owner branch, never an order or a complaint:
+//     (utak_update_owner, MARKETING). Not usable → the review stays owed to
+//     his next message.
+// A tap on either is an inbound (src/index.ts): it opens his 24h window,
+// flushes what is held for him, and — § 54 — sends the review owed to him,
+// built at that moment, before any routing. Then, in the owner branch, never
+// an order or a complaint:
 //   • «تم الاطلاع» → one line, SUMMARY_ACK_TEXT;
-//   • «عرض الاستثناءات» → the flush was the answer; one line only when
+//   • «عرض الاستثناءات» → the review was the answer; one line only when
 //     nothing was waiting.
 
 import { PLACE_TODAY } from "./places";
@@ -32,7 +34,6 @@ import { call } from "./odoo";
 import { TEMPLATE_CANDIDATE_FIELDS, type TemplateCandidate } from "./template-pick";
 import { gatewayDecision, sendViaGateway, type GwTemplate } from "./wa-gateway";
 import { readWindow } from "./wa-window";
-import { readQueue } from "./wa-queue";
 import { arabicDate } from "./wa-params";
 import { claimButton, finishButton, releaseButton } from "./button-lock";
 import { riyadhDateKey, riyadhDayMinuteMs } from "./hours";
@@ -44,8 +45,7 @@ export const PRICE_REVIEW_PAYLOAD = "owner_price_review";
 /** The gateway purpose of template 2 (src/wa-purposes.ts, the owner guard). */
 export const PRICE_REVIEW_PURPOSE = "owner_price_review";
 export const SUMMARY_ACK_TEXT = "تم ✅، تنبيهات الليلة تصلك مباشرة";
-export const PRICE_REVIEW_NOTHING_TEXT = `لا استثناءات أسعار محفوظة لك الآن: قرّرتها، أو فات موعد 06:00. التفاصيل في ${PLACE_TODAY}.`;
-const EXCEPTION_PURPOSE = "owner_price_exception";
+export const PRICE_REVIEW_NOTHING_TEXT = `لا مراجعة أسعار بانتظارك الآن: قرّرتها، أو وصلتك، أو فات موعد 06:00. التفاصيل في ${PLACE_TODAY}.`;
 const REVIEW_TTL = 26 * 3600;
 /** The once-per-price-day claim of template 2 (button-lock key). */
 const reviewLock = (day: string) => `owner_price_review:${day}`;
@@ -90,10 +90,11 @@ export async function summaryNightOption(env: Env, day: string, params: [string,
 }
 
 /**
- * Template 2, once per price day: his window is closed, exception messages of
- * `day` are held for him, and the template is usable. `count` = the day's
- * undecided exceptions. The claim is released when nothing went (a later tick
- * may try again; Meta's refusals are blocked by the gateway for 24h).
+ * Template 2, once per price day: his window is closed, the review of `day` is
+ * owed to him (the caller's word — § 54: nothing is held, src/price-review.ts)
+ * and the template is usable. `count` = the items waiting for his decision.
+ * The claim is released when nothing went (a later tick may try again; Meta's
+ * refusals are blocked by the gateway for 24h).
  */
 export async function notifyPriceReview(env: Env, day: string, count: number, nowMs: number = Date.now()): Promise<string | null> {
   const owner = String(env.OWNER_WHATSAPP ?? "");
@@ -101,8 +102,6 @@ export async function notifyPriceReview(env: Env, day: string, count: number, no
   if ((await env.MSG_DEDUP.get(`btnlock:v1:${reviewLock(day)}`)) !== null) return null;
   const win = await readWindow(env, owner, nowMs);
   if (win.open) return null;
-  const held = (await readQueue(env, owner)).filter((i) => i.purpose === EXCEPTION_PURPOSE && i.expiresAt > nowMs);
-  if (!held.length) return null;
   const row = await usableOwnerTemplate(env, PRICE_REVIEW_TEMPLATE);
   if (!row) return "not_usable";
   const claim = await claimButton(env, reviewLock(day), REVIEW_TTL);

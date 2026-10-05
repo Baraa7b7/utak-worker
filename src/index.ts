@@ -186,7 +186,7 @@ export default {
             const { runPricesTick } = await import("./prices");
             const p = await runPricesTick(env, Date.now(), ctx);
             const quiet = (!p.marketAsk || ("action" in p.marketAsk && ["before", "after"].includes(p.marketAsk.action)))
-              && (!p.exceptions || ("action" in p.exceptions && ["outside", "no_draft", "none", "notified_before", "many_before"].includes(p.exceptions.action)))
+              && (!p.review || ("action" in p.review && ["outside", "no_day", "no_draft", "none", "decided", "sent_before"].includes(p.review.action)))
               && (p.refresh && "action" in p.refresh && ["no_prices", "unchanged", "locked", "outside"].includes(p.refresh.action))
               && (p.deadline && "action" in p.deadline && ["before", "after_window", "claimed_before"].includes(p.deadline.action)) && !p.publish;
             if (!quiet) console.log("[prices tick]", JSON.stringify(p));
@@ -1756,6 +1756,23 @@ export default {
       }
     }
 
+    // § 54 — the ONE trial of the day's price review: to Baraa's own number, while his window is
+    // open, once a day, with today's lines. Its buttons and its form write nothing in Odoo and
+    // publish nothing (src/price-review.ts sendPriceReviewTest).
+    if (request.method === "POST" && url.pathname === "/odoo/hook/price-review-test") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      try {
+        const { sendPriceReviewTest } = await import("./price-review");
+        return json({ ok: true, ...(await sendPriceReviewTest(env)) });
+      } catch (e) {
+        return json({ ok: false, error: (e as Error).message }, 500);
+      }
+    }
+
     if (request.method === "POST" && url.pathname === "/webhook") {
       const raw = await request.text();
       const sig = request.headers.get("x-hub-signature-256");
@@ -2331,6 +2348,13 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       }
     }
 
+    // § 54 — the day's price review owed to Baraa (his window was closed when it was due):
+    // nothing was held for it — it is built now, from the day as it is, and counts as flushed.
+    if (inboundWindow?.open && isOwnerNumber(env, msg.from)) {
+      const { sendOwedPriceReview } = await import("./price-review");
+      if (await sendOwedPriceReview(env, Date.now(), ctx)) flushed = { sent: (flushed?.sent ?? 0) + 1 };
+    }
+
     // 2026-09-25 (STATUS § 34) — «عرض التحديث» on a «فتح المحادثة» template:
     // the flush above was the answer. Baraa gets his usual «✅ تم» line; anyone
     // else one line only when nothing was waiting. No other routing.
@@ -2359,7 +2383,12 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
     if (msg.flow) {
       try {
         const { isOrderFormToken, handleOrderFormReply } = await import("./order-form");
-        if (isOrderFormToken(msg.flow.token ?? "")) {
+        const { isReviewFormToken, handlePriceReviewReply } = await import("./price-review");
+        if (isReviewFormToken(msg.flow.token ?? "")) {
+          // § 54 ج — Baraa's review of the day's prices: each item's decision goes on its line
+          const r = await handlePriceReviewReply(env, msg, ctx);
+          console.log(`[price-review] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} ${r.action}${r.written !== undefined ? ` written=${r.written}` : ""}`);
+        } else if (isOrderFormToken(msg.flow.token ?? "")) {
           // § 53 ج — the customer's order form: its quantities become his order, and the quotation follows
           const r = await handleOrderFormReply(env, msg, ctx);
           console.log(`[order-form] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} ${r.action}${r.orderId ? ` order=${r.orderId}` : ""}`);
@@ -2647,15 +2676,21 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           // opened his window and the flush above sent what was held; one line, nothing else.
           const r = ownerWindowButtonReply(msg.buttonId!, flushed?.sent ?? 0);
           if (r) await sendText(env, msg.from, r, { ctx, purpose: "owner_alert" });
-        } else if ((msg.type === "interactive" || msg.type === "button") && /^pexc_[mspe]_\d+$/.test(msg.buttonId ?? "")) {
-          // § 40 ج — his decision on a price exception: «اعتمد بسعر السوق» / «لا تنشر» / «عدّل»,
-          // and (§ 47 ب) «اعتمد بالسعر المربح» — a reply button or a list row.
-          const { handlePriceExceptionButton } = await import("./prices");
-          const r = await handlePriceExceptionButton(env, msg.buttonId!).catch((e) => {
-            console.warn("[prices] exception button failed", (e as Error)?.message);
-            return `تعذّر تسجيل القرار الآن. جرّب بعد قليل، أو قرّر من ${PLACE_TODAY}.`;
+        } else if ((msg.type === "interactive" || msg.type === "button") && /^prvt?_[arn]_\d+_\d+$/.test(msg.buttonId ?? "")) {
+          // § 54 — the day's price review: «✅ اعتمد الكل كما هو» / «✏️ مراجعة» / «⛔ لا تنشر اليوم»
+          // (and «✏️ تعديل» under a confirmation). It answers him itself.
+          const { handlePriceReviewButton } = await import("./price-review");
+          const r = await handlePriceReviewButton(env, msg.buttonId!, Date.now(), ctx).catch(async (e) => {
+            console.warn("[price-review] button failed", (e as Error)?.message);
+            await sendText(env, msg.from, `تعذّر تسجيل القرار الآن. جرّب بعد قليل، أو قرّر من ${PLACE_TODAY}.`, { ctx, purpose: "owner_alert" });
+            return "error";
           });
-          if (r) await sendText(env, msg.from, r, { ctx, purpose: "owner_alert" });
+          console.log(`[price-review] button ${msg.buttonId} → ${r}`);
+        } else if ((msg.type === "interactive" || msg.type === "button") && /^pexc_[mspe]_\d+$/.test(msg.buttonId ?? "")) {
+          // § 54 — a choice of a per-item exception message of before (§ 40 ج): nothing is decided
+          // from it any more; one line says where the decision is taken now.
+          const { OLD_EXCEPTION_TEXT } = await import("./prices");
+          await sendText(env, msg.from, OLD_EXCEPTION_TEXT, { ctx, purpose: "owner_alert" });
         } else if (((msg.type === "interactive" || msg.type === "button") && /^delivered_\d+$/.test(msg.buttonId ?? ""))
           || (msg.type === "text" && deliverCommandOrderId(msg.text) !== null)) {
           // § 49 ج — Baraa sells from the car: «تم التسليم ✅» under a confirmed order (or «تسليم 12»)
@@ -2666,15 +2701,9 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
             return { text: "تعذّر تسجيل التسليم الآن. جرّب بعد قليل." } as RouterReply;
           });
           if (reply.text) await sendText(env, msg.from, reply.text, { ctx, purpose: "owner_alert" });
-        } else if (msg.type === "text" && msg.text) {
-          // § 40 ج — the price after «عدّل» (within 30 minutes); any other text: nothing, as before.
-          const { handlePriceEditReply } = await import("./prices");
-          const r = await handlePriceEditReply(env, msg.text).catch((e) => {
-            console.warn("[prices] edit reply failed", (e as Error)?.message);
-            return null;
-          });
-          if (r) await sendText(env, msg.from, r, { ctx, purpose: "owner_alert" });
         }
+        // § 54 — «عدّل» (a price typed within 30 minutes) is gone with the per-item exception
+        // messages: a text from him is answered by nothing here, as any other text was.
         await markSeen(env, msg.messageId);
         continue;
       }

@@ -251,9 +251,13 @@ console.log("\n[ج] the VAT line follows the role: «الأسعار بدون ض�
   const ITEM = { productId: 1, productName: "طماطم", packagingId: 11, packagingName: "كرتون" };
   const offer = (o: any) => ({ outlier: false, sourceName: "x", productId: 1, packagingId: 11, model: "po", rowId: 1, ...o });
   const run = (marketPrice: number) => EN.computePricing([ITEM], [offer({ kind: "purchase", price: 20, partnerId: AHMED, model: "dp" }), offer({ kind: "market", price: marketPrice, partnerId: DRIVER, rowId: 2 })], 5, { ratePct: 15 }, { opShare: 2, minProfit: 2 })[0];
-  const at = run(29), under = run(28.5);
+  // § 54 أ — the exception's line is «بدون خسارة» (23 × 1.15 = 26.45, VAT inside) and no longer the suggested price: below the
+  // suggested price a line is automatic at its market price (rule 5), and «reaches the suggested price» shows in the proposed decision
+  const at = run(29), under = run(28.5), loss = run(26);
   assert("the engine reads a market observation as VAT-INCLUSIVE: it is compared, as it is, with the VAT-inclusive suggested price (29 reaches 29; 28.5 does not — 28.5 × 1.15 would)",
-    at.suggested === 29 && at.exceptions.length === 0 && at.sale === 29 && under.exceptions.join() === "below_profit" && /سعر السوق 28\.50? أقل من السعر المربح 29/.test(under.reason), JSON.stringify([at.suggested, at.exceptions, under.exceptions, under.reason]));
+    at.suggested === 29 && at.exceptions.length === 0 && at.sale === 29 && at.proposal.why === "above_suggested" && under.sale === 28.5 && under.proposal.why === "below_suggested" && under.exceptions.length === 0, JSON.stringify([at.suggested, at.exceptions, at.proposal, under.exceptions, under.proposal]));
+  assert("…and with the VAT-inclusive «بدون خسارة» 26.45: a market of 26 is a loss, an exception «سعر السوق 26 أقل من سعر بدون خسارة 26.45» (26 × 1.15 = 29.90 would not be)",
+    loss.breakEven === 26.45 && loss.sale === 26 && loss.exceptions.join() === "loss" && loss.reason === "سعر السوق 26 أقل من سعر بدون خسارة 26.45" && EN.lineVerdict(loss, null, 0).status === "exception", JSON.stringify([loss.breakEven, loss.exceptions, loss.reason]));
   assert("…and the profit takes the VAT out of it (29 ÷ 1.15 − 20 − 1 = 4.22), the purchase price net as it is", at.unitProfit === 4.22 && EN.vatProfit(29, 20, 5, 15).toFixed(4) === (29 / 1.15 - 21).toFixed(4), String(at.unitProfit));
 }
 

@@ -1,6 +1,6 @@
 // «أسعار اليوم» — build, review, approve, publish (STATUS § 35), with the
-// pricing engine v1 since STATUS § 40 ج (the engine's own rules and the
-// exceptions: tests/pricing-v1.test.mts).
+// pricing engine v1 since STATUS § 40 ج (the engine's own rules and Baraa's
+// review of the day: tests/pricing-v1.test.mts; § 54: tests/s54.test.mts).
 //
 //   [0] the rules kept from § 35: the deadline (ORDERING_HOURS_OPEN,
 //       PRICES_DEADLINE); the message (sale price and packaging only, cut into
@@ -11,11 +11,13 @@
 //       approved / published never touched.
 //   [2] publish: only an approved day, once; customers by the gateway (text
 //       inside the window, held + opener outside); opted-out / held / team /
-//       Baraa not recipients; Baraa's copy with the counts, «لم يُنشر», one line
-//       with the undecided exceptions; blocked / mismatched → nothing sent.
+//       Baraa not recipients; Baraa's copy with the counts and «لم يُنشر (N)»
+//       naming every item left out and why — in that ONE message (§ 54 د: no
+//       second alert for the undecided); blocked / mismatched → nothing sent.
 //   [3] the publication time: approved and published by the worker; nothing
-//       approved → «missed» + one alert; no record → one created; yesterday's
-//       prices never re-sent; a late decision and approval publishes.
+//       approved → «missed» + one alert (each item and why); no record → one
+//       created; yesterday's prices never re-sent; a late decision and
+//       approval publishes.
 //   [4] the tick and the Odoo hook (401 / 400 / 202, publish, refresh), a lost
 //       webhook retried.
 //   [5] quotes and invoices: today's published price first, else as before.
@@ -57,7 +59,7 @@ const REAL: Record<string, string[]> = Object.assign({}, ...FX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FX.map((f) => f._selections));
 // § 53 — the tenant's fields now for the models § 53 touched (x_market_uplift_pct, x_uplift_pct, the purpose customer_pay_remind_iban): read last, they win
 {
-  const f53 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261004-s53.json", import.meta.url), "utf8"));
+  const f53 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261005-s54.json", import.meta.url), "utf8"));
   for (const m of ["x_pricing_config", "x_price_day_line"]) REAL[m] = f53[m];
   SELECTIONS["x_whatsapp_template.x_purpose"] = f53._selections["x_whatsapp_template.x_purpose"];
 }
@@ -247,8 +249,9 @@ console.log("\n[2] publish: only approved, once, through the gateway");
   const nobody = [OPT_PHONE, HELD_PHONE, PERS_PHONE, COLL_PHONE];
   assert("opted out / review-held / «شخصي» / team: nothing at all", nobody.every((p) => sentTo(p).length === 0 && heldFor(env, p).length === 0));
   const own = txt(OWNER);
-  assert("Baraa: the counts, «لم يُنشر», and the same list", own.some((t) => t.startsWith("📢 نُشرت أسعار السبت 26 سبتمبر 2026. الأصناف: 1، والعملاء: 2.") && t.includes("نصاً 1 · محفوظة حتى رسالتهم 1") && t.includes("لم يُنشر: خيار") && t.includes("• طماطم (كرتون): 30 ر.س")), JSON.stringify(own));
-  assert("…and one line with the number of exceptions left without a decision", own.filter((t) => t.startsWith("⏰ لم يُنشر اليوم 1 صنف: استثناء بلا قرار")).length === 1, JSON.stringify(own));
+  // § 54 د — «لم يُنشر (N): الاسم (السبب)» in the publication's own message (it was «لم يُنشر: خيار» and a second alert)
+  assert("Baraa: the counts, «لم يُنشر (1)» with the item and why, and the same list", own.some((t) => t.startsWith("📢 نُشرت أسعار السبت 26 سبتمبر 2026. الأصناف: 1، والعملاء: 2.") && t.includes("نصاً 1 · محفوظة حتى رسالتهم 1") && t.split("\n").includes("لم يُنشر (1): خيار (بلا سعر سوق وبلا قرار).") && t.includes("• طماطم (كرتون): 30 ر.س")), JSON.stringify(own));
+  assert("…one message, not two: no separate «⏰ لم يُنشر اليوم … استثناء بلا قرار» alert for the exception left without a decision", own.length === 1 && !own.some((t) => t.startsWith("⏰")) && own.filter((t) => t.includes("لم يُنشر")).length === 1, JSON.stringify(own));
   assert("the cucumber line: «لم يُنشر» with the reason", lineOf(id, 2).x_status === "unpublished" && String(lineOf(id, 2).x_reason).startsWith("استثناء بلا قرار عند النشر"), JSON.stringify(lineOf(id, 2)));
   assert("the record: published, with its time and report", dayRec()!.x_state === "published" && !!dayRec()!.x_published_at && String(dayRec()!.x_publish_report).includes("لم يُنشر: خيار"));
   const n = graph.length;
@@ -301,7 +304,9 @@ console.log("\n[3] the publication time (06:00): approved and published by the w
   const r = await quiet(() => checkPricesDeadline(env));
   assert("06:00: the auto line published, the day «منشورة», without Baraa", r.action === "auto_published" && (r.publish as any)?.action === "published" && dayRec()!.x_state === "published"
     && heldFor(env, CUST_PHONE).length === 1 && String(dayRec()!.x_publish_report).includes("اعتماد تلقائي"), JSON.stringify(r));
-  assert("…the undecided cucumber not published, one line to Baraa", txt(OWNER).filter((t) => t.startsWith("⏰ لم يُنشر اليوم 1 صنف")).length === 1 && lineOf(dayRec()!.id, 2).x_status === "unpublished");
+  // § 54 د — the one line about it is in the publication's message to Baraa, with its reason; no «⏰» alert beside it
+  assert("…the undecided cucumber not published, named with its reason in Baraa's one message", txt(OWNER).length === 1 && txt(OWNER)[0].startsWith("📢 نُشرت أسعار") && txt(OWNER)[0].split("\n").includes("لم يُنشر (1): خيار (بلا سعر سوق وبلا قرار).")
+    && !txt(OWNER).some((t) => t.startsWith("⏰")) && lineOf(dayRec()!.id, 2).x_status === "unpublished", JSON.stringify(txt(OWNER)));
   setRiyadh("2026-09-26 06:05");
   assert("the next tick → once only", (await quiet(() => checkPricesDeadline(env))).action === "claimed_before");
 
@@ -313,6 +318,11 @@ console.log("\n[3] the publication time (06:00): approved and published by the w
   const rm = await quiet(() => checkPricesDeadline(envM));
   assert("06:00 with exceptions only → «missed», one alert, no customer send", rm.action === "missed" && dayRec()!.x_state === "missed"
     && txt(OWNER).filter((t) => t.startsWith("⏰ أسعار اليوم")).length === 1 && sentTo(CUST_PHONE).length === 0 && heldFor(envM, CUST_PHONE).length === 0, JSON.stringify(txt(OWNER)));
+  // § 54 د — the alert's second line names every item and why; its third says where a decision now publishes at once
+  const missed = txt(OWNER).find((t) => t.startsWith("⏰ أسعار اليوم"))?.split("\n") ?? [];
+  assert("…the alert: «لم يُنشر (2)» with each item and its reason, never yesterday's prices, and the review's buttons or «نشر المعتمد الآن»", missed.length === 3
+    && missed[0] === "⏰ أسعار اليوم (26 سبتمبر 2026) لم تُنشر حتى 06:00: لا صنف معتمد (تلقائياً أو منك)." && missed[1] === "لم يُنشر (2): طماطم (بلا سعر سوق وبلا قرار)، خيار (لا سعر شراء)."
+    && missed[2].startsWith("لا تُعاد أسعار أمس. «✅ اعتمد الكل» أو «✏️ مراجعة» من رسالة المراجعة ينشر فوراً، أو قرارك ثم «نشر المعتمد الآن» في "), JSON.stringify(missed));
   setRiyadh("2026-09-26 07:30");
   Object.assign(lineOf(dayRec()!.id, 1), { x_decision: "edit", x_manual_price: 29 });
   await quiet(() => refreshPriceDay(envM, { force: true }));

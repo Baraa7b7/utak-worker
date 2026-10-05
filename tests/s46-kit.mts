@@ -29,6 +29,7 @@ export const FIX = [
   "fixtures-odoo-fields-20261004-s51.json",   // § 51: x_extraction_status «flow», the price_ask_flow purpose (read last: it wins for the models both hold)
   "fixtures-odoo-fields-20261004-s52.json",   // § 52: account.journal and res.partner.bank (the transfer line), every model of § 51 again (read last: it wins)
   "fixtures-odoo-fields-20261004-s53.json",   // § 53: x_market_uplift_pct, x_uplift_pct, the purpose customer_pay_remind_iban, every model of § 52 again (read last: it wins)
+  "fixtures-odoo-fields-20261005-s54.json",   // § 54: x_pricing_config.x_above_suggested «لما يكون السوق أعلى من المقترح», every model of § 53 again (read last: it wins)
 ].map((f) => JSON.parse(readFileSync(new URL(`./${f}`, import.meta.url), "utf8")));
 const REAL: Record<string, string[]> = Object.assign({}, ...FIX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FIX.map((f) => f._selections ?? {}));
@@ -127,7 +128,7 @@ export function deliveredAt(utc: string, qty: number, extra: Record<string, unkn
  */
 export function fourLines(): void {
   dp(1, 11, 20); market(1, 11, 34.5);     // 20 + waste 1 + share 2 = 23; net sale 30 → +7; market ≥ 28 → automatic
-  dp(2, 21, 26); market(2, 21, 31.05);    // 26 + waste 1.30 > net sale 27 → a loss on the goods; market < 36.00 → an exception
-  dp(3, 31, 18); market(3, 31, 23);       // 18 + waste 0.90 = 18.90 ≤ net sale 20 < 20.90 with the share; market < 26.50 → an exception
+  dp(2, 21, 26); market(2, 21, 31.05);    // 26 + waste 1.30 > net sale 27 → a loss on the goods; § 54: market < «بدون خسارة» 33.70 → an exception
+  dp(3, 31, 18); market(3, 31, 23);       // 18 + waste 0.90 = 18.90 ≤ net sale 20 < 20.90 with the share; § 54: market < «بدون خسارة» 24.04 → an exception
 }
 

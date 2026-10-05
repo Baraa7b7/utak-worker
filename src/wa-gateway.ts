@@ -186,7 +186,8 @@ function refused(message: string, type: string, status: number): Response {
 //   • conv_open_owner — utak_update_owner, his «فتح المحادثة» (§ 34)
 //   • owner_team_note — the collector's / driver's note (§ 34)
 //   • owner_prices  — his copy of today's published prices (§ 35)
-//   • owner_price_exception — a price exception for his decision (§ 40 ج)
+//   • owner_price_exception — the day's price review for his decision, its buttons
+//                     and its form (§ 54; § 40 ج's message per exception before it)
 //   • owner_price_review — utak_owner_price_review_v1, the count of the held
 //                     exceptions with «عرض الاستثناءات» (§ 45 ب)
 //   • owner_order_confirmed — a confirmed order with «تم التسليم ✅», the
@@ -194,7 +195,8 @@ function refused(message: string, type: string, status: number): Response {
 //   • price_flow_test — the one trial of the price Flow and its answers (§ 51)
 //   • order_flow_test — the one trial of the order form and its answers (§ 53 ج)
 //   • register_flow_test — the one trial of the registration form and its answers (§ 53 د)
-const OWNER_ALLOWED_PURPOSES: ReadonlySet<string> = new Set(["price_flow_test", "order_flow_test", "register_flow_test", "owner_alert", "owner_summary", "owner_window", "conv_open_owner", "owner_team_note", "owner_prices", "owner_price_exception", "owner_price_review", "owner_order_confirmed"]);
+//   • price_review_test — the one trial of the day's price review and its answers (§ 54)
+const OWNER_ALLOWED_PURPOSES: ReadonlySet<string> = new Set(["price_flow_test", "order_flow_test", "register_flow_test", "owner_alert", "owner_summary", "owner_window", "conv_open_owner", "owner_team_note", "owner_prices", "owner_price_exception", "owner_price_review", "owner_order_confirmed", "price_review_test"]);
 
 function ownerDigits(env: Env): string {
   return waDigits(String(env.OWNER_WHATSAPP ?? ""));

@@ -8,6 +8,11 @@
 //        (21.37, 33.33, 34.44 …): a message is searched for them as it leaves.
 //   [ب]  «زيادة على سعر السوق ٪»: 0 = today's behaviour to the letter; 3 % (30 → 30.90 → 31); the
 //        rounding; the exception after the uplift; the publication's own check
+//        § 54 (2026-10-05) — re-based on the proposed decision and the day's review in ONE message
+//        (src/price-review.ts): the exception's line is «بدون خسارة» (26.45 for a purchase of 20), no
+//        longer the suggested price (29), so the day's two exceptions are markets of 26 and 25 (they
+//        were 28 and 27, automatic at the market price since § 54); what Baraa read in a message per
+//        exception he reads in the review and its form, and «انشر بسعر السوق» is a choice of the form.
 //   [هـ] utak_pay_remind_iban_v1: approved UTILITY → it replaces the reminder of before; pending,
 //        refused or MARKETING → the reminder of before; an IBAN that is no longer the company's → never
 //
@@ -31,6 +36,7 @@ const { sendViaGateway, gatewayDecision } = await import("../src/wa-gateway.ts")
 const { textContent } = await import("../src/meta.ts");
 const { clearTemplateCache } = await import("../src/templates.ts");
 const worker = (await import("../src/index.ts")).default;
+const PRV = await import("../src/price-review.ts");
 // @ts-ignore — plain .mjs helpers
 const ODOO = await import("../scripts/lib/s53-odoo.mjs");
 // @ts-ignore
@@ -78,6 +84,25 @@ const params = (b: any): string[] => b.template.components.find((c: any) => c.ty
 const say = (env: any, from: string, m: Record<string, unknown>) => quiet(() => worker.fetch(signed(inbound(from, m)), env, ctx));
 const text = (t: string) => ({ type: "text", text: { body: t } });
 const gw = async (env: any, purpose: string, to: string, t = "اختبار") => gatewayDecision(await quiet(() => sendViaGateway(env, { purpose, to, content: textContent(t) })));
+/** § 54 — the day's review as it reached Baraa (the last one): one interactive message, three buttons. */
+const reviewsToOwner = () => sentTo(OWNER).filter((b: any) => b?.interactive?.type === "button" && /مراجعة أسعار اليوم/.test(String(b.interactive?.body?.text)));
+const reviewBody = () => String(reviewsToOwner().at(-1)?.interactive?.body?.text ?? "");
+/** «✏️ مراجعة» tapped under it: the form (a Flow) as it was sent — each item's line of numbers and choices, by name — and its answer. */
+async function reviewForm(env: any) {
+  const action = await quiet(() => PRV.handlePriceReviewButton(env, `prv_r_${dayOf().id}_1`));
+  const sent = sentTo(OWNER).filter((b: any) => b?.interactive?.type === "flow");
+  const p = sent.at(-1)?.interactive.action.parameters;
+  const token = String(p?.flow_token ?? "");
+  const rec = await PRV.readReviewFormToken(env, token);
+  const data = (p?.flow_action_payload.data ?? {}) as Record<string, any>;
+  const slot = (name: string): number => rec?.items.find((i: any) => i.name === name)?.slot ?? 0;
+  return {
+    action, sent, token, slot,
+    info: (name: string) => String(data[`x${slot(name)}`] ?? ""),
+    options: (name: string) => (data[`o${slot(name)}`] ?? []) as Array<{ id: string; title: string }>,
+    answer: (values: Record<string, string>) => quiet(() => PRV.handlePriceReviewReply(env, { from: "+" + OWNER, messageId: `wamid.RV${Math.random()}`, flow: { token, values } })),
+  };
+}
 
 // ================================================================ [أ] the form: the hint is his own number, or nothing
 console.log("\n[أ] the price form — رائد (an outside source) is shown no price at all");
@@ -245,33 +270,44 @@ console.log("\n[أ] the closed numbers: every price source and supplier, by «x_
 }
 
 // ================================================================ [أ] what is Baraa's reaches Baraa alone
-console.log("\n[أ] the owner's messages — the exceptions with the purchase price and the profit, his copy, his alerts — reach his number alone");
+console.log("\n[أ] the owner's messages — the day's review with the purchase price and the market, his copy, his alerts — reach his number alone");
 {
   const env = world(`${DAY} 04:10`);
   for (const d of [RAED_PHONE, DRIVER_PHONE, AHMED_PHONE, CUST_PHONE]) openWindow(env, d, 1);
-  const OWNER_PURPOSES = ["owner_alert", "owner_summary", "owner_window", "owner_team_note", "owner_prices", "owner_price_exception", "owner_price_review", "owner_order_confirmed", "conv_open_owner", "price_flow_test"];
+  // § 54 — owner_price_exception is the day's review now (its message, its form, their answers); price_review_test is its one trial
+  const OWNER_PURPOSES = ["owner_alert", "owner_summary", "owner_window", "owner_team_note", "owner_prices", "owner_price_exception", "owner_price_review", "owner_order_confirmed", "conv_open_owner", "price_flow_test", "price_review_test"];
   const out: string[] = [];
   for (const p of OWNER_PURPOSES) for (const d of [RAED_PHONE, DRIVER_PHONE, AHMED_PHONE, CUST_PHONE]) {
     const r = await gw(env, p, "+" + d, "الشراء (بدون ضريبة): 21.37 · السوق: 33.33 · ربح الوحدة: 5.96");
     if (r?.action !== "refused" || !/OwnerOnlyPurpose/.test(String((r as any).reason))) out.push(`${p}→${d}`);
   }
-  assert("each of the owner's ten purposes is refused for رائد, عمر, أحمد and a customer, their windows open", out.length === 0, out.join(" "));
+  assert("each of the owner's eleven purposes (the day's review and its trial among them) is refused for رائد, عمر, أحمد and a customer, their windows open", out.length === 0 && OWNER_PURPOSES.length === 11 && OWNER_PURPOSES.includes(PRV.REVIEW_PURPOSE) && OWNER_PURPOSES.includes(PRV.REVIEW_TEST_PURPOSE), out.join(" "));
   assert("…nothing sent, nothing held for them", [RAED_PHONE, DRIVER_PHONE, AHMED_PHONE, CUST_PHONE].every((d) => sentTo(d).length === 0 && heldFor(env, d).length === 0));
   const mine = await gw(env, "owner_price_exception", "+" + OWNER, "الشراء (بدون ضريبة): 21.37");
   assert("to Baraa's own number they go as before", mine?.action === "session" && sentTo(OWNER).length === 1, JSON.stringify(mine));
 }
 
-console.log("\n[أ] a real morning: the exception (purchase, market, profit, suggested) reaches Baraa and nobody else");
+console.log("\n[أ] a real morning: the day's review (purchase, market, the proposed decision — «بدون خسارة» and the suggested price in its form) reaches Baraa and nobody else");
 {
   const env = world(`${DAY} 04:10`);
-  for (const d of [RAED_PHONE, DRIVER_PHONE, AHMED_PHONE]) openWindow(env, d, 1);
+  for (const d of [RAED_PHONE, DRIVER_PHONE, AHMED_PHONE, CUST_PHONE]) openWindow(env, d, 1);
   seed("x_daily_price", { x_product_tmpl_id: 1, x_packaging_id: 11, x_supplier_id: AHMED, x_price_sar: AHMED_PRICE, x_date: DAY, x_extraction_status: "flow", x_source_message_id: "wamid.A2" });
   seed("x_price_offer", { x_product_tmpl_id: 1, x_packaging_id: 11, x_source_partner_id: RAED, x_date: DAY, x_purchase_price: 0, x_market_price: 25.25, x_purchase_outlier: false, x_market_outlier: false, x_status: "valid", x_utak_simulation: false, x_source_message_id: "wamid.R2" });
   await quiet(() => PR.refreshPriceDay(env, { force: true }));
-  await quiet(() => PR.notifyPriceExceptions(env));
+  const n = await quiet(() => PRV.notifyPriceReviewMessage(env));
   const mine = ownerTexts().join("\n");
-  assert("Baraa reads it all: the purchase 21.37, the market 25.25, the suggested price", has(mine, AHMED_PRICE) && has(mine, 25.25) && /السعر المربح المقترح/.test(mine), mine.slice(0, 200));
-  assert("رائد, عمر and أحمد were sent nothing by the engine's run or the exceptions", [RAED_PHONE, DRIVER_PHONE, AHMED_PHONE].every((d) => sentTo(d).length === 0 && heldFor(env, d).length === 0));
+  assert("Baraa reads it all, in ONE message: the purchase 21.37, the market 25.25, the proposed decision", n.action === "sent" && sentTo(OWNER).length === 1 && has(mine, AHMED_PRICE) && has(mine, 25.25) && /طماطم: شراء 21\.37 · سوق 25\.25 · الفرق 3\.88 \(18%\) ← لا تنشر \(خسارة\)/.test(mine), mine.slice(0, 300));
+  const f = await reviewForm(env);
+  assert("…and in its form («✏️ مراجعة») «بدون خسارة» and the suggested price too, sent to his number", f.action === "form" && f.sent.length === 1 && f.info("طماطم") === "شراء 21.37 · سوق 25.25 · الفرق 3.88 · بدون خسارة 28.11 · مقترح 30.50", f.info("طماطم"));
+  assert("رائد, عمر, أحمد and a customer were sent nothing by the engine's run, the review or its form", [RAED_PHONE, DRIVER_PHONE, AHMED_PHONE, CUST_PHONE].every((d) => sentTo(d).length === 0 && heldFor(env, d).length === 0));
+  // the same text under the review's own purpose (or its trial's), addressed to anybody else
+  const leaked: string[] = [];
+  for (const p of [PRV.REVIEW_PURPOSE, PRV.REVIEW_TEST_PURPOSE]) for (const d of [RAED_PHONE, DRIVER_PHONE, AHMED_PHONE, CUST_PHONE]) {
+    const r = await gw(env, p, "+" + d, reviewBody());
+    if (r?.action !== "refused" || !/OwnerOnlyPurpose/.test(String((r as any).reason))) leaked.push(`${p}→${d}`);
+  }
+  assert("the review's own text, addressed with its purpose (or its trial's) to رائد, عمر, أحمد or a customer, is refused by the gateway («OwnerOnlyPurpose»): nothing sent, nothing held", has(reviewBody(), AHMED_PRICE) && leaked.length === 0 && [RAED_PHONE, DRIVER_PHONE, AHMED_PHONE, CUST_PHONE].every((d) => sentTo(d).length === 0 && heldFor(env, d).length === 0), leaked.join(" "));
+  assert("no field rejected by the schema gate", rejected.length === 0, rejected.join(" | "));
 }
 
 // ================================================================ [أ] عمر: the purchase list, the collection
@@ -338,9 +374,12 @@ console.log("\n[ب] «زيادة على سعر السوق ٪»: the sale price o
   assert("never below the market price", [[17.3, 0.1], [22, 0.01], [9.99, 50]].every(([m, u]) => EN.upliftedSale(m, u) >= m));
 }
 
-const ITEMS = [{ productId: 1, productName: "طماطم", packagingId: 11, packagingName: "كرتون" }, { productId: 2, productName: "خيار", packagingId: 21, packagingName: "جرم" }, { productId: 3, productName: "بطاطس", packagingId: 31, packagingName: "كرتون" }, { productId: 4, productName: "بصل", packagingId: 41, packagingName: "جرم" }];
+// § 54 — two more lines (جزر 26, كوسا 25): markets under «بدون خسارة» 26.45, the exceptions of the rule since § 54 (28 and 27 were the exceptions before it)
+const ITEMS = [{ productId: 1, productName: "طماطم", packagingId: 11, packagingName: "كرتون" }, { productId: 2, productName: "خيار", packagingId: 21, packagingName: "جرم" }, { productId: 3, productName: "بطاطس", packagingId: 31, packagingName: "كرتون" }, { productId: 4, productName: "بصل", packagingId: 41, packagingName: "جرم" },
+  { productId: 5, productName: "جزر", packagingId: 51, packagingName: "كيس" }, { productId: 6, productName: "كوسا", packagingId: 61, packagingName: "كرتون" }];
 const offer = (kind: "purchase" | "market", productId: number, packagingId: number, price: number, rowId: number) => ({ kind, price, outlier: false, partnerId: kind === "purchase" ? AHMED : DRIVER, sourceName: kind === "purchase" ? "أحمد" : "عمر", productId, packagingId, model: kind === "purchase" ? "dp" as const : "po" as const, rowId });
-const OFFERS = [offer("purchase", 1, 11, 20, 1), offer("market", 1, 11, 30, 2), offer("purchase", 2, 21, 20, 3), offer("market", 2, 21, 28, 4), offer("purchase", 3, 31, 20, 5), offer("market", 3, 31, 27, 6), offer("market", 4, 41, 31.05, 7)];
+const OFFERS = [offer("purchase", 1, 11, 20, 1), offer("market", 1, 11, 30, 2), offer("purchase", 2, 21, 20, 3), offer("market", 2, 21, 28, 4), offer("purchase", 3, 31, 20, 5), offer("market", 3, 31, 27, 6), offer("market", 4, 41, 31.05, 7),
+  offer("purchase", 5, 51, 20, 8), offer("market", 5, 51, 26, 9), offer("purchase", 6, 61, 20, 10), offer("market", 6, 61, 25, 11)];
 const VAT = { ratePct: 15 }, FLOOR = { opShare: 2, minProfit: 2 };
 
 console.log("\n[ب] the rule at 0 %: today's behaviour to the letter");
@@ -348,9 +387,11 @@ console.log("\n[ب] the rule at 0 %: today's behaviour to the letter");
   const before = EN.computePricing(ITEMS, OFFERS, 5, VAT, FLOOR);
   const zero = EN.computePricing(ITEMS, OFFERS, 5, VAT, FLOOR, 0);
   assert("computePricing with an uplift of 0 gives every line exactly what it gives with no uplift named", JSON.stringify(zero) === JSON.stringify(before));
-  assert("the sale price is the market price itself on every line (30, 28, 27, 31.05 — not rounded)", zero.every((l) => l.sale === l.market) && zero[3].sale === 31.05);
-  assert("the suggested price of a purchase of 20 is 29: market 30 is automatic, 28 and 27 are «أقل من المربح», and the texts are the ones of before", zero[0].exceptions.length === 0 && zero[0].suggested === 29
-    && zero[1].reason === "سعر السوق 28 أقل من السعر المربح 29" && zero[2].reason === "سعر السوق 27 أقل من السعر المربح 29" && zero[3].reason === "لا سعر شراء", JSON.stringify(zero.map((l) => l.reason)));
+  assert("the sale price is the market price itself on every line (30, 28, 27, 31.05, 26, 25 — not rounded)", zero.every((l) => l.sale === l.market) && zero[3].sale === 31.05 && zero.length === 6);
+  assert("the suggested price of a purchase of 20 is 29 and its «بدون خسارة» 26.45: market 30 is automatic; 28 and 27 (under the suggested price, above «بدون خسارة») are automatic at the market price too (§ 54: «أقل من المربح» before)", zero[0].exceptions.length === 0 && zero[0].suggested === 29 && zero[0].breakEven === 26.45
+    && [1, 2].every((i) => zero[i].exceptions.length === 0 && zero[i].reason === "" && zero[i].proposal.why === "below_suggested" && EN.lineVerdict(zero[i], null, 0).status === "auto" && EN.lineVerdict(zero[i], null, 0).sale === zero[i].market), JSON.stringify(zero.map((l) => [l.reason, l.proposal])));
+  assert("…26 and 25 are «أقل من سعر بدون خسارة», and the texts name the market price alone (no «بعد الزيادة»)", zero[4].exceptions.join() === "loss" && zero[4].reason === "سعر السوق 26 أقل من سعر بدون خسارة 26.45" && zero[5].reason === "سعر السوق 25 أقل من سعر بدون خسارة 26.45" && zero[3].reason === "لا سعر شراء"
+    && EN.lineVerdict(zero[4], null, 0).status === "exception", JSON.stringify(zero.map((l) => l.reason)));
   assert("the unit profit is made from the market price: 30 ÷ 1.15 − 20 − 1 = 5.09", zero[0].unitProfit === 5.09 && EN.lineVerdict(zero[0], null, 0).sale === 30 && EN.lineVerdict(zero[1], "market", 0).sale === 28);
   assert("a stored line with no uplift on it sells at its market price (a day made before § 53)", EN.saleRule({ x_status: "auto", x_market_price: 31.05, x_manual_price: 0 }) === 31.05 && EN.saleRule({ x_status: "auto", x_market_price: 31.05, x_manual_price: 0, x_uplift_pct: false }) === 31.05 && EN.marketSale({ x_market_price: 28.75, x_uplift_pct: 0 }) === 28.75);
 }
@@ -360,9 +401,12 @@ console.log("\n[ب] the rule at 3 %: the sale price, the comparison and the exce
   const up = EN.computePricing(ITEMS, OFFERS, 5, VAT, FLOOR, 3);
   assert("market 30 → sale 31, automatic; the market observation itself is kept (30)", up[0].sale === 31 && up[0].market === 30 && up[0].upliftPct === 3 && up[0].exceptions.length === 0 && EN.lineVerdict(up[0], null, 0).sale === 31);
   assert("…its unit profit is made from 31: 31 ÷ 1.15 − 20 − 1 = 5.96", up[0].unitProfit === 5.96);
-  assert("market 28 → 28.84 → 29: it reaches the suggested 29 — an exception at 0 %, automatic at 3 %", up[1].sale === 29 && up[1].exceptions.length === 0 && EN.lineVerdict(up[1], null, 0).status === "auto" && EN.lineVerdict(up[1], null, 0).sale === 29);
-  assert("market 27 → 27.81 → 28: still below 29 — an exception, and its reason says both numbers", up[2].sale === 28 && up[2].exceptions.join() === "below_profit" && up[2].reason === "سعر السوق 27 بعد الزيادة 3٪ = 28 أقل من السعر المربح 29", up[2].reason);
-  assert("«اعتمد بسعر السوق» on it approves the price after the uplift (28), «اعتمد بالسعر المربح» the suggested (29)", EN.lineVerdict(up[2], "market", 0).sale === 28 && EN.lineVerdict(up[2], "profit", 0).sale === 29);
+  const flat = EN.computePricing(ITEMS, OFFERS, 5, VAT, FLOOR);
+  assert("market 28 → 28.84 → 29: it reaches the suggested 29 — under it at 0 %, at it at 3 % (automatic at both since § 54: at 28, then at 29)", up[1].sale === 29 && up[1].exceptions.length === 0 && up[1].proposal.why === "above_suggested" && flat[1].proposal.why === "below_suggested" && EN.lineVerdict(up[1], null, 0).status === "auto" && EN.lineVerdict(up[1], null, 0).sale === 29 && EN.lineVerdict(flat[1], null, 0).sale === 28);
+  assert("market 27 → 27.81 → 28: still under 29 — automatic at the price after the uplift (28), not at the market's 27", up[2].sale === 28 && up[2].exceptions.length === 0 && up[2].proposal.why === "below_suggested" && EN.lineVerdict(up[2], null, 0).status === "auto" && EN.lineVerdict(up[2], null, 0).sale === 28, JSON.stringify(up[2].proposal));
+  assert("market 26 → 26.78 → 27: it clears «بدون خسارة» 26.45 — an exception at 0 %, automatic at 3 %", up[4].sale === 27 && up[4].exceptions.length === 0 && EN.lineVerdict(up[4], null, 0).status === "auto" && EN.lineVerdict(up[4], null, 0).sale === 27 && flat[4].exceptions.join() === "loss" && EN.lineVerdict(flat[4], null, 0).status === "exception");
+  assert("market 25 → 25.75 → 26: still under 26.45 — an exception, and its reason says both numbers", up[5].sale === 26 && up[5].exceptions.join() === "loss" && up[5].reason === "سعر السوق 25 بعد الزيادة 3٪ = 26 أقل من سعر بدون خسارة 26.45" && EN.lineVerdict(up[5], null, 0).status === "exception", up[5].reason);
+  assert("«اعتمد بسعر السوق» on it approves the price after the uplift (26), «اعتمد بالسعر المربح» the suggested (29)", EN.lineVerdict(up[5], "market", 0).sale === 26 && EN.lineVerdict(up[5], "profit", 0).sale === 29 && EN.lineVerdict(up[2], "market", 0).sale === 28);
   assert("no purchase price: still an exception, its sale price the uplifted market (31.05 → 31.98 → 32)", up[3].exceptions.join() === "no_purchase" && up[3].sale === 32);
   assert("the suggested price does not move with the uplift (it is made from the purchase alone)", up.every((l, i) => l.suggested === EN.computePricing(ITEMS, OFFERS, 5, VAT, FLOOR)[i].suggested));
   assert("a stored line: auto → the market price after ITS uplift; a fixed price stays what Baraa fixed", EN.saleRule({ x_status: "auto", x_market_price: 30, x_manual_price: 0, x_uplift_pct: 3 }) === 31
@@ -383,28 +427,32 @@ console.log("\n[ب] the setting: read from the active record («⚙️ الإع�
 
 const seedDay = (): void => {
   for (const [p, k, price] of [[1, 11, 20], [2, 21, 20], [3, 31, 20]] as Array<[number, number, number]>) seed("x_daily_price", { x_product_tmpl_id: p, x_packaging_id: k, x_supplier_id: AHMED, x_price_sar: price, x_date: DAY, x_extraction_status: "flow", x_source_message_id: "wamid.A" });
-  for (const [p, k, m] of [[1, 11, 30], [2, 21, 28], [3, 31, 27]] as Array<[number, number, number]>) seed("x_price_offer", { x_product_tmpl_id: p, x_packaging_id: k, x_source_partner_id: DRIVER, x_source_employee_id: OMAR_EMP, x_date: DAY, x_purchase_price: 0, x_market_price: m, x_purchase_outlier: false, x_market_outlier: false, x_status: "valid", x_utak_simulation: false, x_source_message_id: "wamid.O" });
+  // § 54 — خيار 26 and بطاطس 25 are under «بدون خسارة» 26.45 (they were 28 and 27: under the suggested 29, the exception's line before § 54)
+  for (const [p, k, m] of [[1, 11, 30], [2, 21, 26], [3, 31, 25]] as Array<[number, number, number]>) seed("x_price_offer", { x_product_tmpl_id: p, x_packaging_id: k, x_source_partner_id: DRIVER, x_source_employee_id: OMAR_EMP, x_date: DAY, x_purchase_price: 0, x_market_price: m, x_purchase_outlier: false, x_market_outlier: false, x_status: "valid", x_utak_simulation: false, x_source_message_id: "wamid.O" });
 };
 const custPrices = (d: string) => sentTo(d).map((b: any) => String(b?.text?.body ?? "")).filter((t) => /أسعار يو تاك اليوم/.test(t)).join("\n");
 
-console.log("\n[ب] a whole day at 0 %: the lines, the exception's message and the published list are the ones of before");
+console.log("\n[ب] a whole day at 0 %: the lines, the day's review and the published list carry the market price as it is");
 {
   const env = world(`${DAY} 04:10`); seedDay();
-  // share 500 ÷ 250 = 2: suggested 29
+  // share 500 ÷ 250 = 2: «بدون خسارة» 26.45, suggested 29
   await quiet(() => PR.refreshPriceDay(env, { force: true }));
   const l1 = lineFor(1), l2 = lineFor(2), l3 = lineFor(3);
   assert("طماطم: automatic at the market price 30, «زيادة السوق ٪» 0", l1.x_status === "auto" && l1.x_sale_price === 30 && l1.x_market_price === 30 && !l1.x_uplift_pct, JSON.stringify([l1.x_status, l1.x_sale_price, l1.x_uplift_pct]));
-  assert("خيار (28) and بطاطس (27): exceptions «سعر السوق … أقل من السعر المربح 29»", l2.x_status === "exception" && l2.x_reason === "سعر السوق 28 أقل من السعر المربح 29" && l3.x_status === "exception");
-  const t = PR.exceptionText(DAY, l2, "06:00");
-  assert("the exception's message has no «بعد الزيادة» line: purchase, market, profit, suggested, reason, deadline — as before § 53", !/الزيادة/.test(t) && t.split("\n").length === 6 && /السوق: 28/.test(t), t);
-  assert("«اعتمد بسعر السوق» is offered at 28", PR.exceptionChoices(l2).find((c: any) => c.id === `pexc_m_${l2.id}`)?.description === "28 ر.س");
-  const ok = await quiet(() => PR.handlePriceExceptionButton(env, `pexc_m_${l2.id}`));
-  assert("…and approves 28: «يُنشر بسعر السوق 28 ر.س.»", /يُنشر بسعر السوق 28 ر\.س\./.test(ok) && lineFor(2).x_sale_price === 28 && lineFor(2).x_manual_price === 28, ok);
+  assert("خيار (26) and بطاطس (25): exceptions «سعر السوق … أقل من سعر بدون خسارة 26.45»", l2.x_status === "exception" && l2.x_reason === "سعر السوق 26 أقل من سعر بدون خسارة 26.45" && l3.x_status === "exception" && l3.x_reason === "سعر السوق 25 أقل من سعر بدون خسارة 26.45", JSON.stringify([l2.x_reason, l3.x_reason]));
+  await quiet(() => PRV.notifyPriceReviewMessage(env));
+  const t = reviewBody();
+  assert("the review has no «بعد الزيادة» anywhere: each item its purchase, its market, the difference and its proposed decision — a line an item", !/الزيادة/.test(t) && t.includes("طماطم: شراء 20 · سوق 30 · الفرق 10 (50%) ← انشر بسعر السوق 30") && t.includes("خيار: شراء 20 · سوق 26 · الفرق 6 (30%) ← لا تنشر (خسارة)") && t.split("\n").filter((x) => / ← /.test(x)).length === 4, t);
+  const f = await reviewForm(env);
+  assert("«انشر بسعر السوق» is offered at 26 in its form, whose numbers have no «بعد الزيادة» either", f.options("خيار").find((c) => c.id === "market")?.title === "انشر بسعر السوق (26)" && f.info("خيار") === "شراء 20 · سوق 26 · الفرق 6 · بدون خسارة 26.45 · مقترح 29", JSON.stringify([f.options("خيار"), f.info("خيار")]));
+  const ok = await f.answer({ [`d${f.slot("خيار")}`]: "market" });
+  const conf = ownerTexts().at(-1) ?? "";
+  assert("…and approves 26: «• خيار — 26 ر.س (سعر السوق)»", ok.action === "decided" && conf.includes("• خيار — 26 ر.س (سعر السوق)") && lineFor(2).x_decision === "market" && lineFor(2).x_sale_price === 26 && lineFor(2).x_manual_price === 26, conf);
   openWindow(env, CUST_PHONE, 1);
   table("x_price_day").get(dayOf().id)!.x_state = "approved";
   const pub = await quiet(() => PR.publishPriceDay(env, dayOf().id));
   assert("published (the publication's own check of each line's price passes)", pub.action === "published", JSON.stringify(pub));
-  assert("the customer reads طماطم 30 and خيار 28", /طماطم \(كرتون\): 30 ر\.س/.test(custPrices(CUST_PHONE)) && /خيار \(جرم\): 28 ر\.س/.test(custPrices(CUST_PHONE)), custPrices(CUST_PHONE));
+  assert("the customer reads طماطم 30 and خيار 26", /طماطم \(كرتون\): 30 ر\.س/.test(custPrices(CUST_PHONE)) && /خيار \(جرم\): 26 ر\.س/.test(custPrices(CUST_PHONE)) && !/بطاطس/.test(custPrices(CUST_PHONE)), custPrices(CUST_PHONE));
 }
 
 console.log("\n[ب] the same day at 3 %");
@@ -415,22 +463,38 @@ console.log("\n[ب] the same day at 3 %");
   const l1 = lineFor(1), l2 = lineFor(2), l3 = lineFor(3);
   assert("طماطم: automatic at 31 (30 → 30.90 → 31); the market stays 30 on the line, with its uplift 3", l1.x_status === "auto" && l1.x_sale_price === 31 && l1.x_market_price === 30 && l1.x_uplift_pct === 3, JSON.stringify([l1.x_status, l1.x_sale_price, l1.x_market_price, l1.x_uplift_pct]));
   assert("…its unit profit and its board are made from 31", l1.x_unit_profit === 5.96 && l1.x_board_sale === 31);
-  assert("خيار: 28 → 29 reaches the suggested 29 — automatic, no exception", l2.x_status === "auto" && l2.x_sale_price === 29);
-  assert("بطاطس: 27 → 28 < 29 — the exception, its reason with both numbers", l3.x_status === "exception" && l3.x_reason === "سعر السوق 27 بعد الزيادة 3٪ = 28 أقل من السعر المربح 29", String(l3.x_reason));
-  const t = PR.exceptionText(DAY, l3, "06:00");
-  assert("the exception's message shows the market (27) and «البيع بعد الزيادة 3٪: 28»", /السوق: 27/.test(t) && /البيع بعد الزيادة 3٪: 28/.test(t), t);
-  const choice = PR.exceptionChoices(l3);
-  assert("«اعتمد بالسعر المربح» 29 and «اعتمد بسعر السوق» 28 (the price after the uplift)", choice.find((c: any) => c.id === `pexc_p_${l3.id}`)?.description === "29 ر.س" && choice.find((c: any) => c.id === `pexc_m_${l3.id}`)?.description === "28 ر.س", JSON.stringify(choice));
-  const ok = await quiet(() => PR.handlePriceExceptionButton(env, `pexc_m_${l3.id}`));
-  assert("…the tap approves 28: «يُنشر بسعر السوق بعد الزيادة 28 ر.س.»", /يُنشر بسعر السوق بعد الزيادة 28 ر\.س\./.test(ok) && lineFor(3).x_sale_price === 28, ok);
+  assert("خيار: 26 → 27 clears «بدون خسارة» 26.45 — automatic at 27, no exception", l2.x_status === "auto" && l2.x_sale_price === 27 && l2.x_market_price === 26, JSON.stringify([l2.x_status, l2.x_sale_price]));
+  assert("بطاطس: 25 → 26 < 26.45 — the exception, its reason with both numbers", l3.x_status === "exception" && l3.x_reason === "سعر السوق 25 بعد الزيادة 3٪ = 26 أقل من سعر بدون خسارة 26.45", String(l3.x_reason));
+  await quiet(() => PRV.notifyPriceReviewMessage(env));
+  const t = reviewBody();
+  const f = await reviewForm(env);
+  assert("the review shows the market as it was observed (30, 25) and the price it would publish «بعد الزيادة 3٪»; the form, بطاطس «سوق 25 (بعد الزيادة 26)»", t.includes("طماطم: شراء 20 · سوق 30 · الفرق 10 (50%) ← انشر بسعر السوق 31 (بعد الزيادة 3٪)") && t.includes("بطاطس: شراء 20 · سوق 25 · الفرق 5 (25%) ← لا تنشر (خسارة)")
+    && f.info("بطاطس") === "شراء 20 · سوق 25 (بعد الزيادة 26) · الفرق 5 · بدون خسارة 26.45 · مقترح 29", `${t}\n${f.info("بطاطس")}`);
+  const choice = f.options("بطاطس");
+  assert("«انشر بالمقترح» 29 and «انشر بسعر السوق» 26 (the price after the uplift)", choice.find((c) => c.id === "profit")?.title === "انشر بالمقترح (29)" && choice.find((c) => c.id === "market")?.title === "انشر بسعر السوق (26)", JSON.stringify(choice));
+  const ok = await f.answer({ [`d${f.slot("بطاطس")}`]: "market" });
+  const conf = ownerTexts().at(-1) ?? "";
+  assert("…«انشر بسعر السوق» approves 26, the price after the uplift: «• بطاطس — 26 ر.س (سعر السوق)»", ok.action === "decided" && conf.includes("• بطاطس — 26 ر.س (سعر السوق)") && lineFor(3).x_decision === "market" && lineFor(3).x_sale_price === 26, conf);
   await quiet(() => PR.refreshPriceDay(env, { force: true }));
-  assert("…and the engine's next run keeps it (28, «براء: اعتمد بسعر السوق»)", lineFor(3).x_sale_price === 28 && lineFor(3).x_status === "manual");
+  assert("…and the engine's next run keeps it (26, «براء: اعتمد بسعر السوق»)", lineFor(3).x_sale_price === 26 && lineFor(3).x_status === "manual" && lineFor(3).x_reason === "براء: اعتمد بسعر السوق");
   openWindow(env, CUST_PHONE, 1);
   table("x_price_day").get(dayOf().id)!.x_state = "approved";
   const pub = await quiet(() => PR.publishPriceDay(env, dayOf().id));
-  assert("published: each line's price is the rule's (31, 29, 28) — no «لا يطابق القاعدة»", pub.action === "published" && !ownerTexts().some((x) => /لا يطابق القاعدة/.test(x)), JSON.stringify(pub));
-  assert("the customer reads طماطم 31, خيار 29 and بطاطس 28", /طماطم \(كرتون\): 31 ر\.س/.test(custPrices(CUST_PHONE)) && /خيار \(جرم\): 29 ر\.س/.test(custPrices(CUST_PHONE)) && /بطاطس \(كرتون\): 28 ر\.س/.test(custPrices(CUST_PHONE)), custPrices(CUST_PHONE));
+  assert("published: each line's price is the rule's (31, 27, 26) — no «لا يطابق القاعدة»", pub.action === "published" && !ownerTexts().some((x) => /لا يطابق القاعدة/.test(x)), JSON.stringify(pub));
+  assert("the customer reads طماطم 31, خيار 27 and بطاطس 26", /طماطم \(كرتون\): 31 ر\.س/.test(custPrices(CUST_PHONE)) && /خيار \(جرم\): 27 ر\.س/.test(custPrices(CUST_PHONE)) && /بطاطس \(كرتون\): 26 ر\.س/.test(custPrices(CUST_PHONE)), custPrices(CUST_PHONE));
   assert("no field rejected by the schema gate (x_uplift_pct is on the tenant)", rejected.length === 0, rejected.join(" | "));
+}
+{
+  // the same day at 3 % with no decision at all: the automatic lines go out by the rule's own price, the loss stays out
+  const env = world(`${DAY} 04:10`); seedDay();
+  table("x_pricing_config").get(1)!.x_market_uplift_pct = 3;
+  await quiet(() => PR.refreshPriceDay(env, { force: true }));
+  openWindow(env, CUST_PHONE, 1);
+  table("x_price_day").get(dayOf().id)!.x_state = "approved";
+  const pub = await quiet(() => PR.publishPriceDay(env, dayOf().id));
+  assert("…published with no decision: the automatic lines pass the publication's own check at their price after the uplift (31, 27)", pub.action === "published" && !ownerTexts().some((x) => /لا يطابق القاعدة/.test(x)) && lineFor(1).x_status === "auto" && lineFor(2).x_status === "auto"
+    && /طماطم \(كرتون\): 31 ر\.س/.test(custPrices(CUST_PHONE)) && /خيار \(جرم\): 27 ر\.س/.test(custPrices(CUST_PHONE)) && !/بطاطس/.test(custPrices(CUST_PHONE)), JSON.stringify(pub));
+  assert("…and Baraa's one message names what stayed out and why — the loss on the price after the uplift (26 < 26.45)", ownerTexts().filter((x) => x.startsWith("📢 نُشرت أسعار")).length === 1 && ownerTexts().some((x) => x.includes("لم يُنشر (2): بطاطس (خسارة: السوق 26 أقل من 26.45، وبلا قرار)، بصل (لا سعر شراء).")) && !ownerTexts().some((x) => x.startsWith("⏰ لم يُنشر")), ownerTexts().join(" | ").slice(0, 400));
 }
 
 console.log("\n[ب] a price changed by hand in Odoo no longer matches the rule: not published");

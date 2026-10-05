@@ -44,7 +44,7 @@ const REAL: Record<string, string[]> = Object.assign({}, ...FIX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FIX.map((f) => f._selections ?? {}));
 // § 53 — the tenant's fields now for the models § 53 touched (x_market_uplift_pct, x_uplift_pct, the purpose customer_pay_remind_iban): read last, they win
 {
-  const f53 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261004-s53.json", import.meta.url), "utf8"));
+  const f53 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261005-s54.json", import.meta.url), "utf8"));
   for (const m of ["x_pricing_config", "x_price_day_line"]) REAL[m] = f53[m];
   SELECTIONS["x_whatsapp_template.x_purpose"] = f53._selections["x_whatsapp_template.x_purpose"];
 }
@@ -473,8 +473,33 @@ const po = (product: number, packaging: number, partner: number, o: { purchase?:
 const dayOf = (d = DAY) => rows("x_price_day").find((r: any) => r.x_date === d);
 const lineFor = (product: number, d = DAY) => rows("x_price_day_line").find((l: any) => l.x_day_id === dayOf(d)?.id && l.x_product_tmpl_id === product);
 const ownerTexts = () => sentTo(OWNER).map((b: any) => String(b?.text?.body ?? b?.interactive?.body?.text ?? ""));
-const excMsgs = () => sentTo(OWNER).filter((b: any) => b?.type === "interactive" && /استثناء في أسعار اليوم/.test(String(b.interactive?.body?.text)));
+// § 54 — § 40 ج's message per exception («استثناء في أسعار اليوم», its pexc_ buttons, «عدّل» + a typed price) is gone:
+// none may go any more. The day is reviewed in ONE message with three buttons (src/price-review.ts).
+const excMsgs = () => sentTo(OWNER).filter((b: any) => /استثناء في أسعار اليوم/.test(JSON.stringify(b)) || /pexc_/.test(JSON.stringify(b)));
 const btnIds = (b: any) => (b?.interactive?.action?.buttons ?? []).map((x: any) => x.reply.id);
+const btnTitles = (b: any) => (b?.interactive?.action?.buttons ?? []).map((x: any) => x.reply.title);
+const PRV = await import("../src/price-review.ts");
+/** The day's review as it reached Baraa: the interactive message that carries «✅ اعتمد الكل كما هو». */
+const reviewMsgs = () => sentTo(OWNER).filter((b: any) => b?.type === "interactive" && btnIds(b).some((id: string) => /^prv_a_\d+_\d+$/.test(id)));
+const bodyOf = (b: any) => String(b?.interactive?.body?.text ?? "");
+/** The review form («✏️ مراجعة») as it reached him: a WhatsApp Flow whose token is the review's. */
+const formMsgs = () => sentTo(OWNER).filter((b: any) => b?.interactive?.type === "flow" && PRV.isReviewFormToken(String(b.interactive.action?.parameters?.flow_token ?? "")));
+/** The last form sent: its token, and its items as the token keeps them (the reply is read against them). */
+async function lastForm(env: any): Promise<{ token: string; rec: any; of: (lineId: number) => any }> {
+  const token = String(formMsgs().at(-1)?.interactive?.action?.parameters?.flow_token ?? "");
+  const rec = await PRV.readReviewFormToken(env, token);
+  return { token, rec, of: (lineId: number) => rec?.items.find((i: any) => i.lineId === lineId) };
+}
+/** Baraa's «اعتمد» on the form: the nfm_reply as src/meta.ts hands it over (the token and the fields). */
+let formReplies = 0;
+const formReply = (env: any, token: string, values: Record<string, unknown>) =>
+  PRV.handlePriceReviewReply(env, { from: OWNER, messageId: `wamid.PRV${++formReplies}`, flow: { token, values } } as any);
+/** A world with a carton share (500 ÷ 250 cartons = 2.00) and a minimum profit of 2 riyals: the lines carry «بدون خسارة» and a suggested price. */
+function withShare(): void {
+  cost("السيارة والسائق (شامل)", "daily", 500, "2026-10-01");
+  Object.assign(table("x_pricing_config").get(1)!, { x_expected_cartons: 250, x_min_profit_sar: 2 });
+}
+const tap = (id: string, title: string) => ({ type: "interactive", interactive: { type: "button_reply", button_reply: { id, title } } });
 const offer = (o: Partial<import("../src/pricing-engine.ts").EngineOffer>) =>
   ({ kind: "market", price: 0, outlier: false, partnerId: 1, sourceName: "م", productId: 1, packagingId: 11, model: "po", rowId: 1, ...o }) as any;
 const ITEM = { productId: 1, productName: "طماطم", packagingId: 11, packagingName: "كرتون" };
@@ -504,7 +529,7 @@ console.log("\n[ج] the rule: lowest purchase, median market, sale = market, uni
   assert("the product card's display margin: (26 − 20) ÷ 20 = 30 %", EN.displayMarginPct(20, 26) === 30 && EN.displayMarginPct(0, 26) === 0);
 }
 
-console.log("\n[ج] each exception: no purchase, no market, profit ≤ 0, an outlier (purchase or market)");
+console.log("\n[ج] each exception: no purchase, no market, profit ≤ 0, an outlier (purchase or market); § 54: a loss (below «بدون خسارة»)");
 {
   const run = (offers: any[]) => EN.computePricing([ITEM], offers, 5)[0];
   const a = run([offer({ kind: "market", price: 24 })]);
@@ -523,6 +548,20 @@ console.log("\n[ج] each exception: no purchase, no market, profit ≤ 0, an out
   assert("an outlier purchase NOT used (a higher one) → no exception", f.exceptions.length === 0 && f.purchase === 20, JSON.stringify(f));
   const g = run([]);
   assert("nothing at all → both reasons", g.reason === "لا سعر شراء، لا سعر سوق", g.reason);
+  // § 54 أ — with a carton share (2.00) the exception of a priced line is a LOSS: the market below «أقل سعر بيع بدون
+  // خسارة» ((20 + 1 + 2) × 1.15 = 26.45). «below_profit» (the market below the suggested 29) is no longer an exception.
+  const floored = (market: number) => EN.computePricing([ITEM], [offer({ kind: "purchase", price: 20, model: "dp" }), offer({ kind: "market", price: market })], 5, { ratePct: 15 }, { opShare: 2, minProfit: 2 })[0];
+  const h = floored(26);
+  assert("(5) with a carton share: market 26 < «بدون خسارة» 26.45 → «loss», «سعر السوق 26 أقل من سعر بدون خسارة 26.45»; proposed «لا تنشر», never automatic",
+    h.exceptions.join() === "loss" && h.reason === "سعر السوق 26 أقل من سعر بدون خسارة 26.45" && h.breakEven === 26.45 && h.suggested === 29 && h.proposal.kind === "skip" && h.proposal.why === "loss" && !h.proposal.auto
+      && EN.lineVerdict(h, null, 0).status === "exception", JSON.stringify(h));
+  const k = floored(28);
+  assert("…market 28, between «بدون خسارة» 26.45 and the suggested 29 → NOT an exception: proposed «بسعر السوق» 28, automatic",
+    k.exceptions.length === 0 && k.reason === "" && k.proposal.kind === "market" && k.proposal.price === 28 && k.proposal.why === "below_suggested" && k.proposal.auto
+      && EN.lineVerdict(k, null, 0).status === "auto" && EN.lineVerdict(k, null, 0).sale === 28, JSON.stringify(k));
+  assert("…and the old exceptions are not automatic by their proposal either: no purchase «لا تنشر», no market (no suggested price here) «لا تنشر», an outlier ⚠️",
+    a.proposal.kind === "skip" && a.proposal.why === "no_purchase" && !a.proposal.auto && b.proposal.why === "no_price" && !b.proposal.auto
+      && d.proposal.outlier && d.proposal.kind === "market" && d.proposal.price === 24 && !d.proposal.auto && EN.lineVerdict(d, null, 0).status === "exception", JSON.stringify([a.proposal, b.proposal, d.proposal]));
 }
 
 console.log("\n[ج] the engine on the day: sources only, simulation out, nothing from yesterday, every active product");
@@ -546,120 +585,226 @@ console.log("\n[ج] the engine on the day: sources only, simulation out, nothing
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 
-console.log("\n[ج] the exceptions to Baraa: from 04:00, one message per exception with its buttons, once");
+// § 54 ب — until § 54 every exception reached Baraa as its own message with its own buttons (and more than 8 as a link
+// to Odoo). Now the whole day is ONE message — a line per item with its proposed decision — and three buttons.
+console.log("\n[ج] the day's review to Baraa (§ 54): from 04:00, ONE message with every item and three buttons, once");
 {
   const env = fresh("2026-10-03 03:55", { onAttendance: false }); sources();
   dp(1, 11, AHMED, 20); po(1, 11, DRIVER, { market: 20.5 });  // tomato: profit ≤ 0, a market price
   dp(2, 21, AHMED, 30);                                       // cucumber: no market price
   await quiet(() => PR.refreshPriceDay(env));
-  const early = await quiet(() => PR.notifyPriceExceptions(env));
-  assert("03:55: nothing yet (Omar's window runs to 04:00)", early.action === "outside" && excMsgs().length === 0);
+  const early = await quiet(() => PRV.notifyPriceReviewMessage(env));
+  assert("03:55: nothing yet (Omar's window runs to 04:00)", early.action === "outside" && sentTo(OWNER).length === 0, JSON.stringify(early));
   setRiyadh("2026-10-03 04:00");
-  const n1 = await quiet(() => PR.notifyPriceExceptions(env));
-  const msgs = excMsgs();
-  assert("04:00: one message per exception (2)", n1.action === "sent" && n1.sent === 2 && msgs.length === 2, JSON.stringify(n1));
-  const tomatoMsg = msgs.find((b: any) => String(b.interactive.body.text).includes("طماطم"));
-  const cucMsg = msgs.find((b: any) => String(b.interactive.body.text).includes("خيار"));
-  const tl = lineFor(1)!, cl = lineFor(2)!;
-  assert("with a market price: «اعتمد بسعر السوق» / «لا تنشر» / «عدّل»", JSON.stringify(btnIds(tomatoMsg)) === JSON.stringify([`pexc_m_${tl.id}`, `pexc_s_${tl.id}`, `pexc_e_${tl.id}`]), JSON.stringify(btnIds(tomatoMsg)));
-  assert("without a market price: «لا تنشر» / «عدّل» only", JSON.stringify(btnIds(cucMsg)) === JSON.stringify([`pexc_s_${cl.id}`, `pexc_e_${cl.id}`]), JSON.stringify(btnIds(cucMsg)));
-  assert("the message: product, purchase, market, profit, reason, the deadline",
-    // § 47 أ — the purchase is net: 20.50 ÷ 1.15 − 20 − 1 = −3.17 (it was (20.50 − 21) ÷ 1.15 = −0.43)
-    /طماطم \(كرتون\)/.test(tomatoMsg.interactive.body.text) && /الشراء \(بدون ضريبة\): 20 · السوق: 20.50 · ربح الوحدة: -3.17/.test(tomatoMsg.interactive.body.text)
-      && /السبب: ربح الوحدة ≤ 0 \(-3.17\)/.test(tomatoMsg.interactive.body.text) && /قرارك قبل 06:00/.test(tomatoMsg.interactive.body.text), tomatoMsg.interactive.body.text);
+  const n1 = await quiet(() => PRV.notifyPriceReviewMessage(env));
+  const msgs = reviewMsgs();
+  assert("04:00: ONE message for the two items waiting (never a message per item)",
+    n1.action === "sent" && n1.ver === 1 && n1.count === 2 && msgs.length === 1 && sentTo(OWNER).length === 1 && excMsgs().length === 0, JSON.stringify(n1));
+  const d = dayOf()!, body = bodyOf(msgs[0]);
+  assert("its three buttons — «✅ اعتمد الكل كما هو» / «✏️ مراجعة» / «⛔ لا تنشر اليوم» — carry the day and the review's version",
+    JSON.stringify(btnIds(msgs[0])) === JSON.stringify([`prv_a_${d.id}_1`, `prv_r_${d.id}_1`, `prv_n_${d.id}_1`])
+      && JSON.stringify(btnTitles(msgs[0])) === JSON.stringify(["✅ اعتمد الكل كما هو", "✏️ مراجعة", "⛔ لا تنشر اليوم"]), JSON.stringify(msgs[0]?.interactive?.action));
+  // § 47 أ — the purchase is net: 20.50 ÷ 1.15 − 20 − 1 = −3.17 ≤ 0 (no carton share in this world: the rule before § 47) → a loss
+  assert("with a market price: the item's line — purchase, market, the difference (and its %) — and its proposed decision («لا تنشر (خسارة)»)",
+    body.split("\n").includes("طماطم: شراء 20 · سوق 20.50 · الفرق 0.50 (3%) ← لا تنشر (خسارة)"), body);
+  assert("without a market price: «سوق —», no difference, and — no suggested price to publish at — «لا تنشر (لا سعر سوق ولا مقترح)»",
+    body.split("\n").includes("خيار: شراء 30 · سوق — ← لا تنشر (لا سعر سوق ولا مقترح)"), body);
+  assert("the message: the day, the counts, and what happens without his decision by the deadline (06:00)",
+    body.startsWith("📋 مراجعة أسعار اليوم — السبت 3 أكتوبر 2026\n") && body.split("\n").includes("0 للنشر · 2 لا تنشر · 0 ⚠️") && body.endsWith("بلا قرارك حتى 06:00: لا يُنشر شيء."), body);
+  assert("…and the lines still wait for him in Odoo with the engine's reason (nothing decided by the message itself)",
+    lineFor(1)!.x_status === "exception" && lineFor(1)!.x_reason === "ربح الوحدة ≤ 0 (-3.17)" && lineFor(2)!.x_status === "exception" && !lineFor(1)!.x_decision && !lineFor(2)!.x_decision, JSON.stringify([lineFor(1), lineFor(2)]));
   setRiyadh("2026-10-03 04:05");
-  const n2 = await quiet(() => PR.notifyPriceExceptions(env));
-  assert("the next tick: no second message (KV guard per product and day)", n2.action === "notified_before" && excMsgs().length === 2, JSON.stringify(n2));
+  const n2 = await quiet(() => PRV.notifyPriceReviewMessage(env));
+  assert("the next tick: no second message (nothing changed since the one he has)", n2.action === "sent_before" && n2.ver === 1 && sentTo(OWNER).length === 1, JSON.stringify(n2));
   setRiyadh("2026-10-03 06:00");
-  assert("from the publication time: no exception message", (await quiet(() => PR.notifyPriceExceptions(env))).action === "outside");
+  assert("from the publication time: no review message", (await quiet(() => PRV.notifyPriceReviewMessage(env))).action === "outside" && sentTo(OWNER).length === 1);
 }
 {
   const env = fresh("2026-10-03 04:00", { onAttendance: false }); sources();
+  const names = ["طماطم", "خيار"];
   for (let i = 0; i < 9; i++) {
     const pid = 100 + i;
     seed("product.template", { id: pid, name: `صنف ${i + 1}`, sale_ok: true, x_is_active_for_sale: true });
     seed("x_product_packaging", { id: 1000 + i, x_name: "كرتون", x_product_tmpl_id: pid, x_is_default: true });
+    names.push(`صنف ${i + 1}`);
   }
-  await quiet(() => PR.refreshPriceDay(env));   // 11 active products, no offer → 11 exceptions
-  const n = await quiet(() => PR.notifyPriceExceptions(env));
-  const t = ownerTexts().filter((x) => x.startsWith("⚠️ استثناءات أسعار اليوم"));
-  assert("more than 8 exceptions (11): ONE message with the count and the review link, no per-item messages",
-    n.action === "many" && n.count === 11 && t.length === 1 && /11 صنفاً/.test(t[0]) && /\/odoo\/(action-\d+|x_price_day)\/\d+/.test(t[0]) && excMsgs().length === 0, JSON.stringify({ n, t }));
+  await quiet(() => PR.refreshPriceDay(env));   // 11 active products, no offer → 11 lines waiting
+  const n = await quiet(() => PRV.notifyPriceReviewMessage(env));
+  const body = bodyOf(reviewMsgs()[0]);
+  assert("more than 8 items waiting (11): still ONE message — every item on its own line with its decision, no link to Odoo, no per-item messages",
+    n.action === "sent" && n.count === 11 && n.parts === 0 && sentTo(OWNER).length === 1 && reviewMsgs().length === 1 && excMsgs().length === 0
+      && names.every((x) => body.split("\n").includes(`${x}: شراء — · سوق — ← لا تنشر (لا سعر شراء)`)) && body.includes("0 للنشر · 11 لا تنشر · 0 ⚠️") && !/\/odoo\//.test(body), JSON.stringify({ n, body }));
   setRiyadh("2026-10-03 04:05");
   seed("product.template", { id: 120, name: "صنف جديد", sale_ok: true, x_is_active_for_sale: true });
   seed("x_product_packaging", { id: 1020, x_name: "كرتون", x_product_tmpl_id: 120, x_is_default: true });
   await quiet(() => PR.refreshPriceDay(env));
-  const n2 = await quiet(() => PR.notifyPriceExceptions(env));
-  assert("…a later exception on the same day: no second message", ownerTexts().filter((x) => x.startsWith("⚠️ استثناءات أسعار اليوم")).length === 1 && excMsgs().length === 0, JSON.stringify(n2));
+  const n2 = await quiet(() => PRV.notifyPriceReviewMessage(env));
+  const d = dayOf()!, upd = bodyOf(reviewMsgs()[1]);
+  // § 54 ب — it was «no second message»: an item that starts waiting after the review was sent would never have reached him
+  assert("…a later item on the same day: the review again, ONE message («🔄 تحديث», version 2) with the 12 items, naming what changed",
+    n2.action === "sent" && n2.ver === 2 && n2.count === 12 && sentTo(OWNER).length === 2 && reviewMsgs().length === 2
+      && upd.startsWith("🔄 تحديث مراجعة أسعار اليوم (04:05) — السبت 3 أكتوبر 2026\nتغيّر: صنف جديد.\n") && upd.split("\n").includes("صنف جديد: شراء — · سوق — ← لا تنشر (لا سعر شراء)")
+      && names.every((x) => upd.includes(`${x}: شراء —`)) && JSON.stringify(btnIds(reviewMsgs()[1])) === JSON.stringify([`prv_a_${d.id}_2`, `prv_r_${d.id}_2`, `prv_n_${d.id}_2`]), JSON.stringify({ n2, upd }));
+  setRiyadh("2026-10-03 04:10");
+  assert("…and once: the tick after it sends nothing", (await quiet(() => PRV.notifyPriceReviewMessage(env))).action === "sent_before" && sentTo(OWNER).length === 2);
+  graph.length = 0;
+  const stale = await quiet(() => PRV.handlePriceReviewButton(env, `prv_n_${d.id}_1`));
+  assert("…the buttons of the older message no longer decide: one line says a newer review reached him, nothing written",
+    stale === "stale" && ownerTexts().length === 1 && /نسخة أحدث من مراجعة أسعار اليوم \(04:05\)/.test(ownerTexts()[0]) && rows("x_price_day_line").every((l: any) => !l.x_decision), JSON.stringify({ stale, t: ownerTexts() }));
 }
 {
-  const env = fresh("2026-10-03 04:00", { onAttendance: false }); sources();
-  for (let i = 0; i < 6; i++) {
-    seed("product.template", { id: 100 + i, name: `صنف ${i + 1}`, sale_ok: true, x_is_active_for_sale: true });
-    seed("x_product_packaging", { id: 1000 + i, x_name: "كرتون", x_product_tmpl_id: 100 + i, x_is_default: true });
-  }
-  await quiet(() => PR.refreshPriceDay(env));   // exactly 8
-  const n = await quiet(() => PR.notifyPriceExceptions(env));
-  assert("exactly 8 exceptions: one message each (8), no count message", n.action === "sent" && excMsgs().length === 8 && !ownerTexts().some((x) => x.startsWith("⚠️ استثناءات أسعار اليوم")), JSON.stringify(n));
+  // the shape of the ONE message follows its length, not a count of exceptions (it was: up to 8 a message each, more → a link)
+  const world = (extra: number) => {
+    const env = fresh("2026-10-03 04:00", { onAttendance: false }); sources();
+    for (let i = 0; i < extra; i++) {
+      seed("product.template", { id: 100 + i, name: `صنف ${i + 1}`, sale_ok: true, x_is_active_for_sale: true });
+      seed("x_product_packaging", { id: 1000 + i, x_name: "كرتون", x_product_tmpl_id: 100 + i, x_is_default: true });
+    }
+    return env;
+  };
+  const env8 = world(6);
+  await quiet(() => PR.refreshPriceDay(env8));   // exactly 8
+  const n8 = await quiet(() => PRV.notifyPriceReviewMessage(env8));
+  assert("exactly 8 items: the whole review above the three buttons, in one message (no text before it)",
+    n8.action === "sent" && n8.count === 8 && n8.parts === 0 && sentTo(OWNER).length === 1 && reviewMsgs().length === 1 && excMsgs().length === 0
+      && bodyOf(reviewMsgs()[0]).length <= PRV.INTERACTIVE_BODY_MAX && bodyOf(reviewMsgs()[0]).includes("صنف 6: شراء — · سوق — ← لا تنشر (لا سعر شراء)"), JSON.stringify(n8));
+  const env40 = world(38);
+  await quiet(() => PR.refreshPriceDay(env40));  // 40: the table is longer than an interactive message's text (1024)
+  const n40 = await quiet(() => PRV.notifyPriceReviewMessage(env40));
+  const all = sentTo(OWNER), table40 = String(all[0]?.text?.body ?? ""), sum = bodyOf(all[1]);
+  assert("40 items: the table first as plain text (every item once), then the three buttons under its summary — one review, not 40 messages",
+    n40.action === "sent" && n40.count === 40 && n40.parts === 1 && all.length === 2 && all[0].type === "text" && reviewMsgs().length === 1 && all[1] === reviewMsgs()[0]
+      && table40.startsWith("📋 مراجعة أسعار اليوم — السبت 3 أكتوبر 2026\n") && Array.from({ length: 38 }, (_, i) => `صنف ${i + 1}: شراء —`).every((x) => table40.split(x).length === 2)
+      && table40.length <= PR.PRICE_TEXT_LIMIT && sum.length <= PRV.INTERACTIVE_BODY_MAX && sum.split("\n").includes("40 صنفاً في الجدول أعلاه.") && sum.split("\n").includes("0 للنشر · 40 لا تنشر · 0 ⚠️")
+      && !sum.includes("صنف 1:"), JSON.stringify({ n40, sum, len: table40.length }));
 }
 
-console.log("\n[ج] Baraa's buttons, «عدّل» within 30 minutes, the lock");
+// § 54 ج — the per-item buttons (pexc_m / pexc_s / pexc_e) and «عدّل» + a price typed within 30 minutes are gone. A decision
+// is taken from the review's three buttons, or item by item in its form («✏️ مراجعة»); it lands in the same fields of the line.
+console.log("\n[ج] Baraa's decision (§ 54): the form («✏️ مراجعة») item by item — the line's own fields, the token read once");
 {
-  const env = fresh("2026-10-03 04:00", { onAttendance: false }); sources();
-  dp(1, 11, AHMED, 20); po(1, 11, DRIVER, { market: 20.5 });  // tomato: an exception with a market price
-  dp(2, 21, AHMED, 30);                                       // cucumber: no market
+  const env = fresh("2026-10-03 04:00", { onAttendance: false }); sources(); withShare();
+  dp(1, 11, AHMED, 20); po(1, 11, DRIVER, { market: 26 });    // tomato: full cost 20 + 1 + 2 = 23 → «بدون خسارة» 26.45: the market 26 is a loss
+  dp(2, 21, AHMED, 30);                                       // cucumber: no market; suggested (30 + 1.5 + 2 + 2) × 1.15 = 40.83 → 41
   await quiet(() => PR.refreshPriceDay(env));
-  await quiet(() => PR.notifyPriceExceptions(env));
-  const tl = lineFor(1)!, cl = lineFor(2)!;
-  const r1 = await quiet(() => PR.handlePriceExceptionButton(env, `pexc_m_${cl.id}`));
-  assert("«اعتمد بسعر السوق» without a market price → refused, nothing written", /لا سعر سوق/.test(r1) && !lineFor(2)!.x_decision, r1);
-  const r2 = await quiet(() => PR.handlePriceExceptionButton(env, `pexc_m_${tl.id}`));
-  const t2 = lineFor(1)!;
-  assert("«اعتمد بسعر السوق» → approved by hand at the market price (20.50)", /يُنشر بسعر السوق 20.50/.test(r2) && t2.x_decision === "market" && t2.x_status === "manual" && t2.x_sale_price === 20.5 && !t2.x_excluded && !!t2.x_decided_at, JSON.stringify({ r2, t2 }));
-  const r3 = await quiet(() => PR.handlePriceExceptionButton(env, `pexc_s_${tl.id}`));
-  assert("a second button on the same line → «القرار مسجّل مسبقاً», unchanged", /القرار مسجّل مسبقاً/.test(r3) && lineFor(1)!.x_decision === "market", r3);
+  await quiet(() => PRV.notifyPriceReviewMessage(env));
+  const d = dayOf()!, tl = lineFor(1)!, cl = lineFor(2)!;
+  assert("§ 54 أ — the exception's reason: «سعر السوق 26 أقل من سعر بدون خسارة 26.45» (it was «… أقل من السعر المربح 29»)",
+    tl.x_status === "exception" && tl.x_reason === "سعر السوق 26 أقل من سعر بدون خسارة 26.45" && tl.x_break_even === 26.45 && tl.x_suggested_price === 29, JSON.stringify(tl));
+  graph.length = 0;
+  const f1 = await quiet(() => PRV.handlePriceReviewButton(env, `prv_r_${d.id}_1`));
+  const form = await lastForm(env);
+  const tomato = form.of(tl.id), cuc = form.of(cl.id);
+  assert("«✏️ مراجعة» → the form (a WhatsApp Flow), nothing written yet", f1 === "form" && sentTo(OWNER).length === 1 && formMsgs().length === 1 && !lineFor(1)!.x_decision && !lineFor(2)!.x_decision, JSON.stringify({ f1, sent: sentTo(OWNER).length }));
+  assert("with a market price: «انشر بالمقترح (29)» / «انشر بسعر السوق (26)» / «لا تنشر» / «سعر يدوي», opened on the proposed «لا تنشر»",
+    JSON.stringify(tomato?.options) === JSON.stringify([{ id: "profit", title: "انشر بالمقترح (29)" }, { id: "market", title: "انشر بسعر السوق (26)" }, { id: "skip", title: "لا تنشر" }, { id: "manual", title: "سعر يدوي" }])
+      && tomato?.selected === "skip", JSON.stringify(tomato));
+  assert("without a market price: «انشر بالمقترح (41)» / «لا تنشر» / «سعر يدوي» only — no «انشر بسعر السوق» — opened on the proposed «انشر بالمقترح»",
+    JSON.stringify(cuc?.options.map((o: any) => o.id)) === JSON.stringify(["profit", "skip", "manual"]) && cuc?.options[0].title === "انشر بالمقترح (41)" && cuc?.selected === "profit", JSON.stringify(cuc));
+  graph.length = 0;
+  const r1 = await quiet(() => formReply(env, form.token, { [`d${tomato.slot}`]: "market", [`d${cuc.slot}`]: "market" }));
+  const t2 = lineFor(1)!, c2 = lineFor(2)!;
+  assert("«انشر بسعر السوق» without a market price is never taken: the item keeps the choice its list opened on (the suggested 41), no market price written",
+    c2.x_decision === "profit" && c2.x_manual_for === "profit" && c2.x_manual_price === 41 && c2.x_status === "manual" && c2.x_sale_price === 41 && !c2.x_market_price, JSON.stringify(c2));
+  assert("«انشر بسعر السوق» → approved by hand at the market price (26), in the line's own decision fields",
+    r1.action === "decided" && r1.written === 2 && t2.x_decision === "market" && t2.x_manual_for === "market" && t2.x_manual_price === 26 && t2.x_status === "manual" && t2.x_sale_price === 26
+      && t2.x_reason === "براء: اعتمد بسعر السوق" && !t2.x_excluded && !!t2.x_decided_at, JSON.stringify({ r1, t2 }));
+  const conf = ownerTexts();
+  assert("…and ONE confirmation: what will be published at 06:00, each at its price",
+    conf.length === 1 && conf[0].startsWith("✅ سُجّلت قراراتك على أسعار السبت 3 أكتوبر 2026.\nسيُنشر 06:00:") && conf[0].includes("• طماطم — 26 ر.س (سعر السوق)") && conf[0].includes("• خيار — 41 ر.س (المقترح)"), JSON.stringify(conf));
+  graph.length = 0;
+  const r3 = await quiet(() => formReply(env, form.token, { [`d${tomato.slot}`]: "skip", [`d${cuc.slot}`]: "skip" }));
+  assert("the same form sent a second time → «سبق اعتماده», unchanged (a token is read once)",
+    r3.action === "duplicate" && JSON.stringify(ownerTexts()) === JSON.stringify([PRV.REVIEW_FORM_USED_TEXT]) && lineFor(1)!.x_decision === "market" && lineFor(2)!.x_decision === "profit", JSON.stringify({ r3, t: ownerTexts() }));
   await quiet(() => PR.refreshPriceDay(env, { force: true }));
-  assert("the next refresh keeps his decision (manual, 20.50)", lineFor(1)!.x_status === "manual" && lineFor(1)!.x_sale_price === 20.5);
-  // «عدّل»
-  const e1 = await quiet(() => PR.handlePriceExceptionButton(env, `pexc_e_${cl.id}`));
-  assert("«عدّل» → asks for the number, nothing written yet", /أرسل سعر البيع لـ خيار رقماً واحداً خلال 30 دقيقة/.test(e1) && !lineFor(2)!.x_decision, e1);
+  assert("the next refresh keeps his decision (manual, 26)", lineFor(1)!.x_status === "manual" && lineFor(1)!.x_sale_price === 26 && lineFor(2)!.x_status === "manual" && lineFor(2)!.x_sale_price === 41);
+  // «سعر يدوي» — the form's own price field took the place of «عدّل» and the number typed within 30 minutes
   setRiyadh("2026-10-03 04:10");
-  const e2 = await quiet(() => PR.handlePriceEditReply(env, "خليه تمام"));
-  assert("a reply without a number → asked again, nothing written", /رقماً موجباً واحداً/.test(String(e2)) && !lineFor(2)!.x_decision, String(e2));
-  const e3 = await quiet(() => PR.handlePriceEditReply(env, "35 أو 36"));
-  assert("two numbers → asked again", /رقماً موجباً واحداً/.test(String(e3)) && !lineFor(2)!.x_decision, String(e3));
-  const e4 = await quiet(() => PR.handlePriceEditReply(env, "٣٥٫٥ ريال"));
+  graph.length = 0;
+  const e1 = await quiet(() => PRV.handlePriceReviewButton(env, `prv_r_${d.id}_0`));
+  const form2 = await lastForm(env);
+  const tomato2 = form2.of(tl.id), cuc2 = form2.of(cl.id);
+  assert("«✏️ تعديل» under the confirmation → a new form, opened on his own decisions; nothing written by opening it",
+    e1 === "form" && form2.token !== form.token && tomato2?.selected === "market" && cuc2?.selected === "profit" && lineFor(2)!.x_manual_price === 41, JSON.stringify({ e1, tomato2, cuc2 }));
+  const manual = (p: unknown) => PRV.readReviewValues(form2.rec, { [`d${cuc2.slot}`]: "manual", [`p${cuc2.slot}`]: p });
+  assert("«سعر يدوي» without ONE number above zero («خليه تمام», «35 أو 36», 0, nothing) → nothing is read for the item",
+    ["خليه تمام", "35 أو 36", "0", "", undefined].every((p) => { const e = manual(p); return e.noPrice.some((i: any) => i.lineId === cl.id) && !e.decisions.some((x: any) => x.lineId === cl.id); }));
+  assert("a price typed beside another choice is not read («السعر اليدوي» counts with «سعر يدوي» alone)",
+    PRV.readReviewValues(form2.rec, { [`d${cuc2.slot}`]: "profit", [`p${cuc2.slot}`]: "35" }).decisions.find((x: any) => x.lineId === cl.id)?.kind === "profit");
+  graph.length = 0;
+  const e4 = await quiet(() => formReply(env, form2.token, { [`d${cuc2.slot}`]: "manual", [`p${cuc2.slot}`]: "٣٥٫٥" }));
   const c4 = lineFor(2)!;
-  assert("«٣٥٫٥ ريال» within 30 minutes → the approved sale price 35.50", /يُنشر بـ 35.50/.test(String(e4)) && c4.x_decision === "edit" && c4.x_manual_price === 35.5 && c4.x_status === "manual" && c4.x_sale_price === 35.5, JSON.stringify({ e4, c4 }));
-  assert("…and «عدّل» is used up: the next text is not a price", (await quiet(() => PR.handlePriceEditReply(env, "40"))) === null && lineFor(2)!.x_manual_price === 35.5);
+  assert("«سعر يدوي» «٣٥٫٥» → the approved sale price 35.50 (the tomato, left as it opened, is not written again)",
+    e4.action === "decided" && e4.written === 1 && c4.x_decision === "edit" && c4.x_manual_for === "edit" && c4.x_manual_price === 35.5 && c4.x_status === "manual" && c4.x_sale_price === 35.5
+      && c4.x_reason === "براء: سعر معدّل" && lineFor(1)!.x_decision === "market" && lineFor(1)!.x_sale_price === 26, JSON.stringify({ e4, c4 }));
+  // 30 + 1.5 + 2 = 33.5 → «بدون خسارة» 38.53
+  assert("…its confirmation: «• خيار — 35.50 ر.س (سعر يدوي)», and a ⚠️ line: his price is below «بدون خسارة» 38.53 (taken all the same)",
+    ownerTexts().length === 1 && ownerTexts()[0].includes("• خيار — 35.50 ر.س (سعر يدوي)") && ownerTexts()[0].includes("⚠️ خيار: السعر اليدوي 35.50 أقل من سعر بدون خسارة 38.53."), JSON.stringify(ownerTexts()));
+  assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
+}
+console.log("\n[ج] Baraa's decision (§ 54): the three buttons, the lock");
+{
+  const env = fresh("2026-10-03 04:00", { onAttendance: false }); sources(); withShare();
+  dp(1, 11, AHMED, 20); po(1, 11, DRIVER, { market: 28 });    // tomato: «بدون خسارة» 26.45 ≤ 28 < the suggested 29
+  dp(2, 21, AHMED, 30);                                       // cucumber: no market → «انشر بالمقترح 41», by his word alone
+  await quiet(() => PR.refreshPriceDay(env));
+  // § 54 أ — it was an exception («سعر السوق 28 أقل من السعر المربح 29») waiting for his choice
+  assert("§ 54 أ — a market price between «بدون خسارة» (26.45) and the suggested price (29): automatic at the market price (28), no exception",
+    lineFor(1)!.x_status === "auto" && lineFor(1)!.x_sale_price === 28 && !lineFor(1)!.x_excluded && !lineFor(1)!.x_reason && lineFor(2)!.x_status === "exception", JSON.stringify(lineFor(1)));
+  await quiet(() => PRV.notifyPriceReviewMessage(env));
+  const d = dayOf()!, body = bodyOf(reviewMsgs()[0]);
+  assert("the review shows both — the automatic line too — and says what is published without him",
+    body.split("\n").includes("طماطم: شراء 20 · سوق 28 · الفرق 8 (40%) ← انشر بسعر السوق 28") && body.split("\n").includes("خيار: شراء 30 · سوق — ← انشر بالمقترح 41")
+      && body.split("\n").includes("2 للنشر · 0 لا تنشر · 0 ⚠️") && body.includes("بلا قرارك حتى 06:00: يُنشر تلقائياً 1 "), body);
+  graph.length = 0;
+  const s1 = await quiet(() => PRV.handlePriceReviewButton(env, `prv_n_${d.id}_1`));
+  const t1 = lineFor(1)!, c1 = lineFor(2)!;
+  assert("«⛔ لا تنشر اليوم» → «لم يُنشر» with his reason on every line (the automatic one too)",
+    s1 === "none:2" && [t1, c1].every((l) => l.x_decision === "skip" && l.x_status === "unpublished" && l.x_reason === "براء: لا تنشر" && l.x_excluded === true && l.x_sale_price === 0 && !!l.x_decided_at), JSON.stringify({ s1, t1, c1 }));
+  assert("…answered once: «⛔ لن تُنشر أسعار اليوم», with «✏️ تعديل» to take it back before 06:00",
+    sentTo(OWNER).length === 1 && bodyOf(sentTo(OWNER)[0]).startsWith("⛔ لن تُنشر أسعار اليوم (2 ") && /سُجّل «لا تنشر» عليها كلها/.test(bodyOf(sentTo(OWNER)[0])) && /للتراجع قبل 06:00/.test(bodyOf(sentTo(OWNER)[0]))
+      && JSON.stringify(btnIds(sentTo(OWNER)[0])) === JSON.stringify([`prv_r_${d.id}_0`]) && JSON.stringify(btnTitles(sentTo(OWNER)[0])) === JSON.stringify(["✏️ تعديل"]), JSON.stringify(sentTo(OWNER)));
+  await quiet(() => PR.refreshPriceDay(env, { force: true }));
+  assert("…and the next refresh keeps it («لم يُنشر»)", [lineFor(1)!, lineFor(2)!].every((l) => l.x_status === "unpublished" && l.x_reason === "براء: لا تنشر" && l.x_sale_price === 0), JSON.stringify([lineFor(1), lineFor(2)]));
+  graph.length = 0;
+  const s2 = await quiet(() => PRV.handlePriceReviewButton(env, `prv_n_${d.id}_1`));
+  assert("the same button a second time (a double tap) → «سُجّل قرارك من هذه الرسالة مسبقاً», nothing written again",
+    s2 === "duplicate" && ownerTexts().length === 1 && /سُجّل قرارك من هذه الرسالة مسبقاً/.test(ownerTexts()[0]) && lineFor(1)!.x_decided_at === t1.x_decided_at, JSON.stringify({ s2, t: ownerTexts() }));
+  graph.length = 0;
+  const s3 = await quiet(() => PRV.handlePriceReviewButton(env, `prv_a_${d.id}_1`));
+  assert("another button of the same message after it («✅ اعتمد الكل») → his decision stands: «كان عليها قرار مسبق», unchanged",
+    s3 === "all:0" && ownerTexts().length === 1 && /كل الأصناف كان عليها قرار مسبق: لم يتغير شيء/.test(ownerTexts()[0]) && lineFor(1)!.x_decision === "skip" && lineFor(2)!.x_decision === "skip", JSON.stringify({ s3, t: ownerTexts() }));
 }
 {
-  const env = fresh("2026-10-03 04:00", { onAttendance: false }); sources();
+  const env = fresh("2026-10-03 04:00", { onAttendance: false }); sources(); withShare();
+  dp(1, 11, AHMED, 20); po(1, 11, DRIVER, { market: 28 });
   dp(2, 21, AHMED, 30);
   await quiet(() => PR.refreshPriceDay(env));
-  const cl = lineFor(2)!;
-  await quiet(() => PR.handlePriceExceptionButton(env, `pexc_e_${cl.id}`));
-  setRiyadh("2026-10-03 04:31");
-  assert("«عدّل» then a number after 30 minutes → not taken (null), nothing written", (await quiet(() => PR.handlePriceEditReply(env, "35"))) === null && !lineFor(2)!.x_decision);
-  const s1 = await quiet(() => PR.handlePriceExceptionButton(env, `pexc_s_${cl.id}`));
-  assert("«لا تنشر» → «لم يُنشر» with his reason", /لا يُنشر اليوم/.test(s1) && lineFor(2)!.x_status === "unpublished" && lineFor(2)!.x_reason === "براء: لا تنشر" && lineFor(2)!.x_excluded === true, s1);
-  await quiet(() => PR.refreshPriceDay(env, { force: true }));
-  assert("…and the next refresh keeps it («لم يُنشر»)", lineFor(2)!.x_status === "unpublished" && lineFor(2)!.x_reason === "براء: لا تنشر", JSON.stringify(lineFor(2)));
-}
-{
-  const env = fresh("2026-10-03 04:00", { onAttendance: false }); sources();
-  dp(1, 11, AHMED, 20); po(1, 11, DRIVER, { market: 20.5 });
-  await quiet(() => PR.refreshPriceDay(env));
-  await quiet(() => PR.notifyPriceExceptions(env));
-  const tl = lineFor(1)!;
+  await quiet(() => PRV.notifyPriceReviewMessage(env));
+  const d = dayOf()!, tl = lineFor(1)!, cl = lineFor(2)!;
+  const untouched = () => !lineFor(1)!.x_decision && lineFor(1)!.x_status === "auto" && lineFor(1)!.x_sale_price === 28 && !lineFor(2)!.x_decision && lineFor(2)!.x_status === "exception" && lineFor(2)!.x_sale_price === 0;
+  // a per-item exception message of before § 54 may still sit in his chat
+  for (const [id, title] of [[`pexc_e_${cl.id}`, "عدّل"], [`pexc_m_${tl.id}`, "اعتمد بسعر السوق"], [`pexc_p_${cl.id}`, "اعتمد بالسعر المربح"], [`pexc_s_${tl.id}`, "لا تنشر"]]) {
+    graph.length = 0;
+    await quiet(() => worker.fetch(signed(inbound(OWNER, tap(id, title))), env, harnessCtx));
+    assert(`through /webhook: a tap on an old «${title}» (${id.slice(0, 6)}) decides nothing — one line, OLD_EXCEPTION_TEXT`,
+      JSON.stringify(ownerTexts()) === JSON.stringify([PR.OLD_EXCEPTION_TEXT]) && untouched(), JSON.stringify({ t: ownerTexts(), l: [lineFor(1), lineFor(2)] }));
+  }
   graph.length = 0;
-  await quiet(() => worker.fetch(signed(inbound(OWNER, { type: "interactive", interactive: { type: "button_reply", button_reply: { id: `pexc_e_${tl.id}`, title: "عدّل" } } })), env, harnessCtx));
-  assert("through /webhook: his tap on «عدّل» → the question, as text", ownerTexts().some((t) => /أرسل سعر البيع لـ طماطم/.test(t)), JSON.stringify(ownerTexts()));
   await quiet(() => worker.fetch(signed(inbound(OWNER, { type: "text", text: { body: "23" } })), env, harnessCtx));
-  assert("…his «23» → the line approved at 23, and the confirmation", lineFor(1)!.x_status === "manual" && lineFor(1)!.x_sale_price === 23 && ownerTexts().some((t) => /طماطم: يُنشر بـ 23/.test(t)), JSON.stringify(ownerTexts()));
+  assert("…his «23» after «عدّل» is not read as a price any more: nothing written, nothing sent", sentTo(OWNER).length === 0 && untouched(), JSON.stringify({ t: ownerTexts(), l: lineFor(2) }));
+  await quiet(() => worker.fetch(signed(inbound(OWNER, tap(`prv_a_${d.id}_1`, "✅ اعتمد الكل كما هو"))), env, harnessCtx));
+  const t2 = lineFor(1)!, c2 = lineFor(2)!;
+  assert("through /webhook: his tap on «✅ اعتمد الكل كما هو» → every item takes the decision the message showed: tomato «market» 28, cucumber «profit» 41",
+    t2.x_decision === "market" && t2.x_manual_for === "market" && t2.x_manual_price === 28 && t2.x_status === "manual" && t2.x_sale_price === 28
+      && c2.x_decision === "profit" && c2.x_manual_for === "profit" && c2.x_manual_price === 41 && c2.x_status === "manual" && c2.x_sale_price === 41 && !c2.x_excluded && !!c2.x_decided_at, JSON.stringify([t2, c2]));
+  assert("…and the confirmation, once: «سيُنشر 06:00» with both, and «✏️ تعديل» under it",
+    sentTo(OWNER).length === 1 && bodyOf(sentTo(OWNER)[0]).startsWith("✅ سُجّلت قراراتك على أسعار السبت 3 أكتوبر 2026.\nسيُنشر 06:00:\n• طماطم — 28 ر.س (سعر السوق)\n• خيار — 41 ر.س (المقترح)")
+      && JSON.stringify(btnIds(sentTo(OWNER)[0])) === JSON.stringify([`prv_r_${d.id}_0`]), JSON.stringify(sentTo(OWNER)));
   graph.length = 0;
   await quiet(() => worker.fetch(signed(inbound(OWNER, { type: "text", text: { body: "مرحبا" } })), env, harnessCtx));
   assert("…any other text of his: nothing (the owner guard as before)", sentTo(OWNER).length === 0);
+  assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 
 console.log("\n[ج] the publication time: automatic lines published, an exception without a decision not");
@@ -668,11 +813,17 @@ console.log("\n[ج] the publication time: automatic lines published, an exceptio
   seed("res.partner", { id: 891, name: "مطعم الوادي 2", customer_rank: 1, x_whatsapp_number: "+966500000891" });
   dp(1, 11, AHMED, 20); po(1, 11, DRIVER, { market: 26 });   // tomato: automatic at 26 (26 ÷ 1.15 − 21 > 0)
   dp(2, 21, AHMED, 30);                                       // cucumber: an exception, no decision
-  await quiet(() => PR.runPricesTick(env, Date.now()));
-  assert("04:00 tick: the record built, the exception sent to Baraa", !!dayOf() && excMsgs().length === 1);
+  const t0 = await quiet(() => PR.runPricesTick(env, Date.now()));
+  // § 54 ب — the tick's `exceptions` is `review`: ONE message with both items (it was a message for the cucumber alone);
+  // its count is the items that need his decision (the cucumber: the automatic tomato is shown, not counted)
+  assert("04:00 tick: the record built, the day's review sent to Baraa — one message, saying what 06:00 will do without him",
+    !!dayOf() && (t0.review as any)?.action === "sent" && (t0.review as any)?.count === 1 && sentTo(OWNER).length === 1 && reviewMsgs().length === 1 && excMsgs().length === 0
+      && bodyOf(reviewMsgs()[0]).split("\n").includes("طماطم: شراء 20 · سوق 26 · الفرق 6 (30%) ← انشر بسعر السوق 26")
+      && bodyOf(reviewMsgs()[0]).split("\n").includes("خيار: شراء 30 · سوق — ← لا تنشر (لا سعر سوق ولا مقترح)")
+      && bodyOf(reviewMsgs()[0]).includes("بلا قرارك حتى 06:00: يُنشر تلقائياً 1 "), JSON.stringify({ r: t0.review, b: ownerTexts() }));
   setRiyadh("2026-10-03 05:55");
-  await quiet(() => PR.runPricesTick(env, Date.now()));
-  assert("05:55: nothing published yet (no wait for Baraa, but the time is 06:00)", dayOf()!.x_state === "draft");
+  const t1 = await quiet(() => PR.runPricesTick(env, Date.now()));
+  assert("05:55: nothing published yet (no wait for Baraa, but the time is 06:00), and no second review", dayOf()!.x_state === "draft" && (t1.review as any)?.action === "sent_before" && sentTo(OWNER).length === 1, JSON.stringify(t1.review));
   setRiyadh("2026-10-03 06:00");
   const t = await quiet(() => PR.runPricesTick(env, Date.now()));
   const d = dayOf()!;
@@ -680,9 +831,16 @@ console.log("\n[ج] the publication time: automatic lines published, an exceptio
   const list = heldFor(env, "966500000891");
   assert("the customers' list: tomato at 26 only (the undecided cucumber left out)", list.length === 1 && /• طماطم \(كرتون\): 26 ر.س/.test(JSON.stringify(list[0])) && !/خيار/.test(JSON.stringify(list[0])), JSON.stringify(list).slice(0, 300));
   assert("the cucumber: «لم يُنشر» (استثناء بلا قرار)", lineFor(2)!.x_status === "unpublished" && /استثناء بلا قرار/.test(String(lineFor(2)!.x_reason)));
-  assert("Baraa: one line with the count of the undecided", ownerTexts().filter((x) => x.startsWith("⏰ لم يُنشر اليوم 1 صنف")).length === 1, JSON.stringify(ownerTexts()));
-  const late = await quiet(() => PR.handlePriceExceptionButton(env, `pexc_s_${lineFor(2)!.id}`));
-  assert("a tap after the publication → «فات موعد النشر», nothing written", /فات موعد نشر/.test(late) && !lineFor(2)!.x_decision, late);
+  // § 54 د — ONE message at 06:00: the publication's own copy names what stayed out and why (it was a second alert «⏰ لم يُنشر اليوم 1 صنف: استثناء بلا قرار…»)
+  const pub = ownerTexts().filter((x) => x.startsWith("📢 نُشرت أسعار"));
+  assert("Baraa: the publication's message names the undecided item and why — «لم يُنشر (1): خيار (بلا سعر سوق وبلا قرار)» — and no second alert",
+    pub.length === 1 && pub[0].split("\n").includes("لم يُنشر (1): خيار (بلا سعر سوق وبلا قرار).") && pub[0].includes("• طماطم (كرتون): 26 ر.س") && !ownerTexts().some((x) => x.startsWith("⏰")), JSON.stringify(ownerTexts()));
+  graph.length = 0;
+  const late: string[] = [];
+  for (const id of [`prv_a_${d.id}_1`, `prv_n_${d.id}_1`, `prv_r_${d.id}_1`]) late.push(await quiet(() => PRV.handlePriceReviewButton(env, id)));
+  assert("a tap on the review's buttons after the publication → «نُشرت أسعار … فلا قرار عليها الآن», nothing written, no form",
+    late.every((x) => x === "refused") && ownerTexts().length === 3 && ownerTexts().every((x) => /^نُشرت أسعار 3 أكتوبر 2026، فلا قرار عليها الآن/.test(x)) && formMsgs().length === 0
+      && !lineFor(2)!.x_decision && !lineFor(1)!.x_decision && lineFor(2)!.x_status === "unpublished" && dayOf()!.x_state === "published", JSON.stringify({ late, t: ownerTexts() }));
   const p = await quiet(() => (import("../src/odoo.ts")).then((m) => m.getLatestSalePrice(env, 1, 11)));
   assert("the quotation / invoice price: today's published 26", p.price === 26 && p.source === "today", JSON.stringify(p));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));

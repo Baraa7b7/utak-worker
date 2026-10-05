@@ -3,7 +3,8 @@
 //
 //   [أ] «الربح الأدنى للكرتون (ريال)»: the suggested price = (full cost + the amount) × 1.15, rounded UP
 //       to 0.5; «أقل سعر بيع بدون خسارة» unchanged; «الهامش الأدنى ٪» read by nothing; the rule itself
-//       (the market price once it reaches the suggested one) unchanged; the numbers of 2026-10-01.
+//       (the market price once it reaches the suggested one) unchanged by § 48 — § 54 moved the line of
+//       the exception from the suggested price down to «بدون خسارة»; the numbers of 2026-10-01.
 //   [ب] the fallback sale price = the suggested price: the supplier's row when he answers, the engine
 //       keeping every row of the day in step, the quotation's lookup (the day's line first), no
 //       fallback at all when the suggested price cannot be made, the simulation rows left out.
@@ -13,6 +14,13 @@
 //       at the suggested price, the day stays missed, nothing is sent; the tick applies a decision
 //       nobody recomputed; a decision changed in Odoo does not inherit another decision's price.
 //   [و] the places: every text of the worker and the documents names the screens of «💲 التسعير».
+//
+// § 54 (2026-10-05) — re-based on the proposed decision (src/pricing-engine.ts proposeDecision) and the
+// day's review in ONE message (src/price-review.ts): a market price between «بدون خسارة» and the suggested
+// price is automatic at the market price (an exception «أقل من السعر المربح» before), and the suggested
+// price and the break-even reach Baraa in the review's form, where «انشر بالمقترح» is a choice — the message
+// per exception and its «اعتمد بالسعر المربح» button are gone. A decision from the review on a «فات
+// الموعد» day publishes at once; the text that sent him to «نشر المعتمد الآن» for it is gone with them.
 //
 // In-memory Odoo + captured Graph (tests/wa-harness.mts, tests/s46-kit.mts). No network, no send.
 //
@@ -39,6 +47,7 @@ const PL = await import("../src/places.ts");
 const PSU = await import("../src/product-setup.ts");
 const OW = await import("../src/owner-window.ts");
 const SP = await import("../src/supplier-pay.ts");
+const PRV = await import("../src/price-review.ts");
 
 const ITEM = { productId: 1, productName: "طماطم", packagingId: 11, packagingName: "كرتون" };
 const offer = (o: Record<string, unknown>) => ({ kind: "market", price: 0, outlier: false, partnerId: 1, sourceName: "م", productId: 1, packagingId: 11, model: "po", rowId: 1, ...o }) as any;
@@ -113,26 +122,33 @@ console.log("\n[أ] the settings: «الربح الأدنى للكرتون» is 
   assert("no code of the price flow names x_min_margin_pct or a margin percent", !/x_min_margin_pct|minMarginPct|MIN_MARGIN_PCT/.test(code));
   table("x_pricing_config").get(1)!.x_min_profit_sar = 4;
   await quiet(() => PR.refreshPriceDay(env));
-  assert("«الربح الأدنى للكرتون» raised to 4: the next run recomputes (27 × 1.15 = 31.05 → 31.50) and the line is an exception", lineFor(1).x_suggested_price === 31.5 && lineFor(1).x_status === "exception" && lineFor(1).x_reason === "سعر السوق 29 أقل من السعر المربح 31.50", JSON.stringify(lineFor(1)));
+  // § 54 أ — below the suggested price and above «بدون خسارة» (26.45) is no exception any more («سعر السوق 29 أقل من السعر المربح 31.50» before)
+  assert("«الربح الأدنى للكرتون» raised to 4: the next run recomputes (27 × 1.15 = 31.05 → 31.50); the line, now below its suggested price and above «بدون خسارة» 26.45, stays automatic at the market 29 (§ 54)", lineFor(1).x_suggested_price === 31.5 && lineFor(1).x_break_even === 26.45 && lineFor(1).x_status === "auto" && lineFor(1).x_sale_price === 29 && !lineFor(1).x_reason, JSON.stringify(lineFor(1)));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 
-console.log("\n[أ] the rule is the same: the market price once it reaches the suggested price, else an exception");
+console.log("\n[أ] the rule: the market price — § 54: once it reaches «بدون خسارة» (the suggested price before), else an exception");
 {
   const run = (offers: any[]) => EN.computePricing([ITEM], offers, 5, { ratePct: 15 }, { opShare: 2, minProfit: 2 })[0];
   const p20 = offer({ kind: "purchase", price: 20, model: "dp", partnerId: AHMED });
-  const at = run([p20, offer({ price: 29 })]), over = run([p20, offer({ price: 40 })]), under = run([p20, offer({ price: 28.5 })]), none = run([p20]);
+  const at = run([p20, offer({ price: 29 })]), over = run([p20, offer({ price: 40 })]), under = run([p20, offer({ price: 28.5 })]), loss = run([p20, offer({ price: 26 })]), none = run([p20]);
   assert("market 29 = the suggested 29.00 → automatic at 29", at.exceptions.length === 0 && EN.lineVerdict(at, null, 0).sale === 29);
   assert("market 40 → published at 40 (the market price, never lowered to the suggested one)", over.exceptions.length === 0 && EN.lineVerdict(over, null, 0).sale === 40);
-  assert("market 28.50 (it was automatic at 5 %: 28.00) → an exception now, with the new number in its reason", under.exceptions.join() === "below_profit" && under.reason === "سعر السوق 28.50 أقل من السعر المربح 29");
-  assert("no market price → an exception carrying the suggested 29.00", none.exceptions.join() === "no_market" && none.suggested === 29);
+  assert("market 28.50 (under the new suggested 29.00, above «بدون خسارة» 26.45) → automatic at 28.50 (§ 54: no longer the exception «سعر السوق 28.50 أقل من السعر المربح 29»)", under.exceptions.length === 0 && under.reason === "" && under.suggested === 29 && under.proposal.why === "below_suggested" && EN.lineVerdict(under, null, 0).status === "auto" && EN.lineVerdict(under, null, 0).sale === 28.5, JSON.stringify(under.proposal));
+  assert("market 26 (under «بدون خسارة» 26.45) → an exception, with both numbers in its reason", loss.exceptions.join() === "loss" && loss.reason === "سعر السوق 26 أقل من سعر بدون خسارة 26.45" && EN.lineVerdict(loss, null, 0).status === "exception", JSON.stringify(loss));
+  assert("no market price → an exception carrying the suggested 29.00", none.exceptions.join() === "no_market" && none.suggested === 29 && none.proposal.kind === "profit" && none.proposal.price === 29);
   const env = fresh(`${DAY} 04:00`); cost(500);
-  dp(1, 11, 20); market(1, 11, 28.5);
+  dp(1, 11, 20); market(1, 11, 26);                         // a loss: the line waits for Baraa (28.50 would be automatic since § 54)
   await quiet(() => PR.refreshPriceDay(env));
-  await quiet(() => PR.notifyPriceExceptions(env));
+  await quiet(() => PRV.notifyPriceReviewMessage(env));
   const text = String(sentTo(OWNER).map((b: any) => b?.interactive?.body?.text ?? "").find((t: string) => t.includes("طماطم")) ?? "");
-  assert("the 04:00 exception message carries the new suggested price (29) and the break-even (26.45)", /السعر المربح المقترح: 29 · أقل سعر بيع بدون خسارة: 26\.45/.test(text) && /السوق: 28\.50/.test(text), text);
-  assert("…and its «اعتمد بالسعر المربح» choice the same number", JSON.stringify(PR.exceptionChoices(lineFor(1))[0]) === JSON.stringify({ id: `pexc_p_${lineFor(1).id}`, title: "اعتمد بالسعر المربح", description: "29 ر.س" }));
+  assert("the 04:00 review names the item with its purchase, its market price and «لا تنشر (خسارة)»", lineFor(1).x_status === "exception" && text.includes("طماطم: شراء 20 · سوق 26 · الفرق 6 (30%) ← لا تنشر (خسارة)"), text);
+  await quiet(() => PRV.handlePriceReviewButton(env, `prv_r_${dayOf().id}_1`));
+  const form = sentTo(OWNER).find((b: any) => b?.interactive?.type === "flow")?.interactive.action.parameters;
+  const item = (await PRV.readReviewFormToken(env, String(form?.flow_token)))?.items.find((i: any) => i.name === "طماطم");
+  const data = form?.flow_action_payload.data ?? {};
+  assert("…and its form («✏️ مراجعة») carries the new suggested price (29) and the break-even (26.45)", data[`x${item?.slot}`] === "شراء 20 · سوق 26 · الفرق 6 · بدون خسارة 26.45 · مقترح 29", String(data[`x${item?.slot}`]));
+  assert("…and its «انشر بالمقترح» choice the same number", JSON.stringify(data[`o${item?.slot}`]?.[0]) === JSON.stringify({ id: "profit", title: "انشر بالمقترح (29)" }) && item?.suggested === 29, JSON.stringify(data[`o${item?.slot}`]));
 }
 
 // ================================================================ [ب] the fallback sale price = the suggested price
@@ -267,9 +283,11 @@ console.log("\n[ج] the preview of a line without an approved price, in fields o
   assert("on the day — tomato, approved automatically: no preview", t.x_status === "auto" && t.x_preview_sale === 0 && t.x_preview_profit === 0 && t.x_real_profit === 7, JSON.stringify(t));
   assert("…cucumber, an exception: its preview 36.00 / +2.00, its real card still the market's (🔴 −2.30)", c.x_status === "exception" && c.x_preview_sale === 36 && c.x_preview_profit === 2 && c.x_real_profit === -2.3 && c.x_board_status === "red", JSON.stringify(c));
   assert("…onion, no market price: the preview (30 + 1.5 + 2 = 33.50 → 41.00, +2.15), ⚪ and real profit 0", o.x_status === "exception" && o.x_preview_sale === 41 && o.x_preview_profit === 2.15 && o.x_board_status === "none" && o.x_real_profit === 0, JSON.stringify(o));
-  await quiet(() => PR.handlePriceExceptionButton(env, `pexc_p_${o.id}`));
+  // § 54 — the decision is the review's: «✅ اعتمد الكل كما هو» gives the onion its proposed «انشر بالمقترح 41» (the two losses: «لا تنشر»)
+  await quiet(() => PRV.notifyPriceReviewMessage(env));
+  await quiet(() => PRV.handlePriceReviewButton(env, `prv_a_${dayOf().id}_1`));
   const o2 = lineFor(4);
-  assert("«اعتمد بالسعر المربح» on it: the preview becomes the real profit (41.00, +2.15, 🟢) and leaves", o2.x_status === "manual" && o2.x_sale_price === 41 && o2.x_real_profit === 2.15 && o2.x_board_status === "green" && o2.x_preview_sale === 0 && o2.x_preview_profit === 0, JSON.stringify(o2));
+  assert("«انشر بالمقترح» on it (its proposed decision, «✅ اعتمد الكل كما هو»): the preview becomes the real profit (41.00, +2.15, 🟢) and leaves", o2.x_decision === "profit" && o2.x_status === "manual" && o2.x_sale_price === 41 && o2.x_real_profit === 2.15 && o2.x_board_status === "green" && o2.x_preview_sale === 0 && o2.x_preview_profit === 0, JSON.stringify(o2));
   table("product.template").get(4)!.x_is_active_for_sale = false;            // the approved onion leaves the catalog
   await quiet(() => PR.refreshPriceDay(env, { force: true }));
   const gone = lineFor(4);
@@ -491,8 +509,12 @@ console.log("\n[و] the places: every text of the worker names the screens of «
   await quiet(() => PR.runPricesTick(env, Date.now()));
   const missed = ownerTexts().find((x) => x.startsWith("⏰ أسعار اليوم")) ?? "";
   assert("06:00, nothing approved: Baraa is sent to «💲 التسعير» ← «📊 اليوم» for «نشر المعتمد الآن»", dayOf().x_state === "missed" && missed.includes(`«نشر المعتمد الآن» في ${PL.PLACE_TODAY}`), missed);
-  const late = await quiet(() => PR.handlePriceExceptionButton(env, `pexc_p_${lineFor(3).id}`));
-  assert("a decision on the missed day: «انشر من «💲 التسعير» ← «📊 اليوم» بزر «نشر المعتمد الآن»»", late.includes(`السجل «فات الموعد»: انشر من ${PL.PLACE_TODAY} بزر «نشر المعتمد الآن».`), late);
+  // § 54 — a decision from the review on the missed day publishes at once (no «انشر من … بزر «نشر المعتمد الآن»» line any more);
+  // what still sends him to the screen: the missed alert's own line, a review whose buttons no longer decide, an old exception message
+  assert("…and to the review itself first: «✅ اعتمد الكل» أو «✏️ مراجعة» من رسالة المراجعة ينشر فوراً", missed.includes("«✅ اعتمد الكل» أو «✏️ مراجعة» من رسالة المراجعة ينشر فوراً") && missed.includes("لم يُنشر (4): ") && missed.includes("بطاطس (بلا سعر سوق وبلا قرار)"), missed);
+  const late = await quiet(() => PRV.handlePriceReviewButton(env, `prv_a_${dayOf().id}_1`));
+  assert("a decision on the missed day from a review that is no longer there: «…أو قرّر من «💲 التسعير» ← «📊 اليوم»»", late === "no_snapshot" && ownerTexts().at(-1) === `انتهت صلاحية هذه الرسالة: اضغط «${PRV.REVIEW_BUTTON_FORM}»، أو قرّر من ${PL.PLACE_TODAY}.` && !lineFor(3).x_decision, JSON.stringify([late, ownerTexts().at(-1)]));
+  assert("a tap on an exception message of before § 54: «…أو من «💲 التسعير» ← «📊 اليوم»»", PR.OLD_EXCEPTION_TEXT.endsWith(`أو من ${PL.PLACE_TODAY}.`), PR.OLD_EXCEPTION_TEXT);
   assert("the review reminder that finds nothing", OW.PRICE_REVIEW_NOTHING_TEXT.endsWith(`التفاصيل في ${PL.PLACE_TODAY}.`));
   assert("the board's note when «الكراتين المتوقعة» is empty names «⚙️ الإعدادات»", PB.boardShare(500, null, { days: 0, average: null }).note.includes(`فارغة في ${PL.PLACE_SETTINGS}`));
   const alert = PSU.newProductAlert({ id: 9, name: "صنف", default_code: false, categ_id: false, x_supplier_ids: [], x_is_active_for_sale: false, x_name_en: false, create_date: "2026-10-03 00:00:00" }, ["المورد"]);

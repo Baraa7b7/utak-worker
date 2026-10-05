@@ -52,6 +52,22 @@
 // price. With an uplift of 0 nothing is rounded and nothing changes: the sale
 // price is the market price, exactly.
 //
+// § 54 أ (2026-10-05) — «القرار المقترح» of a line (proposeDecision), one rule in
+// this order, every comparison on the market price AFTER the uplift of § 53:
+//   1. no purchase price                        → «لا تنشر»;
+//   2. an outlier                               → the decision of the rules below, marked ⚠️;
+//   3. no market price                          → «انشر بالمقترح»;
+//   4. market < «أقل سعر بيع بدون خسارة»        → «لا تنشر (خسارة)»;
+//   5. «بدون خسارة» ≤ market < the suggested    → «انشر بسعر السوق»;
+//   6. market ≥ the suggested price             → by the setting «لما يكون السوق أعلى من
+//      المقترح» (x_pricing_config.x_above_suggested): «بسعر السوق» (the default) or
+//      «بالمقترح» (cheaper than the market).
+// Without Baraa's decision by the publication time a line is published only by
+// rules 5 and 6 and without ⚠️ (its status «تلقائي»); a line with no market
+// price, a loss, an outlier or no purchase price waits for him (an exception)
+// and is not published. This replaces § 47's rule 2: a market price between
+// «بدون خسارة» and the suggested price is no longer an exception.
+//
 // Only a source with «مصدر أسعار» counts (a supplier's own row: x_supplier_id
 // ticked; an offer: its source partner ticked, or the Work Contact of a ticked
 // employee). Offers marked x_utak_simulation are left out. Each source counts
@@ -82,7 +98,8 @@ export interface EngineItem {
   packagingId: number;
   packagingName: string;
 }
-export type ExceptionCode = "no_purchase" | "no_market" | "no_profit" | "below_profit" | "outlier";
+/** § 54 أ — «loss»: the market price (after the uplift) below «أقل سعر بيع بدون خسارة». */
+export type ExceptionCode = "no_purchase" | "no_market" | "no_profit" | "loss" | "outlier";
 export interface PricingLine extends EngineItem {
   key: string;
   purchase: number | null;
@@ -105,6 +122,8 @@ export interface PricingLine extends EngineItem {
   exceptions: ExceptionCode[];
   reason: string;
   offersText: string;
+  /** § 54 أ — «القرار المقترح»: what the rule would publish, and whether it does so without Baraa. */
+  proposal: Proposal;
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -214,6 +233,57 @@ export function displayMarginPct(purchase: number, market: number): number {
   return purchase > 0 && market > 0 ? round2(((market - purchase) / purchase) * 100) : 0;
 }
 
+// ---------------------------------------------------------------- the proposed decision (§ 54 أ)
+
+/** «لما يكون السوق أعلى من المقترح» (x_pricing_config.x_above_suggested): «بسعر السوق» or «بالمقترح». */
+export type AboveSuggested = "market" | "suggested";
+export const ABOVE_SUGGESTED_DEFAULT: AboveSuggested = "market";
+/** The setting as the rule reads it: «suggested» alone changes the rule; anything else is the default. */
+export function aboveSuggestedOf(v: unknown): AboveSuggested {
+  return v === "suggested" ? "suggested" : ABOVE_SUGGESTED_DEFAULT;
+}
+
+/** The proposed decision, in x_decision's own words: «انشر بسعر السوق», «انشر بالمقترح», «لا تنشر». */
+export type ProposalKind = "market" | "profit" | "skip";
+export type ProposalWhy = "no_purchase" | "no_market" | "no_price" | "loss" | "below_suggested" | "above_suggested";
+export interface Proposal {
+  kind: ProposalKind;
+  /** The price it would publish at (0 for «لا تنشر»). */
+  price: number;
+  why: ProposalWhy;
+  /** Rule 2 — an outlier price: the same decision, marked ⚠️, never published without Baraa. */
+  outlier: boolean;
+  /** Published at the publication time without a decision (rules 5 and 6, no ⚠️). */
+  auto: boolean;
+}
+
+/**
+ * § 54 أ — the rule, for one line. `sale` is the market price AFTER the uplift
+ * (null / 0 = no market price); `breakEven` and `suggested` are null when the
+ * carton share cannot be read (then the rule before § 47: a market price is
+ * published unless the unit profit is not above zero, and there is no suggested
+ * price to publish a line without a market price at). Pure.
+ */
+export function proposeDecision(i: { purchase: number | null; sale: number | null; breakEven: number | null; suggested: number | null; unitProfit: number | null; outlier: boolean }, above: AboveSuggested = ABOVE_SUGGESTED_DEFAULT): Proposal {
+  const outlier = i.outlier === true;
+  const skip = (why: ProposalWhy): Proposal => ({ kind: "skip", price: 0, why, outlier, auto: false });
+  const suggested = i.suggested !== null && i.suggested > 0 ? round2(i.suggested) : 0;
+  // 1 — no purchase price: nothing to sell from
+  if (i.purchase === null || !(i.purchase > 0)) return skip("no_purchase");
+  // 3 — no market price: the suggested price, by Baraa's word alone
+  if (i.sale === null || !(i.sale > 0)) return suggested > 0 ? { kind: "profit", price: suggested, why: "no_market", outlier, auto: false } : skip("no_price");
+  const sale = round2(i.sale);
+  // 4 — below «بدون خسارة» (no carton share: a unit profit that is not above zero)
+  if (i.breakEven !== null && i.breakEven > 0 ? sale < i.breakEven - 0.0001 : i.unitProfit !== null && i.unitProfit <= 0) return skip("loss");
+  // 6 — the market reaches the suggested price: the setting decides
+  if (suggested > 0 && sale >= suggested - 0.0001) {
+    return above === "suggested" ? { kind: "profit", price: suggested, why: "above_suggested", outlier, auto: !outlier }
+      : { kind: "market", price: sale, why: "above_suggested", outlier, auto: !outlier };
+  }
+  // 5 — between «بدون خسارة» and the suggested price: the market price
+  return { kind: "market", price: sale, why: "below_suggested", outlier, auto: !outlier };
+}
+
 /** Each source's latest row of the day, per product, packaging and kind. */
 export function latestPerSource(offers: EngineOffer[]): EngineOffer[] {
   const best = new Map<string, EngineOffer>();
@@ -230,7 +300,7 @@ const REASON: Record<ExceptionCode, string> = {
   no_purchase: "لا سعر شراء",
   no_market: "لا سعر سوق",
   no_profit: "ربح الوحدة ≤ 0",
-  below_profit: "سعر السوق أقل من السعر المربح",
+  loss: "سعر السوق أقل من سعر بدون خسارة",
   outlier: "سعر شاذ",
 };
 
@@ -241,7 +311,7 @@ export function offersLine(offers: EngineOffer[]): string {
 }
 
 /** «سعر السوق 28»; with an uplift «سعر السوق 28 بعد الزيادة 3٪ = 29». */
-function belowProfitLead(market: number, sale: number, upliftPct: number): string {
+function marketLead(market: number, sale: number, upliftPct: number): string {
   return upliftPct > 0 ? `سعر السوق ${money(market)} بعد الزيادة ${money(upliftPct)}٪ = ${money(sale)}` : `سعر السوق ${money(market)}`;
 }
 
@@ -250,9 +320,9 @@ function belowProfitLead(market: number, sale: number, upliftPct: number): strin
  * from the cutoff. `floor` (§ 47 ب, § 48 أ): the carton share and the minimum
  * profit a carton the suggested price is made from; without a share the rule
  * before § 47. `upliftPct` (§ 53 ب): «زيادة على سعر السوق ٪», 0 = the sale price
- * is the market price as it is.
+ * is the market price as it is. `above` (§ 54 أ): «لما يكون السوق أعلى من المقترح».
  */
-export function computePricing(items: EngineItem[], offers: EngineOffer[], wastePct: number, vat: VatContext = NO_VAT, floor: FloorContext = NO_FLOOR, upliftPct: number = 0): PricingLine[] {
+export function computePricing(items: EngineItem[], offers: EngineOffer[], wastePct: number, vat: VatContext = NO_VAT, floor: FloorContext = NO_FLOOR, upliftPct: number = 0, above: AboveSuggested = ABOVE_SUGGESTED_DEFAULT): PricingLine[] {
   const latest = latestPerSource(offers);
   const uplift = upliftOf(upliftPct);
   return items.map((it) => {
@@ -269,18 +339,21 @@ export function computePricing(items: EngineItem[], offers: EngineOffer[], waste
       ? round2(vatProfit(sale, purchase, wastePct, vat.ratePct)) : null;
     const fl = priceFloor({ purchase, wastePct, opShare: floor.opShare, vatRatePct: vat.ratePct, minProfit: floor.minProfit });
     const suggested = fl?.suggested ?? null;
+    const breakEven = fl?.breakEven ?? null;
     const outlier = { purchase: !!p?.outlier, market: markets.some((o) => o.outlier) };
+    // § 54 أ — the proposed decision of the line, and whether it is published without Baraa
+    const proposal = proposeDecision({ purchase, sale, breakEven, suggested, unitProfit: profit, outlier: outlier.purchase || outlier.market }, above);
     const exceptions: ExceptionCode[] = [];
     if (purchase === null) exceptions.push("no_purchase");
     if (market === null) exceptions.push("no_market");
     if (purchase !== null && sale !== null) {
-      // § 47 ب — profitable = the market price (§ 53 ب: after the uplift) reaches the suggested price
-      if (suggested !== null) { if (sale < suggested - 0.0001) exceptions.push("below_profit"); }
+      // § 54 أ — a loss = the market price (§ 53 ب: after the uplift) below «أقل سعر بيع بدون خسارة»
+      if (breakEven !== null) { if (sale < breakEven - 0.0001) exceptions.push("loss"); }
       else if (profit !== null && profit <= 0) exceptions.push("no_profit");
     }
     if (outlier.purchase || outlier.market) exceptions.push("outlier");
     const reason = exceptions.map((c) => c === "no_profit" ? `${REASON[c]} (${money(profit as number)})`
-      : c === "below_profit" ? `${belowProfitLead(market as number, sale as number, uplift)} أقل من السعر المربح ${money(suggested as number)}`
+      : c === "loss" ? `${marketLead(market as number, sale as number, uplift)} أقل من سعر بدون خسارة ${money(breakEven as number)}`
       : c === "outlier" ? `${REASON[c]}: ${[outlier.purchase ? "الشراء" : "", outlier.market ? "السوق" : ""].filter(Boolean).join(" و")}` : REASON[c]).join("، ");
     return {
       ...it,
@@ -289,9 +362,10 @@ export function computePricing(items: EngineItem[], offers: EngineOffer[], waste
       sale, upliftPct: uplift,
       unitProfit: profit,
       displayMargin: purchase !== null && sale !== null ? displayMarginPct(purchase, sale) : null,
-      fullCost: fl?.fullCost ?? null, breakEven: fl?.breakEven ?? null, suggested,
+      fullCost: fl?.fullCost ?? null, breakEven, suggested,
       exceptions, reason,
       offersText: offersLine(its),
+      proposal,
     };
   });
 }
@@ -301,6 +375,10 @@ export function computePricing(items: EngineItem[], offers: EngineOffer[], waste
 export type LineStatus = "auto" | "exception" | "manual" | "unpublished";
 export type Decision = "market" | "skip" | "edit" | "profit";
 export interface LineVerdict { status: LineStatus; sale: number; excluded: boolean; reason: string }
+/** «السبب» of a line Baraa decided: the engine and the day's review (src/price-review.ts) write the same words. */
+export const DECISION_REASON: Readonly<Record<Decision, string>> = {
+  market: "براء: اعتمد بسعر السوق", profit: "براء: اعتمد بالسعر المربح", edit: "براء: سعر معدّل", skip: "براء: لا تنشر",
+};
 
 /**
  * The line's status from the rule and Baraa's decision: «لا تنشر» → not
@@ -308,21 +386,30 @@ export interface LineVerdict { status: LineStatus; sale: number; excluded: boole
  * when he decided, else today's); «اعتمد بالسعر المربح» (§ 47 ب) → approved at
  * the suggested price (the one he saw, else today's); «سعر معدّل» → approved
  * at his price (a positive number); no decision → automatic, or an exception.
+ * § 54 أ — automatic = the proposed decision of rules 5 and 6: the market price,
+ * or — «لما يكون السوق أعلى من المقترح» = «بالمقترح» — the suggested price.
  */
 export function lineVerdict(p: PricingLine, decision: Decision | null, manualPrice: number): LineVerdict {
-  if (decision === "skip") return { status: "unpublished", sale: 0, excluded: true, reason: "براء: لا تنشر" };
+  if (decision === "skip") return { status: "unpublished", sale: 0, excluded: true, reason: DECISION_REASON.skip };
   if (decision === "market") {
     // § 53 ب — «سعر السوق» of the decision is the rule's sale price: the market price after the uplift
     const price = manualPrice > 0 ? manualPrice : p.sale ?? 0;
-    if (price > 0) return { status: "manual", sale: round2(price), excluded: false, reason: "براء: اعتمد بسعر السوق" };
+    if (price > 0) return { status: "manual", sale: round2(price), excluded: false, reason: DECISION_REASON.market };
   }
   if (decision === "profit") {
     const price = manualPrice > 0 ? manualPrice : p.suggested ?? 0;
-    if (price > 0) return { status: "manual", sale: round2(price), excluded: false, reason: "براء: اعتمد بالسعر المربح" };
+    if (price > 0) return { status: "manual", sale: round2(price), excluded: false, reason: DECISION_REASON.profit };
   }
-  if (decision === "edit" && manualPrice > 0) return { status: "manual", sale: round2(manualPrice), excluded: false, reason: "براء: سعر معدّل" };
-  if (p.exceptions.length) return { status: "exception", sale: 0, excluded: true, reason: p.reason };
-  return { status: "auto", sale: round2(p.sale as number), excluded: false, reason: "" };
+  if (decision === "edit" && manualPrice > 0) return { status: "manual", sale: round2(manualPrice), excluded: false, reason: DECISION_REASON.edit };
+  if (!p.proposal.auto) return { status: "exception", sale: 0, excluded: true, reason: p.reason };
+  // § 54 أ — rule 6 by the setting «بالمقترح»: the line says why it sells below the market
+  const cheaper = p.proposal.kind === "profit";
+  return { status: "auto", sale: round2(p.proposal.price), excluded: false, reason: cheaper ? aboveSuggestedReason(p.sale as number, p.proposal.price) : "" };
+}
+
+/** «السوق 75 أعلى من المقترح 71.50: يُنشر بالمقترح (الإعدادات)» — the reason of an automatic line sold at the suggested price. */
+export function aboveSuggestedReason(sale: number, suggested: number): string {
+  return `السوق ${money(sale)} أعلى من المقترح ${money(suggested)}: يُنشر بالمقترح (الإعدادات)`;
 }
 
 /**
@@ -354,6 +441,19 @@ export function saleRule(l: { x_status: string | false; x_market_price: number; 
     return round2(marketSale(l));
   }
   return 0;
+}
+
+/**
+ * § 54 أ — is the stored sale price the one a rule gives the line? As saleRule,
+ * and for an automatic line also its suggested price while the market price
+ * reaches it (rule 6 with «بالمقترح»). The publication checks every line by it.
+ */
+export function saleMatchesRule(l: Parameters<typeof saleRule>[0] & { x_sale_price: number }): boolean {
+  const sale = Number(l.x_sale_price) || 0;
+  if (Math.abs(sale - saleRule(l)) <= 0.005) return true;
+  if (l.x_status !== "auto") return false;
+  const suggested = round2(Number(l.x_suggested_price) || 0);
+  return suggested > 0 && marketSale(l) >= suggested - 0.0001 && Math.abs(sale - suggested) <= 0.005;
 }
 
 /**

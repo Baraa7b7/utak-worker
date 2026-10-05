@@ -9,11 +9,15 @@
 //       • his tap on «تم الاطلاع»: an inbound — the window opens, what is held
 //         for him goes, one line «تم ✅، تنبيهات الليلة تصلك مباشرة»; no order,
 //         no complaint;
-//       • price exceptions held while his window is closed:
-//         utak_owner_price_review_v1 with the undecided count, once per price
-//         day, only when usable (else held as before); «عرض الاستثناءات» sends
-//         the held exceptions with their buttons; they stay deliverable until
-//         06:00 of their day, not before.
+//       • the day's price review while his window is closed (§ 54: ONE
+//         message for the whole day, src/price-review.ts — it replaced a held
+//         message per exception): nothing is held, the review is owed;
+//         utak_owner_price_review_v1 with the count of the items waiting for
+//         his decision, once per price day, only when usable (else the review
+//         just stays owed); «عرض الاستثناءات» sends the review itself, built at
+//         his tap, with its three buttons; it is owed until 06:00 of its day
+//         (after it only on a day that was not published); his window open →
+//         the review goes directly and no template.
 //   [ج] Omar on seven days: a Friday line in his schedule makes Friday a
 //       working day everywhere (the operating cost, «بدء الدوام», the purchase
 //       list after Thursday's shift, the driver's follow-up) — no Friday
@@ -42,7 +46,7 @@ const FIX = [
   "fixtures-odoo-fields-20260925-gateway.json", "fixtures-odoo-fields-20260925-s36.json", "fixtures-odoo-fields-20260925-s37.json",
   "fixtures-odoo-fields-20260926-b3.json", "fixtures-odoo-fields-20260926-s39.json", "fixtures-odoo-fields-20260926-s40.json",
   "fixtures-odoo-fields-20260926-s41.json", "fixtures-odoo-fields-20260927-s42.json", "fixtures-odoo-fields-20260928-s44.json",
-  "fixtures-odoo-fields-20261001-s49.json", "fixtures-odoo-fields-20261004-s53.json", // § 46 + § 47: the pricing board's fields on x_price_day / x_price_day_line, x_expected_cartons, product.template.x_utak_new, x_min_margin_pct, x_break_even / x_suggested_price, x_decision «profit» (last: it wins)
+  "fixtures-odoo-fields-20261001-s49.json", "fixtures-odoo-fields-20261005-s54.json", // § 46 + § 47: the pricing board's fields on x_price_day / x_price_day_line, x_expected_cartons, product.template.x_utak_new, x_min_margin_pct, x_break_even / x_suggested_price, x_decision «profit» (last: it wins)
 ].map((f) => JSON.parse(readFileSync(new URL(`./${f}`, import.meta.url), "utf8")));
 const REAL: Record<string, string[]> = Object.assign({}, ...FIX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FIX.map((f) => f._selections ?? {}));
@@ -86,7 +90,7 @@ const { setOdooRetryHooksForTests } = await import("../src/odoo.ts");
 setOdooRetryHooksForTests({ sleep: async () => {}, alert: async () => {} });
 const { clearTemplateCache } = await import("../src/templates.ts");
 const SUM = await import("../src/owner-summary.ts");
-const PR = await import("../src/prices.ts");
+const PRV = await import("../src/price-review.ts");
 const OW = await import("../src/owner-window.ts");
 const GW = await import("../src/wa-gateway.ts");
 const WIN = await import("../src/wa-window.ts");
@@ -195,9 +199,9 @@ console.log("\n[ب] his tap on «تم الاطلاع»: the window opens, the he
   assert("nothing else: no order, no complaint, two messages in all", rows("x_daily_order").length === orders0 && rows("x_complaint").length === complaints0 && ownerMsgs().length === 2, JSON.stringify(texts));
 }
 
-// ================================================================ [ب] the price exceptions
+// ================================================================ [ب] the day's price review (§ 54)
 const PDAY = "2026-10-02";
-/** A draft price day with `n` undecided exceptions (طماطم / خيار / بصل), no market price. */
+/** A draft price day with `n` items waiting for his decision (طماطم / خيار / بصل): a purchase price, no market price. */
 function priceEnv(n: number, riyadh = `${PDAY} 04:00`): any {
   const env = reset(); clearTemplateCache(); setRiyadh(riyadh); rejected.length = 0;
   seed("product.template", { id: 3, name: "بصل" });
@@ -209,106 +213,146 @@ function priceEnv(n: number, riyadh = `${PDAY} 04:00`): any {
   }));
   return env;
 }
-const excMsgs = () => ownerMsgs().filter((b: any) => b?.type === "interactive" && /استثناء في أسعار اليوم/.test(textOf(b)));
+/** § 54 — the day's review itself: ONE interactive message with every item (it replaced a message per exception). */
+const dayReviews = () => ownerMsgs().filter((b: any) => b?.type === "interactive" && /مراجعة أسعار اليوم/.test(textOf(b)));
+/** Template 2 (utak_owner_price_review_v1). */
 const reviewMsgs = () => ownerMsgs().filter((b: any) => tplName(b) === OW.PRICE_REVIEW_TEMPLATE);
-const heldExc = (env: any) => heldFor(env, OWNER).filter((i: any) => i.purpose === "owner_price_exception");
+const buttonIds = (b: any): string[] => (b?.interactive?.action?.buttons ?? []).map((x: any) => x.reply.id);
+/** § 54 — nothing is held for the review: it is «owed» (a KV mark of its day) and built at his next message. */
+const owed = (env: any) => env.MSG_DEDUP.store.has(`prv_owed:v1:${PDAY}`);
+const dayId = () => [...table("x_price_day").values()][0].id;
+const notify = (env: any) => quiet(() => PRV.notifyPriceReviewMessage(env));
+const tapReview = (env: any) => quiet(() => worker.fetch(signed(inbound(OWNER, { type: "button", button: { payload: OW.PRICE_REVIEW_PAYLOAD, text: "عرض الاستثناءات" } })), env, ctx));
 
-console.log("\n[ب] exceptions while his window is closed: template 2 with the count, once per price day");
+console.log("\n[ب] the day's review while his window is closed: nothing held, the review owed, template 2 with the count, once per price day");
 {
   const env = priceEnv(3); closeOwnerWindow(env); t2();
-  const r = await quiet(() => PR.notifyPriceExceptions(env));
-  assert("the three exceptions are held (window closed)", heldExc(env).length === 3 && excMsgs().length === 0, JSON.stringify(heldFor(env, OWNER).map((i: any) => i.purpose)));
-  assert("template 2 went once: «2 أكتوبر 2026», 3", r.review === "sent" && reviewMsgs().length === 1 && JSON.stringify(tplParams(reviewMsgs()[0])) === JSON.stringify(["2 أكتوبر 2026", "3"]), JSON.stringify({ r, m: ownerMsgs() }));
+  const r = await notify(env);
+  assert("nothing is held and nothing is sent of the review itself (window closed): it is owed to him", r.action === "window_closed" && heldFor(env, OWNER).length === 0 && dayReviews().length === 0 && owed(env), JSON.stringify({ r, held: heldFor(env, OWNER).map((i: any) => i.purpose) }));
+  assert("template 2 went once: «2 أكتوبر 2026», 3", r.review === "sent" && r.count === 3 && reviewMsgs().length === 1 && JSON.stringify(tplParams(reviewMsgs()[0])) === JSON.stringify(["2 أكتوبر 2026", "3"]), JSON.stringify({ r, m: ownerMsgs() }));
   assert("…with the «عرض الاستثناءات» payload", JSON.stringify(tplPayloads(reviewMsgs()[0])) === JSON.stringify([`0:${OW.PRICE_REVIEW_PAYLOAD}`]), JSON.stringify(tplPayloads(reviewMsgs()[0])));
   setRiyadh(`${PDAY} 04:05`);
-  const table2 = table("x_price_day_line");
   seed("product.template", { id: 4, name: "كوسا" }); seed("x_product_packaging", { id: 41, x_name: "كرتون", x_product_tmpl_id: 4 });
-  seed("x_price_day_line", { x_day_id: [...table("x_price_day").values()][0].id, x_sequence: 4, x_product_tmpl_id: 4, x_packaging_id: 41, x_status: "exception", x_decision: false, x_cost_price: 20, x_market_price: 0, x_reason: "لا سعر سوق" });
-  void table2;
-  await quiet(() => PR.notifyPriceExceptions(env));
-  assert("a later tick (a new exception held too): no second template 2", reviewMsgs().length === 1 && heldExc(env).length === 4, JSON.stringify(reviewMsgs().length));
+  seed("x_price_day_line", { x_day_id: dayId(), x_sequence: 4, x_product_tmpl_id: 4, x_packaging_id: 41, x_status: "exception", x_decision: false, x_cost_price: 20, x_market_price: 0, x_reason: "لا سعر سوق" });
+  const again = await notify(env);
+  assert("a later tick (a new item waiting too): no second template 2, still nothing held, the review still owed", again.action === "window_closed" && again.count === 4 && !again.review && reviewMsgs().length === 1 && ownerMsgs().length === 1 && heldFor(env, OWNER).length === 0 && owed(env), JSON.stringify(again));
   assert("the day's claim is in KV", env.MSG_DEDUP.store.has(`btnlock:v1:owner_price_review:${PDAY}`));
 }
 {
   const env = priceEnv(3); closeOwnerWindow(env); t2();
   const lines = rows("x_price_day_line");
   Object.assign(lines[0], { x_decision: "skip", x_status: "unpublished" });
-  await quiet(() => PR.notifyPriceExceptions(env));
-  assert("the count is the undecided exceptions (one decided in Odoo → 2)", JSON.stringify(tplParams(reviewMsgs()[0])) === JSON.stringify(["2 أكتوبر 2026", "2"]), JSON.stringify(tplParams(reviewMsgs()[0])));
+  await notify(env);
+  assert("the count is the items still waiting for his decision (one decided in Odoo → 2)", JSON.stringify(tplParams(reviewMsgs()[0])) === JSON.stringify(["2 أكتوبر 2026", "2"]), JSON.stringify(tplParams(reviewMsgs()[0])));
+}
+{
+  const env = priceEnv(3); closeOwnerWindow(env); t2();
+  // § 54 — خيار gets a market price above its «بدون خسارة»: the rule publishes it by itself, it does not wait for him
+  Object.assign(rows("x_price_day_line")[1], { x_status: "auto", x_market_price: 30, x_market_count: 1, x_sale_price: 30, x_break_even: 26.45, x_suggested_price: 29, x_unit_profit: 5.09, x_reason: false });
+  const r = await notify(env);
+  assert("…and not the items the rule publishes without him (one automatic → 2 of the 3)", r.count === 2 && JSON.stringify(tplParams(reviewMsgs()[0])) === JSON.stringify(["2 أكتوبر 2026", "2"]), JSON.stringify({ r, p: reviewMsgs().map(tplParams) }));
 }
 {
   const env = priceEnv(2); closeOwnerWindow(env); t2("PENDING");
-  const r = await quiet(() => PR.notifyPriceExceptions(env));
-  assert("template 2 not approved → no template, the exceptions held as before", reviewMsgs().length === 0 && heldExc(env).length === 2 && ownerMsgs().length === 0, JSON.stringify({ r, m: ownerMsgs() }));
+  const r = await notify(env);
+  assert("template 2 not approved → no template, nothing held: the review stays owed to his next message", reviewMsgs().length === 0 && heldFor(env, OWNER).length === 0 && ownerMsgs().length === 0 && owed(env), JSON.stringify({ r, m: ownerMsgs() }));
   assert("…decided before the gateway («not_usable»): no «skipped» row for it", r.review === "not_usable" && !rows("x_wa_message").some((w: any) => /owner_price_review/.test(String(w.x_debug_payload ?? ""))), JSON.stringify(r));
   assert("…and no claim taken (a later tick may still send it once approved)", !env.MSG_DEDUP.store.has(`btnlock:v1:owner_price_review:${PDAY}`));
   const row = [...table("x_whatsapp_template").values()].find((t: any) => t.x_meta_template_id === OW.PRICE_REVIEW_TEMPLATE)!;
   row.x_meta_status = "APPROVED";
   setRiyadh(`${PDAY} 04:05`);
-  seed("product.template", { id: 3, name: "بصل" }); seed("x_product_packaging", { id: 31, x_name: "كيس", x_product_tmpl_id: 3 });
-  seed("x_price_day_line", { x_day_id: [...table("x_price_day").values()][0].id, x_sequence: 3, x_product_tmpl_id: 3, x_packaging_id: 31, x_status: "exception", x_decision: false, x_cost_price: 20, x_market_price: 0, x_reason: "لا سعر سوق" });
-  await quiet(() => PR.notifyPriceExceptions(env));
-  assert("approved at 04:05 (one more exception meanwhile) → the next tick sends it, with all 3 undecided (not the 1 new)",
+  seed("x_price_day_line", { x_day_id: dayId(), x_sequence: 3, x_product_tmpl_id: 3, x_packaging_id: 31, x_status: "exception", x_decision: false, x_cost_price: 20, x_market_price: 0, x_reason: "لا سعر سوق" });
+  await notify(env);
+  assert("approved at 04:05 (one more item waiting meanwhile) → the next tick sends it, with all 3 waiting (not the 1 new)",
     reviewMsgs().length === 1 && tplParams(reviewMsgs()[0])[1] === "3", JSON.stringify(ownerMsgs().map(tplParams)));
 }
 {
   const env = priceEnv(2); closeOwnerWindow(env); t2("APPROVED", "MARKETING");
-  const r = await quiet(() => PR.notifyPriceExceptions(env));
-  assert("template 2 filed MARKETING → never used («not_usable», before the gateway)", reviewMsgs().length === 0 && heldExc(env).length === 2 && r.review === "not_usable", JSON.stringify(r));
+  const r = await notify(env);
+  assert("template 2 filed MARKETING → never used («not_usable», before the gateway); the review owed, nothing held", reviewMsgs().length === 0 && heldFor(env, OWNER).length === 0 && owed(env) && r.review === "not_usable", JSON.stringify(r));
 }
 {
   const env = priceEnv(2); t2();   // his window open
-  const r = await quiet(() => PR.notifyPriceExceptions(env));
-  assert("his window open → the exceptions go directly, no template 2", excMsgs().length === 2 && reviewMsgs().length === 0 && !r.review, JSON.stringify({ r, m: ownerMsgs().map(tplName) }));
+  const r = await notify(env);
+  const [m] = dayReviews();
+  assert("his window open → the review goes directly — ONE message with both items — and no template 2", r.action === "sent" && dayReviews().length === 1 && ownerMsgs().length === 1 && reviewMsgs().length === 0 && !r.review && /طماطم: شراء 20/.test(textOf(m)) && /خيار: شراء 20/.test(textOf(m)), JSON.stringify({ r, m: ownerMsgs().map((b: any) => tplName(b) ?? textOf(b)) }));
+  assert("…with its three buttons («✅ اعتمد الكل كما هو» / «✏️ مراجعة» / «⛔ لا تنشر اليوم»), and nothing owed or held", JSON.stringify(buttonIds(m)) === JSON.stringify([`prv_a_${dayId()}_1`, `prv_r_${dayId()}_1`, `prv_n_${dayId()}_1`]) && !owed(env) && heldFor(env, OWNER).length === 0, JSON.stringify(buttonIds(m)));
 }
 {
   const env = priceEnv(2); closeOwnerWindow(env); t2("PENDING");
-  await quiet(() => PR.notifyPriceExceptions(env));
+  await notify(env);
   const row = [...table("x_whatsapp_template").values()].find((t: any) => t.x_meta_template_id === OW.PRICE_REVIEW_TEMPLATE)!;
   row.x_meta_status = "APPROVED";
   setRiyadh(`${PDAY} 04:05`);
-  openWindow(env, OWNER, 1);   // his window open again, the held not flushed yet
-  await quiet(() => PR.notifyPriceExceptions(env));
-  assert("exceptions still held but his window open → no template 2", heldExc(env).length === 2 && reviewMsgs().length === 0, JSON.stringify(ownerMsgs().map(tplName)));
+  openWindow(env, OWNER, 1);   // his window open again before the next tick
+  const r = await notify(env);
+  assert("the review still owed but his window open → the tick sends the review itself, no template 2", r.action === "sent" && dayReviews().length === 1 && reviewMsgs().length === 0 && !owed(env) && heldFor(env, OWNER).length === 0, JSON.stringify({ r, m: ownerMsgs().map(tplName) }));
 }
 {
-  const env = priceEnv(2); closeOwnerWindow(env); t2();
-  env.MSG_DEDUP.store.set(`btnlock:v1:pexc:${PDAY}:1:11`, "done"); env.MSG_DEDUP.store.set(`btnlock:v1:pexc:${PDAY}:2:21`, "done");
-  const r = await quiet(() => PR.notifyPriceExceptions(env));
-  assert("nothing held for him (notified before, already delivered) → no template 2", reviewMsgs().length === 0 && r.action === "notified_before", JSON.stringify(r));
+  const env = priceEnv(2); t2();   // his window open at 04:00: the review reaches him
+  await notify(env);
+  closeOwnerWindow(env);
+  setRiyadh(`${PDAY} 04:05`);
+  const r = await notify(env);
+  assert("the review reached him before and nothing changed since → no template 2 (his window closed now), nothing owed", reviewMsgs().length === 0 && r.action === "sent_before" && dayReviews().length === 1 && !owed(env), JSON.stringify(r));
 }
 {
   const env = priceEnv(2); closeOwnerWindow(env); t2();
   for (const t of [...table("x_whatsapp_template").values()]) if (t.x_purpose === "conv_open_owner") t.x_meta_status = "PENDING";
   seed("x_whatsapp_template", { x_purpose: "conv_open_owner", x_meta_template_id: "utak_update_owner", x_language: "ar", x_meta_status: "APPROVED", x_param_count: 2, x_category: "MARKETING" });
-  await quiet(() => PR.notifyPriceExceptions(env));
+  await notify(env);
   assert("never utak_update_owner (conv_open_owner): template 2 only", reviewMsgs().length === 1 && !ownerMsgs().some((b: any) => tplName(b) === "utak_update_owner"), JSON.stringify(ownerMsgs().map(tplName)));
 }
 
-console.log("\n[ب] «عرض الاستثناءات»: the held exceptions go with their buttons; kept until 06:00, not before");
+{
+  // a day that publishes whole by itself (every line automatic: its market 30 above «بدون خسارة» 26.45) wakes nobody
+  const env = priceEnv(2); closeOwnerWindow(env); t2();
+  for (const l of rows("x_price_day_line")) Object.assign(l, { x_status: "auto", x_market_price: 30, x_market_count: 1, x_sale_price: 30, x_break_even: 26.45, x_suggested_price: 29, x_unit_profit: 5.09, x_reason: false });
+  const r = await notify(env);
+  assert("no item needs his decision (the whole day is automatic) → no template 2; the review is owed to his next message all the same", r.action === "window_closed" && r.count === 0 && !r.review && ownerMsgs().length === 0 && owed(env) && !env.MSG_DEDUP.store.has(`btnlock:v1:owner_price_review:${PDAY}`), JSON.stringify(r));
+}
+{
+  const env = priceEnv(2); t2();   // his window open
+  const open = await quiet(() => OW.notifyPriceReview(env, PDAY, 2));
+  closeOwnerWindow(env);
+  const zero = await quiet(() => OW.notifyPriceReview(env, PDAY, 0));
+  assert("template 2 itself (notifyPriceReview): never with his window open, never for a count of 0 — and no claim taken by either", open === null && zero === null && ownerMsgs().length === 0 && !env.MSG_DEDUP.store.has(`btnlock:v1:owner_price_review:${PDAY}`), JSON.stringify([open, zero]));
+}
+
+console.log("\n[ب] «عرض الاستثناءات»: his tap sends the review itself, built then, with its buttons; owed until 06:00, not after on a day still to be published");
 {
   const env = priceEnv(2, `${PDAY} 04:00`); closeOwnerWindow(env); t2();
-  await quiet(() => PR.notifyPriceExceptions(env));
+  await notify(env);
   setRiyadh(`${PDAY} 05:55`);
-  await quiet(() => worker.fetch(signed(inbound(OWNER, { type: "button", button: { payload: OW.PRICE_REVIEW_PAYLOAD, text: "عرض الاستثناءات" } })), env, ctx));
-  const ex = excMsgs();
-  const ids = ex.map((b: any) => (b.interactive.action.buttons ?? []).map((x: any) => x.reply.id).join(","));
   const lines = rows("x_price_day_line");
-  assert("05:55: both held exceptions sent, each with «لا تنشر» / «عدّل»", ex.length === 2 && ids.includes(`pexc_s_${lines[0].id},pexc_e_${lines[0].id}`) && ids.includes(`pexc_s_${lines[1].id},pexc_e_${lines[1].id}`), JSON.stringify(ids));
-  assert("…no extra line (the flush was the answer), nothing held", heldFor(env, OWNER).length === 0 && !ownerMsgs().some((b: any) => textOf(b) === OW.PRICE_REVIEW_NOTHING_TEXT), JSON.stringify(ownerMsgs().map(textOf)));
-  await quiet(() => worker.fetch(signed(inbound(OWNER, { type: "button", button: { payload: OW.PRICE_REVIEW_PAYLOAD, text: "عرض الاستثناءات" } })), env, ctx));
-  assert("a second tap, nothing waiting → one line saying so", ownerMsgs().filter((b: any) => textOf(b) === OW.PRICE_REVIEW_NOTHING_TEXT).length === 1, JSON.stringify(ownerMsgs().map(textOf)));
+  Object.assign(lines[0], { x_cost_price: 22 });   // the day moved after the template went: the review is built at his tap, not at 04:00
+  await tapReview(env);
+  const rv = dayReviews();
+  assert("05:55: ONE review with both items and the three buttons (prv_a / prv_r / prv_n of the day)", rv.length === 1 && /خيار: شراء 20/.test(textOf(rv[0])) && JSON.stringify(buttonIds(rv[0])) === JSON.stringify([`prv_a_${dayId()}_1`, `prv_r_${dayId()}_1`, `prv_n_${dayId()}_1`]), JSON.stringify(rv.map((b: any) => [textOf(b), buttonIds(b)])));
+  assert("…built at his tap from the day as it is then (طماطم's purchase 22, changed at 05:55 — not the 20 of 04:00)", /طماطم: شراء 22/.test(textOf(rv[0])) && !/طماطم: شراء 20/.test(textOf(rv[0])), textOf(rv[0]));
+  assert("…no extra line (the review was the answer), nothing held, nothing owed any more", heldFor(env, OWNER).length === 0 && !owed(env) && !ownerMsgs().some((b: any) => textOf(b) === OW.PRICE_REVIEW_NOTHING_TEXT) && ownerMsgs().length === 2, JSON.stringify(ownerMsgs().map((b: any) => tplName(b) ?? textOf(b))));
+  await tapReview(env);
+  assert("a second tap, nothing waiting → one line saying so, and no second review", ownerMsgs().filter((b: any) => textOf(b) === OW.PRICE_REVIEW_NOTHING_TEXT).length === 1 && dayReviews().length === 1, JSON.stringify(ownerMsgs().map(textOf)));
   assert("no order and no complaint from either tap", rows("x_daily_order").length === 0 && rows("x_complaint").length === 0);
 }
 {
   const env = priceEnv(2, `${PDAY} 04:00`); closeOwnerWindow(env); t2();
-  await quiet(() => PR.notifyPriceExceptions(env));
-  const exp = heldExc(env).map((i: any) => i.expiresAt);
-  const six = Date.parse(`${PDAY}T06:00:00+03:00`);
-  assert("a held exception expires at 06:00 of its day exactly", exp.length === 2 && exp.every((e: number) => e === six), JSON.stringify(exp.map((e: number) => new Date(e).toISOString())));
+  await notify(env);
+  assert("the owed review is a mark of its day in KV, not a held message with an expiry", owed(env) && heldFor(env, OWNER).length === 0);
   setRiyadh(`${PDAY} 06:00`);
-  await quiet(() => worker.fetch(signed(inbound(OWNER, { type: "button", button: { payload: OW.PRICE_REVIEW_PAYLOAD, text: "عرض الاستثناءات" } })), env, ctx));
-  assert("at 06:00 they are stale: not sent (the line says nothing is waiting)", excMsgs().length === 0 && ownerMsgs().some((b: any) => textOf(b) === OW.PRICE_REVIEW_NOTHING_TEXT), JSON.stringify(ownerMsgs().map(textOf)));
+  await tapReview(env);
+  assert("at 06:00 on a day still draft (the publication decides now): no review sent, the line says nothing is waiting", dayReviews().length === 0 && ownerMsgs().some((b: any) => textOf(b) === OW.PRICE_REVIEW_NOTHING_TEXT), JSON.stringify(ownerMsgs().map(textOf)));
+}
+{
+  // the day is marked «missed» by hand here; the same path through the real 06:00 tick (the review's step before the
+  // deadline's, on a day still «مسودة») is covered in tests/s54.test.mts.
+  const env = priceEnv(2, `${PDAY} 04:00`); closeOwnerWindow(env); t2();
+  await notify(env);
+  [...table("x_price_day").values()][0].x_state = "missed";   // 06:00 passed with nothing approved
+  setRiyadh(`${PDAY} 06:10`);
+  await tapReview(env);
+  const rv = dayReviews();
+  assert("after 06:00 on a day that was NOT published and whose review never reached him: his tap sends it, saying an approval publishes at once", rv.length === 1 && /فات موعد 06:00 ولم تُنشر أسعار اليوم: اعتمادك الآن ينشر فوراً\./.test(textOf(rv[0])) && buttonIds(rv[0]).length === 3 && !ownerMsgs().some((b: any) => textOf(b) === OW.PRICE_REVIEW_NOTHING_TEXT), JSON.stringify(ownerMsgs().map(textOf)));
 }
 
 console.log("\n[ب] the owner guard lets template 2 through; the purpose is known");

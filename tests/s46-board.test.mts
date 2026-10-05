@@ -3,7 +3,9 @@
 // of the day's operating cost (÷ the expected cartons; ÷ the actual average once 7 delivery days
 // exist), net sale — and its 🟢 🟡 🔴 ⚪ status; the day's header; written with every engine run and
 // every decision (src/pricing-board.ts, src/prices.ts). § 47 ب (the suggested profitable price and
-// the rule that reads it) is tests/s47.test.mts; here a line below it is an exception.
+// the rule that reads it) is tests/s47.test.mts. § 54 أ — here a line whose market price is below
+// «أقل سعر بيع بدون خسارة» is an exception (until § 54: below the suggested price), and Baraa's
+// decision on a line is taken in the day's review (src/price-review.ts), no longer by «عدّل».
 //
 // In-memory Odoo + captured Graph (tests/wa-harness.mts, tests/s46-kit.mts). No network, no send.
 //
@@ -20,6 +22,7 @@ import {
 
 const PB = await import("../src/pricing-board.ts");
 const PR = await import("../src/prices.ts");
+const PRV = await import("../src/price-review.ts");
 const OC = await import("../src/operating-cost.ts");
 
 // ================================================================ [أ] the rule of a line
@@ -102,9 +105,11 @@ console.log("\n[أ] the engine writes the board with the prices: the lines and t
   assert("the day built: four lines", r.action === "refreshed" && rows("x_price_day_line").length === 4, JSON.stringify(r));
   assert("🟢 tomato: net purchase 20, waste 1, share 2, full 23, sale 34.5, net sale 30, real profit 7",
     t.x_net_purchase === 20 && t.x_waste_cost === 1 && t.x_op_share === 2 && t.x_full_cost === 23 && t.x_board_sale === 34.5 && t.x_net_sale === 30 && t.x_real_profit === 7 && t.x_board_status === "green", JSON.stringify(t));
-  assert("🔴 cucumber (an exception: the market 31.05 below the suggested 36.00): the board prices it at the market price — a loss on the goods", c.x_status === "exception" && c.x_sale_price === 0 && c.x_board_sale === 31.05 && c.x_board_status === "red" && c.x_real_profit === -2.3 && c.x_reason === "سعر السوق 31.05 أقل من السعر المربح 36", JSON.stringify(c));
-  // § 47 ب — a line that does not cover its share is below the suggested price: an exception now (it was approved automatically in § 46)
-  assert("🟡 potato: an exception (the market 23 below the suggested 26.50); its card at the market price covers the goods, not its share", p.x_status === "exception" && p.x_sale_price === 0 && p.x_board_sale === 23 && p.x_board_status === "yellow" && p.x_real_profit === -0.9, JSON.stringify(p));
+  // § 54 أ — the exception is a LOSS: the market price below «أقل سعر بيع بدون خسارة» (29.30 × 1.15 = 33.70). Until § 54 it
+  // was the market below the suggested price («سعر السوق 31.05 أقل من السعر المربح 36»).
+  assert("🔴 cucumber (an exception: the market 31.05 below «بدون خسارة» 33.70): the board prices it at the market price — a loss on the goods", c.x_status === "exception" && c.x_sale_price === 0 && c.x_board_sale === 31.05 && c.x_board_status === "red" && c.x_real_profit === -2.3 && c.x_break_even === 33.7 && c.x_reason === "سعر السوق 31.05 أقل من سعر بدون خسارة 33.70", JSON.stringify(c));
+  // § 47 ب / § 54 أ — a line that does not cover its share sells below «بدون خسارة» (20.90 × 1.15 = 24.04): an exception (it was approved automatically in § 46)
+  assert("🟡 potato: an exception (the market 23 below «بدون خسارة» 24.04); its card at the market price covers the goods, not its share", p.x_status === "exception" && p.x_sale_price === 0 && p.x_board_sale === 23 && p.x_board_status === "yellow" && p.x_real_profit === -0.9 && p.x_break_even === 24.04 && p.x_reason === "سعر السوق 23 أقل من سعر بدون خسارة 24.04", JSON.stringify(p));
   assert("⚪ onion: no purchase and no market", o.x_status === "exception" && o.x_board_status === "none" && o.x_real_profit === 0 && o.x_full_cost === 0, JSON.stringify(o));
   assert("the header: cost 500, expected 250, share 2.00 on the expected cartons, 1.00 at 500 cartons", d.x_op_cost === 500 && d.x_op_expected === 250 && d.x_op_cartons === 250 && d.x_op_basis === "expected" && d.x_op_share === 2 && d.x_op_share_500 === 1, JSON.stringify(d));
   assert("the header: 🟢 1 · 🟡 1 · 🔴 1 · ⚪ 1, no note, the time of the update", d.x_n_green === 1 && d.x_n_yellow === 1 && d.x_n_red === 1 && d.x_n_none === 1 && !d.x_board_note && d.x_board_at === "2026-10-03 00:00:00", JSON.stringify(d));
@@ -171,25 +176,45 @@ console.log("\n[أ] the board follows the day's cost and Baraa's decisions");
   table("x_operating_cost").get(c1)!.x_amount = 250;
   const forced = await quiet(() => PR.refreshPriceDay(env, { force: true }));
   assert("«🔄 إعادة الحساب» (force) reads the cost at once: share 1.00, potato turns 🟢 (20 − 19.90 = 0.10)", forced.action === "refreshed" && dayOf().x_op_share === 1 && lineFor(3).x_board_status === "green" && lineFor(3).x_real_profit === 0.1, JSON.stringify(lineFor(3)));
+  // § 54 أ — 19.90 × 1.15 = 22.89 ≤ the market 23 < the suggested 25.50: no longer an exception (it stayed one until § 54)
+  assert("…and (§ 54 أ) a 🟢 line below its suggested price is approved automatically at the market price (23)", lineFor(3).x_status === "auto" && lineFor(3).x_sale_price === 23 && !lineFor(3).x_excluded && lineFor(3).x_break_even === 22.89 && lineFor(3).x_suggested_price === 25.5, JSON.stringify(lineFor(3)));
 }
 {
+  // § 54 ج — Baraa's decision on an item is taken in the review's form («✏️ مراجعة» → the item's list and «السعر اليدوي»):
+  // «عدّل» and the price typed within 30 minutes are gone. The decision lands in the same fields, and the board follows it.
+  const formOf = async (e: any) => {
+    const token = String(sentTo(OWNER).filter((b: any) => b?.interactive?.type === "flow").at(-1)?.interactive?.action?.parameters?.flow_token ?? "");
+    const rec = await PRV.readReviewFormToken(e, token);
+    return { token, slot: (lineId: number) => rec?.items.find((i: any) => i.lineId === lineId)?.slot };
+  };
   const env = fresh(`${DAY} 04:00`); cost(500); fourLines();
   await quiet(() => PR.refreshPriceDay(env));
   const c = lineFor(2);
-  const e1 = await quiet(() => PR.handlePriceExceptionButton(env, `pexc_e_${c.id}`));
+  await quiet(() => PRV.notifyPriceReviewMessage(env));
+  const e1 = await quiet(() => PRV.handlePriceReviewButton(env, `prv_r_${dayOf().id}_1`));
+  const f1 = await formOf(env);
   setRiyadh(`${DAY} 04:05`);
-  const e2 = await quiet(() => PR.handlePriceEditReply(env, "40"));
+  // every other item is left on the choice its list opened on (the proposed one): tomato «بسعر السوق», potato and onion «لا تنشر»
+  const e2 = await quiet(() => PRV.handlePriceReviewReply(env, { from: OWNER, messageId: "wamid.BOARD1", flow: { token: f1.token, values: { [`d${f1.slot(c.id)}`]: "manual", [`p${f1.slot(c.id)}`]: "40" } } } as any));
   const c2 = lineFor(2), d = dayOf();
-  assert("«عدّل» 40 on the 🔴 cucumber: the decision is written …", /أرسل سعر البيع/.test(e1) && /يُنشر بـ 40/.test(String(e2)) && c2.x_status === "manual" && c2.x_sale_price === 40, JSON.stringify(c2));
+  assert("«سعر يدوي» 40 on the 🔴 cucumber (the review's form): the decision is written …", e1 === "form" && e2.action === "decided" && ownerTexts().some((x) => x.includes("• خيار — 40 ر.س (سعر يدوي)"))
+    && c2.x_decision === "edit" && c2.x_manual_price === 40 && c2.x_status === "manual" && c2.x_sale_price === 40, JSON.stringify({ e1, e2, c2 }));
   assert("…and its card follows at once: sale 40, net sale 34.78, real profit 34.78 − 29.30 = 5.48 → 🟢", c2.x_board_sale === 40 && c2.x_net_sale === 34.78 && c2.x_real_profit === 5.48 && c2.x_board_status === "green", JSON.stringify(c2));
   assert("…and the header's counts: 🟢 2 · 🟡 1 · 🔴 0 · ⚪ 1", d.x_n_green === 2 && d.x_n_yellow === 1 && d.x_n_red === 0 && d.x_n_none === 1, JSON.stringify(d));
   await quiet(() => PR.refreshPriceDay(env, { force: true }));
   assert("the engine's next run keeps his price on the card (sale 40, 🟢 5.48)", lineFor(2).x_board_sale === 40 && lineFor(2).x_real_profit === 5.48 && lineFor(2).x_board_status === "green" && dayOf().x_n_green === 2, JSON.stringify(lineFor(2)));
-  const o = lineFor(4);
-  await quiet(() => PR.handlePriceExceptionButton(env, `pexc_s_${lineFor(1).id}`));
+  // «✏️ تعديل» under the confirmation: the form again, opened on his decisions — he changes the tomato alone
+  await quiet(() => PRV.handlePriceReviewButton(env, `prv_r_${dayOf().id}_0`));
+  const f2 = await formOf(env);
+  const others = () => JSON.stringify([lineFor(2), lineFor(3), lineFor(4)]);
+  const o = others();
+  odooLog.length = 0;
+  const e3 = await quiet(() => PRV.handlePriceReviewReply(env, { from: OWNER, messageId: "wamid.BOARD2", flow: { token: f2.token, values: { [`d${f2.slot(lineFor(1).id)}`]: "skip", [`d${f2.slot(c.id)}`]: "manual", [`p${f2.slot(c.id)}`]: "40" } } } as any));
   const t = lineFor(1);
-  assert("«لا تنشر» on tomato: not published (sale 0), its card still shows what the market price would earn (🟢 7)", t.x_status === "unpublished" && t.x_sale_price === 0 && t.x_board_sale === 34.5 && t.x_real_profit === 7 && t.x_board_status === "green", JSON.stringify(t));
-  assert("a line nobody decided on is not rewritten by a decision elsewhere", JSON.stringify(lineFor(4)) === JSON.stringify(o));
+  assert("«لا تنشر» on tomato: not published (sale 0), its card still shows what the market price would earn (🟢 7)", e3.action === "decided" && e3.written === 1 && f2.token !== f1.token
+    && t.x_decision === "skip" && t.x_status === "unpublished" && t.x_sale_price === 0 && t.x_board_sale === 34.5 && t.x_real_profit === 7 && t.x_board_status === "green", JSON.stringify({ e3, t }));
+  const written = odooLog.filter((x) => x.model === "x_price_day_line" && x.method === "write").flatMap((x) => x.body.ids as number[]);
+  assert("a line whose decision he left as it was is not rewritten by a decision elsewhere", others() === o && written.length > 0 && written.every((id) => id === t.id), JSON.stringify(written));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 

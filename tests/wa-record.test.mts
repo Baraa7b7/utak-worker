@@ -3,7 +3,8 @@
 //   [0] static: every accepted send goes through recordAccepted; Baraa is no
 //       longer left out; the server action is generated from the TS functions.
 //   [1] every send path writes an x_wa_message row AND a Discuss line: a direct
-//       text, the flush after a hold, a template, the price publication,
+//       text, the flush after a hold, a template, the day's price review to
+//       Baraa (§ 54: one message, three buttons), the price publication,
 //       Baraa's copy, his alerts, the receipt, the collector's / driver's
 //       note, and a script run without ctx (cf-live-env trials).
 //   [2] the Discuss line failing never stops the row or the send; it is
@@ -54,7 +55,7 @@ const REAL: Record<string, string[]> = Object.assign({}, ...FX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FX.map((f) => f._selections));
 // § 53 — the tenant's fields now for the models § 53 touched (x_market_uplift_pct, x_uplift_pct, the purpose customer_pay_remind_iban): read last, they win
 {
-  const f53 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261004-s53.json", import.meta.url), "utf8"));
+  const f53 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261005-s54.json", import.meta.url), "utf8"));
   for (const m of ["x_pricing_config", "x_price_day_line"]) REAL[m] = f53[m];
   SELECTIONS["x_whatsapp_template.x_purpose"] = f53._selections["x_whatsapp_template.x_purpose"];
 }
@@ -121,6 +122,7 @@ const { sendTemplateByPurpose, sendOwnerAlert, clearTemplateCache } = await impo
 const { confirmPaymentToCustomer } = await import("../src/payment-confirm.ts");
 const { recordTeamNote } = await import("../src/team-note.ts");
 const { refreshPriceDay, publishPriceDay } = await import("../src/prices.ts");
+const { notifyPriceReviewMessage } = await import("../src/price-review.ts");
 const { handleWaMessageWebhook } = await import("../src/wa-message-send.ts");
 const { sendOpenerForHeld } = await import("../src/wa-opener.ts");
 
@@ -237,7 +239,9 @@ console.log("\n[1] every send path writes an x_wa_message row and a Discuss line
   assert("template: row = the text as received, kind template", r.row?.x_kind === "template" && r.row?.x_status === "sent", JSON.stringify(waRows().map((x) => x.x_body)));
   assert("template: its line shows the same text, «قالب» box", !!r.msg && String(r.msg.body).includes("🤖 آلي · قالب"));
 
-  // d) + e) + f) the price publication, Baraa's copy, the undecided-exceptions line (§ 40 ج: the engine)
+  // d) + e) + f) the price publication, Baraa's copy, and what was left without a decision (§ 40 ج: the engine).
+  // § 54 — the undecided item is no longer a message of its own («⏰ لم يُنشر اليوم N صنف»): it is named, with its reason,
+  // in Baraa's copy; and before the publication the day reaches him as ONE review message with three buttons.
   env = fresh("2026-09-26 05:30");
   table("res.partner").get(SUP)!.x_price_source = true;
   Object.assign(table("product.template").get(1)!, { sale_ok: true, x_is_active_for_sale: true });
@@ -248,6 +252,14 @@ console.log("\n[1] every send path writes an x_wa_message row and a Discuss line
   seed("x_price_offer", { x_product_tmpl_id: 1, x_packaging_id: 11, x_source_partner_id: SUP, x_market_price: 30, x_purchase_price: 0, x_date: TODAY, x_status: "valid", x_utak_simulation: false });
   await quiet(() => refreshPriceDay(env));
   const day = rows("x_price_day").find((d) => d.x_date === TODAY)!;
+  // § 54 ب — the day's review (05:30, a draft day, his window open): an interactive message, recorded as he reads it
+  const rev = await quiet(() => notifyPriceReviewMessage(env));
+  r = onRecord("📋 مراجعة أسعار اليوم", OWNERP, CH_OWNER);
+  assert("the day's review (one message: every item, an exception waiting for his decision among them): row and line in his channel",
+    rev.action === "sent" && !!r.row && !!r.msg && r.row.x_status === "sent" && waRows().filter((x) => x.x_partner_id === OWNERP).length === 1
+      && String(r.row.x_body).includes("طماطم: شراء 25 · سوق 30 · الفرق 5 (20%) ← انشر بسعر السوق 30") && plain(r.msg.body).includes("خيار: شراء 14 · سوق — ← لا تنشر (لا سعر سوق ولا مقترح)"),
+    JSON.stringify({ rev, rows: waRows().filter((x) => x.x_partner_id === OWNERP).map((x) => x.x_body) }));
+  assert("…with its three buttons as «🔘» lines, in the row and in Discuss", ["🔘 ✅ اعتمد الكل كما هو", "🔘 ✏️ مراجعة", "🔘 ⛔ لا تنشر اليوم"].every((b) => String(r.row?.x_body).split("\n").includes(b) && plain(r.msg?.body).includes(b)), String(r.row?.x_body));
   Object.assign(day, { x_state: "approved", x_approved_by: 2 });
   openWindow(env, CUST_PHONE, 10);
   const pub = await quiet(() => publishPriceDay(env, day.id));
@@ -255,8 +267,11 @@ console.log("\n[1] every send path writes an x_wa_message row and a Discuss line
   assert("publication: the customer's list has its row and line", pub.action === "published" && !!r.row && !!r.msg, JSON.stringify(pub));
   r = onRecord("📢 نُشرت أسعار", OWNERP, CH_OWNER);
   assert("Baraa's copy: row on his partner, line in «واتساب · Bara.a - U TAK»", !!r.row && !!r.msg, JSON.stringify(waRows().filter((x) => x.x_partner_id === OWNERP).map((x) => x.x_body)));
-  r = onRecord("⏰ لم يُنشر اليوم 1 صنف", OWNERP, CH_OWNER);
-  assert("the line (an exception left without a decision): row and line in his channel", !!r.row && !!r.msg);
+  const copyRow = r.row;
+  r = onRecord("لم يُنشر (1): خيار (بلا سعر سوق وبلا قرار).", OWNERP, CH_OWNER);
+  assert("the line (an exception left without a decision), with its reason: in the row and the line of his copy — no message of its own any more",
+    !!r.row && !!r.msg && r.row.id === copyRow?.id && !waRows().some((x) => String(x.x_body).includes("⏰ لم يُنشر اليوم")) && waRows().filter((x) => x.x_partner_id === OWNERP).length === 2,
+    JSON.stringify(waRows().filter((x) => x.x_partner_id === OWNERP).map((x) => x.x_body)));
 
   // f) an alert, g) the receipt, h) the team note
   env = fresh("2026-09-26 16:00");

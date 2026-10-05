@@ -142,11 +142,13 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // § 49 ج — a confirmed order, to Baraa, with «تم التسليم ✅»: the delivery on
   // the spot (from the car). Held for his next tap outside his window.
   owner_order_confirmed: op("طلب مؤكد", false, { hours: 36 }),
-  // § 40 ج — a price exception for his decision (buttons), or the count with
-  // the review link; held for his next tap, stale at the publication time (the
-  // request's expiresAt). Not critical: § 34's list is Baraa's, and his opener
-  // (utak_update_owner) is MARKETING anyway.
-  owner_price_exception: op("استثناء أسعار اليوم", false, { untilMinute: 6 * 60 }),
+  // § 54 — the day's price review for his decision: ONE message with every item
+  // (the purchase price, the market price, the proposed decision), its three
+  // buttons, its form and their answers. Inside his window only, never held
+  // (the review owed to him is built at his next message). Until § 54 this was
+  // § 40 ج's message per exception. Not critical: § 34's list is Baraa's, and
+  // his opener (utak_update_owner) is MARKETING anyway.
+  owner_price_exception: op("مراجعة أسعار اليوم", false, { untilMinute: 6 * 60 }),
   // § 45 ب — utak_owner_price_review_v1: «N صنف بانتظار قرارك قبل 06:00» with
   // «عرض الاستثناءات», once per price day while his window is closed.
   // Template only (never held).
@@ -160,6 +162,9 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   order_flow_test: op("تجربة نموذج الطلب", false, { hours: 1 }),
   // § 53 د — the one trial of the registration form to Baraa's own number (nothing written in Odoo).
   register_flow_test: op("تجربة نموذج التسجيل", false, { hours: 1 }),
+  // § 54 — the one trial of the day's price review to Baraa's own number («🧪 تجربة»), inside his
+  // window only, and the answers to its buttons and its form (nothing written, nothing published).
+  price_review_test: op("تجربة مراجعة الأسعار", false, { hours: 1 }),
   // ---- § 34: «فتح المحادثة» — one UTILITY template per recipient category,
   // sent when a critical message is held (src/wa-opener.ts). Template only:
   // never held itself.

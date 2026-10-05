@@ -38,7 +38,7 @@ const UI49 = await import("../scripts/lib/s49-ui.mjs");
 const UI54 = await import("../scripts/lib/s54-odoo.mjs");
 
 const FX = JSON.parse(readFileSync(new URL("./fixtures-s56-day54.json", import.meta.url), "utf8"));
-const SCHEMA = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261005-s56.json", import.meta.url), "utf8"));
+const SCHEMA = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261005-s58.json", import.meta.url), "utf8")); // § 58: the tenant's fields now (§ 56's and the day's plan, actual and tabs)
 const NAMES: Record<number, string> = { 1: "موز أمريكي", 2: "رمان وسط", 3: "رمان صغير", 4: "رمان كبير" };
 const L = DS.LTR_MARK;
 

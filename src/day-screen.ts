@@ -93,7 +93,8 @@ export interface ScreenRow {
 
 function screenRow(r: ReviewRow, l: DayLine, state: DayState): ScreenRow {
   const locked = LOCKED.has(state);
-  const stored = isPublishable(l);
+  // a day published before the engine (§ 35) has lines with no status at all: such a line went out with its sale price unless it was left out
+  const stored = isPublishable(l) || (locked && !l.x_status && !l.x_excluded && Number(l.x_sale_price) > 0);
   const o = rowOutcome(r);
   const publish = locked ? stored : o.kind !== "skip";
   const price = !publish ? 0 : locked ? Number(l.x_sale_price) || 0 : o.price;

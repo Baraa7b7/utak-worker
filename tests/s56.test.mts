@@ -251,6 +251,13 @@ const text = (html: string) => html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " "
   const state = writesOf("x_price_day").findIndex((x) => x.body.vals.x_state === "published");
   const after = odooLog.slice(odooLog.indexOf(writesOf("x_price_day")[state]) + 1).filter((x) => x.method === "write" && (x.model === "x_price_day" || x.model === "x_price_day_line"));
   assert("the screen is written AFTER the state «published», with its own fields alone (the lock's watched fields are never in it)", state >= 0 && after.length >= 2 && after.every((x) => Object.keys(x.body.vals).every((k) => ([...PR.SCREEN_LINE_FIELDS, ...PR.SCREEN_DAY_FIELDS] as readonly string[]).includes(k))), JSON.stringify(after.map((x) => [x.model, Object.keys(x.body.vals)])));
+  // a day published before the engine (§ 35, the tenant's #1): its lines carry no status at all
+  const old = [{ ...FX.lines[0], id: 901, x_status: false, x_sale_price: 20.25, x_excluded: false, x_full_cost: 0, x_break_even: 0, x_suggested_price: 0, x_market_price: 0, x_is_outlier: false },
+    { ...FX.lines[1], id: 902, x_status: false, x_sale_price: 0, x_excluded: true, x_full_cost: 0, x_break_even: 0, x_suggested_price: 0, x_market_price: 0 }];
+  const o35 = DS.dayScreen(old, "market", "2026-09-25", "published");
+  assert("a day published before the engine: a line with a sale price and not left out reads «✅ نُشر بـ 20.25», the one left out «❌ لم يُنشر»; the same lines on an open day are not approved", o35.lines.map((l: any) => l.x_outcome_show).join(" | ") === "✅ نُشر بـ 20.25 | ❌ لم يُنشر" && o35.header.x_n_publish === 1 && o35.header.x_n_skip === 1 && o35.header.x_avg_profit_show === "—"
+    && DS.dayScreen(old, "market", "2026-09-25", "missed").header.x_n_publish === 0
+    && DS.dayScreen([{ ...FX.lines[0], x_is_outlier: false, x_status: false, x_sale_price: 70, x_excluded: false }], "market", FX.day.x_date, "draft").lines[0].x_outcome_show === "✅ انشر بـ 70.00 · ينتظر قرارك", JSON.stringify(o35.lines.map((l: any) => l.x_outcome_show)));
   assert("a day approved and not yet out says «يُنشر بـ …»", DS.dayScreen(await PR.readLines(env, dayOf().id), "market", DAY, "approved").lines[0].x_outcome_show === "✅ يُنشر بـ 70.00");
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }

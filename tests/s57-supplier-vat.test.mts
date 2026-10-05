@@ -419,8 +419,29 @@ console.log("\n[ز6] the purchase list's invoice: whose it is");
 }
 {
   const env = world(); setExtract(INVOICE({ supplier_name: null }));
-  const r = await onList(env, list({ lines: [AHMED, AHMED] }), "SVAT_L2");
-  assert("no name read, and the list has ONE supplier → him", r.action === "registered" && card(AHMED).vat === VAT_A);
+  const l = list({ lines: [AHMED, AHMED] });
+  const r = await onList(env, l, "SVAT_L2");
+  assert("a valid number with NO seller's name read is never written on «the only supplier of the list» (it may be a market seller's invoice): nothing written, no form", r.action === "unmatched" && !card(AHMED).vat && !card(AHMED).x_vat_status && cardWrites().length === 0
+    && sentTo(AHMED_PHONE).length === 0 && owed(env, AHMED_PHONE) === null, JSON.stringify(r));
+  assert("…Baraa gets the alert: the number read, «لم يُقرأ» for the name, the list's supplier", JSON.stringify(vatLines()) === JSON.stringify([SV.vatUnmatchedText(VAT_A, "", [AHMED_NAME], "فاتورة INV-2045", `قائمة الشراء #${l}`)]) && vatLines()[0].includes(VAT_A) && vatLines()[0].includes("اسم البائع المقروء: لم يُقرأ"), JSON.stringify(vatLines()));
+  await onList(env, l, "SVAT_L19");
+  assert("…once for the same number on the same list", vatCalls().length === 2 && vatLines().length === 1);
+  card(AHMED).x_legal_name = "مؤسسة ريف الخير للخضار";
+  setExtract(INVOICE({ supplier_name: "مؤسسة ريف الخير" }));
+  const named = await onList(env, l, "SVAT_L20");
+  assert("…and once his card's «الاسم الرسمي للمنشأة» is the name on his invoices, the next one registers him by itself", named.action === "registered" && card(AHMED).vat === VAT_A && vatLines().at(-1) === SV.vatRegisteredText(AHMED_NAME, VAT_A, "فاتورة INV-2045"));
+}
+{
+  const env = world(); setExtract(INVOICE({ supplier_name: null }));
+  card(AHMED).vat = VAT_B;
+  const other = await onList(env, list({ lines: [AHMED, CASH] }), "SVAT_L21");
+  card(AHMED).vat = "3101 2345 6700 003";
+  const his = await onList(env, list({ lines: [AHMED, CASH] }), "SVAT_L22");
+  assert("no name read beside a supplier who has ANOTHER number: not «a mismatch» of his — nobody's, and nothing is said; his own number, with no name, is his (nothing either)", other.action === "unmatched" && his.action === "same" && his.partnerId === AHMED
+    && cardWrites().length === 0 && graph.filter(Boolean).length === 0 && card(AHMED).vat === "3101 2345 6700 003");
+  claude = "down"; card(AHMED).vat = false;
+  const unread = await onList(env, list({ lines: [AHMED, CASH] }), "SVAT_L23");
+  assert("a picture that gave NO number names nobody either: the list's only supplier is asked by his form (owed while his window is closed)", unread.action === "form_owed" && unread.partnerId === AHMED && owed(env, AHMED_PHONE)?.partnerId === AHMED && cardWrites().length === 0);
 }
 {
   const env = world(); setExtract(INVOICE({ supplier_name: "مؤسسة الريف الأخضر للخضار" }));
@@ -546,7 +567,10 @@ console.log("\n[ز7] an expense's attachment: the bill's partner — and never a
   assert("the seller's name read is not the vendor Baraa typed (a bucket vendor, another shop's receipt): nothing written, and nothing said", vatCalls().length === 1 && !card(FAJR).vat && cardWrites().length === 0 && vatLines().length === 0 && graph.filter(Boolean).length === 0);
   setExtract(INVOICE({ supplier_name: null }));
   await expense(env, FAJR, "SVAT_E4");
-  assert("no name read: the bill's partner is the vendor", card(FAJR).vat === VAT_A);
+  assert("a valid number with no seller's name read is not written on the bill's partner either — and from an expense nothing is said", vatCalls().length === 2 && !card(FAJR).vat && cardWrites().length === 0 && graph.filter(Boolean).length === 0);
+  card(FAJR).vat = VAT_A;
+  await expense(env, FAJR, "SVAT_E8");
+  assert("…the vendor's own number with no name read is his: nothing at all", vatCalls().length === 3 && card(FAJR).vat === VAT_A && cardWrites().length === 0 && graph.filter(Boolean).length === 0);
 }
 {
   const env = world(); claude = "down"; openWindow(env, NAKHEEL_PHONE);
@@ -764,6 +788,9 @@ console.log("\n[ز12] the guide");
   assert("OPERATING-DAY carries the section once, immediately before «## فاتورة الشراء»", at > 0 && guide.split("## الرقم الضريبي للمورد آلياً").length === 2 && guide.slice(at + section.length).startsWith("\n## فاتورة الشراء\n"));
   assert("…the three arrivals, and who is out", /📥 استلام المشتريات/.test(section) && /يرسله المورد نفسه/.test(section) && /مرفق المصروف/.test(section) && /رائد/.test(section) && /بطاقات الفريق/.test(section) && /مشتريات السوق النقدية/.test(section));
   assert("…Baraa's line, word for word, from an invoice and from the form", section.includes("«سجّلنا الرقم الضريبي لـ [المورد]: [الرقم] من فاتورة [رقمها] — فواتيره من الآن عليها 15%»") && section.includes("«سجّلنا الرقم الضريبي لـ [المورد]: [الرقم] من نموذج التسجيل — فواتيره من الآن عليها 15%»"));
+  assert("…when an invoice is the supplier's: his own chat, or the seller's name read is his name or his «الاسم الرسمي للمنشأة» — a number with no name is nobody's, and how his first invoice becomes automatic", /\*\*من محادثته هو\*\*: له، بلا فحص اسم/.test(section)
+    && section.includes("**رقم مقروء بلا اسم بائع لا يُكتب لأحد**، ولو كان على القائمة مورد واحد.") && section.includes("**أول فاتورة لمورد اسم منشأته غير اسم بطاقته تصل تنبيهاً لا تسجيلاً**")
+    && section.includes("املأ «الاسم الرسمي للمنشأة» في بطاقته باسم المنشأة كما في فواتيره — أو ليرسل صورة فاتورته من محادثته هو — فيصير التسجيل آلياً."));
   assert("…the rule, a number never replaced, an invoice that is nobody's", /15 رقماً يبدأ بـ 3 وينتهي بـ 3/.test(section) && /\*\*لا يُستبدل\*\*/.test(section) && /\*\*لا يُكتب شيء\*\*/.test(section));
   assert("…the form once, owed until his first message, never from an expense", /مرة واحدة فقط/.test(section) && /\*\*أول رسالة منه\*\* \(لا قالب\)/.test(section) && /مرفق المصروف لا يُرسل نموذجاً لأحد/.test(section) && /صفّرها ليصله النموذج من جديد/.test(section));
   assert("…the form's fields, what refuses it, the IBAN's check, the trial", /«سجّل بياناتك»/.test(section) && /السجل التجاري \(10 أرقام\)/.test(section) && /\*\*يُرفض النموذج كله\*\*/.test(section) && /SA، 24 خانة، mod 97/.test(section) && /\*\*لا يُحفظ ولا يُرفض النموذج بسببه\*\*/.test(section) && /«🧪 تجربة»/.test(section));

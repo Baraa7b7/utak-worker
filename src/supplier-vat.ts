@@ -19,15 +19,18 @@
 //   • Valid = 15 digits, the first and the last «3» (Arabic-Indic digits, spaces
 //     and dashes tolerated) — and never UTAK's own number, which an invoice
 //     prints as its buyer's.
-//   • Whose it is, when the picture is not from his own chat: the supplier whose
-//     card already holds the number read; else the one whose name is the
-//     seller's name Claude read (either holds the other, normalised); with no
-//     name read, the only supplier there is. A list's invoice may be a
-//     cash-market seller's, an expense's vendor is whoever Baraa typed: a name
-//     read that is nobody's writes NOTHING — and for a list's picture Baraa is
-//     told, with the number, the name and the suppliers, while one of them still
-//     has no number (when each has his own, it is another seller's invoice: the
-//     buyer photographs one every day, and nothing is said).
+//   • Whose it is, when the picture is not from his own chat — a number is
+//     written only on a supplier POSITIVELY identified: the one whose card
+//     already holds the number read; else the one whose name, or official name
+//     (x_legal_name), is the seller's name Claude read (either holds the other,
+//     normalised). A list's invoice may be a cash-market seller's, an expense's
+//     vendor is whoever Baraa typed: a name read that is nobody's, or a number
+//     with NO name read (even beside one supplier alone), writes NOTHING — and
+//     for a list's picture Baraa is told, with the number, the name and the
+//     suppliers, while one of them still has no number (when each has his own,
+//     it is another seller's invoice: the buyer photographs one every day, and
+//     nothing is said). A picture that gave no number at all is the only
+//     supplier's there is: his form, which he answers himself.
 //   • No number on his card + a valid one read: vat, «مسجل في الضريبة» and
 //     «مسجّل» are written, and Baraa reads «سجّلنا الرقم الضريبي لـ … — فواتيره
 //     من الآن عليها 15%». The same number: nothing at all. Another number: never
@@ -294,14 +297,18 @@ export interface InvoicePicture {
 }
 
 /**
- * The supplier a picture is an invoice of, among those it may be: the one whose
- * card already holds the number read, under whatever name it is printed; else
- * the one named by the seller's name read; with none read, the only one there is.
+ * The supplier a picture is an invoice of, among those it may be — POSITIVELY:
+ * the one whose card already holds the number read, under whatever name it is
+ * printed; else the one named by the seller's name read. A number read with no
+ * seller's name is nobody's for sure — never «the only supplier there is»: a
+ * wrong number on his card would put 15% on every bill of his, and the picture
+ * may be a market seller's. Only a picture that gave NO number falls back on the
+ * only supplier there is: what follows is a form he answers himself.
  */
 function whose(cards: Card[], vat: string, nameRead: string): Card | null {
   const holder = vat ? cards.find((c) => cardDigits(c.vat) === vat) : undefined;
   if (holder) return holder;
-  if (!nameRead) return cards.length === 1 ? cards[0] : null;
+  if (!nameRead) return !vat && cards.length === 1 ? cards[0] : null;
   const named = cards.filter((c) => sameSupplierName(c.name, nameRead) || sameSupplierName(c.legal, nameRead));
   return named.length === 1 ? named[0] : null;
 }

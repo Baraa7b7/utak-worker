@@ -132,6 +132,8 @@
 | نموذج طلب العميل (§ 53): Flow `utak_order_v1` / نموذج التسجيل: Flow `utak_register_v1` | #961075853720270 / #1397273449266078 |
 | قالب تذكير الدفع بالآيبان (§ 53) `utak_pay_remind_iban_v1` (صفه في `x_whatsapp_template`) | #1420873989377026 (الصف #91)؛ والحالي `utak_pay_remind_v3` (الصف #76) |
 | حقول § 53: «زيادة على سعر السوق ٪» / «زيادة السوق ٪» على السطر / «اسم المسؤول» على الشريك | #20864 / #20866 / #20868 |
+| نموذج مراجعة براء للأسعار (§ 54): Flow `utak_owner_review_v1` / الحقل «لما يكون السوق أعلى من المقترح» (`x_pricing_config.x_above_suggested`) | #1084593151143621 / #20871 |
+| شاشات تحمل جملة القاعدة (§ 54): «⚙️ الإعدادات» / «📊 اليوم» / اللوحة | العرض #2855 / #2834 / #2871 |
 | أحمد حسان (مورد، دور «شراء») | شريك #30 |
 | رائد (مصدر سوق خارجي، دور «سوق»، ليس عميلاً ولا مورداً ولا موظفاً) | شريك #109 |
 | حساب الشركة البنكي (SAB، الآيبان) على يومية البنك BNK1 | `res.partner.bank` #1 على اليومية #13 |
@@ -145,10 +147,10 @@
 | إجراءات الخادم التي تستدعي الوركر (24) | جدولها في الأرشيف، سطر 584 |
 
 ## 7) الاختبارات والطفرات
-- `npm test` (56 ملفاً، نحو دقيقة، 4844 ✓). ملف واحد: `node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/<name>.test.mts`. و`npx tsc --noEmit`.
-- `tests/wa-harness.mts`: Odoo و Meta و KV في الذاكرة. **بوابة المخطط:** `tests/fixtures-odoo-fields-20261004-s53.json` (حقل أو قيمة اختيار ليست في البصمة تُسقط الاختبار؛ والاختبارات الأقدم ذات البوابة الخاصة تأخذ منها النماذج التي تغيّرت). بعد تغيير حقول Odoo تُولَّد بصمة جديدة على نمط `scripts/s53-20261004-fields-fixture.mjs`.
-- **الماسح** (بعد أي تغيير في `src/`): `node scripts/mutation/s41-20260926-mutation-scan.mjs` — كل نمط يطابق مرة واحدة (1573 نمطاً).
-- **كل الطفرات** (على HEAD، في نسخ معزولة، فبعد commit): `node scripts/mutation/s45-20260930-mutations-all.mjs --out=docs/history/sNN-mutations-all.txt` (1546/1546 في 26 سكربتاً).
+- `npm test` (57 ملفاً، نحو دقيقة، 5122 ✓). ملف واحد: `node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/<name>.test.mts`. و`npx tsc --noEmit`.
+- `tests/wa-harness.mts`: Odoo و Meta و KV في الذاكرة. **بوابة المخطط:** `tests/fixtures-odoo-fields-20261005-s54.json` (حقل أو قيمة اختيار ليست في البصمة تُسقط الاختبار؛ والاختبارات الأقدم ذات البوابة الخاصة تأخذ منها النماذج التي تغيّرت). بعد تغيير حقول Odoo تُولَّد بصمة جديدة على نمط `scripts/s54-20261005-fields-fixture.mjs`.
+- **الماسح** (بعد أي تغيير في `src/`): `node scripts/mutation/s41-20260926-mutation-scan.mjs` — كل نمط يطابق مرة واحدة (1692 نمطاً).
+- **كل الطفرات** (على HEAD، في نسخ معزولة، فبعد commit): `node scripts/mutation/s45-20260930-mutations-all.mjs --out=docs/history/sNN-mutations-all.txt` (1666/1666 في 27 سكربتاً). طفرة تعدّل ملفاً خارج `src/` (الدليل، أو `tests/s46-kit.mts`) تلزمها نسخته في HEAD.
 - **المعيار:** 0 ✗، و tsc نظيف، والماسح 0 خارج، والطفرات كلها caught. كل حارس جديد له طفرة في `scripts/mutation/sNN-…-mutations.mjs` تعطّله وتُسقط اختباره. سكربت الطفرات لا يُشغَّل في الشجرة الحية.
 
 ## 8) السكربتات (`scripts/`)
@@ -159,13 +161,16 @@
 | `payroll-monthly-entry.mjs YYYY-MM` | قيد الرواتب اليدوي (`docs/EXPENSES.md`) |
 | `acct-20260921-setup` و`acct-20260923-{sale,purchase,expense}-setup` | إعداد المحاسبة (idempotent)، يسميها الوركر في رسائل الخطأ |
 | `s49-20261001-step0.mjs` و`s46-20261001-after-deploy.mjs` | فحوص قبل النشر وبعده (القاعدتان 7 و8) |
-| `s53-20261004-fields-fixture.mjs` (وقبله `s52-…` و`s51-…` و`s49-…`) | توليد بصمة المخطط للاختبارات |
+| `s54-20261005-fields-fixture.mjs` (وقبله `s53-…` و`s52-…` و`s51-…` و`s49-…`) | توليد بصمة المخطط للاختبارات |
+| `s54-20261005-flows.mjs` (+ `lib/s54-flows.mjs`) | نموذج مراجعة براء عند Meta (`utak_owner_review_v1`): `--create` و`--publish` و`--preview` (رابط المعاينة يفتح في المتصفح بلا دخول)؛ المنشور لا يُعدَّل |
+| `s54-20261005-trial.mjs` | تجربة مراجعة الأسعار إلى رقم براء من prod المنشور (جاف افتراضياً، `--send` مرة في اليوم؛ لا يكتب ولا ينشر) |
+| `s54-20261005-preview.mts [اليوم] [--form]` | قراءة فقط: نص رسالة 04:00 (والنموذج) ليوم من الـ tenant كما يبنيه الوركر |
 | `s53-20261004-flows.mjs` (+ `lib/s53-flows.mjs`) | نموذجا العميل عند Meta (`utak_order_v1` و`utak_register_v1`): `--create` و`--publish` و`--preview`؛ المنشور لا يُعدَّل |
 | `s53-20261004-pay-remind.mjs` (+ `lib/s53-templates.mjs`) | قالب تذكير الدفع بالآيبان: `--status` يقرأ حالته؛ لا إعادة تقديم |
 | `s53-20261004-trial.mjs order\|register` | تجربة نموذج الطلب أو التسجيل إلى رقم براء من prod المنشور (جاف افتراضياً، `--send` مرة في اليوم لكل نموذج) |
 | `s52-20261004-price-flow.mjs` (+ `lib/s52-price-flow.mjs`) | Flow v2 (صفحات حسب الفئة) وقالبه عند Meta: `--status` يقرأ حالتهما، ولا إعادة تقديم لقالب مرفوض أو MARKETING. و`s51-20261004-price-flow.mjs` لـ v1 الباقي عند Meta |
 | `s52-20261004-trial.mjs` (وقبله `s51-…-trial`) | التجربة الوحيدة لنموذج الأسعار إلى رقم براء من prod المنشور (جاف افتراضياً، `--send` مرة في اليوم) |
-| `s53-…-odoo`، `s52-…-odoo`، `s51-…-odoo`، `s49-…-odoo`، `s48-…-{ui,day50,odoo}`، `s47-…-{day50,odoo}`، `s46-…-{wa-menu,product-setup,board}` | تراجع Odoo لـ § 46–§ 53 (`--rollback`) — STATUS § 1 |
+| `s54-…-odoo`، `s53-…-odoo`، `s52-…-odoo`، `s51-…-odoo`، `s49-…-odoo`، `s48-…-{ui,day50,odoo}`، `s47-…-{day50,odoo}`، `s46-…-{wa-menu,product-setup,board}` | تراجع Odoo لـ § 46–§ 54 (`--rollback`) — STATUS § 1 |
 | `cutover-prod.mts`، `s42-20260927-prelaunch-mark.mts`، `s45-…-{omar-friday,mark-quotes}` | التحويل sim ← prod وتراجعه، ووسم سجلات المحاكاة |
 | `brand-20260924-{render-samples,render-docs,paper-scan,qr-cream-read}` | بعد أي تعديل في PDF: الختم و QR والتذييل ولون الورق |
 | `s41-full-day-sim.mts` (+ `sim-report`، `sim-snapshot`، `sim-mark`) | المحاكاة الشاملة ليوم كامل (`--odoo=fake`) |

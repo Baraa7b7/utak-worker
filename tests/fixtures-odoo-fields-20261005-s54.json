@@ -1,6 +1,10 @@
 {
- "_source": "LOCAL DRAFT of § 54 (2026-10-05), before the field exists on the tenant: the § 53 fixture + x_pricing_config.x_above_suggested «لما يكون السوق أعلى من المقترح» (market / suggested). Regenerated from the tenant by scripts/s54-20261005-fields-fixture.mjs after scripts/s54-20261005-odoo.mjs --apply.",
+ "_source": "fields_get on utakfresh.odoo.com, 2026-10-05T04:17Z (read-only), § 54 (the setting «لما يكون السوق أعلى من المقترح»): every field of each model, and the selection values.",
  "_selections": {
+  "x_pricing_config.x_above_suggested": [
+   "market",
+   "suggested"
+  ],
   "x_price_day.x_op_basis": [
    "expected",
    "actual"
@@ -1801,10 +1805,6 @@
    "overdue",
    "today",
    "planned"
-  ],
-  "x_pricing_config.x_above_suggested": [
-   "market",
-   "suggested"
   ]
  },
  "x_pricing_config": [

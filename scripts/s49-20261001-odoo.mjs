@@ -111,7 +111,14 @@ if (VERIFY) {
     ...(await call(EMP, "search_read", { domain: [["x_price_source", "=", true]], fields: ["id", "name", "x_price_role"], context: ALL })).map((p) => ({ ...p, model: EMP })),
   ];
   const others = sources.filter((s) => !ROLES_TO_SET.some((r) => r.model === s.model && r.id === s.id));
-  check(`د — no other source's role was written (${others.length} other source${others.length === 1 ? "" : "s"})`, others.every((s) => !s.x_price_role), JSON.stringify(others));
+  // § 52 (2026-10-04) added ONE outside market source — رائد, res.partner #109, «سوق» — and § 57 ب reads it so: he is the only
+  // source beside the two of § 49 that may carry a role, his role is «سوق» (never «شراء»: «أقل عرض» is made of purchase prices
+  // alone), and no other source carries one. (The check failed from § 52 on: it knew the two of § 49 only.)
+  const OUTSIDE_MARKET = { model: PARTNER, id: 109, name: "رائد", role: "market" };
+  const outside = others.filter((s) => s.model === OUTSIDE_MARKET.model && s.id === OUTSIDE_MARKET.id);
+  const rest = others.filter((s) => !(s.model === OUTSIDE_MARKET.model && s.id === OUTSIDE_MARKET.id));
+  check(`د — one outside market source is allowed (${OUTSIDE_MARKET.model} #${OUTSIDE_MARKET.id} ${OUTSIDE_MARKET.name}: «${ROLE[OUTSIDE_MARKET.role]}»), and no other source carries a role (${rest.length} other source${rest.length === 1 ? "" : "s"})`,
+    outside.length === 1 && outside[0].x_price_role === OUTSIDE_MARKET.role && String(outside[0].name).includes(OUTSIDE_MARKET.name) && rest.every((s) => !s.x_price_role), JSON.stringify(others));
   check(`د — the line the screens show: «${cfg?.x_sources_note}»`, ROLES_TO_SET.every((r) => String(cfg?.x_sources_note).includes(`${r.name}: ${ROLE[r.role]}`)), cfg?.x_sources_note);
   const sArch = String((await call(CFG, "get_views", { views: [[v.settings, "form"]] }))?.views?.form?.arch ?? "");
   check("د — «⚙️ الإعدادات» renders the roles (the line, the rule, the two lists' buttons), and «الحد الأدنى للطلب» is still there", sArch.includes('name="x_sources_note"') && sArch.includes(`name="${a.sourcePartners}"`) && sArch.includes(`name="${a.sourceEmployees}"`) && sArch.includes('name="x_min_order_sar"') && sArch.includes('name="x_cost_line_ids"') && sArch.includes('name="x_tier_ids"'));

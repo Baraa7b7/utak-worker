@@ -41,6 +41,21 @@
 // window open now but closing before tomorrow's 06:00: it goes in place of
 // the text (the text has no button). Not approved: exactly as before.
 
+//
+// § 60 (2026-10-06, Baraa's amendment) — the summary closes the day. With it the day's ACTUAL is computed
+// and kept on the day's own record (src/day-insight.ts computeDayActual: the real cartons delivered that
+// Riyadh day against the day's plan), its screen is written again, and the text gains the FOUR lines of
+// «خلاصة اليوم» (src/day-tabs.ts briefLines) — the 🎯 line about the day just closed, the same numbers
+// the screen shows the morning after under «أمس» — then what was asked for and not available:
+//   «✅ نُشر اليوم 4 من 4 أصناف — متوسط ربح الكرتون +4.12»
+//   «🎯 اليوم: بعنا 96 من 206 (47%) — ربح −125 ❌، أكبر سبب: الكمية −110»      (no real delivery: «🎯 اليوم: لا مبيعات حقيقية بعد»)
+//   «💧 من كل كرتون بـ 35.75: لنا +4.12، وأكبر بند الشراء 23.25»
+//   «➡️ أهم فرصتين: … · …»
+//   «طلبوا اليوم وما كان متوفر: طماطم ×3 (عميلان)، خيار ×1»   (src/unavailable-log.ts; no row, no line)
+// The two templates keep their three variables as Meta approved them: when a template is what goes
+// while his window is open (the night's «تم الاطلاع»), the lines follow it as one text of their own;
+// outside his window they are not sent (nothing is held: the screen carries them).
+
 import type { Env } from "./config";
 import { profitVatRate } from "./config";
 import { call, getLatestSalePrice } from "./odoo";
@@ -79,6 +94,10 @@ export interface SummaryFigures {
   pending: number | null;
   /** § 40 هـ — today's profit (deliveries), today's operating cost, and the coverage (null = «تعذّر»). */
   coverage: { profit: number | null; cost: number | null; pct: number | null };
+  /** § 60 — «خلاصة اليوم» of the day the summary closes: its four lines (null = «تعذّر»). */
+  brief: string[] | null;
+  /** § 60 ج — «طلبوا اليوم وما كان متوفر: …»; "" = nothing was asked for (or it could not be read): no line. */
+  unavailable: string;
   errors: string[];
 }
 
@@ -228,10 +247,10 @@ async function deliveredProfit(env: Env, orderDay: string, vatRatePct: number | 
 }
 
 /** Every figure, each on its own: one that Odoo cannot give is null (and named in errors). */
-export async function readSummaryFigures(env: Env, nowMs: number = Date.now()): Promise<SummaryFigures> {
+export async function readSummaryFigures(env: Env, nowMs: number = Date.now(), opts: { keep?: boolean } = {}): Promise<SummaryFigures> {
   const day = riyadhDateKey(new Date(nowMs));
   const yesterday = riyadhDateKey(new Date(nowMs - DAY_MS));
-  const f: SummaryFigures = { day, tomorrow: null, deliveries: null, collected: null, pending: null, coverage: { profit: null, cost: null, pct: null }, errors: [] };
+  const f: SummaryFigures = { day, tomorrow: null, deliveries: null, collected: null, pending: null, coverage: { profit: null, cost: null, pct: null }, brief: null, unavailable: "", errors: [] };
   const attempt = async <X>(name: string, fn: () => Promise<X>): Promise<X | null> => {
     try { return await fn(); } catch (e) {
       f.errors.push(`${name}: ${(e as Error)?.message ?? e}`);
@@ -253,7 +272,25 @@ export async function readSummaryFigures(env: Env, nowMs: number = Date.now()): 
   const profit = await attempt("coverage_profit", () => deliveredProfit(env, yesterday, profitVatRate(day)));
   const cost = await attempt("coverage_cost", async () => (await dailyOperatingCost(env, day, nowMs)).total);
   f.coverage = { profit, cost, pct: profit !== null && cost !== null && cost > 0 ? Math.round((profit / cost) * 100) : null };
+  // § 60 — the day's actual against its target, and its four lines; `keep`: the actual and the screen are written (the summary itself), else only read
+  f.brief = await attempt("brief", async () => (await import("./day-screen")).closingBrief(env, day, nowMs, { keep: !!opts.keep }));
+  // § 60 ج — what customers asked for today and was not available
+  f.unavailable = (await attempt("unavailable", async () => {
+    const { groupUnavailable, readUnavailable, unavailableLine } = await import("./unavailable-log");
+    return unavailableLine(groupUnavailable(await readUnavailable(env, day, day)));
+  })) ?? "";
   return f;
+}
+
+export const BRIEF_UNAVAILABLE_TEXT = `خلاصة اليوم: ${UNAVAILABLE}`;
+/** § 60 — the lines the summary gains: the four of «خلاصة اليوم», then what was asked for and not available (when anything was). */
+export function insightLines(f: Pick<SummaryFigures, "brief" | "unavailable">): string[] {
+  return [...(f.brief ?? [BRIEF_UNAVAILABLE_TEXT]), ...(f.unavailable ? [f.unavailable] : [])];
+}
+export const FOLLOW_UP_TITLE = "📊 تكملة ملخص اليوم";
+/** …as a text of their own, after a template that could not carry them. */
+export function insightFollowUp(f: Pick<SummaryFigures, "day" | "brief" | "unavailable">): string {
+  return [`${FOLLOW_UP_TITLE} ${arabicDate(f.day)}`, ...insightLines(f)].join("\n");
 }
 
 /** «34%» / «تعذّر». */
@@ -294,6 +331,7 @@ export function summaryText(f: SummaryFigures): string {
     `توصيلات اليوم: ${p2}`,
     `تحصيل اليوم: ${p3 === UNAVAILABLE || f.pending === null ? p3 : `${p3} ريال`}`,
     coverageLine(f.coverage),
+    ...insightLines(f),
   ].join("\n");
 }
 
@@ -305,7 +343,8 @@ export async function sendOwnerSummary(rawEnv: Env, nowMs: number = Date.now()):
   if (!env.OWNER_WHATSAPP) return { day, action: "no_owner" };
   const claim = await claimButton(env, `owner_summary:${day}`, CLAIM_TTL);
   if (!claim.claimed) return { day, action: "sent_before" };
-  const figures = await readSummaryFigures(env, nowMs);
+  // § 60 — the day's actual is kept on its record with the summary, and its screen written again
+  const figures = await readSummaryFigures(env, nowMs, { keep: true });
   const params = summaryParams(figures);
   const text = textContent(summaryText(figures));
   const v2: GwTemplate = { kind: "template", purpose: T.OWNER_SUMMARY, params };
@@ -318,5 +357,13 @@ export async function sendOwnerSummary(rawEnv: Env, nowMs: number = Date.now()):
     fallback: night?.first ? [text, v2] : night ? [night.option, v2] : [v2],
   });
   const d = gatewayDecision(r);
+  // § 60 — a template carries three variables only: inside his window the new lines follow it as a text (never held)
+  if (d?.action === "template" && night?.first) {
+    try {
+      await sendViaGateway(env, { purpose: T.OWNER_SUMMARY, to: env.OWNER_WHATSAPP, content: textContent(insightFollowUp(figures)), noHold: true });
+    } catch (e) {
+      console.warn("[owner-summary] the target's lines after the template were not sent", (e as Error)?.message);
+    }
+  }
   return { day, action: d?.action ?? `status_${r.status}`, figures };
 }

@@ -83,6 +83,8 @@ export const tabPage = (t) => `    <page string="${t.title}" name="${t.name}">
     </page>\n`;
 export const NOTEBOOK_CLOSE = `  </page>\n${TABS.map(tabPage).join("")}    </notebook>\n  `;
 const once = (arch, part) => arch.split(part).length === 2;
+/** § 60's field tag, as scripts/lib/s60-ui.mjs writes it (that module imports this one: the tag is spelled here too, and tests/s60-ui.test.mts holds the two equal). */
+export const BRIEF_TAG_60 = `<div name="utak_day_brief" class="mb-2"><field name="x_brief_html" readonly="1" nolabel="1"/></div>\n    `;
 
 /**
  * The tenant's arch with § 58's notebook, target and link (an arch that already carries them is left as
@@ -107,6 +109,8 @@ export function dayArch58(arch, historyAction) {
 /** § 58's arch back to § 57's, byte for byte (an arch without § 58's notebook is returned as it is): what the older verifies compare. */
 export function dayArch57Of(arch) {
   if (!arch.includes(`<notebook name="${NOTEBOOK}">`)) return arch;
+  // § 60: «خلاصة اليوم», the one field added before the tiles (scripts/lib/s60-ui.mjs BRIEF_TAG), is taken off first
+  arch = arch.replace(BRIEF_TAG_60, "");
   const link = new RegExp(`\\n      <button name="\\d+" type="action" string="${HISTORY_BUTTON}" class="btn btn-link px-2"/>`);
   const out = arch.replace(link, "").replace(NOTEBOOK_OPEN, "").replace(TARGET_TAG, "").replace(`${NOTEBOOK_CLOSE}${SHEET_END}`, SHEET_END);
   if (out.includes("<notebook") || out.includes(TARGET_FIELD) || out.includes(HISTORY_BUTTON) || TABS.some((t) => out.includes(t.field))) throw new Error("📊 اليوم: § 58's parts could not be taken off the form — stop (the view was changed by hand?)");

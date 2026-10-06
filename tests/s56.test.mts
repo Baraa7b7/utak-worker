@@ -62,7 +62,8 @@ function prices(): void {
 }
 const engine = (env: any, now?: number) => quiet(() => PR.refreshPriceDay(env, { force: true, ...(now ? { now } : {}) }));
 const line = (p: number) => lineFor(p) as any;
-const cells = (p: number) => PR.SCREEN_LINE_FIELDS.map((f: string) => line(p)[f]);
+// § 56's six cells (§ 60 added the line's contribution to what the worker writes: tests/s60-screen.test.mts)
+const cells = (p: number) => PR.SCREEN_LINE_FIELDS.filter((f: string) => f !== "x_contribution").map((f: string) => line(p)[f]);
 const head = () => Object.fromEntries(PR.SCREEN_DAY_FIELDS.filter((f: string) => f !== "x_chart_html").map((f: string) => [f, dayOf()[f]]));
 const chart = () => String(dayOf().x_chart_html);
 const writesOf = (model: string) => odooLog.filter((x) => x.model === model && x.method === "write");
@@ -97,7 +98,7 @@ const text = (html: string) => html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " "
   assert("the header's counts are the review's (reviewCounts), and its average the confirmation's «متوسط الربح للكرتون»", counts.publish === 2 && counts.skip === 2 && counts.warn === 0 && RV.averageProfitLine(review) === "متوسط الربح للكرتون: +1.75" && DS.averageProfit(screen) === 1.75);
   assert("«القرار» opens with the review's own mark, and each row's profit is the one of the review's line", review.every((r: any, i: number) => screen[i].mark === RV.rowMark(r) && screen[i].outcome.startsWith(`${RV.rowMark(r)} `)) && screen.map((r: any) => `${r.profit} ${r.profitBase}`).join(" | ") === "1.13 market | -0.35 market | 2.37 suggested | -0.74 market"
     && review.every((r: any, i: number) => RV.reviewLine(r).includes(`${DS.PROFIT_BASE_TEXT[screen[i].profitBase as "market"]}${screen[i].profitBase === "suggested" ? ` ${PR.money(r.suggested)}` : ""}: ${RV.signed(screen[i].profit)}`)), JSON.stringify(review.map((r: any) => RV.reviewLine(r))));
-  assert("the fields the worker writes are the ones the Odoo script creates, each on its model", JSON.stringify(UI.LINE_FIELDS.map((f: any) => f.name)) === JSON.stringify(PR.SCREEN_LINE_FIELDS) && JSON.stringify(UI.DAY_FIELDS.map((f: any) => f.name)) === JSON.stringify(PR.SCREEN_DAY_FIELDS)
+  assert("the fields the worker writes are the ones the Odoo script creates, each on its model", JSON.stringify([...UI.LINE_FIELDS.map((f: any) => f.name), "x_contribution"]) === JSON.stringify(PR.SCREEN_LINE_FIELDS) && JSON.stringify(UI.DAY_FIELDS.map((f: any) => f.name)) === JSON.stringify(PR.SCREEN_DAY_FIELDS)
     && PR.SCREEN_LINE_FIELDS.every((f: string) => SCHEMA.x_price_day_line.includes(f) && PR.LINE_FIELDS.includes(f)) && PR.SCREEN_DAY_FIELDS.every((f: string) => SCHEMA.x_price_day.includes(f)));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 
@@ -118,7 +119,7 @@ const text = (html: string) => html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " "
   const wrote = await quiet(() => DS.writeDayScreen(env, dayOf().id));
   assert("writeDayScreen: a day computed before § 56 gets its cells, its numbers and its chart back — the same ones", wrote.updated === 4 && JSON.stringify([[1, 2, 3, 4].map(cells), head(), chart()]) === before);
   assert("…writing the screen's own fields ONLY: no price, no status, no decision, no state", writesOf("x_price_day_line").length === 4 && writesOf("x_price_day_line").every((x) => Object.keys(x.body.vals).every((k) => (PR.SCREEN_LINE_FIELDS as readonly string[]).includes(k)))
-    && writesOf("x_price_day").length === 1 && JSON.stringify(Object.keys(writesOf("x_price_day")[0].body.vals).sort()) === JSON.stringify([...PR.SCREEN_DAY_FIELDS].sort()), JSON.stringify(writesOf("x_price_day_line").map((x) => Object.keys(x.body.vals))));
+    && writesOf("x_price_day").length === 1 && JSON.stringify(Object.keys(writesOf("x_price_day")[0].body.vals).sort()) === JSON.stringify([...PR.SCREEN_DAY_FIELDS, ...DS.INSIGHT_DAY_FIELDS].sort()), JSON.stringify(writesOf("x_price_day_line").map((x) => Object.keys(x.body.vals))));
   odooLog.length = 0;
   const again = await quiet(() => DS.writeDayScreen(env, dayOf().id));
   assert("…and a second time no line is written", again.updated === 0 && writesOf("x_price_day_line").length === 0);
@@ -166,7 +167,7 @@ const text = (html: string) => html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " "
   const attrs = new Set(tags.flatMap((t) => [...t[2].matchAll(/\s([\w-]+)="/g)].map((a) => a[1])));
   assert("the chart is div and span alone, with class / style / title / dir alone — no SVG, no <style>, no script, no handler, no link", tags.length > 100 && tags.every((t) => t[1] === "div" || t[1] === "span") && [...attrs].every((a) => ["class", "style", "title", "dir"].includes(a))
     && html.replace(/<\/?(?:div|span)(?:\s+[\w-]+="[^"]*")*\s*>/g, "").indexOf("<") < 0 && !/javascript:|expression\(|@import|url\(/i.test(html), [...new Set(tags.map((t) => t[1]))].join() + " / " + [...attrs].join());
-  assert("…one root, no no-break space, no «%» glued to a digit (Odoo rewrites %20 and the like), every colour the page's own", html.startsWith(`<div class="utak-day-chart">`) && html.endsWith("</div>") && !html.includes("\u00a0") && !/%[0-9A-Fa-f]{2}/.test(html) && !/#[0-9a-fA-F]{3,8}\b|rgba?\(/.test(html) && html.includes("currentColor") && /text-success/.test(html) && /text-danger/.test(html));
+  assert("…one root, no no-break space, no «%» glued to a digit (Odoo rewrites %20 and the like), every colour the page's own", html.startsWith(`<div class="utak-day-chart d-xxl-flex align-items-start">`) && html.endsWith("</div>") && !html.includes("\u00a0") && !/%[0-9A-Fa-f]{2}/.test(html) && !/#[0-9a-fA-F]{3,8}\b|rgba?\(/.test(html) && html.includes("currentColor") && /text-success/.test(html) && /text-danger/.test(html));
   const open = (html.match(/<(div|span)[\s>]/g) ?? []).length, close = (html.match(/<\/(div|span)>/g) ?? []).length;
   assert("…and every tag is closed", open === close && open > 100, `${open} / ${close}`);
 }
@@ -250,7 +251,7 @@ const text = (html: string) => html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " "
   assert("…its chart: سعرنا 70.00 (مقرر) for the banana; the others keep their suggested price and their profit at the market price", text(rowsOf(chart())[0]).includes("سعرنا 70.00 (مقرر)") && rowsOf(chart())[2].includes(">❌ رمان صغير<") && text(rowsOf(chart())[2]).includes("سعرنا 19.50 (مقترح)") && />▼ <span dir="ltr">−0\.35</.test(rowsOf(chart())[1]));
   const state = writesOf("x_price_day").findIndex((x) => x.body.vals.x_state === "published");
   const after = odooLog.slice(odooLog.indexOf(writesOf("x_price_day")[state]) + 1).filter((x) => x.method === "write" && (x.model === "x_price_day" || x.model === "x_price_day_line"));
-  assert("the screen is written AFTER the state «published», with its own fields alone (the lock's watched fields are never in it)", state >= 0 && after.length >= 2 && after.every((x) => Object.keys(x.body.vals).every((k) => ([...PR.SCREEN_LINE_FIELDS, ...PR.SCREEN_DAY_FIELDS] as readonly string[]).includes(k))), JSON.stringify(after.map((x) => [x.model, Object.keys(x.body.vals)])));
+  assert("the screen is written AFTER the state «published», with its own fields alone (the lock's watched fields are never in it)", state >= 0 && after.length >= 2 && after.every((x) => Object.keys(x.body.vals).every((k) => ([...PR.SCREEN_LINE_FIELDS, ...PR.SCREEN_DAY_FIELDS, ...DS.INSIGHT_DAY_FIELDS] as readonly string[]).includes(k))), JSON.stringify(after.map((x) => [x.model, Object.keys(x.body.vals)])));
   // a day published before the engine (§ 35, the tenant's #1): its lines carry no status at all
   const old = [{ ...FX.lines[0], id: 901, x_status: false, x_sale_price: 20.25, x_excluded: false, x_full_cost: 0, x_break_even: 0, x_suggested_price: 0, x_market_price: 0, x_is_outlier: false },
     { ...FX.lines[1], id: 902, x_status: false, x_sale_price: 0, x_excluded: true, x_full_cost: 0, x_break_even: 0, x_suggested_price: 0, x_market_price: 0 }];

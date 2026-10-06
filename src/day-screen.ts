@@ -25,15 +25,29 @@
 //      market price, ◆ our price (the one decided, else the suggested one) — and its profit, signed.
 //   2. «ربح الكرتون»: a column an item around a zero line, the value written on it.
 // Every name is escaped: the HTML never carries a tag that came from a product's name.
+//
+// § 60 أ (2026-10-06) — «سعرنا مقابل السوق» keeps its design, its shapes and its order, and gains:
+//   • the break-even: a red ┃ on each row at x_break_even («أقل سعر بدون خسارة»), a light pink zone on
+//     the axis before it, its name in the key and its value under the row;
+//   • what moved since the last day that carries a number: «▲ +3.00» / «▼ −2.00» beside the market's
+//     value and the purchase's (no earlier number: nothing);
+//   • the carton's contribution (src/day-insight.ts) BESIDE the profit, never in its place: «▲ +1.13
+//     بسعر السوق · مساهمة +3.12», and one line under the key that says what each is.
+// § 60 ب + د — and with them the day carries its plan (x_plan_*, x_target_cartons), «🎯 الهدف مقابل
+// الفعلي» under the tiles (x_target_html) and the three tabs (src/day-tabs.ts), written with the same
+// header. The engine, the proposed decision and the review's message are not touched.
 
 import type { Env } from "./config";
 import { call } from "./odoo";
+import { profitVatRate } from "./config";
 import { readPricingSettings } from "./operating-cost";
 import { ABOVE_SUGGESTED_DEFAULT, type AboveSuggested } from "./pricing-engine";
 import {
   PRICE_DAY_MODEL, PRICE_LINE_MODEL, SCREEN_DAY_FIELDS, SCREEN_LINE_FIELDS, isPublishable, readLines, type DayLine, type DayRecord,
 } from "./prices";
 import { NO_SHARE_NOTE, PURCHASE_VAT_FACTOR, isWarned, noShare, profitAt, reviewRows, rowOutcome, signed, signedPct, type ReviewRow } from "./price-review";
+import { contributionAt, dayPlan, planVals, targetHtml, type ActualShown, type DayPlan, type DayWord, type PlanItem } from "./day-insight";
+import { briefHtml, briefLines, itemsTabHtml, lastNumbers, moneySplit, moneyTabHtml, nextTabHtml, opportunities, type InsightInputs } from "./day-tabs";
 
 export type DayState = DayRecord["x_state"];
 /** A day approved or published says what its lines store; a draft or a missed one, what the review proposes. */
@@ -62,6 +76,8 @@ export const OUT_OF_CATALOG_TEXT = "❌ خارج الكتالوج النشط";
 /** One item of the day as the screen shows it. */
 export interface ScreenRow {
   lineId: number;
+  /** § 60 — the item: «product:packaging». */
+  key: string;
   name: string;
   /** ⚠️ an outlier still waiting, ❌ not published, ✅ published with a profit, 🔻 published with none. */
   mark: string;
@@ -91,9 +107,40 @@ export interface ScreenRow {
   noShare: boolean;
   /** «القرار», its mark first. */
   outcome: string;
+  // § 60 أ
+  /** The market price after its uplift (0 = none): what «ربحنا بسعر السوق» is made at. */
+  sale: number;
+  /** «أقل سعر بيع بدون خسارة»; 0 = none. */
+  breakEven: number;
+  /** The carton's planned waste and its share of the day's cost, as the board stores them (0 = none). */
+  waste: number;
+  opShare: number;
+  vatPct: number | null;
+  /** The carton's contribution at the price of `profit` (sale ÷ 1.15 − purchase − waste: no carton share); null = none. */
+  contribution: number | null;
+  /** What moved since the last day with a number, as the row shows the value; null = no earlier number, or no change. */
+  purchaseMove: number | null;
+  marketMove: number | null;
 }
 
-function screenRow(r: ReviewRow, l: DayLine, state: DayState): ScreenRow {
+/** § 60 — what the screen reads beside the day's own lines (src/day-tabs.ts), and what the day's cost was divided by. */
+export interface DayExtra {
+  inputs: InsightInputs;
+  /** The day's operating cost (null = «تعذّر»), the cartons it was divided by and on what basis. */
+  cost: number | null;
+  cartons: number | null;
+  basis: "expected" | "actual";
+  /** «هدف الربح اليومي» of the settings. */
+  profitTarget: number;
+  /** This day's own actual, once the 21:30 summary computed it. */
+  own?: ActualShown | null;
+}
+
+const itemKey = (l: Pick<DayLine, "x_product_tmpl_id" | "x_packaging_id">): string => `${Array.isArray(l.x_product_tmpl_id) ? l.x_product_tmpl_id[0] : 0}:${Array.isArray(l.x_packaging_id) ? l.x_packaging_id[0] : 0}`;
+/** A move worth a mark: a halala at least. */
+const moveOf = (now: number, before: number | undefined): number | null => (now > 0 && Number(before) > 0 && Math.abs(now - Number(before)) >= 0.005 ? round2(now - Number(before)) : null);
+
+function screenRow(r: ReviewRow, l: DayLine, state: DayState, last?: { market: number; purchase: number }): ScreenRow {
   const locked = LOCKED.has(state);
   // a day published before the engine (§ 35) has lines with no status at all: such a line went out with its sale price unless it was left out
   const stored = isPublishable(l) || (locked && !l.x_status && !l.x_excluded && Number(l.x_sale_price) > 0);
@@ -116,26 +163,36 @@ function screenRow(r: ReviewRow, l: DayLine, state: DayState): ScreenRow {
   const outcome = locked ? (publish ? `${mark} ${state === "published" ? "نُشر" : "يُنشر"} بـ ${fixed2(price)}` : `${mark} لم يُنشر`)
     : r.decision ? `${mark} قرارك: ${what}`
     : publish ? `${mark} ${what} · ${approved ? "معتمد" : "ينتظر قرارك"}` : `${mark} ${what}`;
+  // § 60 أ — the contribution at the very price the row's profit is made at
+  const waste = r.purchase > 0 ? Number(l.x_waste_cost) || 0 : 0;
+  const at = publish ? price : base === "market" ? r.sale : base === "suggested" ? r.suggested : 0;
   return {
-    lineId: r.lineId, name: r.name, mark,
+    lineId: r.lineId, key: itemKey(l), name: r.name, mark,
     purchase: r.purchase, purchaseVat: purchaseWithVat(r.purchase), market: r.market, suggested: r.suggested,
     ours: publish && approved ? price : r.suggested > 0 ? r.suggested : 0, decided: publish && approved,
     marketProfit, suggestedProfit, profit, profitBase: profit === null ? null : base,
     gap, gapPct: gap === null ? null : (gap / r.market) * 100,
     publish, price, approved, warn, noShare: noShare(r), outcome,
+    sale: r.sale, breakEven: r.breakEven, waste, opShare: r.purchase > 0 ? Number(l.x_op_share) || 0 : 0, vatPct: r.vatPct,
+    contribution: profit === null ? null : contributionAt({ purchase: r.purchase, waste, vatPct: r.vatPct }, at),
+    purchaseMove: moveOf(purchaseWithVat(r.purchase), last ? purchaseWithVat(last.purchase) : undefined), marketMove: moveOf(r.market, last?.market),
   };
 }
 
 /** The rows of a day's lines, as they are (or will be) stored: every line of the active catalog, in the lines' order. */
-export function screenRows(lines: DayLine[], above: AboveSuggested, day: string, state: DayState): ScreenRow[] {
+export function screenRows(lines: DayLine[], above: AboveSuggested, day: string, state: DayState, extra?: DayExtra): ScreenRow[] {
   const byId = new Map(lines.map((l) => [l.id, l]));
-  return reviewRows(lines, above, day).map((r) => screenRow(r, byId.get(r.lineId) as DayLine, state));
+  // § 60 أ — each item's last number before this day (the real days alone)
+  const last = extra ? lastNumbers(extra.inputs.history) : null;
+  return reviewRows(lines, above, day).map((r) => { const l = byId.get(r.lineId) as DayLine; return screenRow(r, l, state, last?.get(itemKey(l))); });
 }
 
 // ---------------------------------------------------------------- the table's cells and the header's numbers
 
 export type ScreenLineVals = Record<(typeof SCREEN_LINE_FIELDS)[number], string | number>;
-export type ScreenHeader = Record<(typeof SCREEN_DAY_FIELDS)[number], string | number>;
+/** § 60 — what the day carries beside § 56's header, when the screen is made with its `extra`: the plan, the target's lines and the three tabs. */
+export const INSIGHT_DAY_FIELDS = ["x_plan_margin", "x_plan_waste", "x_plan_contribution", "x_plan_basis", "x_profit_target", "x_target_cartons", "x_brief_html", "x_target_html", "x_tab_money_html", "x_tab_items_html", "x_tab_next_html"] as const;
+export type ScreenHeader = Record<(typeof SCREEN_DAY_FIELDS)[number], string | number> & Partial<Record<(typeof INSIGHT_DAY_FIELDS)[number], string | number>>;
 
 /**
  * A cell of signed numbers reads left to right — «+1.13», «19.50 (+2.37)» — wherever it is shown: a
@@ -149,11 +206,15 @@ const profitText = (p: number, row: ScreenRow): string => `${signed(p)}${row.noS
 
 /** What the table shows of one line. `row`: null for a line that left the active catalog. */
 function lineVals(row: ScreenRow | null, l: DayLine): ScreenLineVals {
+  // § 60 أ — «مساهمة الكرتون» at the price the board reads (the approved price, else the market price): the net sale − the net purchase − the waste; 0 = none
+  const net = Number(l.x_net_sale) || 0, buy = Number(l.x_net_purchase) || 0;
+  const x_contribution = net > 0 && buy > 0 ? round2(net - buy - (Number(l.x_waste_cost) || 0)) : 0;
   if (!row) {
     const vat = purchaseWithVat(Number(l.x_cost_price) || 0);
-    return { x_cost_vat_show: vat > 0 ? fixed2(vat) : NONE, x_market_profit: 0, x_market_profit_show: NONE, x_suggested_profit_show: NONE, x_gap_show: NONE, x_outcome_show: OUT_OF_CATALOG_TEXT };
+    return { x_cost_vat_show: vat > 0 ? fixed2(vat) : NONE, x_market_profit: 0, x_market_profit_show: NONE, x_suggested_profit_show: NONE, x_gap_show: NONE, x_outcome_show: OUT_OF_CATALOG_TEXT, x_contribution };
   }
   return {
+    x_contribution,
     x_cost_vat_show: row.purchaseVat > 0 ? fixed2(row.purchaseVat) : NONE,
     x_market_profit: row.marketProfit ?? 0,
     x_market_profit_show: row.marketProfit === null ? NONE : ltr(profitText(row.marketProfit, row)),
@@ -169,12 +230,60 @@ export function averageProfit(rows: ScreenRow[]): number | null {
   return profits.length ? round2(profits.reduce((a, b) => a + b, 0) / profits.length) : null;
 }
 
-function headerVals(rows: ScreenRow[]): ScreenHeader {
+/** § 60 ب — the items the plan's means are made of: the rows that go out as things stand, each at its own price. Pure. */
+export function planItems(rows: ScreenRow[]): PlanItem[] {
+  return rows.filter((r) => r.publish && r.price > 0 && r.purchase > 0).map((r) => ({
+    key: r.key, margin: round2(round2(r.price / (r.vatPct ? 1 + r.vatPct / 100 : 1)) - r.purchase), waste: r.waste,
+  }));
+}
+/** § 60 ب — the cartons really delivered of each item in the seven days before the day (the plan's weights). Pure. */
+export function salesMix(inputs: InsightInputs): Map<string, number> {
+  const from = new Date(Date.parse(`${inputs.day}T12:00:00Z`) - 7 * 24 * 3600_000).toISOString().slice(0, 10), mix = new Map<string, number>();
+  for (const s of inputs.sold) if (s.day >= from && s.day < inputs.day && s.quantity > 0) mix.set(s.key, (mix.get(s.key) ?? 0) + s.quantity);
+  return mix;
+}
+/** § 60 ب — the day's plan from its rows. Pure. */
+export function planOf(rows: ScreenRow[], extra: DayExtra): DayPlan {
+  return dayPlan(planItems(rows), extra.cost, extra.profitTarget, salesMix(extra.inputs));
+}
+
+const dayBefore = (day: string): string => new Date(Date.parse(`${day}T12:00:00Z`) - 24 * 3600_000).toISOString().slice(0, 10);
+/** Each item's supplier as the day's lines hold it (the source its purchase price was taken from). */
+const suppliersOf = (lines: DayLine[]): Map<string, number> => new Map(lines.map((l) => [itemKey(l), Array.isArray(l.x_supplier_id) ? l.x_supplier_id[0] : 0]));
+
+/**
+ * § 60 — the four lines of «خلاصة اليوم» of a day, from its rows. On the screen the 🎯 line is the day
+ * BEFORE against its target; the 21:30 summary gives `closing`: the day itself, just closed («اليوم»).
+ * Pure.
+ */
+export function screenBrief(rows: ScreenRow[], lines: DayLine[], day: string, state: DayState, extra: DayExtra, closing?: { when: DayWord; actual: ActualShown | null }): [string, string, string, string] {
+  const yesterday = extra.inputs.days.find((d) => d.day === dayBefore(day));
+  return briefLines({
+    rows, state, average: averageProfit(rows),
+    actual: closing ? closing.actual : yesterday ? yesterday.actual : undefined, when: closing?.when ?? "أمس",
+    split: moneySplit({ rows, inputs: extra.inputs, vatPct: profitVatRate(day) }),
+    opportunities: opportunities(rows, extra.inputs, suppliersOf(lines)),
+  });
+}
+
+function headerVals(rows: ScreenRow[], lines: DayLine[], day: string, state: DayState, extra?: DayExtra): ScreenHeader {
   const publish = rows.filter((r) => r.publish).length, avg = averageProfit(rows);
-  return {
+  const header: ScreenHeader = {
     x_n_publish: publish, x_n_skip: rows.length - publish, x_n_warn: rows.filter((r) => r.warn).length,
     x_avg_profit: avg ?? 0, x_avg_profit_show: avg === null ? NONE : ltr(signed(avg)),
-    x_chart_html: dayChartHtml(rows),
+    x_chart_html: dayChartHtml(rows, extra),
+  };
+  if (!extra) return header;
+  // § 60 — the plan, «خلاصة اليوم», «🎯 الهدف مقابل الفعلي» and the three tabs, from the same rows
+  const plan = planOf(rows, extra), vatPct = profitVatRate(day);
+  const yesterday = extra.inputs.days.find((d) => d.day === dayBefore(day));
+  return {
+    ...header, ...planVals(plan),
+    x_brief_html: briefHtml(screenBrief(rows, lines, day, state, extra)),
+    x_target_html: targetHtml(plan, yesterday ? yesterday.actual : null, extra.own ?? null),
+    x_tab_money_html: moneyTabHtml({ rows, inputs: extra.inputs, cartons: extra.cartons, cost: extra.cost, vatPct }),
+    x_tab_items_html: itemsTabHtml({ rows, inputs: extra.inputs, state, vatPct }),
+    x_tab_next_html: nextTabHtml({ rows, inputs: extra.inputs, plan, suppliers: suppliersOf(lines) }),
   };
 }
 
@@ -184,11 +293,11 @@ export interface DayScreen { rows: ScreenRow[]; lines: ScreenLineVals[]; header:
  * shows of the i-th line, `header` what the day carries. Every line needs an id of its own (a line
  * not created yet: any number no other line has). Pure.
  */
-export function dayScreen(lines: DayLine[], above: AboveSuggested, day: string, state: DayState): DayScreen {
-  const rows = screenRows(lines, above, day, state);
+export function dayScreen(lines: DayLine[], above: AboveSuggested, day: string, state: DayState, extra?: DayExtra): DayScreen {
+  const rows = screenRows(lines, above, day, state, extra);
   const of = new Map(rows.map((r) => [r.lineId, r]));
   // a line that left the active catalog is no row of the review: it gets «خارج الكتالوج النشط», and stays out of the numbers and the chart
-  return { rows, lines: lines.map((l) => lineVals(of.get(l.id) ?? null, l)), header: headerVals(rows) };
+  return { rows, lines: lines.map((l) => lineVals(of.get(l.id) ?? null, l)), header: headerVals(rows, lines, day, state, extra) };
 }
 
 // ---------------------------------------------------------------- the chart
@@ -239,7 +348,24 @@ function profitLabel(r: ScreenRow): string {
   if (r.profit === null || r.profitBase === null) return `<div class="utak-profit text-muted">${r.purchase > 0 ? NONE : NO_PURCHASE_TEXT}</div>`;
   const tone = r.profit > 0 ? " text-success" : r.profit < 0 ? " text-danger" : "";
   const arrow = r.profit > 0 ? "▲ " : r.profit < 0 ? "▼ " : "";
-  return `<div class="utak-profit fw-bold${tone}">${arrow}<span dir="ltr">${signed(r.profit)}</span> <span class="fw-normal">${PROFIT_BASE_TEXT[r.profitBase]}${r.noShare ? NO_SHARE_NOTE : ""}</span></div>`;
+  // § 60 أ — the carton's contribution beside the profit, never in its place
+  const contribution = r.contribution === null ? "" : ` <span class="utak-contribution fw-normal text-muted">· ${CONTRIBUTION_LABEL} <span dir="ltr">${signed(r.contribution)}</span></span>`;
+  return `<div class="utak-profit fw-bold${tone}">${arrow}<span dir="ltr">${signed(r.profit)}</span> <span class="fw-normal">${PROFIT_BASE_TEXT[r.profitBase]}${r.noShare ? NO_SHARE_NOTE : ""}</span>${contribution}</div>`;
+}
+
+// § 60 أ — the break-even, the moves and the contribution
+export const EVEN_LABEL = "التعادل";
+export const EVEN_KEY_TEXT = "التعادل (أقل سعر بدون خسارة)";
+export const CONTRIBUTION_LABEL = "مساهمة";
+/** The red ┃ in a line of text (the key, and each row's values). */
+const EVEN_IN = `<span class="text-danger fw-bold">┃</span>`;
+/** «▲ +3.00» / «▼ −2.00» beside a value: what moved since the last day that carries a number. */
+const moveIn = (m: number | null): string => (m === null ? "" : ` <span class="utak-move small" dir="ltr">${m > 0 ? "▲" : "▼"} ${signed(m)}</span>`);
+/** The line under the key: what the profit is, and what the contribution is. `cartons`: what the day's cost was divided by. */
+export function chartKeyNote(extra?: Pick<DayExtra, "cartons" | "basis">): string {
+  const n = extra?.cartons && extra.cartons > 0 ? Math.round(extra.cartons * 100) / 100 : 0;
+  const on = !n ? "" : extra?.basis === "actual" ? ` على متوسط ${n} كرتون مسلَّم يومياً` : ` على هدف ${n} كرتون`;
+  return `الربح = بعد حصة التشغيل${on} · المساهمة = ما يبقى من الكرتون لتغطية التشغيل`;
 }
 
 /** The label column is this wide on a wide screen; on a phone it sits above the track. */
@@ -252,20 +378,25 @@ const line = (style: string): string => `<div class="text-muted" style="position
 function priceRow(r: ScreenRow, a: ChartAxis | null): string {
   const marks: string[] = [], values: string[] = [];
   if (a) {
+    // § 60 أ — the light pink zone on the axis before the break-even (behind every mark)
+    if (r.breakEven > 0) marks.push(`<div class="utak-loss-zone bg-danger bg-opacity-25" style="position:absolute;left:0;width:${axisAt(a, r.breakEven)}%;top:50%;height:10px;margin-top:-5px"></div>`);
     marks.push(line("left:0;right:0;top:50%;height:1px"), ...a.ticks.map((t) => line(`left:${axisAt(a, t)}%;top:50%;width:1px;height:8px;margin-top:-4px`)));
     // the gap between the market price and ours, drawn: the longer it is, the further our price stands from the market
     if (r.market > 0 && r.ours > 0 && !near(r.market, r.ours)) {
       const from = axisAt(a, Math.min(r.market, r.ours)), to = axisAt(a, Math.max(r.market, r.ours));
       marks.push(line(`left:${from}%;width:${Math.round((to - from) * 100) / 100}%;top:50%;height:3px;margin-top:-1.5px`));
     }
+    // § 60 أ — the break-even itself: a red ┃, under the three shapes
+    if (r.breakEven > 0) marks.push(`<div class="utak-even bg-danger" title="${EVEN_LABEL} ${fixed2(r.breakEven)}" style="position:absolute;left:${axisAt(a, r.breakEven)}%;top:1px;bottom:1px;width:3px;margin-left:-1.5px"></div>`);
     if (r.purchaseVat > 0) marks.push(markOn("cost", axisAt(a, r.purchaseVat), r.purchaseVat));
     if (r.market > 0) marks.push(markOn("market", axisAt(a, r.market), r.market));
     if (r.ours > 0) marks.push(markOn("ours", axisAt(a, r.ours), r.ours));
   }
   const value = (kind: MarkKind, x: number, note = ""): string => `<span class="text-nowrap">${markIn(kind)}${MARK_LABEL[kind]} <span dir="ltr">${fixed2(x)}</span>${note}</span>`;
-  values.push(r.purchaseVat > 0 ? value("cost", r.purchaseVat) : `<span class="text-nowrap">${NO_PURCHASE_TEXT}</span>`);
-  values.push(r.market > 0 ? value("market", r.market) : `<span class="text-nowrap">${NO_MARKET_TEXT}</span>`);
+  values.push(r.purchaseVat > 0 ? value("cost", r.purchaseVat, moveIn(r.purchaseMove)) : `<span class="text-nowrap">${NO_PURCHASE_TEXT}</span>`);
+  values.push(r.market > 0 ? value("market", r.market, moveIn(r.marketMove)) : `<span class="text-nowrap">${NO_MARKET_TEXT}</span>`);
   if (r.ours > 0) values.push(value("ours", r.ours, r.decided ? " (مقرر)" : " (مقترح)"));
+  if (r.breakEven > 0) values.push(`<span class="utak-even-value text-nowrap">${EVEN_IN} ${EVEN_LABEL} <span dir="ltr">${fixed2(r.breakEven)}</span></span>`);
   return `<div class="utak-row d-md-flex align-items-center border-top py-2">`
     + `<div class="mb-1 mb-md-0" style="${LABEL_COLUMN}"><div class="utak-name fw-bold">${r.mark} ${esc(r.name)}</div>${profitLabel(r)}</div>`
     + `<div style="${TRACK_COLUMN}"><div class="utak-track" dir="ltr" style="${TRACK}height:26px">${marks.join("")}</div>`
@@ -314,30 +445,38 @@ export const CHART_PRICES_NOTE = "صف لكل صنف على محور واحد ب
 export const CHART_TITLE_PROFIT = "ربح الكرتون";
 export const CHART_PROFIT_NOTE = "الربح = صافي الكرتون بعد الضريبة والتالف والتشغيل";
 export const CHART_EMPTY_TEXT = "لا أصناف في أسعار هذا اليوم بعد.";
+/** § 60 — «سعرنا مقابل السوق» never grows past this width. */
+export const CHART_PRICES_MAX_PX = 960;
+export const CHART_PRICES_STYLE = `flex:0 1 ${CHART_PRICES_MAX_PX}px;max-width:${CHART_PRICES_MAX_PX}px;min-width:0`;
+export const CHART_PROFITS_STYLE = "flex:1 1 0;min-width:0";
 
 /**
  * The chart of a day, as HTML for x_chart_html: «سعرنا مقابل السوق» (one key above it, a row an
  * item, one axis in riyals) and «ربح الكرتون» (a column an item around a zero line). An item
  * without a market price has two marks and «لا سعر سوق». Pure.
  */
-export function dayChartHtml(rows: ScreenRow[]): string {
+export function dayChartHtml(rows: ScreenRow[], extra?: Pick<DayExtra, "cartons" | "basis">): string {
   if (!rows.length) return `<div class="utak-day-chart text-muted">${CHART_EMPTY_TEXT}</div>`;
-  const axis = chartAxis(rows.flatMap((r) => [r.purchaseVat, r.market, r.ours]));
-  const key = `<div class="utak-key d-flex flex-wrap small mb-2" style="column-gap:18px;row-gap:4px">`
+  const axis = chartAxis(rows.flatMap((r) => [r.purchaseVat, r.market, r.ours, r.breakEven]));
+  const key = `<div class="utak-key d-flex flex-wrap small mb-1" style="column-gap:18px;row-gap:4px">`
     + `<span class="text-nowrap">${markIn("cost")}${MARK_LABEL.cost} الضريبة</span>`
     + `<span class="text-nowrap">${markIn("market")}${MARK_LABEL.market}</span>`
     + `<span class="text-nowrap">${markIn("ours")}${MARK_LABEL.ours} (المقرر، أو المقترح إن لم يُقرر)</span>`
+    + `<span class="text-nowrap">${EVEN_IN} ${EVEN_KEY_TEXT}</span>`
     + `<span class="text-nowrap">▲ ربح · ▼ خسارة</span>`
-    + `</div>`;
-  return `<div class="utak-day-chart">`
-    + `<div class="utak-prices mb-4"><div class="fs-4 fw-bold">${CHART_TITLE_PRICES}</div><div class="small text-muted mb-2">${CHART_PRICES_NOTE}</div>${key}${rows.map((r) => priceRow(r, axis)).join("")}${axis ? axisRow(axis) : ""}</div>`
-    + `<div class="utak-profits"><div class="fs-4 fw-bold">${CHART_TITLE_PROFIT}</div><div class="small text-muted mb-2">فوق الخط ربح، وتحته خسارة — ريال للكرتون (${CHART_PROFIT_NOTE}).</div>${profitBars(rows)}</div>`
+    + `</div>`
+    + `<div class="utak-key-note small text-muted mb-2">${chartKeyNote(extra)}</div>`;
+  // § 60 (Baraa's amendment) — «سعرنا مقابل السوق» is CHART_PRICES_MAX_PX wide at most and does not stretch with the
+  // screen; «ربح الكرتون» stands beside it from 1400px of width (Odoo's own «xxl» classes), under it below that
+  return `<div class="utak-day-chart d-xxl-flex align-items-start">`
+    + `<div class="utak-prices mb-4" style="${CHART_PRICES_STYLE}"><div class="fs-4 fw-bold">${CHART_TITLE_PRICES}</div><div class="small text-muted mb-2">${CHART_PRICES_NOTE}</div>${key}${rows.map((r) => priceRow(r, axis)).join("")}${axis ? axisRow(axis) : ""}</div>`
+    + `<div class="utak-profits ms-xxl-4" style="${CHART_PROFITS_STYLE}"><div class="fs-4 fw-bold">${CHART_TITLE_PROFIT}</div><div class="small text-muted mb-2">فوق الخط ربح، وتحته خسارة — ريال للكرتون (${CHART_PROFIT_NOTE}).</div>${profitBars(rows)}</div>`
     + `</div>`;
 }
 
 // ---------------------------------------------------------------- a stored day
 
-export interface ScreenReport { day: string; dayId: number; state: DayState; lines: number; updated: number; header: ScreenHeader; rows: ScreenRow[]; values: ScreenLineVals[] }
+export interface ScreenReport { day: string; dayId: number; state: DayState; lines: number; updated: number; header: ScreenHeader; rows: ScreenRow[]; values: ScreenLineVals[]; /** § 60 — what the plan, the brief and the tabs were made with (undefined: they were not made), and the day's lines. */ extra?: DayExtra; dayLines: DayLine[] }
 
 /**
  * The screen of a stored day from its lines as they are — after a publication (the lines then say
@@ -345,12 +484,19 @@ export interface ScreenReport { day: string; dayId: number; state: DayState; lin
  * written (SCREEN_LINE_FIELDS on a line that differs, SCREEN_DAY_FIELDS on the day): no price, no
  * status, no decision. `dry`: nothing is written.
  */
-export async function writeDayScreen(env: Env, dayId: number, opts: { dry?: boolean } = {}): Promise<ScreenReport> {
-  const [rec] = await call<DayRecord[]>(env, PRICE_DAY_MODEL, "read", { ids: [dayId], fields: ["id", "x_date", "x_state"] });
+export async function writeDayScreen(env: Env, dayId: number, opts: { dry?: boolean; now?: number; force?: boolean } = {}): Promise<ScreenReport> {
+  const [rec] = await call<Array<DayRecord & { x_op_cost?: number | false; x_op_cartons?: number | false; x_op_basis?: string | false }>>(env, PRICE_DAY_MODEL, "read", { ids: [dayId], fields: ["id", "x_date", "x_state", "x_op_cost", "x_op_cartons", "x_op_basis"] });
   if (!rec) throw new Error(`[day-screen] no x_price_day ${dayId}`);
+  // § 60 — a stored day keeps the cost and the cartons its lines were made with (nothing is computed again)
+  const share = { cost: Number(rec.x_op_cost) > 0 ? Number(rec.x_op_cost) : null, cartons: Number(rec.x_op_cartons) > 0 ? Number(rec.x_op_cartons) : null, basis: rec.x_op_basis === "actual" ? "actual" as const : "expected" as const };
   const settings = await readPricingSettings(env, rec.x_date);
   const lines = await readLines(env, dayId);
-  const screen = dayScreen(lines, settings?.aboveSuggested ?? ABOVE_SUGGESTED_DEFAULT, rec.x_date, rec.x_state);
+  // § 60 — the plan, the target and the tabs go with it (never blocks the screen: without them, § 56's screen alone)
+  let extra: DayExtra | undefined;
+  try { extra = settings ? await dayExtra(env, { id: dayId, x_date: rec.x_date }, settings, { now: opts.now, force: opts.force, share }) : undefined; } catch (e) {
+    console.warn(`[day-screen] ${rec.x_date}: the day's plan and tabs could not be made`, (e as Error)?.message);
+  }
+  const screen = dayScreen(lines, settings?.aboveSuggested ?? ABOVE_SUGGESTED_DEFAULT, rec.x_date, rec.x_state, extra);
   let updated = 0;
   for (const [i, l] of lines.entries()) {
     const vals = Object.fromEntries(Object.entries(screen.lines[i]).filter(([k, v]) => !sameCell((l as unknown as Record<string, unknown>)[k], v)));
@@ -359,10 +505,57 @@ export async function writeDayScreen(env: Env, dayId: number, opts: { dry?: bool
     if (!opts.dry) await call(env, PRICE_LINE_MODEL, "write", { ids: [l.id], vals });
   }
   if (!opts.dry) await call(env, PRICE_DAY_MODEL, "write", { ids: [dayId], vals: screen.header });
-  return { day: rec.x_date, dayId, state: rec.x_state, lines: lines.length, updated, header: screen.header, rows: screen.rows, values: screen.lines };
+  return { day: rec.x_date, dayId, state: rec.x_state, lines: lines.length, updated, header: screen.header, rows: screen.rows, values: screen.lines, extra, dayLines: lines };
 }
 /** A stored cell against the one to write: an empty char is `false` in Odoo, a float within a hair. */
 function sameCell(cur: unknown, want: string | number): boolean {
   if (typeof want === "number") return Math.abs((Number(cur) || 0) - want) < 0.0001;
   return (typeof cur === "string" ? cur : "") === want;
+}
+
+// ---------------------------------------------------------------- § 60: what the screen reads beside the lines
+
+/**
+ * The `extra` of a day's screen: the insight inputs (src/day-tabs.ts, kept in KV), the day's cost and
+ * what it was divided by (the board's own inputs, src/pricing-board.ts), the settings' profit target and
+ * — a day the 21:30 summary already closed — its own actual. `share`: the board's share when
+ * the caller already made it. Throws on Odoo trouble (the caller then writes § 56's screen alone).
+ */
+export async function dayExtra(
+  env: Env, day: { id: number; x_date: string }, settings: { profitTarget: number; expectedCartons: number | null },
+  o: { now?: number; force?: boolean; share?: { cost: number | null; cartons: number | null; basis: "expected" | "actual" } } = {},
+): Promise<DayExtra> {
+  const now = o.now ?? Date.now();
+  const { readInsightInputs } = await import("./day-tabs");
+  const inputs = await readInsightInputs(env, day.x_date, now, !!o.force);
+  let share = o.share;
+  if (!share) {
+    const { boardShare, readBoardInputs } = await import("./pricing-board");
+    const b = await readBoardInputs(env, day.x_date, now, !!o.force);
+    share = boardShare(b.cost, settings.expectedCartons, b.actual, b.costReason);
+  }
+  const { actualOfRecord, readDayRecord } = await import("./day-insight");
+  let own: ActualShown | null = null;
+  try { own = actualOfRecord(await readDayRecord(env, day.x_date)); } catch { /* the target's lines without the day's own */ }
+  return { inputs, cost: share.cost, cartons: share.cartons, basis: share.basis, profitTarget: settings.profitTarget, own };
+}
+
+/** «خلاصة اليوم» of a day with no price record at all. */
+export const NO_DAY_BRIEF = "✅ لا أسعار لليوم";
+
+/**
+ * § 60 — the four lines the 21:30 summary gains, of the day it closes: the day's actual is computed
+ * against its plan (src/day-insight.ts computeDayActual) and — `keep` — written on its record, then the
+ * day's screen is written again (its «🎯» lines now carry the day itself), and the brief is made with
+ * the 🎯 line about the day just closed («اليوم»). Without `keep` nothing is written. Throws on Odoo
+ * trouble, and when the day's plan could not be made (the summary then says «تعذّر»).
+ */
+export async function closingBrief(env: Env, day: string, nowMs: number = Date.now(), o: { keep?: boolean } = {}): Promise<[string, string, string, string]> {
+  const { briefActualLine, computeDayActual } = await import("./day-insight");
+  const { NO_SPLIT_TEXT } = await import("./day-tabs");
+  const a = await computeDayActual(env, day, nowMs, { dry: !o.keep });
+  if (!a.dayId) return [NO_DAY_BRIEF, briefActualLine(a.actual, "اليوم"), `💧 ${NO_SPLIT_TEXT}`, "➡️ لا فرصة ظاهرة اليوم"];
+  const r = await writeDayScreen(env, a.dayId, { dry: !o.keep, now: nowMs });
+  if (!r.extra) throw new Error("the day's plan could not be made");
+  return screenBrief(r.rows, r.dayLines, day, r.state, r.extra, { when: "اليوم", actual: a.actual });
 }

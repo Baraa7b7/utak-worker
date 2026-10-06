@@ -26,6 +26,7 @@ import {
   DAY_MODEL, HISTORY_ACTION, HISTORY_BUTTON, HISTORY_DAY_FIELD, HISTORY_DOMAIN, HISTORY_GRAPH_ARCH, HISTORY_ITEM_FIELD, HISTORY_MEASURES, HISTORY_MENU_SEQUENCE,
   HISTORY_PIVOT_ARCH, HISTORY_TITLE, LINE_MODEL, NEW_DAY_FIELDS, NOTEBOOK, PRICING_MENU, TABS, TARGET_FIELD, TODAY_TAB, VIEW_DAY, VIEW_HISTORY_GRAPH, VIEW_HISTORY_PIVOT, VIEW_SETTINGS,
   dayArch57Of, dayArch58, settingsArch57Of, settingsArch58,
+  BRIEF_TAG_60,   // § 60: «خلاصة اليوم» sits before the tiles since scripts/s60-20261006-day.mjs — taken off before the form is compared
 } from "./lib/s58-ui.mjs";
 import { PROFIT_TARGET_FIELD, PROFIT_TARGET_LABEL } from "./lib/s58-odoo.mjs";
 
@@ -89,7 +90,7 @@ if (VERIFY) {
   const day = await viewOf(VIEW_DAY);
   const was = rb.before.views[VIEW_DAY];
   check(`the day's form #${day?.id} carries § 58's notebook «${NOTEBOOK}»`, !!day?.arch_db.includes(`<notebook name="${NOTEBOOK}">`), String(day?.arch_db).slice(0, 80));
-  if (was) check("…and without § 58's parts it is the form of § 57 byte for byte: the header (the buttons), the class, the stylesheet, the links, the banners, the tiles, the chart, the table, the details, «تقرير النشر»", dayArch57Of(day.arch_db) === was.arch && headerOf(day.arch_db) === headerOf(was.arch) && day.arch_db === dayArch58(was.arch, action?.id), `${day.arch_db.length} against ${was.arch.length}`);
+  if (was) check("…and without § 58's parts it is the form of § 57 byte for byte: the header (the buttons), the class, the stylesheet, the links, the banners, the tiles, the chart, the table, the details, «تقرير النشر»", dayArch57Of(day.arch_db) === was.arch && headerOf(day.arch_db) === headerOf(was.arch) && day.arch_db.replace(BRIEF_TAG_60, "") === dayArch58(was.arch, action?.id), `${day.arch_db.length} against ${was.arch.length}`);
   const arch = await rendered(DAY_MODEL, day.id, "form");
   const pages = [...arch.matchAll(/<page[^>]*string="([^"]*)"[^>]*name="([^"]*)"/g)].map((m) => [m[2], m[1]]);
   check(`it renders ONE notebook of four pages, in order: ${[TODAY_TAB, ...TABS].map((t) => `«${t.title}»`).join(" · ")}`, arch.split("<notebook").length === 2 && JSON.stringify(pages) === JSON.stringify([TODAY_TAB, ...TABS].map((t) => [t.name, t.title])), JSON.stringify(pages));

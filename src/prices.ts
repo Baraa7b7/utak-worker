@@ -69,6 +69,7 @@ import {
 import { loadPriceSources, MARKET_ASK_MINUTE, MARKET_REPLY_WINDOW_MIN } from "./price-sources";
 import { readPricingSettings } from "./operating-cost";
 import { BOARD_LINE_FIELDS, boardHeader, boardLine, boardShare, fallbackSale, readBoardInputs, type BoardStatus, type FloorInputs } from "./pricing-board";
+import type { DayExtra } from "./day-screen";
 import { PLACE_TODAY } from "./places";
 import { PRICE_NOTE, quoteAwaitingOrders, type AwaitingReport } from "./order-flow";
 
@@ -176,10 +177,12 @@ export interface DayLine {
   x_suggested_profit_show?: string | false;
   x_gap_show?: string | false;
   x_outcome_show?: string | false;
+  /** § 60 أ — «مساهمة الكرتون»: the net sale − the net purchase − the waste, no carton share (0 = none). */
+  x_contribution?: number;
 }
 
 /** § 56 — the cells of «📊 اليوم» the worker writes on a line with every run (src/day-screen.ts). */
-export const SCREEN_LINE_FIELDS = ["x_cost_vat_show", "x_market_profit", "x_market_profit_show", "x_suggested_profit_show", "x_gap_show", "x_outcome_show"] as const;
+export const SCREEN_LINE_FIELDS = ["x_cost_vat_show", "x_market_profit", "x_market_profit_show", "x_suggested_profit_show", "x_gap_show", "x_outcome_show", "x_contribution"] as const;
 /** § 56 — …and on the day: the header's four numbers and the chart. */
 export const SCREEN_DAY_FIELDS = ["x_n_publish", "x_n_skip", "x_n_warn", "x_avg_profit", "x_avg_profit_show", "x_chart_html"] as const;
 
@@ -320,7 +323,9 @@ export async function refreshPriceDay(env: Env, opts: { day?: string; force?: bo
   let seq = lines.reduce((m, l) => Math.max(m, Number(l.x_sequence) || 0), 0);
   const board: BoardStatus[] = [];
   // § 56 — «📊 اليوم»: what the screen shows of each line as this run leaves it, and of the day
-  const screen = await screenWriter(settings.aboveSuggested, day, rec.x_state);
+  // § 60 — and with the day's header its plan, «خلاصة اليوم», «🎯 الهدف مقابل الفعلي» and the three tabs
+  const extra = await screenExtra(env, rec, settings, share, now, !!opts.force);
+  const screen = await screenWriter(settings.aboveSuggested, day, rec.x_state, extra);
   for (const p of plan) {
     const l = byKey.get(p.key);
     const decision = (l?.x_decision || null) as Decision | null;
@@ -500,8 +505,8 @@ export async function rewriteBoard(env: Env, dayId: number, opts: { now?: number
   const counts: Record<BoardStatus, number> = { green: 0, yellow: 0, red: 0, none: 0 };
   const values: Array<Record<string, unknown>> = [];
   let updated = 0;
-  // § 56 — «📊 اليوم» follows the board: the line's cells and the day's header with it
-  const screen = await screenWriter(settings.aboveSuggested, day, rec.x_state);
+  // § 56 — «📊 اليوم» follows the board: the line's cells and the day's header with it (§ 60: its plan, target and tabs too)
+  const screen = await screenWriter(settings.aboveSuggested, day, rec.x_state, await screenExtra(env, rec, settings, share, now, !!opts.force));
   for (const l of lines) {
     const b = storedBoardLine(l, settings.wastePct, vatRatePct, share.share, settings.minProfit);
     counts[b.x_board_status]++;
@@ -523,7 +528,7 @@ export async function rewriteBoard(env: Env, dayId: number, opts: { now?: number
  * gives the day's four numbers and its chart from every line seen. Never blocks the engine: a
  * screen that cannot be made writes nothing, and the prices go on.
  */
-async function screenWriter(above: AboveSuggested, day: string, state: DayRecord["x_state"]): Promise<{
+async function screenWriter(above: AboveSuggested, day: string, state: DayRecord["x_state"], extra?: DayExtra): Promise<{
   line: (l: Pick<DayLine, "id" | "x_product_tmpl_id" | "x_packaging_id"> & Partial<DayLine>, want: Record<string, unknown>) => Record<string, unknown>;
   header: () => Record<string, unknown>;
 }> {
@@ -543,7 +548,7 @@ async function screenWriter(above: AboveSuggested, day: string, state: DayRecord
       },
       header: () => {
         try {
-          return dayScreen(seen, above, day, state).header;
+          return dayScreen(seen, above, day, state, extra).header;
         } catch (e) {
           console.warn(`[prices] ${day}: the screen's header could not be made`, (e as Error)?.message);
           return {};
@@ -553,6 +558,25 @@ async function screenWriter(above: AboveSuggested, day: string, state: DayRecord
   } catch (e) {
     console.warn(`[prices] ${day}: the screen could not be loaded`, (e as Error)?.message);
     return { line: () => ({}), header: () => ({}) };
+  }
+}
+
+/**
+ * § 60 — what the screen reads beside the day's lines (src/day-screen.ts dayExtra): the insight inputs,
+ * the day's cost and its cartons (the share this run already made), the settings' profit target.
+ * Never blocks the engine: undefined when it cannot be made (the screen is then § 56's alone, and the
+ * brief, the target and the tabs keep what they held).
+ */
+async function screenExtra(
+  env: Env, rec: Pick<DayRecord, "id" | "x_date">, settings: { profitTarget: number; expectedCartons: number | null },
+  share: { cost: number | null; cartons: number | null; basis: "expected" | "actual" }, now: number, force: boolean,
+): Promise<DayExtra | undefined> {
+  try {
+    const { dayExtra } = await import("./day-screen");
+    return await dayExtra(env, rec, settings, { now, force, share: { cost: share.cost, cartons: share.cartons, basis: share.basis } });
+  } catch (e) {
+    console.warn(`[prices] ${rec.x_date}: the day's plan and tabs could not be made`, (e as Error)?.message);
+    return undefined;
   }
 }
 

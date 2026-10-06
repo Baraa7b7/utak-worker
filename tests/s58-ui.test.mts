@@ -134,7 +134,7 @@ console.log("\n[5] the checks of § 48, § 56 and § 57 read the screen after §
   const v57 = read("scripts/s57-20261005-day.mjs"), v56 = read("scripts/s56-20261005-odoo.mjs"), v48 = read("scripts/s48-20261001-ui.mjs");
   assert("§ 57's and § 56's verify compare the form with § 58's parts taken off", v57.includes(`import { dayArch57Of } from "./lib/s58-ui.mjs";`) && v57.includes("dayArch57Of(v.arch_db) === dayArch57(was.arch)")
     && v56.includes(`import { dayArch57Of } from "./lib/s58-ui.mjs";`) && v56.includes("dayArch57Of(v.arch_db) === dayArch57(dayArch(was.arch))"));
-  assert("§ 48's verify expects «📈 تاريخ الأسعار» after «📅 الأيام السابقة», and its own five screens where they were", v48.includes(`import { HISTORY_ACTION, HISTORY_TITLE } from "./lib/s58-ui.mjs";`) && v48.includes("[MENU.days, `ir.actions.act_window,${a.days}`], [HISTORY_TITLE, `ir.actions.act_window,${history}`], [MENU.sources,"));
+  assert("§ 48's verify expects «📈 تاريخ الأسعار» after «📅 الأيام السابقة», and its own five screens where they were", v48.includes(`import { HISTORY_ACTION, HISTORY_TITLE } from "./lib/s58-ui.mjs";`) && v48.includes("[MENU.days, `ir.actions.act_window,${a.days}`], [HISTORY_TITLE, `ir.actions.act_window,${history}`], [REQUEST_TITLE, `ir.actions.act_window,${requests}`], [MENU.sources,"));   // § 60 ج: «🙋 طلبوا وما كان متوفر» after it
 }
 
 done();

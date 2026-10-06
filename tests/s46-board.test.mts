@@ -237,8 +237,10 @@ console.log("\n[أ] a locked day: the engine leaves it; rewriteBoard fills its b
   const row = table("x_price_day_line").get(l)! as any;
   assert("rewriteBoard: the card is filled (🟢 7) and the header written", w.updated === 1 && w.counts.green === 1 && row.x_real_profit === 7 && row.x_board_status === "green" && table("x_price_day").get(d)!.x_n_green === 1, JSON.stringify(w));
   // § 56 — the cells and the header of «📊 اليوم» are written with the board (src/day-screen.ts): display fields too, none of them watched by the lock
+  const { INSIGHT_DAY_FIELDS } = await import("../src/day-screen.ts");
   assert("…writing the board's fields and the screen's ONLY (the lock's watched fields and the prices are never in the write)", lineWrites.length === 1 && Object.keys(lineWrites[0].body.vals).every((k) => ([...PB.BOARD_LINE_FIELDS, ...PR.SCREEN_LINE_FIELDS] as readonly string[]).includes(k))
-    && dayWrites.length === 1 && Object.keys(dayWrites[0].body.vals).every((k) => /^x_(op_|n_|board_)/.test(k) || (PR.SCREEN_DAY_FIELDS as readonly string[]).includes(k)), JSON.stringify([lineWrites.map((x) => Object.keys(x.body.vals)), dayWrites.map((x) => Object.keys(x.body.vals))]));
+    // § 60 — and the day's plan, its target's lines and its three tabs (src/day-screen.ts INSIGHT_DAY_FIELDS): display fields as well
+    && dayWrites.length === 1 && Object.keys(dayWrites[0].body.vals).every((k) => /^x_(op_|n_|board_)/.test(k) || ([...PR.SCREEN_DAY_FIELDS, ...INSIGHT_DAY_FIELDS] as readonly string[]).includes(k)), JSON.stringify([lineWrites.map((x) => Object.keys(x.body.vals)), dayWrites.map((x) => Object.keys(x.body.vals))]));
   assert("…the day's state and its prices as they were", table("x_price_day").get(d)!.x_state === "published" && row.x_sale_price === 34.5 && row.x_cost_price === 20 && row.x_status === "auto");
   const again = await quiet(() => PR.rewriteBoard(env, d));
   assert("a second run writes no line (idempotent)", again.updated === 0, JSON.stringify(again));

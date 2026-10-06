@@ -37,7 +37,8 @@ import {
 } from "./lib/s48-ui.mjs";
 import * as S56 from "./lib/s56-ui.mjs";
 import { FORM_CLASS } from "./lib/s57-ui.mjs";   // § 57 أ: the day's form carries its own class and stylesheet (the table wraps and clips nothing)
-import { HISTORY_ACTION, HISTORY_TITLE } from "./lib/s58-ui.mjs";   // § 58 د: «📈 تاريخ الأسعار», a sixth screen under «💲 التسعير» (Odoo's own graph and pivot)
+import { HISTORY_ACTION, HISTORY_TITLE } from "./lib/s58-ui.mjs";
+import { REQUEST_ACTION, REQUEST_TITLE } from "./lib/s60-odoo.mjs";   // § 58 د: «📈 تاريخ الأسعار», a sixth screen under «💲 التسعير» (Odoo's own graph and pivot)
 
 const RB = new URL("./artifacts/s48-20261001-ui-rollback.json", import.meta.url);
 const DAY = "x_price_day", LINE = "x_price_day_line", CFG = "x_pricing_config", COST = "x_operating_cost", TMPL = "product.template", DP = "x_daily_price", PO = "x_price_offer";
@@ -115,8 +116,10 @@ if (VERIFY) {
   const subs = root ? await call("ir.ui.menu", "search_read", { domain: [["parent_id", "=", root.id]], fields: ["id", "name", "sequence", "action"], order: "sequence, id" }) : [];
   // § 58 د — «📈 تاريخ الأسعار» (scripts/s58-20261005-day.mjs) sits after «📅 الأيام السابقة»: the five screens of § 48 are where they were
   const history = await one("ir.actions.act_window", [["name", "=", HISTORY_ACTION]]);
-  const want = [[MENU.today, `ir.actions.server,${a.openDay}`], [MENU.days, `ir.actions.act_window,${a.days}`], [HISTORY_TITLE, `ir.actions.act_window,${history}`], [MENU.sources, `ir.actions.server,${a.openSources}`], [MENU.products, `ir.actions.act_window,${a.products}`], [MENU.settings, `ir.actions.server,${a.settings}`]];
-  check("its five screens, in order: 📊 اليوم · 📅 الأيام السابقة · 📥 عروض المصادر · 📦 الأصناف · ⚙️ الإعدادات — each on its action — and § 58's «📈 تاريخ الأسعار» after the second", JSON.stringify(subs.map((m) => [m.name, m.action])) === JSON.stringify(want), JSON.stringify(subs.map((m) => [m.name, m.action])));
+  // § 60 ج — «🙋 طلبوا وما كان متوفر» (scripts/s60-20261006-odoo.mjs) sits after it
+  const requests = await one("ir.actions.act_window", [["name", "=", REQUEST_ACTION]]);
+  const want = [[MENU.today, `ir.actions.server,${a.openDay}`], [MENU.days, `ir.actions.act_window,${a.days}`], [HISTORY_TITLE, `ir.actions.act_window,${history}`], [REQUEST_TITLE, `ir.actions.act_window,${requests}`], [MENU.sources, `ir.actions.server,${a.openSources}`], [MENU.products, `ir.actions.act_window,${a.products}`], [MENU.settings, `ir.actions.server,${a.settings}`]];
+  check("its five screens, in order: 📊 اليوم · 📅 الأيام السابقة · 📥 عروض المصادر · 📦 الأصناف · ⚙️ الإعدادات — each on its action — and § 58's «📈 تاريخ الأسعار» and § 60's «🙋 طلبوا وما كان متوفر» after the second", JSON.stringify(subs.map((m) => [m.name, m.action])) === JSON.stringify(want), JSON.stringify(subs.map((m) => [m.name, m.action])));
   check("«💲 التسعير» itself carries no action, and «📊 اليوم» is its first screen: the UTAK app opens on it", root && !root.action && subs[0]?.name === MENU.today);
   const old = await call("ir.ui.menu", "search_read", { domain: [["id", "in", OLD_MENUS.map(([id]) => id)]], fields: ["id", "name", "active"], context: ALL });
   check(`the ${OLD_MENUS.length} pricing menus of before are hidden, none deleted (${old.filter((m) => !m.active).map((m) => `#${m.id}`).join(" ")})`, old.length === OLD_MENUS.length && old.every((m) => m.active === false), JSON.stringify(old.filter((m) => m.active)));

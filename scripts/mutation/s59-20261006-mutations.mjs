@@ -4,14 +4,14 @@
 // src/team-prices.ts), what is available today and the text quotation (ج: src/order-form.ts,
 // src/order-flow.ts, src/router.ts, src/price-validity.ts, src/sale-accounting.ts), every PDF as an
 // attached file (د: src/quotation.ts, src/payment-confirm.ts, src/transfer-form.ts, src/meta.ts) and the
-// five trials (ز: src/s59-trials.ts). Each mutation disables ONE guard, runs the test file, and must
+// five trials (ز: src/s59-trials.ts), and the operating guide (دليل: docs/OPERATING-DAY.md). Each mutation disables ONE guard, runs the test file, and must
 // make it fail. The source is restored in `finally` after every run; a pattern that is not found
 // exactly once stops the script.
 //
 // RUN IT IN A COPY OF THE TREE (scripts/mutation/s45-20260930-mutations-all.mjs does: `git archive HEAD`):
 // a mutation edits src/ in place, so it never runs in the working tree.
 //
-//   node scripts/mutation/s59-20261006-mutations.mjs [أ ب ج د ز]     (no argument: every part)
+//   node scripts/mutation/s59-20261006-mutations.mjs [أ ب ج د ز دليل]     (no argument: every part)
 //
 // Out: scripts/artifacts/s59-20261006-mutations.json
 
@@ -225,6 +225,23 @@ const M = [
     "    for (const part of parts) await went(env, TEAM_PRICES_TEST_PURPOSE, owner, textContent(part));", "    for (const part of parts) await went(env, TEAM_PRICES_TEST_PURPOSE, owner, textContent(`${S59_TRIAL_MARK} ${part}`));"]], "tests/s59-trials.test.mts"],
   ["ز", "«بدء الدوام»'s trial goes as a member's template (the owner guard refuses it)", [["src/s59-trials.ts",
     "undefined, { sendPurpose: OWNER_WINDOW_PURPOSE });", "undefined, {});"]], "tests/s59-trials.test.mts"],
+  // ---------------------------------------------------------------- دليل
+  ["دليل", "the guide still gives «بدء الدوام» 02:00 to Omar", [["docs/OPERATING-DAY.md",
+    "| 02:00 | براء (مكان عمر، § 59) | قالب «بدء الدوام»", "| 02:00 | عمر | قالب «بدء الدوام»"]], "tests/s59-trials.test.mts"],
+  ["دليل", "the guide still sends the 18:00 collection list to «المحصّل» held for his shift", [["docs/OPERATING-DAY.md",
+    "| 18:00 | براء (المحصّل الآن) |", "| 18:00 | المحصّل |"]], "tests/s59-trials.test.mts"],
+  ["دليل", "the guide still says «مع السائق عمر المجهلي»", [["docs/OPERATING-DAY.md",
+    "في الطريق إليك الآن مع فريق يو تاك» (§ 59", "في الطريق إليك الآن مع السائق عمر المجهلي» (§ 59"]], "tests/s59-trials.test.mts"],
+  ["دليل", "the guide does not say Omar gets no operating task", [["docs/OPERATING-DAY.md",
+    "**لا مهمة تشغيلية تصله**", "**مهامه كما كانت**"]], "tests/s59-trials.test.mts"],
+  ["دليل", "the guide does not say how the roles go back", [["docs/OPERATING-DAY.md",
+    "`node scripts/s59-20261006-odoo.mjs --rollback` (جافاً ثم `--apply`)", "من Odoo"]], "tests/s59-trials.test.mts"],
+  ["دليل", "the guide lets an unpublished item go at its suggested price", [["docs/OPERATING-DAY.md",
+    "**لا يُعرض بالسعر المقترح، ولا «نراجع السعر»، ولا يدخل طلبه.**", "يُعرض بالسعر المقترح."]], "tests/s59-trials.test.mts"],
+  ["دليل", "the guide keeps the receipts' links for the customer", [["docs/OPERATING-DAY.md",
+    "- **الروابط تبقى في رسائلك أنت والفريق فقط**", "- **الروابط تصل العميل أيضاً**"]], "tests/s59-trials.test.mts"],
+  ["دليل", "the guide keeps «✅ وصل» waiting outside the window", [["docs/OPERATING-DAY.md",
+    "| **«✅ وصل»** | رسالته الواحدة ثم ملف إيصال لكل دفعة | قالب «استلمنا دفعتك…» لكل فاتورة فوراً،", "| **«✅ وصل»** | رسالته الواحدة ثم ملف إيصال لكل دفعة | تُحفظ 48 ساعة،"]], "tests/s59-trials.test.mts"],
 ];
 
 const want = new Set(process.argv.slice(2));

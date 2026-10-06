@@ -161,11 +161,11 @@ console.log("\n[د3] «✅ وصل»: its one message then the files inside the w
   ];
   const ONE = `استلمنا تحويلك 500 ريال ✅ وسددنا: فاتورة ${N_A} (300 ريال)، فاتورة ${N_B} (200 ريال)`;
   assert("the one message carries no link, whatever its rows hold", TR.customerConfirmedText(500, rowsOf(), 0) === ONE && !hasLink(TR.customerConfirmedText(500, rowsOf(), 12.5)));
-  // inside the window
-  let env = world(); openWindow(env, C1_PHONE);
+  // inside the window — utak_payment_received is approved and UTILITY, and still not used: the ONE text is his message
+  let env = world(); tplRow("customer_payment_received", "utak_payment_received", 2); clearTemplateCache(); openWindow(env, C1_PHONE);
   let via = await quiet(() => TR.tellCustomerConfirmed(env, { to: "+" + C1_PHONE, amount: 500 }, rowsOf(), 0));
   let got = sentTo(C1_PHONE);
-  assert("inside the window: the ONE text, then a receipt's file a payment — three messages, in order", via === "text" && got.length === 3 && got[0].type === "text" && got[0].text.body === ONE && got[1].type === "document" && got[2].type === "document", JSON.stringify(got).slice(0, 500));
+  assert("inside the window: the ONE text, then a receipt's file a payment — three messages, in order, and no template", via === "text" && tplTo(C1_PHONE).length === 0 && got.length === 3 && got[0].type === "text" && got[0].text.body === ONE && got[1].type === "document" && got[2].type === "document", JSON.stringify(got).slice(0, 500));
   assert("…each file by its own link and number", got[1].document.link === "https://w.test/r/a.pdf" && got[1].document.filename === "UTAK-R-20261006-021.pdf" && got[2].document.link === "https://w.test/r/b.pdf" && got[2].document.filename === "UTAK-R-20261006-022.pdf");
   assert("…Baraa's line", TR.customerToldLine("text", true) === "أُبلغ العميل برسالة واحدة، ومعها ملفات الإيصالات PDF." && TR.customerToldLine("text", false) === "أُبلغ العميل برسالة واحدة.");
   // outside the window: the template an invoice, at once

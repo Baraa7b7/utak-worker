@@ -136,5 +136,23 @@ console.log("\n[ز] the hook");
   assert("schema gate: nothing rejected", rejected.length === 0, rejected.join(" / "));
 }
 
+console.log("\n[دليل] the operating guide says who gets what now");
+{
+  const guide = readFileSync(new URL("../docs/OPERATING-DAY.md", import.meta.url), "utf8");
+  const section = (title: string) => { const i = guide.indexOf(`## ${title}`); return i < 0 ? "" : guide.slice(i, guide.indexOf("\n## ", i + 4)); };
+  const row = (start: string) => guide.split("\n").find((l) => l.startsWith(start)) ?? "";
+  assert("the schedule: «بدء الدوام» 02:00 is Baraa's, in Omar's place", row("| 02:00 | براء (مكان عمر، § 59) |").includes("قالب «بدء الدوام»") && !guide.includes("| 02:00 | عمر | قالب «بدء الدوام»"));
+  assert("…the purchase list, the route, the delivery, the collection, the car load, the custody and 11:30 are his", ["| بعد الشراء | براء (مكان عمر) |", "| مع المسار | براء (مكان عمر) |", "| عند كل تسليم | براء (مكان عمر) |", "| عند كل تسليم بقي فيه مستحق | براء (المحصّل الآن) |", "| قبل الخروج بالسيارة | براء (السائق الآن) |", "| آخر الدوام | براء (المحصّل الآن) |", "| 11:30 | براء (مكان عمر) |", "| 18:00 | براء (المحصّل الآن) |", "| 21:15 | براء (مكان عمر) |"].every((r) => row(r) !== ""));
+  assert("…«في الطريق … مع فريق يو تاك», and 12:30 in words that are not about him", guide.includes("في الطريق إليك الآن مع فريق يو تاك") && row("| 12:30 | براء |").includes("انتهى وقت التوصيل الساعة 12:00"));
+  assert("…Omar's row: the price list with every publication, «الأسعار» / «القائمة»", row("| 06:00، مع كل نشر | عمر (تسويق، § 59) |").includes("📋 قائمة أسعار يو تاك اليوم") && row("| 06:00، مع كل نشر | عمر (تسويق، § 59) |").includes("صالحة حتى 6:00 صباح بكرة") && row("| 06:00، مع كل نشر | عمر (تسويق، § 59) |").includes("«الأسعار»"));
+  const omar = section("عمر — التسويق (§ 59)");
+  assert("the section «عمر — التسويق»: no operating task, the list, the template's button, the sale price alone, and how the roles go back", omar.includes("لا مهمة تشغيلية تصله") && omar.includes("أرسل القائمة") && omar.includes("لا يرى إلا سعر البيع") && omar.includes("scripts/s59-20261006-odoo.mjs --rollback"));
+  const avail = section("المتوفر اليوم (§ 59)");
+  assert("the section «المتوفر اليوم»: the form's message, «هذا الصنف غير متوفر اليوم 🌿», never the suggested price nor «نراجع السعر», the text quotation with amounts and total, the welcome as text", avail.includes("المتوفر اليوم:") && avail.includes("هذا الصنف غير متوفر اليوم 🌿") && avail.includes("لا يُعرض بالسعر المقترح، ولا «نراجع السعر»") && avail.includes("المجموع: … ر.س") && avail.includes("تم تفعيل حسابك في يو تاك 🌿"));
+  const files = section("المستندات ملفات مرفقة (§ 59)");
+  assert("the section «المستندات ملفات مرفقة»: the three files' names, v2 then v1, «✅ وصل» outside the window by template, links in Baraa's messages alone", files.includes("UTAK-Q-….pdf") && files.includes("UTAK-INV-….pdf") && files.includes("UTAK-R-….pdf") && files.includes("utak_quotation_pdf_v2") && files.includes("لكل فاتورة فوراً") && files.includes("الروابط تبقى في رسائلك أنت والفريق فقط"));
+  assert("the working days are the company's schedule, not a driver's", guide.includes("جدول «UTAK — أيام العمل» الثابت للشركة"));
+}
+
 void [graph, setRiyadh];
 done();

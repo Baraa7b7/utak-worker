@@ -404,6 +404,8 @@ export async function refreshPriceDay(env: Env, opts: { day?: string; force?: bo
     console.warn(`[prices] ${day}: the board header was not written`, (e as Error)?.message);
   }
   try { await env.MSG_DEDUP.put(fpKey(day), fp, { expirationTtl: 3 * 24 * 3600 }); } catch { /* next tick recomputes */ }
+  // § 60 — «📈 تاريخ الأسعار»: a new item gets its saved filter with the day's computation (never blocks the engine)
+  await (await import("./history-filters")).ensureItemFilters(env, items);
   console.log(`[prices] ${day} refreshed: +${creates.length} ~${updated} (${plan.length} lines: ${JSON.stringify(counts)})`);
   return {
     day, action: "refreshed", dayId: rec.id, state: rec.x_state, created: creates.length, updated, lines: plan.length,

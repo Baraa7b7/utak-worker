@@ -224,7 +224,7 @@ console.log("\n[ج] the list expired (a price is valid for one day): the old for
   const r = await reply(env, C1_PHONE, token, { q1: "3" });
   const f = flowsTo(C1_PHONE);
   assert("no order, no line, no quotation from the old form", r.action === "expired" && rows("x_daily_order").length === 0 && rows("x_quotation").length === 0);
-  assert("a NEW form goes at once, saying why, with today's prices (35) and today's two items", f.length === 1 && bodyOf(f[0]) === OF.ORDER_FORM_EXPIRED_TEXT && dataOf(f[0]).h1 === "كرتون · السعر 35 ر.س شامل الضريبة" && dataOf(f[0]).v3 === false && tokenOf(f[0]) !== token, bodyOf(f[0]));
+  assert("a NEW form goes at once, saying why, with today's prices (35) and today's two items", f.length === 1 && bodyOf(f[0]).startsWith(OF.ORDER_FORM_EXPIRED_TEXT + "\n\nالمتوفر اليوم:\n• ") && dataOf(f[0]).h1 === "كرتون · السعر 35 ر.س شامل الضريبة" && dataOf(f[0]).v3 === false && tokenOf(f[0]) !== token, bodyOf(f[0]));
   const ok = await reply(env, C1_PHONE, tokenOf(f[0]), { q1: "3" });
   assert("…and ITS reply is taken at the new price", ok.action === "quoted" && linesOf(ok.orderId!)[0].x_unit_price === 35 && table("x_daily_order").get(ok.orderId!)!.x_price_date === NEXT);
 }
@@ -284,7 +284,7 @@ console.log("\n[ج] «تعديل» under a quotation the form made opens the for
   const id = ordersOf()[0].id;
   graph.length = 0;
   const e = await tap(env, `edit_order_${id}`);
-  assert("«تعديل» under a quotation made by text and «خلاص» stays as it was: the text, no form", /الكوتيشن/.test(String(k.bodyBeforeButtons)) && /تفضّل، عدّل/.test(String(e.text)) && flowsTo(C1_PHONE).length === 0, String(e.text));
+  assert("«تعديل» under a quotation made by text and «خلاص» stays as it was: the text, no form", /عرض السعر رقم/.test(String(k.bodyBeforeButtons)) && /تفضّل، عدّل/.test(String(e.text)) && flowsTo(C1_PHONE).length === 0, String(e.text));
 }
 {
   const env = world(`${DAY} 10:00`); published(DAY);
@@ -332,7 +332,7 @@ console.log("\n[ج] the first order message of the list's day: the text order as
   const got = sentTo(C1_PHONE);
   const f = flowsTo(C1_PHONE);
   assert("the reply of before first («بديت لك طلب جديد ✅ … اكتب خلاص»), then ONE form", got.length === 2 && /بديت لك طلب جديد/.test(bodyOf(got[0])) && /خلاص/.test(bodyOf(got[0])) && f.length === 1 && got[1] === f[0], kinds(C1_PHONE));
-  assert("…opened with his 3 cartons, on his order", dataOf(f[0]).i1 === "3" && bodyOf(f[0]) === OF.ORDER_FORM_FOLLOW_TEXT && ordersOf().length === 1 && linesOf(ordersOf()[0].id).length === 1);
+  assert("…opened with his 3 cartons, on his order", dataOf(f[0]).i1 === "3" && bodyOf(f[0]).startsWith(OF.ORDER_FORM_FOLLOW_TEXT + "\n\nالمتوفر اليوم:\n• ") && ordersOf().length === 1 && linesOf(ordersOf()[0].id).length === 1);
   await say(env, C1_PHONE, text("طماطم كرتون 3"));
   assert("a second order message the same day: the reply, and no second form", flowsTo(C1_PHONE).length === 1 && sentTo(C1_PHONE).length === 3, kinds(C1_PHONE));
   globalThis.fetch = real; setExtract(null);
@@ -351,7 +351,7 @@ console.log("\n[ج] with the 06:00 prices: «اطلب الآن» to a customer w
   for (const [p, k, price] of [[1, 11, 31], [2, 21, 28.5]] as Array<[number, number, number]>) seed("x_price_day_line", { x_day_id: d, x_sequence: p, x_product_tmpl_id: p, x_packaging_id: k, x_cost_price: 15, x_market_price: price, x_sale_price: price, x_status: "auto", x_excluded: false, x_blocked: false, x_suggested_price: 20, x_utak_simulation: false });
   const pub = await quiet(() => PR.publishPriceDay(env, d));
   const got = sentTo(C1_PHONE);
-  assert("the customer in session: the list, then the form under «اطلب الآن»", pub.action === "published" && pub.forms === 1 && got.length === 2 && /أسعار يو تاك اليوم/.test(bodyOf(got[0])) && got[1]?.interactive?.type === "flow" && par(got[1]).flow_cta === "اطلب الآن" && bodyOf(got[1]) === OF.ORDER_FORM_PRICES_TEXT, kinds(C1_PHONE));
+  assert("the customer in session: the list, then the form under «اطلب الآن»", pub.action === "published" && pub.forms === 1 && got.length === 2 && /أسعار يو تاك اليوم/.test(bodyOf(got[0])) && got[1]?.interactive?.type === "flow" && par(got[1]).flow_cta === "اطلب الآن" && bodyOf(got[1]).startsWith(OF.ORDER_FORM_PRICES_TEXT + "\n\nالمتوفر اليوم:\n• "), kinds(C1_PHONE));
   assert("…with the published prices", dataOf(got[1]).h1 === "كرتون · السعر 31 ر.س شامل الضريبة" && dataOf(got[1]).v2 === true && dataOf(got[1]).v3 === false);
   assert("the customer whose window is closed: his list is held for his next message — no form, no template", flowsTo(CUST2_PHONE).length === 0 && sentTo(CUST2_PHONE).length === 0 && heldFor(env, CUST2_PHONE).length === 1 && !heldFor(env, CUST2_PHONE).some((h: any) => h.purpose === "customer_order_form"), JSON.stringify(heldFor(env, CUST2_PHONE).map((h: any) => h.purpose)));
   assert("the form is never held and never a template: nothing of its purpose waits anywhere", [C1_PHONE, CUST2_PHONE].every((x) => !heldFor(env, x).some((h: any) => h.purpose === "customer_order_form")) && !sentTo(C1_PHONE).some((b: any) => b.type === "template"));

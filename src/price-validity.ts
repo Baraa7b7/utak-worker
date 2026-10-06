@@ -95,12 +95,12 @@ export async function listOfDayIfValid(env: Env, day: string, nowMs: number = Da
   return isValidAt(l.day, l.publishedAtMs, nowMs) ? l : null;
 }
 
-export interface ListPrice { price: number; source: "published" | "suggested" | "missing" }
+export interface ListPrice { price: number; source: "published" | "missing" }
 
 /**
- * The price of an item in a valid list: its published line; else — the item
- * was not published that day — the same day's «السعر المربح المقترح»; else
- * none. Never a supplier row's stored price, never another day's.
+ * The price of an item in a valid list: its published line, else none — the
+ * item is not available that day (§ 59 ج: never the day's suggested price,
+ * never a supplier row's stored price, never another day's).
  */
 export async function listPrice(env: Env, list: ValidList, productId: number, packagingId: number): Promise<ListPrice> {
   const lines = await call<Array<{ id: number; x_sale_price: number | false; x_excluded: boolean; x_status: string | false; x_suggested_price?: number | false }>>(env, "x_price_day_line", "search_read", {
@@ -111,7 +111,7 @@ export async function listPrice(env: Env, list: ValidList, productId: number, pa
   });
   const published = lines.find((l) => !l.x_excluded && Number(l.x_sale_price) > 0);
   if (published) return { price: Number(published.x_sale_price), source: "published" };
-  const suggested = lines.find((l) => Number(l.x_suggested_price) > 0);
-  if (suggested) return { price: Number(suggested.x_suggested_price), source: "suggested" };
+  // § 59 ج — an item the list did not publish is NOT AVAILABLE that day: no price of ours stands in
+  // for it (until § 59 its «السعر المربح المقترح» did). The order's quotation leaves the line out.
   return { price: 0, source: "missing" };
 }

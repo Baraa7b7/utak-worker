@@ -223,7 +223,7 @@ for (const intent of ["purchase", "wrong_number", "vendor_pitch", "personal", "s
   assert(`${intent}: ranks as a customer (customer_rank 1), nothing else`, p?.customer_rank === 1 && !p?.supplier_rank);
   assert(`${intent}: ينتظر المراجعة = ${intent !== "purchase"}`, !!p?.x_review_pending === (intent !== "purchase"));
   const firstReplies = toNumber(n).length;
-  assert(`${intent}: the first message is answered as today (welcome + reply not withdrawn)`, firstReplies >= 2 && toNumber(n).some((b) => b?.template?.name === "utak_welcome"), `${firstReplies}`);
+  assert(`${intent}: the first message is answered as today (welcome + reply not withdrawn)`, firstReplies >= 2 && toNumber(n).some((b) => String(b?.text?.body ?? "").includes("تم تفعيل حسابك في يو تاك 🌿")) && !toNumber(n).some((b) => b?.template?.name === "utak_welcome"), `${firstReplies}`); // § 59 ج: the welcome is a text now
   assert(`${intent}: one Claude screening call for one text`, calls.screen === 1, `${calls.screen}`);
   const posts = reviewPosts();
   assert(`${intent}: channel messages = ${intent === "purchase" ? 0 : 1}`, posts.length === (intent === "purchase" ? 0 : 1), `${posts.length}`);

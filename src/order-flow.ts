@@ -88,7 +88,13 @@ export function quotationButtons(orderId: number): Array<{ id: string; title: st
 
 // ---------------------------------------------------------------- the prices of an order
 
-export interface FrozenOrder { list: ValidList; orderDay: string; total: number; unpriced: number }
+export interface FrozenOrder {
+  list: ValidList; orderDay: string; total: number; unpriced: number;
+  /** § 59 ج — the items the list does not hold: their lines left the order («غير متوفر اليوم»). */
+  unavailable: string[];
+  /** The lines that stay in the order. */
+  lines: number;
+}
 
 /**
  * Freeze the order's prices from a valid list: each line's unit price is its
@@ -100,10 +106,21 @@ export interface FrozenOrder { list: ValidList; orderDay: string; total: number;
 export async function freezeOrderPrices(env: Env, orderId: number, list: ValidList, now: Date = new Date()): Promise<FrozenOrder | null> {
   const order = await getOrderForInvoicing(env, orderId);
   if (!order) return null;
-  let total = 0, unpriced = 0;
+  let total = 0, unpriced = 0, lines = 0;
+  const unavailable: string[] = [];
   for (const l of order.lines) {
     const manual = (l.price_unit_manual ?? 0) > 0 ? (l.price_unit_manual as number) : 0;
     const unit = manual || (await listPrice(env, list, l.product_id, l.packaging_id)).price;
+    // § 59 ج — the list does not hold the item (not published today, or no line at all) and Baraa gave
+    // the line no price of his own: it is not available today. The line leaves the order — marked
+    // «unavailable», as a line not delivered is, never deleted — and the quotation is made of the rest:
+    // never at the suggested price, never «نراجع السعر».
+    if (!(unit > 0)) {
+      await call<boolean>(env, "x_daily_order_line", "write", { ids: [l.id], vals: { x_status: "unavailable", x_unit_price: 0, x_subtotal: 0 } });
+      unavailable.push(l.product_name);
+      continue;
+    }
+    lines++;
     const subtotal = round2(unit * l.quantity);
     if (!(unit > 0)) unpriced++;
     total = round2(total + subtotal);
@@ -113,7 +130,7 @@ export async function freezeOrderPrices(env: Env, orderId: number, list: ValidLi
   }
   const orderDay = nextOrderingDate(now);
   await call<boolean>(env, "x_daily_order", "write", { ids: [orderId], vals: { x_price_date: list.day, x_order_date: orderDay, x_awaiting_prices: false } });
-  return { list, orderDay, total, unpriced };
+  return { list, orderDay, total, unpriced, unavailable, lines };
 }
 
 /** No valid list: the order is kept, open, until the first valid publication. */
@@ -139,7 +156,9 @@ export type QuoteOutcome =
   | { kind: "below_minimum"; text: string }
   | { kind: "review"; text: string }
   | { kind: "need_location" }
-  | { kind: "quoted"; number: string; orderDay: string; list: ValidList; locationLine: string; deliveryLine: string };
+  /** § 59 ج — nothing of the order is in the valid list: no quotation; `text` is «هذا الصنف غير متوفر اليوم 🌿». */
+  | { kind: "unavailable"; text: string; names: string[] }
+  | { kind: "quoted"; number: string; orderDay: string; list: ValidList; locationLine: string; deliveryLine: string; /** § 59 ج — items left out: not in the list today. */ unavailable?: string[] };
 
 function belowMinimumText(m: { min: number; total: number }): string {
   return `${minimumText(m.min)}\nمجموع طلبك الآن: ${Number.isInteger(m.total) ? m.total : m.total.toFixed(2)} ريال.`;
@@ -164,6 +183,14 @@ export async function quoteOrder(
     return { kind: "awaiting" };
   }
   const frozen = await freezeOrderPrices(env, a.orderId, list, now);
+  // § 59 ج — not one line of it is in the valid list: no quotation
+  if (frozen && frozen.lines === 0) {
+    // an order with nothing left in it is closed (as the order form closes one): no 20:00 reminder
+    // and no 21:00 cancellation notice follow an order he was already told about
+    await updateOrderState(env, a.orderId, "cancelled");
+    const { unavailableText } = await import("./order-form");
+    return { kind: "unavailable", text: unavailableText(frozen.unavailable, frozen.unavailable.length <= 1), names: frozen.unavailable };
+  }
   const minimum = await orderMinimum(env, a.orderId).catch(() => null);
   if (minimum?.below) {
     await backToDraft(env, a.orderId);
@@ -189,7 +216,34 @@ export async function quoteOrder(
   const q = await createQuotationRecord(env, a.orderId);
   await updateOrderState(env, a.orderId, "waiting_confirmation");
   const orderDay = frozen?.orderDay ?? nextOrderingDate(now);
-  return { kind: "quoted", number: q.number, orderDay, list, locationLine, deliveryLine: deliveryLine(orderDay, now) };
+  return { kind: "quoted", number: q.number, orderDay, list, locationLine, deliveryLine: deliveryLine(orderDay, now), ...(frozen?.unavailable.length ? { unavailable: frozen.unavailable } : {}) };
+}
+
+/** § 59 ج — «🌿 غير متوفر اليوم (ما دخل العرض): …», the note of a quotation some of whose items the list does not hold. */
+export const leftOutNote = (names: string[]): string => `🌿 غير متوفر اليوم (ما دخل العرض): ${[...new Set(names)].join("، ")}.`;
+
+const qtyText = (n: number): string => (Number.isInteger(n) ? String(n) : String(round2(n)));
+
+/**
+ * § 59 ج — the quotation as the customer reads it, whichever path made it («خلاص», the order's own
+ * message, the publication for an order that waited, the order form): the form's body to the letter —
+ * «📄 عرض السعر رقم … لطلبك رقم #…، بأسعار …:», a line an item «• الصنف التعبئة × الكمية = المبلغ
+ * ر.س», «المجموع: … ر.س», then the place, the delivery, the VAT note, the price note and «راجع
+ * الأصناف واختر:». The amounts are the prices frozen on the lines. `notes` go above it.
+ */
+export async function quotationBody(env: Env, orderId: number, q: Extract<QuoteOutcome, { kind: "quoted" }>, now: Date = new Date(), notes: string[] = []): Promise<string> {
+  const lines = (await getOrderForInvoicing(env, orderId))?.lines ?? [];
+  const price = (l: { unit_price: number | null; price_unit_manual?: number | null }) => ((l.price_unit_manual ?? 0) > 0 ? (l.price_unit_manual as number) : l.unit_price ?? 0);
+  const total = round2(lines.reduce((sum, l) => sum + round2(price(l) * l.quantity), 0));
+  return [
+    ...notes.filter(Boolean),
+    ...(q.unavailable?.length ? [leftOutNote(q.unavailable)] : []),
+    `📄 عرض السعر رقم ${q.number} لطلبك رقم #${orderId}، بأسعار ${dayLabel(q.list.day)}:`,
+    ...lines.map((l) => `• ${l.product_name} ${l.packaging_name} × ${qtyText(l.quantity)} = ${money(round2(price(l) * l.quantity))} ر.س`),
+    `المجموع: ${money(total)} ر.س`,
+    "",
+    ...[q.locationLine, q.deliveryLine, vatNote(now), PRICE_NOTE, "راجع الأصناف واختر:"].filter(Boolean),
+  ].join("\n");
 }
 
 async function backToDraft(env: Env, orderId: number): Promise<void> {
@@ -206,7 +260,7 @@ export const LOCATION_ASK_LINES = [
 
 // ---------------------------------------------------------------- the orders that wait for prices
 
-export interface AwaitingReport { orderId: number; action: "quoted" | "review" | "below_minimum" | "empty" | "held" | "no_number" | "claimed_before" | "awaiting" | "error"; detail?: string }
+export interface AwaitingReport { orderId: number; action: "quoted" | "review" | "below_minimum" | "unavailable" | "empty" | "held" | "no_number" | "claimed_before" | "awaiting" | "error"; detail?: string }
 
 /**
  * Every order kept for want of a valid list gets its quotation now that there
@@ -257,15 +311,16 @@ export async function quoteAwaitingOrders(env: Env, nowMs: number = Date.now(), 
       if (q.kind === "awaiting") { await releaseButton(penv, claim); out.push({ orderId: o.id, action: "awaiting" }); continue; }
       const send = (content: ReturnType<typeof textContent>) => sendViaGateway(penv, { purpose: QUOTATION_PURPOSE, to: cust.phone, content, expiresAt: list!.validUntilMs, ctx });
       if (q.kind === "quoted") {
-        const items = (await getOrderForInvoicing(penv, o.id))?.lines ?? [];
-        const body = [
-          `📄 عرض السعر رقم ${q.number} لطلبك رقم #${o.id}، بأسعار ${dayLabel(q.list.day)}:`,
-          ...items.map((l) => `• ${l.product_name} ${l.packaging_name} × ${l.quantity}`),
-          "",
-          ...[q.locationLine, q.deliveryLine, vatNote(now), PRICE_NOTE, "راجع الأصناف واختر:"].filter(Boolean),
-        ].join("\n");
+        // § 59 ج — each line with its amount, and the total: the form's quotation, to the letter
+        const body = await quotationBody(penv, o.id, q, now);
         const d = gatewayDecision(await send(buttonsContent(body, quotationButtons(o.id))));
         out.push({ orderId: o.id, action: "quoted", detail: d?.action });
+      } else if (q.kind === "unavailable") {
+        // § 59 ج — nothing of what he asked for was published: he is told, with what is available and its prices
+        const { availableBlock, orderFormItems } = await import("./order-form");
+        const block = availableBlock((await orderFormItems(penv, list!)).available ?? []);
+        await send(textContent([q.text, block].filter(Boolean).join("\n")));
+        out.push({ orderId: o.id, action: "unavailable", detail: q.names.join("، ") });
       } else if (q.kind === "below_minimum" || q.kind === "review") {
         // no quotation after all (a line without a price, the minimum): he is told, as at «خلاص»
         await send(textContent(q.text));

@@ -222,6 +222,17 @@ console.log("\n[pure] builders + link guard");
   assert("link guard: ordered qty billed instead of delivered refused", !qty.ok);
 }
 
+// ---------- § 59 ج: a line that left the order before any quotation priced it ----------
+console.log("\n[§ 59 ج] a line marked unavailable with no price (not in the day's list) never enters the sale order; one short at the delivery, priced, stays");
+{
+  reset();
+  mockOdoo({ xLines: [{ id: 11, qty: 2, price: 20 }, { id: 12, qty: 3, price: 0, status: "unavailable" }, { id: 13, qty: 1, price: 20, status: "unavailable" }] });
+  await quiet(() => ensureSaleOrderForDailyOrder(env, 77, { date: "2026-10-06" }));
+  const create = hits("/sale.order/create")[0]?.body?.vals_list?.[0];
+  assert("the sale order holds the priced lines alone: 11, and 13 (unavailable at the delivery, with its price) — not 12", JSON.stringify((create?.order_line ?? []).map((c: any) => c[2].sequence)) === "[11,13]", JSON.stringify(create?.order_line));
+  assert("…and no price was looked up for the line that left the order", hits("/x_daily_price/search_read").length === 0 && hits("/x_price_day_line/search_read").length === 0);
+}
+
 // ---------- 1/2 confirm ----------
 console.log("\n[1] confirm → sale.order");
 {

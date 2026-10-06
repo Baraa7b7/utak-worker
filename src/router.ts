@@ -48,7 +48,7 @@ import { minimumText, orderMinimum } from "./order-pricing";
 import { quotationZeroGuard } from "./zero-price";
 import {
   AWAITING_TEXT, DELIVERABLE_STATES, LOCATION_ASK_LINES, PRICE_NOTE, deliveryLabel, freezeOrderPrices, markAwaitingPrices,
-  notifyOwnerConfirmed, orderListStillValid, quotationButtons, quoteOrder, vatNote, type QuoteOutcome,
+  leftOutNote, notifyOwnerConfirmed, orderListStillValid, quotationBody, quotationButtons, quoteOrder, vatNote, type QuoteOutcome,
 } from "./order-flow";
 import { validPriceList } from "./price-validity";
 import { ORDER_FORM_FOLLOW_TEXT } from "./order-form";
@@ -84,7 +84,7 @@ export interface RouterReply {
   /** § 44 د — the customer of that order when the button's partner is not known. Never sent. */
   confirmedCustomerId?: number;
   /** § 53 ج — after this reply: the order form (once per customer and price list), opened with his open order. */
-  orderForm?: { partnerId: number; name: string; body: string };
+  orderForm?: { partnerId: number; name: string; body: string; /** § 59 ج — he asked for what the valid list does not hold: the form under «… غير متوفر اليوم 🌿 المتوفر اليوم:», always (not «once a list»). */ unavailable?: { names: string[]; alone: boolean } };
   /** § 53 د — after this reply: the registration form (a new customer's confirmed order, in place of § 44's questions). */
   registerForm?: { partnerId: number; body: string };
 }
@@ -262,6 +262,33 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
     }
   }
 
+  // § 59 ج — with a valid list, what it does not hold is NOT AVAILABLE TODAY: an item not published
+  // (a line left out, an exception without a decision, no line at all), one switched off, one we do
+  // not sell. It is not added to the order — never offered at its suggested price, never «نراجع
+  // السعر» — and the customer gets «… غير متوفر اليوم 🌿 المتوفر اليوم:» with the available items,
+  // their prices and the order form. No valid list: as before (the order is kept for the day's prices).
+  let notToday: { names: string[]; alone: boolean } | null = null;
+  try {
+    const listNow = await validPriceList(env, Date.now());
+    if (listNow) {
+      const { listItems } = await import("./order-form");
+      const published = new Set((await listItems(env, listNow)).map((i) => `${i.productId}:${i.packagingId}`));
+      const missing = active.filter((it) => !published.has(`${it.product_id}:${it.packaging_id}`));
+      if (missing.length || deactivatedMatches.length || trulyUnknown.length) {
+        const nameOf = (it: (typeof active)[number]) => catalog.find((p) => p.id === it.product_id)?.name ?? it.product_name_raw;
+        notToday = { names: [...missing.map(nameOf), ...deactivatedMatches.map((m) => m.product_name)], alone: items.length === 1 };
+        // the available ones alone go on (the lines below read `active`)
+        active.splice(0, active.length, ...active.filter((it) => !missing.includes(it)));
+      }
+    }
+  } catch (e) {
+    console.warn("[order] the valid price list could not be read for what is available — as before", (e as Error)?.message);
+  }
+  if (notToday && active.length === 0) {
+    // nothing of his message is available: no order, no line — the available items and the form
+    return { text: "", orderForm: { partnerId: partner.id, name: partner.name || "", body: "", unavailable: notToday } };
+  }
+
   // If the entire request is inactive/unknown — no order gets created.
   // Reply politely without exposing the internal reason.
   if (active.length === 0) {
@@ -309,27 +336,23 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
     ? `\n\n📌 توصيلاتنا مجدولة صباحاً — طلبك يوصلك صباح ${deliveryLabel(nextOrderingDate(now))} إن شاء الله.`
     : "";
   const head = [(created ? "بديت لك طلب جديد ✅" : "أضفنا لطلبك ✅"), addedSummary, unavailableWarn, urgencyNote];
+  // § 59 ج — what is not available is said by the form's message after this reply, with what is
+  if (notToday) head[2] = "";
+  const notTodayForm = notToday ? { orderForm: { partnerId: partner.id, name: partner.name || "", body: "", unavailable: notToday } } : {};
 
   // If customer also said "خلاص/جهزه" in same message, go straight to quotation
   if (quotationInline) {
     const q = await quoteOrder(env, { orderId, partnerId: partner.id, now });
     if (q.kind === "quoted") {
+      // § 59 ج — the quotation as the order form's, to the letter: each line with its amount, and the total
       return {
-        bodyBeforeButtons: [
-          ...head,
-          ``,
-          q.locationLine,
-          q.deliveryLine,
-          vatNote(now),
-          PRICE_NOTE,
-          `📄 الكوتيشن رقم ${q.number} — راجع الأصناف واختر:`,
-        ]
-          .filter(Boolean)
-          .join("\n"),
+        bodyBeforeButtons: await quotationBody(env, orderId, q, now, [head[0], head[3].trim()]),
         buttons: quotationButtons(orderId),
+        ...notTodayForm,
       };
     }
-    return { text: [...head, ``, ...quoteOutcomeLines(q)].filter(Boolean).join("\n") };
+    if (q.kind === "unavailable") return { text: "", orderForm: { partnerId: partner.id, name: partner.name || "", body: "", unavailable: { names: q.names, alone: q.names.length === 1 } } };
+    return { text: [...head, ``, ...quoteOutcomeLines(q)].filter(Boolean).join("\n"), ...notTodayForm };
   }
 
   // § 49 ب — no valid price list: the order is kept, and its quotation goes
@@ -354,6 +377,7 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
       .join("\n"),
     // § 53 ج — a valid list: after this reply the order form follows, once per customer and list (his lines in it)
     ...(list ? { orderForm: { partnerId: partner.id, name: partner.name || "", body: ORDER_FORM_FOLLOW_TEXT } } : {}),
+    ...notTodayForm,
   };
 }
 
@@ -392,20 +416,13 @@ async function handleQuotationRequest(env: Env, input: RouterInput): Promise<Rou
   // § 49 ب — the quotation at the valid list's prices, or the wait for them;
   // § 40 د the minimum and § 46 ج the zero-price guard inside it.
   const q = await quoteOrder(env, { orderId, partnerId: partner.id, now });
+  // § 59 ج — nothing of the order is in the valid list: «هذا الصنف غير متوفر اليوم 🌿 المتوفر اليوم:» and the form
+  if (q.kind === "unavailable") return { text: "", orderForm: { partnerId: partner.id, name: partner.name || "", body: "", unavailable: { names: q.names, alone: q.names.length === 1 } } };
   if (q.kind !== "quoted") return { text: quoteOutcomeLines(q).join("\n") };
 
-  const linesText = summary.lines
-    .map((l) => `• ${l.product} ${l.packaging} × ${l.qty}`)
-    .join("\n");
-
+  // § 59 ج — the quotation as the order form's, to the letter: each line with its amount, and the total
   return {
-    bodyBeforeButtons: [
-      `📄 الكوتيشن رقم ${q.number}`,
-      linesText,
-      ``,
-      ...[q.locationLine, q.deliveryLine, vatNote(now), PRICE_NOTE].filter(Boolean),
-      `اختر:`,
-    ].join("\n"),
+    bodyBeforeButtons: await quotationBody(env, orderId, q, now),
     buttons: quotationButtons(orderId),
   };
 }
@@ -871,15 +888,13 @@ export async function deliverOrder(env: Env, orderId: number, invoiceOpts: Invoi
 const IN_EXECUTION: ReadonlySet<string> = new Set(["in_purchase", "in_delivery", "delivered", "closed"]);
 
 /** A new quotation's reply: its number, the delivery day, the note, the three buttons — or why there is none. */
-function requoteReply(orderId: number, q: QuoteOutcome, lead: string, now: Date): RouterReply {
+async function requoteReply(env: Env, orderId: number, q: QuoteOutcome, lead: string, now: Date, partner: { id: number; name: string } | null = null): Promise<RouterReply> {
+  // § 59 ج — nothing of it is in today's list: «هذا الصنف غير متوفر اليوم 🌿 المتوفر اليوم:» and the form
+  if (q.kind === "unavailable" && partner) return { text: lead, orderForm: { partnerId: partner.id, name: partner.name, body: "", unavailable: { names: q.names, alone: q.names.length <= 1 } } };
   if (q.kind !== "quoted") return { text: [lead, ...quoteOutcomeLines(q)].filter(Boolean).join("\n") };
+  // § 59 ج — the new quotation as the order form's, to the letter: each line with its amount, and the total
   return {
-    bodyBeforeButtons: [
-      lead,
-      `📄 الكوتيشن رقم ${q.number} لطلبك رقم #${orderId}`,
-      ...[q.locationLine, q.deliveryLine, vatNote(now), PRICE_NOTE].filter(Boolean),
-      `اختر:`,
-    ].filter(Boolean).join("\n"),
+    bodyBeforeButtons: await quotationBody(env, orderId, q, now, [lead]),
     buttons: quotationButtons(orderId),
   };
 }
@@ -899,24 +914,27 @@ async function confirmOrderButton(env: Env, orderId: number, partner: OdooPartne
     if (!items.length || !customerId) return { text: `طلبك رقم #${orderId} ملغى وما نقدر نرجّعه. أرسل الأصناف من جديد ونبدأ لك طلب جديد 🌿` };
     const fresh = await createOrderWithLines(env, { customerId, date: nextOrderingDate(now), items, via: "whatsapp", state: "draft" });
     const q = await quoteOrder(env, { orderId: fresh, partnerId: customerId, now });
-    return requoteReply(fresh, q, `طلبك رقم #${orderId} أُلغي لأنه ما تأكد. سجّلنا أصنافه طلباً جديداً برقم #${fresh}.`, now);
+    return requoteReply(env, fresh, q, `طلبك رقم #${orderId} أُلغي لأنه ما تأكد. سجّلنا أصنافه طلباً جديداً برقم #${fresh}.`, now, { id: customerId, name: partner?.name || "" });
   }
 
   // § 49 ب — the price list of its quotation is still valid, and it is still the order's day: confirmed.
   // An order no quotation priced yet (a draft confirmed from the 20:00 reminder): priced now, from the valid list.
   const sameDay = o.date === nextOrderingDate(now);
   let confirmable = false;
+  let dropped: string[] = [];
   if (o.priceDate) confirmable = sameDay && !!(await orderListStillValid(env, o.priceDate, now));
   else if (!o.awaitingPrices) {
     const list = await validPriceList(env, now.getTime());
-    if (list) { await freezeOrderPrices(env, orderId, list, now); confirmable = true; }
+    // § 59 ج — a line the list does not hold left the order just now: nothing is confirmed over the
+    // customer's head — he gets the quotation of what is left (or «غير متوفر اليوم») below
+    if (list) { const fr = await freezeOrderPrices(env, orderId, list, now); confirmable = !!fr && fr.lines > 0 && fr.unavailable.length === 0; dropped = fr?.unavailable ?? []; }
   }
   if (!confirmable) {
     const q = await quoteOrder(env, { orderId, partnerId: customerId, now });
-    const lead = !o.priceDate ? ""
+    const lead = dropped.length ? leftOutNote(dropped) : !o.priceDate ? ""
       : sameDay ? "أسعار عرض السعر السابق انتهت صلاحيتها (السعر صالح ليوم واحد)، وهذا عرض جديد بأسعار اليوم:"
         : "طلبك ما تأكد قبل الساعة 9:00 مساءً، وهذا عرض السعر بيوم التوصيل الجديد:";
-    return requoteReply(orderId, q, lead, now);
+    return requoteReply(env, orderId, q, lead, now, { id: customerId, name: partner?.name || "" });
   }
 
   // § 40 د — after the state guards (ح4): below the minimum it is not

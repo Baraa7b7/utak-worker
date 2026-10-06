@@ -100,7 +100,7 @@ const M = [
   ["ج", "no form after a customer's first order message", [[RT,
     "    ...(list ? { orderForm: { partnerId: partner.id, name: partner.name || \"\", body: ORDER_FORM_FOLLOW_TEXT } } : {}),\n", ""]], T],
   ["ج", "the reply's form is not sent", [[IX,
-    "  if (reply.orderForm) {\n", "  if (false) {\n"]], T],
+    "  } else if (reply.orderForm) {\n", "  } else if (false) {\n"]], T],
   ["ج", "a form after every order message of the day", [[OF,
     "    if (o.auto && (await orderFormAutoSent(env, list.day, who.whatsapp))) return { sent: false, reason: \"sent_before\" };\n", ""]], T],
   ["ج", "an automatic form is not remembered", [[OF,

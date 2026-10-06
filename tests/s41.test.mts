@@ -649,7 +649,7 @@ console.log("\n[د] the quotation from 10-01: «الأسعار شاملة ضري
   const open0 = seed("x_daily_order", { x_customer_id: C1, x_state: "draft", x_order_date: "2026-09-30", x_created_via: "whatsapp" });
   seed("x_daily_order_line", { x_order_id: open0, x_product_tmpl_id: 1, x_packaging_id: 11, x_quantity: 6, x_status: "pending" });
   const r09 = await say("خلاص");
-  assert("09-30: no such line", !/شاملة ضريبة/.test(replyOf(r09)) && /الكوتيشن رقم/.test(replyOf(r09)), replyOf(r09));
+  assert("09-30: no such line", !/شاملة ضريبة/.test(replyOf(r09)) && /عرض السعر رقم/.test(replyOf(r09)), replyOf(r09)); // § 59 ج: the text quotation is headed as the form's
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 
@@ -897,6 +897,8 @@ console.log("\n[موقع] a pending location: a text with a number is an order l
 }
 {
   const env = fresh("2026-09-27 10:00"); openWin(env, C1_PHONE); publishedTomato("2026-09-27");
+  // § 59 ج — cucumber is in the day's list too: an item the list does not hold is no longer added to the order
+  seed("x_price_day_line", { x_day_id: (rows("x_price_day").find((d: any) => d.x_date === "2026-09-27") as any).id, x_product_tmpl_id: 2, x_packaging_id: 21, x_cost_price: 15, x_market_price: 25, x_sale_price: 25, x_supplier_id: AHMED, x_status: "auto", x_excluded: false, x_blocked: false });
   const { ORDERING_OPEN_KEY } = await import("../src/config.ts");
   env.MSG_DEDUP.store.set(ORDERING_OPEN_KEY("2026-09-27"), "true");   // opened at 06:00 (the 06:00 cron)
   const o = seed("x_daily_order", { x_customer_id: C1, x_state: "draft", x_order_date: "2026-09-27", x_created_via: "whatsapp" });

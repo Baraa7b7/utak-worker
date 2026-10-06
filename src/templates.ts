@@ -101,6 +101,15 @@ export function cutoffLabel(hour24: number = ORDERING_HOURS_CLOSE): string {
 }
 
 /**
+ * § 59 ج — the welcome of a new customer, as text inside the window his first message opened
+ * (Baraa's wording). No name on his WhatsApp profile: «أهلاً بك».
+ */
+export function welcomeText(name: string): string {
+  const n = String(name ?? "").replace(/\s+/g, " ").trim();
+  return `${n ? `أهلاً ${n}` : "أهلاً بك"}، تم تفعيل حسابك في يو تاك 🌿 تقدر تطلب من هنا في أي وقت: اكتب «اطلب» ويوصلك نموذج فيه أصناف اليوم وأسعارها.`;
+}
+
+/**
  * customer_welcome: utak_welcome (UTILITY) = «أهلاً {{1}} … آخر موعد للطلب
  * يومياً الساعة {{2}}»; the legacy utak_v2_welcome (MARKETING) took only {{1}}.
  */

@@ -320,7 +320,8 @@ console.log("\n[م3] «إيقاف» / «تشغيل» from the customer");
   assert("a new number's first message «stop»: partner created and flagged", created?.x_wa_marketing_optout === true, JSON.stringify(created));
   assert("… and no welcome template sent to it", tpl(NEW, "utak_welcome").length === 0 && texts(NEW).includes(OPTOUT_CONFIRM_TEXT));
   await say(env, "966500000521", "مرحبا");
-  assert("control: an ordinary first message still gets the welcome", tpl("966500000521", "utak_welcome").length === 1);
+  // § 59 ج — the welcome is a text inside the window his first message opened; utak_welcome is sent no more
+  assert("control: an ordinary first message still gets the welcome (§ 59: as text, not utak_welcome)", texts("966500000521").some((t) => t.includes("تم تفعيل حسابك في يو تاك 🌿")) && tpl("966500000521", "utak_welcome").length === 0);
 }
 {
   const env = fresh("2026-09-24 12:00");

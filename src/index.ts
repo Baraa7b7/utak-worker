@@ -3046,10 +3046,11 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       continue;
     }
     if (!existing && msg.type === "text" && !optoutCmd) {
+      // § 59 ج — a new customer's first message opened his window: the welcome is a TEXT inside it,
+      // with what § 49 says (orders at every hour). utak_welcome («آخر موعد للطلب…») is sent no more.
       try {
-        const { sendTemplateByPurpose, T, welcomeParams } = await import("./templates");
-        await sendTemplateByPurpose(env, msg.from, T.CUSTOMER_WELCOME,
-          (name) => welcomeParams(name, msg.profileName || "صديقنا"));
+        const { welcomeText } = await import("./templates");
+        await sendText(env, msg.from, welcomeText(msg.profileName || ""), { ctx, purpose: "customer_welcome" });
       } catch (e) { console.warn("[welcome] send failed", (e as Error).message); }
     }
     const senderType: SenderType = "customer";
@@ -3383,7 +3384,12 @@ async function sendReply(
   }
   if (reply.followUp) await sendReply(env, to, reply.followUp, ctx);
   // § 53 ج — after a customer's first order message of the list's day: the order form, opened with what he wrote
-  if (reply.orderForm) {
+  if (reply.orderForm?.unavailable) {
+    // § 59 ج — he asked for what the valid list does not hold: «… غير متوفر اليوم 🌿 المتوفر اليوم:»
+    // with the available items, their prices and the form — every time, not «once a list»
+    const { answerUnavailable } = await import("./order-form");
+    await answerUnavailable(env, { partnerId: reply.orderForm.partnerId, name: reply.orderForm.name, whatsapp: to }, reply.orderForm.unavailable, ctx);
+  } else if (reply.orderForm) {
     const { offerOrderForm } = await import("./order-form");
     await offerOrderForm(env, { partnerId: reply.orderForm.partnerId, name: reply.orderForm.name, whatsapp: to }, { auto: true, body: reply.orderForm.body, ctx });
   }

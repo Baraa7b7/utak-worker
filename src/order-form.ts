@@ -92,6 +92,56 @@ export const ORDER_FORM_EXPIRED_TEXT = "أسعار هذا النموذج انت�
 export const ORDER_FORM_EXPIRED_NO_LIST_TEXT = `أسعار هذا النموذج انتهت صلاحيتها (السعر صالح ليوم واحد)، فلم يُسجَّل منه شيء. ${ORDER_FORM_NO_LIST_TEXT}`;
 export const ORDER_FORM_CLOSED_TEXT = (orderId: number): string => `طلبك رقم #${orderId} ما عاد يقبل تعديلاً من هنا 🙏 اكتب «اطلب» لطلب جديد.`;
 
+// ---------------------------------------------------------------- § 59 ج: «المتوفر اليوم»
+
+/** The heading of the available items, in the form's message. */
+export const AVAILABLE_TITLE = "المتوفر اليوم:";
+/** How many items the message names before «+N صنف داخل النموذج». */
+export const AVAILABLE_MAX = 10;
+/** Meta's cap on an interactive message's body. */
+export const ORDER_BODY_MAX = 1024;
+/** § 59 ج — an item asked for by text that the valid list does not hold (Baraa's wording). */
+export const UNAVAILABLE_TEXT = "هذا الصنف غير متوفر اليوم 🌿";
+/** One published item as a customer reads it: the name, the packaging, the sale price. */
+export interface AvailableItem { productName: string; packagingName: string; price: number }
+
+/** «• موز أمريكي (كرتون · 14 كيلو): 70 ر.س» — as the day's price list writes an item. */
+export const availableLine = (i: AvailableItem): string => `• ${clean(i.productName)} (${clean(i.packagingName)}): ${money(i.price)} ر.س`;
+
+/**
+ * «المتوفر اليوم:» and up to AVAILABLE_MAX items with their prices, then «+N صنف داخل النموذج» for the
+ * rest of the form's items — as many lines as `room` characters hold (an item is never cut: one that
+ * does not fit is counted in «+N»). "" when not even one line fits, or there is no item.
+ */
+export function availableBlock(items: AvailableItem[], room: number = ORDER_BODY_MAX): string {
+  if (!items.length) return "";
+  const more = (n: number): string => (n > 0 ? `+${n} صنف داخل النموذج` : "");
+  const lines = items.slice(0, AVAILABLE_MAX).map(availableLine);
+  for (let shown = lines.length; shown >= 1; shown--) {
+    const text = [AVAILABLE_TITLE, ...lines.slice(0, shown), more(items.length - shown)].filter(Boolean).join("\n");
+    if (chars(text).length <= room) return text;
+  }
+  return "";
+}
+
+/** The form's whole body: the text above, an empty line, the available items — never above Meta's cap. */
+export function orderFormBody(text: string, items: AvailableItem[]): string {
+  const block = availableBlock(items, ORDER_BODY_MAX - chars(text).length - 2);
+  return block ? `${text}\n\n${block}` : text;
+}
+
+/**
+ * What the customer reads above «المتوفر اليوم:» when he asked for what the valid list does not hold.
+ * `alone`: his message asked for nothing else — «هذا الصنف غير متوفر اليوم 🌿», Baraa's wording. With
+ * other items in the same message the missing ones are named (the names of OUR items only: a word
+ * the catalog does not know is never echoed back as an item).
+ */
+export function unavailableText(names: string[], alone: boolean): string {
+  const n = [...new Set(names.map(clean).filter(Boolean))];
+  if (alone || !n.length) return UNAVAILABLE_TEXT;
+  return n.length === 1 ? `${n[0]} غير متوفر اليوم 🌿` : `غير متوفر اليوم: ${n.join("، ")} 🌿`;
+}
+
 /** «اطلب», «أبي أطلب», «ابغى اطلب», «بطلب»: the whole message, nothing else in it. */
 export function wantsOrderForm(text: string): boolean {
   const t = String(text ?? "").trim()
@@ -146,6 +196,8 @@ export interface OrderFormItems {
   total: number;
   over: Array<{ title: string; total: number }>;
   left: string[];
+  /** § 59 ج — the form's items as the message names them («المتوفر اليوم»), in the form's own order. */
+  available?: AvailableItem[];
 }
 type M2O = [number, string] | false;
 const m2o = (v: M2O | number | undefined): [number, string] => (Array.isArray(v) ? v : typeof v === "number" ? [v, ""] : [0, ""]);
@@ -185,6 +237,7 @@ export async function orderFormItems(env: Env, list: ValidList, everyLine = fals
     items, pages: groups.map((g) => g.title), total: all.length,
     over: groups.filter((g) => g.items.length > ORDER_FLOW_PAGE_SLOTS).map((g) => ({ title: g.title, total: g.items.length })),
     left: groups.flatMap((g) => g.items.slice(ORDER_FLOW_PAGE_SLOTS).map((i) => clean(i.productName))),
+    available: groups.flatMap((g) => g.items.slice(0, ORDER_FLOW_PAGE_SLOTS).map((i) => ({ productName: i.productName, packagingName: i.packagingName, price: i.price }))),
   };
 }
 
@@ -261,6 +314,8 @@ export interface OrderFormOpts {
   /** The same items on the same pages (a form sent again for the same list). */
   items?: OrderFormItem[];
   pages?: string[];
+  /** § 59 ج — the items the message names under «المتوفر اليوم» (with `items`; none = the text alone, as «عدّل الطلب»). */
+  available?: AvailableItem[];
   test?: boolean;
   ctx?: ExecutionContext;
 }
@@ -322,9 +377,10 @@ export async function sendOrderForm(env: Env, who: OrderFormWho, opts: OrderForm
   const list = opts.list ?? (await validPriceList(env, now));
   if (!list) return { sent: false, reason: "no_list" };
   let items = opts.items ?? null, pages = opts.pages ?? [];
+  let available = opts.items ? opts.available ?? [] : [];
   if (!items) {
     const built = await orderFormItems(env, list);
-    items = built.items; pages = built.pages;
+    items = built.items; pages = built.pages; available = built.available ?? [];
     if (built.left.length && !opts.test) await alertOverflow(env, list.day, built.over, built.left);
   }
   if (!items.length) return { sent: false, reason: "no_items" };
@@ -336,10 +392,11 @@ export async function sendOrderForm(env: Env, who: OrderFormWho, opts: OrderForm
   await writeOrderFormToken(env, rec);
   const mark = opts.test ? `${ORDER_TEST_MARK} — ` : "";
   const data = orderFormData(PRICE_NOTE, deliveryLine(nextOrderingDate(new Date(now)), new Date(now)), pages.map((t) => `${mark}${t}`), items, opts.init ?? {});
+  // § 59 ج — the message names what is available today with its prices, before the form is opened (orderFormBody)
   const res = await sendViaGateway(env, {
     purpose: opts.test ? ORDER_FORM_TEST_PURPOSE : ORDER_FORM_PURPOSE,
     to,
-    content: orderFormSession(`${mark}${opts.body ?? orderFormAskText(who.name)}`, rec.token, data, opts.cta ?? ORDER_FORM_CTA),
+    content: orderFormSession(orderFormBody(`${mark}${opts.body ?? orderFormAskText(who.name)}`, available.filter((i) => i.price > 0)), rec.token, data, opts.cta ?? ORDER_FORM_CTA),
     noHold: true,
     noHoldReason: "نموذج الطلب يُرسل داخل نافذة 24 ساعة فقط",
     ctx: opts.ctx,
@@ -415,7 +472,9 @@ export async function offerOrderForm(
     const built = await orderFormItems(env, list);
     if (!built.items.length) return { sent: false, reason: "no_items" };
     const open = await openOrderInit(env, who.partnerId, built.items, now, o.orderId).catch(() => null);
-    const r = await sendOrderForm(env, who, { now, list, items: built.items, pages: built.pages, body: o.body, cta: o.cta, ctx: o.ctx, ...(open ? { orderId: open.orderId, init: open.init } : {}) });
+    // § 59 ج — «المتوفر اليوم» above every form but «عدّل الطلب» (he is changing an order he has already seen priced)
+    const available = o.cta === ORDER_FORM_EDIT_CTA ? [] : built.available;
+    const r = await sendOrderForm(env, who, { now, list, items: built.items, pages: built.pages, available, body: o.body, cta: o.cta, ctx: o.ctx, ...(open ? { orderId: open.orderId, init: open.init } : {}) });
     if (r.sent && o.auto) await markAutoSent(env, list.day, who.whatsapp);
     return r;
   } catch (e) {
@@ -437,6 +496,28 @@ export async function answerOrderFormAsk(env: Env, who: OrderFormWho, ctx?: Exec
 }
 
 /**
+ * § 59 ج — the customer asked by text for what the valid list does not hold (an item not published
+ * today, one switched off, one we do not sell): «هذا الصنف غير متوفر اليوم 🌿 المتوفر اليوم:» with
+ * the available items and their prices, and the order form under them — ONE message. Never at the
+ * suggested price, never «نراجع السعر». A form that cannot go (no item published, the number is not
+ * a customer's): the same words as text. Never throws. True when he was answered.
+ */
+export async function answerUnavailable(env: Env, who: OrderFormWho, what: { names: string[]; alone: boolean }, ctx?: ExecutionContext, now: number = Date.now()): Promise<boolean> {
+  const head = unavailableText(what.names, what.alone);
+  const r = await offerOrderForm(env, who, { now, body: head, ctx });
+  if (r.sent) return true;
+  try {
+    const list = await validPriceList(env, now);
+    const items = list ? (await orderFormItems(env, list)).available ?? [] : [];
+    const res = await sendViaGateway(env, { purpose: ORDER_FORM_PURPOSE, to: who.whatsapp, content: textContent(orderFormBody(head, items)), noHold: true, ctx });
+    return gatewayDecision(res)?.action === "session";
+  } catch (e) {
+    console.warn("[order-form] the unavailable answer could not be sent", (e as Error)?.message);
+    return false;
+  }
+}
+
+/**
  * After the 06:00 publication: the form to every customer the list just reached
  * inside his window. `list` is the day just published. Returns how many went.
  * Never throws (the publication is done).
@@ -449,7 +530,7 @@ export async function sendOrderFormsAfterPrices(env: Env, list: ValidList, recip
     for (const r of recipients) {
       try {
         if (await orderFormAutoSent(env, list.day, r.whatsapp)) continue;
-        const out = await sendOrderForm(env, r, { now, list, items: built.items, pages: built.pages, body: ORDER_FORM_PRICES_TEXT, ctx });
+        const out = await sendOrderForm(env, r, { now, list, items: built.items, pages: built.pages, available: built.available, body: ORDER_FORM_PRICES_TEXT, ctx });
         if (out.sent) { sent++; await markAutoSent(env, list.day, r.whatsapp); }
       } catch (e) {
         console.warn(`[order-form] the form after the prices failed for partner ${r.partnerId}`, (e as Error)?.message);
@@ -497,7 +578,7 @@ export function readOrderFormValues(rec: Pick<OrderFormRecord, "items">, values:
 }
 
 export interface OrderFormOutcome {
-  action: "quoted" | "awaiting" | "review" | "below_minimum" | "need_location" | "empty" | "test" | "unknown" | "expired" | "duplicate" | "closed";
+  action: "quoted" | "awaiting" | "review" | "below_minimum" | "need_location" | "unavailable" | "empty" | "test" | "unknown" | "expired" | "duplicate" | "closed";
   orderId?: number;
 }
 
@@ -663,11 +744,12 @@ export async function reopenOrderForm(env: Env, orderId: number, who: OrderFormW
  * would sell for, or «بلا سعر منشور» — so the form is seen before the first
  * publication. His reply is answered and creates no order.
  */
-export async function sendOrderFormTest(env: Env, now: number = Date.now()): Promise<OrderFormResult> {
+export async function sendOrderFormTest(env: Env, now: number = Date.now(), kind: "form" | "unavailable" = "form"): Promise<OrderFormResult> {
   const owner = waDigits(String(env.OWNER_WHATSAPP ?? ""));
   if (!owner) return { sent: false, reason: "no_owner" };
   if (!(await readWindow(env, owner, now)).open) return { sent: false, reason: "window_closed" };
-  const claim = await claimButton(env, `oform_test:${ORDER_FLOW_ID}:${riyadhDateKey(new Date(now))}`, DAY_TTL);
+  // § 59 ز — «unavailable»: the same form under «هذا الصنف غير متوفر اليوم 🌿», a trial of its own (once a day too)
+  const claim = await claimButton(env, `oform_test:${ORDER_FLOW_ID}:${kind === "unavailable" ? "unavailable:" : ""}${riyadhDateKey(new Date(now))}`, DAY_TTL);
   if (!claim.claimed) return { sent: false, reason: "already_today" };
   try {
     let list = await validPriceList(env, now);
@@ -681,7 +763,7 @@ export async function sendOrderFormTest(env: Env, now: number = Date.now()): Pro
       built = list ? await orderFormItems(env, list, true) : null;
     }
     if (!list || !built) { await releaseButton(env, claim); return { sent: false, reason: "no_list" }; }
-    const r = await sendOrderForm(env, { partnerId: 0, name: "براء", whatsapp: owner }, { now, list, test: true, items: built.items, pages: built.pages });
+    const r = await sendOrderForm(env, { partnerId: 0, name: "براء", whatsapp: owner }, { now, list, test: true, items: built.items, pages: built.pages, available: built.available, ...(kind === "unavailable" ? { body: UNAVAILABLE_TEXT } : {}) });
     if (!r.sent) { await releaseButton(env, claim); return r; }
     await finishButton(env, claim, DAY_TTL);
     return r;

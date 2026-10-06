@@ -372,7 +372,8 @@ console.log("\n[أ] a new customer still gets his welcome and his partner (the c
   const env = world(`${DAY} 10:00`);
   const before = rows("res.partner").length;
   await say(env, "966500000777", text("السلام عليكم"));
-  assert("a partner is made and the welcome goes", rows("res.partner").length === before + 1 && tplTo("966500000777", "utak_welcome").length === 1, JSON.stringify(sentTo("966500000777").map((b: any) => b.template?.name ?? b.text?.body)));
+  // § 59 ج — the welcome is a text inside his window now (utak_welcome is sent no more)
+  assert("a partner is made and the welcome goes", rows("res.partner").length === before + 1 && tplTo("966500000777", "utak_welcome").length === 0 && sentTo("966500000777").some((b: any) => String(b.text?.body ?? "").includes("تم تفعيل حسابك في يو تاك 🌿")), JSON.stringify(sentTo("966500000777").map((b: any) => b.template?.name ?? b.text?.body)));
 }
 
 // ================================================================ [ب] the uplift

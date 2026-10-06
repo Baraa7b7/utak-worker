@@ -146,7 +146,8 @@ console.log("\n[ب] a price list is valid from its publication until 06:00 of th
   assert("an item the list does not carry: no price", (await PV.listPrice(env, now!, 2, 21)).source === "missing");
   seed("x_price_day_line", { x_day_id: t, x_product_tmpl_id: 2, x_packaging_id: 21, x_cost_price: 26, x_market_price: 0, x_sale_price: 0, x_status: "unpublished", x_excluded: true, x_blocked: false, x_suggested_price: 36 });
   const u = await PV.listPrice(env, now!, 2, 21);
-  assert("an item of that same day that was not published: the day's «السعر المربح المقترح» (§ 48 ب), never another day's", u.price === 36 && u.source === "suggested", JSON.stringify(u));
+  // § 59 ج — until § 59 its «السعر المربح المقترح» (36) stood in for it; now it is not available that day
+  assert("an item of that same day that was not published (§ 59 ج): NO price — not the day's suggested price (36), never another day's", u.price === 0 && u.source === "missing", JSON.stringify(u));
   assert("the list of a day, asked by its date: valid while it is, null after", (await PV.listOfDayIfValid(env, DAY))?.dayId === t && (await PV.listOfDayIfValid(env, PREV)) === null && (await PV.listOfDayIfValid(env, "")) === null);
 }
 {
@@ -157,7 +158,7 @@ console.log("\n[ب] a price list is valid from its publication until 06:00 of th
   assert("an item yesterday's list carried (cucumber 30) and today's does not: no price in today's list", (await PV.listPrice(env, l!, 2, 21)).source === "missing" && (await PV.listPrice(env, l!, 1, 11)).price === 24);
   seed("x_price_day_line", { x_day_id: t, x_product_tmpl_id: 2, x_packaging_id: 21, x_cost_price: 26, x_market_price: 33, x_sale_price: 33, x_status: "unpublished", x_excluded: true, x_blocked: false, x_suggested_price: 36 });
   const x = await PV.listPrice(env, l!, 2, 21);
-  assert("a line left out of the publication is not a published price, whatever number it still carries (33): its suggested price (36)", x.price === 36 && x.source === "suggested", JSON.stringify(x));
+  assert("a line left out of the publication is not a published price, whatever number it still carries (33) — and (§ 59 ج) its suggested price (36) is none either", x.price === 0 && x.source === "missing", JSON.stringify(x));
 }
 
 // ---------------------------------------------------------------- an order at every hour
@@ -264,8 +265,10 @@ const quoteSends = (phone = C1_PHONE) => sentTo(phone).filter((b: any) => b.type
   published(DAY, 26, null, `${DAY} 09:00`);              // the list carries no cucumber
   graph.length = 0;
   const out = await quiet(() => OF.quoteAwaitingOrders(env, Date.now()));
-  assert("a waiting order whose item the new list does not carry: no quotation, «نراجع السعر وأرد عليك» to him, Baraa's alert", out[0]?.action === "review" && rows("x_quotation").length === 0 && sentTo(C1_PHONE).some((b: any) => /نراجع السعر/.test(String(b.text?.body))) && ownerTexts().some((x) => /عرض سعر لم يُرسل/.test(x) && x.includes(`#${o.id}`)), JSON.stringify(out));
-  assert("…it no longer waits (the next tick does not ask again), and stays open", table("x_daily_order").get(o.id)!.x_awaiting_prices === false && table("x_daily_order").get(o.id)!.x_state === "draft" && (await quiet(() => OF.quoteAwaitingOrders(env, Date.now()))).length === 0);
+  // § 59 ج — «هذا الصنف غير متوفر اليوم 🌿 المتوفر اليوم:» with the list's items and prices; never «نراجع السعر»
+  const told = sentTo(C1_PHONE).map((b: any) => String(b.text?.body ?? ""));
+  assert("a waiting order whose item the new list does not carry (§ 59 ج): no quotation — «هذا الصنف غير متوفر اليوم 🌿 المتوفر اليوم:» with what the list holds and its price", out[0]?.action === "unavailable" && rows("x_quotation").length === 0 && told.length === 1 && told[0].startsWith("هذا الصنف غير متوفر اليوم 🌿\nالمتوفر اليوم:\n• طماطم (كرتون): 26 ر.س") && !/نراجع السعر/.test(told[0]) && !ownerTexts().some((x) => /عرض سعر لم يُرسل/.test(x)), JSON.stringify([out, told]));
+  assert("…it no longer waits (the next tick does not ask again), and is closed: nothing is left in it", table("x_daily_order").get(o.id)!.x_awaiting_prices === false && table("x_daily_order").get(o.id)!.x_state === "cancelled" && linesOf(o.id)[0].x_status === "unavailable" && (await quiet(() => OF.quoteAwaitingOrders(env, Date.now()))).length === 0);
 }
 
 {
@@ -413,12 +416,16 @@ const invoicesOf = (orderId: number) => rows("x_invoice").filter((i: any) => i.x
   seed("x_daily_price", { x_product_tmpl_id: 2, x_packaging_id: 21, x_supplier_id: AHMED, x_price_sar: 15, x_sale_price: 19, x_date: PREV, x_extraction_status: "extracted" });
   await text(env, "طماطم كرتون 3 وخيار جرم 2", "place_order", [...TOMATO3, { product_id: 2, product_name_raw: "خيار", packaging_id: 21, quantity: 2 }]);
   const o = orderOfC1()[0];
+  // § 59 ج — the item the list does not hold was never added to the order (the form's message said so)
+  assert("an item the valid list does not carry is not added to the order (§ 59 ج): the tomato alone", linesOf(o.id).length === 1 && linesOf(o.id)[0].x_product_tmpl_id === 1, JSON.stringify(linesOf(o.id)));
+  // …and one that was on the order before the list (seeded here) never takes an older day's price
+  const cucumber = table("x_daily_order_line").get(seed("x_daily_order_line", { x_order_id: o.id, x_product_tmpl_id: 2, x_packaging_id: 21, x_quantity: 2, x_status: "pending" })) as any;
   const r = await khalas(env);
-  const cucumber = linesOf(o.id).find((l: any) => l.x_product_tmpl_id === 2);
-  assert("an item the valid list does not carry never takes an older day's price (19 of yesterday): «نراجع السعر وأرد عليك», no quotation", /نراجع السعر/.test(body(r)) && !r.buttons && rows("x_quotation").length === 0 && !cucumber.x_unit_price && table("x_daily_order").get(o.id)!.x_state === "draft", JSON.stringify([body(r), cucumber]));
-  cucumber.x_price_unit_manual = 25;                     // Baraa's price on the line
+  assert("a line the valid list does not carry never takes an older day's price (19 of yesterday): it leaves the quotation, which is made of the rest", confirmButton(r, o.id) && body(r).startsWith("🌿 غير متوفر اليوم (ما دخل العرض): خيار.") && body(r).includes("المجموع: 72 ر.س") && !/نراجع السعر/.test(body(r)) && !cucumber.x_unit_price && cucumber.x_status === "unavailable" && rows("x_quotation").length === 1, JSON.stringify([body(r), cucumber]));
+  // Baraa's own price on a line, set before the quotation, is his decision whatever the list holds
+  const mine = table("x_daily_order_line").get(seed("x_daily_order_line", { x_order_id: o.id, x_product_tmpl_id: 2, x_packaging_id: 21, x_quantity: 2, x_status: "pending", x_price_unit_manual: 25 })) as any;
   const r2 = await khalas(env);
-  assert("…Baraa's manual price on the line: quoted, and that price is the frozen one", confirmButton(r2, o.id) && cucumber.x_unit_price === 25, JSON.stringify([body(r2), cucumber]));
+  assert("…Baraa's manual price on a line: quoted, and that price is the frozen one", confirmButton(r2, o.id) && mine.x_unit_price === 25 && mine.x_status === "pending" && body(r2).includes("• خيار جرم × 2 = 50 ر.س"), JSON.stringify([body(r2), mine]));
 }
 
 // ---------------------------------------------------------------- the note

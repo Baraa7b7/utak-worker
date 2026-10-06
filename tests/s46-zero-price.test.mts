@@ -42,23 +42,26 @@ const say = (env: any, text: string, id: string) => quiet(() => dispatch(env, { 
 const tap = (env: any, buttonId: string, id: string, who = C1) => quiet(() => dispatch(env, { msg: { from: "+x", fromRaw: "x", profileName: "", messageId: id, type: "button", buttonId, text: "", timestamp: "0" } as any, intent: "other", senderType: "customer", partner: partnerOf(who) as any }));
 const zeroAlerts = (re: RegExp) => ownerTexts().filter((t) => re.test(t));
 
-console.log("\n[ج] the quotation: not created, «نراجع السعر وأرد عليك», Baraa's alert with the order and the item");
+console.log("\n[ج] the quotation — § 59 ج: an item the valid list does not hold is «غير متوفر اليوم»: its line leaves the order, never «نراجع السعر», never a quotation with a line without a price");
 {
   const env = fresh(`${DAY} 10:00`); priced();
   table("res.partner").get(C1)!.x_delivery_neighborhood = "العليا";
-  const o = orderOf(DAY, [[1, 11, 10], [2, 21, 2]]);                  // tomato 300 + cucumber without a price
+  const o = orderOf(DAY, [[1, 11, 10], [2, 21, 2]]);                  // tomato 300 + cucumber, not in today's list
   const z = await quiet(() => ZP.orderZeroLines(env, o));
   assert("the order's lines without a price: cucumber alone", z?.zero.length === 1 && z.zero[0].product === "خيار", JSON.stringify(z));
   const r1 = await say(env, "خلاص", "z1");
-  assert("«خلاص» → «نراجع السعر وأرد عليك», no buttons", String(r1.text).startsWith("نراجع السعر وأرد عليك") && !r1.buttons, JSON.stringify(r1));
-  assert("…no x_quotation, the order still open (draft)", rows("x_quotation").length === 0 && table("x_daily_order").get(o)!.x_state === "draft");
-  const a = zeroAlerts(/عرض سعر لم يُرسل/);
-  assert("…Baraa's alert: the order's number, the customer and the item", a.length === 1 && a[0].includes(`الطلب #${o}`) && a[0].includes("مطعم الوادي") && /• خيار \(جرم\)/.test(a[0]) && !/طماطم/.test(a[0]), a[0]);
-  const r2 = await say(env, "خلاص", "z2");
-  assert("a second «خلاص» the same day: the same text, no second alert", String(r2.text).startsWith("نراجع السعر وأرد عليك") && zeroAlerts(/عرض سعر لم يُرسل/).length === 1 && rows("x_quotation").length === 0);
-  lineOf(o, 2).x_price_unit_manual = 25;                              // Baraa corrects the price in Odoo
+  const b1 = String(r1.bodyBeforeButtons ?? "");
+  assert("«خلاص» → the quotation of what IS in the list, with «🌿 غير متوفر اليوم (ما دخل العرض): خيار.» — not «نراجع السعر»", b1.startsWith("🌿 غير متوفر اليوم (ما دخل العرض): خيار.") && b1.includes("• طماطم كرتون × 10 = 300 ر.س") && b1.includes("المجموع: 300 ر.س") && !b1.includes("نراجع السعر") && !/خيار جرم ×/.test(b1) && (r1.buttons ?? []).some((x: any) => x.id === `confirm_order_${o}`), JSON.stringify(r1));
+  assert("…the cucumber line left the order (marked unavailable, not deleted), the quotation is on record", lineOf(o, 2).x_status === "unavailable" && rows("x_daily_order_line").filter((l: any) => l.x_order_id === o).length === 2 && rows("x_quotation").length === 1 && table("x_daily_order").get(o)!.x_state === "waiting_confirmation");
+  assert("…and Baraa gets no «عرض سعر لم يُرسل» (a quotation went)", zeroAlerts(/عرض سعر لم يُرسل/).length === 0, ownerTexts().join(" | "));
+  const z2 = await quiet(() => ZP.orderZeroLines(env, o));
+  assert("…no line without a price is left in it", z2?.zero.length === 0, JSON.stringify(z2));
+  // Baraa prices a line himself BEFORE the quotation: it is his decision, whatever the list holds
+  const o2 = orderOf(DAY, [[2, 21, 10]]);
+  table("x_daily_order").get(o)!.x_state = "cancelled";
+  lineOf(o2, 2).x_price_unit_manual = 25;
   const r3 = await say(env, "خلاص", "z3");
-  assert("the price corrected («سعر يدوي للوحدة») → the quotation with its confirm button", (r3.buttons ?? []).some((b: any) => b.id === `confirm_order_${o}`) && rows("x_quotation").length === 1 && table("x_daily_order").get(o)!.x_state === "waiting_confirmation", JSON.stringify(r3));
+  assert("a line Baraa priced himself («سعر يدوي للوحدة») is quoted at his price, though the list does not hold it", String(r3.bodyBeforeButtons ?? "").includes("• خيار جرم × 10 = 250 ر.س") && (r3.buttons ?? []).some((x: any) => x.id === `confirm_order_${o2}`) && lineOf(o2, 2).x_status === "pending", JSON.stringify(r3));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 {
@@ -66,9 +69,9 @@ console.log("\n[ج] the quotation: not created, «نراجع السعر وأرد
   table("res.partner").get(C1)!.x_delivery_neighborhood = "العليا";
   const o = orderOf(DAY, [[1, 11, 10]]);
   lineOf(o, 1).x_unit_price = -5; lineOf(o, 1).x_price_unit_manual = 0;
-  table("x_price_day_line").forEach((l: any) => { l.x_sale_price = 0; });   // today's published price is 0 too
+  table("x_price_day_line").forEach((l: any) => { l.x_sale_price = 0; });   // today's line carries no sale price: not published
   const r = await say(env, "خلاص", "z4");
-  assert("a negative unit price and a published price of 0: still «نراجع السعر وأرد عليك», no quotation", String(r.text).startsWith("نراجع السعر وأرد عليك") && rows("x_quotation").length === 0, JSON.stringify(r));
+  assert("a negative unit price and a line with no sale price in the list: no quotation — «هذا الصنف غير متوفر اليوم» with the form, the order closed", r.text === "" && r.orderForm?.unavailable?.alone === true && rows("x_quotation").length === 0 && table("x_daily_order").get(o)!.x_state === "cancelled" && lineOf(o, 1).x_status === "unavailable" && !/نراجع السعر/.test(JSON.stringify(r)), JSON.stringify(r));
 }
 {
   const env = fresh(`${DAY} 10:00`); priced();
@@ -85,14 +88,20 @@ console.log("\n[ج] the quotation: not created, «نراجع السعر وأرد
   const r = await quiet(() => dispatch(env, { msg: { from: "+" + C1_PHONE, messageId: "z9", type: "text", text: "طماطم كرتون 10 وخيار جرم 2 خلاص", timestamp: "0" } as any, intent: "place_order", senderType: "customer", partner: partnerOf(C1) as any }));
   setExtract(null);
   const o = rows("x_daily_order").find((x: any) => x.x_customer_id === C1 && x.x_order_date === DAY) as any;
-  assert("«… خلاص» in the order's own message: the items recorded, «نراجع السعر وأرد عليك», no quotation, no button, the order open",
-    /أضفنا لطلبك|بديت لك طلب جديد/.test(String(r.text)) && /نراجع السعر وأرد عليك/.test(String(r.text)) && !r.buttons && rows("x_quotation").length === 0 && o?.x_state === "draft" && zeroAlerts(/عرض سعر لم يُرسل/).length === 1, JSON.stringify(r));
+  const b = String(r.bodyBeforeButtons ?? "");
+  assert("«… خلاص» in the order's own message (§ 59 ج): the available item quoted with its amount and the total, the other never added — no «نراجع السعر», no alert",
+    b.startsWith("بديت لك طلب جديد ✅") && b.includes("• طماطم كرتون × 10 = 300 ر.س") && b.includes("المجموع: 300 ر.س") && !/نراجع السعر/.test(b) && (r.buttons ?? []).length === 3 && rows("x_quotation").length === 1 && o?.x_state === "waiting_confirmation"
+    && !rows("x_daily_order_line").some((l: any) => l.x_order_id === o.id && l.x_product_tmpl_id === 2) && zeroAlerts(/عرض سعر لم يُرسل/).length === 0, JSON.stringify(r));
+  assert("…and after it «خيار غير متوفر اليوم 🌿» with what is available and the form", JSON.stringify(r.orderForm?.unavailable) === JSON.stringify({ names: ["خيار"], alone: false }), JSON.stringify(r.orderForm));
 }
 {
   const env = fresh(`${DAY} 10:00`); priced();
+  table("res.partner").get(C1)!.x_delivery_neighborhood = "العليا";
   const o = orderOf(DAY, [[1, 11, 10], [2, 21, 2]], "waiting_confirmation");
   const r = await tap(env, `confirm_order_${o}`, "z6");
-  assert("an old «تأكيد الطلب» tap on an order with a line without a price: not confirmed, back to draft, the text and the alert", String(r.text).startsWith("نراجع السعر وأرد عليك") && table("x_daily_order").get(o)!.x_state === "draft" && zeroAlerts(/عرض سعر لم يُرسل/).length === 1, JSON.stringify(r));
+  const b = String(r.bodyBeforeButtons ?? "");
+  assert("an old «تأكيد الطلب» tap on an order with a line the list does not hold (§ 59 ج): not confirmed over his head — a new quotation of the rest, saying what was left out",
+    b.startsWith("🌿 غير متوفر اليوم (ما دخل العرض): خيار.") && b.includes("• طماطم كرتون × 10 = 300 ر.س") && table("x_daily_order").get(o)!.x_state === "waiting_confirmation" && lineOf(o, 2).x_status === "unavailable" && zeroAlerts(/عرض سعر لم يُرسل/).length === 0, JSON.stringify(r));
 }
 {
   const env = fresh(`${DAY} 20:00`); priced();
@@ -101,11 +110,13 @@ console.log("\n[ج] the quotation: not created, «نراجع السعر وأرد
   await quiet(() => TEAM.sendCutoffReminders(env));
   assert("ح3 20:00 reminds it as any unconfirmed order (its «تأكيد الطلب» is what is guarded)", sentTo(C1_PHONE).some((b: any) => b.type === "interactive" && (b.interactive?.action?.buttons ?? []).some((x: any) => x.reply.id === `confirm_order_${o}`)), JSON.stringify(sentTo(C1_PHONE)).slice(0, 300));
   const r = await tap(env, `confirm_order_${o}`, "z7");
-  assert("…the tap on the reminder's button: not confirmed, «نراجع السعر وأرد عليك», back to draft, Baraa's alert", String(r.text).startsWith("نراجع السعر وأرد عليك") && table("x_daily_order").get(o)!.x_state === "draft" && zeroAlerts(/عرض سعر لم يُرسل/).length === 1, JSON.stringify(r));
-  lineOf(o, 2).x_unit_price = 25;
+  // § 59 ج — the line the list does not hold leaves the order; nothing is confirmed over his head: he is
+  // told what was left out, and (no delivery place on his card) asked for it before the new quotation
+  assert("…the tap on the reminder's button (§ 59 ج): not confirmed, «🌿 غير متوفر اليوم (ما دخل العرض): خيار.» — never «نراجع السعر», no alert", String(r.text).startsWith("🌿 غير متوفر اليوم (ما دخل العرض): خيار.") && !/نراجع السعر/.test(String(r.text)) && table("x_daily_order").get(o)!.x_state !== "confirmed" && lineOf(o, 2).x_status === "unavailable" && zeroAlerts(/عرض سعر لم يُرسل/).length === 0, JSON.stringify(r));
+  table("res.partner").get(C1)!.x_delivery_neighborhood = "العليا";
   env.MSG_DEDUP.store.delete(`btnlock:v1:order:${o}:confirm_order`);   // ح8's 90-second tap lock has expired (the harness KV keeps keys)
   const r2 = await tap(env, `confirm_order_${o}`, "z8");
-  assert("…priced: the same button confirms", /تم التأكيد/.test(String(r2.text)) && table("x_daily_order").get(o)!.x_state === "confirmed", JSON.stringify(r2));
+  assert("…the same button then confirms what is left (the tomato, at the list's price)", /تم التأكيد/.test(String(r2.text)) && table("x_daily_order").get(o)!.x_state === "confirmed" && lineOf(o, 1).x_unit_price === 30, JSON.stringify(r2));
 }
 {
   const env = fresh(`${DAY} 10:00`); priced();

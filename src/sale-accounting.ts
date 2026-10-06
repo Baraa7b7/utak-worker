@@ -243,15 +243,20 @@ async function readOrderedLines(env: Env, lineIds: number[], frozen = false): Pr
     x_packaging_id: [number, string] | false;
     x_quantity: number;
     x_unit_price: number | false;
+    x_status?: string | false;
   };
   const rows = await call<Row[]>(env, "x_daily_order_line", "read", {
     ids: lineIds,
-    fields: ["id", "x_product_tmpl_id", "x_packaging_id", "x_quantity", "x_unit_price"],
+    fields: ["id", "x_product_tmpl_id", "x_packaging_id", "x_quantity", "x_unit_price", "x_status"],
   });
   const out: SaleLineInput[] = [];
   for (const r of rows) {
     if (!(r.x_quantity > 0)) continue;
     let unit = typeof r.x_unit_price === "number" && r.x_unit_price > 0 ? r.x_unit_price : 0;
+    // § 59 ج — a line that left the order before any quotation priced it («غير متوفر اليوم»: marked
+    // unavailable, no price): it was never sold, and never enters the sale order. (A line short at the
+    // delivery keeps its price and stays, as before.)
+    if (r.x_status === "unavailable" && !unit) continue;
     // § 49 ب — `frozen`: the order was priced from a valid list (x_price_date): no later lookup
     if (!unit && !frozen && r.x_product_tmpl_id && r.x_packaging_id) {
       unit = (await getLatestSalePrice(env, r.x_product_tmpl_id[0], r.x_packaging_id[0])).price;

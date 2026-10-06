@@ -219,6 +219,8 @@ function refused(message: string, type: string, status: number): Response {
 const OWNER_ALLOWED_PURPOSES: ReadonlySet<string> = new Set(["price_flow_test", "order_flow_test", "register_flow_test", "owner_alert", "owner_delivery_form", "delivery_form_test", "expense_form", "expense_form_test", "supplier_register_form_test", "owner_complaint_notice", "complaint_form_test", "owner_transfer_notice", "transfer_form_test", "receipt_form_test", "custody_form_test", "owner_summary", "owner_window", "conv_open_owner", "car_load_form_test", "owner_team_note", "owner_prices", "owner_price_exception", "owner_price_review", "owner_order_confirmed", "price_review_test"]);
 /** § 58 هـ — the three trials of § 58: Baraa's number alone, as every trial (added here: the list above stays as § 57 left it). */
 for (const p of ["after_delivery_test", "transfer_confirmed_test", "target_lines_test"]) (OWNER_ALLOWED_PURPOSES as Set<string>).add(p);
+/** § 59 ز — the trials of § 59: Baraa's number alone, as every trial (the order form's two are order_flow_test's). */
+for (const p of ["team_prices_test", "quotation_file_test", "shift_start_test"]) (OWNER_ALLOWED_PURPOSES as Set<string>).add(p);
 
 function ownerDigits(env: Env): string {
   return waDigits(String(env.OWNER_WHATSAPP ?? ""));

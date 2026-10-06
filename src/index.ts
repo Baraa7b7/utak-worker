@@ -1900,6 +1900,22 @@ export default {
         return json({ ok: false, error: (e as Error).message }, 500);
       }
     }
+    // § 59 ز — the trials of § 59 to Baraa's own number («🧪 تجربة»), only while his window is open,
+    // once a day each (?name=prices | form | unavailable | quotation | shift — src/s59-trials.ts).
+    // Nothing is written in Odoo, and nobody else is reached.
+    if (request.method === "POST" && url.pathname === "/odoo/hook/s59-trial") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      try {
+        const { sendS59Trial } = await import("./s59-trials");
+        return json({ ok: true, ...(await sendS59Trial(env, url.searchParams.get("name") ?? "")) });
+      } catch (e) {
+        return json({ ok: false, error: (e as Error).message }, 500);
+      }
+    }
     if (request.method === "POST" && url.pathname === "/odoo/hook/transfer-form-test") {
       const providedToken = url.searchParams.get("token") ?? "";
       const expected = env.ODOO_HOOK_TOKEN ?? "";

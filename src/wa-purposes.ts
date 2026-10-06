@@ -259,6 +259,13 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   after_delivery_test: op("تجربة زرّي التحويل والملاحظة", false, { hours: 1 }),
   transfer_confirmed_test: op("تجربة رسالة «✅ وصل» الموحّدة", false, { hours: 1 }),
   target_lines_test: op("تجربة سطري الهدف مقابل الفعلي", false, { hours: 1 }),
+  // § 59 ز — the trials of § 59 to Baraa's own number («🧪 تجربة»), inside his window only, once each:
+  // the marketing member's price list as he gets it, a quotation's PDF as an attached file, and the
+  // line before «بدء الدوام» as it reaches him now (the template itself goes under owner_window).
+  // Nothing is written. (The order form's two — its new message, «غير متوفر اليوم» — are order_flow_test's.)
+  team_prices_test: op("تجربة قائمة أسعار التسويق", false, { hours: 1 }),
+  quotation_file_test: op("تجربة عرض السعر ملفاً مرفقاً", false, { hours: 1 }),
+  shift_start_test: op("تجربة «بدء الدوام» لبراء", false, { hours: 1 }),
   // § 57 هـ — the one trial of the complaint form to Baraa's own number («🧪 تجربة»), inside his
   // window only, and the answers to his trial reply (nothing written, nobody else told).
   complaint_form_test: op("تجربة نموذج الملاحظة", false, { hours: 1 }),

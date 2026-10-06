@@ -122,6 +122,7 @@ console.log("\n[3] the lines: «أمس: بعنا Q من T (p%) — ربح أمس
   assert("no real delivery: «أمس: لا مبيعات حقيقية بعد» alone; not computed: one line that says so", JSON.stringify(DI.actualLines(DI.dayActual(PLAN, { cartons: 0, marginTotal: 0, wasteRecorded: null }), "أمس")) === JSON.stringify(["أمس: لا مبيعات حقيقية بعد"]) && JSON.stringify(DI.actualLines(null, "أمس")) === JSON.stringify(["أمس: لم تُحسب أرقامه بعد (تُحسب مع ملخص 21:30)"]));
   assert("a day that had no target: «بعنا 12.5 كرتون (بلا هدف)»", DI.actualLines({ ...a, cartons: 12.5, target: 0 }, "أمس")[0].startsWith("أمس: بعنا 12.5 كرتون (بلا هدف) — ربح أمس الحقيقي"));
   assert("the 🎯 line of «خلاصة اليوم»: the largest reason alone — «🎯 أمس: بعنا 96 من 140 (69%) — ربح −125 ❌، أكبر سبب: الكمية −110»", DI.briefActualLine(a, "أمس") === "🎯 أمس: بعنا 96 من 140 (69%) — ربح −125 ❌، أكبر سبب: الكمية −110" && DI.briefActualLine(null, "أمس") === "🎯 أمس: لم تُحسب أرقامه بعد" && DI.briefActualLine({ ...a, cartons: 0 }, "اليوم") === "🎯 اليوم: لا مبيعات حقيقية بعد", DI.briefActualLine(a, "أمس"));
+  assert("…the LARGEST of the four, whichever it is: «أكبر سبب: التالف −115»", DI.briefActualLine({ ...a, volume: -10, wasteVar: -115 }, "أمس").endsWith("، أكبر سبب: التالف −115") && DI.briefActualLine({ ...a, gap: 0, volume: 0, wasteVar: 0, profit: 0 }, "أمس") === "🎯 أمس: بعنا 96 من 140 (69%) — ربح 0 ✅");
   const p = DI.dayPlan([{ key: "a", margin: 3.1, waste: 0.6 }], 350, 0);
   const html = DI.targetHtml(p, a);
   assert("«🎯 الهدف مقابل الفعلي» under the tiles: a sentence and its numbers — the target, how it is made, yesterday and its gap", JSON.stringify(text(html)) === JSON.stringify(["🎯 هدف اليوم: 140 كرتون", "(تكلفة التشغيل 350.00 + هدف الربح 0.00) ÷ متوسط مساهمة الكرتون 2.50 — متوسط بسيط لـ 1 صنف", "أمس: بعنا 96 من 140 (69%) — ربح أمس الحقيقي −125 ❌", "عجز 125: الكمية −110 · التالف −15"]), text(html).join(" | "));
@@ -185,7 +186,7 @@ console.log("\n[5] the actual of a day: the real orders delivered that Riyadh da
     [1, 11, 8, 70, { x_ordered_qty: 10, x_return_qty: 2, x_return_reason: "damaged" }],
     [3, 31, 6, 19.5, { x_ordered_qty: 7, x_return_qty: 1, x_return_reason: "short" }],
     [4, 41, 0, 28, { x_status: "unavailable", x_ordered_qty: 3, x_return_qty: 3, x_return_reason: "refused" }],
-    [2, 21, 0, 0, { x_status: "unavailable" }],                                          // § 59: not in the list — never delivered, nothing returned
+    [2, 21, 5, 0, { x_status: "unavailable" }],                                          // § 59: not in the list — its 5 cartons were never delivered, nothing returned
   ]);
   const sold = await quiet(() => DI.readSoldLines(env, DAY, DAY));
   const input = DI.actualInput(sold.lines, DAY, 15);
@@ -195,6 +196,20 @@ console.log("\n[5] the actual of a day: the real orders delivered that Riyadh da
   seed("x_invoice", { x_invoice_number: "UTAK-INV-SIM", x_order_id: o, x_invoice_date: DAY, x_status: "issued", x_total: 1, x_utak_simulation: true });
   const withInvoice = await quiet(() => DI.readSoldLines(env, DAY, DAY));
   assert("an invoice's discount comes off the day's margin: 8 × 70 + 6 × 19.5 = 677 against 650 → 27 ÷ 1.15 (a simulation's invoice never)", withInvoice.discount.get(DAY) === 27 && Math.abs(DI.actualInput(withInvoice.lines, DAY, 15, 27).marginTotal - (input.marginTotal - 27 / 1.15)) < 1e-9, JSON.stringify([...withInvoice.discount]));
+}
+{
+  // a line keeps the purchase price of ITS price day, and Baraa's own price on a line is the price it was sold at
+  const env = world(); prices();
+  const before = seed("x_price_day", { x_date: "2026-10-02", x_state: "published", x_name: "أسعار اليوم 2026-10-02", x_utak_simulation: false });
+  seed("x_price_day_line", { x_day_id: before, x_product_tmpl_id: 1, x_packaging_id: 11, x_cost_price: 50, x_market_price: 66, x_sale_price: 66, x_utak_simulation: false });
+  await engine(env);
+  setRiyadh(`${DAY} 21:30`);
+  delivered(`${DAY} 08:00`, [[1, 11, 4, 66]], { x_price_date: "2026-10-02", x_order_date: "2026-10-02" });   // ordered and priced the day before, delivered today
+  delivered(`${DAY} 09:00`, [[1, 11, 3, 70, { x_price_unit_manual: 72 }]]);                                   // his own price on the line
+  const sold = await quiet(() => DI.readSoldLines(env, DAY, DAY));
+  assert("an order priced the day before and delivered today: the purchase price of its price day (50), not today's (55); a line with his own price: sold at it (72)", JSON.stringify(sold.lines.map((l: any) => [l.priceDay, l.quantity, l.sale, l.purchase])) === JSON.stringify([["2026-10-02", 4, 66, 50], [DAY, 3, 72, 55]]), JSON.stringify(sold.lines));
+  const inputs: any = { day: DAY, sold: [{ day: "2026-09-23", key: "1:11", quantity: 50 }, { day: "2026-09-30", key: "1:11", quantity: 7 }, { day: "2026-10-02", key: "3:31", quantity: 2 }, { day: DAY, key: "3:31", quantity: 99 }, { day: "2026-10-01", key: "2:21", quantity: 0 }] };
+  assert("the plan's weights: the cartons delivered in the seven days BEFORE the day — an older one, the day's own and a line of nothing never", JSON.stringify([...DS.salesMix(inputs)]) === JSON.stringify([["1:11", 7], ["3:31", 2]]), JSON.stringify([...DS.salesMix(inputs)]));
 }
 {
   const env = world(); prices();

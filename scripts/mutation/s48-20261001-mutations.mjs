@@ -48,7 +48,7 @@ const M = [
   ["أ", "the default minimum profit is 5", [[EN,
     "export const DEFAULT_MIN_PROFIT_SAR = 2;", "export const DEFAULT_MIN_PROFIT_SAR = 5;"]], T],
   ["أ", "«الهامش الأدنى ٪» still read from the settings", [[OC,
-    "\"x_expected_cartons\", \"x_min_profit_sar\", \"x_outlier_ratio\", \"x_market_uplift_pct\", \"x_above_suggested\"],", "\"x_expected_cartons\", \"x_min_profit_sar\", \"x_outlier_ratio\", \"x_market_uplift_pct\", \"x_above_suggested\", \"x_min_margin_pct\"],"]], T],
+    "\"x_expected_cartons\", \"x_min_profit_sar\", \"x_outlier_ratio\", \"x_market_uplift_pct\", \"x_above_suggested\", \"x_daily_profit_target\"],", "\"x_expected_cartons\", \"x_min_profit_sar\", \"x_outlier_ratio\", \"x_market_uplift_pct\", \"x_above_suggested\", \"x_daily_profit_target\", \"x_min_margin_pct\"],"]], T],
   ["أ", "the minimum profit read from «الهامش الأدنى ٪»", [[OC,
     "    minProfit: typeof r.x_min_profit_sar === \"number\" ? Math.max(0, r.x_min_profit_sar) : DEFAULT_MIN_PROFIT_SAR,", "    minProfit: typeof (r as any).x_min_margin_pct === \"number\" ? Math.max(0, (r as any).x_min_margin_pct) : typeof r.x_min_profit_sar === \"number\" ? Math.max(0, r.x_min_profit_sar) : DEFAULT_MIN_PROFIT_SAR,"]], T],
   // § 54 أ — the exception's line is «أقل سعر بيع بدون خسارة» (the suggested price before): the code «loss»

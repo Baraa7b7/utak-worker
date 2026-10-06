@@ -81,6 +81,10 @@ console.log("\n[1] the break-even: a red ┃ on each row, a light pink zone befo
     && key.indexOf("سعرنا") < key.indexOf("┃") && key.indexOf("┃") < key.indexOf("▲ ربح · ▼ خسارة"), text(key));
   assert("under the row, after its three values: «┃ التعادل 20.40» (the pomegranate), «┃ التعادل 68.70» (the banana)", text(rs[1]).endsWith("┃ التعادل 20.40") && text(rs[0]).endsWith("┃ التعادل 68.70") && rs.every((r) => r.indexOf("utak-even-value") > r.indexOf("سعرنا")), text(rs[1]));
   assert("the colours are Odoo's own classes (bg-danger, bg-opacity-25, text-danger) — no colour written by hand, no <style>", !/<style/i.test(html) && !/#[0-9a-fA-F]{3,8}\b|rgba?\(/.test(html) && html.includes("bg-danger bg-opacity-25") && html.includes("text-danger fw-bold"));
+  // Baraa's own price under the break-even, and no market: the break-even stands past the other marks — the axis reaches it
+  const low = DS.screenRows([{ ...FX.lines[0], x_market_price: 0, x_decision: "edit", x_manual_price: 65, x_manual_for: "edit", x_sale_price: 65, x_status: "manual" }], "market", FX.day.x_date, "draft");
+  const lowAxis = DS.chartAxis(low.flatMap((r: any) => [r.purchaseVat, r.market, r.ours, r.breakEven]))!;
+  assert("a break-even past every other mark (his own price under it, no market) is still ON the axis, not pinned to its end", low[0].ours === 65 && low[0].breakEven > 65 && lowAxis.hi >= low[0].breakEven && (at(rowsOf(DS.dayChartHtml(low))[0], "utak-even bg-danger")?.left ?? 100) === DS.axisAt(lowAxis, low[0].breakEven) && DS.axisAt(lowAxis, low[0].breakEven) > DS.axisAt(lowAxis, 65), JSON.stringify([low[0].ours, low[0].breakEven, lowAxis]));
   assert("a row without a break-even (no purchase price): no ┃, no zone, no value", (() => { const r = DS.screenRows([{ ...FX.lines[0], x_cost_price: 0, x_break_even: 0, x_full_cost: 0, x_suggested_price: 0 }], "market", FX.day.x_date, "draft"); const h = DS.dayChartHtml(r); return !h.includes("utak-even") && !h.includes("utak-loss-zone") && h.includes(DS.EVEN_KEY_TEXT); })());
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
@@ -89,9 +93,9 @@ console.log("\n[1] the break-even: a red ┃ on each row, a light pink zone befo
 console.log("\n[2] what moved since the last day that carries a number");
 {
   const env = world();
-  // 10-02: banana 52 / 67, medium 15 / 22, small 12 / 0, large — no line; 09-30: large 20 / 30; a simulation's day (the nearest) says otherwise
+  // 10-02: banana 52 / 67, medium 15 / 22, small 12 / 0, large — no line; 09-30: large 20 / — (a purchase, no market); a simulation's day (the nearest) says otherwise
   past(BEFORE, [[1, 11, 52, 67], [2, 21, 15, 22], [3, 31, 12, 0]]);
-  past(OLDER, [[4, 41, 20, 30], [1, 11, 40, 40]]);
+  past(OLDER, [[4, 41, 20, 0], [1, 11, 40, 40]]);
   past("2026-10-02", [[1, 11, 1, 1], [2, 21, 1, 1], [4, 41, 1, 1]], { x_utak_simulation: true });
   prices();
   await engine(env);
@@ -99,8 +103,8 @@ console.log("\n[2] what moved since the last day that carries a number");
   assert("the banana: the purchase with the VAT 63.25 against 59.80 «▲ +3.45», the market 70 against 67 «▲ +3.00»", text(rs[0]).includes("الشراء شامل 63.25 ▲ +3.45") && text(rs[0]).includes("السوق 70.00 ▲ +3.00"), text(rs[0]));
   assert("the medium pomegranate: the purchase did not move (nothing beside it), the market 20 against 22 «▼ −2.00»", /الشراء شامل 17\.25 ○? ?السوق|الشراء شامل 17\.25 السوق/.test(text(rs[1]).replace(/\s+/g, " ")) && text(rs[1]).includes("السوق 20.00 ▼ −2.00") && rs[1].split("utak-move").length === 2, text(rs[1]));
   assert("the small one: no market today, the purchase as it was — nothing at all", !rs[2].includes("utak-move"), text(rs[2]));
-  assert("the large one: its last number is two days older (09-30): the purchase 25.30 against 23.00 «▲ +2.30», the market 28 against 30 «▼ −2.00»", text(rs[3]).includes("الشراء شامل 25.30 ▲ +2.30") && text(rs[3]).includes("السوق 28.00 ▼ −2.00"), text(rs[3]));
-  assert("the move stands in the row's values as a number read left to right", rs[0].includes(`<span class="utak-move small" dir="ltr">▲ +3.45</span>`) && rs[3].includes(`<span class="utak-move small" dir="ltr">▼ −2.00</span>`));
+  assert("the large one: its last purchase is two days older (09-30): 25.30 against 23.00 «▲ +2.30» — and its market has no earlier number at all: nothing beside it", text(rs[3]).includes("الشراء شامل 25.30 ▲ +2.30") && /السوق 28\.00 (?!▲|▼)/.test(text(rs[3])) && rs[3].split("utak-move").length === 2, text(rs[3]));
+  assert("the move stands in the row's values as a number read left to right", rs[0].includes(`<span class="utak-move small" dir="ltr">▲ +3.45</span>`) && rs[1].includes(`<span class="utak-move small" dir="ltr">▼ −2.00</span>`));
   assert("a simulation's day is never the last number (its 1 / 1 moved nothing)", !chart().includes("+62.10") && !chart().includes("+69.00"));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }

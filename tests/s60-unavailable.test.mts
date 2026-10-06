@@ -91,6 +91,8 @@ console.log("\n[1] the rows of one answer, the count by item, the summary's line
     ]), JSON.stringify(items));
   assert("«طلبوا اليوم وما كان متوفر: أناناس ×4 (3 عملاء)، طماطم ×3 (عميلان)، خيار ×1»", UL.unavailableLine(items) === "طلبوا اليوم وما كان متوفر: أناناس ×4 (3 عملاء)، طماطم ×3 (عميلان)، خيار ×1", UL.unavailableLine(items));
   assert("one customer who asked twice: «×2 (عميل واحد)»; eleven: «11 عميلاً»", UL.itemText({ name: "بصل", productId: 0, asks: 2, customers: 1, quantity: 0 }) === "بصل ×2 (عميل واحد)" && UL.customersWord(11) === "11 عميلاً" && UL.customersWord(10) === "10 عملاء");
+  const byWho = UL.groupUnavailable([row(DAY, 1, "جزر"), row(DAY, 1, "جزر"), row(DAY, 1, "جزر"), row(DAY, 1, "جزر"), row(DAY, 1, "جزر"), row(DAY, 2, "فلفل"), row(DAY, 3, "فلفل")]);
+  assert("the number of CUSTOMERS orders them, not the number of asks: «فلفل» (2 customers, 2 asks) before «جزر» (1 customer, 5 asks)", JSON.stringify(byWho.map((i: any) => [i.name, i.asks, i.customers])) === JSON.stringify([["فلفل", 2, 2], ["جزر", 5, 1]]), JSON.stringify(byWho));
   const seven = UL.groupUnavailable(Array.from({ length: 7 }, (_, i) => row(DAY, 1, `صنف ${i + 1}`)));
   assert("five items at most, then «+N»", UL.SUMMARY_ITEMS_MAX === 5 && UL.unavailableLine(seven) === "طلبوا اليوم وما كان متوفر: صنف 1 ×1، صنف 2 ×1، صنف 3 ×1، صنف 4 ×1، صنف 5 ×1، +2", UL.unavailableLine(seven));
   assert("exactly five: no «+N»; no row: no line at all", !UL.unavailableLine(seven.slice(0, 5)).includes("+") && UL.unavailableLine([]) === "");

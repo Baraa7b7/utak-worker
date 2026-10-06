@@ -16,7 +16,7 @@
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/s60-tabs.test.mts
 
 import { odooLog, openWindow, quiet, rows, seed, setRiyadh, table } from "./wa-harness.mts";
-import { AHMED, C1, C1_PHONE, DAY, OMAR_EMP, assert, cost, dayOf, done, dp, fresh, lineFor, market, rejected, setExtract } from "./s46-kit.mts";
+import { AHMED, C1, C1_PHONE, DAY, DRIVER, OMAR_EMP, assert, cost, dayOf, done, dp, fresh, lineFor, market, rejected, setExtract } from "./s46-kit.mts";
 
 const PR = await import("../src/prices.ts");
 const DS = await import("../src/day-screen.ts");
@@ -90,6 +90,7 @@ console.log("\n[1] every tab: text and lists alone, its first line its own summa
     const plan = DI.dayPlan(DS.planItems(rs), 500, 0);
     const out = [DT.moneyTabHtml({ rows: rs, inputs, cartons: 250, cost: 500, vatPct: 15 }), DT.itemsTabHtml({ rows: rs, inputs, state: "published", vatPct: 15 }), DT.nextTabHtml({ rows: rs, inputs, plan, suppliers: new Map() })];
     assert(`${n} item(s): each tab within ${DT.TAB_ITEM_BUDGET * n} characters (${out.map((h) => h.length).join(" / ")}), and its summary first`, out.every((h) => h.length <= DT.TAB_ITEM_BUDGET * n && h.includes('class="utak-lead ')));
+    if (n > 1) assert(`${n} items: the budget grows with the items — every one of them is in «⭐ الأصناف»`, rs.every((r) => out[1].replace(/<[^>]*>/g, "").includes(`${r.name}:`)));
   }
   const parts = [{ html: "<div>A</div>", rank: 0 }, { html: `<div>${"ب".repeat(900)}</div>`, rank: 2 }, { html: `<div>${"ج".repeat(900)}</div>`, rank: 5 }, { html: "<div>Z</div>", rank: 0 }];
   const fit = DT.fitTab("x", parts, 1);
@@ -231,6 +232,7 @@ console.log("\n[4] «🎯 الفرص والقادم»: the five opportunities wo
   seed("x_daily_price", { x_product_tmpl_id: 4, x_packaging_id: 41, x_supplier_id: 802, x_price_sar: 6, x_date: "2026-10-02", x_extraction_status: "extracted", x_utak_simulation: true });
   seed("x_daily_price", { x_product_tmpl_id: 4, x_packaging_id: 41, x_supplier_id: 802, x_price_sar: 7, x_date: "2026-09-20", x_extraction_status: "extracted" });      // older than the seven days
   seed("x_price_offer", { x_product_tmpl_id: 1, x_packaging_id: 11, x_source_partner_id: 802, x_date: "2026-10-02", x_purchase_price: 60, x_market_price: 0, x_status: "valid", x_utak_simulation: false });   // dearer than the banana's 55
+  seed("x_price_offer", { x_product_tmpl_id: 1, x_packaging_id: 11, x_source_partner_id: DRIVER, x_date: "2026-10-02", x_purchase_price: 10, x_market_price: 66, x_status: "valid", x_utak_simulation: false });   // a «سوق» source's number is no purchase offer
   await engine(env);
   const lines = text(dayOf().x_tab_next_html);
   assert("today's purchase is Ahmed's 22 (the day's lowest); سوق العزيزية offered 19 the day before: «رمان كبير: سوق العزيزية أرخص بـ 3.00 للكرتون (19.00 يوم 2 أكتوبر مقابل 22.00) — اطلب سعره اليوم.»", lineFor(4).x_cost_price === 22 && lineFor(4).x_supplier_id === AHMED
@@ -249,7 +251,7 @@ console.log("\n[5] the market's direction, three days in a row, and «بكرة �
   assert("no earlier day: no direction; a day older than a week does not count in the mean", DT.trendOf(pts([20])).direction === null && DT.trendOf([]).direction === null && DT.trendOf([{ day: "2026-09-01", value: 50 }, { day: "2026-10-09", value: 20 }, { day: "2026-10-10", value: 20 }]).mean === 20);
   assert("«بكرة إذا استمر» = the last price ∓ the mean absolute daily move — and not before 5 days with a market price", DT.trendOf(pts([20, 21, 20, 22])).range === null && JSON.stringify(DT.trendOf(pts([20, 21, 20, 22, 21])).range) === JSON.stringify([19.75, 22.25]) && DT.RANGE_MARKET_DAYS === 5);
   assert("«السوق طالع ▲ (21.00 مقابل متوسط 20.00)», and with the range: «· بكرة إذا استمر 19.75–22.25»", DT.trendText(t) === "السوق طالع ▲ (21.00 مقابل متوسط 20.00)" && DT.trendText(DT.trendOf(pts([20, 21, 20, 22, 21]))).endsWith(" · بكرة إذا استمر 19.75–22.25") && DT.trendText(DT.trendOf([])) === "السوق —");
-  assert("three days in a row: the last three steps all the same way — the move over them, else 0", DT.streak([15, 16, 17, 18], 1) === 3 && DT.streak([15, 16, 16, 18], 1) === 0 && DT.streak([16, 17, 18], 1) === 0 && DT.streak([9, 15, 16, 17, 18], 1) === 3 && DT.streak([6, 5, 4, 3.39], -1) === -2.61 && DT.streak([6, 5, 4, 4], -1) === 0 && DT.STREAK === 3);
+  assert("three days in a row: the last three steps all the same way — the move over them, else 0", DT.streak([15, 16, 17, 18], 1) === 3 && DT.streak([15, 16, 16, 18], 1) === 0 && DT.streak([16, 17, 18], 1) === 0 && DT.streak([9, 15, 16, 17, 18], 1) === 3 && DT.streak([6, 5, 4, 3.39], -1) === -2.61 && DT.streak([6, 5, 4, 4], -1) === 0 && DT.streak([15, 16, 15, 16], 1) === 0 && DT.streak([15, 14, 15, 14], -1) === 0 && DT.STREAK === 3);
   assert("a number reads left to right, and what follows it stays in the line: «21:30» and «19.75–22.25» whole, «35.75:» without its colon", DT.lineHtml("ملخص 21:30 بسعر 35.75: لنا +4.12 (47%) 19.75–22.25") === 'ملخص <span dir="ltr">21:30</span> بسعر <span dir="ltr">35.75</span>: لنا <span dir="ltr">+4.12</span> (<span dir="ltr">47%</span>) <span dir="ltr">19.75–22.25</span>');
 }
 
@@ -285,6 +287,7 @@ console.log("\n[6] «خلاصة اليوم»: four lines with the day's numbers"
   assert("a line without data says so in a few words", JSON.stringify(empty) === JSON.stringify(["✅ لا صنف للنشر اليوم", "🎯 أمس: لم تُحسب أرقامه بعد", "💧 لا صنف يُنشر اليوم بسعر وشراء", "➡️ لا فرصة ظاهرة اليوم"]), empty.join(" | "));
   assert("one opportunity: «➡️ أهم فرصة: …»; nothing goes out of three: «✅ لا صنف للنشر اليوم (من 3)»; no real sale: «🎯 أمس: لا مبيعات حقيقية بعد»",
     DT.briefLines({ rows: rs.map((r) => ({ ...r, publish: false })), state: "draft", average: null, actual: { ...a, cartons: 0 }, when: "أمس", split, opportunities: opps.slice(0, 1) }).join(" | ") === "✅ لا صنف للنشر اليوم (من 3) | 🎯 أمس: لا مبيعات حقيقية بعد | 💧 من كل كرتون بـ 35.75: لنا +4.12، وأكبر بند الشراء 23.25 | ➡️ أهم فرصة: موز (السوق فوق المقترح +11.50)");
+  assert("items go out but no profit could be computed for them: «متوسط ربح الكرتون غير محسوب»", DT.briefLines({ rows: rs, state: "draft", average: null, actual: null, when: "أمس", split: null, opportunities: [] })[0] === "✅ يُنشر اليوم 2 من 3 أصناف — متوسط ربح الكرتون غير محسوب");
   assert("the largest cost is named whatever it is (a carton whose operating share is the largest: «وأكبر بند التشغيل 9.00»)", DT.briefLines({ rows: rs, state: "draft", average: 1, actual: null, when: "أمس", split: { ...split, share: 9, purchase: 5 }, opportunities: [] })[2] === "💧 من كل كرتون بـ 35.75: لنا +4.12، وأكبر بند التشغيل 9.00");
   assert("an item's name is written as text, never as a tag", DT.briefHtml(["➡️ أهم فرصة: <b onclick=\"x()\">موز</b> & co"]).includes("&lt;b onclick=\"x()\"&gt;موز&lt;/b&gt; &amp; co") && !/<b /.test(DT.briefHtml(["<b onclick=\"x()\">"])));
 }

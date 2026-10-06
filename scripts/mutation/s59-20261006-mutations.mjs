@@ -146,7 +146,7 @@ const M = [
   ["ج", "the unavailable wording is not Baraa's", [["src/order-form.ts",
     "export const UNAVAILABLE_TEXT = \"هذا الصنف غير متوفر اليوم 🌿\";", "export const UNAVAILABLE_TEXT = \"الصنف غير موجود 🌿\";"]], "tests/s59-available.test.mts"],
   ["ج", "a line the list does not hold stays in the order's quotation («نراجع السعر»)", [["src/order-flow.ts",
-    "      unavailable.push(l.product_name);\n      continue;\n", "      unavailable.push(l.product_name);\n"]], "tests/s59-available.test.mts"],
+    "      asked.push({ text: l.product_name, productId: l.product_id, quantity: l.quantity });\n      continue;\n", "      asked.push({ text: l.product_name, productId: l.product_id, quantity: l.quantity });\n"]], "tests/s59-available.test.mts"],
   ["ج", "the line that left the order is not marked", [["src/order-flow.ts",
     "vals: { x_status: \"unavailable\", x_unit_price: 0, x_subtotal: 0 }", "vals: { x_unit_price: 0, x_subtotal: 0 }"]], "tests/s59-available.test.mts"],
   ["ج", "an order with nothing left in it stays open", [["src/order-flow.ts",

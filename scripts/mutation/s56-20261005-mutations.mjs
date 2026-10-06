@@ -76,7 +76,7 @@ const M = [
   ["أ", "a row that is not published shows its profit at the suggested price", [[DS,
     "  const base: ProfitBase | null = publish ? outBase : r.sale > 0 ? \"market\" : r.suggested > 0 ? \"suggested\" : null;", "  const base: ProfitBase | null = publish ? outBase : r.suggested > 0 ? \"suggested\" : null;"]], T],
   ["أ", "an item out of the active catalog keeps a decision's text", [[DS,
-    "x_gap_show: NONE, x_outcome_show: OUT_OF_CATALOG_TEXT };", "x_gap_show: NONE, x_outcome_show: \"❌ لا تنشر\" };"]], T],
+    "x_gap_show: NONE, x_outcome_show: OUT_OF_CATALOG_TEXT, x_contribution };", "x_gap_show: NONE, x_outcome_show: \"❌ لا تنشر\", x_contribution };"]], T],
   // ---------------------------------------------------------------- أ the header
   ["أ", "«لا تنشر» counts every item", [[DS,
     "x_n_skip: rows.length - publish,", "x_n_skip: rows.length,"]], T],
@@ -126,7 +126,7 @@ const M = [
   ["ب", "a row's profit has no arrow (its colour alone tells a loss)", [[DS,
     "  const arrow = r.profit > 0 ? \"▲ \" : r.profit < 0 ? \"▼ \" : \"\";", "  const arrow = \"\";"]], T],
   ["ب", "a row's profit does not say what it was made at", [[DS,
-    "<span class=\"fw-normal\">${PROFIT_BASE_TEXT[r.profitBase]}${r.noShare ? NO_SHARE_NOTE : \"\"}</span></div>`;", "<span class=\"fw-normal\"></span></div>`;"]], T],
+    "<span class=\"fw-normal\">${PROFIT_BASE_TEXT[r.profitBase]}${r.noShare ? NO_SHARE_NOTE : \"\"}</span>${contribution}</div>`;", "<span class=\"fw-normal\"></span>${contribution}</div>`;"]], T],
   ["ب", "a product's name is written into the row as HTML", [[DS,
     "<div class=\"utak-name fw-bold\">${r.mark} ${esc(r.name)}</div>", "<div class=\"utak-name fw-bold\">${r.mark} ${r.name}</div>"]], T],
   ["ب", "a product's name is written under its column as HTML", [[DS,

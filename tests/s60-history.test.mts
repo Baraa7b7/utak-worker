@@ -134,6 +134,8 @@ const filters = () => rows(HF.FILTER_MODEL) as any[];
   seed(HF.FILTER_MODEL, { ...HF.itemFilterVals(2, "خيار", HISTORY), user_ids: [], active: false });
   const made = await quiet(() => HF.ensureItemFilters(env, [{ productId: 1, productName: "طماطم" }, { productId: 2, productName: "خيار" }, { productId: 1, productName: "طماطم" }, { productId: 0, productName: "x" }, { productId: 7, productName: "  " }]));
   assert("a filter switched off is found and left alone; an item twice (two packagings) gets one; an item without an id or a name none", made === 1 && filters().length === 2 && filters().filter((f) => f.name === "خيار").length === 1 && filters().find((f) => f.name === "خيار").active === false && filters().some((f) => f.name === "طماطم"), JSON.stringify(filters().map((f) => [f.name, f.active])));
+  const same = await quiet(() => HF.ensureItemFilters(env, [{ productId: 30, productName: "[A-1] بقدونس" }, { productId: 31, productName: "[A-2] بقدونس" }]));
+  assert("two products of one name: one filter (the first's)", same === 1 && filters().filter((f) => f.name === "بقدونس").length === 1 && filters().find((f) => f.name === "بقدونس").domain.includes("30"));
   const two = await quiet(() => HF.ensureItemFilters(fresh(), [{ productId: 1, productName: "طماطم" }]));
   assert("no «📈 تاريخ الأسعار» on the tenant (§ 58's view rolled back): nothing is made", two === 0 && filters().length === 0);
 }

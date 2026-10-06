@@ -27,8 +27,9 @@
 // Every name is escaped: the HTML never carries a tag that came from a product's name.
 //
 // § 60 أ (2026-10-06) — «سعرنا مقابل السوق» keeps its design, its shapes and its order, and gains:
-//   • the break-even: a red ┃ on each row at x_break_even («أقل سعر بدون خسارة»), a light pink zone on
-//     the axis before it, its name in the key and its value under the row;
+//   • the break-even: a red ┃ on each row at x_break_even («أقل سعر بدون خسارة») in the text's own red
+//     (text-danger, 3:1 at least on both themes), a light pink zone on the axis before it (bg-danger at
+//     bg-opacity-25), its name in the key and its value under the row;
 //   • what moved since the last day that carries a number: «▲ +3.00» / «▼ −2.00» beside the market's
 //     value and the purchase's (no earlier number: nothing);
 //   • the carton's contribution (src/day-insight.ts) BESIDE the profit, never in its place: «▲ +1.13
@@ -387,7 +388,8 @@ function priceRow(r: ScreenRow, a: ChartAxis | null): string {
       marks.push(line(`left:${from}%;width:${Math.round((to - from) * 100) / 100}%;top:50%;height:3px;margin-top:-1.5px`));
     }
     // § 60 أ — the break-even itself: a red ┃, under the three shapes
-    if (r.breakEven > 0) marks.push(`<div class="utak-even bg-danger" title="${EVEN_LABEL} ${fixed2(r.breakEven)}" style="position:absolute;left:${axisAt(a, r.breakEven)}%;top:1px;bottom:1px;width:3px;margin-left:-1.5px"></div>`);
+    // (the text's own red — text-danger and currentColor, as the chart's bars: Odoo's «bg-danger» is too dark on the dark theme, 2.4:1)
+    if (r.breakEven > 0) marks.push(`<div class="utak-even text-danger" title="${EVEN_LABEL} ${fixed2(r.breakEven)}" style="position:absolute;left:${axisAt(a, r.breakEven)}%;top:1px;bottom:1px;width:3px;margin-left:-1.5px;background:currentColor"></div>`);
     if (r.purchaseVat > 0) marks.push(markOn("cost", axisAt(a, r.purchaseVat), r.purchaseVat));
     if (r.market > 0) marks.push(markOn("market", axisAt(a, r.market), r.market));
     if (r.ours > 0) marks.push(markOn("ours", axisAt(a, r.ours), r.ours));

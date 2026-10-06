@@ -400,7 +400,7 @@ const M = [
     "  \"fixtures-odoo-fields-20261005-s55.json\",   // § 55:", "  // § 55:"], [KIT,
     "  \"fixtures-odoo-fields-20261005-s56.json\",   // § 56:", "  // § 56:"], [KIT,
     "  \"fixtures-odoo-fields-20261005-s57.json\",   // § 57:", "  // § 57:"], [KIT,
-    "  \"fixtures-odoo-fields-20261005-s58.json\",   // § 58:", "  // § 58:"]], T],
+    "  \"fixtures-odoo-fields-20261006-s59.json\",   // § 59:", "  // § 59:"]], T],
 ];
 
 const want = new Set(process.argv.slice(2));

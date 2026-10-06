@@ -34,6 +34,7 @@ export const FIX = [
   "fixtures-odoo-fields-20261005-s56.json",   // § 56: the cells of «📊 اليوم» on x_price_day_line, the four numbers and the chart on x_price_day, every model of § 55 again (read last: it wins)
   "fixtures-odoo-fields-20261005-s57.json",   // § 57: x_complaint's fields of the complaint form, res.partner.x_cr_number; x_complaint, x_payment, account.move (+ lines), account.payment (+ its register wizard) and ir.attachment in the gate for the first time; every model of § 56 again (read last: it wins)
   "fixtures-odoo-fields-20261005-s58.json",   // § 58: x_pricing_config.x_daily_profit_target, x_price_day_line.x_contribution, the day's plan / actual / four HTML fields on x_price_day, account.payment.method.line; every model of § 57 again (read last: it wins)
+  "fixtures-odoo-fields-20261006-s59.json",   // § 59: x_pricing_config.x_workdays_calendar_id «جدول أيام العمل», the purposes team_prices_ready and customer_quotation_pdf_v2; x_employee_role and the working schedules in the gate for the first time; every model of § 58 again (read last: it wins)
 ].map((f) => JSON.parse(readFileSync(new URL(`./${f}`, import.meta.url), "utf8")));
 const REAL: Record<string, string[]> = Object.assign({}, ...FIX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FIX.map((f) => f._selections ?? {}));

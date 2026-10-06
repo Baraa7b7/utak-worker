@@ -24,13 +24,15 @@
 //   node scripts/s61-20261006-odoo.mjs [--only=base|cards|templates]             dry-run (base alone when no --only)
 //   node scripts/s61-20261006-odoo.mjs [--only=…] --apply
 //   node scripts/s61-20261006-odoo.mjs [--only=…] --verify
-//   node scripts/s61-20261006-odoo.mjs --rollback [--apply]    in one run: the cards' roles back FIRST, then the
+//   node scripts/s61-20261006-odoo.mjs --rollback --only=cards [--apply]    the cards' roles back, and nothing else
+//   node scripts/s61-20261006-odoo.mjs --rollback [--apply]    the cards' roles back FIRST (when not yet), then the
 //        holders' jobs off, #995's domain, the title, the sample jobs, and what was created switched off
 //        (the four jobs archived, the views and the menu off, the row's purpose to «other»). Nothing is
 //        deleted (--drop: by Baraa's decision only, after the worker's code is rolled back).
 //
-// ROLLBACK ORDER: THIS SCRIPT FIRST, THEN THE CODE — the code of before § 61 reads the card alone, and
-// a card emptied by (8) would leave its holder without a role.
+// ROLLBACK ORDER: (1) --rollback --only=cards, (2) THE CODE, (3) --rollback. The code of before § 61
+// reads the card alone (a card emptied by (8) would leave its holder without a role), and the code of
+// § 61 announces a job taken off its holder: taking the jobs off under it sends Baraa three «📤 خرج».
 // Rollback file: scripts/artifacts/s61-20261006-odoo-rollback.json. The tenant is production. No
 // WhatsApp send. No price, order, invoice, payment, cost line or journal entry is written here.
 import { existsSync, readFileSync } from "node:fs";
@@ -91,6 +93,10 @@ if (ROLLBACK) {
   // the cards first: every role back where the code of before § 61 reads it
   for (const [id, ids] of Object.entries(b.cards ?? {})) {
     await act(`hr.employee #${id}: ${CARD_ROLES_FIELD} ← [${ids.join(", ")}]`, () => call(EMPLOYEE_MODEL, "write", { ids: [Number(id)], vals: { [CARD_ROLES_FIELD]: [[6, 0, ids]] } }));
+  }
+  if (ONLY === "cards") {
+    log(APPLY ? "the cards' roles are back — now roll the worker's code back, then run --rollback again for the rest" : "dry-run: nothing written (add --apply)");
+    process.exit(0);
   }
   for (const [id, job] of Object.entries(b.jobOf ?? {})) {
     await act(`hr.employee #${id}: job_id ← ${job || "none"}`, () => call(EMPLOYEE_MODEL, "write", { ids: [Number(id)], vals: { job_id: job || false } }));

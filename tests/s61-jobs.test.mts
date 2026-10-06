@@ -464,6 +464,16 @@ function openWork(): void {
   assert("…not the invoices to collect nor the purchase lists: roles he never held", !text.includes("فواتير غير محصّلة") && !text.includes("قوائم شراء"), text);
 }
 {
+  // the job is taken off him but his card still carries a role: he is still on the team, and what was kept for him stays his
+  const w = leaverWorld(); await tick(w.env);
+  await quiet(() => TQ.enqueueTeamItems(w.env, "+" + NEW_PHONE, [{ text: "قائمة الشراء المحفوظة" }]));
+  Object.assign(emp(NEW_EMP), { job_id: false, x_utak_role_ids: [WAREHOUSE] }); drop(w.env);
+  const t = await tick(w.env);
+  const text = ownerTexts()[0] ?? "";
+  assert("his job off, a role still on his card: the exit is announced, his kept task is NOT moved", JSON.stringify(t.moves) === JSON.stringify(["سالم الحربي:out:job_removed"]) && text.split("\n").at(-1) === "مهامه المحفوظة (1) باقية له: ما زال يحمل أدواراً."
+    && JSON.parse(w.env.MSG_DEDUP.store.get(TQ.teamQueueKey("+" + NEW_PHONE)) ?? "[]").length === 1 && !w.env.MSG_DEDUP.store.get(TQ.teamQueueKey("+" + OWNER)), text);
+}
+{
   // nothing open about him; a job changed is an exit and an entry
   const w = leaverWorld(); await tick(w.env);
   emp(NEW_EMP).job_id = w.jobs.driver; drop(w.env);

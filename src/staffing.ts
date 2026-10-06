@@ -14,7 +14,8 @@
 //     «قائمة التسليم» with what the system reads NOW (the day's cash with him and
 //     his custody, the invoices to collect, his stops without «تم التسليم», the
 //     purchase lists not received), and what was kept for him moves to another
-//     holder of his roles — or to Baraa, in that same message. Nothing is
+//     holder of his roles — or to Baraa, in that same message (it stays his
+//     while he still holds a role: a card's, or his new job's). Nothing is
 //     deleted, no entry is touched: this file writes nothing in Odoo;
 //   • the 21:30 summary gains «وظيفة شاغرة: …» (a job with roles and no holder —
 //     its tasks reach Baraa as before, none is lost) and ONE line of the data
@@ -271,10 +272,11 @@ export async function moveKeptTasks(env: Env, who: StaffSnap, roster: Roster, dr
   await env.MSG_DEDUP.delete(key);
   return { count: items.length, to: other?.name ?? null, texts };
 }
-/** The message's lines about his kept tasks ([] when none). */
-export function keptLines(q: QueueMove, dry = false): string[] {
+/** The message's lines about his kept tasks ([] when none). `stays`: he still holds a role, so they remain his. */
+export function keptLines(q: QueueMove, dry = false, stays = false): string[] {
   if (!q.count) return [];
   if (dry) return [`مهام محفوظة له الآن: ${q.count} (تجربة: لم تُنقل).`];
+  if (stays) return [`مهامه المحفوظة (${q.count}) باقية له: ما زال يحمل أدواراً.`];
   if (q.to) return [`مهامه المحفوظة (${q.count}) انتقلت إلى ${q.to}: تصله مع مهامه.`];
   return [
     `مهام كانت محفوظة له ولم تصله (${q.count}) — لا حامل آخر لأدواره، فهي لك:`,
@@ -308,8 +310,10 @@ export async function announceExit(env: Env, roster: Roster, who: StaffSnap, why
   try { if (who.jobId) handover = (await readJobLists(env, who.jobId)).handover; } catch (e) { console.warn("[staffing] the handover list could not be read", (e as Error)?.message); }
   const facts = await exitFacts(env, who, nowMs);
   let moved: QueueMove = { count: 0, to: null, texts: [] };
-  try { moved = await moveKeptTasks(env, who, roster); } catch (e) { console.warn("[staffing] the kept tasks could not be moved", (e as Error)?.message); }
-  await sendOwnerAlert(env, exitText(who, why, handover, facts, keptLines(moved), nextJob));
+  // he left a job but is still on the team (a role on his card, or his new job's): what was kept for him stays his
+  const stays = roster.members.some((m) => m.employeeId === who.id);
+  try { moved = await moveKeptTasks(env, who, roster, stays); } catch (e) { console.warn("[staffing] the kept tasks could not be moved", (e as Error)?.message); }
+  await sendOwnerAlert(env, exitText(who, why, handover, facts, keptLines(moved, false, stays), nextJob));
   return moved;
 }
 

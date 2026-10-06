@@ -277,6 +277,17 @@ async function handleOrderMessage(env: Env, input: RouterInput): Promise<RouterR
       if (missing.length || deactivatedMatches.length || trulyUnknown.length) {
         const nameOf = (it: (typeof active)[number]) => catalog.find((p) => p.id === it.product_id)?.name ?? it.product_name_raw;
         notToday = { names: [...missing.map(nameOf), ...deactivatedMatches.map((m) => m.product_name)], alone: items.length === 1 };
+        // § 60 ج — each of them is recorded (the day, the customer, the item as he wrote it, the catalog's
+        // item when one matched, the quantity he gave): the 21:30 summary and «🎯 الفرص» read the record
+        const { logUnavailable } = await import("./unavailable-log");
+        await logUnavailable(env, {
+          partnerId: partner.id,
+          items: [
+            ...missing.map((it) => ({ text: it.product_name_raw || nameOf(it), productId: it.product_id, quantity: it.quantity })),
+            ...deactivatedMatches.map((m) => ({ text: m.raw, productId: m.product_id, quantity: unknownRaw.find((u) => u.product_name_raw.trim() === m.raw)?.quantity })),
+            ...trulyUnknown.map((it) => ({ text: it.product_name_raw, quantity: it.quantity })),
+          ],
+        });
         // the available ones alone go on (the lines below read `active`)
         active.splice(0, active.length, ...active.filter((it) => !missing.includes(it)));
       }

@@ -27,6 +27,7 @@ const FILES = [
   "s55-delivery", "s56", "s57-day", "s57-bank", "s57-expense", "s57-transfer", "s57-complaint", "s57-supplier-vat",
   "s58-ui", "s58-transfers",
   "s59-team", "s59-prices", "s59-available", "s59-files", "s59-trials",
+  "s60-unavailable",
 ];
 
 const root = new URL("../", import.meta.url).pathname;

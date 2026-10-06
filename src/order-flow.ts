@@ -43,6 +43,7 @@ import { deliveryDayOf, nextOrderingDate, riyadhDateKey } from "./hours";
 import { arabicDate } from "./wa-params";
 import { listOfDayIfValid, listPrice, validPriceList, type ValidList } from "./price-validity";
 import { minimumText, orderMinimum } from "./order-pricing";
+import { logUnavailable, type UnavailableAsk } from "./unavailable-log";
 
 /** The customer's answer when his order is kept for want of a valid price list (Baraa's wording). */
 export const AWAITING_TEXT = "استلمنا طلبك ✅ الأسعار تتحدث، ونرسل لك عرض السعر أول ما تنتشر أسعار اليوم.";
@@ -107,6 +108,7 @@ export async function freezeOrderPrices(env: Env, orderId: number, list: ValidLi
   if (!order) return null;
   let total = 0, unpriced = 0, lines = 0;
   const unavailable: string[] = [];
+  const asked: UnavailableAsk[] = [];
   for (const l of order.lines) {
     const manual = (l.price_unit_manual ?? 0) > 0 ? (l.price_unit_manual as number) : 0;
     const unit = manual || (await listPrice(env, list, l.product_id, l.packaging_id)).price;
@@ -117,6 +119,7 @@ export async function freezeOrderPrices(env: Env, orderId: number, list: ValidLi
     if (!(unit > 0)) {
       await call<boolean>(env, "x_daily_order_line", "write", { ids: [l.id], vals: { x_status: "unavailable", x_unit_price: 0, x_subtotal: 0 } });
       unavailable.push(l.product_name);
+      asked.push({ text: l.product_name, productId: l.product_id, quantity: l.quantity });
       continue;
     }
     lines++;
@@ -127,6 +130,8 @@ export async function freezeOrderPrices(env: Env, orderId: number, list: ValidLi
       await call<boolean>(env, "x_daily_order_line", "write", { ids: [l.id], vals: { x_unit_price: unit, x_subtotal: subtotal } });
     }
   }
+  // § 60 ج — what left the order is recorded once (a line marked «unavailable» is not read again)
+  if (asked.length) await logUnavailable(env, { partnerId: order.customer_id, items: asked, now: now.getTime() });
   const orderDay = nextOrderingDate(now);
   await call<boolean>(env, "x_daily_order", "write", { ids: [orderId], vals: { x_price_date: list.day, x_order_date: orderDay, x_awaiting_prices: false } });
   return { list, orderDay, total, unpriced, unavailable, lines };

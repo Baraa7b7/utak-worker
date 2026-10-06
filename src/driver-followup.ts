@@ -17,6 +17,11 @@
 //   • a driver off today (his weekly day off, or a time off — STATUS § 39 ب):
 //     no stop left → complete silence; stops left → ONE alert to Baraa at
 //     18:00, «محطات مفتوحة على سائق في راحته/إجازته», with the order numbers.
+//   • § 59 أ — Baraa holds «سائق» himself (Omar went to marketing): the same two
+//     steps by his own schedule, both to him — the reminder at end − 30 min as
+//     any driver's, and at end + 30 min the open orders in words about the day,
+//     not about a driver («انتهى وقت التوصيل…»). No alert names him: a day his
+//     schedule gives him no shift (off, a time off, no schedule) sends nothing.
 // Every step claims its KV key BEFORE it sends (button-lock's claim + read-
 // back), so a re-run, a retry or two ticks at once never send twice.
 //
@@ -152,6 +157,12 @@ export function ownerAfterShiftText(name: string, stops: OpenStop[], endMin: num
     `لا فاتورة ولا تحصيل لها حتى يُضغط «تم التسليم».`;
 }
 
+/** § 59 أ — end + 30 min when the driver is Baraa himself: the open orders, with no «his shift ended» about him. */
+export function ownerOwnAfterShiftText(stops: OpenStop[], endMin: number): string {
+  return `🚚 انتهى وقت التوصيل الساعة ${hhmm(endMin)}، وبقي ${countAr(stops.length, ORDERS)} بلا «تم التسليم»: ${orderList(stops)}. ` +
+    `لا فاتورة ولا تحصيل لها حتى يُضغط «تم التسليم».`;
+}
+
 export function ownerReasonText(name: string, reason: string, stops: OpenStop[]): string {
   return `⚠️ ${name} ${reason}، فلا تذكير له بمحطاته. بقي ${countAr(stops.length, ORDERS)} بلا «تم التسليم»: ${orderList(stops)}.`;
 }
@@ -195,14 +206,18 @@ export async function runDriverFollowupTick(rawEnv: Env, nowMs: number = Date.no
   const report: DriverFollowupReport = { day: today, at: riyadhHHMM(new Date(nowMs)), drivers: [] };
   const roster = await loadRoster(env, nowMs);
   const owner = digits(env.OWNER_WHATSAPP ?? "");
-  const drivers = roster.members.filter((m) => m.codes.includes("driver") && m.partnerId && !(owner && digits(m.whatsapp) === owner));
+  // § 59 أ — Baraa holds «سائق» himself: he is followed up as the driver he is (he was left out
+  // while the role was Omar's), with nothing said ABOUT him
+  const isOwner = (m: RosterMember) => !!owner && digits(m.whatsapp) === owner;
+  const drivers = roster.members.filter((m) => m.codes.includes("driver") && m.partnerId);
   for (const m of drivers) {
     const steps: string[] = [];
     // yesterday's shift too: one that ends near midnight has its +30 after it
     for (const day of [yesterday, today]) {
       const plan = dayPlan(roster, m, day);
       try {
-        if (plan.kind === "work") steps.push(`${day}:${await workStep(env, m, day, plan, nowMs)}`);
+        if (plan.kind === "work") steps.push(`${day}:${await workStep(env, m, day, plan, nowMs, isOwner(m))}`);
+        else if (isOwner(m)) { if (day === today) steps.push(`${day}:${plan.kind}:owner`); }
         else if (day === today && isOffToday(plan)) steps.push(`${day}:${await offDayStep(env, m, day, plan, nowMs)}`);
         else if (day === today) steps.push(`${day}:${await noShiftStep(env, m, day, plan, nowMs)}`);
       } catch (e) {
@@ -215,7 +230,7 @@ export async function runDriverFollowupTick(rawEnv: Env, nowMs: number = Date.no
   return report;
 }
 
-async function workStep(env: Env, m: RosterMember, day: string, plan: DayPlan, nowMs: number): Promise<string> {
+async function workStep(env: Env, m: RosterMember, day: string, plan: DayPlan, nowMs: number, isOwner = false): Promise<string> {
   const endMin = plan.endMin as number;
   const endMs = riyadhDayMinuteMs(day, endMin);
   const remindAt = endMs - REMIND_BEFORE_END_MIN * MIN;
@@ -224,6 +239,7 @@ async function workStep(env: Env, m: RosterMember, day: string, plan: DayPlan, n
   const inAlert = nowMs >= alertAt && nowMs < alertAt + STEP_GRACE_MIN * MIN;
   if (!inRemind && !inAlert) return "-";
   // absent today: no reminder, one alert with the reason (the same claim at both times)
+  // (never Baraa: no attendance row is ever made for him, so his status reads as none)
   if ((await attendanceStatus(env, m.employeeId, day)) === "absent") {
     return reasonStep(env, m, day, ABSENT_REASON, endMs);
   }
@@ -238,7 +254,7 @@ async function workStep(env: Env, m: RosterMember, day: string, plan: DayPlan, n
   }
   const claim = await claimButton(env, claimKey(day, m, "alert"), CLAIM_TTL);
   if (!claim.claimed) return "alert:claimed";
-  await sendOwnerAlert(env, ownerAfterShiftText(m.name, stops, endMin));
+  await sendOwnerAlert(env, isOwner ? ownerOwnAfterShiftText(stops, endMin) : ownerAfterShiftText(m.name, stops, endMin));
   return `alert:${stops.length}`;
 }
 

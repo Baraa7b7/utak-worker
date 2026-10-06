@@ -26,6 +26,7 @@ const FILES = [
   "s51", "s52", "s52-iban", "s53", "s53-forms", "s54", "s55", "s55-receipt", "s55-car", "s55-custody",
   "s55-delivery", "s56", "s57-day", "s57-bank", "s57-expense", "s57-transfer", "s57-complaint", "s57-supplier-vat",
   "s58-ui", "s58-transfers",
+  "s59-team",
 ];
 
 const root = new URL("../", import.meta.url).pathname;

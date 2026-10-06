@@ -155,7 +155,8 @@ export interface WhatsAppTemplateRow {
 
 // 2026-09-25 (STATUS § 31) — the codes of x_employee_role, read from
 // hr.employee.x_utak_role_ids («أدوار UTAK»). "admin" = «مدير».
-export type TeamRole = "customer" | "driver" | "collector" | "warehouse" | "admin";
+/** § 59 أ — «marketing» (تسويق): no task of the day reaches it; the day's price list does (src/team-prices.ts). */
+export type TeamRole = "customer" | "driver" | "collector" | "warehouse" | "admin" | "marketing";
 
 export interface TeamMember {
   id: number;                      // the employee's Work Contact (res.partner: the WhatsApp chat)

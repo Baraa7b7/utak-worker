@@ -56,7 +56,7 @@ const REAL: Record<string, string[]> = Object.assign({}, ...FX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FX.map((f) => f._selections));
 // § 53 — the tenant's fields now for the models § 53 touched (x_market_uplift_pct, x_uplift_pct, the purpose customer_pay_remind_iban): read last, they win
 {
-  const f53 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261005-s58.json", import.meta.url), "utf8")); // § 58 (after § 56: the screen's fields): the plan, the actual and the tabs on the day and its lines
+  const f53 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261006-s59.json", import.meta.url), "utf8")); // § 59 (after § 58: the company's working days, the two purposes) — § 58 (after § 56: the screen's fields): the plan, the actual and the tabs on the day and its lines
   for (const m of ["x_pricing_config", "x_price_day", "x_price_day_line"]) REAL[m] = f53[m];
   SELECTIONS["x_whatsapp_template.x_purpose"] = f53._selections["x_whatsapp_template.x_purpose"];
 }
@@ -402,7 +402,16 @@ console.log("\n[4] Baraa: the fixed OWNER_WINDOW_OPEN_AT (06:00), whatever the t
   assert("Friday (nobody works) → 06:00", (await at(FRI)) === FIXED);
   assert("nobody on attendance → 06:00", (await at(SUN, () => { for (const p of [OMAR, KHALID]) table("hr.employee").get(EMP(p))!.x_utak_attendance = false; })) === FIXED);
   assert("عمر 04:00 (a dawn shift) → still 06:00 (not 03:45)", (await at(SUN, () => { table("hr.employee").get(EMP(OMAR))!.resource_calendar_id = sunThu(4, 12); })) === FIXED);
-  assert("Baraa as an employee with a role and an earlier schedule does not move it", (await at(SUN, () => {
+  assert("Baraa as an employee with an earlier schedule and no role does not move it", (await at(SUN, () => {
+    seed("res.partner", { id: 806, name: "Bara.a", x_whatsapp_number: "+" + OWNER });
+    employee(806, [], { x_utak_attendance: true, resource_calendar_id: sunThu(4, 12) });
+  })) === FIXED);
+  // § 59 أ — with a team role he is a member: his one template of the day at his own shift start
+  assert("§ 59 أ: Baraa WITH a team role and a 04:00 schedule → his own shift (04:00), once, and not again at 06:00", (await at(SUN, () => {
+    seed("res.partner", { id: 806, name: "Bara.a", x_whatsapp_number: "+" + OWNER });
+    employee(806, [71], { x_utak_attendance: true, resource_calendar_id: sunThu(4, 12) });
+  })) === "04:00/own_shift");
+  assert("§ 59 أ: …and on his day off (Friday) the fixed 06:00", (await at(FRI, () => {
     seed("res.partner", { id: 806, name: "Bara.a", x_whatsapp_number: "+" + OWNER });
     employee(806, [71], { x_utak_attendance: true, resource_calendar_id: sunThu(4, 12) });
   })) === FIXED);

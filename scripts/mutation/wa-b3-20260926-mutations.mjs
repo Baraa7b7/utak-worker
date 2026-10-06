@@ -95,7 +95,7 @@ const M = [
     "    content: textContent(ofdText(orderId, driverName)),\n    fallback: [{ kind: \"template\", purpose: OFD_PURPOSE, params: ofdParams(orderId, driverName) }],",
     "    content: { kind: \"template\", purpose: OFD_PURPOSE, params: ofdParams(orderId, driverName) },\n    fallback: [textContent(ofdText(orderId, driverName))],"]], T],
   ["م8: {{2}} is the bare name (not «السائق …»)", [[OFD,
-    "  return n ? `السائق ${n}` : \"السائق\";", "  return n || \"السائق\";"]], T],
+    "  return n ? `السائق ${n}` : TEAM_LABEL;", "  return n || TEAM_LABEL;"]], T],
   // ---- م17: Baraa's summary
   ["م17: no daily claim (sent on every run)", [[OS,
     "claimButton(env, `owner_summary:${day}`, CLAIM_TTL)", "claimButton(env, `owner_summary:${day}:${Math.random()}`, CLAIM_TTL)"]], T],

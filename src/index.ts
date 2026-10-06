@@ -2679,7 +2679,11 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
     // already resolved. Ordering: team → supplier → customer (a team
     // member who also has customer_rank must not fall into the customer
     // path). ingestRoute='owner' short-circuits below via the OWNER guard.
-    const teamMember = teamMatch;
+    // § 59 أ — Baraa holds a team role (Omar's operating roles are his until a driver is added): a
+    // message of his is a member's, here — unless it is one of his own (the price review, «✅ وصل», a
+    // complaint's decision, his expense, a delivery from the car), answered in the owner's branch below.
+    const ownersOwn = !!teamMatch && isOwnerNumber(env, msg.from) && (await import("./owner-team")).isOwnerOwnMessage(msg);
+    const teamMember = ownersOwn ? null : teamMatch;
     if (teamMember) {
       // 2026-09-17 — deferred delivery locations. sendDriverRoute stashes
       // per-stop location messages in KV instead of sending them behind
@@ -2708,6 +2712,9 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
             await flushTeamQueue(env, msg.from);
           } else if (tap.kind === "owner") {
             await sendText(env, msg.from, tap.text, { ctx, purpose: "owner_alert" });
+            // § 59 أ — he holds the operating roles: his tap releases his tasks too (the queue, the open
+            // purchase lists, the uncollected invoices), as a member's does. Nothing is recorded about him.
+            await deliverTasksOnTap(env, teamMember, msg.from, { quietWhenNone: true });
           } else if (tap.kind === "not_started" || tap.kind === "off_today") {
             // STATUS § 31 — a day off / time off: nothing recorded, nothing released.
             await sendText(env, msg.from, tap.text, { ctx, purpose: "shift_ack" });

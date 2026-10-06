@@ -26,6 +26,15 @@
 //     whoever works that day (STATUS § 32 — it replaced «the earliest shift
 //     − 15 min» of § 31: his tap opens the window for 24 hours, so it also
 //     covers the dawn alerts of the next day, e.g. a 02:00 shift's +30 / +60).
+//   • § 59 أ (2026-10-06) — Baraa holds the operating roles himself (Omar went to
+//     marketing): he is on the roster as any member, and the tasks follow the
+//     roles to him. What stays his alone: the SAME one template a day, now at
+//     the start of his own shift (his schedule in «الموظفون», 02:00) instead of
+//     OWNER_WINDOW_OPEN_AT — on a day his schedule gives him none, the fixed hour
+//     as before; his tap opens his window AND releases his tasks (the queue, the
+//     open purchase lists, the uncollected invoices); and still no attendance
+//     row, no lateness, no reminder, no «غائب», no «مهمة له بعد دوامه» and no
+//     hold about him: a task of his goes out when it is made.
 //   • Nothing is sent twice to the same person on the same day, even if the
 //     job runs again.
 //
@@ -112,6 +121,8 @@ export function ownerWindowPlan(env: Env): { minutes: number; source: "OWNER_WIN
     ? { minutes: parseHHMM(OWNER_WINDOW_DEFAULT) as number, source: "default" }
     : { minutes: set, source: "OWNER_WINDOW_OPEN_AT" };
 }
+/** § 59 أ — the tick's report: the window-opening template followed Baraa's own shift (he holds a team role). */
+export const OWNER_OWN_SHIFT = "own_shift";
 /** «حاضر» up to +15 min after the shift start, «متأخر» after. */
 export function statusForTap(tapMs: number, shiftMs: number): "present" | "late" {
   return tapMs - shiftMs > LATE_AFTER_MIN * MIN ? "late" : "present";
@@ -122,6 +133,21 @@ const tail = (s: string) => "…" + digits(s).slice(-4);
 function isOwnerNumber(env: Env, n: string): boolean {
   const o = digits(env.OWNER_WHATSAPP ?? "");
   return !!o && digits(n) === o;
+}
+
+/** § 59 أ — Baraa as a member of the team (he holds a role in «الموظفون»), else null. */
+export function ownerMember(env: Env, roster: Roster | null): RosterMember | null {
+  return roster?.members.find((m) => m.codes.length > 0 && isOwnerNumber(env, m.whatsapp)) ?? null;
+}
+/**
+ * § 59 أ — the minute Baraa's own shift starts on `day` (he holds a team role and his schedule
+ * gives him a work day), else null: his one «بدء الدوام» of the day goes then, not at the fixed hour.
+ */
+export function ownerShiftStart(env: Env, roster: Roster | null, day: string): number | null {
+  const m = ownerMember(env, roster);
+  if (!m || !roster) return null;
+  const p = dayPlan(roster, m, day);
+  return p.kind === "work" ? (p.startMin as number) : null;
 }
 
 // ---------------------------------------------------------------- Odoo rows
@@ -171,7 +197,10 @@ export async function runAttendanceTick(env: Env, nowMs: number = Date.now()): P
   const team = (roster?.members ?? []).filter((m) => !isOwnerNumber(env, m.whatsapp));
   const plans = roster ? team.map((m) => ({ m, plan: dayPlan(roster as Roster, m, day) })) : [];
   const plan = ownerWindowPlan(env);
-  const report: TickReport = { day, at: riyadhHHMM(new Date(nowMs)), owner: { at: hhmm(plan.minutes), source: plan.source, action: "-" }, members: [] };
+  // § 59 أ — he holds a team role and works today by his own schedule: his «بدء الدوام» at his shift start
+  const ownShift = ownerShiftStart(env, roster, day);
+  if (ownShift !== null) plan.minutes = ownShift;
+  const report: TickReport = { day, at: riyadhHHMM(new Date(nowMs)), owner: { at: hhmm(plan.minutes), source: ownShift === null ? plan.source : OWNER_OWN_SHIFT, action: "-" }, members: [] };
   try {
     report.owner.action = await ownerWindowStep(env, day, nowMs, plan.minutes);
   } catch (e) {
@@ -448,7 +477,7 @@ export const NO_TASKS_TEXT = "ما عندك مهام الآن. أول ما تج�
  * open for their roles (the warehouse's purchase lists without «تم الشراء»,
  * the collector's unpaid invoices). Returns how many messages went out.
  */
-export async function deliverTasksOnTap(env: Env, member: { x_role?: string; x_role_codes?: string[] }, to: string): Promise<number> {
+export async function deliverTasksOnTap(env: Env, member: { x_role?: string; x_role_codes?: string[] }, to: string, o: { quietWhenNone?: boolean } = {}): Promise<number> {
   const codes = new Set([member.x_role, ...(member.x_role_codes ?? [])].filter(Boolean));
   let n = await flushTeamQueue(env, to);
   if (codes.has("warehouse")) {
@@ -459,7 +488,8 @@ export async function deliverTasksOnTap(env: Env, member: { x_role?: string; x_r
     const { sendCollectorBacklog } = await import("./invoice");
     n += await sendCollectorBacklog(env, to).catch(() => 0);
   }
-  if (n === 0) await sendText(env, to, NO_TASKS_TEXT, { purpose: "shift_ack" });
+  // § 59 أ — Baraa's tap already got its one line («✅ تم…»): no «ما عندك مهام» after it
+  if (n === 0 && !o.quietWhenNone) await sendText(env, to, NO_TASKS_TEXT, { purpose: "shift_ack" });
   return n;
 }
 

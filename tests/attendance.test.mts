@@ -55,7 +55,7 @@ const REAL: Record<string, string[]> = { ...F1, ...F2, ...F3, ...F4, ...F5, ...F
 const SELECTIONS: Record<string, string[]> = { ...F1._selections, ...F2._selections, ...F3._selections, ...F4._selections, ...F5._selections, ...F6._selections, ...F7._selections, ...F8._selections, ...F9._selections, ...F10._selections };
 // § 53 — the tenant's fields now for the models § 53 touched (x_market_uplift_pct, x_uplift_pct, the purpose customer_pay_remind_iban): read last, they win
 {
-  const f53 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261005-s58.json", import.meta.url), "utf8")); // § 58 (after § 56: the screen's fields): the plan, the actual and the tabs on the day and its lines
+  const f53 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261006-s59.json", import.meta.url), "utf8")); // § 59 (after § 58: the company's working days, the two purposes) — § 58 (after § 56: the screen's fields): the plan, the actual and the tabs on the day and its lines
   for (const m of ["x_pricing_config", "x_price_day", "x_price_day_line"]) REAL[m] = f53[m];
   SELECTIONS["x_whatsapp_template.x_purpose"] = f53._selections["x_whatsapp_template.x_purpose"];
 }
@@ -129,13 +129,14 @@ function fresh(riyadh = `${DAY} 04:00`, extra: Record<string, unknown> = {}): an
   seed("res.partner", { id: KHALID, name: "خالد", x_whatsapp_number: "+" + KHALID_PHONE });
   seed("res.partner", { id: NOROLE, name: "بلا دور", x_whatsapp_number: "+" + NOROLE_PHONE });
   seed("res.partner", { id: SUP, name: "مورد", supplier_rank: 1, x_whatsapp_number: "+" + SUP_PHONE, x_supplied_product_ids: [1] });
-  // Baraa himself, WITH a role and a schedule: the roster must still leave him out.
+  // Baraa himself, an employee with a schedule and NO role (before § 59; § 59 أ: with a role he is a
+  // member of the team, and his one «بدء الدوام» follows his own shift — section [4b] and tests/s59-team.test.mts).
   seed("res.partner", { id: OWNER_PID, name: "Bara.a - U TAK", x_whatsapp_number: "+" + OWNER });
   employee(OMAR, [71, 72, 73], { x_utak_attendance: true, resource_calendar_id: everyDay(5, 13) });
   employee(NOTIME, [72], { x_utak_attendance: true, resource_calendar_id: false });
   employee(KHALID, [73], { x_utak_attendance: true, resource_calendar_id: everyDay(7.5, 15.5) });
   employee(NOROLE, [], { x_utak_attendance: true, resource_calendar_id: everyDay(6, 14) });
-  employee(OWNER_PID, [71], { x_utak_attendance: true, resource_calendar_id: everyDay(5, 13) });
+  employee(OWNER_PID, (extra.__ownerRoles as number[] | undefined) ?? [], { x_utak_attendance: true, resource_calendar_id: everyDay(5, 13) });
   seed("res.partner", { name: "UTAK بوت" });
   seed("x_whatsapp_template", { x_purpose: "team_shift_start", x_meta_template_id: SHIFT_TPL, x_language: "ar", x_meta_status: "APPROVED", x_param_count: 1, x_category: "UTILITY" });
   seed("x_whatsapp_template", { x_purpose: "driver_dispatch", x_meta_template_id: "utak_driver_dispatch", x_language: "ar", x_meta_status: "APPROVED", x_param_count: 4, x_category: "UTILITY" });
@@ -312,7 +313,7 @@ console.log("\n[4] Baraa: the window template daily at the fixed 06:00 (عمر's
   assert("06:00: utak_shift_start_v2 to Baraa [«براء»], payload shift_start", t.length === 1 && params(t[0]).join() === "براء" && payloads(t[0]).join() === "shift_start", JSON.stringify(t[0]?.template));
   for (const at of ["06:05", "06:10", "06:30", "09:00", "23:55"]) await tick(`${DAY} ${at}`);
   assert("once a day: no second one", tpl(OWNER).length === 1);
-  assert("never on the roster (even an employee with a role and 05:00): no row, no alert about him", !rows("x_team_attendance").some((r) => r.x_partner_id === OWNER_PID || r.x_employee_id === EMP(OWNER_PID)) && ownerSays("Bara.a").length === 0);
+  assert("never on the roster (even an employee with a schedule at 05:00): no row, no alert about him", !rows("x_team_attendance").some((r) => r.x_partner_id === OWNER_PID || r.x_employee_id === EMP(OWNER_PID)) && ownerSays("Bara.a").length === 0);
   await tap(OWNER, `${DAY} 06:02`);
   const ack = texts(OWNER).at(-1) ?? "";
   assert("his tap: one line «✅ تم. تنبيهات …», nothing recorded", ack.startsWith("✅ تم. تنبيهات يو تاك") && !rows("x_team_attendance").some((r) => r.x_partner_id === OWNER_PID), ack);
@@ -337,6 +338,32 @@ console.log("\n[4] Baraa: the window template daily at the fixed 06:00 (عمر's
   const { sendTemplateByPurpose, T } = await import("../src/templates.ts");
   const blocked = await quiet(() => sendTemplateByPurpose(ENV, "+" + OWNER, T.TEAM_SHIFT_START, ["x"], [{ index: 0, payload: "shift_start" }]));
   assert("owner guard: team_shift_start alone is still blocked for Baraa (403)", blocked?.status === 403);
+}
+
+// ================================================================ 4b. § 59 أ — Baraa holds a team role
+console.log("\n[4b] § 59 أ — Baraa with a role and a 05:00 schedule: his ONE «بدء الدوام» at his own shift start — still no row, no reminder, no «غائب»");
+{
+  ENV = fresh(`${DAY} 04:00`, { OWNER_WINDOW_OPEN_AT: "06:00", __ownerRoles: [71] });
+  for (const at of ["04:00", "04:30", "04:55"]) await tick(`${DAY} ${at}`);
+  assert("before his shift: nothing", tpl(OWNER).length === 0);
+  const r5 = await tick(`${DAY} 05:00`);
+  const t = tpl(OWNER);
+  assert("05:00 (his own shift, not the fixed 06:00): utak_shift_start_v2 to Baraa [«براء»], payload shift_start", t.length === 1 && params(t[0]).join() === "براء" && payloads(t[0]).join() === "shift_start", JSON.stringify(t[0]?.template));
+  assert("the tick's report says where the hour came from", r5.owner.at === "05:00" && r5.owner.source === "own_shift" && r5.owner.action === "sent", JSON.stringify(r5.owner));
+  for (const at of ["05:05", "05:30", "06:00", "06:05", "07:00", "13:30"]) await tick(`${DAY} ${at}`);
+  assert("once a day: no second one at the fixed 06:00, no reminder at +30", tpl(OWNER).length === 1);
+  assert("no row, no «لم يسجّل حضوره», no «غائب» about him", !rows("x_team_attendance").some((r) => r.x_partner_id === OWNER_PID || r.x_employee_id === EMP(OWNER_PID)) && ownerSays("براء لم يسجّل").length === 0 && ownerSays("Bara.a").length === 0 && !ownerSays("سُجّل غائباً").some((b) => !JSON.stringify(b).includes("عمر") && !JSON.stringify(b).includes("خالد")));
+  assert("he is never one of the tick's members", !r5.members.some((m: any) => m.partnerId === OWNER_PID));
+  await tick(`2026-09-27 05:00`);
+  assert("next day at his shift: again, once", tpl(OWNER).length === 2);
+  // a day his schedule gives him no shift: the fixed hour, as before
+  ENV = fresh(`${DAY} 04:00`, { OWNER_WINDOW_OPEN_AT: "06:00", __ownerRoles: [71] });
+  table("hr.employee").get(EMP(OWNER_PID))!.resource_calendar_id = false;
+  await tick(`${DAY} 05:00`);
+  assert("a role and no schedule: nothing at 05:00", tpl(OWNER).length === 0);
+  const r6 = await tick(`${DAY} 06:00`);
+  assert("…the fixed OWNER_WINDOW_OPEN_AT, as before", tpl(OWNER).length === 1 && r6.owner.source === "OWNER_WINDOW_OPEN_AT" && r6.owner.at === "06:00", JSON.stringify(r6.owner));
+  assert("schema gate: nothing rejected", rejected.length === 0, rejected.join(" / "));
 }
 
 // ================================================================ 5. re-runs

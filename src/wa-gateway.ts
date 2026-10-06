@@ -63,6 +63,7 @@ import { arabicDate, maskPhone, sanitizeTemplateBody } from "./wa-params";
 import { META_PAYMENT_ISSUE, isPaymentIssue, recordSendFailure, sendWhat } from "./send-failure";
 import { categoryAllowed, expiryFor, purposePolicy } from "./wa-purposes";
 import { CUSTOMER_PRICE_PURPOSES, closedKindLabel, priceClosedNumber, type ClosedNumber } from "./price-privacy";
+import { teamPurposeForOwner } from "./owner-team";
 import { markWindowClosed, readWindow, waDigits, type WindowState } from "./wa-window";
 import {
   enqueueHeld, putBack, queueItemId, queuedNumbers, readQueue, sentMarkKey, SENT_MARK_TTL,
@@ -211,6 +212,10 @@ function refused(message: string, type: string, status: number): Response {
 //   • complaint_form_test — the one trial of the complaint form and its answers (§ 57 هـ)
 //   • after_delivery_test / transfer_confirmed_test / target_lines_test — the three trials of § 58 (the two
 //     buttons after an invoice, the ONE message of «✅ وصل», the two target lines of the 21:30 summary)
+// § 59 أ — beside this list: while Baraa holds a team role in «الموظفون», the TEAM's purposes
+// (OWNER_TEAM_PURPOSES, src/owner-team.ts) reach his number as a member's. They are not added here:
+// what is in this list goes to his number ALONE (the price-privacy guard below), and a team purpose
+// must keep reaching the other members.
 const OWNER_ALLOWED_PURPOSES: ReadonlySet<string> = new Set(["price_flow_test", "order_flow_test", "register_flow_test", "owner_alert", "owner_delivery_form", "delivery_form_test", "expense_form", "expense_form_test", "supplier_register_form_test", "owner_complaint_notice", "complaint_form_test", "owner_transfer_notice", "transfer_form_test", "receipt_form_test", "custody_form_test", "owner_summary", "owner_window", "conv_open_owner", "car_load_form_test", "owner_team_note", "owner_prices", "owner_price_exception", "owner_price_review", "owner_order_confirmed", "price_review_test"]);
 /** § 58 هـ — the three trials of § 58: Baraa's number alone, as every trial (added here: the list above stays as § 57 left it). */
 for (const p of ["after_delivery_test", "transfer_confirmed_test", "target_lines_test"]) (OWNER_ALLOWED_PURPOSES as Set<string>).add(p);
@@ -474,7 +479,9 @@ export async function sendViaGateway(env: Env, req: GatewayRequest): Promise<Res
   // ---- owner guard (allowlist by purpose), never bypassed ----
   if (isOwnerRecipient(env, to)) {
     const p = req.guardPurpose ?? req.purpose;
-    if (!OWNER_ALLOWED_PURPOSES.has(p)) {
+    // § 59 أ — while Baraa holds a team role (Omar's operating roles are his until a driver is added),
+    // the team's own purposes reach his number as they reach any member; nothing else does
+    if (!OWNER_ALLOWED_PURPOSES.has(p) && !(await teamPurposeForOwner(env, p))) {
       console.warn(`[owner-guard] blocked purpose=${p}`);
       return refused(`owner-guard: purpose=${p} not permitted for owner recipient`, "OwnerGuardBlocked", 403);
     }

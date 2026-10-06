@@ -4,6 +4,8 @@
 // «طلبك رقم {{1}} في الطريق إليك الآن مع {{2}}. يو تاك» = [order number,
 // «السائق <name>»] (Meta's own example: «12345», «السائق أحمد»). Inside the
 // customer's 24h window the same words go as text; outside it, the template.
+// § 59 أ — when Baraa delivers himself (the route's driver is his number), or no
+// driver is on record: {{2}} = «فريق يو تاك», in the text and in the template.
 //
 // When — in the route's own order, x_delivery_stop.x_sequence (the order the
 // stops were built in and sent to the driver):
@@ -27,7 +29,7 @@
 import type { Env } from "./config";
 import { call } from "./odoo";
 import { textContent } from "./meta";
-import { gatewayDecision, sendViaGateway } from "./wa-gateway";
+import { gatewayDecision, isOwnerRecipient, sendViaGateway } from "./wa-gateway";
 import { T } from "./templates";
 import { claimButton } from "./button-lock";
 import { heldPartnerIds } from "./screening";
@@ -61,10 +63,21 @@ const stripRef = (s: string) => String(s ?? "").replace(/^\[[^\]]*\]\s*/, "").tr
 export function ofdText(orderId: number, driverName: string): string {
   return `🚚 طلبك رقم #${orderId} في الطريق إليك الآن مع ${driverLabel(driverName)}. يو تاك`;
 }
-/** {{2}}: «السائق عمر المجهلي» (one line), or «السائق» when the name is unknown. */
+/** § 59 أ — who brings the order when it is Baraa himself, or when no driver is on record. */
+export const TEAM_LABEL = "فريق يو تاك";
+/** The mark a caller passes for the name when the route's driver is Baraa (never a name: it reads as no driver). */
+export const OWNER_DRIVER = "";
+/**
+ * {{2}}: «السائق عمر المجهلي» (one line). § 59 أ — «فريق يو تاك» when the name is unknown (no driver on
+ * record) or the driver is Baraa (the callers pass OWNER_DRIVER for him): «في الطريق إليك الآن مع فريق يو تاك».
+ */
 export function driverLabel(driverName: string): string {
   const n = String(driverName ?? "").replace(/\s+/g, " ").trim();
-  return n ? `السائق ${n}` : "السائق";
+  return n ? `السائق ${n}` : TEAM_LABEL;
+}
+/** § 59 أ — the name «في الطريق» carries for a driver: OWNER_DRIVER when the number is Baraa's (→ «فريق يو تاك»), else his name. */
+export function ofdDriverName(env: Env, name: string, whatsapp: string | null | undefined): string {
+  return whatsapp && isOwnerRecipient(env, whatsapp) ? OWNER_DRIVER : name;
 }
 export function ofdParams(orderId: number, driverName: string): string[] {
   return [String(orderId), driverLabel(driverName)];
@@ -86,16 +99,28 @@ async function routeStops(env: Env, routeId: number): Promise<StopRow[]> {
     .sort((a, b) => a.sequence - b.sequence || a.id - b.id);
 }
 
-async function routeDriverName(env: Env, routeId: number): Promise<string> {
-  const [r] = await call<Array<{ x_driver_id: M2O }>>(env, "x_delivery_route", "read", { ids: [routeId], fields: ["x_driver_id"] });
-  return Array.isArray(r?.x_driver_id) ? stripRef(r.x_driver_id[1]) : "";
+/**
+ * The name «في الطريق» carries for the route's driver: `given` (the caller knows it) or the route's
+ * own. § 59 أ — OWNER_DRIVER when the route's driver is Baraa (his partner's number is the owner's):
+ * «مع فريق يو تاك». A driver that cannot be read is no reason to name anyone: the team's label.
+ */
+async function routeDriverName(env: Env, routeId: number, given?: string): Promise<string> {
+  try {
+    const [r] = await call<Array<{ x_driver_id: M2O }>>(env, "x_delivery_route", "read", { ids: [routeId], fields: ["x_driver_id"] });
+    if (!Array.isArray(r?.x_driver_id)) return given ?? "";
+    const [p] = await call<Array<{ id: number; x_whatsapp_number: string | false; phone: string | false }>>(env, "res.partner", "read", { ids: [r.x_driver_id[0]], fields: ["id", "x_whatsapp_number", "phone"] });
+    return ofdDriverName(env, given ?? stripRef(r.x_driver_id[1]), String(p?.x_whatsapp_number || p?.phone || ""));
+  } catch (e) {
+    console.warn(`[ofd] the driver of route ${routeId} could not be read — «${TEAM_LABEL}»`, (e as Error)?.message);
+    return OWNER_DRIVER;
+  }
 }
 
 /** The route just went out to the driver: its first stop's customer. */
 export async function notifyRouteStart(env: Env, routeId: number, driverName?: string): Promise<OfdOutcome> {
   const stops = await routeStops(env, routeId);
   if (stops.length === 0) return { action: "no_route", skipped: [] };
-  const out = await notifyFrom(env, stops, 0, driverName ?? (await routeDriverName(env, routeId)));
+  const out = await notifyFrom(env, stops, 0, await routeDriverName(env, routeId, driverName));
   console.log(`[ofd] route ${routeId} start → ${out.action}${out.orderId ? ` #${out.orderId}` : ""}${out.skipped.length ? ` (skipped ${out.skipped.join(",")})` : ""}`);
   return out;
 }

@@ -9,11 +9,15 @@
 //   • monthly → the amount ÷ the working days of that month;
 //   • yearly  → the amount ÷ the working days of that year;
 //   a monthly / yearly share falls on working days only (0 on a day off).
-// The working days are the driver's working schedule (hr.employee →
-// resource.calendar, the roster of STATUS § 31): a day with a schedule line is
-// a working day. No driver schedule while a monthly / yearly line applies →
-// the total is null («تعذّر»), never a guess. Lines marked x_utak_simulation are
-// left out.
+// The working days — § 59 أ: «جدول أيام العمل» of the pricing settings
+// (x_pricing_config.x_workdays_calendar_id → resource.calendar), a schedule of
+// the company's own that does not follow whoever holds «سائق» (Omar went to
+// marketing and the costs must not become «تعذّر» with him). While the
+// settings name none: the driver's working schedule, as before § 59
+// (hr.employee → resource.calendar, the roster of STATUS § 31). A day with a
+// schedule line is a working day. No schedule at all while a monthly / yearly
+// line applies → the total is null («تعذّر»), never a guess. Lines marked
+// x_utak_simulation are left out.
 //
 // The pricing settings are on the active x_pricing_config record (UTAK ←
 // «💲 التسعير» ← «⚙️ الإعدادات», § 48): x_waste_pct, x_min_order_sar,
@@ -53,6 +57,8 @@ export interface DriverSchedule {
   name: string;
   calendarId: number;
   lines: CalendarLine[];
+  /** § 59 أ — the company's «جدول أيام العمل» (the settings), not a driver's schedule. */
+  company?: boolean;
 }
 export interface DailyCost {
   day: string;
@@ -63,8 +69,11 @@ export interface DailyCost {
   monthWorkingDays: number | null;
   yearWorkingDays: number | null;
   driver: string | null;
+  /** § 59 أ — where the working days came from: the company's schedule, the driver's (none named in the settings), or neither. */
+  source?: WorkdaysSource | null;
   reason?: string;
 }
+export type WorkdaysSource = "company" | "driver";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const addDays = (day: string, n: number) => new Date(Date.parse(`${day}T12:00:00Z`) + n * DAY_MS).toISOString().slice(0, 10);
@@ -96,6 +105,8 @@ export function costShares(items: CostItem[], day: string, schedule: DriverSched
   const share = (i: CostItem): number | null => {
     if (i.frequency === "daily") return i.amount;
     if (!schedule) return null;
+    // § 59 أ — the company's schedule without a single line is a schedule not filled in, not «every day is off»
+    if (schedule.company && schedule.lines.length === 0) return null;
     if (!workingDay) return 0;
     const days = i.frequency === "monthly" ? monthWorkingDays : yearWorkingDays;
     return days && days > 0 ? i.amount / days : null;
@@ -109,8 +120,57 @@ export function costShares(items: CostItem[], day: string, schedule: DriverSched
     workingDay,
     monthWorkingDays,
     yearWorkingDays,
-    ...(unread ? { reason: schedule ? "لا أيام عمل في جدول دوام السائق" : "لا جدول دوام للسائق في «الموظفون»" } : {}),
+    ...(unread ? { reason: schedule?.company ? NO_COMPANY_DAYS_REASON : schedule ? "لا أيام عمل في جدول دوام السائق" : "لا جدول دوام للسائق في «الموظفون»" } : {}),
   };
+}
+
+/** § 59 أ — «تعذّر» when the company's schedule holds no working day in the month (or the year) of the line. */
+export const NO_COMPANY_DAYS_REASON = "لا أيام عمل في «جدول أيام العمل» (الإعدادات)";
+/** § 59 أ — the field of the pricing settings that names the company's working days. */
+export const WORKDAYS_FIELD = "x_workdays_calendar_id";
+const WORKDAYS_KV = "cost:workdays:v1";
+const WORKDAYS_TTL = 300;
+
+/**
+ * § 59 أ — the company's working days: the schedule the active pricing settings of `day` name
+ * («جدول أيام العمل»), with its lines (the roster's when it holds them, else one read). Null when the
+ * settings name none — and when they cannot be read for the field itself (the caller reads the
+ * driver's schedule, as before § 59). The schedule's id and name are kept WORKDAYS_TTL in KV.
+ */
+export async function companySchedule(env: Env, day: string, nowMs: number = Date.now()): Promise<DriverSchedule | null> {
+  let named: { id: number; name: string } | null | undefined;
+  try {
+    const hit = await env.MSG_DEDUP.get(`${WORKDAYS_KV}:${day}`);
+    if (hit) named = (JSON.parse(hit) as { c: { id: number; name: string } | null }).c;
+  } catch { /* read Odoo */ }
+  if (named === undefined) {
+    try {
+      const [r] = await call<Array<Record<string, unknown>>>(env, CONFIG_MODEL, "search_read", {
+        // the same record readPricingSettings reads: the active settings of `day`
+        domain: [["x_active_from", "<=", day], ["x_is_active", "=", true], "|", ["x_active_to", "=", false], ["x_active_to", ">=", day]],
+        fields: ["id", WORKDAYS_FIELD],
+        order: "x_active_from desc, id desc",
+        limit: 1,
+      });
+      const v = r?.[WORKDAYS_FIELD];
+      named = Array.isArray(v) && Number(v[0]) > 0 ? { id: Number(v[0]), name: String(v[1] ?? "") } : typeof v === "number" && v > 0 ? { id: v, name: "" } : null;
+    } catch (e) {
+      console.warn("[costs] «جدول أيام العمل» could not be read — the driver's schedule, as before", (e as Error)?.message);
+      return null;
+    }
+    try { await env.MSG_DEDUP.put(`${WORKDAYS_KV}:${day}`, JSON.stringify({ c: named }), { expirationTtl: WORKDAYS_TTL }); } catch { /* next time */ }
+  }
+  if (!named) return null;
+  const calendarId = named.id;
+  let lines: CalendarLine[] = [];
+  try { lines = (await loadRoster(env, nowMs)).lines.filter((l) => l.calendarId === calendarId); } catch { /* its own read below */ }
+  if (!lines.length) {
+    const raw = await call<Array<Record<string, unknown>>>(env, "resource.calendar.attendance", "search_read", {
+      domain: [["calendar_id", "=", calendarId]], fields: [...LINE_FIELDS], limit: 200,
+    });
+    lines = raw.map(toCalendarLine);
+  }
+  return { employeeId: 0, name: named.name || "جدول أيام العمل", calendarId, lines, company: true };
 }
 
 /** The first driver (lowest employee id) with a working schedule, and its lines. */
@@ -145,8 +205,10 @@ export async function readCostItems(env: Env, day: string): Promise<CostItem[]> 
 /** daily_operating_cost(day): the day's operating cost from x_operating_cost. Throws on Odoo trouble. */
 export async function dailyOperatingCost(env: Env, day: string = riyadhDateKey(), nowMs: number = Date.now()): Promise<DailyCost> {
   const items = await readCostItems(env, day);
-  const schedule = items.some((i) => i.frequency !== "daily") ? await driverSchedule(env, nowMs) : null;
-  return { ...costShares(items, day, schedule), driver: schedule?.name ?? null };
+  const needs = items.some((i) => i.frequency !== "daily");
+  // § 59 أ — the company's own working days first; the driver's schedule only while the settings name none
+  const schedule = needs ? (await companySchedule(env, day, nowMs)) ?? (await driverSchedule(env, nowMs)) : null;
+  return { ...costShares(items, day, schedule), driver: schedule?.name ?? null, source: schedule ? (schedule.company ? "company" : "driver") : null };
 }
 
 // ---------------------------------------------------------------- the settings

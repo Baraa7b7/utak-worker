@@ -521,14 +521,18 @@ console.log("\n[د3] the daily data check: one line in the 21:30 summary, only w
   seed("res.partner", { id: 720, name: "خالد", x_whatsapp_number: "+966500000720" });
   const left = employee(720, [], { name: "خالد", active: false });
   cost(2500, "2026-10-01", { x_name: "راتب خالد", x_frequency: "monthly", x_employee_id: left });
+  // …and one of an ACTIVE employee who holds no job and no role: he is not «غير نشط»
+  seed("res.partner", { id: 740, name: "نايف", x_whatsapp_number: "+966500000740" });
+  cost(2000, "2026-10-01", { x_name: "راتب نايف", x_frequency: "monthly", x_employee_id: employee(740, [], { name: "نايف" }) });
   f = await quiet(() => ST.dataFindings(w.env, r, D6));
   assert("a cost line in force of an archived employee: «بند تكلفة لموظف غير نشط: راتب خالد»", JSON.stringify(f.inactiveCost) === JSON.stringify(["راتب خالد"]) && ST.dataCheckLine(f) === "🧾 فحص البيانات: بند تكلفة لموظف غير نشط: راتب خالد", ST.dataCheckLine(f));
 
   // an operating role without a number, and without a schedule
   hire(w, w.jobs.driver, { resource_calendar_id: false }, false);
   table("hr.job").get(w.jobs.driver)!.x_default_calendar_id = false;
-  seed("res.partner", { id: 730, name: "ماجد", x_whatsapp_number: "+966500000730" });
-  employee(730, [], { name: "ماجد", job_id: w.jobs.marketing, resource_calendar_id: false });   // marketing: not an operating role
+  // a marketing member with no number and no schedule at all: not an operating role, so not checked
+  seed("res.partner", { id: 730, name: "ماجد", x_whatsapp_number: false });
+  employee(730, [MARKETING], { name: "ماجد", resource_calendar_id: false });
   drop(w.env);
   r = await quiet(() => TR.loadRoster(w.env));
   f = await quiet(() => ST.dataFindings(w.env, r, D6));
@@ -628,7 +632,7 @@ console.log("\n[ج] the four jobs of scripts/lib/s61-odoo.mjs, and the guide");
   assert("the guide has the section «الوظائف (§ 61)»", guide.includes("## الوظائف (§ 61)"));
   assert("…how to add an employee in three steps: his contact with his number, his card, his job", /ثلاث خطوات/.test(part) && part.includes("جهة اتصال") && part.includes("«الوظيفة»") && part.includes("خمس دقائق"));
   assert("…that he must not be given a schedule or a role for the job to work, and what an additional role is", part.includes("أدوار إضافية (خارج الوظيفة)") && part.includes("40 hours/week"));
-  assert("…how an employee leaves: take the job off his card or archive him, and what reaches Baraa", part.includes("أرشف") && part.includes("قائمة التسليم") && part.includes("📤") && part.includes("لا حذف"));
+  assert("…how an employee leaves: take the job off his card or archive him, and what reaches Baraa", part.includes("أرشف") && part.includes("**قائمة التسليم** بنقاطها") && part.includes("📤") && part.includes("لا حذف"));
   assert("…the vacant job and the data check in the 21:30 summary, and that no cost line is made by the system", part.includes("وظيفة شاغرة") && part.includes("🧾 فحص البيانات") && part.includes("بند تكلفة") && part.includes("لا ينشئ"));
   assert("…and the four jobs by name", ["مندوب تشغيل", "مندوب تسويق", "منسق عمليات", "سائق توصيل"].every((n) => part.includes(n)));
 }

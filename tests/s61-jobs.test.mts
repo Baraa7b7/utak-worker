@@ -295,6 +295,7 @@ console.log("\n[د1] an employee is given a job: Baraa's «👤 … صار …»
   assert("the first tick: the roster kept, nothing announced (the three hold their jobs already)", t.action === "baseline" && sentTo(OWNER).length === 0 && sentTo(DRIVER_PHONE).length === 0 && sentTo(OTHMAN_PHONE).length === 0 && !!w.env.MSG_DEDUP.store.get(ST.STAFF_KV));
   t = await tick(w.env);
   assert("the next tick with nothing changed: nothing", t.action === "none" && sentTo(OWNER).length === 0);
+  const baseline = w.env.MSG_DEDUP.store.get(ST.STAFF_KV);
 
   // Baraa adds an employee and picks his job; his window is closed (he never wrote): the template
   hire(w, w.jobs.driver);
@@ -313,6 +314,10 @@ console.log("\n[د1] an employee is given a job: Baraa's «👤 … صار …»
   assert("…nothing is held for him, and nobody else got anything", heldFor(w.env, NEW_PHONE).length === 0 && sentTo(DRIVER_PHONE).length === 0 && sentTo(OTHMAN_PHONE).length === 0);
   t = await tick(w.env);
   assert("the next tick: nothing again (announced once)", t.action === "none" && ownerTexts().length === 1 && sentTo(NEW_PHONE).length === 1);
+  // the kept roster lost (a KV write that failed after the sends): the move's own claim stops a second announcement
+  w.env.MSG_DEDUP.store.set(ST.STAFF_KV, baseline);
+  t = await tick(w.env);
+  assert("the kept roster lost: the same entry is not announced twice that day", JSON.stringify(t.moves) === JSON.stringify(["سالم الحربي:in:claimed_before"]) && ownerTexts().length === 1 && sentTo(NEW_PHONE).length === 1, JSON.stringify(t));
   assert("nothing was written in Odoo by any tick (no employee, no job, no cost line)", writes().length === 0, JSON.stringify(writes().map((l) => `${l.model}.${l.method}`)));
   assert("the welcome's text IS the template's body with its variables (scripts/lib/s61-templates.mjs)",
     ST.welcomeText(["سالم", "سائق توصيل", "مع أول مسار توصيل"]) === TEAM_WELCOME.body.replace("{{1}}", "سالم").replace("{{2}}", "سائق توصيل").replace("{{3}}", "مع أول مسار توصيل")
@@ -445,6 +450,18 @@ function openWork(): void {
   assert("…nobody else holds his roles: what was kept for him reaches Baraa in this message, as texts", lines[9] === "مهام كانت محفوظة له ولم تصله (2) — لا حامل آخر لأدواره، فهي لك:" && lines[10] === "• طلب تحصيل: فاتورة INV-2 المبلغ 600" && lines.length === 11, lines.slice(9).join(" | "));
   assert("…and nothing stays kept for an archived number", !w.env.MSG_DEDUP.store.get(TQ.teamQueueKey("+" + NEW_PHONE)));
   assert("the employee is archived, not deleted (Odoo untouched by the worker)", emp(NEW_EMP).active === false && writes().length === 0);
+}
+{
+  // a driver alone leaves: only what his role touches is read
+  const w = after61();
+  hire(w, w.jobs.driver); drop(w.env);
+  await tick(w.env);
+  openWork();
+  emp(NEW_EMP).job_id = false; drop(w.env);
+  await tick(w.env);
+  const text = ownerTexts()[0] ?? "";
+  assert("a driver alone leaves «سائق توصيل»: his cash and his stops are read", text.startsWith("📤 سالم الحربي خرج من وظيفة سائق توصيل (أُزيلت الوظيفة عن بطاقته).") && text.includes("• كاش اليوم المتوقع معه: 450 ر.س") && text.includes("• محطات بلا «تم التسليم»: 1 "), text);
+  assert("…not the invoices to collect nor the purchase lists: roles he never held", !text.includes("فواتير غير محصّلة") && !text.includes("قوائم شراء"), text);
 }
 {
   // nothing open about him; a job changed is an exit and an entry

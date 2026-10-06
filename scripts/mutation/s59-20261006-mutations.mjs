@@ -235,7 +235,7 @@ const M = [
   ["دليل", "the guide does not say Omar gets no operating task", [["docs/OPERATING-DAY.md",
     "**لا مهمة تشغيلية تصله**", "**مهامه كما كانت**"]], "tests/s59-trials.test.mts"],
   ["دليل", "the guide does not say how the roles go back", [["docs/OPERATING-DAY.md",
-    "`node scripts/s59-20261006-odoo.mjs --rollback` (جافاً ثم `--apply`)", "من Odoo"]], "tests/s59-trials.test.mts"],
+    "`node scripts/s59-20261006-odoo.mjs --rollback` (جافاً ثم `--apply`؛ بعد تراجع § 61)", "من Odoo"]], "tests/s59-trials.test.mts"],
   ["دليل", "the guide lets an unpublished item go at its suggested price", [["docs/OPERATING-DAY.md",
     "**لا يُعرض بالسعر المقترح، ولا «نراجع السعر»، ولا يدخل طلبه.**", "يُعرض بالسعر المقترح."]], "tests/s59-trials.test.mts"],
   ["دليل", "the guide keeps the receipts' links for the customer", [["docs/OPERATING-DAY.md",

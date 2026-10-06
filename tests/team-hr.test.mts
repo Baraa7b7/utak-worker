@@ -443,7 +443,8 @@ console.log("\n[5] routing and roles: hr.employee only");
   employee(834, [5]);
   await roster.invalidateRoster(ENV);
   assert("a partner with an old x_role_ids but no employee is not team", (await odoo.findTeamMemberByWhatsApp(ENV, "+966500000830")) === null);
-  assert("an employee with only an archived «Customer» role is not team", (await odoo.findTeamMemberByWhatsApp(ENV, "+966500000834")) === null);
+  // § 61 — …nor on the staff (the roster's list of every job's holder: he holds no job)
+  assert("an employee with only an archived «Customer» role is not team", (await odoo.findTeamMemberByWhatsApp(ENV, "+966500000834")) === null && !(await roster.loadRoster(ENV)).staff.some((m: any) => m.whatsapp === "+966500000834"));
   assert("an archived employee is not team", (await odoo.findTeamMemberByWhatsApp(ENV, "+966500000831")) === null);
   assert("the number may be the Work Contact's phone", (await odoo.findTeamMemberByWhatsApp(ENV, "+966500000832"))?.id === 832);
   // the inbound route

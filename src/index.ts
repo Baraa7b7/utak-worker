@@ -1916,6 +1916,22 @@ export default {
         return json({ ok: false, error: (e as Error).message }, 500);
       }
     }
+    // § 60 هـ — the one trial of § 60 to Baraa's own number («🧪 تجربة»): the 21:30 summary with the four
+    // lines of «خلاصة اليوم» and «طلبوا اليوم وما كان متوفر», in illustrative numbers that say so. Only
+    // while his window is open, once a day. Nothing is written in Odoo (src/s60-trial.ts).
+    if (request.method === "POST" && url.pathname === "/odoo/hook/s60-trial") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      try {
+        const { sendSummaryTrial } = await import("./s60-trial");
+        return json({ ok: true, ...(await sendSummaryTrial(env)) });
+      } catch (e) {
+        return json({ ok: false, error: (e as Error).message }, 500);
+      }
+    }
     if (request.method === "POST" && url.pathname === "/odoo/hook/transfer-form-test") {
       const providedToken = url.searchParams.get("token") ?? "";
       const expected = env.ODOO_HOOK_TOKEN ?? "";

@@ -28,7 +28,7 @@ const DT = await import("../src/day-tabs.ts");
 
 const FX = JSON.parse(readFileSync(new URL("./fixtures-s56-day54.json", import.meta.url), "utf8"));
 const NAMES: Record<number, string> = { 1: "موز أمريكي", 2: "رمان وسط", 3: "رمان صغير", 4: "رمان كبير" };
-const BEFORE = "2026-10-02", OLDER = "2026-09-30";
+const BEFORE = "2026-10-01", OLDER = "2026-09-29", NEAREST = "2026-10-02";
 
 /** The tenant on 2026-10-05 (the world of § 56): the day's cost 496.52 over 250 cartons (a share of 1.99), waste 5 %, a minimum profit of 2. */
 function world(riyadh = `${DAY} 04:00`): any {
@@ -93,17 +93,19 @@ console.log("\n[1] the break-even: a red ┃ on each row, a light pink zone befo
 console.log("\n[2] what moved since the last day that carries a number");
 {
   const env = world();
-  // 10-02: banana 52 / 67, medium 15 / 22, small 12 / 0, large — no line; 09-30: large 20 / — (a purchase, no market); a simulation's day (the nearest) says otherwise
+  // 10-01: banana 52 / 67, medium 15 / 22, small 12 / 0, large — no line; 09-29: large 20 / — (a purchase, no market); a simulation's day, the nearest one (10-02), says otherwise
   past(BEFORE, [[1, 11, 52, 67], [2, 21, 15, 22], [3, 31, 12, 0]]);
   past(OLDER, [[4, 41, 20, 0], [1, 11, 40, 40]]);
-  past("2026-10-02", [[1, 11, 1, 1], [2, 21, 1, 1], [4, 41, 1, 1]], { x_utak_simulation: true });
+  past(NEAREST, [[1, 11, 1, 1], [2, 21, 1, 1], [4, 41, 1, 1]], { x_utak_simulation: true });
   prices();
+  await engine(env);
+  // a second run: the day's own lines exist now — they are never «the last day»
   await engine(env);
   const rs = rowsOf(chart());
   assert("the banana: the purchase with the VAT 63.25 against 59.80 «▲ +3.45», the market 70 against 67 «▲ +3.00»", text(rs[0]).includes("الشراء شامل 63.25 ▲ +3.45") && text(rs[0]).includes("السوق 70.00 ▲ +3.00"), text(rs[0]));
   assert("the medium pomegranate: the purchase did not move (nothing beside it), the market 20 against 22 «▼ −2.00»", /الشراء شامل 17\.25 ○? ?السوق|الشراء شامل 17\.25 السوق/.test(text(rs[1]).replace(/\s+/g, " ")) && text(rs[1]).includes("السوق 20.00 ▼ −2.00") && rs[1].split("utak-move").length === 2, text(rs[1]));
   assert("the small one: no market today, the purchase as it was — nothing at all", !rs[2].includes("utak-move"), text(rs[2]));
-  assert("the large one: its last purchase is two days older (09-30): 25.30 against 23.00 «▲ +2.30» — and its market has no earlier number at all: nothing beside it", text(rs[3]).includes("الشراء شامل 25.30 ▲ +2.30") && /السوق 28\.00 (?!▲|▼)/.test(text(rs[3])) && rs[3].split("utak-move").length === 2, text(rs[3]));
+  assert("the large one: its last purchase is two days older (09-29): 25.30 against 23.00 «▲ +2.30» — and its market has no earlier number at all: nothing beside it", text(rs[3]).includes("الشراء شامل 25.30 ▲ +2.30") && /السوق 28\.00 (?!▲|▼)/.test(text(rs[3])) && rs[3].split("utak-move").length === 2, text(rs[3]));
   assert("the move stands in the row's values as a number read left to right", rs[0].includes(`<span class="utak-move small" dir="ltr">▲ +3.45</span>`) && rs[1].includes(`<span class="utak-move small" dir="ltr">▼ −2.00</span>`));
   assert("a simulation's day is never the last number (its 1 / 1 moved nothing)", !chart().includes("+62.10") && !chart().includes("+69.00"));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));

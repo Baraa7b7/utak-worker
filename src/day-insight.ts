@@ -163,13 +163,15 @@ export interface DayActual {
 }
 
 /**
- * `parts` rounded to `digits` so that they add up to `total` rounded to `digits`: what rounding leaves
- * over (a halala or two, a riyal) goes to the largest part. Pure.
+ * `parts` rounded to `digits` so that they add up to `total` rounded to `digits`: what ROUNDING leaves
+ * over (half a unit a part at most: a halala or two, a riyal or two) goes to the largest part. A gap
+ * larger than rounding can make is no rounding — the parts are then left as they are, and do not add
+ * up (a formula that lost a term is seen, never smoothed over). Pure.
  */
 export function splitExact(total: number, parts: number[], digits = 2): number[] {
   const f = 10 ** digits, r = (x: number): number => Math.round(x * f) / f;
   const out = parts.map(r), left = r(r(total) - out.reduce((a, b) => a + b, 0));
-  if (left !== 0 && out.length) {
+  if (left !== 0 && out.length && Math.abs(left) <= ((out.length + 1) * 0.5) / f + 1e-9) {
     let k = 0;
     out.forEach((p, i) => { if (Math.abs(p) > Math.abs(out[k])) k = i; });
     out[k] = r(out[k] + left);

@@ -230,14 +230,15 @@ console.log("\n[4] «🎯 الفرص والقادم»: the five opportunities wo
   seed("x_daily_price", { x_product_tmpl_id: 4, x_packaging_id: 41, x_supplier_id: 802, x_price_sar: 19, x_date: "2026-10-02", x_extraction_status: "extracted" });
   seed("x_daily_price", { x_product_tmpl_id: 4, x_packaging_id: 41, x_supplier_id: 802, x_price_sar: 5, x_date: "2026-10-02", x_extraction_status: "failed" });          // a reading that failed: no offer
   seed("x_daily_price", { x_product_tmpl_id: 4, x_packaging_id: 41, x_supplier_id: 802, x_price_sar: 6, x_date: "2026-10-02", x_extraction_status: "extracted", x_utak_simulation: true });
-  seed("x_daily_price", { x_product_tmpl_id: 4, x_packaging_id: 41, x_supplier_id: 802, x_price_sar: 7, x_date: "2026-09-20", x_extraction_status: "extracted" });      // older than the seven days
+  seed("res.partner", { id: 803, name: "مورد قديم", supplier_rank: 1, x_price_source: true });
+  seed("x_daily_price", { x_product_tmpl_id: 4, x_packaging_id: 41, x_supplier_id: 803, x_price_sar: 7, x_date: "2026-09-20", x_extraction_status: "extracted" });      // another source's, older than the seven days
   seed("x_price_offer", { x_product_tmpl_id: 1, x_packaging_id: 11, x_source_partner_id: 802, x_date: "2026-10-02", x_purchase_price: 60, x_market_price: 0, x_status: "valid", x_utak_simulation: false });   // dearer than the banana's 55
   seed("x_price_offer", { x_product_tmpl_id: 1, x_packaging_id: 11, x_source_partner_id: DRIVER, x_date: "2026-10-02", x_purchase_price: 10, x_market_price: 66, x_status: "valid", x_utak_simulation: false });   // a «سوق» source's number is no purchase offer
   await engine(env);
   const lines = text(dayOf().x_tab_next_html);
   assert("today's purchase is Ahmed's 22 (the day's lowest); سوق العزيزية offered 19 the day before: «رمان كبير: سوق العزيزية أرخص بـ 3.00 للكرتون (19.00 يوم 2 أكتوبر مقابل 22.00) — اطلب سعره اليوم.»", lineFor(4).x_cost_price === 22 && lineFor(4).x_supplier_id === AHMED
     && lines.join(" | ") === "فرصة واحدة اليوم، أكبرها +3.00 للكرتون. | 1. رمان كبير: سوق العزيزية أرخص بـ 3.00 للكرتون (19.00 يوم 2 أكتوبر مقابل 22.00) — اطلب سعره اليوم. | 🎯 لتغطية التشغيل بأسعار اليوم تحتاج 133 كرتون", lines.join(" | "));
-  assert("…a failed reading, a simulation's row, a row older than seven days and a dearer offer are no opportunity", !lines.join(" ").includes("17.00") && !lines.join(" ").includes("موز"));
+  assert("…a failed reading, a simulation's row, a row older than seven days and a dearer offer are no opportunity", !lines.join(" ").includes("مورد قديم") && !lines.join(" ").includes("موز"));
   assert("«خلاصة اليوم» names it: «➡️ أهم فرصة: رمان كبير (شراء أرخص +3.00 عند سوق العزيزية)»", text(dayOf().x_brief_html)[4] === "➡️ أهم فرصة: رمان كبير (شراء أرخص +3.00 عند سوق العزيزية)", text(dayOf().x_brief_html)[4]);
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }

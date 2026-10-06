@@ -61,6 +61,18 @@ console.log("\nthe one trial of § 60: Baraa's number alone, inside his window, 
   assert("once a day", again.sent === false && again.reason === "already_today" && sentTo(OWNER).length === 1);
   setRiyadh("2026-10-04 12:00"); openWindow(env, OWNER);
   assert("the day after: once more", (await quiet(() => TR.sendSummaryTrial(env))).sent === true && sentTo(OWNER).length === 2);
+  // Meta refuses the send: nothing went, so the day's trial is NOT spent — the next call reaches the gateway again (which holds a refused purpose back for a day)
+  const env2 = fresh(`${DAY} 12:00`); openWindow(env2, OWNER);
+  const real = globalThis.fetch;
+  globalThis.fetch = (async (input: unknown, init?: any) => {
+    const url = typeof input === "string" ? input : (input as any)?.url ?? String(input);
+    if (url.includes("graph.facebook.com")) return new Response(JSON.stringify({ error: { message: "(#131000) Something went wrong", code: 131000 } }), { status: 500 });
+    return real(input as any, init);
+  }) as typeof fetch;
+  let failed: any;
+  try { failed = await quiet(() => TR.sendSummaryTrial(env2)); } finally { globalThis.fetch = real; }
+  const retry = await quiet(() => TR.sendSummaryTrial(env2));
+  assert("a send Meta refused does not spend the day's trial: the next call is the gateway's to answer, not «already_today»", failed.sent === false && failed.reason === "rejected" && retry.sent === false && retry.reason !== "already_today" && String(retry.reason).startsWith("skipped"), JSON.stringify([failed, retry]));
   const noOwner = fresh(`${DAY} 12:00`); noOwner.OWNER_WHATSAPP = "";
   assert("no owner's number: nothing", (await quiet(() => TR.sendSummaryTrial(noOwner))).reason === "no_owner");
 }

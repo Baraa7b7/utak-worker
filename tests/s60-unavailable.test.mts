@@ -126,6 +126,14 @@ console.log("\n[2] the order's intake: a row for each item the valid list does n
   assert("an item switched off: its row carries the catalog's item and the quantity he said", a.length === 1 && a[0].x_text === "بصل" && a[0].x_product_tmpl_id === 4 && a[0].x_quantity === 5, JSON.stringify(a));
 }
 {
+  // an item of the catalog under another word of his: the row keeps HIS word, and the catalog's item beside it
+  const env = world(`${DAY} 10:00`); const d = published();
+  Object.assign(rows("x_price_day_line").find((l: any) => l.x_day_id === d && l.x_product_tmpl_id === 1)!, { x_sale_price: 0, x_status: "unpublished", x_excluded: true });
+  await orderSay(env, "بندورة 3", [{ ...TOMATO, product_name_raw: "بندورة" }]);
+  const a = asks();
+  assert("he wrote «بندورة» for the catalog's «طماطم»: the row says «بندورة» (as he wrote it) and names the catalog's item", a.length === 1 && a[0].x_text === "بندورة" && a[0].x_product_tmpl_id === 1 && a[0].x_quantity === 3, JSON.stringify(a));
+}
+{
   // no valid list: the order is kept for the day's prices — «غير متوفر اليوم» is not said, and nothing is recorded
   const env = world(`${DAY} 10:00`);
   await orderSay(env, "بطاطا حلوة 4", [POTATO]);

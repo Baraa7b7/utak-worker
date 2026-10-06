@@ -109,6 +109,7 @@ console.log("\n[2] the gap to the target: the volume, the margin, the waste, the
     if (sum !== x.gap || Math.round((x.profit - x.profitTarget) * 100) / 100 !== x.gap || whole.reduce((s, v) => s + v, 0) !== Math.round(x.gap)) bad = JSON.stringify({ plan, x, sum, whole });
   }
   assert("the volume + the margin + the waste + the costs = A − P, the whole gap: to the halala as kept, to the riyal as written — 4000 days", bad === "", bad);
+  assert("…and a gap larger than rounding can make is never smoothed over: the parts are left as they are (a formula that lost a term is seen)", JSON.stringify(DI.splitExact(100, [30, 20, 10])) === JSON.stringify([30, 20, 10]) && JSON.stringify(DI.splitExact(-125, [-110, -15, 0, 50], 0)) === JSON.stringify([-110, -15, 0, 50]));
   assert("what rounding leaves over goes to the largest part", JSON.stringify(DI.splitExact(10, [3.333, 3.333, 3.334])) === JSON.stringify([3.34, 3.33, 3.33]) && JSON.stringify(DI.splitExact(-125, [-110.4, -14.4, -0.2, 0], 0)) === JSON.stringify([-111, -14, -0, 0].map((v) => v + 0)) && JSON.stringify(DI.splitExact(1, [0.5, 0.5], 0).sort()) === JSON.stringify([0, 1]));
 }
 

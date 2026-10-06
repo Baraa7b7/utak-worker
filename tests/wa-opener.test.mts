@@ -407,20 +407,27 @@ console.log("\n[8] the receipt: utak_payment_received outside the window (§ 39 
   const t = tpl(CUST_PHONE, "utak_payment_received");
   assert("closed window → utak_payment_received, sent directly", c.action === "sent" && t.length === 1, JSON.stringify(c));
   assert("…[amount, invoice number]", params(t[0]).join("|") === "60|UTAK-INV-20260926-007", JSON.stringify(params(t[0])));
-  assert("…nothing held, no opener", heldFor(env, CUST_PHONE).length === 0 && openers().length === 0);
+  // § 59 د — the receipt's file (never a link) waits for his first open window; no opener for it, no alert
+  const heldFile = heldFor(env, CUST_PHONE);
+  assert("…the words are not held and no opener goes; the receipt's FILE waits for his first open window", heldFile.length === 1 && heldFile[0].purpose === "customer_receipt_file" && heldFile[0].body?.type === "document" && heldFile[0].body.document.link === "https://w.test/r.pdf" && heldFile[0].body.document.filename === "UTAK-RCPT-20260926-001.pdf" && openers().length === 0, JSON.stringify(heldFile));
   assert("amount with halalas: «60.5»→«60.50»", (await import("../src/receipt.ts")).receiptAmountLabel(60.5) === "60.50");
 
   const env2 = fresh("2026-09-26 16:00");
   openWindow(env2, CUST_PHONE, 5);
   await quiet(() => confirmPaymentToCustomer(env2, payment(), { receipt }));
-  assert("open window → the receipt text with its link", txt(CUST_PHONE).some((x) => x.includes("UTAK-RCPT-20260926-001") && x.includes("https://w.test/r.pdf")) && tpl(CUST_PHONE).length === 0);
+  // § 59 د — the text names the receipt and carries NO link; the receipt follows as an attached file
+  const docs2 = sentTo(CUST_PHONE).filter((b: any) => b?.type === "document").map((b: any) => b.document);
+  assert("open window → the receipt text (its number, no link), then the receipt as an attached file", txt(CUST_PHONE).some((x) => x.includes("UTAK-RCPT-20260926-001")) && !txt(CUST_PHONE).some((x) => /https?:\/\//.test(x)) && tpl(CUST_PHONE).length === 0
+    && docs2.length === 1 && docs2[0].link === "https://w.test/r.pdf" && docs2[0].filename === "UTAK-RCPT-20260926-001.pdf" && sentTo(CUST_PHONE).at(-1)?.type === "document", JSON.stringify(sentTo(CUST_PHONE)).slice(0, 500));
 
   const env3 = fresh("2026-09-26 16:00");
   for (const x of rows("x_whatsapp_template")) if (x.x_meta_template_id === "utak_payment_received") x.x_category = "MARKETING";
   clearTemplateCache();
   await quiet(() => confirmPaymentToCustomer(env3, payment(), { receipt }));
   assert("template re-filed MARKETING → the receipt held + utak_update_customer [account, «إيصال الدفع»]",
-    heldFor(env3, CUST_PHONE).length === 1 && params(tpl(CUST_PHONE, "utak_update_customer")[0]).join("|") === `${CUST}|إيصال الدفع`, JSON.stringify(sentTo(CUST_PHONE)));
+    // § 59 د — two wait for him: the words, then the receipt's file (the opener is the words' alone, once)
+    heldFor(env3, CUST_PHONE).length === 2 && heldFor(env3, CUST_PHONE)[0].purpose === "customer_payment_received" && heldFor(env3, CUST_PHONE)[1].purpose === "customer_receipt_file"
+    && tpl(CUST_PHONE, "utak_update_customer").length === 1 && params(tpl(CUST_PHONE, "utak_update_customer")[0]).join("|") === `${CUST}|إيصال الدفع`, JSON.stringify(sentTo(CUST_PHONE)));
 
   // The collection itself sends the customer nothing (§ 39 د): the x_payment it creates fires the receipt,
   // whose confirmation is the one message (the harness runs no Odoo automation).

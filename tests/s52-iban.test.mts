@@ -348,7 +348,9 @@ console.log("\n[د] the quotation PDF");
   assert("the line is on the page, to the letter, once", plain(html).includes(LINE) && (html.match(/data-utak="bank-line"/g) ?? []).length === 1, plain(html).slice(-700));
   const at = { note: html.indexOf("العرض ساري حتى الساعة"), line: html.indexOf('data-utak="bank-line"'), thanks: html.indexOf("شكراً لثقتكم") };
   assert("…under the quotation's terms, above the thanks line", at.note > 0 && at.note < at.line && at.line < at.thanks, JSON.stringify(at));
-  assert("the quotation's message is as it was (an offer, not a payment request): no line in it", /عرض السعر رقم/.test(bodyOf(sentTo(C1_PHONE)[0])) && !bodyOf(sentTo(C1_PHONE)[0]).includes("IBAN"));
+  // § 59 د — the quotation is an attached file now; its words are the file's caption
+  const qcap = String(sentTo(C1_PHONE)[0]?.document?.caption ?? bodyOf(sentTo(C1_PHONE)[0]));
+  assert("the quotation's message is as it was (an offer, not a payment request): no line in it", /عرض السعر رقم/.test(qcap) && !qcap.includes("IBAN"), qcap);
   assert("no Odoo field outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 {

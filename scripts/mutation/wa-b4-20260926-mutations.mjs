@@ -29,8 +29,9 @@ const M = [
     "params: payconfParams(amount, invoiceNumber) }],\n    link:", "params: [...payconfParams(amount, invoiceNumber), String(remaining)] }],\n    link:"]], T],
   ["م10: a partial payment does not say what is left", [[PC,
     "  if (a.remaining !== undefined && a.remaining > 0.005) lines.push(", "  if (false) lines.push("]], T],
-  ["م10: the receipt's link left out of the text", [[PC,
-    "  if (a.receipt?.url) lines.push(`الإيصال: ${a.receipt.url}`);\n", ""]], T],
+  // § 59 د — the rule turned: the receipt is an attached file after the words, and its link is never in the text
+  ["م10 (§ 59 د): the receipt's link is back in the text", [[PC,
+    "  // § 59 د — no link: the receipt follows as an attached file (sendReceiptFile)\n", "  if (a.receipt?.url) lines.push(`الإيصال: ${a.receipt.url}`);\n"]], T],
   ["م10: the remaining counts later payments too", [[PC,
     "[[\"x_invoice_id\", \"=\", invoiceId], [\"id\", \"<=\", paymentId], [SIM_FIELD, \"!=\", true]]", "[[\"x_invoice_id\", \"=\", invoiceId], [SIM_FIELD, \"!=\", true]]"]], T],
   ["م10: the remaining counts a simulation payment", [[PC,

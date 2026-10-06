@@ -169,7 +169,9 @@ console.log("\n[م10] inside the window: the receipt as text");
   const t = texts(CUST_PHONE);
   assert("new: one text, no template", c.action === "sent" && t.length === 1 && tpl(CUST_PHONE).length === 0, JSON.stringify(sentTo(CUST_PHONE)));
   assert("…the template's words first", t[0]?.startsWith(`✅ استلمنا دفعتك بمبلغ 100 ريال على فاتورة ${INV_NO}. شكراً لك`), t[0]);
-  assert("…the receipt number, the method and its link", t[0]?.includes(RECEIPT.number) && t[0]?.includes("طريقة الدفع: نقد") && t[0]?.includes(RECEIPT.url), t[0]);
+  // § 59 د — no link in the text: the receipt follows it as an attached file, named by its number
+  const doc = sentTo(CUST_PHONE).filter((b: any) => b?.type === "document").map((b: any) => b.document);
+  assert("…the receipt number and the method — and NO link; then the receipt as an attached file", t[0]?.includes(RECEIPT.number) && t[0]?.includes("طريقة الدفع: نقد") && !/https?:\/\//.test(t[0] ?? "") && doc.length === 1 && doc[0].link === RECEIPT.url && doc[0].filename === `${RECEIPT.number}.pdf` && sentTo(CUST_PHONE).at(-1)?.type === "document", JSON.stringify(sentTo(CUST_PHONE)).slice(0, 500));
   assert("…paid in full: no «المتبقي»", !t[0]?.includes("المتبقي"), t[0]);
   assert("…its row: purpose customer_payment_received, linked", outRows(pid).length === 1 && String(outRows(pid)[0].x_debug_payload).includes("customer_payment_received"));
 }
@@ -231,10 +233,10 @@ console.log("\n[م10] one message per payment: KV claim, then the rows linked to
   clearTemplateCache();
   const pid = payment(invoice(100), 100);
   const c = await confirm(env, pid);
-  assert("closed window and no usable template: held (critical) — its held row is linked too", c.action === "held" && heldFor(env, CUST_PHONE).length === 1 && outRows(pid).some((r: any) => r.x_status === "held"), JSON.stringify(outRows(pid)));
+  assert("closed window and no usable template: held (critical) — its held row is linked too", c.action === "held" && heldFor(env, CUST_PHONE).length === 2 && heldFor(env, CUST_PHONE)[0].purpose === "customer_payment_received" && heldFor(env, CUST_PHONE)[1].purpose === "customer_receipt_file" && outRows(pid).some((r: any) => r.x_status === "held"), JSON.stringify(outRows(pid))); // § 59 د: the words, then the receipt's file
   env.MSG_DEDUP.store.delete(`btnlock:v1:payconf:${pid}`);
   const again = await confirm(env, pid);
-  assert("…KV lost: the held row counts as on record («already»), nothing held twice", again.action === "already" && heldFor(env, CUST_PHONE).length === 1, JSON.stringify(again));
+  assert("…KV lost: the held row counts as on record («already»), nothing held twice", again.action === "already" && heldFor(env, CUST_PHONE).length === 2, JSON.stringify(again));
 }
 {
   const env = fresh();
@@ -305,7 +307,10 @@ const receiptIssue = async (env: any, pid: number) => {
   const pid = payment(invoice(100), 100);
   const r = await receiptIssue(env, pid);
   const t = texts(CUST_PHONE);
-  assert("new: the automation's webhook → 202, the PDF, and one confirmation with the receipt's link", r.status === 202 && gotenbergCalls === 1 && t.length === 1 && t[0].includes("/receipt-pdf/") && t[0].startsWith("✅ استلمنا دفعتك بمبلغ 100 ريال"), JSON.stringify({ status: r.status, gotenbergCalls, t }));
+  // § 59 د — one confirmation, then the receipt itself as an attached file (never its link in the text)
+  const rdoc = sentTo(CUST_PHONE).filter((b: any) => b?.type === "document").map((b: any) => b.document);
+  assert("new: the automation's webhook → 202, the PDF, one confirmation without a link, and the receipt attached (UTAK-R-….pdf)", r.status === 202 && gotenbergCalls === 1 && t.length === 1 && !t[0].includes("/receipt-pdf/") && t[0].startsWith("✅ استلمنا دفعتك بمبلغ 100 ريال")
+    && rdoc.length === 1 && rdoc[0].link.includes("/receipt-pdf/") && /^UTAK-R-\d{8}-\d+\.pdf$/.test(rdoc[0].filename), JSON.stringify({ status: r.status, gotenbergCalls, t, rdoc }));
   assert("…the receipt written back on the payment", !!table("x_payment").get(pid)!.x_studio_char_1_1);
   await receiptIssue(env, pid);
   assert("new: the webhook fired again → no second message", texts(CUST_PHONE).length === 1, JSON.stringify(texts(CUST_PHONE)));
@@ -369,7 +374,8 @@ console.log("\n[م10] every payment confirmation is this one path");
   const files = readdirSync(new URL("../src/", import.meta.url)).filter((f) => f.endsWith(".ts"));
   const hits = (re: RegExp) => files.filter((f) => re.test(src(f).replace(/^\s*\/\/.*$/gm, "")));
   assert("«تم استلام الدفعة» is sent nowhere", hits(/تم استلام الدفعة/).length === 0, JSON.stringify(hits(/تم استلام الدفعة/)));
-  assert("customer_payment_received is sent only from src/payment-confirm.ts", JSON.stringify(hits(/PAYCONF_PURPOSE|CUSTOMER_PAYMENT_RECEIVED|"customer_payment_received"/).filter((f) => !["payment-confirm.ts", "templates.ts", "wa-purposes.ts"].includes(f))) === "[]",
+  // § 59 د — and from «✅ وصل» of a transfer notice outside the customer's window (src/transfer-form.ts: the template an invoice, as before § 58)
+  assert("customer_payment_received is sent only from src/payment-confirm.ts — and by «✅ وصل» outside the window", JSON.stringify(hits(/PAYCONF_PURPOSE|CUSTOMER_PAYMENT_RECEIVED|"customer_payment_received"/).filter((f) => !["payment-confirm.ts", "templates.ts", "wa-purposes.ts", "transfer-form.ts"].includes(f))) === "[]",
     JSON.stringify(hits(/CUSTOMER_PAYMENT_RECEIVED|"customer_payment_received"/)));
   assert("customer_receipt / customer_payment_ack carry no send any more (their keys stay in wa-purposes)", hits(/"customer_receipt"|"customer_payment_ack"/).length === 0 && /customer_receipt:/.test(src("wa-purposes.ts")), JSON.stringify(hits(/"customer_receipt"|"customer_payment_ack"/)));
   assert("the receipt pipeline and /admin/test-receipt call confirmPaymentToCustomer", /confirmPaymentToCustomer\(env, paymentId/.test(src("receipt.ts")) && /confirmPaymentToCustomer\(env, paymentId/.test(src("index.ts")));

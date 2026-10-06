@@ -60,11 +60,20 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   customer_invoice_pdf: crit(op("الفاتورة (PDF)", true), "فاتورة جديدة"),
   customer_quotation_pdf: op("عرض السعر", true),
   customer_quotation: op("عرض السعر", true),
+  // § 59 د — the lookup purpose of utak_quotation_pdf_v2 (UTILITY, a DOCUMENT header, [name, number,
+  // date, total], «سارية حتى الساعة 6:00 صباحاً من اليوم التالي»): the quotation's file outside the
+  // window. Not APPROVED or not UTILITY → customer_quotation_pdf's template (v1) in the same send.
+  customer_quotation_pdf_v2: op("عرض السعر PDF (v2)", true),
   customer_receipt: crit(op("إيصال الدفع", true), "إيصال الدفع"),
   // § 34 — the lookup purpose of utak_payment_received (UTILITY, [amount,
   // invoice number]): the receipt's template outside the window.
   customer_payment_received: crit(op("إيصال الدفع", true), "إيصال الدفع"),
   customer_payment_ack: op("تأكيد استلام الدفعة"),
+  // § 59 د — the receipt's PDF as an attached file (UTAK-R-….pdf), after the words that confirm the
+  // payment: now inside the window; outside it (utak_payment_received went) the file waits for the
+  // customer's first open window, a week at most. Not «important»: Baraa is not told about a file
+  // that waits, and no «فتح المحادثة» is sent for it.
+  customer_receipt_file: op("ملف الإيصال (PDF)", false, { hours: 168 }),
   customer_pay_remind: op("تذكير الدفع", true),
   // § 53 هـ — the lookup purpose of utak_pay_remind_iban_v1 (UTILITY, [invoice
   // number, amount, due date], the IBAN in its fixed text): the 08:00 reminder's

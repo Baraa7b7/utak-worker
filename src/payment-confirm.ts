@@ -32,7 +32,7 @@
 
 import type { Env } from "./config";
 import { call } from "./odoo";
-import { textContent } from "./meta";
+import { textContent, documentContent } from "./meta";
 import { gatewayDecision, sendViaGateway } from "./wa-gateway";
 import { T } from "./templates";
 import { claimButton } from "./button-lock";
@@ -105,9 +105,36 @@ export function payconfText(a: { amount: number; invoiceNumber: string; remainin
   if (a.remaining !== undefined && a.remaining > 0.005) lines.push(`المتبقي على الفاتورة: ${paymentAmountLabel(a.remaining)} ريال`);
   if (a.receipt?.number) lines.push(`رقم الإيصال: ${a.receipt.number}`);
   if (a.receipt?.method) lines.push(`طريقة الدفع: ${a.receipt.method}`);
-  if (a.receipt?.url) lines.push(`الإيصال: ${a.receipt.url}`);
+  // § 59 د — no link: the receipt follows as an attached file (sendReceiptFile)
   lines.push("يو تاك 🌿");
   return lines.join("\n");
+}
+
+/** § 59 د — the receipt's PDF as a file of its own, after the words that confirm the payment. */
+export const RECEIPT_FILE_PURPOSE = "customer_receipt_file";
+export type ReceiptFileAction = "sent" | "held" | "skipped" | "none";
+
+/**
+ * § 59 د — the receipt as an ATTACHED FILE (UTAK-R-….pdf), never a link: sent now inside the
+ * customer's window; outside it, kept for his first open window (the purpose's own time: a week).
+ * Nothing when the receipt has no file. Never throws.
+ */
+export async function sendReceiptFile(env: Env, to: string, receipt: PayConfReceipt | undefined, o: { paymentId?: number; ctx?: ExecutionContext } = {}): Promise<ReceiptFileAction> {
+  if (!to || !receipt?.url) return "none";
+  try {
+    const d = gatewayDecision(await sendViaGateway(env, {
+      purpose: RECEIPT_FILE_PURPOSE,
+      to,
+      content: documentContent(receipt.url, receipt.number || "UTAK-R", receipt.number ? `إيصال الدفع رقم ${receipt.number}` : "إيصال الدفع"),
+      important: false,
+      // (not linked to the payment: the linked row is the confirmation itself, one a payment)
+      ctx: o.ctx,
+    }));
+    return d?.action === "session" ? "sent" : d?.action === "held" ? "held" : "skipped";
+  } catch (e) {
+    console.warn(`[payconf] the receipt's file${o.paymentId ? ` of payment #${o.paymentId}` : ""} could not be sent`, (e as Error)?.message);
+    return "skipped";
+  }
 }
 
 /** The rows of this payment's confirmation in x_wa_message (sent, or held to go). */
@@ -203,7 +230,9 @@ export async function confirmPaymentToCustomer(
     : d?.action === "held" ? "held"
     : d?.action === "skipped" || d?.action === "refused" ? "skipped"
     : "failed";
-  console.log(`[payconf] payment #${paymentId} (${invoiceNumber}, ${paymentAmountLabel(amount)}${remaining > 0 ? `, remaining ${paymentAmountLabel(remaining)}` : ""}) → ${action}${d && "template" in d && d.template ? ` ${d.template}` : ""}`);
+  // § 59 د — the receipt itself: an attached file after the words (now, or with his first open window)
+  const file = action === "sent" || action === "held" ? await sendReceiptFile(env, to, opts.receipt, { paymentId, ctx: opts.ctx }) : "none";
+  console.log(`[payconf] payment #${paymentId} (${invoiceNumber}, ${paymentAmountLabel(amount)}${remaining > 0 ? `, remaining ${paymentAmountLabel(remaining)}` : ""}) → ${action}${file !== "none" ? ` file=${file}` : ""}${d && "template" in d && d.template ? ` ${d.template}` : ""}`);
   return { action, ...base, remaining };
 }
 

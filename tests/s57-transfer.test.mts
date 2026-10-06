@@ -337,7 +337,9 @@ for (const word of ["حوّلت المبلغ الحين", "دفعت", "تحوي�
   const shut = await quiet(() => TR.sendTransferForm(env3, c1));
   assert("his 24h window closed: no form, no template, nothing held, no token kept", shut.sent === false && shut.reason === "window_closed" && sentTo(C1_PHONE).length === 0 && heldFor(env3, C1_PHONE).length === 0 && ![...env3.MSG_DEDUP.store.keys()].some((k: string) => k.startsWith("transfer_t:")));
   const src = srcOf("transfer-form.ts");
-  assert("the form is never held: noHold on its send, and no template", /noHold: true,\n    noHoldReason: "نموذج إشعار التحويل يُرسل داخل نافذة 24 ساعة فقط",/.test(src) && !/kind: "template"/.test(src));
+  assert("the form is never held: noHold on its send, and no template", /noHold: true,\n    noHoldReason: "نموذج إشعار التحويل يُرسل داخل نافذة 24 ساعة فقط",/.test(src)
+    // § 59 د — the module's ONE template is utak_payment_received after «✅ وصل» outside the customer's window: never the form's
+    && (src.match(/kind: "template"/g) ?? []).length === 1 && /content: \{ kind: "template", purpose: PAYCONF_PURPOSE, params: payconfParams\(r\.amount, r\.number\) \}/.test(src));
 }
 {
   // a number of a supplier or a price source never gets the customer's form

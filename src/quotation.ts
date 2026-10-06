@@ -10,8 +10,9 @@ import {
   resolvePackagingNames,
   unfrozenLinePrice,
 } from "./odoo";
-import { textContent } from "./meta";
-import { sendTemplateByPurpose, T, sendOwnerAlert } from "./templates";
+import { documentContent, pdfFileName } from "./meta";
+import { T, sendOwnerAlert } from "./templates";
+import { sendViaGateway, type HeaderMedia } from "./wa-gateway";
 import { PRICE_NOTE } from "./order-flow";
 import {
   BRAND_COLORS,
@@ -461,6 +462,9 @@ export interface QuotationDispatchResult {
  * «مرحباً {{1}}، مرفق عرض السعر رقم {{2}} من يو تاك بتاريخ {{3}}، بإجمالي {{4}} ريال …»
  * = [customer name, quotation number, Arabic date, grand total].
  */
+/** § 59 د — the lookup purpose of utak_quotation_pdf_v2 (the file outside the window, § 49's validity in its words). */
+export const QUOTATION_PDF_V2_PURPOSE = "customer_quotation_pdf_v2";
+
 export function quotationTemplateParams(
   data: { customer: { name?: string }; quotationNumber: string; grandTotal: number },
   quotationDate: string,
@@ -635,30 +639,33 @@ export async function createAndDispatchQuotationForRecord(
     };
   } else {
     try {
-      // Plain text with the PDF link: the fallback while utak_quotation_pdf_v1
-      // cannot go (unmapped, not approved); it needs the 24h window, and waits
-      // for it in the gateway's queue otherwise (STATUS § 33).
-      const body = [
+      // § 59 د — the quotation reaches the customer as an ATTACHED FILE (UTAK-Q-….pdf), never a link:
+      //   • inside his 24h window: the document itself, these words as its caption;
+      //   • outside it: a template with a DOCUMENT header — utak_quotation_pdf_v2 («سارية حتى الساعة
+      //     6:00 صباحاً من اليوم التالي») once Meta holds it APPROVED and UTILITY, else
+      //     utak_quotation_pdf_v1 as before;
+      //   • no template can go: the document waits for his window in the gateway's queue (§ 33).
+      const caption = [
         `📄 عرض السعر رقم ${data.quotationNumber}`,
         ``,
         `العميل: ${data.customer.name}`,
         `الإجمالي: ${data.grandTotal} ر.س`,
         ``,
-        `الملف: ${uploaded.publicUrl}`,
-        ``,
         `${QUOTATION_FOOTER}. شكراً لتعاملكم مع UTAK 🌿`,
       ].join("\n");
+      const header: HeaderMedia = { type: "document", link: uploaded.publicUrl, filename: pdfFileName(data.quotationNumber) };
+      const params = quotationTemplateParams(data, quotationDate);
       let resp: Response | null = null;
       try {
-        resp = await sendTemplateByPurpose(
-          env,
-          customerPhone,
-          T.CUSTOMER_QUOTATION_PDF,
-          quotationTemplateParams(data, quotationDate),
-          [],
-          { type: "document", link: uploaded.publicUrl, filename: `${data.quotationNumber}.pdf` },
-          { requestPurpose: "customer_quotation", fallback: [textContent(body)] },
-        );
+        resp = await sendViaGateway(env, {
+          purpose: "customer_quotation",
+          to: customerPhone,
+          content: documentContent(uploaded.publicUrl, data.quotationNumber, caption),
+          fallback: [
+            { kind: "template", purpose: QUOTATION_PDF_V2_PURPOSE, params, header },
+            { kind: "template", purpose: T.CUSTOMER_QUOTATION_PDF, params, header },
+          ],
+        });
       } catch (e) {
         console.warn(`[quotation] send threw`, (e as Error).message);
       }

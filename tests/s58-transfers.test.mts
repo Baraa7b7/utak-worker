@@ -296,10 +296,15 @@ console.log("\n[ب5] two invoices: one payment each, ONE in the books, ONE messa
   assert("500 over A and B: one x_payment on each, ONE account.payment of 500 on BNK1", r?.action === "confirmed" && pays.length === 2 && paysOn(INV_A).length === 1 && paysOn(INV_B).length === 1 && ap.length === 1 && ap[0].amount === 500 && JSON.stringify(wizardCalls[0].active) === JSON.stringify([M_A, M_B]) && neverTwo());
   const urlA = String(pays[0].x_studio_char_2), urlB = String(pays[1].x_studio_char_2);
   assert("each row has its receipt issued and written back: its number and its link", pays.every((p) => /^UTAK-R-/.test(String(p.x_studio_char_1_1)) && /^https:\/\/w\.test\//.test(String(p.x_studio_char_2))) && urlA !== urlB && gotenbergCalls === 2, JSON.stringify(pays.map((p) => [p.x_studio_char_1_1, p.x_studio_char_2])));
-  assert("[أ3] the customer reads ONE message, to the letter: the amount, each invoice with its amount, and the two receipts' links", JSON.stringify(sentTo(C1_PHONE).map(bodyOf)) === JSON.stringify([[
-    `استلمنا تحويلك 500 ريال ✅ وسددنا: فاتورة ${N_A} (300 ريال)، فاتورة ${N_B} (200 ريال)`, "الإيصالات:", `• 20260928-001: ${urlA}`, `• 20260930-002: ${urlB}`,
-  ].join("\n")]), JSON.stringify(sentTo(C1_PHONE).map(bodyOf)));
-  assert("…Baraa reads that the customer got one message with the receipts' links", textsTo(OWNER).at(-1)!.endsWith("أُبلغ العميل برسالة واحدة فيها روابط الإيصالات."), textsTo(OWNER).at(-1));
+  // § 59 د — the ONE message carries no link: each receipt follows it as an attached file (UTAK-R-….pdf)
+  const toC1 = sentTo(C1_PHONE);
+  assert("[أ3] the customer reads ONE message, to the letter: the amount and each invoice with its amount — and no link in it", JSON.stringify(textsTo(C1_PHONE)) === JSON.stringify([
+    `استلمنا تحويلك 500 ريال ✅ وسددنا: فاتورة ${N_A} (300 ريال)، فاتورة ${N_B} (200 ريال)`,
+  ]) && toC1[0]?.type === "text" && !/https?:\/\//.test(textsTo(C1_PHONE).join("")), JSON.stringify(toC1.map(bodyOf)));
+  const docs = toC1.filter((b: any) => b?.type === "document").map((b: any) => b.document);
+  assert("[§ 59 د] …then each receipt as an attached file, named by its number, after the message", toC1.length === 3 && docs.length === 2 && docs[0].link === urlA && docs[1].link === urlB
+    && docs[0].filename === `${pays[0].x_studio_char_1_1}.pdf` && docs[1].filename === `${pays[1].x_studio_char_1_1}.pdf` && docs.every((d: any) => /^UTAK-R-\d{8}-\d+\.pdf$/.test(d.filename)), JSON.stringify(docs));
+  assert("…Baraa reads that the customer got one message, and the receipts as files", textsTo(OWNER).at(-1)!.endsWith("أُبلغ العميل برسالة واحدة، ومعها ملفات الإيصالات PDF."), textsTo(OWNER).at(-1));
   // what Odoo's automation #1 does for each new x_payment, and the */5 net: the receipt's pipeline
   graph.length = 0;
   const outs: any[] = [];
@@ -328,8 +333,8 @@ console.log("\n[ب5] two invoices: one payment each, ONE in the books, ONE messa
   assert("a row that carries its receipt is not built again", reuse?.reused === true && reuse.pdfUrl === transfers()[0].x_studio_char_2 && gotenbergCalls === calls && (await quiet(() => RECEIPT_MOD.issueReceiptForRecord(env, 999999))) === null);
 }
 {
-  // one invoice: «الإيصال: <link>» on one line; a part payment says so; the excess is his credit
-  assert("the ONE message for one invoice, a part payment, and an excess", TR.customerConfirmedText(100, [{ number: N_A, amount: 100, paid: false, receiptUrl: "https://w.test/r/1.pdf" }], 0) === `استلمنا تحويلك 100 ريال ✅ وسددنا: فاتورة ${N_A} (100 ريال — جزئي)\nالإيصال: https://w.test/r/1.pdf`
+  // one invoice: a part payment says so; the excess is his credit — and (§ 59 د) a receipt's link is never in the text
+  assert("the ONE message for one invoice, a part payment, and an excess", TR.customerConfirmedText(100, [{ number: N_A, amount: 100, paid: false, receiptUrl: "https://w.test/r/1.pdf" } as any], 0) === `استلمنا تحويلك 100 ريال ✅ وسددنا: فاتورة ${N_A} (100 ريال — جزئي)`
     && TR.customerConfirmedText(350.5, [{ number: N_A, amount: 300, paid: true }], 50.5) === `استلمنا تحويلك 350.50 ريال ✅ وسددنا: فاتورة ${N_A} (300 ريال)\nالباقي 50.50 ريال رصيد لك عندنا.`);
 }
 
@@ -515,7 +520,7 @@ console.log("\n[هـ] the two trials to Baraa: his number alone, inside his wind
   const t = await quiet(() => TR.sendTransferConfirmedTest(env));
   const body = textsTo(OWNER).at(-1) ?? "";
   assert("the ONE message of «✅ وصل» for two invoices, marked «🧪 تجربة»: the customer's words on the two oldest real open invoices, read only", t.sent && sentTo(OWNER).length === 1 && body.startsWith("🧪 تجربة — ")
-    && body.includes(`استلمنا تحويلك 500 ريال ✅ وسددنا: فاتورة ${N_A} (300 ريال)، فاتورة ${N_B} (200 ريال)`) && body.includes("الإيصالات:") && body.includes("الفاتورتان حقيقيتان ومفتوحتان الآن (للقراءة فقط).") && body.endsWith("(تجربة: لم يُكتب شيء في Odoo، ولم تصل رسالة لأحد غيرك)"), body);
+    && body.includes(`استلمنا تحويلك 500 ريال ✅ وسددنا: فاتورة ${N_A} (300 ريال)، فاتورة ${N_B} (200 ريال)`) && !body.includes("الإيصالات:") && !/https?:\/\//.test(body) && body.includes(TR.TRANSFER_CONFIRMED_TEST_FILES) && body.includes("الفاتورتان حقيقيتان ومفتوحتان الآن (للقراءة فقط).") && body.endsWith("(تجربة: لم يُكتب شيء في Odoo، ولم تصل رسالة لأحد غيرك)"), body);
   assert("…once a day", (await quiet(() => TR.sendTransferConfirmedTest(env))).reason === "already_today");
   await settle();
   // the gateway's own record of a send (§ 36): its x_wa_message row, the number's conversation in Discuss and its partner

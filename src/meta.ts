@@ -222,6 +222,24 @@ export function buttonsContent(bodyText: string, buttons: Array<{ id: string; ti
   };
 }
 
+/** § 59 د — «UTAK-Q-20261006-001.pdf»: a document's number as its file's name (one line, no path, «.pdf» once). */
+export function pdfFileName(number: string): string {
+  const n = String(number ?? "").replace(/\.pdf$/i, "").replace(/[\\/:*?"<>|\s]+/g, "-").replace(/^-+|-+$/g, "");
+  return `${n || "UTAK"}.pdf`;
+}
+
+/**
+ * § 59 د — a PDF as an ATTACHED FILE inside the 24h window (never a link in a text): the document
+ * by its link, named by its number, with the words that go with it as its caption (≤ 1024).
+ */
+export function documentContent(link: string, number: string, caption?: string): GwSession {
+  const c = String(caption ?? "").trim();
+  return {
+    kind: "session",
+    body: { type: "document", document: { link, filename: pdfFileName(number), ...(c ? { caption: c.slice(0, 1024) } : {}) } },
+  };
+}
+
 /**
  * § 37 — an interactive list (up to 10 rows: title ≤ 24 chars, id ≤ 200) under
  * one button; the reply arrives as a button id (list_reply) like a button tap.

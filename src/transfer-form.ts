@@ -349,7 +349,7 @@ async function writeTransferToken(env: Env, rec: TransferToken): Promise<void> {
 // ---------------------------------------------------------------- the notice (KV)
 
 /** One invoice's share of a confirmed transfer: its x_payment, and whether the invoice is paid with it. */
-export interface TransferRow { invoiceId: number; number: string; paymentId: number; amount: number; paid: boolean; receiptUrl?: string }
+export interface TransferRow { invoiceId: number; number: string; paymentId: number; amount: number; paid: boolean; receiptUrl?: string; /** § 59 د — the receipt's number: its file's name (UTAK-R-….pdf). */ receiptNumber?: string }
 /** § 58 ب — who said a transfer was made. */
 export type TransferBy = "customer" | "collector";
 export interface TransferSource {
@@ -919,20 +919,67 @@ export const shortLine = (x: TransferShort): string =>
   `⚠️ ${x.number}: المبلغ ${fmtSar(x.asked)} ر.س والمتبقي ${fmtSar(x.left)} ر.س — ${x.left > 0 ? `سُجّل ${fmtSar(x.left)} ر.س فقط` : "لم يُسجَّل عليها شيء"}`;
 /**
  * § 58 أ — the customer's ONE message after «✅ وصل»: the amount, each invoice
- * with what was paid on it, what is left over, and each receipt's link.
+ * with what was paid on it, and what is left over. § 59 د — no link in it: each
+ * receipt follows as an attached file (tellCustomerConfirmed).
  */
-export function customerConfirmedText(amount: number, rows: Array<Pick<TransferRow, "number" | "amount" | "paid" | "receiptUrl">>, excess: number): string {
-  const links = rows.filter((r) => r.receiptUrl);
+export function customerConfirmedText(amount: number, rows: Array<Pick<TransferRow, "number" | "amount" | "paid">>, excess: number): string {
   return [
     rows.length
       ? `استلمنا تحويلك ${fmtSar(amount)} ريال ✅ وسددنا: ${rows.map((r) => `فاتورة ${r.number} (${fmtSar(r.amount)} ريال${r.paid ? "" : " — جزئي"})`).join("، ")}`
       : `استلمنا تحويلك ${fmtSar(amount)} ريال ✅ والفواتير التي اخترتها مسدّدة من قبل.`,
     ...(excess > 0 ? [`الباقي ${fmtSar(excess)} ريال رصيد لك عندنا.`] : []),
-    ...(links.length === 1 ? [`الإيصال: ${links[0].receiptUrl}`] : links.length ? ["الإيصالات:", ...links.map((r) => `• ${shortNumber(r.number)}: ${r.receiptUrl}`)] : []),
   ].join("\n");
 }
+
+/** § 59 د — how the customer was told of «✅ وصل»: the one text inside his window, or utak_payment_received an invoice outside it. */
+export type ConfirmedVia = "text" | "template" | "held";
+
+/**
+ * § 59 د — the customer after «✅ وصل»:
+ *   • inside his 24h window: the ONE message of § 58, then a receipt as an attached file a payment;
+ *   • outside it: utak_payment_received for each invoice, as before § 58 — he is not left to wait
+ *     for his window — and each receipt's file is kept for his first open window. A template that
+ *     cannot go (not approved, refused): the one text waits for him, as in § 58.
+ * Never a link. Never throws.
+ */
+export async function tellCustomerConfirmed(env: Env, n: Pick<TransferNotice, "to" | "amount">, rows: TransferRow[], excess: number, ctx?: ExecutionContext, nowMs: number = Date.now()): Promise<ConfirmedVia> {
+  let via: ConfirmedVia = "text";
+  try {
+    const { PAYCONF_LINK_MODEL, PAYCONF_PURPOSE, payconfParams, sendReceiptFile } = await import("./payment-confirm");
+    const open = (await readWindow(env, waDigits(n.to), nowMs)).open;
+    let templates = 0;
+    if (!open && rows.length) {
+      for (const r of rows) {
+        const d = gatewayDecision(await sendViaGateway(env, {
+          purpose: PAYCONF_PURPOSE, to: n.to,
+          content: { kind: "template", purpose: PAYCONF_PURPOSE, params: payconfParams(r.amount, r.number) },
+          noHold: true, noHoldReason: "رسالة «✅ وصل» الواحدة تنتظر نافذته",
+          link: { model: PAYCONF_LINK_MODEL, id: r.paymentId }, ctx,
+        }));
+        if (d?.action !== "template") break;
+        templates++;
+      }
+    }
+    if (templates) via = "template";
+    else {
+      const d = gatewayDecision(await sendViaGateway(env, { purpose: TRANSFER_DECISION_PURPOSE, to: n.to, content: textContent(customerConfirmedText(n.amount, rows, excess)), ctx }));
+      via = d?.action === "session" ? "text" : "held";
+    }
+    // each receipt as a file: now inside the window, else with his first open window
+    for (const r of rows) await sendReceiptFile(env, n.to, { number: r.receiptNumber, url: r.receiptUrl }, { paymentId: r.paymentId, ctx });
+  } catch (e) {
+    console.warn("[transfer] the customer's message after «✅ وصل» could not be sent", (e as Error)?.message);
+  }
+  return via;
+}
+/** § 59 د — the last line of Baraa's «✅ سُجّل تحويل…»: how the customer was told, and where the receipts are. */
+export function customerToldLine(via: ConfirmedVia, receipts: boolean): string {
+  if (via === "template") return `أُبلغ العميل بقالب «استلمنا دفعتك» لكل فاتورة (نافذته مغلقة)${receipts ? "، وملفات الإيصالات تصله مع أول رسالة منه" : ""}.`;
+  if (via === "held") return `رسالة العميل الواحدة محفوظة حتى يراسل (نافذته مغلقة ولا قالب لها)${receipts ? "، ومعها ملفات الإيصالات" : ""}.`;
+  return `أُبلغ العميل برسالة واحدة${receipts ? "، ومعها ملفات الإيصالات PDF" : ""}.`;
+}
 /** What Baraa reads after «✅ وصل». */
-export function confirmedText(n: TransferNotice, rows: TransferRow[], excess: number, accounting: "off" | "posted" | "failed" | "none", shorts: TransferShort[] = []): string {
+export function confirmedText(n: TransferNotice, rows: TransferRow[], excess: number, accounting: "off" | "posted" | "failed" | "none", shorts: TransferShort[] = [], via: ConfirmedVia = "text"): string {
   const src = sourcesOf(n);
   return [
     `✅ سُجّل تحويل ${n.name}: ${fmtSar(n.amount)} ر.س — ${dayText(n.date)} — المرجع ${n.reference || "لم يُذكر"}`,
@@ -942,7 +989,7 @@ export function confirmedText(n: TransferNotice, rows: TransferRow[], excess: nu
     ...(excess > 0 ? [`${excessLine(excess)}${accounting === "posted" ? "" : " (لا قيد لها: سجّلها يدوياً لو لزم)"}`] : []),
     ...(accounting === "posted" ? [TRANSFER_POSTED_TEXT] : accounting === "failed" ? [TRANSFER_NOT_POSTED_TEXT] : []),
     ...(src.length > 1 ? [`المصادر: ${src.map((x) => `${sourceLabel(x)} (${riyadhHHMM(new Date(x.at))})`).join(" · ")}`] : []),
-    n.to ? `أُبلغ العميل برسالة واحدة${rows.some((r) => r.receiptUrl) ? " فيها روابط الإيصالات" : ""}.` : "لم تُرسل رسالة للعميل: لا رقم واتساب له.",
+    n.to ? customerToldLine(via, rows.some((r) => r.receiptUrl)) : "لم تُرسل رسالة للعميل: لا رقم واتساب له.",
   ].join("\n");
 }
 
@@ -1042,14 +1089,17 @@ export async function handleTransferDecision(env: Env, buttonId: string, from: s
     const { issueReceiptForRecord } = await import("./receipt");
     for (const r of rows) {
       try {
-        r.receiptUrl = (await issueReceiptForRecord(env, r.paymentId))?.pdfUrl;
+        const issued = await issueReceiptForRecord(env, r.paymentId);
+        r.receiptUrl = issued?.pdfUrl;
+        r.receiptNumber = issued?.number;
       } catch (e) {
         console.warn(`[transfer] notice ${id}: the receipt of payment #${r.paymentId} was not issued`, (e as Error)?.message);
       }
     }
-    // the ONE message of this transfer to the customer: what was paid, on which invoices, with the receipts
-    if (n.to) await tell(env, n.to, customerConfirmedText(n.amount, rows, excess), ctx, TRANSFER_DECISION_PURPOSE);
-    await say(confirmedText(n, rows, excess, accounting, shorts));
+    // the ONE message of this transfer to the customer: what was paid, on which invoices — then each
+    // receipt as an attached file (§ 59 د: outside his window, utak_payment_received an invoice)
+    const via: ConfirmedVia = n.to ? await tellCustomerConfirmed(env, n, rows, excess, ctx, nowMs) : "text";
+    await say(confirmedText(n, rows, excess, accounting, shorts, via));
     console.log(`[transfer] notice ${id}: arrived — x_payment ${rows.map((r) => r.paymentId).join(",") || "-"} excess=${excess} accounting=${accounting}${accountPaymentId ? ` account.payment=${accountPaymentId}` : ""}`);
     return { action: "confirmed", noticeId: id, payments: rows.map((r) => r.paymentId), excess, accountPaymentId };
   } catch (e) {
@@ -1100,13 +1150,15 @@ export async function sendTransferFormTest(env: Env, now: number = Date.now()): 
 
 // ---------------------------------------------------------------- § 58 أ: the trial of the one message
 
-export const TRANSFER_CONFIRMED_TEST_LINK = "(رابط الإيصال PDF)";
+/** § 59 د — the trial says what follows the message: the receipts are files now, not links. */
+export const TRANSFER_CONFIRMED_TEST_FILES = "(وبعدها يصله ملف إيصال PDF مرفق لكل دفعة، لا رابط)";
 /** The trial's text: the customer's ONE message after «✅ وصل», for two invoices. */
 export function confirmedTestText(rows: Array<Pick<OpenInvoice, "number" | "remaining">>, real: boolean): string {
   const amount = round2(rows.reduce((t, r) => t + r.remaining, 0));
   return [
     `${TRANSFER_TEST_MARK} — هكذا تصل العميل رسالة واحدة بعد «${TRANSFER_OK_TITLE}» على تحويل لفاتورتين (بدل رسالة لكل إيصال):`,
-    customerConfirmedText(amount, rows.map((r) => ({ number: r.number, amount: r.remaining, paid: true, receiptUrl: TRANSFER_CONFIRMED_TEST_LINK })), 0),
+    customerConfirmedText(amount, rows.map((r) => ({ number: r.number, amount: r.remaining, paid: true })), 0),
+    TRANSFER_CONFIRMED_TEST_FILES,
     real ? "الفاتورتان حقيقيتان ومفتوحتان الآن (للقراءة فقط)." : "الفاتورتان عيّنتان، ليستا فاتورتين حقيقيتين.",
     "(تجربة: لم يُكتب شيء في Odoo، ولم تصل رسالة لأحد غيرك)",
   ].join("\n");

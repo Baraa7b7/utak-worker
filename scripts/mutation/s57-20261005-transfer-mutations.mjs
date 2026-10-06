@@ -240,7 +240,7 @@ const M = [
   ["decide", "«❌ ما وصل» tells the customer nothing", [[TR,
     "      if (n.to) await tell(env, n.to, TRANSFER_NOT_ARRIVED_TEXT, ctx, TRANSFER_DECISION_PURPOSE);\n", ""]], T],
   ["decide", "«✅ وصل» tells the customer nothing", [[TR,
-    "    if (n.to) await tell(env, n.to, customerConfirmedText(n.amount, rows, excess), ctx, TRANSFER_DECISION_PURPOSE);\n", ""]], T],
+    "    const via: ConfirmedVia = n.to ? await tellCustomerConfirmed(env, n, rows, excess, ctx, nowMs) : \"text\";", "    const via: ConfirmedVia = \"text\";"]], T],
   ["decide", "the newest invoice is paid first", [[TR,
     "    for (const inv of n.invoices) {\n      if (left <= 0.005) break;", "    for (const inv of [...n.invoices].reverse()) {\n      if (left <= 0.005) break;"]], T],
   ["decide", "every invoice takes the whole amount", [[TR,

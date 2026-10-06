@@ -36,6 +36,7 @@ export const FIX = [
   "fixtures-odoo-fields-20261005-s58.json",   // § 58: x_pricing_config.x_daily_profit_target, x_price_day_line.x_contribution, the day's plan / actual / four HTML fields on x_price_day, account.payment.method.line; every model of § 57 again (read last: it wins)
   "fixtures-odoo-fields-20261006-s59.json",   // § 59: x_pricing_config.x_workdays_calendar_id «جدول أيام العمل», the purposes team_prices_ready and customer_quotation_pdf_v2; x_employee_role and the working schedules in the gate for the first time; every model of § 58 again (read last: it wins)
   "fixtures-odoo-fields-20261006-s60.json",   // § 60: x_unavailable_request «طلبوا وما كان متوفر» and ir.filters in the gate for the first time, x_price_day.x_brief_html «خلاصة اليوم»; every other model of § 59 again, unchanged (read last: it wins)
+  "fixtures-odoo-fields-20261006-s61.json",   // § 61: hr.job in the gate for the first time (the job's roles, default schedule, attendance and texts), x_operating_cost.x_job_id / x_employee_id, every model of § 60 again (read last: it wins)
 ].map((f) => JSON.parse(readFileSync(new URL(`./${f}`, import.meta.url), "utf8")));
 const REAL: Record<string, string[]> = Object.assign({}, ...FIX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FIX.map((f) => f._selections ?? {}));

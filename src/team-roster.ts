@@ -19,6 +19,16 @@
 //     «مشمول بالتحضير» (x_utak_attendance) on. Odoo's default «40 hours/week»
 //     has no clock times at all (duration lines), so it never sends anything.
 //
+// § 61 (2026-10-06) — THE JOB IS FIXED AND THE EMPLOYEE CHANGES. An employee's
+// roles are HIS JOB'S («أدوار الوظيفة» on hr.job, x_job_role_ids) ∪ the ones on
+// his own card («أدوار إضافية (خارج الوظيفة)», x_utak_role_ids — the same field
+// as before, its values unchanged). His schedule is the card's when Baraa chose
+// one there, else the job's default (the company's own default schedule — the
+// one Odoo puts on every new card, with no clock times — is not a choice). He is
+// on attendance when the card OR the job says so. Everything that followed the
+// roles follows these, with no path of its own: giving a new employee his job is
+// all it takes, within the cache's five minutes.
+//
 // Reads are batched: one hr.employee search_read with only the fields needed
 // (the role codes come from a separate 1-hour cache), plus — only when an
 // employee is on attendance with a schedule — one read of those schedules'
@@ -43,8 +53,11 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const EMPLOYEE_FIELDS = [
   "id", "name", "work_contact_id", "x_utak_role_ids", "x_utak_attendance", "x_utak_whatsapp",
-  "x_utak_neighborhood_ids", "resource_calendar_id", "resource_id", "company_id",
+  "x_utak_neighborhood_ids", "resource_calendar_id", "resource_id", "company_id", "job_id",
 ] as const;
+/** § 61 — what a job gives its holder. */
+export const JOB_MODEL = "hr.job";
+export const JOB_FIELDS = ["id", "name", "x_job_role_ids", "x_default_calendar_id", "x_job_attendance"] as const;
 export const LINE_FIELDS = [
   "calendar_id", "calendar_type", "dayofweek", "hour_from", "hour_to", "duration_based", "date",
   "recurrency", "recurrency_type", "recurrency_interval", "recurrency_until", "recurrency_excluded_occurences",
@@ -66,6 +79,18 @@ export interface RosterMember {
   resourceId: number | null;
   companyId: number | null;
   neighborhoods: number[];
+  /** § 61 — his job (hr.job), or null: his roles are his card's alone. */
+  jobId: number | null;
+  jobName: string;
+}
+/** § 61 — a job of UTAK: what its holder carries. */
+export interface RosterJob {
+  id: number;
+  name: string;
+  codes: TeamRole[];
+  calendarId: number | null;
+  calendarName: string;
+  attendance: boolean;
 }
 export interface CalendarLine {
   calendarId: number;
@@ -92,9 +117,14 @@ export interface LeaveSpan {
 }
 export interface Roster {
   loadedAt: number;
+  /** The team: every active employee with a role — his job's or his card's. */
   members: RosterMember[];
   lines: CalendarLine[];
   leaves: LeaveSpan[];
+  /** § 61 — the active jobs. */
+  jobs: RosterJob[];
+  /** § 61 — every active employee with a job or a role (the members, and a holder of a job without roles). */
+  staff: RosterMember[];
 }
 
 type M2O = [number, string] | false | null | undefined;
@@ -136,36 +166,83 @@ export function toCalendarLine(l: Record<string, unknown>): CalendarLine {
   };
 }
 
+/**
+ * § 61 — the roles a member works with: his job's, then what his card adds
+ * (no role twice). The job's come first: the card's are «خارج الوظيفة».
+ */
+export function effectiveCodes(jobCodes: TeamRole[], cardCodes: TeamRole[]): TeamRole[] {
+  return [...new Set([...jobCodes, ...cardCodes])];
+}
+/**
+ * § 61 — the schedule a member works by: his card's when one was chosen there,
+ * else his job's default. The company's own default schedule on the card is
+ * what Odoo puts on every new one, not a choice: the job's default wins it.
+ */
+export function effectiveCalendar(
+  card: { id: number | null; name: string }, job: { id: number | null; name: string } | null, companyDefault: number | null,
+): { id: number | null; name: string } {
+  if (job?.id && (!card.id || card.id === companyDefault)) return { id: job.id, name: job.name };
+  return card;
+}
+
 /** Reads Odoo (no cache). Throws on Odoo trouble. */
 export async function fetchRoster(env: Env, nowMs: number = Date.now()): Promise<Roster> {
   const roles = await roleCodes(env);
+  const codesOf = (ids: unknown): TeamRole[] => [...new Set((Array.isArray(ids) ? (ids as number[]) : []).map((id) => roles.get(id)).filter((c): c is TeamRole => !!c))];
+  // § 61 — the jobs first: an employee's roles, schedule and attendance start from his job's
+  const jobRows = await call<Array<Record<string, unknown>>>(env, JOB_MODEL, "search_read", { domain: [], fields: [...JOB_FIELDS], order: "sequence asc, id asc", limit: 200 });
+  const jobs: RosterJob[] = jobRows.map((j) => ({
+    id: Number(j.id),
+    name: String(j.name ?? ""),
+    codes: codesOf(j.x_job_role_ids),
+    calendarId: m2oId(j.x_default_calendar_id as M2O),
+    calendarName: m2oName(j.x_default_calendar_id as M2O),
+    attendance: j.x_job_attendance === true,
+  }));
+  const jobById = new Map(jobs.map((j) => [j.id, j]));
   const rows = await call<Array<Record<string, unknown>>>(env, "hr.employee", "search_read", {
-    domain: [["x_utak_role_ids", "!=", false]],
+    domain: ["|", ["x_utak_role_ids", "!=", false], ["job_id", "!=", false]],
     fields: [...EMPLOYEE_FIELDS],
     order: "id asc",
     limit: 200,
   });
-  const members: RosterMember[] = [];
+  // the schedule Odoo puts on a new card by itself, per company (read only when a job's default could replace it)
+  const companyDefault = new Map<number, number>();
+  if (rows.some((r) => jobById.get(m2oId(r.job_id as M2O) ?? 0)?.calendarId)) {
+    const companies = await call<Array<{ id: number; resource_calendar_id: M2O }>>(env, "res.company", "search_read", { domain: [], fields: ["id", "resource_calendar_id"], limit: 20 });
+    for (const co of companies) { const cal = m2oId(co.resource_calendar_id); if (cal) companyDefault.set(co.id, cal); }
+  }
+  const staff: RosterMember[] = [];
   for (const r of rows) {
-    const codes = (Array.isArray(r.x_utak_role_ids) ? (r.x_utak_role_ids as number[]) : [])
-      .map((id) => roles.get(id))
-      .filter((c): c is TeamRole => !!c);
-    if (codes.length === 0) continue;
+    // an archived job gives nothing: its holder keeps his card's roles alone
+    const job = jobById.get(m2oId(r.job_id as M2O) ?? 0) ?? null;
+    const codes = effectiveCodes(job?.codes ?? [], codesOf(r.x_utak_role_ids));
+    if (codes.length === 0 && !job) continue;
+    const companyId = m2oId(r.company_id as M2O);
+    const calendar = effectiveCalendar(
+      { id: m2oId(r.resource_calendar_id as M2O), name: m2oName(r.resource_calendar_id as M2O) },
+      job ? { id: job.calendarId, name: job.calendarName } : null,
+      companyDefault.get(companyId ?? 0) ?? null,
+    );
     const wa = typeof r.x_utak_whatsapp === "string" ? r.x_utak_whatsapp.trim() : "";
-    members.push({
+    staff.push({
       employeeId: Number(r.id),
       partnerId: m2oId(r.work_contact_id as M2O) ?? 0,
       name: String(r.name ?? ""),
       whatsapp: digits(wa).length > 3 ? (wa.startsWith("+") ? wa.replace(/[^+\d]/g, "") : `+${digits(wa)}`) : "",
-      codes: [...new Set(codes)],
-      attendance: r.x_utak_attendance === true,
-      calendarId: m2oId(r.resource_calendar_id as M2O),
-      calendarName: m2oName(r.resource_calendar_id as M2O),
+      codes,
+      attendance: r.x_utak_attendance === true || job?.attendance === true,
+      calendarId: calendar.id,
+      calendarName: calendar.name,
       resourceId: m2oId(r.resource_id as M2O),
-      companyId: m2oId(r.company_id as M2O),
+      companyId,
       neighborhoods: Array.isArray(r.x_utak_neighborhood_ids) ? (r.x_utak_neighborhood_ids as number[]) : [],
+      jobId: job?.id ?? null,
+      jobName: job?.name ?? "",
     });
   }
+  // the team is who works with a role; a holder of a job without roles is on the staff alone
+  const members = staff.filter((m) => m.codes.length > 0);
   // Schedules and time off only for the employees attendance can reach.
   const onAtt = members.filter((m) => m.attendance && m.calendarId);
   let lines: CalendarLine[] = [];
@@ -201,7 +278,7 @@ export async function fetchRoster(env: Env, nowMs: number = Date.now()): Promise
       toMs: odooUtcMs(v.date_to as string),
     })).filter((v) => Number.isFinite(v.fromMs) && Number.isFinite(v.toMs));
   }
-  return { loadedAt: nowMs, members, lines, leaves };
+  return { loadedAt: nowMs, members, lines, leaves, jobs, staff };
 }
 
 /** The roster, from KV when fresh (≤ 5 min). Throws on Odoo trouble. */
@@ -210,7 +287,8 @@ export async function loadRoster(env: Env, nowMs: number = Date.now()): Promise<
     const hit = await env.MSG_DEDUP.get(ROSTER_KV);
     if (hit) {
       const r = JSON.parse(hit) as Roster;
-      if (r && Array.isArray(r.members) && nowMs - r.loadedAt >= 0 && nowMs - r.loadedAt < ROSTER_TTL * 1000) return r;
+      // § 61 — a roster cached by the code of before (no jobs, no staff) is not this one: read again
+      if (r && Array.isArray(r.members) && Array.isArray(r.jobs) && Array.isArray(r.staff) && nowMs - r.loadedAt >= 0 && nowMs - r.loadedAt < ROSTER_TTL * 1000) return r;
     }
   } catch { /* read Odoo */ }
   const r = await fetchRoster(env, nowMs);

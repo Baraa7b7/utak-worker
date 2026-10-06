@@ -55,8 +55,9 @@ const REAL: Record<string, string[]> = Object.assign({}, ...FX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FX.map((f) => f._selections));
 // § 53 — the tenant's fields now for the models § 53 touched (x_market_uplift_pct, x_uplift_pct, the purpose customer_pay_remind_iban): read last, they win
 {
-  const f53 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261006-s60.json", import.meta.url), "utf8")); // § 59 (after § 58: the company's working days, the two purposes) — § 58 (after § 56: the screen's fields): the plan, the actual and the tabs on the day and its lines
+  const f53 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261006-s61.json", import.meta.url), "utf8")); // § 59 (after § 58: the company's working days, the two purposes) — § 58 (after § 56: the screen's fields): the plan, the actual and the tabs on the day and its lines
   for (const m of ["x_pricing_config", "x_price_day", "x_price_day_line"]) REAL[m] = f53[m];
+  for (const m of ["x_operating_cost", "hr.employee", "hr.job"]) REAL[m] = f53[m]; // § 61: the job and the employee of a cost line, the job's own fields
   SELECTIONS["x_whatsapp_template.x_purpose"] = f53._selections["x_whatsapp_template.x_purpose"];
 }
 const rejected: string[] = [];

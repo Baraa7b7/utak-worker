@@ -38,6 +38,10 @@ const M2O: Record<string, string> = {
   x_source_partner_id: "res.partner", x_source_employee_id: "hr.employee", x_account_id: "account.account", x_config_id: "x_pricing_config",
   // 2026-10-06 (§ 59 أ) — «جدول أيام العمل» of the pricing settings
   x_workdays_calendar_id: "resource.calendar",
+  // 2026-10-06 (§ 61) — the employee's job, the job's default schedule, the job and the employee of a cost line
+  job_id: "hr.job", x_default_calendar_id: "resource.calendar", x_job_id: "hr.job", x_employee_id: "hr.employee",
+  // …and the card's own schedule comes back with its name, as on the tenant (the entry message names it)
+  resource_calendar_id: "resource.calendar",
 };
 /**
  * 2026-09-25 (STATUS § 35) — a test may mirror a stored compute of the tenant
@@ -101,7 +105,7 @@ function fieldValue(m: string, r: Rec, f: string): unknown {
   return r[f];
 }
 /** Odoo's active_test for the models whose archived rows matter here (STATUS § 31). */
-const ACTIVE_FIELD: Record<string, string> = { "hr.employee": "active", "x_employee_role": "x_active" };
+const ACTIVE_FIELD: Record<string, string> = { "hr.employee": "active", "x_employee_role": "x_active", "hr.job": "active" };
 function activeOk(m: string, r: Rec, body: any): boolean {
   const f = ACTIVE_FIELD[m];
   if (!f || body?.context?.active_test === false) return true;
@@ -314,6 +318,14 @@ export function employee(partnerId: number, roleIds: number[], extra: Record<str
     x_utak_attendance: false, resource_calendar_id: false, resource_id: id + 100000, company_id: 1, x_utak_neighborhood_ids: [],
     ...extra,
   });
+}
+/**
+ * 2026-10-06 (§ 61) — a job (hr.job): «أدوار الوظيفة», and in `extra` its default schedule
+ * (x_default_calendar_id), «مشمول بالتحضير» (x_job_attendance) and its texts. An employee holds it by
+ * `job_id` (employee(partner, cardRoles, { job_id })).
+ */
+export function job(name: string, roleIds: number[], extra: Record<string, unknown> = {}): number {
+  return seed("hr.job", { name, x_job_role_ids: roleIds, x_default_calendar_id: false, x_job_attendance: false, sequence: 10, company_id: 1, ...extra });
 }
 /**
  * A fixed working schedule: lines as [dayofweek (Odoo: Monday 0 … Sunday 6), from, to].

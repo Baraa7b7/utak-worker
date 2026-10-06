@@ -28,6 +28,7 @@ const FILES = [
   "s58-ui", "s58-transfers",
   "s59-team", "s59-prices", "s59-available", "s59-files", "s59-trials",
   "s60-unavailable", "s60-screen", "s60-target", "s60-tabs", "s60-summary", "s60-history", "s60-trial",
+  "s61-jobs",
 ];
 
 const root = new URL("../", import.meta.url).pathname;

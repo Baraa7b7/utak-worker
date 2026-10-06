@@ -87,3 +87,29 @@ report.runs[label] = { at: new Date().toISOString(), team, cost };
 writeFileSync(OUT, JSON.stringify(report, null, 2) + "\n");
 for (const m of team) console.log(`${label} #${m.employeeId} ${m.name}: ${m.codes.join(" + ") || "-"} · ${m.attendance ? "مشمول بالتحضير" : "بلا تحضير"} · ${m.calendarName || "بلا جدول"} · ${PROOF_DAY}: ${m.day.kind}${m.day.startMin === null ? "" : ` ${m.day.startMin}–${m.day.endMin}`} · …${m.whatsappTail}`);
 console.log(`${label} cost ${PROOF_DAY}: ${c.total === null ? `تعذّر (${c.reason})` : c.total.toFixed(2)} · ${c.monthWorkingDays} working days · from «${c.driver ?? "-"}» (${cost.source})`);
+
+// --lines: what the worker of THIS tree would say tonight, read from the tenant and sent nowhere — the
+// summary's two lines, the entry message of the trial employee, and the exit list read from Baraa's card.
+if (process.argv.includes("--lines")) {
+  kv.clear();
+  const ST: any = await import("../src/staffing.ts");
+  const TRIAL: any = await import("../src/s61-trials.ts");
+  const live: any = await fetchRoster(env);
+  const day = new Date(Date.now() + 3 * 3600_000).toISOString().slice(0, 10);
+  console.log("— the 21:30 summary would gain:");
+  for (const l of [ST.vacancyLine(ST.vacantJobs(live)), ST.dataCheckLine(await ST.dataFindings(env, live, day))].filter(Boolean)) console.log(`  ${l}`);
+  const j = TRIAL.trialJob(live);
+  if (j) {
+    const m = TRIAL.trialMember(j);
+    const first = ST.firstTask(live, m, Date.now());
+    console.log("— an entry (the trial employee):");
+    console.log(ST.entryText(m, first, (await ST.readJobLists(env, j.id)).takeover, "session", "").split("\n").map((l: string) => `  ${l}`).join("\n"));
+    console.log(`  ${ST.welcomeText(ST.welcomeParams(m.name, m.jobName, first))}`);
+  }
+  const owner = live.staff.find((m: any) => m.jobId && String(m.whatsapp).replace(/\D/g, "").endsWith(team.find((t: any) => t.name === "براء")?.whatsappTail ?? "----"));
+  if (owner) {
+    const who = ST.snapOf(owner);
+    console.log("— an exit (read from Baraa's card, nothing moved):");
+    console.log(ST.exitText(who, "trial", (await ST.readJobLists(env, owner.jobId)).handover, await ST.exitFacts(env, who), []).split("\n").map((l: string) => `  ${l}`).join("\n"));
+  }
+}

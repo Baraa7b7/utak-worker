@@ -59,18 +59,22 @@ const FOUR = [
 
 // ================================================================ [1] the text
 console.log("\n[1] the text: the four lines of «خلاصة اليوم», then what was asked for and not available");
+/** § 61 — the data check's line of this world: its two operating members (the harness's) carry no working schedule. */
+const S61_CHECK = "🧾 فحص البيانات: بدور تشغيلي بلا جدول دوام: أحمد، سالم";
 {
   const env = await world();
   delivered(); ask(C1, "طماطم"); ask(CUST2, "طماطم"); ask(C1, "طماطم"); ask(C1, "خيار");
   const r = await quiet(() => SUM.sendOwnerSummary(env));
   const sent = sentTo(OWNER).filter((b: any) => b?.type === "text" && textOf(b).startsWith("📊"));
   const lines = textOf(sent[0]).split("\n");
-  assert("inside his window: ONE text — its five lines as they were, then § 60's five", r.action === "session" && sent.length === 1 && lines.length === 10 && lines[0] === "📊 ملخص اليوم 3 أكتوبر 2026" && lines[4].startsWith("تغطية تكاليف اليوم:"), textOf(sent[0]));
+  assert("inside his window: ONE text — its five lines as they were, then § 60's five", r.action === "session" && sent.length === 1 && lines.length === 11 && lines[0] === "📊 ملخص اليوم 3 أكتوبر 2026" && lines[4].startsWith("تغطية تكاليف اليوم:"), textOf(sent[0]));
   // what was asked for and not available is an opportunity too: the ➡️ line names the two most customers asked for
   const four = [...FOUR.slice(0, 3), "➡️ أهم فرصتين: طماطم (طلبه عميلان) · خيار (طلبه عميل واحد)"];
   assert("the four lines of «خلاصة اليوم», with the day's numbers — the 🎯 line about the day just closed («اليوم»), its largest reason alone", JSON.stringify(lines.slice(5, 9)) === JSON.stringify(four), lines.slice(5, 9).join(" | "));
   assert("then «طلبوا اليوم وما كان متوفر: طماطم ×3 (عميلان)، خيار ×1»", lines[9] === "طلبوا اليوم وما كان متوفر: طماطم ×3 (عميلان)، خيار ×1", lines[9]);
-  assert("the summary's figures carry them", JSON.stringify(r.figures?.brief) === JSON.stringify(four) && r.figures?.unavailable === lines[9] && JSON.stringify(SUM.insightLines(r.figures!)) === JSON.stringify([...four, lines[9]]));
+  assert("the summary's figures carry them", JSON.stringify(r.figures?.brief) === JSON.stringify(four) && r.figures?.unavailable === lines[9] && JSON.stringify(SUM.insightLines(r.figures!)) === JSON.stringify([...four, lines[9], S61_CHECK]));
+  // § 61 — the data check's one line comes last (this world's two operating members carry no schedule; it holds no job, so no vacancy line)
+  assert("…and § 61's data check is the last line, after what was asked for", lines[10] === S61_CHECK && JSON.stringify(r.figures?.staffing) === JSON.stringify([S61_CHECK]), lines[10]);
   assert("the templates' three variables are what Meta approved: none of § 60's lines in them", SUM.summaryParams(r.figures!).length === 3 && !/✅|🎯|💧|➡️|طلبوا/.test(SUM.summaryParams(r.figures!).join(" ")));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
@@ -78,7 +82,7 @@ console.log("\n[1] the text: the four lines of «خلاصة اليوم», then w
   const env = await world();
   const r = await quiet(() => SUM.sendOwnerSummary(env));
   const lines = textOf(sentTo(OWNER).find((b: any) => textOf(b).startsWith("📊"))).split("\n");
-  assert("no real delivery and nothing asked for: «🎯 اليوم: لا مبيعات حقيقية بعد», and no «طلبوا» line at all", r.action === "session" && lines.length === 9 && lines[6] === "🎯 اليوم: لا مبيعات حقيقية بعد" && !lines.join(" ").includes("طلبوا"), lines.join(" | "));
+  assert("no real delivery and nothing asked for: «🎯 اليوم: لا مبيعات حقيقية بعد», and no «طلبوا» line at all", r.action === "session" && lines.length === 10 && lines[9] === S61_CHECK && lines[6] === "🎯 اليوم: لا مبيعات حقيقية بعد" && !lines.join(" ").includes("طلبوا"), lines.join(" | "));
 }
 {
   // a day with no price record at all
@@ -118,7 +122,7 @@ console.log("\n[3] a template carries three variables: the lines follow it insid
   const r = await quiet(() => SUM.sendOwnerSummary(env));
   const m = sentTo(OWNER);
   assert("his window open but closing before 06:00: the night's template first, with its four variables as they were", r.action === "template" && m.length === 2 && tplName(m[0]) === OW.SUMMARY_TEMPLATE && tplParams(m[0]).length === 4 && !/✅|🎯|طلبوا/.test(tplParams(m[0]).join(" ")), JSON.stringify(m.map(tplName)));
-  assert("…then § 60's lines as ONE text of their own: «📊 تكملة ملخص اليوم 3 أكتوبر 2026», the four lines, what was asked for", textOf(m[1]) === ["📊 تكملة ملخص اليوم 3 أكتوبر 2026", ...FOUR.slice(0, 3), "➡️ أهم فرصة: خيار (طلبه عميل واحد)", "طلبوا اليوم وما كان متوفر: خيار ×1"].join("\n") && SUM.insightFollowUp(r.figures!) === textOf(m[1]), textOf(m[1]));
+  assert("…then § 60's lines as ONE text of their own: «📊 تكملة ملخص اليوم 3 أكتوبر 2026», the four lines, what was asked for", textOf(m[1]) === ["📊 تكملة ملخص اليوم 3 أكتوبر 2026", ...FOUR.slice(0, 3), "➡️ أهم فرصة: خيار (طلبه عميل واحد)", "طلبوا اليوم وما كان متوفر: خيار ×1", S61_CHECK].join("\n") && SUM.insightFollowUp(r.figures!) === textOf(m[1]), textOf(m[1]));
 }
 {
   const env = await world();
@@ -139,7 +143,7 @@ console.log("\n[4] a brief that cannot be made: «خلاصة اليوم: تعذ�
   rows("x_daily_order_line").forEach((l: any) => { l.x_unit_price = 0; });
   const r = await quiet(() => SUM.sendOwnerSummary(env));
   const lines = textOf(sentTo(OWNER).find((b: any) => textOf(b).startsWith("📊"))).split("\n");
-  assert("the summary goes with «خلاصة اليوم: تعذّر» in the place of the four lines, and names what failed", r.action === "session" && lines.length === 6 && lines[5] === "خلاصة اليوم: تعذّر" && SUM.BRIEF_UNAVAILABLE_TEXT === "خلاصة اليوم: تعذّر" && r.figures!.brief === null && r.figures!.errors.some((e: string) => e.startsWith("brief:")), lines.join(" | "));
+  assert("the summary goes with «خلاصة اليوم: تعذّر» in the place of the four lines, and names what failed", r.action === "session" && lines.length === 7 && lines[6] === S61_CHECK && lines[5] === "خلاصة اليوم: تعذّر" && SUM.BRIEF_UNAVAILABLE_TEXT === "خلاصة اليوم: تعذّر" && r.figures!.brief === null && r.figures!.errors.some((e: string) => e.startsWith("brief:")), lines.join(" | "));
 }
 
 done();

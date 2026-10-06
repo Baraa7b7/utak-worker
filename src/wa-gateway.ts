@@ -221,6 +221,8 @@ const OWNER_ALLOWED_PURPOSES: ReadonlySet<string> = new Set(["price_flow_test", 
 for (const p of ["after_delivery_test", "transfer_confirmed_test", "target_lines_test"]) (OWNER_ALLOWED_PURPOSES as Set<string>).add(p);
 /** § 59 ز — the trials of § 59: Baraa's number alone, as every trial (the order form's two are order_flow_test's). */
 for (const p of ["team_prices_test", "quotation_file_test", "shift_start_test"]) (OWNER_ALLOWED_PURPOSES as Set<string>).add(p);
+/** § 61 و — the trials of the jobs (an entry, the welcome, an exit's list): Baraa's number alone, as every trial. */
+(OWNER_ALLOWED_PURPOSES as Set<string>).add("staffing_test");
 
 function ownerDigits(env: Env): string {
   return waDigits(String(env.OWNER_WHATSAPP ?? ""));

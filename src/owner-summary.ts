@@ -98,6 +98,8 @@ export interface SummaryFigures {
   brief: string[] | null;
   /** § 60 ج — «طلبوا اليوم وما كان متوفر: …»; "" = nothing was asked for (or it could not be read): no line. */
   unavailable: string;
+  /** § 61 — «وظيفة شاغرة: …» and the data check's one line; [] = nothing to say (or they could not be read). */
+  staffing: string[];
   errors: string[];
 }
 
@@ -250,7 +252,7 @@ async function deliveredProfit(env: Env, orderDay: string, vatRatePct: number | 
 export async function readSummaryFigures(env: Env, nowMs: number = Date.now(), opts: { keep?: boolean } = {}): Promise<SummaryFigures> {
   const day = riyadhDateKey(new Date(nowMs));
   const yesterday = riyadhDateKey(new Date(nowMs - DAY_MS));
-  const f: SummaryFigures = { day, tomorrow: null, deliveries: null, collected: null, pending: null, coverage: { profit: null, cost: null, pct: null }, brief: null, unavailable: "", errors: [] };
+  const f: SummaryFigures = { day, tomorrow: null, deliveries: null, collected: null, pending: null, coverage: { profit: null, cost: null, pct: null }, brief: null, unavailable: "", staffing: [], errors: [] };
   const attempt = async <X>(name: string, fn: () => Promise<X>): Promise<X | null> => {
     try { return await fn(); } catch (e) {
       f.errors.push(`${name}: ${(e as Error)?.message ?? e}`);
@@ -279,17 +281,20 @@ export async function readSummaryFigures(env: Env, nowMs: number = Date.now(), o
     const { groupUnavailable, readUnavailable, unavailableLine } = await import("./unavailable-log");
     return unavailableLine(groupUnavailable(await readUnavailable(env, day, day)));
   })) ?? "";
+  // § 61 — a job with roles and no holder, and the daily check of the data (each only when it has something to say)
+  f.staffing = (await attempt("staffing", async () => (await import("./staffing")).staffingLines(env, day, nowMs))) ?? [];
   return f;
 }
 
 export const BRIEF_UNAVAILABLE_TEXT = `خلاصة اليوم: ${UNAVAILABLE}`;
 /** § 60 — the lines the summary gains: the four of «خلاصة اليوم», then what was asked for and not available (when anything was). */
-export function insightLines(f: Pick<SummaryFigures, "brief" | "unavailable">): string[] {
-  return [...(f.brief ?? [BRIEF_UNAVAILABLE_TEXT]), ...(f.unavailable ? [f.unavailable] : [])];
+export function insightLines(f: Pick<SummaryFigures, "brief" | "unavailable"> & { staffing?: string[] }): string[] {
+  // § 61 — then «وظيفة شاغرة: …» and the data check's line, when there is one
+  return [...(f.brief ?? [BRIEF_UNAVAILABLE_TEXT]), ...(f.unavailable ? [f.unavailable] : []), ...(f.staffing ?? [])];
 }
 export const FOLLOW_UP_TITLE = "📊 تكملة ملخص اليوم";
 /** …as a text of their own, after a template that could not carry them. */
-export function insightFollowUp(f: Pick<SummaryFigures, "day" | "brief" | "unavailable">): string {
+export function insightFollowUp(f: Pick<SummaryFigures, "day" | "brief" | "unavailable"> & { staffing?: string[] }): string {
   return [`${FOLLOW_UP_TITLE} ${arabicDate(f.day)}`, ...insightLines(f)].join("\n");
 }
 

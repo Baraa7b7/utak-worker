@@ -49,7 +49,7 @@ export function summaryTrialText(day: string): string {
   const figures: SummaryFigures = {
     day, tomorrow: { count: 3, total: 1840, unpriced: 0 }, deliveries: { delivered: 5, total: 5 }, collected: 2150, pending: 980,
     coverage: { profit: 225, cost: 350, pct: 64 }, brief: trialBrief(),
-    unavailable: unavailableLine(groupUnavailable([row(1, "طماطم"), row(2, "طماطم"), row(2, "طماطم"), row(3, "خيار")])), errors: [],
+    unavailable: unavailableLine(groupUnavailable([row(1, "طماطم"), row(2, "طماطم"), row(2, "طماطم"), row(3, "خيار")])), staffing: [], errors: [],
   };
   return [S60_TRIAL_HEAD, "", summaryText(figures), "", S60_TRIAL_TAIL].join("\n");
 }

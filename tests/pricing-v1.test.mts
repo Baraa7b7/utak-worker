@@ -44,8 +44,9 @@ const REAL: Record<string, string[]> = Object.assign({}, ...FIX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FIX.map((f) => f._selections ?? {}));
 // § 53 — the tenant's fields now for the models § 53 touched (x_market_uplift_pct, x_uplift_pct, the purpose customer_pay_remind_iban): read last, they win
 {
-  const f53 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261006-s60.json", import.meta.url), "utf8")); // § 59 (after § 58: the company's working days, the two purposes) — § 58 (after § 56: the screen's fields): the plan, the actual and the tabs on the day and its lines
+  const f53 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261006-s61.json", import.meta.url), "utf8")); // § 59 (after § 58: the company's working days, the two purposes) — § 58 (after § 56: the screen's fields): the plan, the actual and the tabs on the day and its lines
   for (const m of ["x_pricing_config", "x_price_day", "x_price_day_line"]) REAL[m] = f53[m];
+  for (const m of ["x_operating_cost", "hr.employee", "hr.job"]) REAL[m] = f53[m]; // § 61: the job and the employee of a cost line, the job's own fields
   SELECTIONS["x_whatsapp_template.x_purpose"] = f53._selections["x_whatsapp_template.x_purpose"];
 }
 const rejected: string[] = [];
@@ -1138,9 +1139,11 @@ console.log("\n[هـ] 21:30: today's profit ÷ today's operating cost — inside
   const t = String(summaryMsgs()[0]?.text?.body ?? "");
   const lines = t.split("\n");
   // § 60 — after it the four lines of «خلاصة اليوم» (this world's price day carries a sale price alone — no board, no cost — and its order no delivery time)
-  assert("the text: a fourth line «تغطية تكاليف اليوم: 18% (ربح 91.31 من 500.00)»", r.action === "session" && lines.length === 9 && lines[4] === "تغطية تكاليف اليوم: 18% (ربح 91.31 من 500.00)", t);
-  assert("…and § 60's four lines after it: one item published with no profit computed, no real sale of the day, no carton to split, no opportunity", lines.slice(5).join(" | ") === "✅ نُشر اليوم 1 من 1 صنف — متوسط ربح الكرتون غير محسوب | 🎯 اليوم: لا مبيعات حقيقية بعد | 💧 لا صنف يُنشر اليوم بسعر وشراء | ➡️ لا فرصة ظاهرة اليوم", t);
+  assert("the text: a fourth line «تغطية تكاليف اليوم: 18% (ربح 91.31 من 500.00)»", r.action === "session" && lines.length === 10 && lines[4] === "تغطية تكاليف اليوم: 18% (ربح 91.31 من 500.00)", t);
+  assert("…and § 60's four lines after it: one item published with no profit computed, no real sale of the day, no carton to split, no opportunity", lines.slice(5, 9).join(" | ") === "✅ نُشر اليوم 1 من 1 صنف — متوسط ربح الكرتون غير محسوب | 🎯 اليوم: لا مبيعات حقيقية بعد | 💧 لا صنف يُنشر اليوم بسعر وشراء | ➡️ لا فرصة ظاهرة اليوم", t);
   assert("…the three lines before it as they were", lines[3].startsWith("تحصيل اليوم:") && lines[2].startsWith("توصيلات اليوم: 1 مسلَّمة من 1"), t);
+  // § 61 — and the data check's one line last: this world's two operating members carry no schedule (no job, so no vacancy line)
+  assert("…and § 61's data check last: the two operating members without a schedule, by name", lines[9] === "🧾 فحص البيانات: بدور تشغيلي بلا جدول دوام: أحمد، سالم", lines[9]);
 }
 {
   const env = summaryEnv();

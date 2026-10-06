@@ -205,6 +205,10 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // § 59 ب — the lookup purpose of utak_team_prices_ready_v1 (UTILITY, [the day], «أرسل القائمة»): what
   // the member gets outside his window in place of the list. Template only: never held.
   team_prices_ready: op("قالب «قائمة الأسعار جاهزة»"),
+  // § 61 د — an employee who was given a job: his welcome as a text inside his window, and the lookup
+  // purpose of utak_team_welcome_v1 (UTILITY, [the name, the job, when his first task comes]) outside it.
+  // Never held: when it cannot go, Baraa gets its text to send himself (src/staffing.ts).
+  team_welcome: op("ترحيب موظف جديد"),
   // ---- Baraa
   // alerts wait for his next tap (the 06:00 «بدء الدوام» opens his window);
   // § 34: critical — held, they also send utak_update_owner once a day.
@@ -259,6 +263,8 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   after_delivery_test: op("تجربة زرّي التحويل والملاحظة", false, { hours: 1 }),
   transfer_confirmed_test: op("تجربة رسالة «✅ وصل» الموحّدة", false, { hours: 1 }),
   target_lines_test: op("تجربة سطري الهدف مقابل الفعلي", false, { hours: 1 }),
+  // § 61 و — the three trials of the jobs to Baraa alone (an employee's entry, his welcome, an exit's list)
+  staffing_test: op("تجربة رسائل الوظائف", false, { hours: 1 }),
   // § 59 ز — the trials of § 59 to Baraa's own number («🧪 تجربة»), inside his window only, once each:
   // the marketing member's price list as he gets it, a quotation's PDF as an attached file, and the
   // line before «بدء الدوام» as it reaches him now (the template itself goes under owner_window).

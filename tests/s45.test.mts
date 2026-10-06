@@ -46,7 +46,7 @@ const FIX = [
   "fixtures-odoo-fields-20260925-gateway.json", "fixtures-odoo-fields-20260925-s36.json", "fixtures-odoo-fields-20260925-s37.json",
   "fixtures-odoo-fields-20260926-b3.json", "fixtures-odoo-fields-20260926-s39.json", "fixtures-odoo-fields-20260926-s40.json",
   "fixtures-odoo-fields-20260926-s41.json", "fixtures-odoo-fields-20260927-s42.json", "fixtures-odoo-fields-20260928-s44.json",
-  "fixtures-odoo-fields-20261001-s49.json", "fixtures-odoo-fields-20261005-s54.json", "fixtures-odoo-fields-20261005-s55.json", "fixtures-odoo-fields-20261005-s56.json", "fixtures-odoo-fields-20261006-s60.json", // § 46 + § 47: the pricing board's fields on x_price_day / x_price_day_line, x_expected_cartons, product.template.x_utak_new, x_min_margin_pct, x_break_even / x_suggested_price, x_decision «profit» (last: it wins)
+  "fixtures-odoo-fields-20261001-s49.json", "fixtures-odoo-fields-20261005-s54.json", "fixtures-odoo-fields-20261005-s55.json", "fixtures-odoo-fields-20261005-s56.json", "fixtures-odoo-fields-20261006-s61.json", // § 46 + § 47: the pricing board's fields on x_price_day / x_price_day_line, x_expected_cartons, product.template.x_utak_new, x_min_margin_pct, x_break_even / x_suggested_price, x_decision «profit» (last: it wins)
 ].map((f) => JSON.parse(readFileSync(new URL(`./${f}`, import.meta.url), "utf8")));
 const REAL: Record<string, string[]> = Object.assign({}, ...FIX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FIX.map((f) => f._selections ?? {}));
@@ -178,7 +178,7 @@ console.log("\n[ب] 21:30 inside his window: the text — template 1 first only 
   assert("he wrote at 01:30 (closes 01:20 tomorrow) → template 1 in place of the text, with its button",
     r.action === "template" && m.length === 2 && tplName(m[0]) === OW.SUMMARY_TEMPLATE && tplPayloads(m[0]).length === 1, `${r.action} ${JSON.stringify(m)}`);
   assert("…and § 60's lines after it, as one text: «📊 تكملة ملخص اليوم …» and the four lines of «خلاصة اليوم»",
-    m[1]?.type === "text" && textOf(m[1]) === "📊 تكملة ملخص اليوم 1 أكتوبر 2026\n✅ لا أسعار لليوم\n🎯 اليوم: لا مبيعات حقيقية بعد\n💧 لا صنف يُنشر اليوم بسعر وشراء\n➡️ لا فرصة ظاهرة اليوم", JSON.stringify(m[1]));
+    m[1]?.type === "text" && textOf(m[1]) === "📊 تكملة ملخص اليوم 1 أكتوبر 2026\n✅ لا أسعار لليوم\n🎯 اليوم: لا مبيعات حقيقية بعد\n💧 لا صنف يُنشر اليوم بسعر وشراء\n➡️ لا فرصة ظاهرة اليوم\n🧾 فحص البيانات: بدور تشغيلي بلا جدول دوام: أحمد، سالم", JSON.stringify(m[1])); // § 61: the data check's line last (the two operating members of this world carry no schedule)
 }
 {
   const env = summaryEnv(); t1("PENDING");

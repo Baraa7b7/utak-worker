@@ -261,6 +261,16 @@ export default {
           } catch (e) {
             console.error("[supplier-pay tick] failed", (e as Error)?.message);
           }
+          // § 61 د — the jobs: an employee who was given one (Baraa's «👤 صار …» and the employee's
+          // welcome), and one who left his (the handover list with what the system reads).
+          try {
+            const { runStaffingTick, STAFFING_JOB } = await import("./staffing");
+            const { withAutoSendJob } = await import("./auto-send-guard");
+            const st = await runStaffingTick(withAutoSendJob(rawEnv, STAFFING_JOB), Date.now(), ctx);
+            if (st.action !== "none") console.log("[staffing tick]", JSON.stringify(st));
+          } catch (e) {
+            console.error("[staffing tick] failed", (e as Error)?.message);
+          }
           break;
         }
         // 2026-09-26 (STATUS § 38, م12) — the driver's end of shift, from his
@@ -1912,6 +1922,22 @@ export default {
       try {
         const { sendS59Trial } = await import("./s59-trials");
         return json({ ok: true, ...(await sendS59Trial(env, url.searchParams.get("name") ?? "")) });
+      } catch (e) {
+        return json({ ok: false, error: (e as Error).message }, 500);
+      }
+    }
+    // § 61 و — the three trials of the jobs to Baraa's own number («🧪 تجربة»), only while his window
+    // is open, once a day each (?name=entry | welcome | exit — src/s61-trials.ts). Nothing is written
+    // in Odoo, no task is moved, and nobody else is reached.
+    if (request.method === "POST" && url.pathname === "/odoo/hook/s61-trial") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      try {
+        const { sendS61Trial } = await import("./s61-trials");
+        return json({ ok: true, ...(await sendS61Trial(env, url.searchParams.get("name") ?? "")) });
       } catch (e) {
         return json({ ok: false, error: (e as Error).message }, 500);
       }

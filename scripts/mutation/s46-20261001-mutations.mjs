@@ -184,10 +184,10 @@ const M = [
   ["ج", "a negative price is a price", [[ZP,
     "return !(typeof unit === \"number\" && Number.isFinite(unit) && unit > 0);", "return !(typeof unit === \"number\" && Number.isFinite(unit) && unit !== 0);"]], TC],
   // § 49 ب — «خلاص» (the request, and the order's own message) makes its quotation in quoteOrder (src/order-flow.ts): the guard stands there, once for both
-  ["ج", "the guard off at the quotation request", [["src/order-flow.ts",
-    "  if (review) {\n    await backToDraft(env, a.orderId);", "  if (false) {\n    await backToDraft(env, a.orderId);"]], TC],
-  ["ج", "the guard off at «خلاص» in the order's message", [["src/order-flow.ts",
-    "  const review = await quotationZeroGuard(env, a.orderId);\n  if (review) {", "  const review = null as string | null;\n  if (review) {"]], TC],
+  // § 59 ج — the guard inside quoteOrder is gone with its two mutations («the guard off at the quotation
+  // request», «…at «خلاص» in the order's message»): a line the list does not hold leaves the order before
+  // any quotation («غير متوفر اليوم», scripts/mutation/s59-20261006-mutations.mjs), so nothing without a
+  // price reaches it. The guard at «تأكيد الطلب» and its alert are checked below, as before.
   ["ج", "the guard off at «تأكيد الطلب»", [[RT,
     "  if (review) {\n    if (o.state !== \"draft\") await updateOrderState(env, orderId, \"draft\");", "  if (false) {\n    if (o.state !== \"draft\") await updateOrderState(env, orderId, \"draft\");"]], TC],
   ["ج", "a refused confirm leaves the order «بانتظار التأكيد»", [[RT,

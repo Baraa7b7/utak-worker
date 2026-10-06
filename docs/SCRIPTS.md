@@ -34,6 +34,11 @@
 | `s52-20261004-price-flow.mjs` (+ `lib/s52-price-flow.mjs`) | Flow v2 (صفحات حسب الفئة) وقالبه عند Meta: `--status` يقرأ حالتهما، ولا إعادة تقديم لقالب مرفوض أو MARKETING. و`s51-20261004-price-flow.mjs` لـ v1 الباقي عند Meta |
 | `s52-20261004-trial.mjs` (وقبله `s51-…-trial`) | التجربة الوحيدة لنموذج الأسعار إلى رقم براء من prod المنشور (جاف افتراضياً، `--send` مرة في اليوم) |
 | `s57-…-{odoo,bank,day}`، `s56-…-{odoo,days}`، `s55-…-odoo`، `s54-…-odoo`، `s53-…-odoo`، `s52-…-odoo`، `s51-…-odoo`، `s49-…-odoo`، `s48-…-{ui,day50,odoo}`، `s47-…-{day50,odoo}`، `s46-…-{wa-menu,product-setup,board}` | تراجع Odoo لـ § 46–§ 57 (`--rollback`) — STATUS § 1 |
+| `s59-20261006-odoo.mjs` (+ `lib/s59-odoo.mjs`) | § 59: دور «تسويق»، وجدول «UTAK — أيام العمل»، وحقل الإعدادات وعرضه، وموظف براء بالأدوار الثلاثة، وعمر تسويقاً، وصفّا القالبين. `--only=base,roles,templates` / `--skip=…`. **`--rollback` يعيد الأدوار كما كانت بتشغيل واحد** (جافاً ثم `--apply`) |
+| `s59-20261006-templates.mjs` (+ `lib/s59-templates.mjs`) | قالبا § 59 عند Meta (`--template` مرة واحدة لكل قالب، `--status` للحالة). لا إعادة تقديم |
+| `s59-20261006-cost.mts <label> [day…]` | تكلفة اليوم بكود الوركر نفسه (قراءة فقط): إثبات 641.23 قبل نقل الأدوار وبعده |
+| `s59-20261006-trial.mjs <prices\|form\|unavailable\|quotation\|shift>` | تجارب § 59 الخمس إلى رقم براء من prod المنشور (جاف افتراضياً، `--send` مرة في اليوم) |
+| `s59-20261006-diag.mjs`، `s59-20261006-fields-fixture.mjs` | قراءة حالة Odoo قبل الأمر، وبصمة المخطط بعد التطبيق |
 | `cutover-prod.mts`، `s42-20260927-prelaunch-mark.mts`، `s45-…-{omar-friday,mark-quotes}` | التحويل sim ← prod وتراجعه، ووسم سجلات المحاكاة |
 | `brand-20260924-{render-samples,render-docs,paper-scan,qr-cream-read}` | بعد أي تعديل في PDF: الختم و QR والتذييل ولون الورق |
 | `s41-full-day-sim.mts` (+ `sim-report`، `sim-snapshot`، `sim-mark`) | المحاكاة الشاملة ليوم كامل (`--odoo=fake`) |

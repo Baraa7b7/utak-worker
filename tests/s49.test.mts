@@ -270,6 +270,19 @@ const quoteSends = (phone = C1_PHONE) => sentTo(phone).filter((b: any) => b.type
   assert("a waiting order whose item the new list does not carry (§ 59 ج): no quotation — «هذا الصنف غير متوفر اليوم 🌿 المتوفر اليوم:» with what the list holds and its price", out[0]?.action === "unavailable" && rows("x_quotation").length === 0 && told.length === 1 && told[0].startsWith("هذا الصنف غير متوفر اليوم 🌿\nالمتوفر اليوم:\n• طماطم (كرتون): 26 ر.س") && !/نراجع السعر/.test(told[0]) && !ownerTexts().some((x) => /عرض سعر لم يُرسل/.test(x)), JSON.stringify([out, told]));
   assert("…it no longer waits (the next tick does not ask again), and is closed: nothing is left in it", table("x_daily_order").get(o.id)!.x_awaiting_prices === false && table("x_daily_order").get(o.id)!.x_state === "cancelled" && linesOf(o.id)[0].x_status === "unavailable" && (await quiet(() => OF.quoteAwaitingOrders(env, Date.now()))).length === 0);
 }
+{
+  // the order that waited is below the minimum once it is priced: he is told so (no quotation), as at «خلاص»
+  const env = world(`${DAY} 06:30`);
+  table("x_pricing_config").get(1)!.x_min_order_sar = 150;
+  await text(env, "طماطم كرتون 1", "place_order", [{ product_id: 1, product_name_raw: "طماطم", packaging_id: 11, quantity: 1 }]);
+  const o = orderOfC1()[0];
+  setRiyadh(`${DAY} 09:00`);
+  published(DAY, 26, null, `${DAY} 09:00`);
+  graph.length = 0;
+  const out = await quiet(() => OF.quoteAwaitingOrders(env, Date.now()));
+  const told = sentTo(C1_PHONE).map((b: any) => String(b.text?.body ?? ""));
+  assert("a waiting order below the minimum once priced: no quotation, and he is TOLD (the minimum and his total)", out[0]?.action === "below_minimum" && rows("x_quotation").length === 0 && told.length === 1 && /أقل طلب 150 ريال/.test(told[0]) && /مجموع طلبك الآن: 26 ريال/.test(told[0]) && table("x_daily_order").get(o.id)!.x_state === "draft", JSON.stringify([out, told]));
+}
 
 {
   const env = world(`${DAY} 06:30`);
@@ -426,6 +439,11 @@ const invoicesOf = (orderId: number) => rows("x_invoice").filter((i: any) => i.x
   const mine = table("x_daily_order_line").get(seed("x_daily_order_line", { x_order_id: o.id, x_product_tmpl_id: 2, x_packaging_id: 21, x_quantity: 2, x_status: "pending", x_price_unit_manual: 25 })) as any;
   const r2 = await khalas(env);
   assert("…Baraa's manual price on a line: quoted, and that price is the frozen one", confirmButton(r2, o.id) && mine.x_unit_price === 25 && mine.x_status === "pending" && body(r2).includes("• خيار جرم × 2 = 50 ر.س"), JSON.stringify([body(r2), mine]));
+  // a line added AFTER the quotation carries no price: «تأكيد» never takes an older day's price (19) for it —
+  // an order priced from a list is priced by nothing else (§ 46 ج's guard: not confirmed, «نراجع السعر»)
+  const late = table("x_daily_order_line").get(seed("x_daily_order_line", { x_order_id: o.id, x_product_tmpl_id: 2, x_packaging_id: 21, x_quantity: 1, x_status: "pending" })) as any;
+  const r3 = await tap(env, `confirm_order_${o.id}`);
+  assert("a line added after the quotation, with yesterday's 19 on record: «تأكيد» does not take it — not confirmed, «نراجع السعر»", /نراجع السعر/.test(body(r3)) && table("x_daily_order").get(o.id)!.x_state !== "confirmed" && !late.x_unit_price, JSON.stringify([body(r3), late]));
 }
 
 // ---------------------------------------------------------------- the note

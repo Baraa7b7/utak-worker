@@ -43,7 +43,6 @@ import { deliveryDayOf, nextOrderingDate, riyadhDateKey } from "./hours";
 import { arabicDate } from "./wa-params";
 import { listOfDayIfValid, listPrice, validPriceList, type ValidList } from "./price-validity";
 import { minimumText, orderMinimum } from "./order-pricing";
-import { quotationZeroGuard } from "./zero-price";
 
 /** The customer's answer when his order is kept for want of a valid price list (Baraa's wording). */
 export const AWAITING_TEXT = "استلمنا طلبك ✅ الأسعار تتحدث، ونرسل لك عرض السعر أول ما تنتشر أسعار اليوم.";
@@ -154,6 +153,7 @@ export async function orderListStillValid(env: Env, priceDate: string, now: Date
 export type QuoteOutcome =
   | { kind: "awaiting" }
   | { kind: "below_minimum"; text: string }
+  /** § 46 ج — «نراجع السعر»: not produced by quoteOrder since § 59 ج (kept for the callers that still read it). */
   | { kind: "review"; text: string }
   | { kind: "need_location" }
   /** § 59 ج — nothing of the order is in the valid list: no quotation; `text` is «هذا الصنف غير متوفر اليوم 🌿». */
@@ -196,11 +196,10 @@ export async function quoteOrder(
     await backToDraft(env, a.orderId);
     return { kind: "below_minimum", text: belowMinimumText(minimum) };
   }
-  const review = await quotationZeroGuard(env, a.orderId);
-  if (review) {
-    await backToDraft(env, a.orderId);
-    return { kind: "review", text: review };
-  }
+  // § 59 ج — no line without a price is left to quote: freezeOrderPrices took out what the list does
+  // not hold («غير متوفر اليوم»), so § 46 ج's «نراجع السعر» is not said here any more. Its check
+  // stands where an order is CONFIRMED (src/router.ts: a line added after the quotation carries no
+  // price yet) and in the PDF pipeline (src/quotation.ts).
   // v4.2: a precise location first; a saved neighborhood is the fallback.
   const loc = await getPartnerLocation(env, a.partnerId);
   const neigh = loc?.neighborhood || (await getPartnerNeighborhood(env, a.partnerId));

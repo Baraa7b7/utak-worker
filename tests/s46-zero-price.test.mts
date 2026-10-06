@@ -104,6 +104,30 @@ console.log("\n[ج] the quotation — § 59 ج: an item the valid list does not 
     b.startsWith("🌿 غير متوفر اليوم (ما دخل العرض): خيار.") && b.includes("• طماطم كرتون × 10 = 300 ر.س") && table("x_daily_order").get(o)!.x_state === "waiting_confirmation" && lineOf(o, 2).x_status === "unavailable" && zeroAlerts(/عرض سعر لم يُرسل/).length === 0, JSON.stringify(r));
 }
 {
+  // § 46 ج's guard where it still stands (§ 59 ج): «تأكيد الطلب» on a QUOTED order (its list still valid)
+  // that carries a line without a price — one added after the quotation. Not confirmed, «نراجع السعر
+  // وأرد عليك», back to draft, and Baraa's alert with the order, the customer and the item — once a day.
+  const env = fresh(`${DAY} 10:00`); priced();
+  table("x_price_day").forEach((d: any) => { d.x_published_at = "2026-10-03 03:00:00"; });
+  table("res.partner").get(C1)!.x_delivery_neighborhood = "العليا";
+  const o = orderOf(DAY, [[1, 11, 10], [2, 21, 2]], "waiting_confirmation", { x_price_date: DAY });
+  lineOf(o, 1).x_unit_price = 30;                                       // quoted at the list's price; the cucumber came after
+  const r = await tap(env, `confirm_order_${o}`, "zc1");
+  assert("«تأكيد الطلب» on a quoted order with a line without a price: not confirmed, «نراجع السعر وأرد عليك», back to draft", String(r.text).startsWith("نراجع السعر وأرد عليك") && table("x_daily_order").get(o)!.x_state === "draft" && lineOf(o, 2).x_status === "pending", JSON.stringify(r));
+  const a = zeroAlerts(/عرض سعر لم يُرسل/);
+  assert("…Baraa's alert: the order's number, the customer and the item", a.length === 1 && a[0].includes(`الطلب #${o}`) && a[0].includes("مطعم الوادي") && /• خيار \(جرم\)/.test(a[0]) && !/طماطم/.test(a[0]), a[0]);
+  table("x_daily_order").get(o)!.x_state = "waiting_confirmation";
+  env.MSG_DEDUP.store.delete(`btnlock:v1:order:${o}:confirm_order`);   // ح8's 90-second tap lock has expired
+  const r2 = await tap(env, `confirm_order_${o}`, "zc2");
+  assert("a second tap the same day: the same text, no second alert", String(r2.text).startsWith("نراجع السعر وأرد عليك") && zeroAlerts(/عرض سعر لم يُرسل/).length === 1 && table("x_daily_order").get(o)!.x_state === "draft", JSON.stringify(r2));
+  lineOf(o, 2).x_unit_price = 25;                                       // Baraa corrects the price in Odoo
+  table("x_daily_order").get(o)!.x_state = "waiting_confirmation";
+  env.MSG_DEDUP.store.delete(`btnlock:v1:order:${o}:confirm_order`);
+  const r3 = await tap(env, `confirm_order_${o}`, "zc3");
+  assert("…the price corrected: the same button confirms", /تم التأكيد/.test(String(r3.text)) && table("x_daily_order").get(o)!.x_state === "confirmed", JSON.stringify(r3));
+  assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
+}
+{
   const env = fresh(`${DAY} 20:00`); priced();
   openWindow(env, C1_PHONE, 30);
   const o = orderOf(DAY, [[1, 11, 10], [2, 21, 2]], "waiting_confirmation");

@@ -179,6 +179,27 @@ const M = [
     "wasteRecorded: 96 * 0.6 + 15 });", "wasteRecorded: 96 * 0.6 });"]], "tests/s60-trial.test.mts"],
   ["هـ", "the trial is marked spent although nothing went", [["src/s60-trial.ts",
     "    await releaseButton(env, claim);\n    return { sent: false, reason: d ?", "    await finishButton(env, claim, DAY_TTL);\n    return { sent: false, reason: d ?"]], "tests/s60-trial.test.mts"],
+  // ---------------------------------------------------------------- دليل
+  ["دليل", "the guide does not say the four lines reach him at 21:30", [["docs/OPERATING-DAY.md",
+    "**الأسطر الأربعة نفسها تصلك في ملخص 21:30**، وسطر 🎯 فيه عن **اليوم المُقفل**", "الأسطر الأربعة على الشاشة وحدها"]], "tests/s60-history.test.mts"],
+  ["دليل", "the guide says the decision is made on the contribution", [["docs/OPERATING-DAY.md",
+    "القرار المقترح والمحرك ورسالة المراجعة على **الربح** كما كانت", "القرار المقترح والمحرك ورسالة المراجعة على **المساهمة**"]], "tests/s60-history.test.mts"],
+  ["دليل", "the guide's contribution keeps the carton share in", [["docs/OPERATING-DAY.md",
+    "**مساهمة الكرتون = البيع ÷ 1.15 − الشراء − التالف** (بلا حصة تشغيل)", "**مساهمة الكرتون = البيع ÷ 1.15 − الشراء − التالف − حصة التشغيل**"]], "tests/s60-history.test.mts"],
+  ["دليل", "the guide does not say the four parts add up", [["docs/OPERATING-DAY.md",
+    "**مجموع البنود = الفرق كله.**", ""]], "tests/s60-history.test.mts"],
+  ["دليل", "the guide lets the pink zone be a profit", [["docs/OPERATING-DAY.md",
+    "**منطقة وردية**: أي سعر بيع داخلها خسارة", "**منطقة وردية**: أي سعر بيع داخلها ربح"]], "tests/s60-history.test.mts"],
+  ["دليل", "the guide promises a drawing in the tabs", [["docs/OPERATING-DAY.md",
+    "**لا جدول ملون ولا مصفوفة ولا شلال الآن:**", "**جدول ملون ومصفوفة وشلال:**"]], "tests/s60-history.test.mts"],
+  ["دليل", "the guide says Baraa is alerted at once for an unavailable item", [["docs/OPERATING-DAY.md",
+    "**لا تنبيه فوري لك.**", "**يصلك تنبيه فوري.**"]], "tests/s60-history.test.mts"],
+  ["دليل", "the guide lets items be compared by price on one chart", [["docs/OPERATING-DAY.md",
+    "**لا تقارن أصنافاً بأسعارها على رسم واحد**", "**قارن الأصناف بأسعارها على رسم واحد**"]], "tests/s60-history.test.mts"],
+  ["دليل", "the guide lets the pie be opened on a price", [["docs/OPERATING-DAY.md",
+    "**الدائري للكميات لا للأسعار:**", "**الدائري للأسعار:**"]], "tests/s60-history.test.mts"],
+  ["دليل", "the guide says a folded total is an average", [["docs/OPERATING-DAY.md",
+    "**لو طويت الأيام أو الأصناف باليد صار الرقم مجموعاً لا متوسطاً**", "لو طويت الأيام أو الأصناف باليد بقي الرقم متوسطاً"]], "tests/s60-history.test.mts"],
 ];
 
 const want = new Set(process.argv.slice(2));

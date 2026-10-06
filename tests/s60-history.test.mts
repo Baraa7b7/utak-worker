@@ -8,6 +8,7 @@
 //   [3] a saved filter an item: the same row from the Odoo script and from the worker
 //   [4] the worker adds a NEW item's filter with the day's computation — once, never one Baraa switched
 //       off, and it never stops the engine
+//   [5] the operating guide (docs/OPERATING-DAY.md) says how the screen, the summary and the tool are read
 //
 // In-memory Odoo + captured Graph (tests/wa-harness.mts, tests/s46-kit.mts). No network, no send.
 //
@@ -152,6 +153,24 @@ const filters = () => rows(HF.FILTER_MODEL) as any[];
   assert("Odoo refuses the filters: 0 made, no throw — and the engine prices the day all the same", n === 0 && r.action === "refreshed" && lineFor(1).x_sale_price === 70 && filters().length === 0);
   await quiet(() => PR.refreshPriceDay(env, { force: true }));
   assert("…and the next run tries again (a failure is not remembered)", filters().length === 4);
+}
+
+// ================================================================ [5] the operating guide
+console.log("\n[5] the guide says how the screen, the summary and «📈 تاريخ الأسعار» are read");
+{
+  const guide = read("docs/OPERATING-DAY.md");
+  const sec = guide.slice(guide.indexOf("## «📊 اليوم» في نصف دقيقة"), guide.indexOf("## صنف جديد في Odoo (§ 46)"));
+  assert("its own section, and a line among «أُضيف في»", sec.length > 2000 && guide.includes("**أُضيف في § 60 (6 أكتوبر):**") && guide.indexOf("## «📊 اليوم» في نصف دقيقة") < guide.indexOf("## صنف جديد في Odoo (§ 46)"));
+  assert("«خلاصة اليوم»: four lines, and the same four reach him at 21:30 — the 🎯 line about the day just closed", sec.includes("### «خلاصة اليوم» — أول ما تراه، أربعة أسطر") && ["1. **✅ ما يُنشر اليوم**", "2. **🎯 أمس:**", "3. **💧 من كل كرتون:**", "4. **➡️ أهم فرصتين**"].every((l) => sec.includes(l))
+    && sec.includes("**الأسطر الأربعة نفسها تصلك في ملخص 21:30**، وسطر 🎯 فيه عن **اليوم المُقفل**") && sec.includes("نافذتك مغلقة: القالب وحده، والأسطر على الشاشة"));
+  assert("the target: how N is made, what the contribution is, and that the decision stays on the profit", sec.includes("= (تكلفة التشغيل اليومية + «هدف الربح اليومي») ÷ متوسط **مساهمة الكرتون**") && sec.includes("**مساهمة الكرتون = البيع ÷ 1.15 − الشراء − التالف** (بلا حصة تشغيل)") && sec.includes("القرار المقترح والمحرك ورسالة المراجعة على **الربح** كما كانت") && sec.includes("**«لا هدف ممكن بأسعار اليوم»**"));
+  assert("the gap by its four parts, the order's example, and that they add up", ["**الكمية**", "**الهامش**", "**التالف**", "**التكاليف**"].every((l) => sec.includes(l)) && sec.includes("«عجز 125: الكمية −110 · التالف −15»") && sec.includes("**مجموع البنود = الفرق كله.**") && sec.includes("وإن لم يُسجَّل شيء فالمخطط"));
+  assert("the chart's additions: the break-even and its pink zone, the move since the last day with a number, the contribution — and its width", sec.includes("**┃ أحمر = التعادل** (أقل سعر بدون خسارة)") && sec.includes("**منطقة وردية**") && sec.includes("التغير عن **آخر يوم فيه رقم**. بلا رقم سابق: لا شيء.") && sec.includes("**«· مساهمة +3.12»** بجانب ربح الصف، ولا تحل محله.") && sec.includes("**960 بكسل على الأكثر**") && sec.includes("(1400 فأكثر)"));
+  assert("the three tabs are text: what each says, and that no drawing is there yet", sec.includes("«من كل كرتون بسعر X: ضريبة · شراء · تالف · تشغيل · لنا»") && sec.includes("يومية المصاريف EXP") && sec.includes("أعلى **5** فرص مرتبة بالريال للكرتون، كل واحدة **جملة وما تفعله**") && sec.includes("**لا جدول ملون ولا مصفوفة ولا شلال الآن:**") && sec.includes("«تكتمل الصورة بعد 7 أيام بيانات — عندنا الآن N»"));
+  assert("«طلبوا وما كان متوفر»: recorded, no alert at once, the summary's line, seven days in «🎯 الفرص»", sec.includes("**💲 التسعير ← 🙋 طلبوا وما كان متوفر**") && sec.includes("**لا تنبيه فوري لك.**") && sec.includes("«طلبوا اليوم وما كان متوفر: طماطم ×3 (عميلان)، خيار ×1»") && sec.includes("أكثر 5 أصناف بعدد العملاء، ثم «+N»"));
+  assert("«📈 تاريخ الأسعار»: a tool for analysis — one item at a time, never items against each other, the pie for quantities, and what «sum» means", sec.includes("### «📈 تاريخ الأسعار» — أداة تحليل، لا قراءة يومية") && sec.includes("**حلّل صنفاً واحداً في كل مرة:**") && sec.includes("**لا تقارن أصنافاً بأسعارها على رسم واحد**") && sec.includes("**الدائري للكميات لا للأسعار:**")
+    && sec.includes("**«فيه سعر سوق»** و**«آخر 14 يوماً»**") && sec.includes("**لو طويت الأيام أو الأصناف باليد صار الرقم مجموعاً لا متوسطاً**"));
+  assert("the day's table says what the 21:30 summary carries now", guide.includes("**أسطر «خلاصة اليوم» الأربعة** (✅ 🎯 💧 ➡️) وسطر **«طلبوا اليوم وما كان متوفر»**") && guide.includes("**UTAK ← 💲 التسعير ← 🙋 طلبوا وما كان متوفر:**") && guide.includes("**UTAK ← 💲 التسعير ← 📈 تاريخ الأسعار:**"));
 }
 
 done();

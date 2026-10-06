@@ -21,6 +21,7 @@ CLAUDE_MODEL_REPLY    = "claude-sonnet-5"
 
 # v3: Baraa's phone for supplier failure alerts + missing-supplier morning summary
 OWNER_WHATSAPP = "+966505154962"
+UTAK_WA_NUMBER = "+966580040467"   # § 59 ب — رقم واتساب يو تاك نفسه (الذي يراسله العملاء): رابط wa.me في قائمة أسعار التسويق
 
 # 2026-09-27 (STATUS § 42 د) — the launch combination, from the code
 # (src/config.ts runtimeMode / isRecipientAllowed / isTestMode, and
@@ -207,6 +208,7 @@ ODOO_LOGIN           = "admin@utakfresh.com"
 CLAUDE_MODEL_CLASSIFY = "claude-haiku-4-5-20251001"
 CLAUDE_MODEL_REPLY    = "claude-sonnet-5"
 OWNER_WHATSAPP        = "+966505154962"
+UTAK_WA_NUMBER        = "+966580040467"   # § 59 ب — رقم واتساب يو تاك نفسه (الذي يراسله العملاء): رابط wa.me في قائمة أسعار التسويق
 # 2026-09-16 — PILOT_MODE on the sim worker itself (no separate [env.pilot]
 # deploy). runtimeMode() treats SIMULATION_MODE=true AND PILOT_MODE=true as
 # mutually-exclusive misconfig; SIMULATION_MODE is therefore flipped off so
@@ -291,6 +293,7 @@ ODOO_LOGIN           = "admin@utakfresh.com"
 CLAUDE_MODEL_CLASSIFY = "claude-haiku-4-5-20251001"
 CLAUDE_MODEL_REPLY    = "claude-sonnet-5"
 OWNER_WHATSAPP        = "+966505154962"
+UTAK_WA_NUMBER        = "+966580040467"   # § 59 ب — رقم واتساب يو تاك نفسه (الذي يراسله العملاء): رابط wa.me في قائمة أسعار التسويق
 PILOT_MODE            = "true"
 # REQUIRED: at least Baraa's number, plus any test partners.
 SIM_ALLOWLIST         = "+966505154962"

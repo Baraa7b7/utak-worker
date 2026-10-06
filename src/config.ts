@@ -22,6 +22,8 @@ export interface Env {
 
   // v3
   OWNER_WHATSAPP: string;   // Baraa's phone, E.164 with '+'
+  /** § 59 ب — UTAK's own WhatsApp number (the one customers write to), E.164: the wa.me link of the marketing member's price list. Unset = the list goes without the link. */
+  UTAK_WA_NUMBER?: string;
 
   // ---- Bindings ----
   MSG_DEDUP: KVNamespace;

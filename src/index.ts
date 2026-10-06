@@ -2736,6 +2736,30 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       const att = await attendanceHold(env, teamMember.id);
       if (!att.hold) await flushTeamQueue(env, msg.from);
 
+      // § 59 ب — the marketing member: «الأسعار» / «القائمة», or «أرسل القائمة» on the template → the
+      // valid price list (or «الأسعار تتحدث»); any other message of his → the list owed to him since
+      // the publication (his window was closed then), once. Sale prices alone (src/team-prices.ts).
+      {
+        const TP = await import("./team-prices");
+        if (TP.isMarketingMember(teamMember)) {
+          const asksPrices = (isButton && msg.buttonId === TP.TEAM_PRICES_PAYLOAD) || (msg.type === "text" && TP.teamPricesCommand(msg.text));
+          if (asksPrices) {
+            const got = await TP.answerTeamPricesAsk(env, msg.from, ctx);
+            console.log(`[team-prices] ask from=${msg.from.slice(-4)} → ${got}`);
+            await markSeen(env, msg.messageId);
+            continue;
+          }
+          if (await TP.sendOwedTeamPrices(env, msg.from, ctx)) {
+            console.log(`[team-prices] the owed list went to ${msg.from.slice(-4)}`);
+            // a member with no other role: his message has no other answer (no «اكتب الأسعار» under the list itself)
+            if (TP.isMarketingOnly(teamMember) && msg.type === "text") {
+              await markSeen(env, msg.messageId);
+              continue;
+            }
+          }
+        }
+      }
+
       let collectReply: RouterReply | null = null;
       if (isButton && msg.buttonId!.startsWith("sp_")) {
         // STATUS § 37 — «💵 دفعت لمورد»: the supplier, then «تخطي» the receipt.
@@ -2847,6 +2871,9 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
             const { isPaymentMember, startButton } = await import("./supplier-pay");
             if (isPaymentMember(teamMember)) {
               await sendButtons(env, msg.from, `مرحبا ${teamMember.name} 👋 استخدم الأزرار عشان نأكد الحالة.`, [startButton()], { ctx, purpose: "bot_reply" });
+            } else if ((await import("./team-prices")).isMarketingOnly(teamMember)) {
+              // § 59 ب — no task of the day is a marketing member's: one line says what he can ask for
+              await sendText(env, msg.from, (await import("./team-prices")).marketingHintText(teamMember.name), { ctx, purpose: "bot_reply" });
             } else {
               await sendText(env, msg.from, `مرحبا ${teamMember.name} 👋 استخدم الأزرار عشان نأكد الحالة.`, { ctx, purpose: "bot_reply" });
             }

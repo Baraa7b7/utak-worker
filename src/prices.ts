@@ -682,6 +682,8 @@ export interface PublishReport {
   awaiting?: AwaitingReport[];
   /** § 53 ج — how many customers got the order form after the list (their windows open). */
   forms?: number;
+  /** § 59 ب — the marketing member's list: who, and how it went (session / template / owed). */
+  marketing?: Array<{ name: string; action: string }>;
 }
 
 export function nowOdoo(ms: number = Date.now()): string {
@@ -819,15 +821,30 @@ export async function publishPriceDay(env: Env, dayId: number, opts: { ctx?: Exe
     const awaiting = await quoteWaitingAfterPublication(penv, now, opts.ctx);
     // § 53 ج — …and the order form to every customer it reached inside his window (never blocks the publication)
     const forms = await orderFormsAfterPublication(penv, { dayId, day: day.x_date }, inWindow, now, opts.ctx);
+    // § 59 ب — …and «📋 قائمة أسعار يو تاك اليوم» to the marketing member (the published items at their
+    // sale prices alone; never blocks the publication)
+    const marketing = await marketingListAfterPublication(penv, { dayId, day: day.x_date }, now, opts.ctx);
     // § 56 — «📊 اليوم» says what went out (last: never in the way of the customers' messages)
     await screenAfterPublication(penv, dayId);
-    return { action: "published", day: day.x_date, dayId, items: published.length, parts: parts.length, excluded, recipients: recipients.length, counts, ...(awaiting.length ? { awaiting } : {}), ...(forms ? { forms } : {}) };
+    return { action: "published", day: day.x_date, dayId, items: published.length, parts: parts.length, excluded, recipients: recipients.length, counts, ...(awaiting.length ? { awaiting } : {}), ...(forms ? { forms } : {}), ...(marketing.length ? { marketing } : {}) };
   } catch (e) {
     // Nothing irreversible is known to have happened only if nothing was sent;
     // keep the claim (no second publication) and tell Baraa.
     console.error("[prices] publish failed", (e as Error)?.message);
     await sendOwnerAlert(penv, `⚠️ تعذّر إكمال نشر أسعار ${day.x_date}: ${(e as Error)?.message ?? e}. راجع السجل قبل إعادة المحاولة.`).catch(() => {});
     throw e;
+  }
+}
+
+/** § 59 ب — the marketing member's price list after the publication (src/team-prices.ts). Never throws. */
+async function marketingListAfterPublication(env: Env, day: { dayId: number; day: string }, now: number, ctx?: ExecutionContext): Promise<Array<{ name: string; action: string }>> {
+  try {
+    const { listValidUntilMs } = await import("./price-validity");
+    const { teamPricesAfterPublication } = await import("./team-prices");
+    return await teamPricesAfterPublication(env, { dayId: day.dayId, day: day.day, publishedAtMs: now, validUntilMs: listValidUntilMs(day.day, now) }, now, ctx);
+  } catch (e) {
+    console.warn("[prices] the marketing list after the publication failed", (e as Error)?.message);
+    return [];
   }
 }
 

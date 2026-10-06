@@ -33,6 +33,8 @@ export const CUSTOMER_PRICE_PURPOSES: ReadonlySet<string> = new Set([
   "customer_prices", "customer_quotation", "customer_quotation_pdf", "customer_order_form",
   // § 55 ب — the team's delivery form and its summary: the order's sale prices and its invoice's total
   "delivery_form",
+  // § 59 ب — the marketing member's price list (the day's sale prices, as the customers read them)
+  "team_price_list",
 ]);
 
 export type ClosedKind = "source" | "supplier";

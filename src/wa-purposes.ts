@@ -188,6 +188,14 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // supplier's number (src/price-privacy.ts). A reply: each answers his own tap / «إرسال», so one
   // message Meta refused does not stop the next form for 24h (the delivery goes through it).
   delivery_form: { label: "نموذج التسليم والتحصيل", kind: "reply", important: false, ttl: { hours: 2 } },
+  // § 59 ب — the marketing member's «📋 قائمة أسعار يو تاك اليوم» (the published items at their SALE
+  // prices, written to be forwarded to a shop), with every publication and when he writes «الأسعار»:
+  // inside his 24h window only, never held in the gateway (a list owed to him is built at his next
+  // message, from the list valid then). The gateway refuses it for a price source's or a supplier's number.
+  team_price_list: op("قائمة الأسعار (التسويق)"),
+  // § 59 ب — the lookup purpose of utak_team_prices_ready_v1 (UTILITY, [the day], «أرسل القائمة»): what
+  // the member gets outside his window in place of the list. Template only: never held.
+  team_prices_ready: op("قالب «قائمة الأسعار جاهزة»"),
   // ---- Baraa
   // alerts wait for his next tap (the 06:00 «بدء الدوام» opens his window);
   // § 34: critical — held, they also send utak_update_owner once a day.

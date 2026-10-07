@@ -237,8 +237,9 @@ console.log("\n[ب5] the card of his number is updated");
   await reply(env2, NEW, s2.token!, { ...FARMER, f_c3: "بصل", f_a3: "01", f_b3: "02" });
   assert("the form again: the two seasons of before are not written twice, the new crop is added", (rows("x_supplier_season") as any[]).length === 3 && byNumber(NEW).length === 1);
   const s3 = await quiet(() => REG.sendSignupForm(env2, { partnerId: byNumber(NEW)[0].id, whatsapp: "+" + NEW }));
-  await reply(env2, NEW, s3.token!, { ...FARMER, f_c1: "ثوم", f_a1: "", f_b1: "", f_c2: "", f_c3: "" });
-  assert("a crop with no month is no season (it stays among his items)", (rows("x_supplier_season") as any[]).length === 3);
+  await reply(env2, NEW, s3.token!, { ...FARMER, f_c1: "ثوم", f_a1: "", f_b1: "", f_c2: "كوسة", f_a2: "04", f_b2: "06", f_c3: "" });
+  const all = rows("x_supplier_season") as any[];
+  assert("a crop with no month is no season — and it does not cost the form its other seasons (كوسة April → June is written)", all.length === 4 && all.at(-1).x_item_text === "كوسة" && all.at(-1).x_month_from === "04" && !all.some((s) => s.x_item_text === "ثوم"), JSON.stringify(all.map((s) => [s.x_item_text, s.x_month_from])));
 }
 
 console.log("\n[ب6] the token, and a form that is refused");

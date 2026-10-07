@@ -7,12 +7,13 @@
 //     «صالح حتى» in place of the day's 06:00
 //   • to the customer an attached file: inside his window the document; outside it the template
 //     utak_quotation_pdf_v2 only when «صالح حتى» does not pass 06:00 of tomorrow; otherwise to Baraa
-//   • «⬇️ PDF لي فقط»: to Baraa alone
+//   • § 62 د: «⬇️ PDF لي فقط» is gone (the hook's old op issues nothing); the preview is tests/s62d-preview.test.mts
 //
 // In-memory Odoo + captured Graph (tests/wa-harness.mts, tests/s46-kit.mts). No network, no send.
 //
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/s62-quotation.test.mts
 
+import { readFileSync } from "node:fs";
 import { OWNER, closeOwnerWindow, graph, heldFor, odooLog, openWindow, quiet, sentTo, table } from "./wa-harness.mts";
 import { assert, done, ownerTexts, rejected } from "./s46-kit.mts";
 import {
@@ -66,7 +67,7 @@ console.log("\n[ج] never with a line that has no final price");
   assert("nothing is recorded: no sale.order, no number, no PDF, the state as it was", saleOrders().length === 0 && KIT.gotenberg === 0 && r2.length === 0 && !quote(id).x_quotation_number && quote(id).x_state === "draft");
   assert("nothing reaches the customer", sentTo(MADARAT_PHONE).length === 0);
   assert("Baraa reads the names — on WhatsApp and on the request", ownerTexts().some((t) => t.startsWith(`🚫 عرض سعر الطلب الخاص ${SQ.quoteName(id)} (شركة مدارات للاغذية) لم يصدر: أسطر بلا سعر نهائي: خس أمريكي، فطر أبيض`)) && String(quote(id).x_last_result).startsWith("🚫 لم يصدر عرض السعر: أسطر بلا سعر نهائي: خس أمريكي، فطر أبيض"));
-  assert("the same for «⬇️ PDF لي فقط»: no file with a line unpriced", (await quiet(async () => { unlock(env, id); return QT.issueSpecialQuotation(env, id, { ownerOnly: true }); })).action === "refused" && docsTo(OWNER).length === 0);
+  assert("the same for «👁️ معاينة PDF» (§ 62 د): no draft with a line unpriced — it names them", await quiet(async () => { const p = await QT.previewSpecialQuotation(env, id); return !!p && "refused" in p && p.refused === "أسطر بلا سعر نهائي: خس أمريكي، فطر أبيض" && KIT.gotenberg === 0 && docsTo(OWNER).length === 0; }));
   // a line with a price and no quantity
   lineOf(id, LETTUCE).x_final_price = 9; lineOf(id, MUSHROOM).x_final_price = 27.5; lineOf(id, 2).x_qty = 0;
   unlock(env, id);
@@ -260,28 +261,25 @@ console.log("\n[ج] § 53: a quotation never reaches a price source or a supplie
   assert("the gateway refuses it for a supplier's number, whatever the request names: the file goes to Baraa", r.action === "issued" && r.to === "owner_instead" && sentTo(AHMED_PHONE).length === 0 && docsTo(OWNER).length === 1 && docsTo(OWNER)[0].document.caption.includes("لم يُرسل للعميل"));
 }
 
-console.log("\n[ج] «⬇️ PDF لي فقط»");
+console.log("\n[ج] § 62 د — «⬇️ PDF لي فقط» is gone: the hook's old op issues nothing; the file to Baraa when the customer cannot be reached");
 {
   env = world();
   id = priced();
   openWindow(env, MADARAT_PHONE);
-  const r = await quiet(() => QT.issueSpecialQuotation(env, id, { ownerOnly: true }));
-  const own = docsTo(OWNER);
-  assert("the file to Baraa alone — nothing to the customer though his window is open", r.action === "issued" && r.to === "owner_only" && sentTo(MADARAT_PHONE).length === 0 && own.length === 1 && own[0].document.filename === `${r.number}.pdf`);
-  assert("…its caption: the number, the customer, the total, «لم يُرسل للعميل», the link", own[0].document.caption.startsWith(`📄 عرض السعر رقم ${r.number} — شركة مدارات للاغذية\nالإجمالي ${TOTAL} ريال شامل الضريبة\nلك وحدك: لم يُرسل للعميل.`) && own[0].document.caption.includes("https://w.test/quotation-pdf/"));
-  assert("it is the issued quotation: on record, numbered, the request «صدر العرض»", saleOrders().length === 1 && quote(id).x_state === "quoted" && String(quote(id).x_last_result).startsWith(`⬇️ صدر عرض السعر ${r.number} ووصلك ملفه وحدك`));
-  // then «أصدر»: the same order and number, now to the customer
-  unlock(env, id);
-  const r2q = await quiet(() => QT.issueSpecialQuotation(env, id));
-  assert("«📄 أصدر عرض السعر» after it: the same order and number, the file to the customer", r2q.to === "customer_session" && r2q.number === r.number && saleOrders().length === 1 && docsTo(MADARAT_PHONE).length === 1);
-  // Baraa's own window closed: his file waits for it
+  // a screen still open on the old button: nothing is issued, and the request says where the preview is now
+  const a = await quiet(() => SQ.handleSpecialQuoteHook(env, id, "pdf"));
+  assert("the old «pdf» op: nothing issued — no sale order, no number, no PDF, no file to anyone, the state as it was", a.action === "moved" && saleOrders().length === 0 && KIT.gotenberg === 0 && r2.length === 0 && !quote(id).x_quotation_number && quote(id).x_state === "draft" && sentTo(MADARAT_PHONE).length === 0 && docsTo(OWNER).length === 0, JSON.stringify(a));
+  assert("…and «آخر نتيجة» sends Baraa to «👁️ معاينة PDF»", String(quote(id).x_last_result).startsWith(SQ.PDF_MOVED_TEXT) && SQ.PDF_MOVED_TEXT.includes("«👁️ معاينة PDF»"));
+  assert("issueSpecialQuotation takes no «for me only»: its file goes to the customer or — unreachable — to Baraa", !readFileSync(new URL("../src/special-quotation.ts", import.meta.url), "utf8").includes("ownerOnly") && !readFileSync(new URL("../src/special-quote.ts", import.meta.url), "utf8").includes("ownerOnly"));
+  const b = await quiet(() => SQ.handleSpecialQuoteHook(env, id, "issue"));
+  assert("«📄 أصدر عرض السعر» is the one button that issues: the file to the customer", b.action === "issued" && saleOrders().length === 1 && docsTo(MADARAT_PHONE).length === 1 && quote(id).x_state === "quoted");
+  // the customer out of reach and Baraa's own window closed: his file waits for it
   env = world();
   id = priced();
   closeOwnerWindow(env);
-  await quiet(() => QT.issueSpecialQuotation(env, id, { ownerOnly: true }));
-  assert("Baraa's window closed: his file waits for his next message (held for his number alone)", docsTo(OWNER).length === 0 && heldFor(env, OWNER).some((h: any) => JSON.stringify(h).includes("quotation-pdf")) && sentTo(MADARAT_PHONE).length === 0 && heldFor(env, MADARAT_PHONE).length === 0);
-  assert("the hook's two ops are these two buttons", (await quiet(async () => { const e = world(); const q = priced(); openWindow(e, MADARAT_PHONE); const a = await SQ.handleSpecialQuoteHook(e, q, "pdf"); const sent = sentTo(MADARAT_PHONE).length; e.MSG_DEDUP.store.delete(`btnlock:v1:spq_issue:${q}`); const b = await SQ.handleSpecialQuoteHook(e, q, "issue"); return a.action === "issued" && sent === 0 && b.action === "issued" && sentTo(MADARAT_PHONE).length === 1; })));
-  void writes; void DAY;
+  const r = await quiet(() => QT.issueSpecialQuotation(env, id));
+  assert("the customer unreachable and Baraa's window closed: his file waits for his next message (held for his number alone)", r.to === "owner_instead" && docsTo(OWNER).length === 0 && heldFor(env, OWNER).some((h: any) => JSON.stringify(h).includes("quotation-pdf")) && sentTo(MADARAT_PHONE).length === 0 && heldFor(env, MADARAT_PHONE).length === 0, JSON.stringify(r));
+  void writes; void DAY; void TOTAL; void unlock;
 }
 
 done();

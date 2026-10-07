@@ -50,7 +50,8 @@ const COMPANY = {
 const CONTACT = `${EMAIL} · ${PHONE}`;
 const FALLBACK = ["شركة يوتاك", "الرياض، المملكة العربية السعودية", CONTACT];
 
-const text = (html: string) => html.replace(/<[^>]+>/g, "\n").split("\n").map((l) => l.trim()).filter(Boolean);
+// § 62 د — a quotation's address is printed in parts that break after a comma (inline blocks): one line of text, as it reads
+const text = (html: string) => html.replace(/<span style="display: inline-block; max-width: 100%;">|<\/span>/g, "").replace(/<[^>]+>/g, "\n").split("\n").map((l) => l.trim()).filter(Boolean);
 /** The two blocks above the table: the label of each and its lines, as printed. */
 function parties(html: string): { toLabel: string; to: string[]; fromLabel: string; from: string[] } {
   const start = html.indexOf(`grid-template-columns: 1fr 1fr; gap: 32px;">`);
@@ -87,7 +88,9 @@ console.log("\n[أ] «من» is the company read from Odoo");
     const html = render(data, COMPANY); pages.push(html);
     const p = parties(html);
     assert(`${name}: «من» = the company's name, national address, e-mail and phone — nothing else`, p.fromLabel === "من / FROM" && same(p.from, [NAME, ADDRESS, CONTACT]), JSON.stringify(p.from));
-    assert(`${name}: the e-mail and the phone share ONE left-to-right line (the block is no taller than it was)`, html.includes(`direction: ltr;">${EMAIL} · ${PHONE}</div>`) && count(html, EMAIL) === 2 && p.from.length === 3);
+    assert(`${name}: the e-mail and the phone share ONE left-to-right line (the block is no taller than it was)`, html.includes(`direction: ltr;">${EMAIL} · ${PHONE}</div>`)
+      // § 62 د — a quotation's legal strip is one line (name · س.ت · الرقم الضريبي): the e-mail is in «من» alone; the other documents' strip keeps its second line
+      && count(html, EMAIL) === (html.includes('data-utak="legal-line"') ? 1 : 2) && p.from.length === 3);
     assert(`${name}: nothing of the fallback's address is on the page`, !html.includes(FALLBACK[1]));
     const en = render({ ...data, lang: "en", vatAmount: name === "the invoice" ? 0 : data.vatAmount }, COMPANY); pages.push(en);
     const pe = parties(en);
@@ -184,14 +187,15 @@ console.log("\n[هـ] the production path: the special request's file, the compa
   Object.assign(table("res.company").get(1)!, { name: NAME, street: "8141 شارع الأمير محمد بن عبدالرحمن بن عبدالعزيز", street2: "حي السلي", city: "الرياض", zip: "14273", phone: PHONE, email: EMAIL, country_id: false, partner_id: false });
   const id = request(undefined, { x_price_mode: "net" });
   for (const [p, buy, fin] of [[ORANGE, 3, 4.75], [LETTUCE, 6, 9], [GARLIC, 10, 14.25], [1, 2, 3], [MUSHROOM, 20, 27.5], [2, 2.5, 3.5]] as Array<[number, number, number]>) Object.assign(lineOf(id, p), { x_purchase_price: buy, x_final_net: fin });
-  const r = await quiet(() => QT.issueSpecialQuotation(env, id, { ownerOnly: true }));
-  assert("«⬇️ PDF لي فقط» issued one file", r.action === "issued" && sent.length === 1 && saleOrders().length === 1, JSON.stringify(r));
+  // § 62 د — «⬇️ PDF لي فقط» gave its place to «👁️ معاينة PDF»: the same page as a draft, nothing recorded
+  const r = await quiet(() => QT.previewSpecialQuotation(env, id));
+  assert("«👁️ معاينة PDF» built one file, and recorded nothing", !!r && "pdf" in r && sent.length === 1 && saleOrders().length === 0, JSON.stringify(r && "refused" in r ? r : null));
   const html = sent[0] ?? ""; pages.push(html);
   const p = parties(html);
   assert("its «من» is the company row of Odoo: name, address, e-mail, phone", p.fromLabel === "من / FROM" && same(p.from, [NAME, "8141 شارع الأمير محمد بن عبدالرحمن بن عبدالعزيز، حي السلي، الرياض", CONTACT]), JSON.stringify(p.from));
   assert("its customer block is «إلى / TO» with the customer's name", p.toLabel === "إلى / TO" && p.to[0] === "شركة مدارات للاغذية" && !html.includes("فاتورة إلى"), JSON.stringify(p));
   assert("the VAT number once, and the page is the one «قبل الضريبة»", count(html, VAT) === 1 && html.includes(QT.NET_SUBTOTAL_LABEL) && html.includes(QT.NET_VAT_LABEL));
-  assert("the file went to Baraa alone: nothing to the customer", sentTo(MADARAT_PHONE).length === 0 && (await quiet(() => SQ.readQuote(env, id)))!.priceMode === "net");
+  assert("nothing went to anyone", sentTo(MADARAT_PHONE).length === 0 && (await quiet(() => SQ.readQuote(env, id)))!.priceMode === "net");
   globalThis.fetch = kitFetch;
 }
 

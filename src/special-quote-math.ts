@@ -74,6 +74,22 @@ export function suggestedPrice(purchase: number, marketMedian: number, wastePct:
   return ceilTo(Math.max(pos(marketMedian), floor));
 }
 
+/**
+ * § 62 د — «المقترح» as «الأسعار في العرض» rounds it. «شاملة الضريبة»: up to the
+ * quarter on the VAT-inclusive price (suggestedPrice, as before), and the price
+ * before VAT follows it (÷ 1.15). «قبل الضريبة»: up to the quarter on the price
+ * BEFORE VAT — the number the quotation prints — and the VAT-inclusive one is
+ * that × 1.15 to the halala. Both 0 with no purchase price.
+ */
+export function suggestedFor(purchase: number, marketMedian: number, wastePct: number, marginPct: number, mode: PriceMode): { gross: number; net: number } {
+  const gross = suggestedPrice(purchase, marketMedian, wastePct, marginPct);
+  if (mode !== "net") return { gross, net: netOf(gross) };
+  if (!(pos(purchase) > 0)) return { gross: 0, net: 0 };
+  const floor = unitCost(purchase, wastePct) * (1 + pct(marginPct)) * VAT_FACTOR;
+  const net = ceilTo(Math.max(pos(marketMedian), floor) / VAT_FACTOR);
+  return { gross: grossOf(net), net };
+}
+
 /** The line's profit, net of VAT; null = it cannot be told (no purchase price, no final price or no quantity). */
 export function lineProfit(qty: number, finalPrice: number, purchase: number, wastePct: number): number | null {
   if (!(pos(qty) > 0) || !(pos(finalPrice) > 0) || !(pos(purchase) > 0)) return null;

@@ -31,9 +31,10 @@ import {
   type PartyInfo,
 } from "./pdf-template";
 import { readCompanyInfoWithBank, type CompanyInfo } from "./company";
+import { bankLineWithHolder } from "./bank-line";
 import { toLegalFooterAr } from "./legal-footer";
 import { UI, resolveDocLang, type DocLang } from "./i18n";
-import { formatDateEn, fromPartyFor, itemCellHTML, labelForFrom, labelForTerms, labelForTo, taglineFor, thanksLine } from "./doc-shell";
+import { formatDateEn, fromPartyFor, itemCellHTML, labelForFrom, labelForQuotationTerms, labelForTo, taglineFor, thanksLine } from "./doc-shell";
 
 export interface QuotationLineItem {
   name: string;
@@ -44,6 +45,16 @@ export interface QuotationLineItem {
   // Bilingual overlays (Part B). Empty falls back to Arabic only.
   name_en?: string;
   pack_en?: string;
+  /**
+   * § 62 د — ONE unit's price before VAT, its VAT and the price with it: what a unit-price quotation prints
+   * (QuotationPDFData.layout = "unit"). Each from its source — never recomputed here — so net + vat = gross
+   * to the halala.
+   */
+  net?: number;
+  vat?: number;
+  gross?: number;
+  /** § 62 د — a small line under the item's name: «جنوب أفريقيا · مقاس 66» (itemDetail). */
+  detail?: string;
 }
 
 export interface QuotationPriceWarning {
@@ -105,6 +116,21 @@ export interface QuotationPDFData {
   totals?: QuotationTotalsOptions;
   /** § 62 ج (the addition) — a block printed under the table as it is («خيارات بديلة»). Absent or empty: nothing. */
   belowTable?: { label: string; text: string };
+  /**
+   * § 62 د — «عرض سعر الوحدة»: the table is الصنف | العبوة | السعر قبل الضريبة | ضريبة 15% | السعر بعد الضريبة, with no
+   * quantity, no line total and no totals under it, and «الأسعار لكل وحدة كما في عمود العبوة» below. Set by the
+   * special request's builder and the sale order's (every quantity = 1, or the request's «شكل العرض»); the day's
+   * customer quotation never sets it. Absent: the quotation by quantities, as it was.
+   */
+  layout?: "unit";
+  /** § 62 د — a preview: «مسودة» across the page and in the number's place, no seal, no signature. */
+  draft?: boolean;
+  /** § 62 د — more blocks under the table, each as `belowTable` (a sale order's notes). */
+  belowBlocks?: Array<{ label: string; text: string }>;
+  /** § 62 د — a group's title printed above the item at index `before` (a sale order's section line). */
+  sections?: Array<{ before: number; title: string }>;
+  /** § 62 د — why the quotation cannot be issued, each a whole sentence («صنف بلا سعر: …», «السطر 3 بلا منتج ولا وصف»). */
+  problems?: string[];
 }
 export interface QuotationTotalsOptions { subtotalLabel?: string; vatLabel?: string; hideDiscount?: boolean }
 
@@ -130,6 +156,7 @@ export function renderQuotationBodyHTML(
   items: QuotationLineItem[],
   m?: PageMetrics,
   lang: DocLang = "ar",
+  sections?: QuotationPDFData["sections"],
 ): string {
   const metrics = m ?? computePageMetrics(items.length);
   const isAr = lang === "ar";
@@ -137,16 +164,17 @@ export function renderQuotationBodyHTML(
   const dirEn = isEn ? "right" : "left";
   const rowsHtml = items
     .map(
-      (item) => {
-        const nameCell = isAr ? escapeHTML(item.name) : itemCellHTML(item.name, item.name_en, lang);
+      (item, index) => {
+        const nameCell = withItemDetail(isAr ? escapeHTML(item.name) : itemCellHTML(item.name, item.name_en, lang), item.detail);
         const packCell = isAr ? escapeHTML(item.pack) : itemCellHTML(item.pack, item.pack_en, lang);
-        return `
+        const rowH = rowHeightOf(metrics, item);
+        return `${sectionRowsHTML(sections, index, 5, isEn)}
     <tr style="border-bottom: 0.25px solid ${BRAND_COLORS.borderSoft};">
-      <td style="height: ${metrics.rowHeight}; text-align: ${isEn ? "left" : "right"}; font-size: 12px; font-weight: 400; padding: 0 12px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${nameCell}</td>
-      <td style="height: ${metrics.rowHeight}; text-align: ${isEn ? "left" : "right"}; font-size: 12px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; padding: 0 12px 0 0;">${packCell}</td>
-      <td style="height: ${metrics.rowHeight}; text-align: ${dirEn}; font-size: 12px; font-weight: 400; direction: ltr;">${item.qty}</td>
-      <td style="height: ${metrics.rowHeight}; text-align: ${dirEn}; font-size: 12px; font-weight: 400; direction: ltr; color: ${BRAND_COLORS.inkMuted};">${formatMoney(item.price, lang)}</td>
-      <td style="height: ${metrics.rowHeight}; text-align: ${dirEn}; font-size: 12px; font-weight: 400; direction: ltr;">${formatMoney(item.total, lang)}</td>
+      <td style="height: ${rowH}; text-align: ${isEn ? "left" : "right"}; font-size: 12px; font-weight: 400; padding: 0 12px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${nameCell}</td>
+      <td style="height: ${rowH}; text-align: ${isEn ? "left" : "right"}; font-size: 12px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; padding: 0 12px 0 0;">${packCell}</td>
+      <td style="height: ${rowH}; text-align: ${dirEn}; font-size: 12px; font-weight: 400; direction: ltr;">${item.qty}</td>
+      <td style="height: ${rowH}; text-align: ${dirEn}; font-size: 12px; font-weight: 400; direction: ltr; color: ${BRAND_COLORS.inkMuted};">${formatMoney(item.price, lang)}</td>
+      <td style="height: ${rowH}; text-align: ${dirEn}; font-size: 12px; font-weight: 400; direction: ltr;">${formatMoney(item.total, lang)}</td>
     </tr>
   `;
       },
@@ -170,6 +198,201 @@ export function renderQuotationBodyHTML(
       </thead>
       <tbody>${rowsHtml}</tbody>
     </table>`;
+}
+
+/** § 62 د — «جنوب أفريقيا · مقاس 66»: the origin, then the size (with «مقاس» before a bare one). "" when neither is filled. */
+export function itemDetail(origin?: string | false | null, size?: string | false | null): string {
+  const o = String(origin || "").trim(), z = String(size || "").trim();
+  return [o, z ? (/مقاس|size/i.test(z) ? z : `مقاس ${z}`) : ""].filter(Boolean).join(" · ");
+}
+/** A row's height: the page's, or — for a row that carries a detail line — the page's height for such a row. */
+function rowHeightOf(metrics: PageMetrics, item: QuotationLineItem): string {
+  const tall = (metrics as Partial<QuotationMetrics>).detailRowHeight;
+  return tall && String(item.detail ?? "").trim() ? tall : metrics.rowHeight;
+}
+/** The small line under an item's name. Nothing without a detail. */
+export function itemDetailHTML(detail?: string): string {
+  const d = String(detail ?? "").trim();
+  return d ? `<div data-utak="item-detail" style="font-size: 9px; font-weight: 400; line-height: 1.25; color: ${BRAND_COLORS.inkMuted}; overflow: hidden; text-overflow: ellipsis;">${escapeHTML(d)}</div>` : "";
+}
+/**
+ * The name cell: the name as it was when the item has no detail; with one, the name on a tight line of its own
+ * and the detail under it (the two together stand in a DETAIL_ROW_MIN_PX row).
+ */
+function withItemDetail(nameHTML: string, detail?: string): string {
+  const d = itemDetailHTML(detail);
+  return d ? `<div style="line-height: 1.3; overflow: hidden; text-overflow: ellipsis;">${nameHTML}</div>${d}` : nameHTML;
+}
+/** The titles of the groups that start at this item (a sale order's section lines): rows of their own, across the table. */
+function sectionRowsHTML(sections: QuotationPDFData["sections"], index: number, columns: number, isEn: boolean): string {
+  return (sections ?? []).filter((x) => x.before === index && String(x.title ?? "").trim()).map((x) => `
+    <tr data-utak="section"><td colspan="${columns}" style="height: ${SECTION_ROW_PX}px; vertical-align: bottom; text-align: ${isEn ? "left" : "right"}; font-size: 11px; font-weight: 500; color: ${BRAND_COLORS.primary}; padding: 0 0 4px 0;">${escapeHTML(String(x.title).trim())}</td></tr>`).join("");
+}
+
+// ---- § 62 د: the unit-price table — no quantity, no line total ----
+export const UNIT_COLUMNS = ["colItem", "colPackaging", "colPriceNet", "colVat15", "colPriceGross"] as const;
+export function renderUnitPriceBodyHTML(
+  items: QuotationLineItem[],
+  m?: PageMetrics,
+  lang: DocLang = "ar",
+  sections?: QuotationPDFData["sections"],
+): string {
+  const metrics = m ?? computePageMetrics(items.length);
+  const isAr = lang === "ar";
+  const isEn = lang === "en";
+  const dirEn = isEn ? "right" : "left";
+  const money = (n: number | undefined, rowH: string, muted = false) =>
+    `<td style="height: ${rowH}; text-align: ${dirEn}; font-size: 12px; font-weight: 400; direction: ltr;${muted ? ` color: ${BRAND_COLORS.inkMuted};` : ""}">${formatMoney(n ?? 0, lang)}</td>`;
+  const rowsHtml = items.map((item, index) => {
+    const nameCell = withItemDetail(isAr ? escapeHTML(item.name) : itemCellHTML(item.name, item.name_en, lang), item.detail);
+    const packCell = isAr ? escapeHTML(item.pack) : itemCellHTML(item.pack, item.pack_en, lang);
+    const rowH = rowHeightOf(metrics, item);
+    return `${sectionRowsHTML(sections, index, 5, isEn)}
+    <tr style="border-bottom: 0.25px solid ${BRAND_COLORS.borderSoft};">
+      <td style="height: ${rowH}; text-align: ${isEn ? "left" : "right"}; font-size: 12px; font-weight: 400; padding: 0 12px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${nameCell}</td>
+      <td style="height: ${rowH}; text-align: ${isEn ? "left" : "right"}; font-size: 12px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; padding: 0 12px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${packCell}</td>
+      ${money(item.net, rowH)}
+      ${money(item.vat, rowH, true)}
+      ${money(item.gross, rowH)}
+    </tr>
+  `;
+  }).join("");
+  const th = (key: (typeof UNIT_COLUMNS)[number], w: string, alignEn = false) =>
+    `<th style="width: ${w}; text-align: ${isEn ? (alignEn ? "right" : "left") : (alignEn ? "left" : "right")}; font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.04em; white-space: nowrap; padding: ${metrics.thPad};">${escapeHTML(isEn ? UI[key].en : UI[key].ar)}</th>`;
+  return `<table data-utak="unit-prices" style="position: relative; width: 100%; border-collapse: collapse; table-layout: fixed;">
+      <thead>
+        <tr style="border-top: 0.5px solid ${BRAND_COLORS.borderStrong}; border-bottom: 0.5px solid ${BRAND_COLORS.borderStrong};">
+          ${th("colItem", "30%")}
+          ${th("colPackaging", "20%")}
+          ${th("colPriceNet", "18%", true)}
+          ${th("colVat15", "13%", true)}
+          ${th("colPriceGross", "19%", true)}
+        </tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+    <div data-utak="unit-note" style="position: relative; margin-top: 8px; font-size: 9.5px; font-weight: 400; color: ${BRAND_COLORS.inkMuted};">${escapeHTML(isEn ? UI.unitPricesNote.en : UI.unitPricesNote.ar)}</div>`;
+}
+
+// ---- § 62 د: one page up to twelve lines ----
+//
+// The quotation outgrew its sheet block by block («من» became the company's national address, then the
+// bank-transfer line, «خيارات بديلة», the seal's row): every gap and every row kept the height it was given when
+// the page was half empty, so nine rows already ran 155 px past the sheet. Now the page is told its sheet
+// (RenderPDFShellOptions.fitOnePage: the gaps give way first), and the rows take the height this budget leaves
+// them — from 36 px down to the least a row reads well at. More than twelve rows: the dense page as before,
+// flowing over as many sheets as it needs with «صفحة X من Y» on each.
+export const FIT_MAX_ROWS = 12;
+const ROW_MAX_PX = 36, ROW_MIN_PX = 24, DETAIL_ROW_MIN_PX = 25;
+/** What a printed row is taller than its cell's `height` by: the number cells' own padding and the rule under the row. */
+const ROW_EXTRA_PX = 3;
+/** Kept free of the budget: a line that wraps where the estimate said it would not. */
+const FIT_RESERVE_PX = 6;
+export const SECTION_ROW_PX = 28;
+/** What the sheet gives the page's content once the page-number margin and the page's own paddings are taken (px at 96 dpi). */
+export const FIT_SHEET_PX = Math.floor((297 - 20 - 6) * (96 / 25.4) - Number(GOTENBERG_FOOTER_MARGIN) * 96);
+export interface QuotationFitInput {
+  rows: number;
+  /** Rows that carry a detail line under the name. */
+  detailRows?: number;
+  sectionRows?: number;
+  unit?: boolean;
+  /** An issued quotation: the seal's block beside the totals. */
+  sealed?: boolean;
+  /** The lines of the taller party block (name, contact, address lines, phone). */
+  partyLines?: number;
+  /** The lines of the note under «الشروط والملاحظات», and whether a bank-transfer line follows it. */
+  noteLines?: number;
+  bankLine?: boolean;
+  /** The blocks under the table and all their lines together. */
+  belowBlocks?: number;
+  belowLines?: number;
+}
+/**
+ * The height of everything on the page but the table (its head and its rows) and the four gaps, in px, by what
+ * the page carries — each number as Chrome lays the block out (measured 2026-10-07): the header 121; a party
+ * block of four lines 111; the totals 118, or the seal's block beside them 155; the terms block 101 with a
+ * one-line note and the bank-transfer line; the legal strip 22.
+ */
+export function quotationFixedPx(i: QuotationFitInput): number {
+  const header = 121, rule = 1;
+  const partyLines = Math.max(3, i.partyLines ?? 4);
+  const parties = 20 + partyLines * 19 + (partyLines - 1) * 5;
+  const unitNote = i.unit ? 22 : 0;
+  const below = (i.belowBlocks ?? 0) * 33 + (i.belowLines ?? 0) * 20;
+  const totals = i.sealed ? 155 : i.unit ? 0 : 118;
+  const foot = 14 + 15 + 5 + Math.max(1, i.noteLines ?? 1) * 17 + (i.bankLine ? 22 : 0) + 12 + 16;
+  const strip = 8 + 14;
+  return header + rule + parties + unitNote + below + totals + foot + strip + (i.sectionRows ?? 0) * (SECTION_ROW_PX + 1);
+}
+/** The table's head: its text line and its padding above and below. */
+const theadPx = (pad: number): number => 17 + 2 * pad;
+const thPadFor = (row: number): number => (row >= 30 ? 10 : 8);
+export const FIT_GAPS = { gap: [12, 24], preTable: [14, 40], postTable: [12, 40] } as const;
+/** How far open (0 … 1) the gaps are when the rows' height is chosen. */
+const FIT_GAPS_OPEN = 0.25;
+/** The page's whole height at a row height and a gaps' opening: what quotationPageMetrics holds against the sheet. */
+export function quotationPagePx(i: QuotationFitInput, rowPx: number, open: number): number {
+  return quotationFixedPx(i) + tablePx(i, rowPx) + gapsPx(open) + FIT_RESERVE_PX;
+}
+const gapsPx = (t: number): number => 2 * (FIT_GAPS.gap[0] + t * (FIT_GAPS.gap[1] - FIT_GAPS.gap[0])) + (FIT_GAPS.preTable[0] + t * (FIT_GAPS.preTable[1] - FIT_GAPS.preTable[0])) + (FIT_GAPS.postTable[0] + t * (FIT_GAPS.postTable[1] - FIT_GAPS.postTable[0]));
+/** What the table takes at `h` px a row: its head, and each row with its extra (a row with a detail line is never under DETAIL_ROW_MIN_PX). */
+const tablePx = (i: QuotationFitInput, h: number): number =>
+  theadPx(thPadFor(h)) + (i.rows - (i.detailRows ?? 0)) * (h + ROW_EXTRA_PX) + (i.detailRows ?? 0) * (Math.max(h, DETAIL_ROW_MIN_PX) + ROW_EXTRA_PX);
+export interface QuotationMetrics extends PageMetrics {
+  /** The page is told its sheet (twelve rows or fewer). */
+  fit: boolean;
+  /** The height of a row that carries a detail line. */
+  detailRowHeight: string;
+}
+export function quotationPageMetrics(i: QuotationFitInput): QuotationMetrics {
+  if (i.rows > FIT_MAX_ROWS) {
+    const m = computePageMetrics(i.rows);
+    return { ...m, fit: false, detailRowHeight: `${Math.max(parseInt(m.rowHeight, 10) || 0, DETAIL_ROW_MIN_PX)}px` };
+  }
+  const fixed = quotationFixedPx(i);
+  // the tallest row the sheet holds with its gaps a quarter open; else with them closed; else the least row (the gaps close, and what is left flows on)
+  let row = ROW_MIN_PX;
+  for (const t of [FIT_GAPS_OPEN, 0]) {
+    let found = 0;
+    for (let h = ROW_MAX_PX; h >= ROW_MIN_PX; h--) if (fixed + tablePx(i, h) + gapsPx(t) + FIT_RESERVE_PX <= FIT_SHEET_PX) { found = h; break; }
+    if (found) { row = found; break; }
+  }
+  return {
+    dense: false, fit: true,
+    gap: `${FIT_GAPS.gap[1]}px`, gapMin: `${FIT_GAPS.gap[0]}px`,
+    preTable: `${FIT_GAPS.preTable[1]}px`, preTableMin: `${FIT_GAPS.preTable[0]}px`,
+    postTable: `${FIT_GAPS.postTable[1]}px`, postTableMin: `${FIT_GAPS.postTable[0]}px`,
+    tailMin: "0px",
+    thPad: `${thPadFor(row)}px 0`,
+    rowHeight: `${row}px`,
+    detailRowHeight: `${Math.max(row, DETAIL_ROW_MIN_PX)}px`,
+  };
+}
+/** How many lines a text takes at `perLine` characters (its own line breaks kept). At least one. */
+export function estimateLines(text: string | undefined, perLine: number): number {
+  return String(text ?? "").split("\n").reduce((n, l) => n + Math.max(1, Math.ceil(l.trim().length / perLine)), 0);
+}
+/** The page's budget from the data it will print. */
+export function quotationFitInput(data: QuotationPDFData, company?: CompanyInfo): QuotationFitInput {
+  const from = fromPartyFor(resolveDocLang({ docLang: data.lang, isTaxInvoice: false }), company);
+  // a party's column holds about 48 characters a line, the terms block about 160 (measured; FIT_RESERVE_PX and the gaps take a miss)
+  const toLines = 1 + (data.customer.contactPerson ? 1 : 0) + estimateLines(data.customer.address, 48) + (data.customer.phone ? 1 : 0);
+  const fromLines = from ? 1 + estimateLines(from.address, 48) + (from.email || from.phone ? 1 : 0) : 4;
+  const blocks = [data.belowTable, ...(data.belowBlocks ?? [])].filter((b): b is { label: string; text: string } => !!b && !!String(b.text ?? "").trim());
+  const note = data.footerNote ?? QUOTATION_FOOTER;
+  return {
+    rows: data.items.length,
+    detailRows: data.items.filter((x) => String(x.detail ?? "").trim()).length,
+    sectionRows: (data.sections ?? []).filter((x) => String(x.title ?? "").trim()).length,
+    unit: data.layout === "unit",
+    sealed: !!(data.issued && !data.draft && company),
+    partyLines: Math.max(toLines, fromLines),
+    noteLines: estimateLines(note, 160),
+    bankLine: !!company?.bankLine,
+    belowBlocks: blocks.length,
+    belowLines: blocks.reduce((n, b) => n + estimateLines(b.text, 110), 0),
+  };
 }
 
 // ---- Totals: subtotal + discount + VAT 15% + grand total ----
@@ -197,8 +420,14 @@ export function renderQuotationTotalsHTML(
 }
 
 export function renderQuotationHTML(data: QuotationPDFData, company?: CompanyInfo): string {
-  const pageMetrics = computePageMetrics(data.items.length);
+  // § 62 د — the page's budget: one sheet up to twelve lines (quotationPageMetrics)
+  const pageMetrics = quotationPageMetrics(quotationFitInput(data, company));
   const lang: DocLang = resolveDocLang({ docLang: data.lang, isTaxInvoice: false });
+  const unit = data.layout === "unit";
+  const table = unit
+    ? renderUnitPriceBodyHTML(data.items, pageMetrics, lang, data.sections)
+    : renderQuotationBodyHTML(data.items, pageMetrics, lang, data.sections);
+  const below = renderBelowTableHTML(data.belowTable) + (data.belowBlocks ?? []).map((b) => renderBelowTableHTML(b)).join("");
   const billTo: PartyInfo = {
     name: data.customer.name,
     contactName: data.customer.contactPerson,
@@ -215,8 +444,9 @@ export function renderQuotationHTML(data: QuotationPDFData, company?: CompanyInf
     billTo,
     // § 62 ج (fix) — «من» is the company read from Odoo in every language (BRAND_INFO only without one)
     from: fromPartyFor(lang, company),
-    bodyHTML: renderQuotationBodyHTML(data.items, pageMetrics, lang) + renderBelowTableHTML(data.belowTable),
-    totalsHTML: renderQuotationTotalsHTML(
+    bodyHTML: table + below,
+    // a unit-price quotation states no total: each line is one unit's price, and their sum means nothing
+    totalsHTML: unit ? undefined : renderQuotationTotalsHTML(
       data.subtotal,
       data.discount,
       data.vatAmount,
@@ -227,8 +457,9 @@ export function renderQuotationHTML(data: QuotationPDFData, company?: CompanyInf
     footerNote: data.footerNote ?? (lang === "en"
       ? (data.vatInclusive ? `${UI.quotationValidity.en} ${UI.vatInclusiveNote.en}.` : UI.quotationValidity.en)
       : (data.vatInclusive ? `${QUOTATION_FOOTER}. ${UI.vatInclusiveNote.ar}` : QUOTATION_FOOTER)),
-    // § 52 أ — «للتحويل: … — IBAN …» under the terms (the same Arabic line in every language)
-    bankLine: company?.bankLine,
+    // § 52 أ — «للتحويل: … — IBAN …» under the terms (the same Arabic line in every language);
+    // § 62 د — the account's holder written as the company's legal name (res.company), not the bank card's short one
+    bankLine: bankLineWithHolder(company?.bankLine, company?.legalNameAr || company?.nameAr),
     showZatcaQR: false,
     legalFooterBar,
     pageMetrics,
@@ -237,9 +468,19 @@ export function renderQuotationHTML(data: QuotationPDFData, company?: CompanyInf
     // § 62 ج (fix) — a quotation is addressed «إلى / TO», not «فاتورة إلى» (every path: the day's, the manual, the special request's)
     billToLabel: labelForTo(lang),
     fromLabel: data.lang ? labelForFrom(lang) : undefined,
-    termsLabel: data.lang ? labelForTerms(lang) : undefined,
+    // § 62 د — «الشروط والملاحظات» on the table's width, the strip one line, the parties' addresses breaking after a comma
+    termsLabel: labelForQuotationTerms(lang),
+    wideTerms: true,
+    legalOneLine: true,
+    partyAddressByParts: true,
+    fitOnePage: pageMetrics.fit,
     thanksLine: data.lang ? thanksLine(lang, company) : undefined,
-    footerSealHTML: issuedSealHTML(data.issued, company),
+    // a preview is a draft to the eye: the word across the page and under the number's place, and never a seal
+    draftMark: data.draft ? (lang === "en" ? UI.draft.en : UI.draft.ar) : undefined,
+    headerBadge: data.draft ? { text: lang === "en" ? UI.draftBadge.en : UI.draftBadge.ar, color: BRAND_COLORS.accent, bg: "rgba(224, 123, 57, 0.08)" } : undefined,
+    // on a page of more than one sheet the seal is not raised above its block: raised, a block that starts a
+    // sheet left the seal's top on the sheet before it
+    footerSealHTML: issuedSealHTML(data.issued && !data.draft, company, pageMetrics.fit ? undefined : 0),
     sealBesideTotals: true,
     documentDateStr: lang === "en" ? formatDateEn(data.quotationDate) : undefined,
   });

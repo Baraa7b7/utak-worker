@@ -271,7 +271,9 @@ console.log("\n[8] 40-line invoice flows, seal last");
   assert("seal after the last row", html.indexOf('data-utak="stamp"') > html.indexOf("صنف رقم 40"));
   assert("page box grows (min-height), no fixed 297mm height", /class="utak-page" style="[^"]*min-height: 297mm/.test(html) && !/class="utak-page" style="[^"]*[^-]height: 297mm/.test(html));
   const fitted = fitPageToMargins(html, { marginBottom: "0.4" });
-  assert("Gotenberg footer margin: page box shrinks to printable height", fitted.includes(".utak-page { min-height: calc(297mm - 0.4in) !important; }</style>\n</head>"));
+  assert("Gotenberg footer margin: page box shrinks to printable height", fitted.includes(".utak-page { min-height: calc(297mm - 0.4in) !important;") && fitted.includes("}</style>\n</head>"));
+  // § 62 د — with the page-number margin reserved, the page's own bottom padding is 6 mm: «صفحة X من Y» right under the legal strip
+  assert("…and its bottom padding gives way to the page-number margin (6mm), for every document that reserves it", fitted.includes("padding-bottom: 6mm !important;") && !fitPageToMargins(html, {}).includes("padding-bottom: 6mm") && fitPageToMargins(html, { marginTop: "0.4" }).includes("min-height: calc(297mm - 0.4in)") && !fitPageToMargins(html, { marginTop: "0.4" }).includes("padding-bottom"));
   assert("no margins: HTML untouched", fitPageToMargins(html) === html && fitPageToMargins(html, { marginBottom: "0" }) === html);
   const legacy = renderInvoiceHTML(TEST_INVOICE_DATA);
   assert("byte-parity template also min-height", /class="utak-page" style="[^"]*min-height: 297mm/.test(legacy) && !/[^-]height: 297mm/.test(legacy));

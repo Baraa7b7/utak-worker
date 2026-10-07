@@ -1,7 +1,9 @@
 // § 62 ج (2026-10-07) — the quotation of «طلب أسعار خاص».
 //
-// «📄 أصدر عرض السعر» and «⬇️ PDF لي فقط» issue the same document; they differ
-// in who gets the file.
+// «📄 أصدر عرض السعر» issues the document. § 62 د: «⬇️ PDF لي فقط» (which issued it
+// to Baraa alone) gave its place to «👁️ معاينة PDF» — previewSpecialQuotation: the
+// same page as a DRAFT in the browser, with no number, no sale order, no seal, no
+// change of the request and no message (src/quote-preview.ts serves it).
 //
 //   • Never with a line that has no final price (or no quantity): the request
 //     is answered with the names of those lines, and nothing is recorded.
@@ -19,7 +21,9 @@
 //     template utak_quotation_pdf_v2 ONLY when «صالح حتى» does not pass 06:00
 //     of tomorrow (the template's own words promise that hour) — otherwise the
 //     file reaches Baraa to send himself, and he is told so. Never held.
-//   • «⬇️ PDF لي فقط»: the file to Baraa alone.
+//   • § 62 د — «شكل العرض»: a request whose every quantity is 1 (or «أسعار الوحدة»)
+//     prints ONE unit's price per line — before VAT, its VAT, with it — and no
+//     quantity, no line total and no totals (quotationLayout).
 //
 // The customer's send goes under customer_quotation: the gateway refuses it for
 // a price source's or a supplier's number (src/price-privacy.ts).
@@ -33,8 +37,8 @@ import { riyadhDateKey } from "./hours";
 import { readWindow, waDigits } from "./wa-window";
 import { arabicDate } from "./wa-params";
 import { money, round2, VAT_FACTOR, VAT_RATE, type PriceMode } from "./special-quote-math";
-import { QUOTE_MODEL, nowOdoo, quoteName, readQuote, recalcQuote, writeResult, type SpecialQuote } from "./special-quote";
-import type { QuotationPDFData } from "./quotation";
+import { QUOTE_MODEL, finalsOf, nowOdoo, quoteName, readQuote, recalcQuote, writeResult, type SpecialQuote } from "./special-quote";
+import { itemDetail, type QuotationPDFData } from "./quotation";
 
 export const OWNER_SPECIAL_PURPOSE = "owner_special_quote";
 const ISSUE_LOCK_SECONDS = 90;
@@ -78,10 +82,21 @@ export const ALTERNATIVES_LABEL = "خيارات بديلة";
  * day's 06:00), «الأسعار شاملة …» only when its prices are, and the closing
  * line last.
  */
-export const quotationNote = (validUntil: string, mode: PriceMode = "gross"): string => {
+export const quotationNote = (validUntil: string, mode: PriceMode = "gross", layout: "unit" | "qty" = "qty"): string => {
   const until = validUntilText(validUntil);
-  return `${until ? `العرض ساري حتى ${until}. ` : ""}${mode === "gross" ? `${VAT_INCLUSIVE_NOTE} ` : ""}${CLOSING_LINE}`;
+  // a unit-price quotation prints each price before the VAT and with it: no «الأسعار شاملة …» to add
+  return `${until ? `العرض ساري حتى ${until}. ` : ""}${mode === "gross" && layout !== "unit" ? `${VAT_INCLUSIVE_NOTE} ` : ""}${CLOSING_LINE}`;
 };
+/** § 62 د — what stands in a preview's number place. */
+export const DRAFT_NUMBER = "مسودة";
+/**
+ * § 62 د — «شكل العرض»: «أسعار الوحدة» and «بالكميات» as chosen; «تلقائي» is unit prices when the request has
+ * lines and the quantity of every one of them is 1 (a price list, not an order), else by quantities.
+ */
+export function quotationLayout(q: Pick<SpecialQuote, "layout" | "lines">): "unit" | "qty" {
+  if (q.layout === "unit" || q.layout === "qty") return q.layout;
+  return q.lines.length > 0 && q.lines.every((l) => l.qty === 1) ? "unit" : "qty";
+}
 
 /** The lines a quotation cannot be issued with: no final price, or no quantity. */
 export function missingLines(q: Pick<SpecialQuote, "lines">): { noPrice: string[]; noQty: string[] } {
@@ -102,11 +117,18 @@ export interface QuotationCustomer { name: string; address: string; phone: strin
  *     split as the tax invoice will split it.
  * Under the table «خيارات بديلة» as typed; the closing line ends the note.
  */
-export function specialQuotationData(q: SpecialQuote, number: string, customer: QuotationCustomer, now: number, opts: { issued?: boolean } = {}): QuotationPDFData {
+export function specialQuotationData(q: SpecialQuote, number: string, customer: QuotationCustomer, now: number, opts: { issued?: boolean; draft?: boolean } = {}): QuotationPDFData {
   const net = q.priceMode === "net";
+  const unit = quotationLayout(q) === "unit";
   const items = q.lines.map((l) => {
     const price = net ? l.finalNet : l.finalPrice;
-    return { name: l.productName || "صنف", pack: l.unit, qty: l.qty, price, total: round2(l.qty * price) };
+    const detail = itemDetail(l.origin, l.size);
+    return {
+      name: l.productName || "صنف", pack: l.unit, qty: l.qty, price, total: round2(l.qty * price),
+      // § 62 د — one unit's two final prices as the request holds them, and the VAT between them: they add up to the halala
+      ...(unit ? { net: l.finalNet, vat: round2(l.finalPrice - l.finalNet), gross: l.finalPrice } : {}),
+      ...(detail ? { detail } : {}),
+    };
   });
   const lines = round2(items.reduce((s, i) => s + i.total, 0));
   const vatAmount = net ? round2(lines * VAT_RATE) : round2(lines - lines / VAT_FACTOR);
@@ -115,7 +137,9 @@ export function specialQuotationData(q: SpecialQuote, number: string, customer: 
     quotationNumber: number, quotationDate: new Date(now), customer, items,
     subtotal: net ? lines : round2(lines - vatAmount), discount: 0, vatAmount, grandTotal, vatInclusive: !net,
     price_warnings: [], has_blocking_issue: false, is_manual: true, customer_id: q.partnerId,
-    footerNote: quotationNote(q.validUntil, q.priceMode), issued: opts.issued ?? true,
+    footerNote: quotationNote(q.validUntil, q.priceMode, unit ? "unit" : "qty"), issued: opts.draft ? false : opts.issued ?? true,
+    ...(unit ? { layout: "unit" as const } : {}),
+    ...(opts.draft ? { draft: true } : {}),
     ...(net ? { totals: { subtotalLabel: NET_SUBTOTAL_LABEL, vatLabel: NET_VAT_LABEL, hideDiscount: true } } : {}),
     ...(q.alternatives ? { belowTable: { label: ALTERNATIVES_LABEL, text: q.alternatives } } : {}),
   };
@@ -148,6 +172,8 @@ export async function recordSaleQuotation(env: Env, q: SpecialQuote, now: number
   }
   const lineVals = (l: SpecialQuote["lines"][number]) => ({
     product_id: variantOf.get(l.productId)!, name: l.productName || "صنف", product_uom_qty: l.qty, price_unit: l.finalPrice, sequence: l.sequence || 10,
+    // § 62 د — «المنشأ» and «المقاس» go with the line (emptied when the request's are)
+    x_item_origin: l.origin || false, x_item_size: l.size || false,
     ...(taxIds ? { tax_ids: [[6, 0, taxIds]] } : {}),
   });
 
@@ -164,8 +190,9 @@ export async function recordSaleQuotation(env: Env, q: SpecialQuote, now: number
         if (i >= 0) commands.push([1, free.splice(i, 1)[0].id, lineVals(l)]);
         else commands.push([0, 0, lineVals(l)]);
       }
-      // a line that left the request: quantity 0 (nothing is deleted)
-      for (const o of free) commands.push([1, o.id, { product_uom_qty: 0 }]);
+      // a line that left the request: quantity 0 (nothing is deleted) — and price 0: on a sale order a line with
+      // no quantity and a price is a «خيار بديل» (src/sale-order-quotation.ts), which a removed line is not
+      for (const o of free) commands.push([1, o.id, { product_uom_qty: 0, price_unit: 0 }]);
       await call<boolean>(env, "sale.order", "write", { ids: [so.id], vals: { ...head, order_line: commands } });
       return { id: so.id, number: String(so.name), created: false };
     }
@@ -181,8 +208,8 @@ export interface IssueResult {
   action: "issued" | "refused" | "busy" | "not_found";
   detail?: string;
   number?: string;
-  /** How the file went: to the customer (inside his window / by the template), to Baraa (his own button, or the customer could not be reached). */
-  to?: "customer_session" | "customer_template" | "owner_only" | "owner_instead";
+  /** How the file went: to the customer (inside his window / by the template), or to Baraa (the customer could not be reached). */
+  to?: "customer_session" | "customer_template" | "owner_instead";
   pdfUrl?: string;
 }
 
@@ -205,12 +232,46 @@ async function fileToOwner(env: Env, url: string, number: string, caption: strin
   }
 }
 
+/** The customer's block of the quotation, from his card. */
+async function readCustomer(env: Env, q: Pick<SpecialQuote, "partnerId" | "partnerName">): Promise<QuotationCustomer> {
+  const [partner] = await call<Array<{ id: number; name: string | false; phone: string | false; x_whatsapp_number: string | false; street: string | false; city: string | false }>>(env, "res.partner", "read", {
+    ids: [q.partnerId], fields: ["id", "name", "phone", "x_whatsapp_number", "street", "city"],
+  });
+  return {
+    name: String(partner?.name || q.partnerName || "عميل"),
+    address: [partner?.street, partner?.city].filter((p): p is string => typeof p === "string" && p.length > 0).join(", ") || "الرياض",
+    phone: String(partner?.x_whatsapp_number || partner?.phone || ""),
+  };
+}
+
+export type PreviewResult = { pdf: Uint8Array; name: string } | { refused: string } | null;
+/**
+ * § 62 د — «👁️ معاينة PDF»: the quotation as it would be issued now, as a DRAFT. Reads the request and the
+ * customer; WRITES NOTHING (no recalculation is saved, no sale order, no number, no state, no «آخر نتيجة») and
+ * sends nothing. Refused with its reason for what issuing refuses (a line with no final price or no quantity);
+ * null when the request is not there.
+ */
+export async function previewSpecialQuotation(env: Env, quoteId: number, now: number = Date.now()): Promise<PreviewResult> {
+  const read = await readQuote(env, quoteId);
+  if (!read) return null;
+  // the two final prices of every line as a save would leave them (the typed one, and the other following it)
+  const q: SpecialQuote = { ...read, lines: read.lines.map((l) => ({ ...l, ...finalsOf(l, read.priceMode) })) };
+  if (!q.partnerId) return { refused: "لا عميل على الطلب" };
+  if (!q.lines.length) return { refused: "لا أصناف في الطلب" };
+  const miss = missingLines(q);
+  if (miss.noPrice.length) return { refused: `أسطر بلا سعر نهائي: ${miss.noPrice.join("، ")}` };
+  if (miss.noQty.length) return { refused: `أسطر بلا كمية: ${miss.noQty.join("، ")}` };
+  const data = specialQuotationData(q, DRAFT_NUMBER, await readCustomer(env, q), now, { draft: true });
+  const { generateQuotationPDF } = await import("./quotation");
+  return { pdf: await generateQuotationPDF(data, env), name: quoteName(quoteId) };
+}
+
 /**
  * Issue the request's quotation: recorded in Odoo, its PDF built and kept, the
- * file sent — to the customer, or (`ownerOnly`, or a customer who cannot be
- * reached by the rules above) to Baraa.
+ * file sent — to the customer, or (a customer who cannot be reached by the
+ * rules above) to Baraa.
  */
-export async function issueSpecialQuotation(env: Env, quoteId: number, opts: { now?: number; ctx?: ExecutionContext; ownerOnly?: boolean } = {}): Promise<IssueResult> {
+export async function issueSpecialQuotation(env: Env, quoteId: number, opts: { now?: number; ctx?: ExecutionContext } = {}): Promise<IssueResult> {
   const now = opts.now ?? Date.now();
   const lock = await claimButton(env, `spq_issue:${quoteId}`, ISSUE_LOCK_SECONDS);
   if (!lock.claimed) return { action: "busy", detail: "pressed a moment ago" };
@@ -234,15 +295,8 @@ export async function issueSpecialQuotation(env: Env, quoteId: number, opts: { n
     const so = await recordSaleQuotation(env, q, now);
     // on the request at once: a PDF that fails after this never leaves an order nobody points at (the next press finds it)
     await call<boolean>(env, QUOTE_MODEL, "write", { ids: [quoteId], vals: { x_sale_order_id: so.id, x_quotation_number: so.number } });
-    const [partner] = await call<Array<{ id: number; name: string | false; phone: string | false; x_whatsapp_number: string | false; street: string | false; city: string | false }>>(env, "res.partner", "read", {
-      ids: [q.partnerId], fields: ["id", "name", "phone", "x_whatsapp_number", "street", "city"],
-    });
-    const phone = String(partner?.x_whatsapp_number || partner?.phone || "");
-    const customer: QuotationCustomer = {
-      name: String(partner?.name || q.partnerName || "عميل"),
-      address: [partner?.street, partner?.city].filter((p): p is string => typeof p === "string" && p.length > 0).join(", ") || "الرياض",
-      phone,
-    };
+    const customer = await readCustomer(env, q);
+    const phone = customer.phone;
     const data = specialQuotationData(q, so.number, customer, now);
     const { generateQuotationPDF, uploadQuotationToR2, quotationTemplateParams, QUOTATION_PDF_V2_PURPOSE } = await import("./quotation");
     const pdf = await generateQuotationPDF(data, env);
@@ -250,18 +304,17 @@ export async function issueSpecialQuotation(env: Env, quoteId: number, opts: { n
     await call<boolean>(env, QUOTE_MODEL, "write", { ids: [quoteId], vals: { x_pdf_url: uploaded.publicUrl, x_issued_at: nowOdoo(now), x_state: "quoted" } });
 
     const caption = customerCaption(so.number, q.validUntil);
-    const total = `الإجمالي ${money(data.grandTotal)} ريال شامل الضريبة${q.priceMode === "net" ? ` (${money(data.subtotal)} قبلها)` : ""}`;
+    // § 62 د — a unit-price quotation has no total: the sum of one unit of every line means nothing
+    const unit = data.layout === "unit";
+    const total = unit ? `أسعار الوحدة لـ ${data.items.length} صنف (بلا إجمالي)` : `الإجمالي ${money(data.grandTotal)} ريال شامل الضريبة${q.priceMode === "net" ? ` (${money(data.subtotal)} قبلها)` : ""}`;
     const ownerCaption = (why: string): string => [`📄 عرض السعر رقم ${so.number} — ${customer.name}`, total, why, uploaded.publicUrl].join("\n");
     let to: IssueResult["to"];
     let line: string;
-    if (opts.ownerOnly) {
-      to = "owner_only";
-      await fileToOwner(env, uploaded.publicUrl, so.number, ownerCaption("لك وحدك: لم يُرسل للعميل."), opts.ctx);
-      line = `⬇️ صدر عرض السعر ${so.number} ووصلك ملفه وحدك (لم يُرسل للعميل). ${total}`;
-    } else {
+    {
       const digits = waDigits(phone);
       const open = digits ? (await readWindow(env, digits, now)).open : false;
-      const fits = templateFits(q.validUntil, now);
+      // the template's words carry «بإجمالي … ريال»: never for a unit-price quotation, which has none
+      const fits = !unit && templateFits(q.validUntil, now);
       let sent: "session" | "template" | null = null;
       let why = !digits ? "العميل بلا رقم واتساب" : "";
       if (digits && (open || fits)) {
@@ -275,7 +328,9 @@ export async function issueSpecialQuotation(env: Env, quoteId: number, opts: { n
         if (d?.action === "session" || d?.action === "template") sent = d.action;
         else why = d ? `${d.action}${"reason" in d ? `: ${d.reason}` : ""}` : "لم يُرسل";
       } else if (digits) {
-        why = "العميل خارج نافذة 24 ساعة، و«صالح حتى» يتجاوز 6:00 صباح الغد فلا يصلح له قالب عرض السعر";
+        why = unit
+          ? "العميل خارج نافذة 24 ساعة، وقالب عرض السعر يذكر إجمالياً وعرض أسعار الوحدة بلا إجمالي"
+          : "العميل خارج نافذة 24 ساعة، و«صالح حتى» يتجاوز 6:00 صباح الغد فلا يصلح له قالب عرض السعر";
       }
       if (sent) {
         to = sent === "session" ? "customer_session" : "customer_template";

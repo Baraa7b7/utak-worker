@@ -61,6 +61,15 @@ export const UI = {
   colTotalNet: T("المجموع قبل الضريبة", "Amount excl. VAT"),
   // § 41 د — a quotation from the VAT cutoff.
   vatInclusiveNote: T("الأسعار شاملة ضريبة القيمة المضافة", "Prices include VAT"),
+  // § 62 د — the unit-price quotation (no quantity, no totals), the manual quotation whose taxes are added on top,
+  // the quotation's terms block, and a preview.
+  vatExclusiveNote: T("الأسعار قبل ضريبة القيمة المضافة", "Prices exclude VAT"),
+  colVat15: T("ضريبة 15%", "VAT 15%"),
+  colPriceGross: T("السعر بعد الضريبة", "Price incl. VAT"),
+  unitPricesNote: T("الأسعار لكل وحدة كما في عمود العبوة", "Prices are per unit, as in the Packaging column"),
+  termsAndNotes: T("الشروط والملاحظات", "TERMS & NOTES"),
+  draft: T("مسودة", "DRAFT"),
+  draftBadge: T("مسودة — غير معتمدة", "DRAFT — NOT ISSUED"),
   colOrderedQty: T("الكمية المطلوبة", "Qty Ordered"),
   colAgreedPrice: T("السعر المتفق", "Agreed Price"),
   colInvoiceNumber: T("رقم الفاتورة", "Invoice #"),

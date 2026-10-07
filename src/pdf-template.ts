@@ -200,12 +200,14 @@ export function renderSealSignatureBlock(
  *  sits beside the totals, where the page is empty, so a one-page document
  *  stays one page. undefined for a preview or draft — which also keeps the
  *  byte-parity template. */
+export const ISSUED_SEAL_RAISE_MM = 6;
 export function issuedSealHTML(
   issued: boolean | undefined,
   company?: { stampImage?: string; signatureImage?: string },
+  raiseMm: number = ISSUED_SEAL_RAISE_MM,
 ): string | undefined {
   if (!issued || !company) return undefined;
-  return renderSealSignatureBlock({ stamp: company.stampImage, signature: company.signatureImage }, { marginTopMm: 0, raiseMm: 6 }) || undefined;
+  return renderSealSignatureBlock({ stamp: company.stampImage, signature: company.signatureImage }, { marginTopMm: 0, raiseMm }) || undefined;
 }
 
 // ============================================================================
@@ -224,6 +226,8 @@ export interface PartyInfo {
   vat?: string;
   /** The words before that number; «الرقم الضريبي» when absent. */
   vatLabel?: string;
+  /** § 62 د — the address breaks after a comma, never inside a name («حي / السلي»): see partyAddressHTML. */
+  addressByParts?: boolean;
 }
 
 export interface PageMetrics {
@@ -234,6 +238,10 @@ export interface PageMetrics {
   thPad: string;
   rowHeight: string;
   dense: boolean;
+  /** § 62 د — a page that must stay ONE page (RenderPDFShellOptions.fitOnePage): the least each gap may shrink to. */
+  gapMin?: string;
+  preTableMin?: string;
+  postTableMin?: string;
 }
 
 export function computePageMetrics(itemCount: number): PageMetrics {
@@ -268,11 +276,21 @@ function renderParty(label: string, party: PartyInfo, alignEnd: boolean): string
       <div style="display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 400;">
         <div>${escapeHTML(party.name)}</div>
         ${party.contactName ? `<div style="color: ${BRAND_COLORS.inkMuted};">${escapeHTML(party.contactName)}</div>` : ""}
-        ${party.address ? `<div style="color: ${BRAND_COLORS.inkMuted};">${escapeHTML(party.address)}</div>` : ""}
+        ${party.address ? `<div style="color: ${BRAND_COLORS.inkMuted};">${party.addressByParts ? partyAddressHTML(party.address) : escapeHTML(party.address)}</div>` : ""}
         ${party.email ? ltrLine(both ? `${escapeHTML(party.email)} · ${escapeHTML(party.phone)}` : escapeHTML(party.email)) : ""}
         ${party.phone && !both ? ltrLine(escapeHTML(party.phone)) : ""}${renderPartyVat(party)}
       </div>
     </div>`;
+}
+
+/**
+ * § 62 د — an address that breaks after a comma, not inside a name: each part up to its comma is one
+ * inline block, so the line turns between parts («…بن عبدالعزيز،» / «حي السلي، الرياض…»); a part longer
+ * than the column alone still wraps inside itself (it never runs out of its column).
+ */
+export function partyAddressHTML(address: string): string {
+  const parts = String(address ?? "").split(/(?<=[،,])\s*/).map((x) => x.trim()).filter(Boolean);
+  return parts.map((part) => `<span style="display: inline-block; max-width: 100%;">${escapeHTML(part)}</span>`).join(" ");
 }
 
 /** The party's VAT line («الرقم الضريبي: 3…»), the number in one left-to-right run. Nothing without a number. */
@@ -356,7 +374,10 @@ function renderHeader(
 //     line 1: name (ar)  ·  س.ت CR  ·  الرقم الضريبي VAT
 //     line 2: nameEn      ·  CR No. CR  ·  VAT No. VAT
 //     line 3: address (ar) ·  phone  ·  email
-export function renderLegalFooterBar(info: LegalFooterInfo, lang: DocLang = "ar"): string {
+export function renderLegalFooterBar(info: LegalFooterInfo, lang: DocLang = "ar", oneLine = false): string {
+  // § 62 د — the quotation's strip is ONE line that never breaks: the legal name, the commercial register and the
+  // VAT number. The address, the e-mail and the phone are in «من» of the same page.
+  if (oneLine) return renderLegalOneLine(info, lang);
   const lineStyle = `text-align: center; font-size: ${BRAND_TYPE.legal.size}; font-weight: ${BRAND_TYPE.legal.weight}; color: ${BRAND_COLORS.inkMuted}; letter-spacing: ${BRAND_TYPE.legal.tracking}; line-height: ${BRAND_TYPE.legal.lineHeight};`;
   const asBdi = (s: string) => `<bdi dir="ltr">${escapeHTML(s.trim())}</bdi>`;
   const parts: string[] = [`<div style="height: 8px;"></div>`];
@@ -410,6 +431,50 @@ export function renderLegalFooterBar(info: LegalFooterInfo, lang: DocLang = "ar"
   if (lineMid && lineMid.length > 0) parts.push(`<div dir="ltr" style="${lineStyle}">${lineMid.join(" · ")}</div>`);
   if (line2.length > 0) parts.push(`<div style="${lineStyle}">${line2.join(" · ")}</div>`);
   return parts.join("\n    ");
+}
+
+/** The strip's identity line alone, unbreakable (see renderLegalFooterBar). "" when the company gave nothing. */
+function renderLegalOneLine(info: LegalFooterInfo, lang: DocLang): string {
+  const en = lang === "en";
+  const asBdi = (s: string) => `<bdi dir="ltr">${escapeHTML(s.trim())}</bdi>`;
+  const name = ((en ? info.nameEn : "") || info.name || "").trim();
+  const parts: string[] = [];
+  if (name) parts.push(escapeHTML(name));
+  if (info.cr && info.cr.trim()) parts.push(`${en ? info.crLabelEn ?? "CR No." : "س.ت"} ${asBdi(info.cr)}`);
+  if (info.vat && info.vat.trim()) parts.push(`${en ? info.vatLabelEn ?? "VAT No." : "الرقم الضريبي"} ${asBdi(info.vat)}`);
+  if (!parts.length) return "";
+  return `<div style="height: 8px;"></div>
+    <div data-utak="legal-line"${en ? ' dir="ltr"' : ""} style="text-align: center; white-space: nowrap; font-size: ${BRAND_TYPE.legal.size}; font-weight: ${BRAND_TYPE.legal.weight}; color: ${BRAND_COLORS.inkMuted}; letter-spacing: ${BRAND_TYPE.legal.tracking}; line-height: ${BRAND_TYPE.legal.lineHeight};">${parts.join(" · ")}</div>`;
+}
+
+/**
+ * § 62 د — the quotation's terms block: its title, the note and the bank-transfer line on the table's full
+ * width, all on the start side (the right of an Arabic page); then «شكراً …» centred. No QR cell, no seal
+ * cell (an issued quotation's seal sits beside its totals).
+ */
+function renderWideFooter(footerNote: string, termsLabel: string, thanks: string | undefined, bankLineHTML: string): string {
+  const bankRow = bankLineHTML ? `\n          ${bankLineHTML}` : "";
+  const thanksRow = thanks ? `
+      <div style="height: 12px;"></div>
+      <div style="text-align: center; font-size: 10px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.08em;">${escapeHTML(thanks)}</div>` : "";
+  return `<div data-utak="terms" style="position: relative;">
+      <div style="height: 0; border-top: ${BRAND_RULES.row};"></div>
+      <div style="height: 14px;"></div>
+      <div style="display: flex; flex-direction: column; gap: 5px;">
+        <div style="font-size: ${BRAND_TYPE.label.size}; font-weight: ${BRAND_TYPE.label.weight}; color: ${BRAND_COLORS.inkMuted}; letter-spacing: ${BRAND_TYPE.label.tracking};">${escapeHTML(termsLabel)}</div>
+        <div style="font-size: 10px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; line-height: 1.7;">${escapeHTML(footerNote)}</div>${bankRow}
+      </div>${thanksRow}
+    </div>`;
+}
+
+/**
+ * § 62 د — «مسودة» across a preview: the word large and plain to see over the page, beside the faint brand mark.
+ * A draft is never mistaken for an issued document (it also carries no number, no seal and no signature).
+ */
+export const DRAFT_MARK_STYLE =
+  `top: 46%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 150px; font-weight: 500; color: ${BRAND_COLORS.accent}; opacity: 0.16; pointer-events: none; user-select: none; white-space: nowrap; z-index: 2;`;
+export function renderDraftMark(text: string | undefined): string {
+  return text ? `\n    <div data-utak="draft-mark" style="position: absolute; ${DRAFT_MARK_STYLE}">${escapeHTML(text)}</div>` : "";
 }
 
 /**
@@ -576,6 +641,22 @@ export interface RenderPDFShellOptions {
    *  break-inside: avoid on tr/.utak-block, widows/orphans). Off by default
    *  so the 5 legacy documents render byte-identical HTML. */
   multiPageBreaks?: boolean;
+
+  // -----------------------------------------------------------------
+  // § 62 د — the quotation's page (every path of it). Each sends the page through the additive path.
+  // -----------------------------------------------------------------
+  /** The page is ONE sheet as long as its content can fit: its height is the sheet's (not a minimum), so the gaps
+   *  between its blocks (pageMetrics.gap / preTable / postTable, down to their …Min) give way before anything is
+   *  pushed to a second page. Content that cannot fit even so flows on, as before. */
+  fitOnePage?: boolean;
+  /** The terms block on the table's full width, start-aligned, no QR / seal cell (renderWideFooter). */
+  wideTerms?: boolean;
+  /** The legal strip as ONE unbreakable line: name · CR · VAT (renderLegalFooterBar's oneLine). */
+  legalOneLine?: boolean;
+  /** «مسودة»: the word across the page (renderDraftMark). A preview only. */
+  draftMark?: string;
+  /** Both parties' addresses break after a comma, never inside a name (PartyInfo.addressByParts). */
+  partyAddressByParts?: boolean;
 }
 
 const DEFAULT_FOOTER_NOTE =
@@ -625,6 +706,11 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
     opts.belowBodyHTML !== undefined ||
     opts.footerSealHTML !== undefined ||
     opts.multiPageBreaks === true ||
+    opts.fitOnePage === true ||
+    opts.wideTerms === true ||
+    opts.legalOneLine === true ||
+    opts.draftMark !== undefined ||
+    opts.partyAddressByParts === true ||
     langNonAr;
 
   if (!anyAdditive) {
@@ -694,7 +780,9 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
 
     <div style="flex: 1; min-height: ${m.tailMin};"></div>
 
+    <div class="utak-block" data-utak="page-foot">
     ${renderFooter(footerNote, showZatcaQR, undefined, undefined, undefined, renderBankLineHTML(opts.bankLine))}${legalBarByteParity}
+    </div>
   </div>
 </div>
 </body>
@@ -711,6 +799,7 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
   const senderLabel = opts.senderLabel ?? opts.fromLabel ?? "من / FROM";
   const hideBillTo = opts.hideBillTo === true;
   const hideFrom = opts.hideFrom === true;
+  const byParts = (party: PartyInfo): PartyInfo => (opts.partyAddressByParts ? { ...party, addressByParts: true } : party);
 
   let partiesRow = "";
   if (!opts.suppressPartiesRow) {
@@ -718,16 +807,16 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
       partiesRow = "";
     } else if (hideBillTo) {
       partiesRow = `<div style="position: relative; display: grid; grid-template-columns: 1fr; gap: 32px;">
-      ${renderParty(senderLabel, from, true)}
+      ${renderParty(senderLabel, byParts(from), true)}
     </div>`;
     } else if (hideFrom) {
       partiesRow = `<div style="position: relative; display: grid; grid-template-columns: 1fr; gap: 32px;">
-      ${renderParty(recipientLabel, opts.billTo, false)}
+      ${renderParty(recipientLabel, byParts(opts.billTo), false)}
     </div>`;
     } else {
       partiesRow = `<div style="position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 32px;">
-      ${renderParty(recipientLabel, opts.billTo, false)}
-      ${renderParty(senderLabel, from, true)}
+      ${renderParty(recipientLabel, byParts(opts.billTo), false)}
+      ${renderParty(senderLabel, byParts(from), true)}
     </div>`;
     }
   }
@@ -741,7 +830,9 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
   const sealBeside = !!(opts.sealBesideTotals && opts.footerSealHTML && !opts.hideFooterNote);
   const footerBlock = opts.hideFooterNote
     ? ""
-    : renderFooter(footerNote, showZatcaQR, termsLabel, inlineThanks, sealBeside ? undefined : opts.footerSealHTML, renderBankLineHTML(opts.bankLine, lang));
+    : opts.wideTerms
+      ? renderWideFooter(footerNote, termsLabel, opts.hideThanks ? undefined : inlineThanks ?? `شكراً لثقتكم في ${BRAND_INFO.nameAr}`, renderBankLineHTML(opts.bankLine, lang))
+      : renderFooter(footerNote, showZatcaQR, termsLabel, inlineThanks, sealBeside ? undefined : opts.footerSealHTML, renderBankLineHTML(opts.bankLine, lang));
   // One grid cell holding both: the totals keep their full width (content
   // sits on the end side), the seal block sits on the start side, bottoms
   // aligned. Height = the taller of the two.
@@ -758,7 +849,10 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
     : opts.thanksOverride && !opts.thanksLine
       ? `<div style="text-align: center; font-size: 10px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.08em;">${escapeHTML(opts.thanksOverride)}</div>`
       : "";
-  const legalBar = opts.legalFooterBar ? renderLegalFooterBar(opts.legalFooterBar, lang) : "";
+  const legalBar = opts.legalFooterBar ? renderLegalFooterBar(opts.legalFooterBar, lang, opts.legalOneLine === true) : "";
+  // § 62 د — a page that fits one sheet: its gaps may shrink (each to its least) before anything leaves the sheet
+  const fit = opts.fitOnePage === true;
+  const spacer = (height: string, least?: string): string => `<div style="height: ${height};${fit && least ? ` min-height: ${least};` : ""}"></div>`;
   const aboveBody = opts.aboveBodyHTML ?? "";
   const belowBody = (opts.belowBodyHTML ?? "") + (opts.hideFooterNote && opts.footerSealHTML ? opts.footerSealHTML : "");
   // With a seal block the minimum gap above the footer (tailMin) goes: the
@@ -771,7 +865,7 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
   // both branches now use `min-height: 297mm` and drop the fixed height.
   // multiPageBreaks becomes purely an escape hatch — retained for callers
   // that already pass it, but the CSS below no longer differs by default.
-  const pageStyle = `position: relative; width: 210mm; min-height: 297mm; box-sizing: border-box; padding: ${BRAND_TYPE.pagePadding}; background: ${BRAND_COLORS.bgPage}; color: ${BRAND_COLORS.ink}; display: flex; flex-direction: column;`;
+  const pageStyle = `position: relative; width: 210mm; min-height: 297mm;${fit ? " height: 297mm;" : ""} box-sizing: border-box; padding: ${BRAND_TYPE.pagePadding}; background: ${BRAND_COLORS.bgPage}; color: ${BRAND_COLORS.ink}; display: flex; flex-direction: column;`;
 
   // Font stack per language mode. Arabic and Space Grotesk are loaded from
   // Google Fonts; the bilingual mode loads both. The `lang` attribute on
@@ -810,34 +904,36 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
 </head>
 <body>
 <div dir="${langMeta.dir}" style="font-family: ${fontStack}; font-feature-settings: 'tnum' 1; background: ${BRAND_COLORS.bgPage};">
-  <div class="utak-page" style="${pageStyle}">
+  <div class="utak-page${fit ? " utak-fit" : ""}" style="${pageStyle}">
 
-    <div style="position: absolute; ${BRAND_WATERMARK_STYLE}">${escapeHTML(BRAND_INFO.nameEn)}</div>
+    <div style="position: absolute; ${BRAND_WATERMARK_STYLE}">${escapeHTML(BRAND_INFO.nameEn)}</div>${renderDraftMark(opts.draftMark)}
 
     ${renderHeader(opts.documentTitle, opts.documentNumber, opts.documentDate, opts.headerBadge, { taglineOverride: opts.tagline, documentDateStrOverride: opts.documentDateStr, forceLtrHeader: lang === "en" })}
 
-    <div style="height: ${m.gap};"></div>
+    ${spacer(m.gap, m.gapMin)}
     <div style="height: 0; border-top: ${BRAND_RULES.header};"></div>
-    <div style="height: ${m.gap};"></div>
+    ${spacer(m.gap, m.gapMin)}
 
     ${aboveBody}
     ${partiesRow}
 
-    <div style="height: ${m.preTable};"></div>
+    ${spacer(m.preTable, m.preTableMin)}
 
     ${opts.bodyHTML}
 
-    <div style="height: ${m.postTable};"></div>
+    ${spacer(m.postTable, m.postTableMin)}
 
     ${totalsRow}
 
     ${belowBody}
 
-    <div style="flex: 1; min-height: ${opts.footerSealHTML ? "0px" : m.tailMin};"></div>
+    <div style="flex: 1; min-height: ${opts.footerSealHTML || fit ? "0px" : m.tailMin};"></div>
 
+    <div class="utak-block" data-utak="page-foot">
     ${footerBlock}
     ${thanksLine}
     ${legalBar}
+    </div>
   </div>
 </div>
 </body>
@@ -884,12 +980,17 @@ export interface HtmlToPdfOptions {
  * blank second page. Shrink the minimum to the printable height; content
  * longer than that still flows onto more pages. Zero margins → unchanged.
  */
+export const PAGE_FOOT_PADDING = "6mm";
 export function fitPageToMargins(html: string, options?: HtmlToPdfOptions): string {
   const reserved = Number(options?.marginTop ?? 0) + Number(options?.marginBottom ?? 0);
   if (!(reserved > 0)) return html;
+  // § 62 د — with a reserved bottom margin («صفحة X من Y» is printed in it), the page's own bottom padding shrinks
+  // to PAGE_FOOT_PADDING: the page number sits right under the legal strip, not 20 mm of empty paper below it, and
+  // the sheet holds that much more. A page that must fit one sheet (.utak-fit) is exactly the printable height.
+  const foot = Number(options?.marginBottom ?? 0) > 0 ? ` padding-bottom: ${PAGE_FOOT_PADDING} !important;` : "";
   return html.replace(
     "</head>",
-    `<style>.utak-page { min-height: calc(297mm - ${reserved}in) !important; }</style>\n</head>`,
+    `<style>.utak-page { min-height: calc(297mm - ${reserved}in) !important;${foot} } .utak-page.utak-fit { height: calc(297mm - ${reserved}in) !important; }</style>\n</head>`,
   );
 }
 

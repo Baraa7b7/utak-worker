@@ -185,7 +185,9 @@ for (const [name, render, data] of docs) {
   const draft = render({ ...data, issued: false }, company);
   const plain = render(data, company);
   assert(`${name}: issued → seal + signature + signatory (ar, en)`, issued.includes('data-utak="stamp"') && issued.includes('data-utak="signature"') && issued.includes(SIGNATORY.ar) && issued.includes(SIGNATORY.en));
-  assert(`${name}: seal sits beside the totals, not in the terms row`, issued.indexOf('data-utak="seal-signature"') < issued.indexOf("grid-template-columns: 1fr auto"));
+  // § 62 د — the quotation's terms block is the wide one (data-utak="terms"); the others keep the terms row's grid
+  const termsAt = issued.includes('data-utak="terms"') ? issued.indexOf('data-utak="terms"') : issued.indexOf("grid-template-columns: 1fr auto");
+  assert(`${name}: seal sits beside the totals, not in the terms row`, termsAt > 0 && issued.indexOf('data-utak="seal-signature"') < termsAt);
   assert(`${name}: draft → no seal, no signature, no signatory`, !draft.includes('data-utak="seal-signature"') && !draft.includes(SIGNATORY.en));
   assert(`${name}: issued unset → no seal`, !plain.includes('data-utak="seal-signature"'));
 }

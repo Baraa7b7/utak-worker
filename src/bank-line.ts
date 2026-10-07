@@ -95,6 +95,18 @@ export function formatBankLine(a: BankAccount | null | undefined): string {
   return `للتحويل: ${oneLine(a.holder)} — ${oneLine(a.bank)} — IBAN ${groupIban(compactIban(a.iban))}`;
 }
 
+/**
+ * § 62 د — the same line with the account's holder written as `holder` (the company's legal name from
+ * res.company: «للتحويل: شركة يوتاك ذات مسؤولية محدودة — البنك السعودي الأول — IBAN …»). The bank and the
+ * IBAN are never touched; a line that is not of formatBankLine's shape, or no name, comes back as it is.
+ */
+export function bankLineWithHolder(line: string | undefined, holder: string | undefined): string {
+  const text = oneLine(line), name = oneLine(holder);
+  const parts = text.split(" — ");
+  if (!name || parts.length < 3 || !parts[0].startsWith("للتحويل: ") || !parts[parts.length - 1].startsWith("IBAN ")) return text;
+  return `للتحويل: ${name} — ${parts[parts.length - 2]} — ${parts[parts.length - 1]}`;
+}
+
 /** A free text with the line under it (a blank line between), or the text as it is when there is no line. */
 export function withBankLine(text: string, line: string): string {
   return line ? `${text}\n\n${line}` : text;

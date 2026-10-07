@@ -52,6 +52,12 @@ export function labelForTerms(lang: DocLang): string {
   return "شروط الدفع";
 }
 
+// § 62 د — the quotation's block holds its validity, the note about prices changing and the bank-transfer
+// line: «الشروط والملاحظات», not «شروط الدفع» (it states no payment terms). Every other document keeps its title.
+export function labelForQuotationTerms(lang: DocLang): string {
+  return lang === "en" ? UI.termsAndNotes.en : UI.termsAndNotes.ar;
+}
+
 // Thanks line: "شكراً لثقتكم في {name}" — localizes both the wording and the
 // company name (Arabic vs English).
 export function thanksLine(lang: DocLang, company: CompanyInfo | undefined): string {

@@ -27,7 +27,7 @@ import type { Env } from "./config";
 import { call, stripRef } from "./odoo";
 import { riyadhDateKey } from "./hours";
 import {
-  DEFAULT_MARGIN_PCT, DEFAULT_PRICE_MODE, DEFAULT_UNIT, grossOf, lineNumbers, money, netOf, orderNumbers, profitText, round2, summaryText,
+  DEFAULT_MARGIN_PCT, DEFAULT_PRICE_MODE, DEFAULT_UNIT, grossOf, lineNumbers, money, netOf, orderNumbers, profitText, round2, suggestedFor, summaryText,
   type OrderNumbers, type PriceMode,
 } from "./special-quote-math";
 import type { PriceKind } from "./price-sources";
@@ -87,6 +87,11 @@ export interface QuoteLine {
   marketMedian: number;
   noLoss: number;
   suggested: number;
+  /** § 62 د — «المقترح» before VAT: the rounded number itself while «الأسعار في العرض» is «قبل الضريبة». */
+  suggestedNet: number;
+  /** § 62 د — «المنشأ» and «المقاس»: optional, printed under the item's name. */
+  origin: string;
+  size: string;
   /** The VAT-inclusive final price: what every formula reads. */
   finalPrice: number;
   /** The final price before VAT: what Baraa types, and what the quotation prints, while «الأسعار في العرض» is «قبل الضريبة». */
@@ -125,6 +130,8 @@ export interface SpecialQuote {
   modeChosen: boolean;
   /** «خيارات بديلة»: printed under the quotation's table as it is. */
   alternatives: string;
+  /** § 62 د — «شكل العرض»; a request that carries none is «تلقائي». */
+  layout: QuoteLayout;
   prepared: boolean;
   simulation: boolean;
   askedAt: string;
@@ -137,13 +144,23 @@ export interface SpecialQuote {
   recipients: QuoteRecipient[];
 }
 
-const QUOTE_READ = ["id", "x_name", "x_partner_id", "x_date", "x_state", "x_waste_pct", "x_min_margin_pct", "x_delivery_cost", "x_valid_until", "x_note", "x_price_mode", "x_alternatives", "x_prepared", SIM_FIELD,
+const QUOTE_READ = ["id", "x_name", "x_partner_id", "x_date", "x_state", "x_waste_pct", "x_min_margin_pct", "x_delivery_cost", "x_valid_until", "x_note", "x_price_mode", "x_layout", "x_alternatives", "x_prepared", SIM_FIELD,
   "x_asked_at", "x_sale_order_id", "x_quotation_number", "x_pdf_url", "x_source_notes", "x_order_profit", "x_profit_text", "x_missing_purchase", "x_missing_final", "x_total", "x_summary"];
-const LINE_READ = ["id", "x_sequence", "x_product_tmpl_id", "x_qty", "x_unit", "x_purchase_price", "x_market_text", "x_market_median", "x_no_loss_price", "x_suggested_price", "x_final_price", "x_final_net", "x_total", "x_profit", "x_obs"];
+const LINE_READ = ["id", "x_sequence", "x_product_tmpl_id", "x_qty", "x_unit", "x_purchase_price", "x_market_text", "x_market_median", "x_no_loss_price", "x_suggested_price", "x_suggested_net", "x_final_price", "x_final_net", "x_total", "x_profit", "x_obs", "x_item_origin", "x_item_size"];
 const RECIPIENT_READ = ["id", "x_partner_id", "x_role", "x_asked_at", "x_via", "x_replied_at", "x_priced", "x_reminded_at"];
 const asState = (v: unknown): QuoteState | null => (v === "draft" || v === "sent" || v === "priced" || v === "quoted" || v === "closed" ? v : null);
 const asRole = (v: unknown): PriceKind | null => (v === "purchase" || v === "market" ? v : null);
 export const asPriceMode = (v: unknown): PriceMode => (v === "gross" || v === "net" ? v : DEFAULT_PRICE_MODE);
+/** § 62 د — «شكل العرض»: تلقائي (unit prices when every line's quantity is 1) / أسعار الوحدة / بالكميات. */
+export type QuoteLayout = "auto" | "unit" | "qty";
+export const asLayout = (v: unknown): QuoteLayout => (v === "unit" || v === "qty" ? v : "auto");
+/**
+ * A line's two final prices as «الأسعار في العرض» reads them: the one Baraa typed, and the other
+ * following it (× or ÷ 1.15) — what recalcQuote writes, told without writing (the preview).
+ */
+export function finalsOf(l: Pick<QuoteLine, "finalPrice" | "finalNet">, mode: PriceMode): { finalPrice: number; finalNet: number } {
+  return mode === "net" ? { finalPrice: grossOf(l.finalNet), finalNet: l.finalNet } : { finalPrice: l.finalPrice, finalNet: netOf(l.finalPrice) };
+}
 
 /**
  * The request with its lines and its sources (three reads). Null when it is not
@@ -160,14 +177,14 @@ export async function readQuote(env: Env, id: number): Promise<SpecialQuote | nu
   return {
     id, name: str(q.x_name), partnerId: m2oId(q.x_partner_id as M2O), partnerName: m2oName(q.x_partner_id as M2O), date: str(q.x_date), state: asState(q.x_state),
     wastePct: num(q.x_waste_pct), marginPct: num(q.x_min_margin_pct), deliveryCost: num(q.x_delivery_cost), validUntil: str(q.x_valid_until), note: str(q.x_note),
-    priceMode: asPriceMode(q.x_price_mode), modeChosen: q.x_price_mode === "net" || q.x_price_mode === "gross", alternatives: str(q.x_alternatives).trim(),
+    priceMode: asPriceMode(q.x_price_mode), modeChosen: q.x_price_mode === "net" || q.x_price_mode === "gross", alternatives: str(q.x_alternatives).trim(), layout: asLayout(q.x_layout),
     prepared: q.x_prepared === true, simulation: q[SIM_FIELD] === true, askedAt: str(q.x_asked_at), saleOrderId: m2oId(q.x_sale_order_id as M2O),
     quotationNumber: str(q.x_quotation_number), pdfUrl: str(q.x_pdf_url), sourceNotes: str(q.x_source_notes),
     header: { orderProfit: num(q.x_order_profit), profitText: str(q.x_profit_text), missingPurchase: num(q.x_missing_purchase), missingFinal: num(q.x_missing_final), total: num(q.x_total), summary: str(q.x_summary) },
     lines: lines.map((l) => ({
       id: Number(l.id), sequence: num(l.x_sequence), productId: m2oId(l.x_product_tmpl_id as M2O), productName: stripRef(m2oName(l.x_product_tmpl_id as M2O)).trim(),
       qty: num(l.x_qty), unit: str(l.x_unit).trim() || DEFAULT_UNIT, purchase: num(l.x_purchase_price), marketText: str(l.x_market_text), marketMedian: num(l.x_market_median),
-      noLoss: num(l.x_no_loss_price), suggested: num(l.x_suggested_price), finalPrice: num(l.x_final_price), finalNet: num(l.x_final_net), total: num(l.x_total), profit: num(l.x_profit), obs: parseObs(l.x_obs),
+      noLoss: num(l.x_no_loss_price), suggested: num(l.x_suggested_price), suggestedNet: num(l.x_suggested_net), origin: str(l.x_item_origin).trim(), size: str(l.x_item_size).trim(), finalPrice: num(l.x_final_price), finalNet: num(l.x_final_net), total: num(l.x_total), profit: num(l.x_profit), obs: parseObs(l.x_obs),
     })),
     recipients: recipients.map((r) => ({
       id: Number(r.id), partnerId: m2oId(r.x_partner_id as M2O), name: m2oName(r.x_partner_id as M2O), role: asRole(r.x_role), askedAt: str(r.x_asked_at), via: str(r.x_via),
@@ -283,10 +300,12 @@ export async function recalcQuote(env: Env, id: number, opts: { now?: number; ac
     let finalNet = net ? l.finalNet : netOf(l.finalPrice);
     let finalPrice = net ? grossOf(l.finalNet) : l.finalPrice;
     let n = lineNumbers({ qty: l.qty, purchase: l.purchase, market, finalPrice }, wastePct, marginPct);
+    // § 62 د — «المقترح» as the mode rounds it: on the price before VAT while the quotation prints that one
+    const sug = suggestedFor(l.purchase, n.marketMedian, wastePct, marginPct, q.priceMode);
     if (opts.accept && !(finalPrice > 0)) {
-      if (n.suggested > 0) {
-        finalNet = netOf(n.suggested);
-        finalPrice = net ? grossOf(finalNet) : n.suggested;
+      if (sug.gross > 0) {
+        finalNet = sug.net;
+        finalPrice = net ? grossOf(finalNet) : sug.gross;
         accepted++; n = lineNumbers({ qty: l.qty, purchase: l.purchase, market, finalPrice }, wastePct, marginPct); }
       else noSuggestion++;
     }
@@ -295,7 +314,8 @@ export async function recalcQuote(env: Env, id: number, opts: { now?: number; ac
     if (differs(l.marketMedian, n.marketMedian)) lv.x_market_median = n.marketMedian;
     if (l.marketText !== text) lv.x_market_text = text || false;
     if (differs(l.noLoss, n.noLoss)) lv.x_no_loss_price = n.noLoss;
-    if (differs(l.suggested, n.suggested)) lv.x_suggested_price = n.suggested;
+    if (differs(l.suggested, sug.gross)) lv.x_suggested_price = sug.gross;
+    if (differs(l.suggestedNet, sug.net)) lv.x_suggested_net = sug.net;
     if (differs(l.finalPrice, finalPrice)) lv.x_final_price = finalPrice;
     if (differs(l.finalNet, finalNet)) lv.x_final_net = finalNet;
     if (differs(l.total, n.total)) lv.x_total = n.total;
@@ -336,6 +356,7 @@ export async function writeResult(env: Env, id: number, text: string, now: numbe
 }
 
 export const HOOK_OPS = ["recalc", "accept", "send", "issue", "pdf"] as const;
+export const PDF_MOVED_TEXT = "👁️ المعاينة صارت تفتح في المتصفح: حدّث الصفحة واضغط «👁️ معاينة PDF» (لم يصدر شيء)";
 export type HookOp = (typeof HOOK_OPS)[number];
 export const isHookOp = (v: string): v is HookOp => (HOOK_OPS as readonly string[]).includes(v);
 export const acceptResultText = (r: Pick<RecalcResult, "accepted" | "noSuggestion">): string =>
@@ -362,7 +383,13 @@ export async function handleSpecialQuoteHook(env: Env, id: number, op: HookOp, c
     const r = await sendSpecialAsk(env, id, { now, ctx });
     return { op, id, action: r.action, detail: r.detail };
   }
+  // § 62 د — «⬇️ PDF لي فقط» gave its place to «👁️ معاينة PDF» (src/quote-preview.ts: a draft in the browser, nothing
+  // numbered, recorded or sent). A screen still open on the old button is told so, and nothing is issued.
+  if (op === "pdf") {
+    await writeResult(env, id, PDF_MOVED_TEXT, now);
+    return { op, id, action: "moved", detail: "the preview opens in the browser" };
+  }
   const { issueSpecialQuotation } = await import("./special-quotation");
-  const r = await issueSpecialQuotation(env, id, { now, ctx, ownerOnly: op === "pdf" });
+  const r = await issueSpecialQuotation(env, id, { now, ctx });
   return { op, id, action: r.action, detail: r.detail };
 }

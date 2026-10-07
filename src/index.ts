@@ -855,6 +855,14 @@ export default {
       }
     }
 
+    // § 62 د — «👁️ معاينة PDF» (src/quote-preview.ts): GET /preview/t/<one-use ticket Odoo's button made> → 302 to
+    // GET /preview/doc/<kind>/<id>/<expiry>/<signature>.pdf, the worker's own short-lived link to the DRAFT.
+    // Nothing is numbered, recorded or sent.
+    if (request.method === "GET" && url.pathname.startsWith("/preview/")) {
+      const { handlePreview } = await import("./quote-preview");
+      return handlePreview(env, url.pathname);
+    }
+
     // 2026-09-09 — PUBLIC: serves quotation PDF from R2 by signed URL.
     // Path shape: /quotation-pdf/{quotationNumber}/{token}.pdf
     if (request.method === "GET" && url.pathname.startsWith("/quotation-pdf/")) {
@@ -1299,9 +1307,8 @@ export default {
               return;
             }
             if (data.has_blocking_issue) {
-              const missing = data.missing_products ?? [];
-              const reason = missing.map((n) => `صنف بلا سعر: ${n}`).join(" | ") ||
-                "صنف بلا سعر";
+              // § 62 د — the builder's own sentences («صنف بلا سعر: …», «السطر 3 بلا منتج ولا وصف …»)
+              const reason = (data.problems ?? []).join(" | ") || "صنف بلا سعر";
               console.error(`[so-manual-wa] BLOCKED ${soid} — ${reason}`);
               await sendOwnerAlert(
                 env,
@@ -1335,7 +1342,8 @@ export default {
                 x_manual: true,
                 x_dry_run: dryRun,
                 x_status: "queued",
-                x_body: `عرض سعر ${data.quotationNumber} — الإجمالي ${data.grandTotal} ر.س`,
+                // § 62 د — a unit-price quotation has no total to state
+                x_body: data.layout === "unit" ? `عرض سعر ${data.quotationNumber} — أسعار الوحدة لـ ${data.items.length} صنف` : `عرض سعر ${data.quotationNumber} — الإجمالي ${data.grandTotal} ر.س`,
               }],
             });
             console.log(
@@ -1383,12 +1391,12 @@ export default {
           return new Response("not found", { status: 404 });
         }
         if (data.has_blocking_issue) {
-          const missing = (data.missing_products ?? []).join(", ") || "(unnamed)";
+          const missing = (data.problems ?? []).join(" | ") || "صنف بلا سعر";
           console.error(
-            `[so-pdf-download] BLOCKED sale.order ${soid} — صنف بلا سعر: ${missing}`,
+            `[so-pdf-download] BLOCKED sale.order ${soid} — ${missing}`,
           );
           return new Response(
-            `صنف بلا سعر: ${missing}`,
+            missing,
             { status: 409, headers: { "Content-Type": "text/plain; charset=utf-8" } },
           );
         }

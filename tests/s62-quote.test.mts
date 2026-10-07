@@ -153,14 +153,16 @@ console.log("\n[ج+] «الأسعار في العرض»: the final price Baraa t
   await quiet(() => SQ.recalcQuote(env, id));
   assert("«قبل الضريبة»: the price he typed before VAT (5.00) gives the VAT-inclusive final (5.75)", lineOf(id, ORANGE).x_final_net === 5 && lineOf(id, ORANGE).x_final_price === 5.75 && lineOf(id, GARLIC).x_final_price === 14.25, `${lineOf(id, ORANGE).x_final_price} ${lineOf(id, GARLIC).x_final_price}`);
   // § 62 أ's formulas as they were, on the VAT-inclusive final: 1464 × (5.75 ÷ 1.15 − 3.15) = 2708.4
-  assert("…the formulas are § 62 أ's, on the VAT-inclusive final: the profit 1464 × (5.75 ÷ 1.15 − 3.15) = 2708.4, the total 8418", lineOf(id, ORANGE).x_profit === 2708.4 && lineOf(id, ORANGE).x_total === 8418 && lineOf(id, ORANGE).x_no_loss_price === 3.62 && lineOf(id, ORANGE).x_suggested_price === 4, JSON.stringify([lineOf(id, ORANGE).x_profit, lineOf(id, ORANGE).x_total]));
+  assert("…the formulas are § 62 أ's, on the VAT-inclusive final: the profit 1464 × (5.75 ÷ 1.15 − 3.15) = 2708.4, the total 8418", lineOf(id, ORANGE).x_profit === 2708.4 && lineOf(id, ORANGE).x_total === 8418 && lineOf(id, ORANGE).x_no_loss_price === 3.62, JSON.stringify([lineOf(id, ORANGE).x_profit, lineOf(id, ORANGE).x_total]));
+  // § 62 د — «المقترح» in «قبل الضريبة» is rounded up to the quarter on the price BEFORE VAT: 3.98475 ÷ 1.15 = 3.465 → 3.50, and 4.02 with it
+  assert("…and «المقترح» is rounded on the price before VAT: 3.50 («المقترح قبل الضريبة»), 4.02 with it (it was 4.00 with it, 3.48 before)", lineOf(id, ORANGE).x_suggested_net === 3.5 && lineOf(id, ORANGE).x_suggested_price === 4.02, JSON.stringify([lineOf(id, ORANGE).x_suggested_net, lineOf(id, ORANGE).x_suggested_price]));
   // he clears it: the final goes with it
   lineOf(id, GARLIC).x_final_net = 0;
   await quiet(() => SQ.recalcQuote(env, id));
   assert("…a price he cleared is cleared: the VAT-inclusive final never brings it back", !lineOf(id, GARLIC).x_final_net && !lineOf(id, GARLIC).x_final_price && !lineOf(id, GARLIC).x_profit);
   // «اعتمد المقترح»: «المقترح» ÷ 1.15 before VAT, its VAT-inclusive final beside it; what he typed stays
   const r = await quiet(() => SQ.recalcQuote(env, id, { accept: true }));
-  assert("«اعتمد المقترح للكل» in «قبل الضريبة»: «المقترح» 13.5 → 11.74 before VAT (13.5 with it); the 5.00 he typed stays", r?.accepted === 1 && lineOf(id, GARLIC).x_final_net === 11.74 && lineOf(id, GARLIC).x_final_price === 13.5 && lineOf(id, ORANGE).x_final_net === 5, JSON.stringify([lineOf(id, GARLIC).x_final_net, lineOf(id, GARLIC).x_final_price]));
+  assert("«اعتمد المقترح للكل» in «قبل الضريبة» (§ 62 د): «المقترح» 11.75 before VAT — a quarter — and 13.51 with it; the 5.00 he typed stays", r?.accepted === 1 && lineOf(id, GARLIC).x_final_net === 11.75 && lineOf(id, GARLIC).x_final_price === 13.51 && lineOf(id, ORANGE).x_final_net === 5, JSON.stringify([lineOf(id, GARLIC).x_final_net, lineOf(id, GARLIC).x_final_price]));
   odooLog.length = 0;
   assert("…a second pass writes nothing (the two prices agree)", (await quiet(() => SQ.recalcQuote(env, id)))?.wrote === false && writes().length === 0);
   // «شاملة الضريبة»: he types the VAT-inclusive final; the price before VAT follows it

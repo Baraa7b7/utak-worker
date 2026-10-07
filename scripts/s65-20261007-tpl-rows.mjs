@@ -43,7 +43,7 @@ if (VERIFY) {
     const meta = atMeta(t.name);
     check(`${TPL_MODEL}.x_purpose carries «${t.purposeLabel}» (${t.purpose})`, (tf.x_purpose?.selection ?? []).some((s) => s[0] === t.purpose && s[1] === t.purposeLabel), JSON.stringify((tf.x_purpose?.selection ?? []).slice(-3)));
     const rows = await tplRows(t.name);
-    check(`one row of ${t.name} (ar) #${rows[0]?.id}, purpose ${t.purpose}, ${t.params} variable(s), Meta's id (${rows[0]?.x_meta_status}/${rows[0]?.x_category})`, rows.length === 1 && rows[0].x_purpose === t.purpose && rows[0].x_param_count === t.params && rows[0].x_meta_id === meta?.id && rows[0].x_body_text === t.body, JSON.stringify(rows));
+    check(`one row of ${t.name} (ar) #${rows[0]?.id}, purpose ${t.purpose}, ${t.params} variable(s), Meta's id, and Meta's status as last read (${meta?.status}/${meta?.category})`, rows.length === 1 && rows[0].x_purpose === t.purpose && rows[0].x_param_count === t.params && rows[0].x_meta_id === meta?.id && rows[0].x_body_text === t.body && rows[0].x_meta_status === meta?.status && rows[0].x_category === meta?.category, JSON.stringify(rows));
     const holders = await call(TPL_MODEL, "search_read", { domain: [["x_purpose", "=", t.purpose]], fields: ["id", "x_meta_template_id"] });
     check(`…and no other row holds ${t.purpose}`, holders.length === 1, JSON.stringify(holders));
     await pause();
@@ -86,8 +86,9 @@ for (const t of S65_TEMPLATES) {
     }
   } else {
     const row = rows[0];
-    // the status and the category are the sync's to keep: a row it already made is given its purpose alone
-    const diff = Object.fromEntries(Object.entries({ x_purpose: t.purpose, x_param_count: t.params, x_body_text: t.body, x_meta_id: meta.id }).filter(([k, v]) => row[k] !== v));
+    // the row follows Meta as the artifact last read it (run `s65-20261007-templates.mjs --status` first): the 05:00
+    // sync writes the same two values, and the gateway sends a template only while they are APPROVED and UTILITY
+    const diff = Object.fromEntries(Object.entries(want).filter(([k, v]) => row[k] !== v));
     if (!Object.keys(diff).length) log(`= ${TPL_MODEL} #${row.id} ${t.name}: ${row.x_meta_status}/${row.x_category}, purpose ${row.x_purpose}`);
     else {
       log(`✎ ${TPL_MODEL} #${row.id} ${t.name}: ${Object.entries(diff).map(([k, v]) => `${k} ${JSON.stringify(row[k])} → ${JSON.stringify(v)}`).join(", ")}`);

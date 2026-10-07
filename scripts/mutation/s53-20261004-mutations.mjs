@@ -42,7 +42,7 @@ const M = [
   ["أ", "an employee counts as an outside source (no hint of his own number)", [[FL,
     "boolean => !s.supplier && !s.employeeId;", "boolean => !s.supplier;"]], T],
   ["أ", "a row typed in Odoo under a source's name is shown as his last price", [[FL,
-    "[f, \">\", 0], [\"x_source_message_id\", \"!=\", false], [SIM_FIELD, \"!=\", true]],", "[f, \">\", 0], [SIM_FIELD, \"!=\", true]],"]], T],
+    "[f, \">\", 0], [\"x_source_message_id\", \"!=\", false], [SIM_FIELD, \"!=\", true], ...(daily ? [] : [[\"x_special\", \"!=\", true]])],", "[f, \">\", 0], [SIM_FIELD, \"!=\", true], ...(daily ? [] : [[\"x_special\", \"!=\", true]])],"]], T],
   ["أ", "another source's prices fill the hints of any ask (not the trial alone)", [[FL,
     "opts.test && opts.hintsFrom ? opts.hintsFrom : src, kind);", "opts.hintsFrom ?? src, kind);"]], T],
   // ---------------------------------------------------------------- أ the texts

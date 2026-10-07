@@ -485,7 +485,8 @@ export async function readDayOffers(env: Env, day: string, sources: PriceSources
     order: "id asc", limit: 2000,
   });
   const po = await call<Array<{ id: number; x_source_partner_id: M2O; x_product_tmpl_id: M2O; x_packaging_id: M2O; x_purchase_price: number; x_market_price: number; x_purchase_outlier: boolean; x_market_outlier: boolean }>>(env, "x_price_offer", "search_read", {
-    domain: [["x_date", "=", day], ["x_utak_simulation", "!=", true], ["x_source_partner_id", "in", ids]],
+    // § 62 ب — an observation of a special request («خاص») is no offer of the day: its price is a kilo's, for that request alone
+    domain: [["x_date", "=", day], ["x_utak_simulation", "!=", true], ["x_special", "!=", true], ["x_source_partner_id", "in", ids]],
     fields: ["id", "x_source_partner_id", "x_product_tmpl_id", "x_packaging_id", "x_purchase_price", "x_market_price", "x_purchase_outlier", "x_market_outlier"],
     order: "id asc", limit: 2000,
   });

@@ -56,7 +56,7 @@ const M = [
   ["أ", "what moved on an outlier is not read", [[RV,
     "    if (l && r.proposal.outlier && !r.decision) r.moved = await readMoved(", "    if (false) r.moved = await readMoved("]], T],
   ["أ", "the price before an outlier is today's own row", [[RV,
-    "[field, \">\", 0], [\"x_date\", \"<=\", day], [\"id\", \"!=\", notId]]", "[field, \">\", 0], [\"x_date\", \"<=\", day]]"]], T],
+    "[field, \">\", 0], [\"x_date\", \"<=\", day], [\"id\", \"!=\", notId], ...(model", "[field, \">\", 0], [\"x_date\", \"<=\", day], ...(model"]], T],
   ["أ", "the price before an outlier may be a simulation row", [[RV,
     "[\"x_packaging_id\", \"=\", packaging], [\"x_utak_simulation\", \"!=\", true]];", "[\"x_packaging_id\", \"=\", packaging]];"]], T],
   ["أ", "the profit shown is always the market's, whatever the price the line goes out at", [[RV,

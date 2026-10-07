@@ -44,6 +44,8 @@ export const MARKET_ASK_MINUTE = 2 * 60 + 30;
 export const MARKET_REPLY_WINDOW_MIN = 90;
 const MIN = 60_000;
 const SIM_FIELD = "x_utak_simulation";
+/** § 62 ب — «خاص»: a market observation of a special request (src/special-ask.ts). Every reader of the day leaves it out. */
+export const SPECIAL_FIELD = "x_special";
 const MARKER_TTL = 12 * 60 * 60;
 
 /**
@@ -251,7 +253,8 @@ const isOutlier = (last: number | null, next: number | undefined, ratio: number 
 export async function lastOfferValue(env: Env, partnerId: number, productId: number, packagingId: number, kind: PriceKind): Promise<number | null> {
   const f = kind === "purchase" ? "x_purchase_price" : "x_market_price";
   const [r] = await call<Array<Record<string, number | false>>>(env, OFFER_MODEL, "search_read", {
-    domain: [["x_source_partner_id", "=", partnerId], ["x_product_tmpl_id", "=", productId], ["x_packaging_id", "=", packagingId], [f, ">", 0], [SIM_FIELD, "!=", true]],
+    // § 62 ب — a «خاص» row (a special request's observation, a kilo's price) is never the baseline of a day's outlier
+    domain: [["x_source_partner_id", "=", partnerId], ["x_product_tmpl_id", "=", productId], ["x_packaging_id", "=", packagingId], [f, ">", 0], [SIM_FIELD, "!=", true], [SPECIAL_FIELD, "!=", true]],
     fields: [f], order: "x_date desc, id desc", limit: 1,
   });
   return r && Number(r[f]) > 0 ? Number(r[f]) : null;
@@ -540,8 +543,9 @@ export const MARKET_NUDGE_JOB = "market_price_nudge";
 export interface NudgeResult { name: string; action: "flow" | "template" | "old_template" | "replied" | "off" | "claimed_before" | "refused" | "no_number" }
 
 /** This source sent a price today (an offer row of the day, simulation left out). */
-async function hasOffersToday(env: Env, partnerId: number, day: string): Promise<boolean> {
-  const n = await call<number>(env, OFFER_MODEL, "search_count", { domain: [["x_date", "=", day], ["x_source_partner_id", "=", partnerId], [SIM_FIELD, "!=", true]] });
+export async function hasOffersToday(env: Env, partnerId: number, day: string): Promise<boolean> {
+  // § 62 ب — his answer to a special request is not his prices of the day: the 05:00 reminder still goes
+  const n = await call<number>(env, OFFER_MODEL, "search_count", { domain: [["x_date", "=", day], ["x_source_partner_id", "=", partnerId], [SIM_FIELD, "!=", true], [SPECIAL_FIELD, "!=", true]] });
   return Number(n) > 0;
 }
 

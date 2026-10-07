@@ -91,6 +91,12 @@ export interface QuotationPDFData {
   /** Issued document (numbered, sent / recorded). Only issued documents print
    *  the company seal + signature — never a preview or a draft. */
   issued?: boolean;
+  /**
+   * § 62 ج — the note under the totals, in place of the day's «العرض ساري حتى
+   * الساعة ٦:٠٠ صباحاً …»: a special request's quotation carries its own
+   * «صالح حتى» (src/special-quotation.ts). Absent: the note as it was.
+   */
+  footerNote?: string;
 }
 
 // 2026-09-19 — same-day validity. Old text was "٧ أيام". Since UTAK's cost is
@@ -196,9 +202,9 @@ export function renderQuotationHTML(data: QuotationPDFData, company?: CompanyInf
       data.grandTotal,
       lang,
     ),
-    footerNote: lang === "en"
+    footerNote: data.footerNote ?? (lang === "en"
       ? (data.vatInclusive ? `${UI.quotationValidity.en} ${UI.vatInclusiveNote.en}.` : UI.quotationValidity.en)
-      : (data.vatInclusive ? `${QUOTATION_FOOTER}. ${UI.vatInclusiveNote.ar}` : QUOTATION_FOOTER),
+      : (data.vatInclusive ? `${QUOTATION_FOOTER}. ${UI.vatInclusiveNote.ar}` : QUOTATION_FOOTER)),
     // § 52 أ — «للتحويل: … — IBAN …» under the terms (the same Arabic line in every language)
     bankLine: company?.bankLine,
     showZatcaQR: false,

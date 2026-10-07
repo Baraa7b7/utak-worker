@@ -110,6 +110,14 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // Never held: what cannot go as a Flow goes as the ask of before § 51, under
   // its own purpose (so a Flow that Meta refuses never blocks that ask).
   price_ask_flow: op("نموذج طلب الأسعار"),
+  // § 62 ب — the price form of «طلب أسعار خاص» (the request's own items) to a source Baraa chose on it:
+  // the form inside his 24h window, utak_price_ask_flow_v2 (the lookup purpose price_ask_flow) outside
+  // it. Never held: a form that cannot go is owed to him and goes with his next message
+  // (src/special-ask.ts). It carries no price of ours and no customer's name.
+  special_price_ask: op("نموذج طلب الأسعار الخاص"),
+  // § 62 ب — its ONE reminder, three hours later, to a source that has not answered: inside his window
+  // only, never a template and never held.
+  special_price_nudge: op("تذكير طلب الأسعار الخاص"),
   // § 57 ز — the supplier's registration form (a WhatsApp Flow: the official name, the CR, the tax
   // number, the certificate's photo, the IBAN), sent once ever after an invoice of his whose tax
   // number could not be read, and the answers to his «إرسال». Inside his 24h window only: never a
@@ -234,6 +242,14 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // Template only (never held).
   owner_price_review: op("قالب استثناءات الأسعار"),
   owner_window: op("نافذة المالك 06:00"),
+  // § 62 ج — the quotation of a special request as a file to Baraa's own number: «⬇️ PDF لي فقط», or a
+  // quotation the customer could not be sent (his window closed and a validity past 06:00 of tomorrow).
+  // Outside his window it waits for his next message.
+  owner_special_quote: op("عرض سعر الطلب الخاص (للمالك)", false, { hours: 36 }),
+  // § 62 هـ — the three trials of § 62 to Baraa's own number («🧪 تجربة»), inside his window only: the
+  // special form as a «شراء» source and as a «سوق» source read it, a quotation's PDF with illustrative
+  // prices, and the answers to his trial replies. Nothing is written.
+  special_quote_test: op("تجربة طلب الأسعار الخاص", false, { hours: 1 }),
   // § 51 — the one trial of the price Flow to Baraa's own number («🧪 تجربة»),
   // inside his window only, and the answers to his trial reply.
   price_flow_test: op("تجربة نموذج الأسعار", false, { hours: 1 }),

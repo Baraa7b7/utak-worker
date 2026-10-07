@@ -221,7 +221,8 @@ export async function lastPrices(env: Env, src: { partnerId: number; supplier: b
   const f = daily ? "x_price_sar" : kind === "purchase" ? "x_purchase_price" : "x_market_price";
   try {
     const rows = await call<Array<Record<string, unknown>>>(env, model, "search_read", {
-      domain: [[who, "=", src.partnerId], ["x_product_tmpl_id", "in", productIds], [f, ">", 0], ["x_source_message_id", "!=", false], [SIM_FIELD, "!=", true]],
+      // § 62 ب — «آخر سعر» is never a «خاص» row (a special request's observation: a kilo's price, not the packaging's)
+      domain: [[who, "=", src.partnerId], ["x_product_tmpl_id", "in", productIds], [f, ">", 0], ["x_source_message_id", "!=", false], [SIM_FIELD, "!=", true], ...(daily ? [] : [["x_special", "!=", true]])],
       fields: ["x_product_tmpl_id", "x_packaging_id", f], order: "x_date desc, id desc", limit: 400,
     });
     for (const r of rows) {

@@ -60,7 +60,7 @@ const M = [
   ["أ", "the form never opens with a value", [[PF,
     "    data[`i${n}`] = it && init[n] > 0 ? money(init[n]) : \"\";", "    data[`i${n}`] = \"\";"]], T],
   ["أ", "a simulation row's price is a hint", [[PF,
-    "[f, \">\", 0], [\"x_source_message_id\", \"!=\", false], [SIM_FIELD, \"!=\", true]],", "[f, \">\", 0], [\"x_source_message_id\", \"!=\", false]],"]], T],
+    "[f, \">\", 0], [\"x_source_message_id\", \"!=\", false], [SIM_FIELD, \"!=\", true], ...(daily ? [] : [[\"x_special\", \"!=\", true]])],", "[f, \">\", 0], [\"x_source_message_id\", \"!=\", false], ...(daily ? [] : [[\"x_special\", \"!=\", true]])],"]], T],
   ["أ", "the hint is the oldest price, not the newest", [[PF,
     "      if (!out.has(key) && Number(r[f]) > 0) out.set(key, Number(r[f]));", "      if (Number(r[f]) > 0) out.set(key, Number(r[f]));"]], T],
   ["أ", "no active item still makes a form", [[PF,

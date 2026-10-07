@@ -271,6 +271,15 @@ export default {
           } catch (e) {
             console.error("[staffing tick] failed", (e as Error)?.message);
           }
+          // § 62 ب — a special request's ONE reminder, three hours after its form, to a source that has
+          // not answered (inside his window only). KV alone until one is due.
+          try {
+            const { runSpecialNudgeTick } = await import("./special-ask");
+            const sn = await runSpecialNudgeTick(rawEnv, Date.now(), ctx);
+            if (sn.length) console.log("[special-nudge tick]", JSON.stringify(sn));
+          } catch (e) {
+            console.error("[special-nudge tick] failed", (e as Error)?.message);
+          }
           break;
         }
         // 2026-09-26 (STATUS § 38, م12) — the driver's end of shift, from his
@@ -1926,6 +1935,57 @@ export default {
         return json({ ok: false, error: (e as Error).message }, 500);
       }
     }
+    // § 62 — Odoo → Worker, from «💲 التسعير ← 🧾 طلبات أسعار خاصة» (src/special-quote.ts):
+    //   op=recalc — a save of the request (its automation) or «🔄 احسب»: its numbers again;
+    //   op=accept — «اعتمد المقترح للكل»;
+    //   op=send   — «📨 أرسل طلب الأسعار»: the form to the request's sources;
+    //   op=issue  — «📄 أصدر عرض السعر»: recorded, its PDF, the file to the customer;
+    //   op=pdf    — «⬇️ PDF لي فقط»: the same quotation, its file to Baraa alone.
+    // 202 at once (Odoo's webhook waits one second); the work runs in waitUntil, a moment later:
+    // the save that fired the webhook is committed by then, so the worker reads what was saved.
+    if (request.method === "POST" && url.pathname === "/odoo/hook/special-quote") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      let body: { _model?: string; _id?: number; id?: number } = {};
+      try {
+        body = (await request.json()) as typeof body;
+      } catch {
+        body = {};
+      }
+      const id = Number(body._id ?? body.id ?? url.searchParams.get("id") ?? 0);
+      const op = url.searchParams.get("op") ?? "";
+      const { isHookOp, handleSpecialQuoteHook, QUOTE_MODEL } = await import("./special-quote");
+      if (body._model && body._model !== QUOTE_MODEL) return json({ error: `unexpected model: ${body._model}` }, 400);
+      if (!(id > 0) || !isHookOp(op)) return json({ error: "missing id or op" }, 400);
+      ctx.waitUntil((async () => {
+        await new Promise((r) => setTimeout(r, SPECIAL_HOOK_DELAY_MS));
+        try {
+          console.log("[special-quote hook]", JSON.stringify(await handleSpecialQuoteHook(env, id, op, ctx)));
+        } catch (e) {
+          console.error(`[special-quote hook] ${op} ${id} failed`, (e as Error)?.message);
+        }
+      })());
+      return json({ status: "accepted", op, id }, 202);
+    }
+    // § 62 هـ — the three trials of «طلب أسعار خاص» to Baraa's own number («🧪 تجربة»), only while his
+    // window is open, once a day each (?name=purchase | market | quotation, and ?id= a request —
+    // src/s62-trials.ts). Nothing is written in Odoo, and no source and no customer is reached.
+    if (request.method === "POST" && url.pathname === "/odoo/hook/s62-trial") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      try {
+        const { sendS62Trial } = await import("./s62-trials");
+        return json({ ok: true, ...(await sendS62Trial(env, url.searchParams.get("name") ?? "", Number(url.searchParams.get("id")) || undefined)) });
+      } catch (e) {
+        return json({ ok: false, error: (e as Error).message }, 500);
+      }
+    }
     // § 61 و — the three trials of the jobs to Baraa's own number («🧪 تجربة»), only while his window
     // is open, once a day each (?name=entry | welcome | exit — src/s61-trials.ts). Nothing is written
     // in Odoo, no task is moved, and nobody else is reached.
@@ -2372,6 +2432,16 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
     } catch (e) {
       console.warn("[wa-window] note failed", (e as Error)?.message);
     }
+    // § 62 ب — a special request's form owed to this number (his window was closed and no template
+    // could go) goes now that he wrote: one KV read for a number that is owed nothing. Never throws.
+    if (!msg.flow) {
+      try {
+        const { sendOwedSpecial } = await import("./special-ask");
+        if (await sendOwedSpecial(env, msg.from, Date.now(), ctx)) console.log(`[special-ask] an owed form went to …${msg.from.slice(-4)}`);
+      } catch (e) {
+        console.warn("[special-ask] the owed form failed", (e as Error)?.message);
+      }
+    }
 
     // 2026-09-20 (cover) — single funnel for every inbound. Ingests BEFORE
     // any team/supplier/customer bot routing so a failure in one of those
@@ -2657,6 +2727,11 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           const { handleDeliveryFormReply } = await import("./delivery-form");
           const r = await handleDeliveryFormReply(env, msg, ctx);
           console.log(`[delivery-form] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} ${r.action}${r.orderId ? ` order=${r.orderId}` : ""}${r.payment ? ` pay=${r.payment}` : ""}`);
+        } else if ((await import("./special-ask")).isSpecialAskToken(msg.flow.token ?? "")) {
+          // § 62 ب — a source's prices for a special request: on the request's lines alone, never on the day's prices
+          const { handleSpecialAskReply } = await import("./special-ask");
+          const r = await handleSpecialAskReply(env, msg, ctx);
+          console.log(`[special-ask] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} ${r.action}${r.quoteId ? ` request=${r.quoteId}` : ""}${r.saved !== undefined ? ` saved=${r.saved}` : ""}`);
         } else if ((await import("./expense-form")).isExpenseToken(msg.flow.token ?? "")) {
           // § 57 و — Baraa's expense form: a posted vendor bill in EXP and its payment, from his number alone
           const { handleExpenseReply } = await import("./expense-form");
@@ -3461,6 +3536,12 @@ async function sendReply(
     }
   }
 }
+
+/**
+ * § 62 — Odoo fires its webhook inside the save's own transaction: the worker
+ * waits this long before reading the request, so it reads what was saved.
+ */
+const SPECIAL_HOOK_DELAY_MS = 1500;
 
 function json(obj: unknown, status = 200): Response {
   return new Response(JSON.stringify(obj), {

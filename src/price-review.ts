@@ -211,7 +211,8 @@ export async function readMoved(read: SearchRead, day: string, l: DayLine): Prom
   const item: unknown[][] = [["x_product_tmpl_id", "=", product], ["x_packaging_id", "=", packaging], ["x_utak_simulation", "!=", true]];
   const before = async (model: string, who: string, partner: number, field: string, notId: number): Promise<number> => {
     const [r] = await read(model, {
-      domain: [...item, [who, "=", partner], [field, ">", 0], ["x_date", "<=", day], ["id", "!=", notId]], fields: [field], order: "x_date desc, id desc", limit: 1,
+      // § 62 ب — a source's «خاص» row (a special request's observation) is never «آخر سعر» of a day's outlier
+      domain: [...item, [who, "=", partner], [field, ">", 0], ["x_date", "<=", day], ["id", "!=", notId], ...(model === "x_price_offer" ? [["x_special", "!=", true]] : [])], fields: [field], order: "x_date desc, id desc", limit: 1,
     });
     return r ? Number(r[field]) || 0 : 0;
   };

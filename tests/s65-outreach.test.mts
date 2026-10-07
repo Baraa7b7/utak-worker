@@ -151,9 +151,10 @@ console.log("\n[هـ6] the numbers");
   const env = fresh("2026-10-06 10:00");
   Object.assign(table("res.partner").get(AHMED)!, { x_supplier_state: "approved" });
   const msg = (dir: string, date: string, extra: Record<string, unknown> = {}) => seed("x_wa_message", { x_partner_id: AHMED, x_direction: dir, x_status: dir === "out" ? "delivered" : "received", create_date: date, ...extra });
-  // we wrote on 10-03, 10-04 and 10-05 (Riyadh); he wrote back on 10-03 and 10-05 — 23:30 UTC of 10-04 is 02:30 Riyadh of 10-05
-  msg("out", "2026-10-02 23:05:00"); msg("in", "2026-10-03 00:10:00"); msg("out", "2026-10-03 23:05:00"); msg("out", "2026-10-04 23:05:00"); msg("in", "2026-10-04 23:30:00");
-  msg("out", "2026-10-05 23:05:00", { x_status: "failed" }); msg("out", "2026-10-01 23:05:00", { x_utak_simulation: true });
+  // the days are Riyadh's: we wrote on 10-02, 10-04 (22:00 UTC of 10-03 is 01:00 of 10-04) and 10-05; he wrote back on 10-02 and
+  // on 10-04 (01:00 UTC of 10-04 is 04:00 Riyadh, the same Riyadh day as our message — another UTC day)
+  msg("out", "2026-10-02 08:00:00"); msg("in", "2026-10-02 09:00:00"); msg("out", "2026-10-03 22:00:00"); msg("in", "2026-10-04 01:00:00"); msg("out", "2026-10-05 05:00:00");
+  msg("out", "2026-10-05 23:05:00", { x_status: "failed" }); msg("out", "2026-09-30 23:05:00", { x_utak_simulation: true });
   const day = (date: string) => seed("x_price_day", { x_date: date });
   const line = (date: string, product: number, pack: number, mkt: number) => seed("x_price_day_line", { x_day_id: day(date), x_day_date: date, x_product_tmpl_id: product, x_packaging_id: pack, x_market_price: mkt });
   line("2026-10-04", 1, 11, 23); line("2026-10-05", 1, 11, 23);

@@ -49,9 +49,10 @@ export const PRICE_SLOTS = PRICE_PAGES.length * PRICE_PAGE_SLOTS;
 export const PRICE_SCREEN_TITLE = "طلب أسعار";
 export const PRICE_NEXT_LABEL = "التالي";
 export const PRICE_SUBMIT_LABEL = "إرسال";
-export const SIZE_LABEL = "المقاس (اختياري)";
+// Meta writes «(اختياري)» after the label of a field that is not required: the label itself does not say it
+export const SIZE_LABEL = "المقاس";
 export const SIZE_HINT = "بلغة السوق، مثل 66";
-export const ORIGIN_LABEL = "المنشأ (اختياري)";
+export const ORIGIN_LABEL = "المنشأ";
 export const ORIGIN_HINT = "البلد أو المنطقة";
 /** The three fields of a slot in the reply: the price, the size, the origin. */
 export const SLOT_FIELDS = ["p", "s", "o"];

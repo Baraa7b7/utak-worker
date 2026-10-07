@@ -55,23 +55,31 @@ const FARMER = {
 /** The tenant's shape, the catalog's two products by their codes, Saudi Arabia, and the m2m commands applied as Odoo applies them. */
 function world(riyadh = `${DAY} 10:00`): any {
   const env = fresh(riyadh);
-  Object.assign(table("product.template").get(1)!, { default_code: "UTAK-VEG-001" });
   Object.assign(table("product.template").get(2)!, { default_code: CAT.matchCatalog("خيار")!.code });
+  Object.assign(table("product.template").get(3)!, { default_code: CAT.matchCatalog("بطاطس")!.code });
   Object.assign(table("product.template").get(1)!, { default_code: CAT.matchCatalog("طماطم")!.code });
   seed("res.country", { id: 192, code: "SA", name: "Saudi Arabia" });
   seed("res.country", { id: 65, code: "EG", name: "Egypt" });
+  shadow.clear();
   computes["res.partner"] = (r: any) => {
-    for (const f of ["x_supplied_product_ids", "x_origin_country_ids"]) {
+    for (const f of M2M) {
       const v = r[f];
       if (Array.isArray(v) && v.some(Array.isArray)) {
-        const kept: number[] = Array.isArray(r[`_${f}`]) ? [...r[`_${f}`]] : [];
+        const kept: number[] = [...(shadow.get(`${r.id}:${f}`) ?? [])];
         for (const c of v as any[]) { if (c[0] === 4 && !kept.includes(c[1])) kept.push(c[1]); if (c[0] === 6) { kept.length = 0; kept.push(...c[2]); } }
         r[f] = kept;
       }
-      if (Array.isArray(r[f])) r[`_${f}`] = [...r[f]];
     }
+    snap();
   };
+  snap();
   return env;
+}
+/** What each card's many2many carries now: Odoo applies a command ([4, id] adds, [6, 0, ids] replaces) to it. */
+const M2M = ["x_supplied_product_ids", "x_origin_country_ids"];
+const shadow = new Map<string, number[]>();
+function snap(): void {
+  for (const r of rows("res.partner") as any[]) for (const f of M2M) if (Array.isArray(r[f]) && !r[f].some(Array.isArray)) shadow.set(`${r.id}:${f}`, [...r[f]]);
 }
 const approveTemplates = () => {
   seed("x_whatsapp_template", { id: 9651, x_purpose: "supplier_invite", x_meta_template_id: "utak_supplier_invite_v1", x_language: "ar", x_meta_status: "APPROVED", x_param_count: 0, x_category: "UTILITY" });
@@ -210,6 +218,7 @@ console.log("\n[ب5] the card of his number is updated");
   assert("…the location carries the shop he wrote", c.x_supplier_location === "القصيم — بريدة — مستودع 9");
   // Ahmad: a supplier of before, approved
   Object.assign(partner(AHMED), { x_supplier_state: "approved" });
+  snap();
   openWindow(env, AHMED_PHONE, 0);
   await quiet(() => REG.answerSignupKeyword(env, { from: "+" + AHMED_PHONE, text: "تسجيل مورد" }, { team: false }));
   const f = flowsTo(AHMED_PHONE).at(-1);
@@ -217,7 +226,7 @@ console.log("\n[ب5] the card of his number is updated");
   const r2 = await reply(env, AHMED_PHONE, par(f).flow_token, { ...FARMER, trade: "مؤسسة أحمد حسان", stype: "wholesaler", items: "بطاطس" });
   const a = partner(AHMED);
   assert("an approved supplier's form updates HIS card: his state stays «معتمد», his name stays, his rank stays", r2.action === "updated" && a.x_supplier_state === "approved" && a.name === "أحمد حسان" && a.supplier_rank === 5 && a.x_supplier_type === "wholesaler" && String(a.x_supplier_detail).startsWith("الاسم التجاري: مؤسسة أحمد حسان"), JSON.stringify(a));
-  assert("…his items are ADDED to «الأصناف التي يوفرها», never replaced (1, 2 of before, and بطاطس)", JSON.stringify(a.x_supplied_product_ids) === JSON.stringify([1, 2]) || JSON.stringify(a.x_supplied_product_ids) === JSON.stringify([1, 2, 3]), JSON.stringify(a.x_supplied_product_ids));
+  assert("…his items are ADDED to «الأصناف التي يوفرها», never replaced (1, 2 of before, and بطاطس)", JSON.stringify(a.x_supplied_product_ids) === JSON.stringify([1, 2, 3]), JSON.stringify(a.x_supplied_product_ids));
   assert("…he is told his data arrived, and Baraa that he updated it", bodyOf(sentTo(AHMED_PHONE).at(-1)) === REG.SIGNUP_UPDATED_TEXT && ownerTexts().some((t) => t.startsWith("🧑‍🌾 مورد حدّث بياناته: مؤسسة أحمد حسان")));
   // a second form of the same farmer: no second season of the same crop and months
   const env2 = world();
@@ -227,6 +236,9 @@ console.log("\n[ب5] the card of his number is updated");
   const s2 = await quiet(() => REG.sendSignupForm(env2, { partnerId: byNumber(NEW)[0].id, whatsapp: "+" + NEW }));
   await reply(env2, NEW, s2.token!, { ...FARMER, f_c3: "بصل", f_a3: "01", f_b3: "02" });
   assert("the form again: the two seasons of before are not written twice, the new crop is added", (rows("x_supplier_season") as any[]).length === 3 && byNumber(NEW).length === 1);
+  const s3 = await quiet(() => REG.sendSignupForm(env2, { partnerId: byNumber(NEW)[0].id, whatsapp: "+" + NEW }));
+  await reply(env2, NEW, s3.token!, { ...FARMER, f_c1: "ثوم", f_a1: "", f_b1: "", f_c2: "", f_c3: "" });
+  assert("a crop with no month is no season (it stays among his items)", (rows("x_supplier_season") as any[]).length === 3);
 }
 
 console.log("\n[ب6] the token, and a form that is refused");

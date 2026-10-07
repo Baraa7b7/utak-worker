@@ -145,7 +145,8 @@ export function renderReceiptHTML(data: ReceiptPDFData, company?: CompanyInfo): 
     documentNumber: data.receiptNumber,
     documentDate: data.receiptDate,
     billTo,
-    from: data.lang ? fromPartyFor(lang, company) : undefined,
+    // § 62 ج (fix) — «من» is the company read from Odoo in every language (BRAND_INFO only without one)
+    from: fromPartyFor(lang, company),
     bodyHTML: renderReceiptBodyHTML(data.payments, pageMetrics, lang),
     totalsHTML: renderReceiptTotalsHTML(data.totalReceived, lang),
     footerNote: lang === "en" ? UI.receiptConfirmation.en : RECEIPT_FOOTER,

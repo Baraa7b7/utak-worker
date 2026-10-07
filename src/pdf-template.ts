@@ -82,17 +82,19 @@ export const UTAK_LOGO_DATA_URL = "data:image/svg+xml;base64," + btoa(UTAK_LOGO_
 export const UTAK_LOGO_IMG_STYLE = "width: 37.2px; height: 37.2px; margin: 11.4px; display: block;";
 
 
-// Company info block that appears in the FROM slot by default.
-// TODO: promote to env-driven config once ZATCA registration + CR + VAT numbers land.
+// The brand's constants: the name beside the logo, the tagline, the watermark.
+// § 62 ج (fix, 2026-10-07) — «من» is the company read from Odoo (src/company.ts
+// through fromPartyFor, src/doc-shell.ts). The address, e-mail and phone here
+// are the FALLBACK only: what «من» prints when no company reached the renderer.
 export const BRAND_INFO = {
   nameAr: "شركة يوتاك",
   nameEn: "UTAK",
   tagline: "توزيع منتجات زراعية طازجة",
   address: "الرياض، المملكة العربية السعودية",
-  email: "care@utak.com",
+  email: "care@utakfresh.com",
   phone: "+966 58 004 0467",
-  cr: "",   // Commercial Registration — TBD
-  vat: "",  // VAT number — TBD
+  cr: "",   // never here: the company's is read from Odoo
+  vat: "",  // never here: the company's is read from Odoo
 } as const;
 
 // ============================================================================
@@ -216,6 +218,12 @@ export interface PartyInfo {
   address?: string;
   phone?: string;
   email?: string;
+  /** § 62 ج (fix) — the party's VAT number, a line of its own under the phone
+   *  («الرقم الضريبي: …»). The shell drops the sender's when the legal strip of
+   *  the same page already carries it: the number is printed once. */
+  vat?: string;
+  /** The words before that number; «الرقم الضريبي» when absent. */
+  vatLabel?: string;
 }
 
 export interface PageMetrics {
@@ -249,16 +257,30 @@ export function computePageMetrics(itemCount: number): PageMetrics {
 
 function renderParty(label: string, party: PartyInfo, alignEnd: boolean): string {
   const align = alignEnd ? "text-align: left;" : "";
+  // § 62 ج (fix) — a party with BOTH an e-mail and a phone (the company in «من»)
+  // prints them on one line: the national address takes two lines, and a block
+  // one line taller pushed a six-row quotation's legal strip onto a second
+  // page. A party with one of the two keeps its line as it was.
+  const both = !!(party.email && party.phone);
+  const ltrLine = (s: string) => `<div style="color: ${BRAND_COLORS.inkMuted}; direction: ltr;${alignEnd ? "" : " text-align: right;"}">${s}</div>`;
   return `<div style="display: flex; flex-direction: column; gap: 10px; ${align}">
       <div style="font-size: ${BRAND_TYPE.label.size}; font-weight: ${BRAND_TYPE.label.weight}; color: ${BRAND_COLORS.inkMuted}; letter-spacing: ${BRAND_TYPE.label.tracking};">${escapeHTML(label)}</div>
       <div style="display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 400;">
         <div>${escapeHTML(party.name)}</div>
         ${party.contactName ? `<div style="color: ${BRAND_COLORS.inkMuted};">${escapeHTML(party.contactName)}</div>` : ""}
         ${party.address ? `<div style="color: ${BRAND_COLORS.inkMuted};">${escapeHTML(party.address)}</div>` : ""}
-        ${party.email ? `<div style="color: ${BRAND_COLORS.inkMuted}; direction: ltr;${alignEnd ? "" : " text-align: right;"}">${escapeHTML(party.email)}</div>` : ""}
-        ${party.phone ? `<div style="color: ${BRAND_COLORS.inkMuted}; direction: ltr;${alignEnd ? "" : " text-align: right;"}">${escapeHTML(party.phone)}</div>` : ""}
+        ${party.email ? ltrLine(both ? `${escapeHTML(party.email)} · ${escapeHTML(party.phone)}` : escapeHTML(party.email)) : ""}
+        ${party.phone && !both ? ltrLine(escapeHTML(party.phone)) : ""}${renderPartyVat(party)}
       </div>
     </div>`;
+}
+
+/** The party's VAT line («الرقم الضريبي: 3…»), the number in one left-to-right run. Nothing without a number. */
+function renderPartyVat(party: PartyInfo): string {
+  const vat = (party.vat ?? "").trim();
+  if (!vat) return "";
+  return `
+        <div style="color: ${BRAND_COLORS.inkMuted};">${escapeHTML(party.vatLabel ?? "الرقم الضريبي")}: <bdi dir="ltr">${escapeHTML(vat)}</bdi></div>`;
 }
 
 /** The invoice header (logo, «شركة يوتاك», tagline · title, number, date),
@@ -471,7 +493,7 @@ export interface RenderPDFShellOptions {
   documentNumber: string;      // e.g. "INV-2026-0147"
   documentDate: Date;
   billTo: PartyInfo;
-  from?: PartyInfo;            // defaults to BRAND_INFO
+  from?: PartyInfo;            // the company read from Odoo (fromPartyFor); BRAND_INFO only when none was read
   bodyHTML: string;            // caller-owned body (table, lines, whatever the doc needs)
   totalsHTML?: string;         // optional totals block (invoice / quotation yes; delivery note no)
   footerNote?: string;         // "الدفع خلال ٣٠ يوماً..." — defaults per doc type
@@ -560,12 +582,16 @@ const DEFAULT_FOOTER_NOTE =
   "الدفع خلال ٣٠ يوماً من تاريخ الفاتورة. تحويل بنكي أو نقداً عند التسليم.";
 
 export function renderPDFShell(opts: RenderPDFShellOptions): string {
-  const from: PartyInfo = opts.from ?? {
+  const fromGiven: PartyInfo = opts.from ?? {
     name: BRAND_INFO.nameAr,
     address: BRAND_INFO.address,
     email: BRAND_INFO.email,
     phone: BRAND_INFO.phone,
   };
+  // § 62 ج (fix) — the sender's VAT number is printed once in a document: its
+  // line in «من» goes when the legal strip of the same page carries the number.
+  const vatInStrip = !!(opts.legalFooterBar?.vat ?? "").trim();
+  const from: PartyInfo = vatInStrip ? { ...fromGiven, vat: undefined } : fromGiven;
   const showZatcaQR = opts.showZatcaQR ?? true;
   const footerNote = opts.footerNote ?? DEFAULT_FOOTER_NOTE;
   const m = opts.pageMetrics;
@@ -654,8 +680,8 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
     <div style="height: ${m.gap};"></div>
 
     <div style="position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 32px;">
-      ${renderParty("فاتورة إلى / BILL TO", opts.billTo, false)}
-      ${renderParty("من / FROM", from, true)}
+      ${renderParty(opts.billToLabel ?? "فاتورة إلى / BILL TO", opts.billTo, false)}
+      ${renderParty(opts.fromLabel ?? "من / FROM", from, true)}
     </div>
 
     <div style="height: ${m.preTable};"></div>

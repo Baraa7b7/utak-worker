@@ -104,7 +104,7 @@ async function warned<T>(fn: () => Promise<T>): Promise<{ out: T; warns: string[
 }
 const plain = (html: string) => html.replace(/<[^>]+>/g, "");
 const bodyOf = (b: any) => String(b?.text?.body ?? b?.interactive?.body?.text ?? "");
-const COMPANY = { nameAr: HOLDER, nameEn: "UTAK", address: "الرياض", email: "care@utak.com", phone: "+966 58 004 0467", cr: "7051996651", vat: "315022736600003" };
+const COMPANY = { nameAr: HOLDER, nameEn: "UTAK", address: "الرياض", email: "care@utakfresh.com", phone: "+966 58 004 0467", cr: "7051996651", vat: "315022736600003" };
 const TERMS_AR = "الدفع خلال ٣٠ يوماً من تاريخ الفاتورة. تحويل بنكي أو نقداً عند التسليم.";
 /** A delivered order of the customer: 3 × 20 = 60, «العليا». */
 const delivered = () => order(C1, "delivered", "2026-10-04", 1, { x_delivery_neighborhood: "العليا" });

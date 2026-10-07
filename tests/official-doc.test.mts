@@ -164,7 +164,7 @@ console.log("\n[5] renderOfficialDocHTML smoke");
     nameAr: "UTAK — يو تاك",
     nameEn: "UTAK",
     address: "الرياض، المملكة العربية السعودية",
-    email: "care@utak.com",
+    email: "care@utakfresh.com",
     phone: "+966 58 004 0467",
     cr: "1234567890",
     vat: "300000000000003",

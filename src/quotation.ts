@@ -33,7 +33,7 @@ import {
 import { readCompanyInfoWithBank, type CompanyInfo } from "./company";
 import { toLegalFooterAr } from "./legal-footer";
 import { UI, resolveDocLang, type DocLang } from "./i18n";
-import { formatDateEn, fromPartyFor, itemCellHTML, labelForBillTo, labelForFrom, labelForTerms, taglineFor, thanksLine } from "./doc-shell";
+import { formatDateEn, fromPartyFor, itemCellHTML, labelForFrom, labelForTerms, labelForTo, taglineFor, thanksLine } from "./doc-shell";
 
 export interface QuotationLineItem {
   name: string;
@@ -213,7 +213,8 @@ export function renderQuotationHTML(data: QuotationPDFData, company?: CompanyInf
     documentNumber: data.quotationNumber,
     documentDate: data.quotationDate,
     billTo,
-    from: data.lang ? fromPartyFor(lang, company) : undefined,
+    // § 62 ج (fix) — «من» is the company read from Odoo in every language (BRAND_INFO only without one)
+    from: fromPartyFor(lang, company),
     bodyHTML: renderQuotationBodyHTML(data.items, pageMetrics, lang) + renderBelowTableHTML(data.belowTable),
     totalsHTML: renderQuotationTotalsHTML(
       data.subtotal,
@@ -233,7 +234,8 @@ export function renderQuotationHTML(data: QuotationPDFData, company?: CompanyInf
     pageMetrics,
     lang: data.lang ? lang : undefined,
     tagline: data.lang ? taglineFor(lang) : undefined,
-    billToLabel: data.lang ? labelForBillTo(lang) : undefined,
+    // § 62 ج (fix) — a quotation is addressed «إلى / TO», not «فاتورة إلى» (every path: the day's, the manual, the special request's)
+    billToLabel: labelForTo(lang),
     fromLabel: data.lang ? labelForFrom(lang) : undefined,
     termsLabel: data.lang ? labelForTerms(lang) : undefined,
     thanksLine: data.lang ? thanksLine(lang, company) : undefined,

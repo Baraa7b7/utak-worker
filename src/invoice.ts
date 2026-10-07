@@ -1215,9 +1215,10 @@ export function renderInvoiceHTML(data: InvoicePDFData, company?: CompanyInfo): 
     documentNumber: data.invoiceNumber,
     documentDate: data.invoiceDate,
     billTo,
-    // FROM slot: only override when lang was requested — preserves the
-    // byte-parity Part A output (BRAND_INFO default) for ar mode.
-    from: data.lang ? fromPartyFor(lang, company) : undefined,
+    // § 62 ج (fix) — «من» is the company read from Odoo in every language
+    // (BRAND_INFO only without one). An invoice dated before the VAT cutoff
+    // carries no VAT number anywhere (§ 41 د): «من» gets none either.
+    from: fromPartyFor(lang, company && !isTaxInvoice ? { ...company, vat: "" } : company),
     bodyHTML: renderInvoiceBodyHTML(data.items, pageMetrics, lang, isTaxInvoice),
     totalsHTML: renderInvoiceTotalsHTML(
       data.subtotal,

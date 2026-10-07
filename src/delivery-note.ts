@@ -111,7 +111,8 @@ export function renderDeliveryNoteHTML(data: DeliveryNotePDFData, company?: Comp
     documentNumber: data.deliveryNumber,
     documentDate: data.deliveryDate,
     billTo,
-    from: data.lang ? fromPartyFor(lang, company) : undefined,
+    // § 62 ج (fix) — «من» is the company read from Odoo in every language (BRAND_INFO only without one)
+    from: fromPartyFor(lang, company),
     bodyHTML: renderDeliveryNoteBodyHTML(data.items, pageMetrics, lang),
     // no totalsHTML for delivery notes
     footerNote: lang === "en" ? UI.deliveryNoteHint.en : DELIVERY_NOTE_FOOTER,

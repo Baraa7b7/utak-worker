@@ -30,6 +30,7 @@ const FILES = [
   "s60-unavailable", "s60-screen", "s60-target", "s60-tabs", "s60-summary", "s60-history", "s60-trial",
   "s61-jobs",
   "s62-math", "s62-quote", "s62-ask", "s62-quotation", "s62-trials",
+  "s62c-from",
 ];
 
 const root = new URL("../", import.meta.url).pathname;

@@ -148,7 +148,8 @@ export function renderPurchaseOrderHTML(data: PurchaseOrderPDFData, company?: Co
     documentNumber: data.poNumber,
     documentDate: data.poDate,
     billTo: supplierAsBillTo,
-    from: data.lang ? fromPartyFor(lang, company) : undefined,
+    // § 62 ج (fix) — «من» is the company read from Odoo in every language (BRAND_INFO only without one)
+    from: fromPartyFor(lang, company),
     bodyHTML: renderPurchaseOrderBodyHTML(data.items, pageMetrics, lang),
     totalsHTML: renderPurchaseOrderTotalsHTML(data.subtotal, data.grandTotal, lang, data.tax ?? 0),
     footerNote: lang === "en" ? UI.poNote.en : PO_FOOTER,

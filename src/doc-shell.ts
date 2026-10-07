@@ -25,6 +25,13 @@ export function labelForBillTo(lang: DocLang): string {
   if (lang === "en") return "BILL TO";
   return "فاتورة إلى / BILL TO";
 }
+// § 62 ج (fix, 2026-10-07) — the quotation (the day's, the manual one, the
+// special request's) is addressed, not billed: «إلى / TO». The invoice, the
+// receipt, the delivery note and the purchase order keep «فاتورة إلى / BILL TO».
+export function labelForTo(lang: DocLang): string {
+  if (lang === "en") return "TO";
+  return "إلى / TO";
+}
 export function labelForFrom(lang: DocLang): string {
   if (lang === "en") return "FROM";
   return "من / FROM";
@@ -130,8 +137,13 @@ export function primaryUILang(lang: DocLang): UILang {
 
 // Party used for the "FROM" slot on every doc — company identity block.
 // en → prefers the bilingual English legal name/address; bi/ar → Arabic.
-// Undefined return means "use the shell's default (BRAND_INFO)".
-export function fromPartyFor(lang: DocLang, company: CompanyInfo | undefined): { name: string; address?: string; email?: string; phone?: string } | undefined {
+// § 62 ج (fix, 2026-10-07) — every document takes «من» from here in every
+// language, the Arabic default included: the company as it is in Odoo (name,
+// national address, phone, e-mail). Its VAT number travels with it and the
+// shell prints it only when the legal strip of the page does not (once).
+// Undefined return — no company reached the renderer — means "use the shell's
+// fallback (BRAND_INFO)".
+export function fromPartyFor(lang: DocLang, company: CompanyInfo | undefined): { name: string; address?: string; email?: string; phone?: string; vat?: string; vatLabel?: string } | undefined {
   if (!company) return undefined;
   if (lang === "en") {
     return {
@@ -139,6 +151,8 @@ export function fromPartyFor(lang: DocLang, company: CompanyInfo | undefined): {
       address: company.addressEn || company.address,
       email: company.email,
       phone: company.phone,
+      vat: company.vat,
+      vatLabel: UI.vatLabel.en,
     };
   }
   // ar and bi: leading Arabic identity.
@@ -147,5 +161,7 @@ export function fromPartyFor(lang: DocLang, company: CompanyInfo | undefined): {
     address: company.addressAr || company.address,
     email: company.email,
     phone: company.phone,
+    vat: company.vat,
+    vatLabel: UI.vatLabel.ar,
   };
 }

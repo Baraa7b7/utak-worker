@@ -65,6 +65,8 @@ console.log("\n[ز1] the item's name, and S00015 as it stands: nine cartons with
   assert("each line's three numbers are Odoo's own: price_subtotal, price_tax, price_total (115 = 100 + 15; 62.50 = 54.35 + 8.15)", data.items[0].net === 100 && data.items[0].vat === 15 && data.items[0].gross === 115 && data.items[1].net === 54.35 && data.items[1].vat === 8.15 && data.items[1].gross === 62.5);
   assert("before + VAT = with it to the halala on every line", data.items.every((x) => Math.round(((x.net ?? 0) + (x.vat ?? 0)) * 100) === Math.round((x.gross ?? 0) * 100)));
   assert("a line with no product has no packaging of its own: its unit of measure names it («كرتون»)", data.items.every((x) => x.pack === "كرتون"));
+  saleOrder(16, "S-UOM", [incl("برتقال", 115, 1, { product_uom_id: UNITS }), incl("تفاح", 110, 1, { product_uom_id: false })]);
+  assert("…Odoo's generic unit («Units») names no packaging, and no unit at all neither: «—»", (await build(env, 16))!.items.every((x) => x.pack === "—"));
   assert("the order's amounts are Odoo's: 532.18 + 79.82 = 612", data.subtotal === 532.18 && data.vatAmount === 79.82 && data.grandTotal === 612, JSON.stringify([data.subtotal, data.vatAmount, data.grandTotal]));
   assert("nothing is written to Odoo: no tax is created or changed, no line is touched", writesOf().length === 0 && odooLog.every((l) => l.model !== "account.tax"), JSON.stringify(writesOf().map((l) => `${l.model}.${l.method}`)));
   const html = Q.renderQuotationHTML({ ...data, issued: true }, COMPANY), t = text(html);
@@ -125,6 +127,10 @@ console.log("\n[ز3] by quantities: Odoo's numbers, «شامل» or «قبل ا�
   assert("lines with no tax: neither sentence, «ضريبة القيمة المضافة» 0.00, the total 40", none.vatInclusive === undefined && none.footerNote === undefined && none.totals?.vatLabel === "ضريبة القيمة المضافة" && none.vatAmount === 0 && none.grandTotal === 40);
   saleOrder(33, "S00033", [incl("خيار", 23, 2), excl("طماطم", 50, 3)]);
   assert("lines of both kinds: no sentence claims one for all", (await build(env, 33))!.vatInclusive === undefined && (await build(env, 33))!.footerNote === undefined);
+  // the order's amounts are Odoo's, not the lines' sums again (Odoo may round the tax on the whole order)
+  saleOrder(36, "S00036", [incl("خيار", 28, 8), incl("طماطم", 45, 5)], { amount_untaxed: 390.44, amount_tax: 58.56, amount_total: 449.01 });
+  const glob = (await build(env, 36))!;
+  assert("the three totals are the order's own amounts even where they differ from the lines' sums by a halala", glob.subtotal === 390.44 && glob.vatAmount === 58.56 && glob.grandTotal === 449.01, JSON.stringify([glob.subtotal, glob.vatAmount, glob.grandTotal]));
   // a discount on the line: the unit that multiplies out to Odoo's total
   saleOrder(34, "S00034", [{ name: "خيار", price_unit: 100, discount: 10, product_uom_qty: 2, price_total: 180, price_subtotal: 156.52, price_tax: 23.48 }]);
   const disc = (await build(env, 34))!;

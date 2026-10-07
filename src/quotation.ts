@@ -376,7 +376,7 @@ export function estimateLines(text: string | undefined, perLine: number): number
 /** The page's budget from the data it will print. */
 export function quotationFitInput(data: QuotationPDFData, company?: CompanyInfo): QuotationFitInput {
   const from = fromPartyFor(resolveDocLang({ docLang: data.lang, isTaxInvoice: false }), company);
-  // a party's column holds about 48 characters a line, the terms block about 160 (measured; FIT_RESERVE_PX and the gaps take a miss)
+  // a party's column holds about 48 characters a line, the terms block about 170 (measured; FIT_RESERVE_PX and the gaps take a miss)
   const toLines = 1 + (data.customer.contactPerson ? 1 : 0) + estimateLines(data.customer.address, 48) + (data.customer.phone ? 1 : 0);
   const fromLines = from ? 1 + estimateLines(from.address, 48) + (from.email || from.phone ? 1 : 0) : 4;
   const blocks = [data.belowTable, ...(data.belowBlocks ?? [])].filter((b): b is { label: string; text: string } => !!b && !!String(b.text ?? "").trim());
@@ -388,7 +388,7 @@ export function quotationFitInput(data: QuotationPDFData, company?: CompanyInfo)
     unit: data.layout === "unit",
     sealed: !!(data.issued && !data.draft && company),
     partyLines: Math.max(toLines, fromLines),
-    noteLines: estimateLines(note, 160),
+    noteLines: estimateLines(note, 170),
     bankLine: !!company?.bankLine,
     belowBlocks: blocks.length,
     belowLines: blocks.reduce((n, b) => n + estimateLines(b.text, 110), 0),

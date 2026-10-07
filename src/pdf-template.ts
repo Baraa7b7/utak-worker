@@ -453,7 +453,7 @@ function renderLegalOneLine(info: LegalFooterInfo, lang: DocLang): string {
  * cell (an issued quotation's seal sits beside its totals).
  */
 function renderWideFooter(footerNote: string, termsLabel: string, thanks: string | undefined, bankLineHTML: string): string {
-  const bankRow = bankLineHTML ? `\n          ${bankLineHTML}` : "";
+  const transferRow = bankLineHTML ? `\n          ${bankLineHTML}` : "";
   const thanksRow = thanks ? `
       <div style="height: 12px;"></div>
       <div style="text-align: center; font-size: 10px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.08em;">${escapeHTML(thanks)}</div>` : "";
@@ -462,7 +462,7 @@ function renderWideFooter(footerNote: string, termsLabel: string, thanks: string
       <div style="height: 14px;"></div>
       <div style="display: flex; flex-direction: column; gap: 5px;">
         <div style="font-size: ${BRAND_TYPE.label.size}; font-weight: ${BRAND_TYPE.label.weight}; color: ${BRAND_COLORS.inkMuted}; letter-spacing: ${BRAND_TYPE.label.tracking};">${escapeHTML(termsLabel)}</div>
-        <div style="font-size: 10px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; line-height: 1.7;">${escapeHTML(footerNote)}</div>${bankRow}
+        <div style="font-size: 10px; font-weight: 400; color: ${BRAND_COLORS.inkMuted}; line-height: 1.7;">${escapeHTML(footerNote)}</div>${transferRow}
       </div>${thanksRow}
     </div>`;
 }

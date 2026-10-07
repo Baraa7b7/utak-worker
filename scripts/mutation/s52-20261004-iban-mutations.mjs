@@ -95,7 +95,7 @@ const M = [
     "const bankRow = bankLineHTML ? `\\n          ${bankLineHTML}` : \"\";", "const bankRow = `\\n          ${bankLineHTML}`;"]], T],
   // ---------------------------------------------------------------- د the quotation PDF
   ["د", "the quotation's page does not take the line", [[QU,
-    "under the terms (the same Arabic line in every language)\n    bankLine: company?.bankLine,", "under the terms (the same Arabic line in every language)"]], T],
+    "    bankLine: bankLineWithHolder(company?.bankLine, company?.legalNameAr || company?.nameAr),", ""]], T],
   ["د", "generateQuotationPDF reads the company without its bank", [[QU,
     "  const company = await readCompanyInfoWithBank(env);\n  const lang: DocLang", "  const company = await (await import(\"./company\")).readCompanyInfo(env);\n  const lang: DocLang"]], T],
   ["د", "the customer's quotation reads the company without its bank", [[QU,

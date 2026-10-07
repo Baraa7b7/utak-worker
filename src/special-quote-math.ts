@@ -85,8 +85,8 @@ export function suggestedFor(purchase: number, marketMedian: number, wastePct: n
   const gross = suggestedPrice(purchase, marketMedian, wastePct, marginPct);
   if (mode !== "net") return { gross, net: netOf(gross) };
   if (!(pos(purchase) > 0)) return { gross: 0, net: 0 };
-  const floor = unitCost(purchase, wastePct) * (1 + pct(marginPct)) * VAT_FACTOR;
-  const net = ceilTo(Math.max(pos(marketMedian), floor) / VAT_FACTOR);
+  const least = unitCost(purchase, wastePct) * (1 + pct(marginPct)) * VAT_FACTOR;
+  const net = ceilTo(Math.max(pos(marketMedian), least) / VAT_FACTOR);
   return { gross: grossOf(net), net };
 }
 

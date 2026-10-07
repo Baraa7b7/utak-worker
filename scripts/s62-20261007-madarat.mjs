@@ -56,7 +56,7 @@ export const norm = (s) => String(s ?? "").replace(/^\s*\[[^\]]*\]\s*/, "").repl
 const digits = CUSTOMER.number.replace(/\D/g, "").slice(-9);
 const customerRows = () => call("res.partner", "search_read", { domain: ["|", ["x_whatsapp_number", "ilike", digits], ["phone", "ilike", digits]], fields: ["id", "name", "phone", "x_whatsapp_number", "customer_rank", "supplier_rank", "is_company", "active"], order: "id asc", limit: 5 });
 const catalog = () => call("product.template", "search_read", { domain: [["type", "!=", "service"]], fields: ["id", "name", "active", "x_is_active_for_sale", "categ_id", "uom_id", "taxes_id", "default_code", "x_utak_new"], order: "id asc", limit: 500, context: ALL });
-const quoteOf = async (partnerId) => (await call(QUOTE_MODEL, "search_read", { domain: [["x_partner_id", "=", partnerId], ["x_utak_simulation", "!=", true]], fields: ["id", "x_name", "x_state", "x_prepared", "x_note", "x_asked_at", "x_waste_pct", "x_min_margin_pct", "x_delivery_cost", "x_valid_until", "x_profit_text", "x_missing_purchase"], order: "id asc", limit: 5 }))[0] ?? null;
+const quoteOf = async (partnerId) => (await call(QUOTE_MODEL, "search_read", { domain: [["x_partner_id", "=", partnerId], ["x_utak_simulation", "!=", true]], fields: ["id", "x_name", "x_state", "x_prepared", "x_note", "x_asked_at", "x_waste_pct", "x_min_margin_pct", "x_delivery_cost", "x_valid_until", "x_price_mode", "x_profit_text", "x_missing_purchase"], order: "id asc", limit: 5 }))[0] ?? null;
 const linesOf = (id) => call(LINE_MODEL, "search_read", { domain: [["x_quote_id", "=", id]], fields: ["id", "x_sequence", "x_product_tmpl_id", "x_qty", "x_unit", "x_purchase_price", "x_final_price"], order: "x_sequence asc, id asc", limit: 100 });
 /** Each line against the catalog: the product it is, or null (to be made). */
 function matchAll(products) {
@@ -107,6 +107,7 @@ if (VERIFY) {
   check(`the items «نشط للبيع» are the ones of before (${(rb.before.forSale ?? []).join(", ")})`, JSON.stringify(forSale) === JSON.stringify(rb.before.forSale ?? forSale), JSON.stringify(forSale));
   await pause();
   const rec = q ? await call(RECIPIENT_MODEL, "search_read", { domain: [["x_quote_id", "=", q.id]], fields: ["id", "x_partner_id", "x_role", "x_asked_at", "x_replied_at"], order: "id asc" }) : [];
+  check(`«الأسعار في العرض»: قبل الضريبة (the default of a new request)`, q?.x_price_mode === "net", String(q?.x_price_mode));
   check(`prepared by the worker: its name, the waste, the margin 10 %, the delivery cost, «صالح حتى», and its sources (${rec.map((r) => `${r.x_partner_id?.[1]} ${r.x_role}`).join("، ") || "—"}) — none asked yet`,
     !!q?.x_prepared && /^SQ-\d{4}$/.test(String(q.x_name)) && q.x_min_margin_pct === 10 && q.x_waste_pct > 0 && q.x_delivery_cost > 0 && !!q.x_valid_until && rec.length >= 3 && rec.every((r) => !r.x_asked_at && !r.x_replied_at), JSON.stringify(q));
   done();

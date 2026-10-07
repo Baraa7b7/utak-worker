@@ -140,7 +140,6 @@ const M = [
   ["د", "the template is sent v3's data", [[PF, "params: flowAskParams(day), flow: { token: record.token, data } },", "params: flowAskParams(day), flow: { token: record.token, data: sessionData } },"]], TP],
   ["د", "the message is sent v2's data", [[PF, "    session: flowSession(text, record.token, sessionData, opts.cta ?? PRICE_FLOW_CTA),", "    session: flowSession(text, record.token, data, opts.cta ?? PRICE_FLOW_CTA),"]], TP],
   ["د", "the form opens the size of a hidden slot", [[PF, "    data[`is${n}`] = shown ? slotText(texts[n]?.s) : \"\";", "    data[`is${n}`] = slotText(texts[n]?.s) || \"x\";"]], TP],
-  ["د", "a new token is a v2 token", [[PF, "    v: 3, token: newFlowToken(day, src.partnerId),", "    v: 2, token: newFlowToken(day, src.partnerId),"]], TP],
   ["د", "the worker sends v2's id", [[PF, "export const PRICE_FLOW_ID = \"1120057760674035\";", "export const PRICE_FLOW_ID = \"1123704886881420\";"]], TP],
   ["د", "«➕ صنف إضافي» is offered after «تعديل» too", [[PF, "    if (!rec.parent && (!rec.test || rec.sim)) {", "    if ((!rec.test || rec.sim)) {"]], TP],
   ["د", "«➕ صنف إضافي» is offered after § 51's trial", [[PF, "    if (!rec.parent && (!rec.test || rec.sim)) {", "    if (!rec.parent) {"]], TP],

@@ -149,7 +149,7 @@ console.log("\n[هـ] the pages follow the categories: فواكه، خضار، �
     JSON.stringify(p.record.pages) === JSON.stringify(["فواكه"]) && p.data.t1 === "فواكه" && p.data.m1 === false && p.data.m2 === false && p.data.m3 === false && [1, 2, 3, 4].every((n) => p.data[`v${n}`] === true) && p.data.v5 === false && p.total === 4, JSON.stringify([p.record.pages, p.data.t1, p.data.m1]));
   assert("…the other pages are skipped: no heading, nothing shown on them", p.data.t2 === "-" && p.data.t3 === "-" && p.data.t4 === "-" && Array.from({ length: 45 }, (_, i) => p.data[`v${i + 16}`]).every((v) => v === false));
   assert("…the fields keep the rules of v1: «الصنف — التعبئة», the hint «آخر سعر», the engine's order", p.data.l1 === "طماطم — كرتون" && p.data.h1 === "آخر سعر: 21" && p.data.h2 === "لا سعر سابق" && p.record.items.map((i: any) => `${i.slot}:${i.productId}/${i.packagingId}`).join() === "1:1/11,2:2/21,3:3/31,4:4/41");
-  assert("…under the heading: «أسعار الشراء اليوم»; the token is kept with its pages (a v3 token since § 65)", p.data.sub === "أسعار الشراء اليوم" && (await FL.readFlowToken(env, p.record.token))?.v === 3 && JSON.stringify((await FL.readFlowToken(env, p.record.token))?.pages) === JSON.stringify(["فواكه"]));
+  assert("…under the heading: «أسعار الشراء اليوم»; the token is kept as a v2 token with its pages", p.data.sub === "أسعار الشراء اليوم" && (await FL.readFlowToken(env, p.record.token))?.v === 2 && JSON.stringify((await FL.readFlowToken(env, p.record.token))?.pages) === JSON.stringify(["فواكه"]));
   assert("no Odoo field outside the schema (product.template.categ_id, product.category)", rejected.length === 0, rejected.join(" | "));
 }
 {

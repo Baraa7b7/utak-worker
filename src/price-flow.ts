@@ -333,8 +333,8 @@ export async function flowItems(env: Env, hints: { partnerId: number; supplier: 
 // ---------------------------------------------------------------- flow_token
 
 export interface FlowRecord {
-  /** 1 = a token of utak_price_ask_v1 (§ 51, one page, no `pages`); 2 = of v2; 3 = of v3 (§ 65: the reply may carry a size and an origin). */
-  v: 1 | 2 | 3;
+  /** 1 = a token of utak_price_ask_v1 (§ 51, one page, no `pages`); 2 = of v2 — and of v3 (§ 65: the same slots; the version is not raised, so a rolled-back worker still reads the reply of a form this one sent). */
+  v: 1 | 2;
   token: string;
   /** The Riyadh day the prices are for. */
   day: string;
@@ -373,7 +373,7 @@ export async function readFlowToken(env: Env, token: string): Promise<FlowRecord
   try {
     const raw = await env.MSG_DEDUP.get(flowTokenKey(token));
     const rec = raw ? (JSON.parse(raw) as FlowRecord) : null;
-    return rec && (rec.v === 1 || rec.v === 2 || rec.v === 3) && Array.isArray(rec.items) ? rec : null;
+    return rec && (rec.v === 1 || rec.v === 2) && Array.isArray(rec.items) ? rec : null;
   } catch { return null; }
 }
 async function writeFlowToken(env: Env, rec: FlowRecord): Promise<void> {
@@ -457,7 +457,7 @@ export async function prepareFlowAsk(env: Env, src: FlowSource, opts: FlowAskOpt
   }
   if (!items.length) return null;
   const record: FlowRecord = {
-    v: 3, token: newFlowToken(day, src.partnerId), day, to: waDigits(src.whatsapp), partnerId: src.partnerId, employeeId: src.employeeId ?? null,
+    v: 2, token: newFlowToken(day, src.partnerId), day, to: waDigits(src.whatsapp), partnerId: src.partnerId, employeeId: src.employeeId ?? null,
     name: src.name, supplier: src.supplier, kind, items, pages, createdAt: now,
     ...(opts.test ? { test: true } : {}), ...(opts.parent ? { parent: opts.parent } : {}), ...(opts.init ? { init: opts.init } : {}),
     ...(opts.initTexts ? { initTexts: opts.initTexts } : {}), ...(opts.sim ? { sim: true } : {}),

@@ -314,6 +314,8 @@ console.log("\n[ب] Ahmed (supplier): the § 26 flow as it is; «سوق» beside
 console.log("\n[ب] Omar: 02:30 «أرسل أسعار السوق اليوم» through the gateway, once a day, never to a supplier");
 {
   const env = fresh("2026-10-03 02:25", { onAttendance: false }); sources();
+  // § 65 — Ahmed is an APPROVED supplier with his items on his card: the 02:00 ask is his, so the 02:30 ask is not
+  Object.assign(table("res.partner").get(AHMED)!, { x_supplier_state: "approved" });
   openWindow(env, DRIVER_PHONE, 30);
   let r = await quiet(() => PS.runMarketAsk(env, Date.now(), 360));
   assert("02:25: before the ask", r.action === "before" && askTexts(DRIVER_PHONE).length === 0, JSON.stringify(r));

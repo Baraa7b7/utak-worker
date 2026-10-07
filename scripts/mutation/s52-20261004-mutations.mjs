@@ -87,7 +87,7 @@ const M = [
   ["هـ", "the token is kept without its pages", [[PF,
     "name: src.name, supplier: src.supplier, kind, items, pages, createdAt: now,", "name: src.name, supplier: src.supplier, kind, items, createdAt: now,"]], T],
   ["هـ", "a v1 token is refused after § 52", [[PF,
-    "    return rec && (rec.v === 1 || rec.v === 2 || rec.v === 3) && Array.isArray(rec.items) ? rec : null;", "    return rec && (rec.v === 2 || rec.v === 3) && Array.isArray(rec.items) ? rec : null;"]], T],
+    "    return rec && (rec.v === 1 || rec.v === 2) && Array.isArray(rec.items) ? rec : null;", "    return rec && rec.v === 2 && Array.isArray(rec.items) ? rec : null;"]], T],
   // ---------------------------------------------------------------- ج the VAT line by role
   ["ج", "the form tells a «سوق» source «بدون ضريبة»", [[PF,
     "  market: \"اكتب السعر زي ما ينباع في السوق (شامل الضريبة).\",\n};\nexport const PRICE_FLOW_EMPTY_NOTE", "  market: \"الأسعار بدون ضريبة.\",\n};\nexport const PRICE_FLOW_EMPTY_NOTE"]], T],

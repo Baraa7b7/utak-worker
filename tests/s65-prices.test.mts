@@ -88,7 +88,7 @@ console.log("\n[د2] the ask");
   const p = (await quiet(() => FL.prepareFlowAsk(env, ahmedSrc)))!;
   assert("the interactive message opens v3 with v2's data and the two init keys of every slot", par(p.session.body).flow_id === FL.PRICE_FLOW_ID && JSON.stringify(par(p.session.body).flow_action_payload.data) === JSON.stringify(p.sessionData) && JSON.stringify(Object.keys(p.sessionData).sort()) === JSON.stringify(Object.keys(LIB.buildPriceFlowJson().screens[0].data).sort()) && p.sessionData.sub === "أسعار الشراء اليوم" && p.sessionData.is1 === "" && p.sessionData.io4 === "");
   assert("the template's data is v2's own — no key v2 does not declare", JSON.stringify(Object.keys(p.data).sort()) === JSON.stringify(Object.keys(LIB52.buildFlowJson().screens[0].data).sort()) && p.template.flow!.data === p.data && !("is1" in p.data));
-  assert("the token is a v3 token", p.record.v === 3 && (await FL.readFlowToken(env, p.record.token))?.v === 3);
+  assert("the token stays a v2 token: a rolled-back worker still reads the reply of a form this one sent", p.record.v === 2 && (await FL.readFlowToken(env, p.record.token))?.v === 2);
   const env2 = world(`${DAY} 02:00`, true);
   await quiet(() => SUP.askAllSuppliersForPrices(withAutoSendJob(env2, "ask_suppliers")));
   const t = tplTo(AHMED_PHONE, TPL_FLOW);

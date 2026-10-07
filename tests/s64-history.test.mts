@@ -132,7 +132,8 @@ console.log("\n[5] the period, the order, the filters");
   const html = H.renderHistoryPage(build(rows, prods, { ...Q, days: 30, category: 5 }), "/history/p/9/sig", NOW);
   assert("every control is a link that keeps the other choices", html.includes(`href="/history/p/9/sig?d=90&amp;c=5"`) && html.includes(`href="/history/p/9/sig?d=30&amp;s=name&amp;c=5"`) && html.includes(`href="/history/p/9/sig?d=30"`) && html.includes(`href="/history/p/9/sig?d=30&amp;c=5&amp;all=1"`));
   assert("the choice in force is marked", html.includes(`<a class="chip on" href="/history/p/9/sig?d=30&amp;c=5" aria-current="true">30 يوماً</a>`) && html.includes(`aria-current="true">✓ النشطة للبيع فقط</a>`) && html.includes(`aria-current="true">فواكه (2)</a>`));
-  assert("a line dated after today is not shown", build([row(-1, 1, 99, 15), row(0, 1, 21, 15)], prods).cards[0].lastMarket.value === 21);
+  const ahead = build([row(-1, 1, 99, 15, { pack: "عبوة الغد" }), row(0, 1, 21, 15)], prods).cards[0];
+  assert("a line dated after today gives the card nothing — neither a price nor its pack", ahead.lastMarket.value === 21 && ahead.pack === "كرتون · 10 كيلو" && !JSON.stringify(ahead).includes("99"));
 }
 
 // ================================================================ [6]

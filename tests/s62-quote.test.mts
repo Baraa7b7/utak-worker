@@ -12,12 +12,15 @@
 //
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/s62-quote.test.mts
 
+import { readFileSync } from "node:fs";
 import { ctx, graph, odooLog, quiet, rows, seed, table } from "./wa-harness.mts";
 import { assert, done, rejected } from "./s46-kit.mts";
 import { AHMED, DAY, GARLIC, LETTUCE, LINE, MADARAT, MUSHROOM, OMAR, ORANGE, QUOTE, RAED, RECIPIENT, lineOf, linesOf, quote, recipientsOf, request, world, writes } from "./s62-kit.mts";
 
 const SQ = await import("../src/special-quote.ts");
 const LIB = await import("../scripts/lib/s62-odoo.mjs");
+const M = await import("../src/special-quote-math.ts");
+const ASK_HOURS = (await import("../src/special-ask.ts")).NUDGE_AFTER_MS / 3600_000;
 const worker = (await import("../src/index.ts")).default;
 const quoteWrites = () => odooLog.filter((l) => l.model === QUOTE && l.method === "write");
 
@@ -178,6 +181,25 @@ console.log("\n[أ1–أ4] the screen's data (scripts/lib/s62-odoo.mjs)");
   assert("the menu: «🧾 طلبات أسعار خاصة» under «💲 التسعير» (#582), the real requests alone", LIB.MENU_TITLE === "🧾 طلبات أسعار خاصة" && LIB.PRICING_MENU === 582 && LIB.ACTION_DOMAIN === "[('x_utak_simulation', '=', False)]");
   assert("«عروض المصادر»: «خاص», the request and the price's unit on a row", JSON.stringify(names(LIB.OFFER_FIELDS)) === JSON.stringify(["x_special", "x_special_quote_id", "x_special_unit"]));
   void rows; void MADARAT; void LINE; void linesOf;
+}
+
+console.log("\n[دليل] the operating guide (docs/OPERATING-DAY.md)");
+{
+  const guide = readFileSync(new URL("../docs/OPERATING-DAY.md", import.meta.url), "utf8");
+  const sec = guide.slice(guide.indexOf("## طلب أسعار خاص (§ 62)"));
+  const part = sec.slice(0, sec.indexOf("\n## ", 5) > 0 ? sec.indexOf("\n## ", 5) : undefined);
+  assert("the guide has the section «طلب أسعار خاص (§ 62)»", guide.includes("## طلب أسعار خاص (§ 62)"));
+  assert("…where the screen is", part.includes("UTAK ← 💲 التسعير ← **🧾 طلبات أسعار خاصة**") && guide.includes("- **UTAK ← 💲 التسعير ← 🧾 طلبات أسعار خاصة:**"));
+  assert("…its five steps, in order: أنشئ ← أرسل ← انتظر الأسعار ← اعتمد ← أصدر", part.includes("أنشئ ← أرسل ← انتظر الأسعار ← اعتمد ← أصدر") && ["1. **أنشئ.**", "2. **أرسل.**", "3. **انتظر الأسعار.**", "4. **اعتمد.**", "5. **أصدر.**"].every((x, i, a) => part.includes(x) && (i === 0 || part.indexOf(a[i - 1]) < part.indexOf(x))));
+  assert("…the buttons by their names", ["«📨 أرسل طلب الأسعار»", "«اعتمد المقترح للكل»", "«📄 أصدر عرض السعر»", "«⬇️ PDF لي فقط»", "«🔒 أغلق الطلب»"].every((b) => part.includes(b)));
+  assert("…that it never touches the day's prices, and its new items are not «نشط للبيع»", part.includes("**لا يلمس أسعار اليوم ولا نشرها**") && part.includes("ليست «نشط للبيع»"));
+  assert("…who reads what: the quantity to «شراء» alone, the customer's name to nobody", part.includes("يرى **كمية** كل صنف") && part.includes("**لا يريان كمية**") && part.includes("**لا أحد يرى اسم العميل، ولا أي سعر منّا.**"));
+  assert("…the formulas as the worker computes them: the VAT factor, the quarter, the delivery cost", part.includes(`التكلفة × ${M.VAT_FACTOR}`) && part.includes("الشراء × (1 + التالف)") && part.includes("**ربع ريال**") && part.includes("مجموع ربح الأسطر − تكلفة التوصيل") && part.includes(`«هامش الربح الأدنى» ${M.DEFAULT_MARGIN_PCT}٪`));
+  assert("…that a typed final price is never overwritten, and a quotation never issues with a line unpriced", part.includes("**ما كتبته بيدك لا يُستبدل**") && part.includes("**لا يصدر عرض وفي الطلب سطر بلا سعر نهائي**"));
+  assert("…the reminder after three hours, and a reply at any hour while the request is not closed", part.includes("**تذكير واحد بعد 3 ساعات**") && ASK_HOURS === 3 && part.includes("**في أي ساعة وأي يوم ما دام الطلب غير مغلق**") && part.includes("**لا يُحفظ**"));
+  assert("…the customer's file: the template only up to 6:00 of tomorrow, else to Baraa", part.includes("**فقط إن كان «صالح حتى» لا يتجاوز 6:00 صباح الغد**") && part.includes("**يصلك الملف أنت**"));
+  assert("…Baraa's line when prices arrive, and the «خاص» mark in «عروض المصادر»", part.includes("**«📨 وصلت أسعار الشراء (أو السوق) لطلب {العميل}: N من M صنف»**") && part.includes("**«خاص»**"));
+  assert("…the five states by their labels", Object.values(SQ.STATE_LABEL).every((l) => part.includes(l)));
 }
 
 done();

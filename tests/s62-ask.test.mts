@@ -16,7 +16,7 @@
 import { OWNER, ctx, graph, heldFor, inbound, odooLog, openWindow, quiet, rows, seed, sentTo, setRiyadh, signed, table } from "./wa-harness.mts";
 import { assert, done, ownerTexts, rejected } from "./s46-kit.mts";
 import {
-  AHMED, AHMED_PHONE, DAY, GARLIC, LETTUCE, MADARAT, MADARAT_PHONE, MUSHROOM, OMAR, OMAR_PHONE, ORANGE, QUOTE, RAED, RAED_PHONE, lineOf, linesOf, quote, recipientOf, recipientsOf,
+  AHMED, AHMED_PHONE, DAY, GARLIC, LETTUCE, LINE, MADARAT, MADARAT_PHONE, MUSHROOM, OMAR, OMAR_PHONE, ORANGE, QUOTE, RAED, RAED_PHONE, lineOf, linesOf, quote, recipientOf, recipientsOf,
   request, utc, world, writes,
 } from "./s62-kit.mts";
 
@@ -184,6 +184,7 @@ console.log("\n[ب5] the replies: on the request's lines alone, at any hour");
   assert("…«المقترح» of garlic takes the market (15, above 13.28)", lineOf(id, GARLIC).x_suggested_price === 15);
   // «تعديل»: a corrected price replaces his own, an emptied field keeps it
   const edit = flowsTo(OMAR_PHONE).slice(-1)[0];
+  setRiyadh("2026-10-04 09:50");
   const re = await reply(env, OMAR_PHONE, tokenOf(edit), { p1: "6.5", p16: "", p31: "8" });
   assert("«تعديل»: his corrected price replaces his own observation (the median 5.5); the emptied field keeps what he sent", re.action === "saved" && lineOf(id, ORANGE).x_market_text === "5.5 (رائد 4.5 · عمر 6.5)" && lineOf(id, GARLIC).x_market_text === "15 (عمر 15)" && bodyOf(flowsTo(OMAR_PHONE).slice(-1)[0]).includes("⚠️ بقي السعر السابق: ثوم 15"));
   assert("…only the changed price is a new «خاص» row (three of his first form, one of the correction — the unchanged 8 is not written twice)", offers().filter((x) => x.x_special && x.x_source_partner_id === OMAR).length === 4 && offers().filter((x) => x.x_special && x.x_source_partner_id === OMAR && x.x_market_price === 6.5).length === 1 && offers().filter((x) => x.x_special && x.x_source_partner_id === OMAR && x.x_market_price === 8).length === 1);
@@ -280,7 +281,13 @@ console.log("\n[ب1] what the button refuses, and who it asks on a second press"
   const id2 = request();
   table("res.partner").get(RAED)!.x_whatsapp_number = false; table("res.partner").get(RAED)!.phone = false;
   const r2 = await quiet(() => ASK.sendSpecialAsk(env, id2));
-  assert("a source with no WhatsApp number: named to Baraa, the others still asked", r2.action === "sent" && r2.asks?.find((a) => a.name === "رائد")?.via === "failed" && String(recipientOf(id2, RAED).x_via).startsWith("تعذّر: بلا رقم واتساب") && !recipientOf(id2, RAED).x_asked_at && flowsTo(AHMED_PHONE).length >= 2);
+  assert("a source with no WhatsApp number: named to Baraa, the others still asked — the one before him and the one after", r2.action === "sent" && r2.asks?.length === 3 && r2.asks.find((a) => a.name === "رائد")?.via === "failed" && r2.asks.find((a) => a.name === "أحمد حسان")?.via === "session" && r2.asks.find((a) => a.name === "عمر المجهلي")?.via === "session" && String(recipientOf(id2, RAED).x_via).startsWith("تعذّر: بلا رقم واتساب") && !recipientOf(id2, RAED).x_asked_at && !!recipientOf(id2, OMAR).x_asked_at, JSON.stringify(r2.asks));
+  // a line that left the request after the form went: its price is not written anywhere, and both are told
+  const gone = lineOf(id2, GARLIC).id;
+  table(LINE).delete(gone);
+  const ra = await reply(env, AHMED_PHONE, tokenOf(flowsTo(AHMED_PHONE).slice(-1)[0]), { p1: "3", p16: "10" });
+  assert("a price for a line removed since the ask is not written: the line that stayed takes its price, the other is named back to the source", ra.action === "saved" && ra.saved === 1 && lineOf(id2, ORANGE).x_purchase_price === 3 && !table(LINE).has(gone) && bodyOf(flowsTo(AHMED_PHONE).slice(-1)[0]).includes("⚠️ ما انحفظ: ثوم."));
+  assert("…and Baraa reads which line it was", ownerTexts().some((t) => t.startsWith("📨 وصلت أسعار الشراء لطلب شركة مدارات للاغذية: 1 من 6 صنف") && t.includes("أسطر حُذفت من الطلب بعد الإرسال: ثوم")));
 }
 
 console.log("\n[ب6] one reminder after three hours, inside the window only");

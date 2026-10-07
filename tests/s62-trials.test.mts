@@ -39,6 +39,12 @@ console.log("\n[هـ] the trials are Baraa's alone");
   assert("an unknown name is no trial", (await TR.sendS62Trial(env, "xyz")).reason === "unknown_trial");
   assert("the hook: no token → 401; with it → the worker's answer", (await post(env, "purchase", "x")).status === 401);
   assert("no request to show: said, nothing sent", (await quiet(() => TR.sendS62Trial(env, "purchase"))).reason === "no_request" && sentTo(OWNER).length === 1);
+  // a trial that did not go does not spend the day; and the request shown is the newest that is NOT closed
+  const older = request(), newer = request();
+  quote(newer).x_state = "closed";
+  const shown = await quiet(() => TR.sendS62Trial(env, "purchase"));
+  assert("…and the day's trial is not spent by it: it goes once there is a request", shown.sent === true);
+  assert("the request shown is the newest one that is not closed", shown.quote === SQ.quoteName(older) && shown.quote !== SQ.quoteName(newer), JSON.stringify(shown));
 }
 
 console.log("\n[هـ1–2] the form as a «شراء» source reads it, and as a «سوق» source reads it");
@@ -90,6 +96,9 @@ console.log("\n[هـ3] the quotation's PDF with illustrative prices");
   assert("its caption says it is a trial with illustrative prices, and that nothing was recorded", d[0].document.caption.startsWith(`🧪 تجربة — هكذا يصل عرض سعر الطلب الخاص ${SQ.quoteName(id)}`) && d[0].document.caption.includes("الأسعار فيه توضيحية ومكتوب عليه «تجربة»") && d[0].document.caption.includes(TR.S62_TRIAL_TAIL));
   assert("no quotation is recorded: no sale.order, no number on the request, its state as it was", saleOrders().length === 0 && JSON.stringify([quote(id), linesOf(id)]) === before && writes().filter((w) => w.model !== "res.partner").length === 0);
   assert("the PDF was built once and kept under the trial's number", KIT.gotenberg === 1 && r2.length === 1 && r2[0].includes("SQ-TRIAL-"));
+  const data = TR.trialQuotationData((await quiet(() => SQ.readQuote(env, id)))!, Date.now());
+  assert("the PDF's lines carry the illustrative prices, never the request's own (4.75 is on the first line)", data.items.length === 6 && data.items[0].price === 5 && data.items[1].price === 6.25 && !data.items.some((i: any) => i.price === 4.75) && data.items[0].total === 1464 * 5);
+  assert("…it is marked «تجربة» in the customer's name and in its note, and carries no seal (not issued)", data.customer.name === "🧪 تجربة — شركة مدارات للاغذية" && data.footerNote === TR.TRIAL_NOTE && data.issued === false && data.quotationNumber === TR.trialQuotationNumber(id));
   assert("the illustrative prices are plainly not real ones (5, 6.25, 7.5, …), whatever the line holds", TR.illustrativePrice(0) === 5 && TR.illustrativePrice(1) === 6.25 && TR.illustrativePrice(8) === 5 && TR.TRIAL_NOTE.includes("تجربة") && TR.TRIAL_NOTE.includes("توضيحية"));
   assert("nothing reaches the customer or a source", others() === 0);
   assert("once a day", (await (await post(env, "quotation", "HOOK", id)).json() as any).reason === "already_today" && docsTo(OWNER).length === 1);

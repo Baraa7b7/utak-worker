@@ -23,6 +23,7 @@ import type { PriceKind } from "./price-sources";
 import { QUOTE_MODEL, quoteName, readQuote, type SpecialQuote } from "./special-quote";
 import { SPECIAL_TEST_PURPOSE, placeLines, prepareSpecialAsk, specialCategories, specialItems } from "./special-ask";
 import { specialQuotationData } from "./special-quotation";
+import type { QuotationPDFData } from "./quotation";
 
 export const S62_TRIAL_MARK = "🧪 تجربة";
 export const S62_TRIAL_NAMES = ["purchase", "market", "quotation"] as const;
@@ -88,26 +89,31 @@ export function quotationTrialCaption(number: string, quote: string, lines: numb
   ].join("\n");
 }
 
+/** The trial quotation's data: the request's lines at ILLUSTRATIVE prices (never its real ones), marked «تجربة», not issued (no seal). Pure. */
+export function trialQuotationData(q: SpecialQuote, now: number): QuotationPDFData {
+  const shown: SpecialQuote = { ...q, lines: q.lines.map((l, i) => ({ ...l, finalPrice: illustrativePrice(i), qty: l.qty > 0 ? l.qty : 1 })) };
+  return {
+    ...specialQuotationData(shown, trialQuotationNumber(q.id), { name: `${S62_TRIAL_MARK} — ${q.partnerName || "عميل"}`, address: "", phone: "" }, now, { issued: false }),
+    footerNote: TRIAL_NOTE,
+  };
+}
+
 /** The request's quotation as a PDF with illustrative prices that say so. No sale.order, no number, no seal. */
 export async function sendQuotationTrial(env: Env, now: number = Date.now(), id?: number): Promise<S62TrialResult> {
   return once(env, "quotation", now, async (owner) => {
     const q = await trialQuote(env, id);
     if (!q) return { sent: false, reason: "no_request" };
     if (!q.lines.length) return { sent: false, reason: "no_lines", quote: quoteName(q.id) };
-    const shown: SpecialQuote = { ...q, lines: q.lines.map((l, i) => ({ ...l, finalPrice: illustrativePrice(i), qty: l.qty > 0 ? l.qty : 1 })) };
-    const number = trialQuotationNumber(q.id);
-    const data = {
-      ...specialQuotationData(shown, number, { name: `${S62_TRIAL_MARK} — ${q.partnerName || "عميل"}`, address: "", phone: "" }, now, { issued: false }),
-      footerNote: TRIAL_NOTE,
-    };
+    const data = trialQuotationData(q, now);
+    const number = data.quotationNumber;
     const { generateQuotationPDF, uploadQuotationToR2 } = await import("./quotation");
     const pdf = await generateQuotationPDF(data, env);
     const uploaded = await uploadQuotationToR2(env, pdf, number, env.WORKER_ORIGIN);
     const d = gatewayDecision(await sendViaGateway(env, {
-      purpose: SPECIAL_TEST_PURPOSE, to: owner, content: documentContent(uploaded.publicUrl, number, quotationTrialCaption(number, quoteName(q.id), shown.lines.length)),
+      purpose: SPECIAL_TEST_PURPOSE, to: owner, content: documentContent(uploaded.publicUrl, number, quotationTrialCaption(number, quoteName(q.id), data.items.length)),
       noHold: true, noHoldReason: "تجارب § 62 تُرسل داخل نافذة 24 ساعة فقط",
     }));
-    return d?.action === "session" ? { sent: true, quote: quoteName(q.id), items: shown.lines.length, number } : { sent: false, reason: whyNot(d), quote: quoteName(q.id) };
+    return d?.action === "session" ? { sent: true, quote: quoteName(q.id), items: data.items.length, number } : { sent: false, reason: whyNot(d), quote: quoteName(q.id) };
   });
 }
 

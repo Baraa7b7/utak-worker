@@ -60,7 +60,7 @@ console.log("\n[د1] the ticket, then the worker's own link, then the draft");
   const m = /^\/preview\/doc\/sq\/(\d+)\/(\d+)\/([a-f0-9]{16})\.pdf$/.exec(where);
   assert("the ticket of Odoo's button answers 302 to the worker's own link: the record, an expiry, a signature", hop.status === 302 && !!m && Number(m[1]) === id && hop.headers.get("Cache-Control") === "no-store", where);
   assert("the link is good for fifteen minutes, signed for THIS kind, record and expiry under the worker's secret", !!m && Number(m[2]) === NOW + PV.LINK_TTL_MS && PV.LINK_TTL_MS === 15 * 60_000 && m[3] === await PV.previewSignature("ADM", "sq", id, NOW + PV.LINK_TTL_MS));
-  assert("the ticket is burnt before the link is given (its own row is the one thing written)", table("x_preview_ticket").get(tid)!.x_used === true && writesOf().length === 1 && writesOf()[0].model === "x_preview_ticket" && JSON.stringify(writesOf()[0].body.vals) === '{"x_used":true}');
+  assert("the ticket is burnt before the link is given — and archived with the same write (§ 64); its own row is the one thing written", table("x_preview_ticket").get(tid)!.x_used === true && table("x_preview_ticket").get(tid)!.x_active === false && writesOf().length === 1 && writesOf()[0].model === "x_preview_ticket" && JSON.stringify(writesOf()[0].body.vals) === '{"x_used":true,"x_active":false}');
   assert("no secret travels: the address of the link holds no token of the worker or of the hook", !where.includes("ADM") && !where.includes("HOOK") && !/token=/.test(where));
   assert("nothing was built on the first step", KIT.gotenberg === 0 && pages.length === 0);
 

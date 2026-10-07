@@ -33,6 +33,9 @@
 //     0 and no price: nothing to quote, left out.
 //   • every quantity = 1 → «عرض سعر الوحدة» (QuotationPDFData.layout), from the line's own three numbers.
 //   • «المنشأ» and «المقاس» (x_item_origin, x_item_size) print under the item's name.
+//
+// § 64 (2026-10-07) — the line's pack is, in this order: «التعبئة» as text (x_pack_text — what the special request
+// wrote, copied when its quotation is issued), then «العبوة» (x_packaging_id), then the product's default packaging.
 
 import type { Env } from "./config";
 import {
@@ -81,6 +84,7 @@ interface SaleLineRow {
   product_uom_id?: [number, string] | false;
   x_price_unit_manual: number | false;
   x_packaging_id: [number, string] | false;
+  x_pack_text?: string | false;
   x_item_origin?: string | false;
   x_item_size?: string | false;
 }
@@ -109,6 +113,8 @@ export function firstDescriptionLine(name: unknown): string {
   const line = String(typeof name === "string" ? name : "").split(/\r?\n/).map((x) => x.trim()).find((x) => x) ?? "";
   return stripRef(line).trim();
 }
+/** § 64 — «التعبئة» a sale order's line carries as text; "" when it carries none. */
+export const packTextOf = (l: { x_pack_text?: string | false }): string => (typeof l.x_pack_text === "string" ? l.x_pack_text.trim() : "");
 /** A price as an alternative's line writes it: «68», «16.5», «46.49». */
 const plain = (n: number): string => { const v = round2(n); return Number.isInteger(v) ? String(v) : v.toFixed(2).replace(/0$/, ""); };
 
@@ -148,6 +154,7 @@ export async function buildQuotationPDFDataFromSaleOrder(
           "product_uom_id",
           "x_price_unit_manual",
           "x_packaging_id",
+          "x_pack_text",
           "x_item_origin",
           "x_item_size",
         ],
@@ -181,6 +188,9 @@ export async function buildQuotationPDFDataFromSaleOrder(
       product_id: l.product_id ? templateByProduct.get(l.product_id[0]) ?? 0 : 0,
     })),
   );
+
+  // § 64 — «التعبئة» as text stands before «العبوة» and before the product's default packaging
+  lines.forEach((l, i) => { const text = packTextOf(l); if (text) packagingNames[i] = text; });
 
   const items: QuotationLineItem[] = [];
   const price_warnings: QuotationPriceWarning[] = [];

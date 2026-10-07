@@ -743,6 +743,7 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
   html, body { margin: 0; padding: 0; background: ${BRAND_COLORS.bgPage}; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   @page { size: A4; margin: 0; background: ${BRAND_COLORS.bgPage}; }
+  ${PAGE_FLOW_CSS}
   @media print {
     html, body { background: ${BRAND_COLORS.bgPage}; }
     .utak-page { box-shadow: none !important; margin: 0 !important; break-after: page; }
@@ -892,6 +893,7 @@ export function renderPDFShell(opts: RenderPDFShellOptions): string {
   html, body { margin: 0; padding: 0; background: ${BRAND_COLORS.bgPage}; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   @page { size: A4; margin: 0; background: ${BRAND_COLORS.bgPage}; }
+  ${PAGE_FLOW_CSS}
   @media print {
     html, body { background: ${BRAND_COLORS.bgPage}; }
     .utak-page { box-shadow: none !important; margin: 0 !important; break-after: page; }
@@ -981,16 +983,26 @@ export interface HtmlToPdfOptions {
  * longer than that still flows onto more pages. Zero margins → unchanged.
  */
 export const PAGE_FOOT_PADDING = "6mm";
+/**
+ * § 64 — a long document's second sheet, and every one after it, starts under the SAME top padding as the first:
+ * the page's padding is repeated at every sheet it breaks onto (box-decoration-break: clone). Its BOTTOM padding
+ * became the margin under the page's foot block, so no sheet but the last gives room to it: the first sheet holds
+ * what it held, and a page of one sheet is laid out as it was (the same room above the foot, the same under it).
+ */
+export const PAGE_FOOT_SELECTOR = ".utak-page > [data-utak=page-foot]";
+export const PAGE_FLOW_CSS = `.utak-page { -webkit-box-decoration-break: clone; box-decoration-break: clone; padding-bottom: 0 !important; }
+  ${PAGE_FOOT_SELECTOR} { margin-bottom: ${BRAND_TYPE.pagePadding}; }`;
 export function fitPageToMargins(html: string, options?: HtmlToPdfOptions): string {
   const reserved = Number(options?.marginTop ?? 0) + Number(options?.marginBottom ?? 0);
   if (!(reserved > 0)) return html;
   // § 62 د — with a reserved bottom margin («صفحة X من Y» is printed in it), the page's own bottom padding shrinks
   // to PAGE_FOOT_PADDING: the page number sits right under the legal strip, not 20 mm of empty paper below it, and
   // the sheet holds that much more. A page that must fit one sheet (.utak-fit) is exactly the printable height.
-  const foot = Number(options?.marginBottom ?? 0) > 0 ? ` padding-bottom: ${PAGE_FOOT_PADDING} !important;` : "";
+  // § 64: that room is the margin under the page's foot block (PAGE_FLOW_CSS), not the page's own padding.
+  const foot = Number(options?.marginBottom ?? 0) > 0 ? ` ${PAGE_FOOT_SELECTOR} { margin-bottom: ${PAGE_FOOT_PADDING} !important; }` : "";
   return html.replace(
     "</head>",
-    `<style>.utak-page { min-height: calc(297mm - ${reserved}in) !important;${foot} } .utak-page.utak-fit { height: calc(297mm - ${reserved}in) !important; }</style>\n</head>`,
+    `<style>.utak-page { min-height: calc(297mm - ${reserved}in) !important; } .utak-page.utak-fit { height: calc(297mm - ${reserved}in) !important; }${foot}</style>\n</head>`,
   );
 }
 

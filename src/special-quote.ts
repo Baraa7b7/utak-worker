@@ -159,7 +159,11 @@ export const asLayout = (v: unknown): QuoteLayout => (v === "unit" || v === "qty
  * following it (× or ÷ 1.15) — what recalcQuote writes, told without writing (the preview).
  */
 export function finalsOf(l: Pick<QuoteLine, "finalPrice" | "finalNet">, mode: PriceMode): { finalPrice: number; finalNet: number } {
-  return mode === "net" ? { finalPrice: grossOf(l.finalNet), finalNet: l.finalNet } : { finalPrice: l.finalPrice, finalNet: netOf(l.finalPrice) };
+  if (mode !== "net") return { finalPrice: l.finalPrice, finalNet: netOf(l.finalPrice) };
+  // § 64 — a pair that already agrees is left as it is: a VAT-inclusive price Baraa typed (11.00 → 9.57 before VAT)
+  // is not rewritten (9.57 × 1.15 = 11.01 — about one price in eight moves a halala on the way back) because
+  // «الأسعار في العرض» changed. A price he then types before VAT moves it, as it always did.
+  return { finalPrice: l.finalPrice > 0 && netOf(l.finalPrice) === l.finalNet ? l.finalPrice : grossOf(l.finalNet), finalNet: l.finalNet };
 }
 
 /**
@@ -297,8 +301,7 @@ export async function recalcQuote(env: Env, id: number, opts: { now?: number; ac
     const market = Object.values(l.obs.market).map((v) => v.p);
     // the final price Baraa types is the one of «الأسعار في العرض»; the other follows it (× or ÷ 1.15).
     // The formulas read the VAT-inclusive one either way.
-    let finalNet = net ? l.finalNet : netOf(l.finalPrice);
-    let finalPrice = net ? grossOf(l.finalNet) : l.finalPrice;
+    let { finalNet, finalPrice } = finalsOf(l, q.priceMode);
     let n = lineNumbers({ qty: l.qty, purchase: l.purchase, market, finalPrice }, wastePct, marginPct);
     // § 62 د — «المقترح» as the mode rounds it: on the price before VAT while the quotation prints that one
     const sug = suggestedFor(l.purchase, n.marketMedian, wastePct, marginPct, q.priceMode);

@@ -204,7 +204,7 @@ console.log("\n[هـ] one sheet up to twelve lines");
   const env = world();
   await quiet(() => Q.generateQuotationPDF(QT.specialQuotationData(quoteOf(), "S00016", CUSTOMER, NOW), env));
   globalThis.fetch = kitFetch;
-  assert("the PDF service gets the page at the printable height: its sheet less the page-number margin, the foot padding 6 mm", files.marginBottom === "0.4" && files["index.html"].includes(".utak-page { min-height: calc(297mm - 0.4in) !important; padding-bottom: 6mm !important; } .utak-page.utak-fit { height: calc(297mm - 0.4in) !important; }"));
+  assert("the PDF service gets the page at the printable height: its sheet less the page-number margin, the foot padding 6 mm", files.marginBottom === "0.4" && files["index.html"].includes(".utak-page { min-height: calc(297mm - 0.4in) !important; } .utak-page.utak-fit { height: calc(297mm - 0.4in) !important; } .utak-page > [data-utak=page-foot] { margin-bottom: 6mm !important; }"));
   assert("«صفحة X من Y» is printed in that margin of EVERY sheet, centred («صفحة 1 من 1» on a single one)", files["footer.html"].includes('class="num pageNumber"') && files["footer.html"].includes('class="num totalPages"') && files["footer.html"].includes("صفحة") && files["footer.html"].includes("justify-content: center"));
   assert("a page with no margin reserved is left as it is", PDF.fitPageToMargins("<head></head>", {}) === "<head></head>");
 }

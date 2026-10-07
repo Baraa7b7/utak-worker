@@ -174,6 +174,8 @@ export async function recordSaleQuotation(env: Env, q: SpecialQuote, now: number
     product_id: variantOf.get(l.productId)!, name: l.productName || "صنف", product_uom_qty: l.qty, price_unit: l.finalPrice, sequence: l.sequence || 10,
     // § 62 د — «المنشأ» and «المقاس» go with the line (emptied when the request's are)
     x_item_origin: l.origin || false, x_item_size: l.size || false,
+    // § 64 — and «التعبئة» as the request writes it: the sale order prints the same words (src/sale-order-quotation.ts)
+    x_pack_text: l.unit || false,
     ...(taxIds ? { tax_ids: [[6, 0, taxIds]] } : {}),
   });
 

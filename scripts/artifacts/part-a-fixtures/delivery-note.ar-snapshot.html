@@ -10,6 +10,8 @@
   html, body { margin: 0; padding: 0; background: #F7F5F0; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   @page { size: A4; margin: 0; background: #F7F5F0; }
+  .utak-page { -webkit-box-decoration-break: clone; box-decoration-break: clone; padding-bottom: 0 !important; }
+  .utak-page > [data-utak=page-foot] { margin-bottom: 20mm; }
   @media print {
     html, body { background: #F7F5F0; }
     .utak-page { box-shadow: none !important; margin: 0 !important; break-after: page; }

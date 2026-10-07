@@ -58,32 +58,48 @@ function sameText(a: string, b: string): boolean {
 const odooMs = (s: unknown): number => (typeof s === "string" && s ? Date.parse(`${s.replace(" ", "T")}Z`) : NaN);
 
 interface TicketRow { id: number; x_model: string | false; x_res_id: number | false; x_used: boolean; create_date: string | false }
+/** The words of the pages a ticket's door answers with (the preview's, the price-history page's). */
+export interface TicketWords { failed: string; unknown: string; once: string; again: string }
+const PREVIEW_WORDS: TicketWords = { failed: "تعذّرت المعاينة", unknown: "رابط معاينة غير معروف", once: "رابط المعاينة يفتح مرة واحدة.", again: AGAIN };
+export interface Redeemed { model: string; resId: number }
+
+/**
+ * A ticket Odoo made (§ 62 د's preview buttons; § 64's «📈 تاريخ الأسعار» menu): read back, held against what this
+ * door `accepts`, checked — once, for TICKET_TTL_MS — and BURNT before anything is given for it. § 64: a burnt
+ * ticket is archived with the same write (x_active), so the list of tickets holds the live ones; it is read back
+ * archived or not, to be told «استُعمل» and not «غير معروف». A Response = the ticket opens nothing.
+ */
+export async function redeemTicket(env: Env, ticket: string, now: number, w: TicketWords, accepts: (model: string, resId: number) => boolean): Promise<Redeemed | Response> {
+  if (!UUID.test(ticket)) return notFound();
+  let row: TicketRow | undefined;
+  try {
+    [row] = await call<TicketRow[]>(env, TICKET_MODEL, "search_read", { domain: [["x_name", "=", ticket]], fields: ["id", "x_model", "x_res_id", "x_used", "create_date"], limit: 1, context: { active_test: false } });
+  } catch (e) {
+    console.error("[preview] the ticket could not be read", (e as Error)?.message);
+    return messagePage(503, `${w.failed} الآن`, `Odoo لم يجب. ${w.again}`);
+  }
+  const model = String(row?.x_model || ""), resId = Number(row?.x_res_id) || 0;
+  if (!row || !accepts(model, resId)) return messagePage(404, w.unknown, w.again);
+  if (row.x_used) return messagePage(410, "هذا الرابط استُعمل", `${w.once} ${w.again}`);
+  const age = now - odooMs(row.create_date);
+  // a ticket from the future (beyond a clock's drift) is as dead as an old one
+  if (!(age < TICKET_TTL_MS) || age < -60_000) return messagePage(410, "انتهت صلاحية الرابط", w.again);
+  try {
+    // burnt BEFORE the link is given: a ticket that cannot be burnt opens nothing
+    await call<boolean>(env, TICKET_MODEL, "write", { ids: [row.id], vals: { x_used: true, x_active: false } });
+  } catch (e) {
+    console.error("[preview] the ticket could not be burnt", (e as Error)?.message);
+    return messagePage(503, `${w.failed} الآن`, `Odoo لم يجب. ${w.again}`);
+  }
+  return { model, resId };
+}
 
 /** Step 1 — the ticket Odoo's button made: read back, burnt, and exchanged for the worker's signed link. */
 export async function handlePreviewTicket(env: Env, ticket: string, now: number = Date.now()): Promise<Response> {
-  if (!UUID.test(ticket)) return notFound();
   if (!env.ADMIN_TOKEN) return messagePage(500, "تعذّرت المعاينة", "إعداد الخدمة ناقص.");
-  let row: TicketRow | undefined;
-  try {
-    [row] = await call<TicketRow[]>(env, TICKET_MODEL, "search_read", { domain: [["x_name", "=", ticket]], fields: ["id", "x_model", "x_res_id", "x_used", "create_date"], limit: 1 });
-  } catch (e) {
-    console.error("[preview] the ticket could not be read", (e as Error)?.message);
-    return messagePage(503, "تعذّرت المعاينة الآن", `Odoo لم يجب. ${AGAIN}`);
-  }
-  const kind = row ? PREVIEW_KINDS[String(row.x_model || "")] : undefined;
-  const id = Number(row?.x_res_id) || 0;
-  if (!row || !kind || !(id > 0)) return messagePage(404, "رابط معاينة غير معروف", AGAIN);
-  if (row.x_used) return messagePage(410, "هذا الرابط استُعمل", `رابط المعاينة يفتح مرة واحدة. ${AGAIN}`);
-  const age = now - odooMs(row.create_date);
-  // a ticket from the future (beyond a clock's drift) is as dead as an old one
-  if (!(age < TICKET_TTL_MS) || age < -60_000) return messagePage(410, "انتهت صلاحية الرابط", AGAIN);
-  try {
-    // burnt BEFORE the link is given: a ticket that cannot be burnt opens nothing
-    await call<boolean>(env, TICKET_MODEL, "write", { ids: [row.id], vals: { x_used: true } });
-  } catch (e) {
-    console.error("[preview] the ticket could not be burnt", (e as Error)?.message);
-    return messagePage(503, "تعذّرت المعاينة الآن", `Odoo لم يجب. ${AGAIN}`);
-  }
+  const r = await redeemTicket(env, ticket, now, PREVIEW_WORDS, (model, resId) => !!PREVIEW_KINDS[model] && resId > 0);
+  if (r instanceof Response) return r;
+  const kind = PREVIEW_KINDS[r.model], id = r.resId;
   return new Response(null, { status: 302, headers: { Location: await previewLinkPath(env.ADMIN_TOKEN, kind, id, now + LINK_TTL_MS), "Cache-Control": "no-store" } });
 }
 

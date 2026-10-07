@@ -863,6 +863,13 @@ export default {
       return handlePreview(env, url.pathname);
     }
 
+    // § 64 — «📈 تاريخ الأسعار» (src/price-history.ts): GET /history/t/<one-use ticket Odoo's menu made> → 302 to
+    // GET /history/p/<expiry>/<signature>, the worker's own short-lived link to the page (its choices in the query).
+    if (request.method === "GET" && url.pathname.startsWith("/history/")) {
+      const { handleHistory } = await import("./price-history");
+      return handleHistory(env, url);
+    }
+
     // 2026-09-09 — PUBLIC: serves quotation PDF from R2 by signed URL.
     // Path shape: /quotation-pdf/{quotationNumber}/{token}.pdf
     if (request.method === "GET" && url.pathname.startsWith("/quotation-pdf/")) {
@@ -1361,66 +1368,13 @@ export default {
       return json({ status: "accepted", sale_order_id: soid }, 202);
     }
 
-    // 2026-09-19 — browser-facing "تنزيل PDF (UTAK)" button on sale.order.
-    // GET /internal/sale-quotation-pdf?id=<sale_order_id>&token=<SALE_PDF_DOWNLOAD_TOKEN>
-    // → 200 application/pdf attachment (built via the SAME builder that the
-    //   WhatsApp send route uses: buildQuotationPDFDataFromSaleOrder →
-    //   renderQuotationHTML → htmlToPDF). No WhatsApp send, no write-back
-    //   to Odoo, no R2 upload. Token is a dedicated secret independent of
-    //   INTERNAL_WEBHOOK_SECRET and ODOO_HOOK_TOKEN so it can be rotated
-    //   without disturbing existing webhooks. Any auth/id failure returns
-    //   404 (not 401) so a wrong token does not reveal that the endpoint
-    //   exists to a probing browser tab.
-    if (request.method === "GET" && url.pathname === "/internal/sale-quotation-pdf") {
-      const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.SALE_PDF_DOWNLOAD_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
-        return new Response("not found", { status: 404 });
-      }
-      const soid = Number(url.searchParams.get("id"));
-      if (!Number.isFinite(soid) || soid <= 0) {
-        return new Response("not found", { status: 404 });
-      }
-      try {
-        const { buildQuotationPDFDataFromSaleOrder } = await import(
-          "./sale-order-quotation"
-        );
-        const { generateQuotationPDF } = await import("./quotation");
-        const data = await buildQuotationPDFDataFromSaleOrder(env, soid);
-        if (!data) {
-          return new Response("not found", { status: 404 });
-        }
-        if (data.has_blocking_issue) {
-          const missing = (data.problems ?? []).join(" | ") || "صنف بلا سعر";
-          console.error(
-            `[so-pdf-download] BLOCKED sale.order ${soid} — ${missing}`,
-          );
-          return new Response(
-            missing,
-            { status: 409, headers: { "Content-Type": "text/plain; charset=utf-8" } },
-          );
-        }
-        const pdfBytes = await generateQuotationPDF(data, env);
-        const filename = `${data.quotationNumber}.pdf`;
-        // ArrayBuffer copy: Response wants an actual ArrayBuffer, not a Uint8Array's underlying SharedArrayBuffer.
-        const body = pdfBytes.slice().buffer;
-        return new Response(body, {
-          status: 200,
-          headers: {
-            "Content-Type": "application/pdf",
-            "Content-Disposition": `attachment; filename="${filename}"`,
-            "Content-Length": String(pdfBytes.byteLength),
-            "Cache-Control": "no-store",
-          },
-        });
-      } catch (e) {
-        console.error(
-          "[so-pdf-download] failed",
-          (e as Error)?.message,
-          (e as Error)?.stack,
-        );
-        return new Response("build error", { status: 500 });
-      }
+    // § 64 (2026-10-07) — GET /internal/sale-quotation-pdf is GONE. It served the sale order's quotation to a link
+    // that carried a FIXED token (the «تنزيل PDF (UTAK)» button of 2026-09-19). The button left the sale order
+    // (its view is off); «👁️ معاينة PDF» took its place — a one-use ticket, then a signed link of fifteen minutes
+    // (src/quote-preview.ts). Nothing else called this path: it answers 410 with no content, whatever is sent with
+    // it. (/internal/invoice-pdf and /internal/purchase-order-pdf below still have their buttons, and stay.)
+    if (url.pathname === SALE_PDF_GONE_PATH) {
+      return new Response(null, { status: 410, headers: { "Cache-Control": "no-store" } });
     }
 
     // 2026-09-19 — Odoo customer-invoice PDF download (UTAK-branded).
@@ -3549,6 +3503,8 @@ async function sendReply(
  * § 62 — Odoo fires its webhook inside the save's own transaction: the worker
  * waits this long before reading the request, so it reads what was saved.
  */
+/** § 64 — the path of the old fixed-token download of a sale order's quotation: gone (410). */
+const SALE_PDF_GONE_PATH = "/internal/sale-quotation-pdf";
 const SPECIAL_HOOK_DELAY_MS = 1500;
 
 function json(obj: unknown, status = 200): Response {

@@ -51,6 +51,11 @@
 | `s61-20261006-templates.mjs` (+ `lib/s61-templates.mjs`) | قالب § 61 عند Meta (`--template` مرة واحدة، `--status` للحالة). لا إعادة تقديم |
 | `s61-20261006-trial.mjs <entry\|welcome\|exit>` | تجارب § 61 الثلاث إلى رقم براء من prod المنشور (جاف افتراضياً، `--send` مرة في اليوم) |
 | `s61-20261006-diag.mjs`، `s61-20261006-fields-fixture.mjs` | قراءة حالة Odoo قبل الأمر، وبصمة المخطط بعد التطبيق (`hr.job` لأول مرة) |
+| `s62-20261007-odoo.mjs` (+ `lib/s62-odoo.mjs`) | § 62: نماذج «طلب أسعار خاص» الثلاثة وحقولها، و«خاص» على `x_price_offer`، وإجراءات الأزرار السبعة، والشاشة والقائمة، وأتمتة الحفظ، وامتدادات «عروض المصادر» (جاف ← `--apply` ← `--verify`؛ **قبل الكود**). `--rollback`: يطفئ القائمة والأتمتة والامتدادات (لا حذف) |
+| `s62-20261007-flows.mjs` (+ `lib/s62-price-flow.mjs`) | نموذج § 62 عند Meta `utak_price_ask_special_v1` (`--create`، `--publish`، `--preview`؛ المنشور لا يُعدَّل) |
+| `s62-20261007-madarat.mjs` | § 62 د: أول طلب (شركة مدارات): مطابقة الـ 27 صنفاً وإنشاء الناقص غير نشط للبيع، ثم الطلب مسودةً بلا إرسال (جاف ← `--apply` ← `--verify`؛ **بعد نشر الكود**). `--rollback`: يغلق الطلب ويؤرشف ما أُنشئ |
+| `s62-20261007-trial.mjs <purchase\|market\|quotation\|recalc> [--id=N]` | تجارب § 62 الثلاث إلى رقم براء من prod المنشور (جاف افتراضياً، `--send` مرة في اليوم)؛ و`recalc`: يطلب أرقام طلب من الوركر (لا يرسل شيئاً) |
+| `s62-20261007-diag.mjs`، `s62-20261007-fields-fixture.mjs` | قراءة حالة Odoo قبل الأمر، وبصمة المخطط بعد التطبيق (النماذج الثلاثة لأول مرة) |
 | `cutover-prod.mts`، `s42-20260927-prelaunch-mark.mts`، `s45-…-{omar-friday,mark-quotes}` | التحويل sim ← prod وتراجعه، ووسم سجلات المحاكاة |
 | `brand-20260924-{render-samples,render-docs,paper-scan,qr-cream-read}` | بعد أي تعديل في PDF: الختم و QR والتذييل ولون الورق |
 | `s41-full-day-sim.mts` (+ `sim-report`، `sim-snapshot`، `sim-mark`) | المحاكاة الشاملة ليوم كامل (`--odoo=fake`) |

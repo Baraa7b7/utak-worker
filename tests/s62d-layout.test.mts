@@ -67,6 +67,9 @@ console.log("\n[أ] «عرض سعر الوحدة»");
   assert("each line carries ONE unit's price before VAT, its VAT and the price with it — from «النهائي قبل الضريبة» and «النهائي (شامل)»",
     data.items.every((it, i) => it.net === NINE[i][3] && it.gross === NINE[i][2] && it.vat === Math.round((NINE[i][2] - NINE[i][3]) * 100) / 100));
   assert("…and before + VAT = with it, to the halala, on every line", data.items.every((it) => Math.round(((it.net ?? 0) + (it.vat ?? 0)) * 100) === Math.round((it.gross ?? 0) * 100)));
+  // from their source, never recomputed: a line whose two prices are a halala apart from × 1.15 prints the two it holds
+  const held = QT.specialQuotationData(quoteOf({}, [["برتقال", "18 كيلو", 100, 86.95]]), "S00016", CUSTOMER, NOW).items[0];
+  assert("the page prints the two prices the request holds (86.95 and 100.00, VAT 13.05) — not 86.95 × 1.15 = 99.99, nor 100 ÷ 1.15 = 86.96", held.net === 86.95 && held.gross === 100 && held.vat === 13.05, JSON.stringify(held));
   const html = Q.renderQuotationHTML(data, COMPANY), t = text(html);
   assert("the columns: الصنف | العبوة | السعر قبل الضريبة | ضريبة 15% | السعر بعد الضريبة", JSON.stringify(heads(html)) === JSON.stringify(["الصنف", "العبوة", "السعر قبل الضريبة", "ضريبة 15%", "السعر بعد الضريبة"]), heads(html).join(" | "));
   assert("no quantity column and no line total", !t.includes(UI.colQty.ar) && !heads(html).includes(UI.colTotal.ar) && html.includes('data-utak="unit-prices"'));
@@ -166,6 +169,10 @@ console.log("\n[هـ] one sheet up to twelve lines");
   assert("the table's head keeps its padding with a roomy row and tightens under 30 px", Q.quotationPageMetrics(input(9, { unit: true, sealed: true })).thPad === "10px 0" && Q.quotationPageMetrics(input(12, { sealed: true })).thPad === "8px 0");
   assert("twelve issued unit-price lines at 25 px, gaps closed: 958 of the sheet's 985 px", Q.quotationPagePx(input(12, { unit: true, sealed: true }), 25, 0) === 958 && Q.FIT_SHEET_PX === 985 && Q.quotationPagePx(input(12, { unit: true, sealed: true }), 25, 1) === 958 + 2 * 12 + 26 + 28);
   assert("a row with a detail line is never under 25 px (its two lines), and takes the page's row when that is taller", Q.quotationPageMetrics(input(12, { unit: true, sealed: true, detailRows: 12 })).detailRowHeight === "25px" && Q.quotationPageMetrics(input(3, { sealed: true, detailRows: 1 })).detailRowHeight === "36px" && Q.quotationPageMetrics(input(13, { sealed: true })).detailRowHeight === "29px");
+  assert("…its least holds when the page's rows are at theirs (24 px): 25 px; and on a dense page of twenty lines (19 px rows): 25 px", (() => {
+    const tight = Q.quotationPageMetrics(input(12, { sealed: true, detailRows: 1, belowBlocks: 2, belowLines: 8 })), dense20 = Q.quotationPageMetrics(input(20, { sealed: true }));
+    return tight.rowHeight === "24px" && tight.detailRowHeight === "25px" && dense20.fit === false && dense20.rowHeight === "19px" && dense20.detailRowHeight === "25px";
+  })());
   assert("the budget is read from the page's own data: nine unit lines, issued, four party lines, a one-line note, the transfer line", JSON.stringify(Q.quotationFitInput(QT.specialQuotationData(quoteOf(), "S00016", CUSTOMER, NOW), COMPANY)) === JSON.stringify({ rows: 9, detailRows: 0, sectionRows: 0, unit: true, sealed: true, partyLines: 4, noteLines: 1, bankLine: true, belowBlocks: 0, belowLines: 0 }), JSON.stringify(Q.quotationFitInput(QT.specialQuotationData(quoteOf(), "S00016", CUSTOMER, NOW), COMPANY)));
   assert("…a draft is not sealed; details, alternatives and a company with no bank line are counted", (() => {
     const q = quoteOf({ alternatives: "أ\nب" }); q.lines[0].origin = "مصر"; q.lines[1].size = "5";
@@ -231,7 +238,7 @@ console.log("\n[و] the foot of the page");
   // the transfer line's holder
   assert("bankLineWithHolder: the holder alone changes — the bank and the IBAN are untouched", BANK.bankLineWithHolder(BANK_LINE, LEGAL) === `للتحويل: ${LEGAL} — البنك السعودي الأول — IBAN SA59 4500 0000 1682 9572 3001`);
   assert("…no legal name, no line, or a text that is not a transfer line: as it is", BANK.bankLineWithHolder(BANK_LINE, "") === BANK_LINE && BANK.bankLineWithHolder("", LEGAL) === "" && BANK.bankLineWithHolder(undefined, LEGAL) === "" && BANK.bankLineWithHolder("ادفع نقداً", LEGAL) === "ادفع نقداً" && BANK.bankLineWithHolder("للتحويل: أ — ب — رقم 12", LEGAL) === "للتحويل: أ — ب — رقم 12" && BANK.bankLineWithHolder("حساب: أ — ب — IBAN SA1", LEGAL) === "حساب: أ — ب — IBAN SA1");
-  assert("a company with no legal name: its name", text(Q.renderQuotationHTML(Q.TEST_QUOTATION_DATA, { ...COMPANY, legalNameAr: "" })).includes("للتحويل: شركة يوتاك — البنك السعودي الأول"));
+  assert("a company with no legal name: its name (not the bank card's holder)", text(Q.renderQuotationHTML(Q.TEST_QUOTATION_DATA, { ...COMPANY, legalNameAr: "", nameAr: "مؤسسة يوتاك التجارية" })).includes("للتحويل: مؤسسة يوتاك التجارية — البنك السعودي الأول"));
   assert("no company read (the fallback page): no strip, «الشروط والملاحظات» and «شكراً لثقتكم في شركة يوتاك» still", (() => { const h = Q.renderQuotationHTML(Q.TEST_QUOTATION_DATA); return !h.includes('data-utak="legal-line"') && text(h).includes("الشروط والملاحظات") && text(h).includes("شكراً لثقتكم في شركة يوتاك"); })());
   assert("the English quotation: «TERMS & NOTES», an English strip line", (() => { const h = Q.renderQuotationHTML({ ...Q.TEST_QUOTATION_DATA, lang: "en" }, COMPANY); return h.includes("TERMS &amp; NOTES") && /data-utak="legal-line" dir="ltr"/.test(h) && text(h).includes("UTAK Company · CR No. 7055194869 · VAT No. 315022736600003"); })());
 

@@ -83,6 +83,11 @@ console.log("\n[ز1] the item's name, and S00015 as it stands: nine cartons with
   const d20 = (await build(env, 20))!;
   assert("a product's line: the description's first line without «[ref]»; with no description, the product's name; a written one wins", JSON.stringify(d20.items.map((x) => x.name)) === JSON.stringify(["برتقال", "برتقال", "برتقال أبو سرة — درجة أولى"]), JSON.stringify(d20.items.map((x) => x.name)));
   assert("a product's line keeps its packaging (the line's, else the product's default), never the generic unit", d20.items.every((x) => x.pack === "كرتون · 8 كيلو"));
+  // a product with no packaging at all: its line is told by its packaging alone («—»), never by a unit of measure
+  seed("product.template", { id: 77, name: "فجل", sale_ok: true, active: true });
+  seed("product.product", { id: 1077, product_tmpl_id: [77, "فجل"], display_name: "فجل" });
+  saleOrder(24, "S00024", [incl("فجل", 12, 3, { product_id: [1077, "فجل"], product_uom_id: CARTON })]);
+  assert("a product's line with no packaging on its card keeps «—» (the unit of measure names a line with NO product alone)", (await build(env, 24))!.items[0].pack === "—");
   assert("firstDescriptionLine: blank lines skipped, the reference dropped, nothing for nothing", SOQ.firstDescriptionLine("\n\n [A-1] خيار \nx") === "خيار" && SOQ.firstDescriptionLine(false) === "" && SOQ.firstDescriptionLine("   ") === "" && SOQ.firstDescriptionLine(undefined) === "");
 }
 
@@ -99,6 +104,10 @@ console.log("\n[ز2] a line with no product and no description stops the quotati
   const res = await quiet(() => worker.fetch(new Request("https://w.test/internal/sale-quotation-wa-send?token=HOOK", { method: "POST", body: JSON.stringify({ _model: "sale.order", _id: 21 }) }), env, { ...ctx, waitUntil: (p: Promise<unknown>) => { waits.push(p); } } as any));
   await quiet(() => Promise.all(waits));
   assert("«إرسال واتساب (UTAK)» on it: accepted, nothing queued, and Baraa reads both reasons", res.status === 202 && queued().length === 0 && ownerTexts().some((x) => x.includes("S00021") && x.includes("السطر 3 بلا منتج ولا وصف") && x.includes("صنف بلا سعر: جزر")), ownerTexts().join(" / "));
+  // the nameless line alone stops it, and its place counts the lines that are items (a title and a note are not)
+  saleOrder(23, "S00023", [{ display_type: "line_section", name: "خضار" }, incl("خيار", 30, 2), { display_type: "line_note", name: "ملاحظة" }, incl("   ", 50, 1)]);
+  const lone = (await build(env, 23))!;
+  assert("a nameless line with nothing else wrong: blocked, «السطر 2 …» (the title and the note above it are not counted)", lone.has_blocking_issue === true && JSON.stringify(lone.problems) === JSON.stringify(["السطر 2 بلا منتج ولا وصف: اكتب وصفه أو اختر منتجه"]) && lone.items.length === 1 && lone.missing_products?.length === 0, JSON.stringify(lone.problems));
   saleOrder(22, "S00022", [{ display_type: "line_note", name: "ملاحظة فقط" }]);
   const empty = (await build(env, 22))!;
   assert("an order with nothing to quote (a note alone) is not a quotation", empty.has_blocking_issue === true && (empty.problems ?? [])[0]?.startsWith("لا أصناف في أمر البيع") && empty.items.length === 0);

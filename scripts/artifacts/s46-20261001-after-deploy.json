@@ -1,18 +1,18 @@
 {
-  "startedRiyadh": "06:26:44",
-  "endedRiyadh": "06:31:14",
+  "startedRiyadh": "22:40:39",
+  "endedRiyadh": "22:46:11",
   "firstFiveMinuteTickOnProd": {
     "cron": "*/5 * * * *",
-    "at": "06:30:26",
+    "at": "22:45:43",
     "outcome": "ok",
     "exceptions": [],
     "errors": [],
-    "logs": 6
+    "logs": 2
   },
   "prod": [
     {
       "cron": "2,7,12,17,22,27,32,37,42,47,52,57 * * * *",
-      "at": "06:27:26",
+      "at": "22:42:38",
       "outcome": "ok",
       "exceptions": [],
       "errors": [],
@@ -20,11 +20,11 @@
     },
     {
       "cron": "*/5 * * * *",
-      "at": "06:30:26",
+      "at": "22:45:43",
       "outcome": "ok",
       "exceptions": [],
       "errors": [],
-      "logs": 6
+      "logs": 2
     }
   ],
   "sim": []

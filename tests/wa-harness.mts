@@ -105,7 +105,7 @@ function fieldValue(m: string, r: Rec, f: string): unknown {
   return r[f];
 }
 /** Odoo's active_test for the models whose archived rows matter here (STATUS § 31). */
-const ACTIVE_FIELD: Record<string, string> = { "hr.employee": "active", "x_employee_role": "x_active", "hr.job": "active" };
+const ACTIVE_FIELD: Record<string, string> = { "hr.employee": "active", "x_employee_role": "x_active", "hr.job": "active", "x_preview_ticket": "x_active" }; // § 64: a used ticket is archived
 function activeOk(m: string, r: Rec, body: any): boolean {
   const f = ACTIVE_FIELD[m];
   if (!f || body?.context?.active_test === false) return true;

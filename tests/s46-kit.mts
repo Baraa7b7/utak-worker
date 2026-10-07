@@ -39,6 +39,7 @@ export const FIX = [
   "fixtures-odoo-fields-20261006-s61.json",   // § 61: hr.job in the gate for the first time (the job's roles, default schedule, attendance and texts), x_operating_cost.x_job_id / x_employee_id, every model of § 60 again (read last: it wins)
   "fixtures-odoo-fields-20261007-s62.json",   // § 62: the three models of «طلب أسعار خاص» in the gate for the first time, x_price_offer.x_special / x_special_quote_id / x_special_unit; every model of § 61 again (read last: it wins)
   "fixtures-odoo-fields-20261007-s62d.json",  // § 62 د: x_special_quote.x_layout, the line's x_item_origin / x_item_size / x_suggested_net; sale.order, sale.order.line and x_preview_ticket in the gate for the first time; every model of § 62 again (read last: it wins)
+  "fixtures-odoo-fields-20261007-s64.json",   // § 64: sale.order.line.x_pack_text «التعبئة» (the pack as text), x_preview_ticket.x_active (a used ticket is archived); every model of § 62 د again (read last: it wins)
 ].map((f) => JSON.parse(readFileSync(new URL(`./${f}`, import.meta.url), "utf8")));
 const REAL: Record<string, string[]> = Object.assign({}, ...FIX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FIX.map((f) => f._selections ?? {}));

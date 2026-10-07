@@ -32,7 +32,7 @@ import { claimButton, finishButton, releaseButton } from "./button-lock";
 import { riyadhDateKey } from "./hours";
 import { readWindow, waDigits } from "./wa-window";
 import { arabicDate } from "./wa-params";
-import { money, round2, VAT_FACTOR } from "./special-quote-math";
+import { money, round2, VAT_FACTOR, VAT_RATE, type PriceMode } from "./special-quote-math";
 import { QUOTE_MODEL, nowOdoo, quoteName, readQuote, recalcQuote, writeResult, type SpecialQuote } from "./special-quote";
 import type { QuotationPDFData } from "./quotation";
 
@@ -66,10 +66,21 @@ export const customerCaption = (number: string, validUntil: string): string => {
   const until = validUntilText(validUntil);
   return `مرفق عرض السعر رقم ${number}${until ? ` صالح حتى ${until}` : ""}`;
 };
-/** The quotation's note under its totals: the request's own validity, not the day's 06:00. */
-export const quotationNote = (validUntil: string): string => {
+/** The closing line of every special quotation (the addition to § 62 ج). */
+export const CLOSING_LINE = "الأسعار المذكورة هي أسعار اليوم، وقد تتغير في الأيام التالية تبعاً لتغيرات أسعار السوق. يُرجى تأكيد الطلب لتثبيت الأسعار.";
+export const VAT_INCLUSIVE_NOTE = "الأسعار شاملة ضريبة القيمة المضافة.";
+/** The names of a before-VAT quotation's totals. */
+export const NET_SUBTOTAL_LABEL = "المجموع قبل الضريبة";
+export const NET_VAT_LABEL = "ضريبة القيمة المضافة 15%";
+export const ALTERNATIVES_LABEL = "خيارات بديلة";
+/**
+ * The quotation's note under its totals: the request's own validity (not the
+ * day's 06:00), «الأسعار شاملة …» only when its prices are, and the closing
+ * line last.
+ */
+export const quotationNote = (validUntil: string, mode: PriceMode = "gross"): string => {
   const until = validUntilText(validUntil);
-  return `${until ? `العرض ساري حتى ${until}. ` : ""}الأسعار شاملة ضريبة القيمة المضافة`;
+  return `${until ? `العرض ساري حتى ${until}. ` : ""}${mode === "gross" ? `${VAT_INCLUSIVE_NOTE} ` : ""}${CLOSING_LINE}`;
 };
 
 /** The lines a quotation cannot be issued with: no final price, or no quantity. */
@@ -81,16 +92,32 @@ export function missingLines(q: Pick<SpecialQuote, "lines">): { noPrice: string[
 }
 
 export interface QuotationCustomer { name: string; address: string; phone: string }
-/** The PDF's data: each line at its final price, the totals split as the tax invoice will split them. */
+/**
+ * The PDF's data, by «الأسعار في العرض»:
+ *   • «قبل الضريبة» (the default): each line at its final price BEFORE VAT (the
+ *     one Baraa typed; the VAT-inclusive final ÷ 1.15), then «المجموع قبل
+ *     الضريبة», «ضريبة القيمة المضافة 15%» on it and «الإجمالي» — every number
+ *     made of the printed ones, so the page adds up to the halala;
+ *   • «شاملة الضريبة»: each line at its VAT-inclusive final price, the total
+ *     split as the tax invoice will split it.
+ * Under the table «خيارات بديلة» as typed; the closing line ends the note.
+ */
 export function specialQuotationData(q: SpecialQuote, number: string, customer: QuotationCustomer, now: number, opts: { issued?: boolean } = {}): QuotationPDFData {
-  const items = q.lines.map((l) => ({ name: l.productName || "صنف", pack: l.unit, qty: l.qty, price: l.finalPrice, total: round2(l.qty * l.finalPrice) }));
-  const grandTotal = round2(items.reduce((s, i) => s + i.total, 0));
-  const vatAmount = round2(grandTotal - grandTotal / VAT_FACTOR);
+  const net = q.priceMode === "net";
+  const items = q.lines.map((l) => {
+    const price = net ? l.finalNet : l.finalPrice;
+    return { name: l.productName || "صنف", pack: l.unit, qty: l.qty, price, total: round2(l.qty * price) };
+  });
+  const lines = round2(items.reduce((s, i) => s + i.total, 0));
+  const vatAmount = net ? round2(lines * VAT_RATE) : round2(lines - lines / VAT_FACTOR);
+  const grandTotal = net ? round2(lines + vatAmount) : lines;
   return {
     quotationNumber: number, quotationDate: new Date(now), customer, items,
-    subtotal: round2(grandTotal - vatAmount), discount: 0, vatAmount, grandTotal, vatInclusive: true,
+    subtotal: net ? lines : round2(lines - vatAmount), discount: 0, vatAmount, grandTotal, vatInclusive: !net,
     price_warnings: [], has_blocking_issue: false, is_manual: true, customer_id: q.partnerId,
-    footerNote: quotationNote(q.validUntil), issued: opts.issued ?? true,
+    footerNote: quotationNote(q.validUntil, q.priceMode), issued: opts.issued ?? true,
+    ...(net ? { totals: { subtotalLabel: NET_SUBTOTAL_LABEL, vatLabel: NET_VAT_LABEL, hideDiscount: true } } : {}),
+    ...(q.alternatives ? { belowTable: { label: ALTERNATIVES_LABEL, text: q.alternatives } } : {}),
   };
 }
 
@@ -223,7 +250,7 @@ export async function issueSpecialQuotation(env: Env, quoteId: number, opts: { n
     await call<boolean>(env, QUOTE_MODEL, "write", { ids: [quoteId], vals: { x_pdf_url: uploaded.publicUrl, x_issued_at: nowOdoo(now), x_state: "quoted" } });
 
     const caption = customerCaption(so.number, q.validUntil);
-    const total = `الإجمالي ${money(data.grandTotal)} ريال شامل الضريبة`;
+    const total = `الإجمالي ${money(data.grandTotal)} ريال شامل الضريبة${q.priceMode === "net" ? ` (${money(data.subtotal)} قبلها)` : ""}`;
     const ownerCaption = (why: string): string => [`📄 عرض السعر رقم ${so.number} — ${customer.name}`, total, why, uploaded.publicUrl].join("\n");
     let to: IssueResult["to"];
     let line: string;

@@ -25,6 +25,19 @@ export const DEFAULT_UNIT = "كيلو";
 
 export const round2 = (n: number): number => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 const pos = (n: unknown): number => (typeof n === "number" && Number.isFinite(n) && n > 0 ? n : 0);
+/**
+ * «الأسعار في العرض» (the addition to § 62 ج): «قبل الضريبة» (net, the default)
+ * or «شاملة الضريبة» (gross). It decides which final price Baraa types and how
+ * the quotation prints; the formulas above never change — they read the
+ * VAT-inclusive final price either way.
+ */
+export type PriceMode = "net" | "gross";
+export const DEFAULT_PRICE_MODE: PriceMode = "net";
+export const VAT_RATE = 0.15;
+/** The price before VAT of a VAT-inclusive one (final ÷ 1.15), to the halala. */
+export const netOf = (gross: number): number => round2(pos(gross) / VAT_FACTOR);
+/** The VAT-inclusive price of one before VAT (× 1.15), to the halala. */
+export const grossOf = (net: number): number => round2(pos(net) * VAT_FACTOR);
 const pct = (n: unknown): number => Math.max(0, Number(n) || 0) / 100;
 
 /** Up to the nearest step (a quarter riyal): 5.01 → 5.25, 5.25 → 5.25. A float's dust never lifts a price a whole step. */

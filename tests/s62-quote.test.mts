@@ -96,7 +96,7 @@ console.log("\n[أ2–أ4] the numbers of every line and of the order");
   odooLog.length = 0;
   await quiet(() => SQ.recalcQuote(env, id));
   const w = quoteWrites();
-  assert("a final price typed on one line: ONE write, that line's total and profit and the order's numbers alone", w.length === 1 && writes().length === 1 && JSON.stringify(w[0].body.vals.x_line_ids.map((c: any) => [c[0], c[1], Object.keys(c[2]).sort()])) === JSON.stringify([[1, lineOf(id, 1).id, ["x_profit", "x_total"]]]), JSON.stringify(w[0]?.body.vals));
+  assert("a final price typed on one line: ONE write — that line's price before VAT, its total and its profit, and the order's numbers alone", w.length === 1 && writes().length === 1 && JSON.stringify(w[0].body.vals.x_line_ids.map((c: any) => [c[0], c[1], Object.keys(c[2]).sort()])) === JSON.stringify([[1, lineOf(id, 1).id, ["x_final_net", "x_profit", "x_total"]]]), JSON.stringify(w[0]?.body.vals));
   assert("…33 × (3 ÷ 1.15 − 2.1) = 16.79, and the total 99", lineOf(id, 1).x_profit === 16.79 && lineOf(id, 1).x_total === 99);
   assert("no price of the day is read or written: not x_price_day, not x_daily_price, not x_price_offer", !odooLog.some((l) => ["x_price_day", "x_price_day_line", "x_daily_price", "x_price_offer"].includes(l.model)));
   assert("nothing is sent by a recalculation", graph.length === 0);
@@ -137,6 +137,40 @@ console.log("\n[أ4] «اعتمد المقترح للكل», and the state");
   assert("the labels of the five states", JSON.stringify(SQ.STATE_LABEL) === JSON.stringify({ draft: "مسودة", sent: "أُرسل للمصادر", priced: "مُسعَّر", quoted: "صدر العرض", closed: "مغلق" }));
 }
 
+console.log("\n[ج+] «الأسعار في العرض»: the final price Baraa types is the one of the mode");
+{
+  const env = world();
+  // a request with no mode of its own (made outside the screen): prepared «قبل الضريبة»
+  const id = request(undefined, { x_price_mode: false });
+  await quiet(() => SQ.recalcQuote(env, id));
+  assert("a new request is «قبل الضريبة» unless Baraa chose", quote(id).x_price_mode === "net" && SQ.asPriceMode(false) === "net" && SQ.asPriceMode("gross") === "gross" && SQ.asPriceMode("x") === "net");
+  const kept = request(undefined, { x_price_mode: "gross" });
+  await quiet(() => SQ.recalcQuote(env, kept));
+  assert("…a mode Baraa chose is kept", quote(kept).x_price_mode === "gross");
+  // «قبل الضريبة»: he types the price before VAT; the VAT-inclusive final follows it, and the formulas read that one
+  Object.assign(lineOf(id, ORANGE), { x_purchase_price: 3, x_final_net: 5 });
+  Object.assign(lineOf(id, GARLIC), { x_purchase_price: 10, x_final_net: 12.39 });
+  await quiet(() => SQ.recalcQuote(env, id));
+  assert("«قبل الضريبة»: the price he typed before VAT (5.00) gives the VAT-inclusive final (5.75)", lineOf(id, ORANGE).x_final_net === 5 && lineOf(id, ORANGE).x_final_price === 5.75 && lineOf(id, GARLIC).x_final_price === 14.25, `${lineOf(id, ORANGE).x_final_price} ${lineOf(id, GARLIC).x_final_price}`);
+  // § 62 أ's formulas as they were, on the VAT-inclusive final: 1464 × (5.75 ÷ 1.15 − 3.15) = 2708.4
+  assert("…the formulas are § 62 أ's, on the VAT-inclusive final: the profit 1464 × (5.75 ÷ 1.15 − 3.15) = 2708.4, the total 8418", lineOf(id, ORANGE).x_profit === 2708.4 && lineOf(id, ORANGE).x_total === 8418 && lineOf(id, ORANGE).x_no_loss_price === 3.62 && lineOf(id, ORANGE).x_suggested_price === 4, JSON.stringify([lineOf(id, ORANGE).x_profit, lineOf(id, ORANGE).x_total]));
+  // he clears it: the final goes with it
+  lineOf(id, GARLIC).x_final_net = 0;
+  await quiet(() => SQ.recalcQuote(env, id));
+  assert("…a price he cleared is cleared: the VAT-inclusive final never brings it back", !lineOf(id, GARLIC).x_final_net && !lineOf(id, GARLIC).x_final_price && !lineOf(id, GARLIC).x_profit);
+  // «اعتمد المقترح»: «المقترح» ÷ 1.15 before VAT, its VAT-inclusive final beside it; what he typed stays
+  const r = await quiet(() => SQ.recalcQuote(env, id, { accept: true }));
+  assert("«اعتمد المقترح للكل» in «قبل الضريبة»: «المقترح» 13.5 → 11.74 before VAT (13.5 with it); the 5.00 he typed stays", r?.accepted === 1 && lineOf(id, GARLIC).x_final_net === 11.74 && lineOf(id, GARLIC).x_final_price === 13.5 && lineOf(id, ORANGE).x_final_net === 5, JSON.stringify([lineOf(id, GARLIC).x_final_net, lineOf(id, GARLIC).x_final_price]));
+  odooLog.length = 0;
+  assert("…a second pass writes nothing (the two prices agree)", (await quiet(() => SQ.recalcQuote(env, id)))?.wrote === false && writes().length === 0);
+  // «شاملة الضريبة»: he types the VAT-inclusive final; the price before VAT follows it
+  Object.assign(lineOf(kept, ORANGE), { x_purchase_price: 3, x_final_price: 4.75, x_final_net: 99 });
+  await quiet(() => SQ.recalcQuote(env, kept));
+  assert("«شاملة الضريبة»: the final he typed (4.75) stays, and the price before VAT is 4.75 ÷ 1.15 = 4.13 whatever stood there", lineOf(kept, ORANGE).x_final_price === 4.75 && lineOf(kept, ORANGE).x_final_net === 4.13);
+  assert("the two conversions, to the halala: ÷ 1.15 and × 1.15 — and a typed price before VAT always comes back from its own final", M.netOf(4.75) === 4.13 && M.grossOf(5) === 5.75 && M.grossOf(12.39) === 14.25 && M.netOf(0) === 0 && [0.01, 0.03, 4.13, 9.99, 68, 16.5, 152, 1234.56].every((n) => M.netOf(M.grossOf(n)) === n) && M.VAT_RATE === 0.15);
+  assert("the schema gate let every field through", rejected.length === 0, rejected.join(" | "));
+}
+
 console.log("\n[أ] the observations the worker keeps on a line");
 {
   const o = SQ.parseObs(JSON.stringify({ purchase: { 30: { p: 4.456, n: "أحمد", at: 5 }, 31: { p: 4.1, n: "مورد", at: 6 } }, market: { 0: { p: 3 }, 9: { p: "x" }, 109: { p: 6, n: "رائد", at: 1 } } }));
@@ -170,12 +204,14 @@ console.log("\n[أ1–أ4] the screen's data (scripts/lib/s62-odoo.mjs)");
   const names = (defs: Array<{ name: string }>) => defs.map((d) => d.name);
   assert("the request: the customer, the date, the five states, the waste, the margin, the delivery cost, «صالح حتى», the note", ["x_partner_id", "x_date", "x_state", "x_waste_pct", "x_min_margin_pct", "x_delivery_cost", "x_valid_until", "x_note"].every((f) => names(LIB.QUOTE_FIELDS).includes(f)) && JSON.stringify(LIB.STATES.map((s: string[]) => s[0])) === JSON.stringify(["draft", "sent", "priced", "quoted", "closed"]) && JSON.stringify(LIB.STATES.map((s: string[]) => s[1])) === JSON.stringify(Object.values(SQ.STATE_LABEL)));
   assert("the line: the item, the quantity, the unit, the purchase price, the market's observations and median, «بدون خسارة», «المقترح», the final price, the total, the profit", ["x_product_tmpl_id", "x_qty", "x_unit", "x_purchase_price", "x_market_text", "x_market_median", "x_no_loss_price", "x_suggested_price", "x_final_price", "x_total", "x_profit"].every((f) => names(LIB.LINE_FIELDS).includes(f)));
-  assert("the eight columns of a line, in Baraa's order", JSON.stringify(LIB.LINE_COLUMNS) === JSON.stringify(["x_product_tmpl_id", "x_qty", "x_purchase_price", "x_market_text", "x_no_loss_price", "x_suggested_price", "x_final_price", "x_profit"]));
+  assert("the columns of a line, in Baraa's order: § 62 أ's eight, with «التعبئة» after the quantity and «النهائي قبل الضريبة» after the final price", JSON.stringify(LIB.LINE_COLUMNS) === JSON.stringify(["x_product_tmpl_id", "x_qty", "x_unit", "x_purchase_price", "x_market_text", "x_no_loss_price", "x_suggested_price", "x_final_price", "x_final_net", "x_profit"]));
+  assert("«الأسعار في العرض»: قبل الضريبة / شاملة الضريبة, «قبل الضريبة» for a new request; and «خيارات بديلة»", JSON.stringify(LIB.PRICE_MODES) === JSON.stringify([["net", "قبل الضريبة"], ["gross", "شاملة الضريبة"]]) && LIB.ACTION_CONTEXT.includes("'default_x_price_mode': 'net'") && M.DEFAULT_PRICE_MODE === "net" && names(LIB.QUOTE_FIELDS).includes("x_alternatives") && names(LIB.LINE_FIELDS).includes("x_final_net"));
   const arch = LIB.formArch({ send: 1, accept: 2, recalc: 3, issue: 4, pdf: 5, close: 6, reopen: 7 });
   const shown = [...arch.split('<page string="الأصناف"')[1].split("</page>")[0].matchAll(/<field name="(x_[a-z_]+)"([^>]*)\/>/g)].filter((m) => !/optional="hide"|widget="handle"/.test(m[2])).map((m) => m[1]);
-  assert("…and the form's list shows exactly those eight", JSON.stringify(shown) === JSON.stringify(LIB.LINE_COLUMNS), shown.join());
+  assert("…and the form's list shows exactly those", JSON.stringify(shown) === JSON.stringify(LIB.LINE_COLUMNS), shown.join());
+  assert("…the packaging is titled «التعبئة»; the final price Baraa types is the one of the mode — the other is read-only", /name="x_unit" string="التعبئة"/.test(arch) && arch.includes(`<field name="x_final_price" string="النهائي (شامل)" readonly="parent.x_price_mode != 'gross'"/>`) && arch.includes(`<field name="x_final_net" readonly="parent.x_price_mode == 'gross'"/>`) && arch.includes('<field name="x_price_mode" required="1"/>') && /name="x_alternatives"/.test(arch));
   assert("above them: the order's profit with its sign, and the count of lines without a purchase price", arch.indexOf('name="x_profit_text"') < arch.indexOf("<notebook>") && arch.indexOf('name="x_missing_purchase"') < arch.indexOf("<notebook>"));
-  assert("what the worker computes is read-only on the screen; the final price and the purchase price are Baraa's to type", ["x_market_text", "x_no_loss_price", "x_suggested_price", "x_profit", "x_profit_text", "x_missing_purchase"].every((f) => new RegExp(`name="${f}"[^>]*readonly="1"`).test(arch)) && !/name="x_final_price"[^>]*readonly/.test(arch) && !/name="x_purchase_price"[^>]*readonly/.test(arch));
+  assert("what the worker computes is read-only on the screen; the purchase price is Baraa's to type", ["x_market_text", "x_no_loss_price", "x_suggested_price", "x_profit", "x_profit_text", "x_missing_purchase"].every((f) => new RegExp(`name="${f}"[^>]*readonly="1"`).test(arch)) && !/name="x_purchase_price"[^>]*readonly/.test(arch));
   assert("the seven buttons: send, accept, recalc, issue, PDF for me, close, reopen", ["📨 أرسل طلب الأسعار", "اعتمد المقترح للكل", "🔄 احسب", "📄 أصدر عرض السعر", "⬇️ PDF لي فقط", "🔒 أغلق الطلب", "↩️ أعد فتحه"].every((s) => arch.includes(`string="${s}"`)));
   assert("the hook's ops are the worker's, and its path", JSON.stringify(Object.values(LIB.HOOKS).map((h: any) => h.op).sort()) === JSON.stringify([...SQ.HOOK_OPS].sort()) && LIB.HOOK_PATH === "/odoo/hook/special-quote" && LIB.PROD_HOST === "utak-worker.utak-business.workers.dev");
   assert("the save's automation watches what the numbers are made of — and no field the worker writes alone", JSON.stringify(LIB.AUTOMATION_FIELDS) === JSON.stringify(["x_partner_id", "x_waste_pct", "x_min_margin_pct", "x_delivery_cost", "x_line_ids"]) && !LIB.AUTOMATION_FIELDS.some((f: string) => ["x_order_profit", "x_profit_text", "x_state", "x_summary", "x_recipient_ids", "x_last_result", "x_name", "x_prepared"].includes(f)));
@@ -202,6 +238,10 @@ console.log("\n[دليل] the operating guide (docs/OPERATING-DAY.md)");
   assert("…the customer's file: the template only up to 6:00 of tomorrow, else to Baraa", part.includes("**فقط إن كان «صالح حتى» لا يتجاوز 6:00 صباح الغد**") && part.includes("**يصلك الملف أنت**"));
   assert("…Baraa's line when prices arrive, and the «خاص» mark in «عروض المصادر»", part.includes("**«📨 وصلت أسعار الشراء (أو السوق) لطلب {العميل}: N من M صنف»**") && part.includes("**«خاص»**"));
   assert("…the five states by their labels", Object.values(SQ.STATE_LABEL).every((l) => part.includes(l)));
+  const QT = await import("../src/special-quotation.ts");
+  assert("…«الأسعار في العرض»: «قبل الضريبة» by default, which price Baraa types in each, and the three totals by their names", part.includes("**«الأسعار في العرض» (حقل على الطلب، افتراضياً «قبل الضريبة»):**") && part.includes("تكتب **«النهائي قبل الضريبة»**") && part.includes("تكتب «النهائي (شامل)»") && part.includes(`**«${QT.NET_SUBTOTAL_LABEL}»** ثم **«${QT.NET_VAT_LABEL}»** ثم **«الإجمالي»**`) && part.includes("**المعادلات واحدة**"));
+  assert("…«خيارات بديلة» printed under the table as it is, and the closing line letter for letter", part.includes("يُطبع **تحت جدول العرض كما هو**") && part.includes(`«${QT.CLOSING_LINE}»`));
+  assert("…a line by the carton: its weight in «التعبئة», the quantity the count of cartons", part.includes("**«كرتون 18 كجم»**") && part.includes("عدد الكراتين") && part.includes("**«التعبئة»**"));
 }
 
 done();

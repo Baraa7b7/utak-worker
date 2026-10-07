@@ -23,6 +23,8 @@ export const OFFER_MODEL = "x_price_offer";
 
 export const STATES = [["draft", "مسودة"], ["sent", "أُرسل للمصادر"], ["priced", "مُسعَّر"], ["quoted", "صدر العرض"], ["closed", "مغلق"]];
 export const ROLES = [["purchase", "شراء"], ["market", "سوق"]];
+/** «الأسعار في العرض» (the addition to § 62 ج): how the quotation prints its prices. */
+export const PRICE_MODES = [["net", "قبل الضريبة"], ["gross", "شاملة الضريبة"]];
 const sel = (pairs) => `[${pairs.map(([k, v]) => `('${k}', '${v}')`).join(", ")}]`;
 
 /** The request (the lines and the sources point at it: their own fields below). */
@@ -35,6 +37,8 @@ export const QUOTE_FIELDS = [
   { name: "x_delivery_cost", ttype: "float", field_description: "تكلفة التوصيل لهذا الطلب", help: "تُطرح من مجموع ربح الأسطر. الافتراضي تكلفة التشغيل اليومية الحالية." },
   { name: "x_valid_until", ttype: "datetime", field_description: "صالح حتى", help: "يُكتب في عرض السعر. الافتراضي نهاية الغد." },
   { name: "x_note", ttype: "text", field_description: "ملاحظة" },
+  { name: "x_price_mode", ttype: "selection", selection: sel(PRICE_MODES), field_description: "الأسعار في العرض", help: "قبل الضريبة (الافتراضي): تكتب «النهائي قبل الضريبة» لكل سطر، ويطبع العرض السعر قبل الضريبة ثم «المجموع قبل الضريبة» و«ضريبة القيمة المضافة 15%» و«الإجمالي». شاملة الضريبة: تكتب «النهائي (شامل)» ويطبع العرض الأسعار شاملة." },
+  { name: "x_alternatives", ttype: "text", field_description: "خيارات بديلة", help: "يُطبع تحت جدول عرض السعر كما هو. مثل: موز غير مخمّر 68.00 · رمان كرتون 2 كجم 16.50." },
   // the worker's numbers (read-only on the screen)
   { name: "x_order_profit", ttype: "float", field_description: "ربح الطلب (ريال)", help: "مجموع ربح الأسطر − تكلفة التوصيل. يكتبه الوركر." },
   { name: "x_profit_text", ttype: "char", field_description: "ربح الطلب", help: "✅ أو ❌ بالإشارة. يكتبه الوركر مع كل حفظ." },
@@ -70,6 +74,7 @@ export const LINE_FIELDS = [
   { name: "x_no_loss_price", ttype: "float", field_description: "بدون خسارة", help: "التكلفة × 1.15." },
   { name: "x_suggested_price", ttype: "float", field_description: "المقترح", help: "الأعلى من (وسيط السوق، الأدنى المربح)، لأعلى لأقرب ربع ريال." },
   { name: "x_final_price", ttype: "float", field_description: "النهائي", help: "سعر البيع للوحدة شامل الضريبة: تكتبه أنت (أو «اعتمد المقترح للكل»)." },
+  { name: "x_final_net", ttype: "float", field_description: "النهائي قبل الضريبة", help: "سعر البيع للوحدة قبل الضريبة. حين «الأسعار في العرض» = قبل الضريبة تكتبه أنت والشامل = هو × 1.15؛ وحين «شاملة» يُحسب من الشامل ÷ 1.15." },
   { name: "x_total", ttype: "float", field_description: "الإجمالي" },
   { name: "x_profit", ttype: "float", field_description: "الربح", help: "الكمية × (النهائي ÷ 1.15 − التكلفة)." },
   { name: "x_obs", ttype: "text", field_description: "المشاهدات (تقني)", help: "ما أرسله كل مصدر لهذا السطر: يكتبه الوركر ويقرؤه." },
@@ -100,7 +105,7 @@ export const MENU_TITLE = "🧾 طلبات أسعار خاصة";
 export const MENU_SEQUENCE = 28;           // after «🙋 طلبوا وما كان متوفر» (27), before «📥 عروض المصادر» (30)
 export const ACTION_NAME = "UTAK — طلبات أسعار خاصة";
 export const ACTION_DOMAIN = "[('x_utak_simulation', '=', False)]";
-export const ACTION_CONTEXT = "{'default_x_state': 'draft', 'default_x_min_margin_pct': 10}";
+export const ACTION_CONTEXT = "{'default_x_state': 'draft', 'default_x_min_margin_pct': 10, 'default_x_price_mode': 'net'}";
 export const VIEW_LIST = "utak.special_quote_list";
 export const VIEW_FORM = "utak.special_quote_form";
 export const VIEW_SEARCH = "utak.special_quote_search";
@@ -150,8 +155,11 @@ export const SEARCH_ARCH = `<search string="${MENU_TITLE}">
   <filter name="g_partner" string="العميل" context="{'group_by': 'x_partner_id'}"/>
 </search>`;
 
-/** The eight columns of a line, in the order Baraa reads them (the unit, the median alone and the total can be shown). */
-export const LINE_COLUMNS = ["x_product_tmpl_id", "x_qty", "x_purchase_price", "x_market_text", "x_no_loss_price", "x_suggested_price", "x_final_price", "x_profit"];
+/**
+ * The columns of a line, in the order Baraa reads them (the median alone and the total can be shown): § 62 أ's
+ * eight, and — the addition to § 62 ج — «التعبئة» (the kilo, or «كرتون 18 كجم») and «النهائي قبل الضريبة».
+ */
+export const LINE_COLUMNS = ["x_product_tmpl_id", "x_qty", "x_unit", "x_purchase_price", "x_market_text", "x_no_loss_price", "x_suggested_price", "x_final_price", "x_final_net", "x_profit"];
 
 /** The form. `a` = the ids of the seven actions its buttons call. */
 export const formArch = (a) => `<form string="طلب أسعار خاص">
@@ -175,6 +183,8 @@ export const formArch = (a) => `<form string="طلب أسعار خاص">
         <field name="x_partner_id" options="{'no_create': True}" required="1" readonly="x_state == 'closed'"/>
         <field name="x_date"/>
         <field name="x_valid_until"/>
+        <field name="x_price_mode" required="1"/>
+        <field name="x_alternatives" placeholder="تُطبع تحت جدول عرض السعر كما هي: موز غير مخمّر 68.00 · رمان كرتون 2 كجم 16.50"/>
         <field name="x_note"/>
       </group>
       <group string="الحساب">
@@ -193,13 +203,14 @@ export const formArch = (a) => `<form string="طلب أسعار خاص">
             <field name="x_sequence" widget="handle"/>
             <field name="x_product_tmpl_id" required="1"/>
             <field name="x_qty"/>
-            <field name="x_unit" optional="hide"/>
+            <field name="x_unit" string="التعبئة"/>
             <field name="x_purchase_price"/>
             <field name="x_market_text" readonly="1"/>
             <field name="x_market_median" readonly="1" optional="hide"/>
             <field name="x_no_loss_price" readonly="1"/>
             <field name="x_suggested_price" readonly="1"/>
-            <field name="x_final_price"/>
+            <field name="x_final_price" string="النهائي (شامل)" readonly="parent.x_price_mode != 'gross'"/>
+            <field name="x_final_net" readonly="parent.x_price_mode == 'gross'"/>
             <field name="x_profit" readonly="1" sum="ربح الأسطر"/>
             <field name="x_total" readonly="1" optional="hide" sum="الإجمالي"/>
           </list>

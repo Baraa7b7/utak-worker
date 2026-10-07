@@ -22,7 +22,8 @@ import { readWindow, waDigits } from "./wa-window";
 import type { PriceKind } from "./price-sources";
 import { QUOTE_MODEL, quoteName, readQuote, type SpecialQuote } from "./special-quote";
 import { SPECIAL_TEST_PURPOSE, placeLines, prepareSpecialAsk, specialCategories, specialItems } from "./special-ask";
-import { specialQuotationData } from "./special-quotation";
+import { CLOSING_LINE, specialQuotationData } from "./special-quotation";
+import { grossOf, netOf } from "./special-quote-math";
 import type { QuotationPDFData } from "./quotation";
 
 export const S62_TRIAL_MARK = "🧪 تجربة";
@@ -80,7 +81,7 @@ export async function sendAskTrial(env: Env, kind: PriceKind, now: number = Date
 /** An illustrative price for line i: plainly not a real one (5, 6.25, 7.5, …). */
 export const illustrativePrice = (i: number): number => 5 + (i % 8) * 1.25;
 export const trialQuotationNumber = (id: number): string => `SQ-TRIAL-${String(id).padStart(4, "0")}`;
-export const TRIAL_NOTE = "تجربة — الأسعار توضيحية وليست عرضاً: لا يُعتمد هذا المستند.";
+export const TRIAL_NOTE = `تجربة — الأسعار توضيحية وليست عرضاً: لا يُعتمد هذا المستند. (السطر الختامي للعرض: ${CLOSING_LINE})`;
 export function quotationTrialCaption(number: string, quote: string, lines: number): string {
   return [
     `${S62_TRIAL_MARK} — هكذا يصل عرض سعر الطلب الخاص ${quote}: ملف PDF مرفق (${number}.pdf) بأصنافه الـ ${lines}.`,
@@ -91,7 +92,8 @@ export function quotationTrialCaption(number: string, quote: string, lines: numb
 
 /** The trial quotation's data: the request's lines at ILLUSTRATIVE prices (never its real ones), marked «تجربة», not issued (no seal). Pure. */
 export function trialQuotationData(q: SpecialQuote, now: number): QuotationPDFData {
-  const shown: SpecialQuote = { ...q, lines: q.lines.map((l, i) => ({ ...l, finalPrice: illustrativePrice(i), qty: l.qty > 0 ? l.qty : 1 })) };
+  // the illustrative price stands where the request's own would: before VAT or with it, by «الأسعار في العرض»
+  const shown: SpecialQuote = { ...q, lines: q.lines.map((l, i) => ({ ...l, finalPrice: q.priceMode === "net" ? grossOf(illustrativePrice(i)) : illustrativePrice(i), finalNet: q.priceMode === "net" ? illustrativePrice(i) : netOf(illustrativePrice(i)), qty: l.qty > 0 ? l.qty : 1 })) };
   return {
     ...specialQuotationData(shown, trialQuotationNumber(q.id), { name: `${S62_TRIAL_MARK} — ${q.partnerName || "عميل"}`, address: "", phone: "" }, now, { issued: false }),
     footerNote: TRIAL_NOTE,

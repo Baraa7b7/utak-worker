@@ -85,9 +85,14 @@ export function world(riyadh = `${DAY} 14:00`): any {
   return env;
 }
 
-/** A request as Baraa saves it from Odoo: the customer and its lines, nothing prepared. Returns its id. */
+/**
+ * A request as Baraa saves it from Odoo: the customer and its lines, nothing prepared. Returns its id.
+ * «الأسعار في العرض» is «شاملة الضريبة» here unless `extra` says otherwise (the final price typed is the
+ * VAT-inclusive one, as § 62 أ's formulas read it); the tenant's own default, «قبل الضريبة», is what a
+ * request with NO mode gets when the worker prepares it (`x_price_mode: false`).
+ */
 export function request(lines: Array<[number, number, Record<string, unknown>?]> = [[ORANGE, 1464], [LETTUCE, 494], [GARLIC, 194], [1, 33], [MUSHROOM, 12], [2, 9]], extra: Record<string, unknown> = {}): number {
-  const id = seed(QUOTE, { x_name: false, x_partner_id: MADARAT, x_state: "draft", x_utak_simulation: false, ...extra });
+  const id = seed(QUOTE, { x_name: false, x_partner_id: MADARAT, x_state: "draft", x_utak_simulation: false, x_price_mode: "gross", ...extra });
   lines.forEach(([product, qty, more], i) => seed(LINE, { x_quote_id: id, x_sequence: (i + 1) * 10, x_product_tmpl_id: product, x_qty: qty, x_unit: "كيلو", ...(more ?? {}) }));
   return id;
 }

@@ -1,5 +1,5 @@
 {
- "_source": "fields_get on utakfresh.odoo.com, 2026-10-07T10:33Z (read-only), § 62 (the three models of «طلب أسعار خاص» for the first time; x_price_offer.x_special / x_special_quote_id / x_special_unit; every other model of § 61 again, unchanged): every field of each model, and the selection values.",
+ "_source": "fields_get on utakfresh.odoo.com, 2026-10-07T11:20Z (read-only), § 62 (the three models of «طلب أسعار خاص» for the first time; x_price_offer.x_special / x_special_quote_id / x_special_unit; every other model of § 61 again, unchanged): every field of each model, and the selection values.",
  "_selections": {
   "x_pricing_config.x_above_suggested": [
    "market",
@@ -2954,6 +2954,10 @@
    "x_supplier_due",
    "x_official_doc"
   ],
+  "x_special_quote.x_price_mode": [
+   "net",
+   "gross"
+  ],
   "x_special_quote.x_state": [
    "draft",
    "sent",
@@ -5143,6 +5147,7 @@
   "id",
   "write_date",
   "write_uid",
+  "x_alternatives",
   "x_asked_at",
   "x_date",
   "x_delivery_cost",
@@ -5158,6 +5163,7 @@
   "x_partner_id",
   "x_pdf_url",
   "x_prepared",
+  "x_price_mode",
   "x_profit_text",
   "x_quotation_number",
   "x_recipient_ids",
@@ -5177,6 +5183,7 @@
   "id",
   "write_date",
   "write_uid",
+  "x_final_net",
   "x_final_price",
   "x_market_median",
   "x_market_text",

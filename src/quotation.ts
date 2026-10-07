@@ -97,6 +97,24 @@ export interface QuotationPDFData {
    * «صالح حتى» (src/special-quotation.ts). Absent: the note as it was.
    */
   footerNote?: string;
+  /**
+   * § 62 ج (the addition) — a quotation whose prices are BEFORE VAT: the names of
+   * its two totals («المجموع قبل الضريبة», «ضريبة القيمة المضافة 15%») and no
+   * discount row. Absent: the totals as they were.
+   */
+  totals?: QuotationTotalsOptions;
+  /** § 62 ج (the addition) — a block printed under the table as it is («خيارات بديلة»). Absent or empty: nothing. */
+  belowTable?: { label: string; text: string };
+}
+export interface QuotationTotalsOptions { subtotalLabel?: string; vatLabel?: string; hideDiscount?: boolean }
+
+/** The block under the table: its label, then its text as it was typed (line breaks kept, nothing read as HTML). */
+export function renderBelowTableHTML(b?: { label: string; text: string }): string {
+  if (!b || !String(b.text ?? "").trim()) return "";
+  return `<div style="position: relative; margin-top: 14px;">
+      <div style="font-size: 10px; font-weight: 500; color: ${BRAND_COLORS.inkMuted}; letter-spacing: 0.16em; margin-bottom: 4px;">${escapeHTML(b.label)}</div>
+      <div style="font-size: 11px; font-weight: 400; color: ${BRAND_COLORS.ink}; line-height: 1.8; white-space: pre-wrap;">${escapeHTML(String(b.text).trim())}</div>
+    </div>`;
 }
 
 // 2026-09-19 — same-day validity. Old text was "٧ أيام". Since UTAK's cost is
@@ -161,14 +179,16 @@ export function renderQuotationTotalsHTML(
   vatAmount: number,
   grandTotal: number,
   lang: DocLang = "ar",
+  opts: QuotationTotalsOptions = {},
 ): string {
   const L = (key: "subtotal" | "discount" | "vat15" | "grandTotal") =>
     lang === "en" ? UI[key].en : UI[key].ar;
+  const discountRow = opts.hideDiscount ? "" : `
+        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>${escapeHTML(L("discount"))}</span><span style="direction: ltr;">${formatMoney(discount, lang)}</span></div>`;
   return `<div style="position: relative; display: flex; justify-content: flex-end;">
       <div style="width: 40%; display: flex; flex-direction: column; gap: 9px;">
-        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>${escapeHTML(L("subtotal"))}</span><span style="direction: ltr;">${formatMoney(subtotal, lang)}</span></div>
-        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>${escapeHTML(L("discount"))}</span><span style="direction: ltr;">${formatMoney(discount, lang)}</span></div>
-        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>${escapeHTML(L("vat15"))}</span><span style="direction: ltr;">${formatMoney(vatAmount, lang)}</span></div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>${escapeHTML(opts.subtotalLabel ?? L("subtotal"))}</span><span style="direction: ltr;">${formatMoney(subtotal, lang)}</span></div>${discountRow}
+        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: ${BRAND_COLORS.inkMuted};"><span>${escapeHTML(opts.vatLabel ?? L("vat15"))}</span><span style="direction: ltr;">${formatMoney(vatAmount, lang)}</span></div>
         <div style="height: 6px;"></div>
         <div style="height: 0; border-top: 0.5px solid ${BRAND_COLORS.borderStrong};"></div>
         <div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 8px;"><span style="font-size: 12px; font-weight: 500; color: ${BRAND_COLORS.ink};">${escapeHTML(L("grandTotal"))}</span><span style="font-size: 20px; font-weight: 500; color: ${BRAND_COLORS.primary}; direction: ltr;">${formatMoney(grandTotal, lang)}</span></div>
@@ -194,13 +214,14 @@ export function renderQuotationHTML(data: QuotationPDFData, company?: CompanyInf
     documentDate: data.quotationDate,
     billTo,
     from: data.lang ? fromPartyFor(lang, company) : undefined,
-    bodyHTML: renderQuotationBodyHTML(data.items, pageMetrics, lang),
+    bodyHTML: renderQuotationBodyHTML(data.items, pageMetrics, lang) + renderBelowTableHTML(data.belowTable),
     totalsHTML: renderQuotationTotalsHTML(
       data.subtotal,
       data.discount,
       data.vatAmount,
       data.grandTotal,
       lang,
+      data.totals,
     ),
     footerNote: data.footerNote ?? (lang === "en"
       ? (data.vatInclusive ? `${UI.quotationValidity.en} ${UI.vatInclusiveNote.en}.` : UI.quotationValidity.en)

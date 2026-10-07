@@ -25,7 +25,7 @@ import {
 } from "./lib/s40-kit.mjs";
 import {
   ACTION_CONTEXT, ACTION_DOMAIN, ACTION_NAME, AUTOMATION_FIELDS, AUTOMATION_NAME, AUTOMATION_TRIGGER, CODE_ACTIONS, HOOKS, HOOK_PATH, LINE_COLUMNS, LINE_FIELDS,
-  LINE_MODEL, LINE_MODEL_NAME, LINE_ORDER, LIST_ARCH, MENU_SEQUENCE, MENU_TITLE, OFFER_EXT_ARCH, OFFER_FIELDS, OFFER_MODEL, OFFER_PARENTS, PRICING_MENU, PROD_HOST,
+  LINE_MODEL, LINE_MODEL_NAME, LINE_ORDER, LIST_ARCH, MENU_SEQUENCE, MENU_TITLE, OFFER_EXT_ARCH, OFFER_FIELDS, OFFER_MODEL, OFFER_PARENTS, PRICE_MODES, PRICING_MENU, PROD_HOST,
   QUOTE_FIELDS, QUOTE_MODEL, QUOTE_MODEL_NAME, QUOTE_O2M, QUOTE_ORDER, RECIPIENT_FIELDS, RECIPIENT_MODEL, RECIPIENT_MODEL_NAME, RECIPIENT_ORDER, SEARCH_ARCH,
   VIEW_FORM, VIEW_LIST, VIEW_SEARCH, formArch,
 } from "./lib/s62-odoo.mjs";
@@ -84,8 +84,9 @@ if (VERIFY) {
     check(`${model}: its ${defs.length} fields, each of its kind, title and relation`, !bad.length, JSON.stringify(bad.map((d) => [d.name, f[d.name]])));
     await pause();
   }
-  const sf = await call(QUOTE_MODEL, "fields_get", { allfields: ["x_state"], attributes: ["selection"] });
+  const sf = await call(QUOTE_MODEL, "fields_get", { allfields: ["x_state", "x_price_mode"], attributes: ["selection"] });
   check("the request's states: draft, sent, priced, quoted, closed", JSON.stringify((sf.x_state?.selection ?? []).map((s) => s[0])) === JSON.stringify(["draft", "sent", "priced", "quoted", "closed"]), JSON.stringify(sf.x_state));
+  check("«الأسعار في العرض»: قبل الضريبة (net) / شاملة الضريبة (gross)", JSON.stringify(sf.x_price_mode?.selection ?? []) === JSON.stringify(PRICE_MODES), JSON.stringify(sf.x_price_mode));
   const of = await call(OFFER_MODEL, "fields_get", { attributes: ["type", "string", "relation"] });
   check(`${OFFER_MODEL}: «خاص» (boolean), the request (many2one → ${QUOTE_MODEL}), the unit (char)`, OFFER_FIELDS.every((d) => of[d.name]?.type === d.ttype && of[d.name].string === d.field_description && (!d.relation || of[d.name].relation === d.relation)), JSON.stringify(OFFER_FIELDS.map((d) => of[d.name])));
   await pause();
@@ -100,7 +101,7 @@ if (VERIFY) {
   const ids = Object.fromEntries([...Object.entries(HOOKS), ...Object.entries(CODE_ACTIONS)].map(([k, v]) => [k, by[v.name]?.id]));
   const form = await viewByName(VIEW_FORM), list = await viewByName(VIEW_LIST), search = await viewByName(VIEW_SEARCH);
   check(`the form ${VIEW_FORM} #${form?.id}: as written, its seven buttons on the seven actions`, form?.active && form.model === QUOTE_MODEL && form.arch_db === formArch(ids), "the stored arch differs");
-  check(`the form's lines: the eight columns in order (${LINE_COLUMNS.join(", ")})`, (() => {
+  check(`the form's lines: their columns in order (${LINE_COLUMNS.join(", ")})`, (() => {
     const shown = [...String(form?.arch_db ?? "").split('<page string="الأصناف"')[1]?.split("</page>")[0].matchAll(/<field name="(x_[a-z_]+)"([^>]*)\/>/g) ?? []].filter((m) => !/optional="hide"|widget="handle"/.test(m[2])).map((m) => m[1]);
     return JSON.stringify(shown) === JSON.stringify(LINE_COLUMNS);
   })());
@@ -181,11 +182,30 @@ await pause();
 for (const l of formArch(Object.fromEntries(Object.keys({ ...HOOKS, ...CODE_ACTIONS }).map((k) => [k, ids[k] ?? `<${k}>`]))).split("\n")) log(`    ${l}`);
 await view("form", VIEW_FORM, "form", formArch(ids));
 await pause();
+// the form as this file writes it now: a view made by an earlier run is brought up to date (its arch of before is kept in the rollback file)
+{
+  const have = await viewByName(VIEW_FORM), want = formArch(ids);
+  if (have && Object.values(ids).every(Boolean) && have.arch_db !== want) {
+    log(`✎ view ${VIEW_FORM} #${have.id}: its arch, as written here`);
+    rb.before.formArch ??= have.arch_db; save();
+    if (APPLY) await call("ir.ui.view", "write", { ids: [have.id], vals: { arch_base: want } });
+    await pause();
+  }
+}
 const actionId = await ensureActWindow(ctx, "requests", ACTION_NAME, {
   res_model: QUOTE_MODEL, view_mode: "list,form", domain: ACTION_DOMAIN, context: ACTION_CONTEXT, ...(searchId ? { search_view_id: searchId } : {}),
   help: "<p>طلب عميل بأصناف خارج قائمة اليوم: أنشئه، واضغط «📨 أرسل طلب الأسعار»، وانتظر أسعار المصادر، واعتمد السعر النهائي لكل سطر، ثم «📄 أصدر عرض السعر».</p>",
 });
 await pause();
+{
+  const [act] = actionId ? await call("ir.actions.act_window", "read", { ids: [actionId], fields: ["id", "context"] }) : [];
+  if (act && act.context !== ACTION_CONTEXT) {
+    log(`✎ act_window #${act.id}: context ← ${ACTION_CONTEXT}`);
+    rb.before.actionContext ??= act.context; save();
+    if (APPLY) await call("ir.actions.act_window", "write", { ids: [act.id], vals: { context: ACTION_CONTEXT } });
+    await pause();
+  }
+}
 const menu = await menuRow();
 if (menu && !menu.active) {
   log(`✎ menu «${MENU_TITLE}» #${menu.id}: on again`);

@@ -99,8 +99,9 @@ const clean = (s: string): string => String(s ?? "").replace(/^\[[^\]]*\]\s*/, "
  */
 export function specialSlotTexts(line: Pick<QuoteLine, "productName" | "qty" | "unit">, kind: PriceKind): { label: string; hint: string } {
   const unit = clean(line.unit) || DEFAULT_UNIT;
+  // the addition to § 62 ج — a line by the carton («كرتون 18 كجم»): its packaging is named to both roles, since the role's line says «بالكيلو»
   const hint = kind === "purchase"
-    ? `الكمية: ${money(line.qty)} ${unit}`
+    ? `الكمية: ${money(line.qty)} ${unit}${unit === DEFAULT_UNIT ? "" : ` · السعر لكل ${unit}`}`
     : unit === DEFAULT_UNIT ? "السعر بالريال" : `السعر بالريال لكل ${unit}`;
   return { label: cut(clean(line.productName) || "صنف", LABEL_MAX), hint: cut(hint, HINT_MAX) };
 }

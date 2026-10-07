@@ -7,7 +7,9 @@
 //      its unit the kilo, and its «صنف جديد» flag cleared (13 alerts to Baraa for products this script
 //      names itself would say nothing new). No existing product is changed.
 //   3  the request, «مسودة», with its 27 lines in the customer's order. NOTHING IS SENT: the form to the
-//      sources goes when Baraa presses «📨 أرسل طلب الأسعار» himself.
+//      sources goes when Baraa presses «📨 أرسل طلب الأسعار» himself. A request somebody already made by
+//      hand for the same customer is NOT this script's: it is left exactly as it is (named in the log
+//      and in the rollback file), and this script's request is made beside it.
 //   4  the worker prepares it by itself (its name, the defaults, its three sources): creating it is a
 //      save, and a save asks the deployed worker for the request's numbers (Odoo's automation). RUN THIS
 //      AFTER THE WORKER IS DEPLOYED; if the request stays unprepared, «🔄 احسب» on its screen — or
@@ -56,7 +58,11 @@ export const norm = (s) => String(s ?? "").replace(/^\s*\[[^\]]*\]\s*/, "").repl
 const digits = CUSTOMER.number.replace(/\D/g, "").slice(-9);
 const customerRows = () => call("res.partner", "search_read", { domain: ["|", ["x_whatsapp_number", "ilike", digits], ["phone", "ilike", digits]], fields: ["id", "name", "phone", "x_whatsapp_number", "customer_rank", "supplier_rank", "is_company", "active"], order: "id asc", limit: 5 });
 const catalog = () => call("product.template", "search_read", { domain: [["type", "!=", "service"]], fields: ["id", "name", "active", "x_is_active_for_sale", "categ_id", "uom_id", "taxes_id", "default_code", "x_utak_new"], order: "id asc", limit: 500, context: ALL });
-const quoteOf = async (partnerId) => (await call(QUOTE_MODEL, "search_read", { domain: [["x_partner_id", "=", partnerId], ["x_utak_simulation", "!=", true]], fields: ["id", "x_name", "x_state", "x_prepared", "x_note", "x_asked_at", "x_waste_pct", "x_min_margin_pct", "x_delivery_cost", "x_valid_until", "x_price_mode", "x_profit_text", "x_missing_purchase"], order: "id asc", limit: 5 }))[0] ?? null;
+const QUOTE_READ = ["id", "x_name", "x_state", "x_prepared", "x_note", "x_asked_at", "x_waste_pct", "x_min_margin_pct", "x_delivery_cost", "x_valid_until", "x_price_mode", "x_profit_text", "x_missing_purchase", "x_line_ids", "create_uid", "create_date"];
+/** The customer's requests (the real ones), oldest first. */
+const quotesOf = (partnerId) => call(QUOTE_MODEL, "search_read", { domain: [["x_partner_id", "=", partnerId], ["x_utak_simulation", "!=", true]], fields: QUOTE_READ, order: "id asc", limit: 20 });
+/** THIS script's request: the one it made (the rollback file names it) — never a request somebody else made for the same customer. */
+const quoteOf = async (partnerId) => (rb.created.quote ? (await quotesOf(partnerId)).find((q) => q.id === rb.created.quote) ?? null : null);
 const linesOf = (id) => call(LINE_MODEL, "search_read", { domain: [["x_quote_id", "=", id]], fields: ["id", "x_sequence", "x_product_tmpl_id", "x_qty", "x_unit", "x_purchase_price", "x_final_price"], order: "x_sequence asc, id asc", limit: 100 });
 /** Each line against the catalog: the product it is, or null (to be made). */
 function matchAll(products) {
@@ -167,7 +173,13 @@ log(`matched ${plan.filter((p) => p.product).length} of ${plan.length}, to make 
 
 log("— 3: the request («مسودة», nothing sent)");
 const have = partnerId ? await quoteOf(partnerId) : null;
-if (have) log(`= ${QUOTE_MODEL} #${have.id} «${have.x_name || "—"}» of the customer (${have.x_state})`);
+// a request somebody made by hand for the same customer is his: left exactly as it is, and named
+for (const o of (partnerId ? await quotesOf(partnerId) : []).filter((q) => q.id !== c.quote)) {
+  log(`= ${QUOTE_MODEL} #${o.id} «${o.x_name || "—"}» of the customer (${o.x_state}, ${(o.x_line_ids ?? []).length} lines, made by ${o.create_uid?.[1] ?? "?"} at ${o.create_date} UTC): NOT this script's — left as it is`);
+  rb.before.otherRequests ??= []; if (!rb.before.otherRequests.includes(o.id)) rb.before.otherRequests.push(o.id);
+}
+save();
+if (have) log(`= ${QUOTE_MODEL} #${have.id} «${have.x_name || "—"}» of the customer (${have.x_state}): this script's`);
 else {
   log(`+ ${QUOTE_MODEL} for #${partnerId ?? "?"}: ${LINES.length} lines, ${LINES.reduce((s, l) => s + l[1], 0).toFixed(1)} كيلو`);
   if (APPLY) {

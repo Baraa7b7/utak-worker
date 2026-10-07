@@ -225,6 +225,8 @@ for (const p of ["team_prices_test", "quotation_file_test", "shift_start_test"])
 (OWNER_ALLOWED_PURPOSES as Set<string>).add("staffing_test");
 /** § 62 — a special request's quotation as a file to Baraa (his own button, or a customer who could not be sent it), and the trials of § 62: his number alone. */
 for (const p of ["owner_special_quote", "special_quote_test"]) (OWNER_ALLOWED_PURPOSES as Set<string>).add(p);
+/** § 65 — the trials of the suppliers' registry (the registration form, the offer form, their answers): Baraa's number alone. */
+(OWNER_ALLOWED_PURPOSES as Set<string>).add("supplier_registry_test");
 
 function ownerDigits(env: Env): string {
   return waDigits(String(env.OWNER_WHATSAPP ?? ""));

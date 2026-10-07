@@ -55,7 +55,7 @@ const M = [
   ["هـ", "the page has no heading of its category", [[LIB,
     "        { type: \"TextHeading\", text: ref(k, `t${k}`) },", "        { type: \"TextHeading\", text: ref(k, \"sub\") },"]], T],
   ["هـ", "the worker still sends utak_price_ask_v1", [[PF,
-    "export const PRICE_FLOW_ID = \"1123704886881420\";", "export const PRICE_FLOW_ID = \"1086052444016554\";"]], T],
+    "export const PRICE_FLOW_ID = \"1120057760674035\";", "export const PRICE_FLOW_ID = \"1086052444016554\";"]], T],
   ["هـ", "the worker opens v1's screen", [[PF,
     "export const PRICE_FLOW_SCREEN = \"PAGE_A\";", "export const PRICE_FLOW_SCREEN = \"PRICES\";"]], T],
   ["هـ", "the worker fills three pages", [[PF,
@@ -87,7 +87,7 @@ const M = [
   ["هـ", "the token is kept without its pages", [[PF,
     "name: src.name, supplier: src.supplier, kind, items, pages, createdAt: now,", "name: src.name, supplier: src.supplier, kind, items, createdAt: now,"]], T],
   ["هـ", "a v1 token is refused after § 52", [[PF,
-    "    return rec && (rec.v === 1 || rec.v === 2) && Array.isArray(rec.items) ? rec : null;", "    return rec && rec.v === 2 && Array.isArray(rec.items) ? rec : null;"]], T],
+    "    return rec && (rec.v === 1 || rec.v === 2 || rec.v === 3) && Array.isArray(rec.items) ? rec : null;", "    return rec && (rec.v === 2 || rec.v === 3) && Array.isArray(rec.items) ? rec : null;"]], T],
   // ---------------------------------------------------------------- ج the VAT line by role
   ["ج", "the form tells a «سوق» source «بدون ضريبة»", [[PF,
     "  market: \"اكتب السعر زي ما ينباع في السوق (شامل الضريبة).\",\n};\nexport const PRICE_FLOW_EMPTY_NOTE", "  market: \"الأسعار بدون ضريبة.\",\n};\nexport const PRICE_FLOW_EMPTY_NOTE"]], T],
@@ -168,7 +168,7 @@ const M = [
   ["ب", "an old template that did not go still counts as the ask (no text ask, a form owed)", [[PS,
     "  if (d?.action !== \"template\") return false;\n  if (!t.employeeId) {", "  if (!t.employeeId) {"]], T],
   ["ب", "the outside source waits in a team queue it never flushes", [[PS,
-    "...src.partners.filter((p) => !p.supplier && !emp.has(p.partnerId)).map((p) => ({ partnerId: p.partnerId, employeeId: null,", "...src.partners.filter((p) => !p.supplier && !emp.has(p.partnerId)).map((p) => ({ partnerId: p.partnerId, employeeId: 1,"]], T],
+    "&& !emp.has(p.partnerId)).map((p) => ({ partnerId: p.partnerId, employeeId: null,", "&& !emp.has(p.partnerId)).map((p) => ({ partnerId: p.partnerId, employeeId: 1,"]], T],
   // ---------------------------------------------------------------- و the form after the old template
   ["و", "02:00: the old template leaves no form owed", [[SU,
     "      await priceFlow.markFlowOwed(env, flowSrc);\n", ""]], T],

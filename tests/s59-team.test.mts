@@ -362,7 +362,7 @@ console.log("\n[أ2] Omar: no 02:30 ask, no 05:00 reminder, no «بدء الدو
   assert("before: the 02:30 ask names Omar", (r.asks ?? []).some((a: any) => a.name === "عمر المجهلي"), JSON.stringify(r.asks));
 
   env = after59(`${D6} 02:30`);
-  seed("res.partner", { id: 109, name: "رائد", x_whatsapp_number: "+966500000109", x_price_source: true, x_price_role: "market", supplier_rank: 0, customer_rank: 0 });
+  seed("res.partner", { id: 109, name: "رائد", x_whatsapp_number: "+966500000109", x_price_source: true, x_price_role: "market", x_supplier_state: "approved", supplier_rank: 0, customer_rank: 0 });
   openWindow(env, DRIVER_PHONE); openWindow(env, "966500000109");
   graph.length = 0;
   r = await quiet(() => PS.runMarketAsk(env, Date.now(), 6 * 60));

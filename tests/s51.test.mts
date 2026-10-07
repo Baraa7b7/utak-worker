@@ -16,7 +16,7 @@
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/s51.test.mts
 
 import { readFileSync } from "node:fs";
-import { OWNER, closeOwnerWindow, ctx, graph, heldFor, inbound, odooLog, openWindow, quiet, rows, seed, sentTo, setFail, setRiyadh, signed, table } from "./wa-harness.mts";
+import { OWNER, closeOwnerWindow, ctx, graph, heldFor, inbound, odooLog, openWindow, quiet, rows, seed, sentTo as allSentTo, setFail, setRiyadh, signed, table } from "./wa-harness.mts";
 import { AHMED, AHMED_PHONE, DAY, DRIVER, DRIVER_PHONE, OMAR_EMP, assert, cost, done, fresh, ownerTexts, rejected } from "./s46-kit.mts";
 
 // the Meta template list (the sync's GET) and the extractor: neither is the harness's business here
@@ -54,6 +54,8 @@ function templates(flow: [string, string] | null = null): void {
   if (flow) row("price_ask_flow", TPL_FLOW, 1, flow[0], flow[1]);
 }
 const world = (riyadh = `${DAY} 02:00`, flow: [string, string] | null = null): any => { const env = fresh(riyadh); cost(500); templates(flow); claudeCalls = 0; metaListReads = 0; metaTemplates = []; return env; };
+// § 65 د — a taken form is followed by the offer of «➕ صنف إضافي» (tests/s65-prices.test.mts reads it): the messages here are read without it
+const sentTo = (d: string) => allSentTo(d).filter((b: any) => b?.interactive?.action?.parameters?.flow_cta !== "➕ صنف إضافي");
 const flowsTo = (d: string) => sentTo(d).filter((b: any) => b?.interactive?.type === "flow");
 const tplTo = (d: string, name: string) => sentTo(d).filter((b: any) => b?.template?.name === name);
 const par = (b: any) => b?.interactive?.action?.parameters ?? {};

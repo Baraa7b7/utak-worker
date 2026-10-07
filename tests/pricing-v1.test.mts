@@ -44,10 +44,11 @@ const REAL: Record<string, string[]> = Object.assign({}, ...FIX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FIX.map((f) => f._selections ?? {}));
 // § 53 — the tenant's fields now for the models § 53 touched (x_market_uplift_pct, x_uplift_pct, the purpose customer_pay_remind_iban): read last, they win
 {
-  const f53 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261007-s62.json", import.meta.url), "utf8")); // § 59 (after § 58: the company's working days, the two purposes) — § 58 (after § 56: the screen's fields): the plan, the actual and the tabs on the day and its lines
+  const f53 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261007-s65.json", import.meta.url), "utf8")); // § 59 (after § 58: the company's working days, the two purposes) — § 58 (after § 56: the screen's fields): the plan, the actual and the tabs on the day and its lines
   for (const m of ["x_pricing_config", "x_price_day", "x_price_day_line"]) REAL[m] = f53[m];
   for (const m of ["x_operating_cost", "hr.employee", "hr.job"]) REAL[m] = f53[m]; // § 61: the job and the employee of a cost line, the job's own fields
   for (const m of ["x_price_offer", "x_special_quote", "x_special_quote_line", "x_special_quote_recipient"]) REAL[m] = f53[m]; // § 62: «خاص» on a source's offer (the day's readers leave it out), the three models of a special request
+  for (const m of ["res.partner", "x_daily_price"]) REAL[m] = f53[m]; // § 65: «حالة المورد» on the card (the 02:00 ask, the closed numbers, the market sources read it), the size and the origin on a daily price
   SELECTIONS["x_whatsapp_template.x_purpose"] = f53._selections["x_whatsapp_template.x_purpose"];
 }
 const rejected: string[] = [];
@@ -442,7 +443,7 @@ console.log("\n[ب] the status: «شاذ» against the same source's last value;
 console.log("\n[ب] a new source = «مصدر أسعار» ticked, no code (a partner who is not a supplier)");
 {
   const env = fresh("2026-10-03 02:30", { onAttendance: false }); sources();
-  seed("res.partner", { id: FAHD, name: "فهد من السوق", supplier_rank: 0, x_whatsapp_number: "+" + FAHD_PHONE, x_price_source: true });
+  seed("res.partner", { id: FAHD, name: "فهد من السوق", supplier_rank: 0, x_whatsapp_number: "+" + FAHD_PHONE, x_price_source: true, x_supplier_state: "approved" }); // § 65: the 02:30 ask reaches an «معتمد» source alone
   const r = await quiet(() => PS.runMarketAsk(env, Date.now(), 360));
   const fahd = (r.asks ?? []).find((a) => a.name === "فهد من السوق");
   assert("his window closed: the ask held by the gateway until he writes", fahd?.action === "held" && heldFor(env, FAHD_PHONE).length === 1, JSON.stringify(r));

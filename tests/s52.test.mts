@@ -18,7 +18,7 @@
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/s52.test.mts
 
 import { readFileSync } from "node:fs";
-import { OWNER, ctx, graph, heldFor, inbound, odooLog, openWindow, quiet, rows, seed, sentTo, setRiyadh, signed, table } from "./wa-harness.mts";
+import { OWNER, ctx, graph, heldFor, inbound, odooLog, openWindow, quiet, rows, seed, sentTo as allSentTo, setRiyadh, signed, table } from "./wa-harness.mts";
 import { AHMED, AHMED_PHONE, DAY, DRIVER, DRIVER_PHONE, OMAR_EMP, assert, cost, done, fresh, ownerTexts, rejected, setExtract } from "./s46-kit.mts";
 
 let metaTemplates: any[] = [];
@@ -67,7 +67,9 @@ const world = (riyadh = `${DAY} 02:00`, flow: [string, string] | null = null, ra
   if (raed) seedRaed();
   return env;
 };
-const seedRaed = () => seed("res.partner", { id: RAED, name: "رائد", phone: "+" + RAED_PHONE, x_whatsapp_number: "+" + RAED_PHONE, x_wa_allowed: true, x_price_source: true, x_price_role: "market", customer_rank: 0, supplier_rank: 0, x_contact_class: "supplier", x_vat_registered: true });
+const seedRaed = () => seed("res.partner", { id: RAED, name: "رائد", phone: "+" + RAED_PHONE, x_whatsapp_number: "+" + RAED_PHONE, x_wa_allowed: true, x_price_source: true, x_price_role: "market", x_supplier_state: "approved", customer_rank: 0, supplier_rank: 0, x_contact_class: "supplier", x_vat_registered: true });
+// § 65 د — a taken form is followed by the offer of «➕ صنف إضافي» (tests/s65-prices.test.mts reads it): the messages here are read without it
+const sentTo = (d: string) => allSentTo(d).filter((b: any) => b?.interactive?.action?.parameters?.flow_cta !== "➕ صنف إضافي");
 const flowsTo = (d: string) => sentTo(d).filter((b: any) => b?.interactive?.type === "flow");
 const tplTo = (d: string, name: string) => sentTo(d).filter((b: any) => b?.template?.name === name);
 const textsTo = (d: string) => sentTo(d).filter((b: any) => b?.type === "text").map((b: any) => String(b.text?.body ?? ""));
@@ -134,7 +136,7 @@ console.log("\n[هـ] utak_price_ask_v2 at Meta is the form the worker fills: fo
   assert("every key the worker sends is declared on the first page, and every declared key is sent (249: sub, note, 4 headings, 3 «a page follows», 60 × 4)",
     JSON.stringify(Object.keys(prep.data).sort()) === JSON.stringify(Object.keys(model).sort()) && Object.keys(prep.data).length === 249 && json.screens.slice(1).every((s: any) => Object.keys(s.data).length === 0), String(Object.keys(prep.data).length));
   assert("…each of its declared type (a string, or a boolean)", Object.entries(prep.data).every(([k, v]) => typeof v === (model[k].type === "boolean" ? "boolean" : "string")));
-  assert("the message opens the v2 Flow on its first page, with the data (navigate)", par(prep.session.body).flow_id === "1123704886881420" && FL.PRICE_FLOW_ID === "1123704886881420" && par(prep.session.body).flow_action === "navigate" && par(prep.session.body).flow_action_payload.screen === "PAGE_A" && par(prep.session.body).flow_cta === "أدخل الأسعار");
+  assert("the message opens the Flow the worker sends (v3 since § 65: v2's pages and data, with the size and the origin) on its first page, with the data (navigate)", par(prep.session.body).flow_id === "1120057760674035" && FL.PRICE_FLOW_ID === "1120057760674035" && FL.PRICE_FLOW_V2_ID === "1123704886881420" && par(prep.session.body).flow_action === "navigate" && par(prep.session.body).flow_action_payload.screen === "PAGE_A" && par(prep.session.body).flow_cta === "أدخل الأسعار");
   assert("v1 stays as it was published — its own name, its one screen, its id — and is no longer the Flow the worker sends", LIB1.FLOW_NAME === "utak_price_ask_v1" && LIB.FLOW_NAME === "utak_price_ask_v2" && LIB1.buildFlowJson().screens.length === 1 && FL.PRICE_FLOW_V1_ID === "1086052444016554" && FL.PRICE_FLOW_ID !== FL.PRICE_FLOW_V1_ID);
 }
 
@@ -147,7 +149,7 @@ console.log("\n[هـ] the pages follow the categories: فواكه، خضار، �
     JSON.stringify(p.record.pages) === JSON.stringify(["فواكه"]) && p.data.t1 === "فواكه" && p.data.m1 === false && p.data.m2 === false && p.data.m3 === false && [1, 2, 3, 4].every((n) => p.data[`v${n}`] === true) && p.data.v5 === false && p.total === 4, JSON.stringify([p.record.pages, p.data.t1, p.data.m1]));
   assert("…the other pages are skipped: no heading, nothing shown on them", p.data.t2 === "-" && p.data.t3 === "-" && p.data.t4 === "-" && Array.from({ length: 45 }, (_, i) => p.data[`v${i + 16}`]).every((v) => v === false));
   assert("…the fields keep the rules of v1: «الصنف — التعبئة», the hint «آخر سعر», the engine's order", p.data.l1 === "طماطم — كرتون" && p.data.h1 === "آخر سعر: 21" && p.data.h2 === "لا سعر سابق" && p.record.items.map((i: any) => `${i.slot}:${i.productId}/${i.packagingId}`).join() === "1:1/11,2:2/21,3:3/31,4:4/41");
-  assert("…under the heading: «أسعار الشراء اليوم»; the token is kept as a v2 token with its pages", p.data.sub === "أسعار الشراء اليوم" && (await FL.readFlowToken(env, p.record.token))?.v === 2 && JSON.stringify((await FL.readFlowToken(env, p.record.token))?.pages) === JSON.stringify(["فواكه"]));
+  assert("…under the heading: «أسعار الشراء اليوم»; the token is kept with its pages (a v3 token since § 65)", p.data.sub === "أسعار الشراء اليوم" && (await FL.readFlowToken(env, p.record.token))?.v === 3 && JSON.stringify((await FL.readFlowToken(env, p.record.token))?.pages) === JSON.stringify(["فواكه"]));
   assert("no Odoo field outside the schema (product.template.categ_id, product.category)", rejected.length === 0, rejected.join(" | "));
 }
 {
@@ -226,7 +228,7 @@ console.log("\n[هـ] the pages follow the categories: فواكه، خضار، �
     items: [{ slot: 1, productId: 1, packagingId: 11, name: "طماطم", label: "طماطم — كرتون", hint: "آخر سعر: 21" }, { slot: 2, productId: 2, packagingId: 21, name: "خيار", label: "خيار — جرم", hint: "لا سعر سابق" }] }));
   const r = await reply(env, AHMED_PHONE, token, { p1: "20", p2: "8" });
   const ack = flowsTo(AHMED_PHONE).at(-1);
-  assert("a v1 token answered after § 52 is still read (its fields are p1 … p15), and its «تعديل» opens the v2 Flow on one page", r.action === "saved" && dpRows().length === 2 && par(ack).flow_id === FL.PRICE_FLOW_ID && dataOf(ack).t1 === "الأصناف" && dataOf(ack).m1 === false && dataOf(ack).i2 === "8" && Object.keys(dataOf(ack)).length === 249, JSON.stringify([r, dataOf(ack).t1]));
+  assert("a v1 token answered after § 52 is still read (its fields are p1 … p15), and its «تعديل» opens the worker's Flow on one page", r.action === "saved" && dpRows().length === 2 && par(ack).flow_id === FL.PRICE_FLOW_ID && dataOf(ack).t1 === "الأصناف" && dataOf(ack).m1 === false && dataOf(ack).i2 === "8" && Object.keys(dataOf(ack)).length === 249 + 2 * FL.PRICE_FLOW_SLOTS, JSON.stringify([r, dataOf(ack).t1])); // § 65: v2's 249 keys and is<n> / io<n> of the sixty slots
 }
 
 // ================================================================ [ج] the VAT line by role
@@ -264,7 +266,7 @@ console.log("\n[ج] the VAT line follows the role: «الأسعار بدون ض�
 // ================================================================ [د] the template
 console.log("\n[د] utak_price_ask_flow_v2: one submission, UTILITY, no greeting and no emoji, a FLOW button «أدخل الأسعار»");
 {
-  const t = LIB.templatePayload(FL.PRICE_FLOW_ID);
+  const t = LIB.templatePayload(FL.PRICE_FLOW_V2_ID);
   assert("the template the worker names, submitted UTILITY, in Arabic, with the Flow's purpose", t.name === "utak_price_ask_flow_v2" && t.name === FL.PRICE_FLOW_TEMPLATE && t.category === "UTILITY" && t.language === "ar" && LIB.FLOW_TEMPLATE.purpose === FL.PRICE_FLOW_PURPOSE);
   assert("its text, to the letter: «طلب تحديث الأسعار ليوم {{1}} حسب الاتفاق مع يو تاك. اضغط «أدخل الأسعار» وأدخل سعر كل صنف.»", t.components[0].text === "طلب تحديث الأسعار ليوم {{1}} حسب الاتفاق مع يو تاك. اضغط «أدخل الأسعار» وأدخل سعر كل صنف.", t.components[0].text);
   assert("…no greeting and no emoji in it, ONE variable (the day)", !/صباح|مرحب|أهلا|هلا|\p{Extended_Pictographic}/u.test(t.components[0].text) && (t.components[0].text.match(/\{\{\d\}\}/g) ?? []).length === 1 && JSON.stringify(t.components[0].example.body_text) === JSON.stringify([["5 أكتوبر 2026"]]) && JSON.stringify(FL.flowAskParams("2026-10-05")) === JSON.stringify(["5 أكتوبر 2026"]));

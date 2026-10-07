@@ -875,6 +875,8 @@ export async function getActiveSuppliersForAsk(env: Env): Promise<SupplierForAsk
       ["x_whatsapp_number", "!=", false],
       ["x_supplied_product_ids", "!=", false],
       ["active", "=", true],
+      // § 65 — a supplier «بانتظار الاعتماد» or «موقوف» is not asked (one with no state yet is, as before)
+      ["x_supplier_state", "not in", ["pending", "suspended"]],
     ],
     fields: ["id", "name", "x_whatsapp_number", "x_supplied_product_ids"],
     limit: 200,
@@ -970,6 +972,9 @@ export async function createDailyPrice(
     raw_reply: string;
     /** 2026-09-25 — "pending" marks an outlier price for review; it is still used. § 51 — "flow": typed in the price Flow, no extractor. */
     extraction_status?: "extracted" | "pending" | "flow";
+    /** § 65 د — «المقاس» and «المنشأ» the supplier typed beside the price (the form of v3); kept on the row. */
+    size?: string;
+    origin?: string;
   },
 ): Promise<number> {
   // 2026-09-25 — the Riyadh day, as the 21:15 purchase list reads it
@@ -990,6 +995,8 @@ export async function createDailyPrice(
   if (typeof vals.actual_weight_kg === "number") {
     record.x_actual_weight_kg = vals.actual_weight_kg;
   }
+  if (vals.size) record.x_item_size = vals.size;
+  if (vals.origin) record.x_item_origin = vals.origin;
   const ids = await call<number[]>(env, "x_daily_price", "create", { vals_list: [record] });
   return ids[0];
 }

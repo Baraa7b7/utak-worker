@@ -63,7 +63,7 @@ const M = [
   ["ب", "Omar's default kind: purchase", [[PS,
     "const DEFAULT_KIND: Record<SourceRole, PriceKind> = { supplier: \"purchase\", observer: \"market\" };", "const DEFAULT_KIND: Record<SourceRole, PriceKind> = { supplier: \"purchase\", observer: \"purchase\" };"]], T],
   ["ب", "the market ask sent to a supplier too", [[PS,
-    "...src.partners.filter((p) => !p.supplier && !emp.has(p.partnerId))", "...src.partners.filter((p) => !emp.has(p.partnerId))"]], T],
+    "...src.partners.filter((p) => p.approved && (!p.supplier || (p.role === \"market\" && !p.purchaseAsked)) && !emp.has(p.partnerId))", "...src.partners.filter((p) => p.approved && !emp.has(p.partnerId))"]], T],
   ["ب", "the ask not claimed once a day", [[PS,
     "claimButton(env, `mask_sent:${day}:p${t.partnerId}`, 26 * 60 * 60)", "claimButton(env, `mask_sent:${day}:p${t.partnerId}:${Math.random()}`, 26 * 60 * 60)"]], T],
   ["ب", "the ask before 02:30", [[PS,

@@ -66,8 +66,13 @@ import { arabicDate } from "./wa-params";
 import { readActiveItems } from "./pricing-engine";
 import type { PriceKind, PriceRole } from "./price-sources";
 
-/** utak_price_ask_v2 at Meta (PUBLISHED 2026-10-04, § 52; a published Flow's JSON is frozen). */
-export const PRICE_FLOW_ID = "1123704886881420";
+/**
+ * utak_price_ask_v3 at Meta (§ 65; a published Flow's JSON is frozen): v2's four pages, slot for slot, with
+ * «المقاس» and «المنشأ» under every price. What an interactive message inside the window opens.
+ */
+export const PRICE_FLOW_ID = "1120057760674035";
+/** utak_price_ask_v2 (§ 52): what the button of the template utak_price_ask_flow_v2 still opens outside the window — the same slots, without the two fields. */
+export const PRICE_FLOW_V2_ID = "1123704886881420";
 /** utak_price_ask_v1 (§ 51): still at Meta, no longer sent. */
 export const PRICE_FLOW_V1_ID = "1086052444016554";
 /** The first page: the only screen a message (or a template's FLOW button) opens. */
@@ -192,6 +197,26 @@ export function flowData(sub: string, note: string, pages: string[], items: Flow
   return data;
 }
 
+/** § 65 — what a slot's two optional text fields hold: «المقاس» (the market's word for the size, «66») and «المنشأ». */
+export interface SlotText { s?: string; o?: string }
+export const SLOT_TEXT_MAX = 40;
+/** A size or an origin as it is kept: one line, forty characters. */
+export const slotText = (v: unknown): string => String(v ?? "").replace(/[‎‏⁦-⁩‪-‮]/g, "").replace(/\s+/g, " ").trim().slice(0, SLOT_TEXT_MAX);
+/**
+ * § 65 — the data of utak_price_ask_v3: v2's keys, letter for letter (the form's title `sub` opens each
+ * page's heading there: «أسعار الشراء اليوم — فواكه»), and what «تعديل» opens the size and the origin of
+ * every slot with (is<n>, io<n>).
+ */
+export function flowDataV3(sub: string, note: string, pages: string[], items: FlowItem[], init: Record<number, number> = {}, texts: Record<number, SlotText> = {}): Record<string, string | boolean> {
+  const data = flowData(sub, note, pages, items, init);
+  for (let n = 1; n <= PRICE_FLOW_SLOTS; n++) {
+    const shown = items.some((x) => x.slot === n);
+    data[`is${n}`] = shown ? slotText(texts[n]?.s) : "";
+    data[`io${n}`] = shown ? slotText(texts[n]?.o) : "";
+  }
+  return data;
+}
+
 export interface FlowSource {
   partnerId: number;
   employeeId?: number | null;
@@ -308,8 +333,8 @@ export async function flowItems(env: Env, hints: { partnerId: number; supplier: 
 // ---------------------------------------------------------------- flow_token
 
 export interface FlowRecord {
-  /** 1 = a token of utak_price_ask_v1 (§ 51, one page, no `pages`); 2 = of v2. */
-  v: 1 | 2;
+  /** 1 = a token of utak_price_ask_v1 (§ 51, one page, no `pages`); 2 = of v2; 3 = of v3 (§ 65: the reply may carry a size and an origin). */
+  v: 1 | 2 | 3;
   token: string;
   /** The Riyadh day the prices are for. */
   day: string;
@@ -332,6 +357,11 @@ export interface FlowRecord {
   /** A reply was taken (a token is read once), and what it carried. */
   usedAt?: number;
   values?: Record<number, number>;
+  /** § 65 — the size and the origin of each priced slot: what the reply carried, and what «تعديل» opened with. */
+  texts?: Record<number, SlotText>;
+  initTexts?: Record<number, SlotText>;
+  /** § 65 — the trial whose rows ARE written, flagged «محاكاة» (the trial of before writes nothing). */
+  sim?: boolean;
 }
 export const flowTokenKey = (token: string): string => `pflow:v1:${token}`;
 export function newFlowToken(day: string, partnerId: number): string {
@@ -343,7 +373,7 @@ export async function readFlowToken(env: Env, token: string): Promise<FlowRecord
   try {
     const raw = await env.MSG_DEDUP.get(flowTokenKey(token));
     const rec = raw ? (JSON.parse(raw) as FlowRecord) : null;
-    return rec && (rec.v === 1 || rec.v === 2) && Array.isArray(rec.items) ? rec : null;
+    return rec && (rec.v === 1 || rec.v === 2 || rec.v === 3) && Array.isArray(rec.items) ? rec : null;
   } catch { return null; }
 }
 async function writeFlowToken(env: Env, rec: FlowRecord): Promise<void> {
@@ -363,12 +393,19 @@ export interface FlowAskOpts {
   pages?: string[];
   init?: Record<number, number>;
   parent?: string;
+  /** § 65 — «تعديل»: the size and the origin the form opens with. */
+  initTexts?: Record<number, SlotText>;
+  /** § 65 — the trial whose rows are written flagged «محاكاة». */
+  sim?: boolean;
   /** The source whose last prices fill the hints, when it is not the recipient (the trial to Baraa — never another recipient: prepareFlowAsk). */
   hintsFrom?: { partnerId: number; supplier: boolean; employeeId?: number | null };
 }
 export interface PreparedFlow {
   record: FlowRecord;
+  /** v2's data: what goes with the template (its button opens utak_price_ask_v2). */
   data: Record<string, string | boolean>;
+  /** § 65 — v3's data: what goes with the interactive message. */
+  sessionData: Record<string, string | boolean>;
   session: GwSession;
   template: GwTemplate;
   total: number;
@@ -420,16 +457,19 @@ export async function prepareFlowAsk(env: Env, src: FlowSource, opts: FlowAskOpt
   }
   if (!items.length) return null;
   const record: FlowRecord = {
-    v: 2, token: newFlowToken(day, src.partnerId), day, to: waDigits(src.whatsapp), partnerId: src.partnerId, employeeId: src.employeeId ?? null,
+    v: 3, token: newFlowToken(day, src.partnerId), day, to: waDigits(src.whatsapp), partnerId: src.partnerId, employeeId: src.employeeId ?? null,
     name: src.name, supplier: src.supplier, kind, items, pages, createdAt: now,
     ...(opts.test ? { test: true } : {}), ...(opts.parent ? { parent: opts.parent } : {}), ...(opts.init ? { init: opts.init } : {}),
+    ...(opts.initTexts ? { initTexts: opts.initTexts } : {}), ...(opts.sim ? { sim: true } : {}),
   };
   await writeFlowToken(env, record);
-  const data = flowData(flowTitle(kind), flowNote(kind), pages.map((t) => pageTitle(t, !!opts.test)), items, opts.init ?? {});
+  const titles = pages.map((t) => pageTitle(t, !!opts.test));
+  const data = flowData(flowTitle(kind), flowNote(kind), titles, items, opts.init ?? {});
+  const sessionData = flowDataV3(flowTitle(kind), flowNote(kind), titles, items, opts.init ?? {}, opts.initTexts ?? {});
   const text = opts.body ?? `${opts.test ? `${TEST_MARK} — ` : ""}${flowAskText(src.name, kind, day)}`;
   return {
-    record, data, total,
-    session: flowSession(text, record.token, data, opts.cta ?? PRICE_FLOW_CTA),
+    record, data, sessionData, total,
+    session: flowSession(text, record.token, sessionData, opts.cta ?? PRICE_FLOW_CTA),
     template: { kind: "template", purpose: PRICE_FLOW_PURPOSE, params: flowAskParams(day), flow: { token: record.token, data } },
   };
 }
@@ -622,7 +662,8 @@ export function parseFlowNumber(raw: unknown): number | null | "invalid" {
 }
 
 export interface FlowEntries {
-  priced: Array<{ item: FlowItem; price: number }>;
+  /** § 65 — a priced slot's size and origin, when the form carried them (a form of v2 carries neither). */
+  priced: Array<{ item: FlowItem; price: number; size?: string; origin?: string }>;
   empty: FlowItem[];
   invalid: FlowItem[];
 }
@@ -633,29 +674,37 @@ export function readFlowValues(rec: Pick<FlowRecord, "items">, values: Record<st
     const v = parseFlowNumber(values[`p${item.slot}`]);
     if (v === null) out.empty.push(item);
     else if (v === "invalid") out.invalid.push(item);
-    else out.priced.push({ item, price: v });
+    else {
+      const size = slotText(values[`s${item.slot}`]), origin = slotText(values[`o${item.slot}`]);
+      out.priced.push({ item, price: v, ...(size ? { size } : {}), ...(origin ? { origin } : {}) });
+    }
   }
   return out;
 }
 
 export interface FlowAck {
-  saved: Array<{ item: FlowItem; price: number }>;
+  saved: Array<{ item: FlowItem; price: number; size?: string; origin?: string }>;
   invalid?: FlowItem[];
   unsaved?: FlowItem[];
   /** «تعديل» emptied a field that carried a price: the price sent before stays. */
   kept?: Array<{ item: FlowItem; price: number }>;
   test?: boolean;
+  /** § 65 — the trial whose rows were written flagged «محاكاة». */
+  sim?: boolean;
 }
+/** «رمان كبير 22 (66، مصر)»: a saved price with its size and its origin when it has them. */
+export const ackItem = (s: { item: FlowItem; price: number; size?: string; origin?: string }): string =>
+  `${s.item.name} ${money(s.price)}${s.size || s.origin ? ` (${[s.size, s.origin].filter(Boolean).join("، ")})` : ""}`;
 /** «وصلت ✅ رمان كبير 22، موز أمريكي 22.» and what was not saved, named. */
 export function flowAckText(a: FlowAck): string {
   const lines: string[] = [];
   const head = a.test ? `${TEST_MARK} — ` : "";
-  if (a.saved.length) lines.push(`${head}وصلت ✅ ${a.saved.map((s) => `${s.item.name} ${money(s.price)}`).join("، ")}.`);
+  if (a.saved.length) lines.push(`${head}وصلت ✅ ${a.saved.map(ackItem).join("، ")}.`);
   else lines.push(`${head}وصلت ✅ بدون أسعار: ما سُجّل سعر من هذا النموذج.`);
   if (a.invalid?.length) lines.push(`⚠️ ما انحفظ (السعر رقم أكبر من صفر): ${a.invalid.map((i) => i.name).join("، ")}.`);
   if (a.unsaved?.length) lines.push(`⚠️ ما انحفظ: ${a.unsaved.map((i) => i.name).join("، ")}. اضغط «تعديل» وأرسله مرة ثانية لو سمحت 🙏`);
   if (a.kept?.length) lines.push(`⚠️ بقي السعر السابق: ${a.kept.map((k) => `${k.item.name} ${money(k.price)}`).join("، ")} (الخانة الفاضية لا تلغي سعراً أُرسل).`);
-  if (a.test) lines.push("(تجربة: لم يُكتب شيء في Odoo)");
+  if (a.test) lines.push(a.sim ? "(تجربة: الصفوف معلّمة «محاكاة» ولا تُحسب في أي رقم)" : "(تجربة: لم يُكتب شيء في Odoo)");
   return lines.join("\n");
 }
 
@@ -698,6 +747,7 @@ export async function saveFlowPrices(env: Env, rec: FlowRecord, priced: FlowEntr
           supplier_id: rec.partnerId, product_id: e.item.productId, packaging_id: e.item.packagingId,
           cost_price: e.price, sale_price: fallbackSale(e.price, floorInputs), actual_weight_kg: null,
           source_message_id: messageId, raw_reply: raw, extraction_status: outlier ? "pending" : "flow",
+          size: e.size, origin: e.origin,
         });
         if (outlier && last) {
           const pct = Math.round(((e.price - last.price) / last.price) * 100);
@@ -707,6 +757,7 @@ export async function saveFlowPrices(env: Env, rec: FlowRecord, priced: FlowEntr
         await saveOffer(env, {
           partnerId: rec.partnerId, employeeId: rec.employeeId, productId: e.item.productId, packagingId: e.item.packagingId,
           ...(rec.kind === "purchase" ? { purchase: e.price } : { market: e.price }), messageId, text: raw, ratio,
+          size: e.size, origin: e.origin, ...(rec.sim ? { simulation: true } : {}),
         }, rec.day);
       }
       saved.push(e);
@@ -725,7 +776,8 @@ export async function saveFlowPrices(env: Env, rec: FlowRecord, priced: FlowEntr
       console.warn("[price-flow] the ask log could not be marked", (e as Error)?.message);
     }
   }
-  if (saved.length) {
+  // § 65 — a trial's rows are flagged «محاكاة»: the day is not asked to read them
+  if (saved.length && !rec.sim) {
     try {
       const { refreshPriceDay } = await import("./prices");
       await refreshPriceDay(env, { now });
@@ -774,10 +826,10 @@ export async function handlePriceFlowReply(env: Env, msg: Pick<NormalizedMessage
     if (!rec.test) await alertOwner(env, `⌛ رد نموذج الأسعار من «${rec.name}» وصل ${expired === "published" ? "بعد نشر أسعار اليوم" : `بعد يومه (${rec.day})`} ولم يُحفظ: ${sent}.`);
     return { action: "expired", why: expired };
   }
-  const answer = async (ack: FlowAck, init: Record<number, number>, text?: string) => {
+  const answer = async (ack: FlowAck, init: Record<number, number>, text?: string, initTexts: Record<number, SlotText> = rec.texts ?? {}) => {
     const body = text ?? flowAckText(ack);
     const edit = await prepareFlowAsk(env, { partnerId: rec.partnerId, employeeId: rec.employeeId, name: rec.name, whatsapp: to, supplier: rec.supplier, role: rec.kind },
-      { now, items: rec.items, pages: rec.pages, init, parent: rec.token, test: rec.test, body, cta: PRICE_FLOW_EDIT_CTA }).catch(() => null);
+      { now, items: rec.items, pages: rec.pages, init, initTexts, parent: rec.token, test: rec.test, sim: rec.sim, body, cta: PRICE_FLOW_EDIT_CTA }).catch(() => null);
     const r = edit ? await sendViaGateway(env, { purpose, to, content: edit.session, ctx }) : null;
     // the answer reaches him even if the button could not go
     if (gatewayDecision(r)?.action !== "session") await say(body);
@@ -792,16 +844,23 @@ export async function handlePriceFlowReply(env: Env, msg: Pick<NormalizedMessage
   try {
     const before = rec.init ?? {};
     const kept = entries.empty.filter((i) => before[i.slot] > 0).map((item) => ({ item, price: before[item.slot] }));
-    const w = rec.test ? { saved: entries.priced, unsaved: [] as FlowItem[] } : await saveFlowPrices(env, rec, entries.priced, msg.messageId, now);
+    // § 65 — the trial of before writes nothing; the one marked `sim` writes its rows flagged «محاكاة»
+    const w = rec.test && !rec.sim ? { saved: entries.priced, unsaved: [] as FlowItem[] } : await saveFlowPrices(env, rec, entries.priced, msg.messageId, now);
     const values: Record<number, number> = {};
-    for (const k of kept) values[k.item.slot] = k.price;
-    for (const s of w.saved) values[s.item.slot] = s.price;
-    await writeFlowToken(env, { ...rec, usedAt: now, values });
+    const texts: Record<number, SlotText> = {};
+    for (const k of kept) { values[k.item.slot] = k.price; if (rec.initTexts?.[k.item.slot]) texts[k.item.slot] = rec.initTexts[k.item.slot]; }
+    for (const s of w.saved) { values[s.item.slot] = s.price; if (s.size || s.origin) texts[s.item.slot] = { ...(s.size ? { s: s.size } : {}), ...(s.origin ? { o: s.origin } : {}) }; }
+    await writeFlowToken(env, { ...rec, usedAt: now, values, texts });
     await finishButton(env, claim, TOKEN_TTL);
     // § 52 و — his prices arrived: no form is owed, and a queued ask of today is dropped
     if (!rec.test && w.saved.length) await markPricesArrived(env, to, rec.day);
     if (kept.length && !rec.test) await alertOwner(env, `ℹ️ «${rec.name}» أفرغ في تعديل نموذج الأسعار خانة: ${kept.map((k) => `${k.item.name} (كان ${money(k.price)})`).join("، ")}. السعر السابق باقٍ في Odoo: الخانة الفاضية لا تلغيه.`);
-    await answer({ saved: w.saved, invalid: entries.invalid, unsaved: w.unsaved, kept, test: rec.test }, values);
+    await answer({ saved: w.saved, invalid: entries.invalid, unsaved: w.unsaved, kept, test: rec.test, sim: rec.sim }, values, undefined, texts);
+    // § 65 د — «➕ صنف إضافي»: offered once, after the form itself (not after its «تعديل»), inside his window
+    if (!rec.parent && (!rec.test || rec.sim)) {
+      const { offerExtraForm } = await import("./price-extra");
+      await offerExtraForm(env, { partnerId: rec.partnerId, employeeId: rec.employeeId, name: rec.name, whatsapp: to, kind: rec.kind, day: rec.day, test: rec.test }, ctx, now);
+    }
     console.log(`[price-flow] reply partner=${rec.partnerId} kind=${rec.kind} saved=${w.saved.length} empty=${entries.empty.length} invalid=${entries.invalid.length} unsaved=${w.unsaved.length}${rec.test ? " (test: nothing written)" : ""}`);
     return { action: rec.test ? "test" : "saved", saved: w.saved.length };
   } catch (e) {

@@ -280,6 +280,18 @@ export default {
           } catch (e) {
             console.error("[special-nudge tick] failed", (e as Error)?.message);
           }
+          // § 65 هـ — the approved suppliers' periodic check-in (OFF unless «تفعيل تواصل الموردين» is on;
+          // 09:00–18:00, on a Sunday or the first of the month), and their cards' numbers once a day.
+          try {
+            const { runSupplierOutreachTick, runSupplierIndicatorsTick, OUTREACH_JOB } = await import("./supplier-outreach");
+            const { withAutoSendJob } = await import("./auto-send-guard");
+            const so = await runSupplierOutreachTick(withAutoSendJob(rawEnv, OUTREACH_JOB), Date.now(), ctx);
+            if (so.action === "ran" || so.action === "error") console.log("[supplier-outreach tick]", JSON.stringify(so));
+            const si = await runSupplierIndicatorsTick(rawEnv, Date.now());
+            if (si.action === "written" || si.action === "error") console.log("[supplier-indicators tick]", JSON.stringify(si));
+          } catch (e) {
+            console.error("[supplier-outreach tick] failed", (e as Error)?.message);
+          }
           break;
         }
         // 2026-09-26 (STATUS § 38, م12) — the driver's end of shift, from his
@@ -1897,6 +1909,55 @@ export default {
         return json({ ok: false, error: (e as Error).message }, 500);
       }
     }
+    // § 65 — Odoo → Worker, from «🛒 المشتريات ← 🧑‍🌾 الموردون» (src/supplier-registry.ts):
+    //   op=invite  — «📨 أرسل رابط التسجيل»: the registration form to the card's number (the template
+    //                outside its window, else the text for Baraa to forward);
+    //   op=welcome — after «✅ اعتماد» (Odoo wrote the state and the cadence): the first «التواصل
+    //                القادم» and the welcome with his type's buttons.
+    // 202 at once; the work runs in waitUntil a moment later (the button's write is committed by then).
+    if (request.method === "POST" && url.pathname === "/odoo/hook/supplier") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      let body: { _model?: string; _id?: number; id?: number } = {};
+      try {
+        body = (await request.json()) as typeof body;
+      } catch {
+        body = {};
+      }
+      const id = Number(body._id ?? body.id ?? url.searchParams.get("id") ?? 0);
+      const op = url.searchParams.get("op") ?? "";
+      const { isSupplierHookOp, handleSupplierHook } = await import("./supplier-registry");
+      if (body._model && body._model !== "res.partner") return json({ error: `unexpected model: ${body._model}` }, 400);
+      if (!(id > 0) || !isSupplierHookOp(op)) return json({ error: "missing id or op" }, 400);
+      ctx.waitUntil((async () => {
+        await new Promise((r) => setTimeout(r, SPECIAL_HOOK_DELAY_MS));
+        try {
+          console.log("[supplier hook]", JSON.stringify(await handleSupplierHook(env, id, op, ctx)));
+        } catch (e) {
+          console.error(`[supplier hook] ${op} ${id} failed`, (e as Error)?.message);
+        }
+      })());
+      return json({ status: "accepted", op, id }, 202);
+    }
+    // § 65 — the three trials of the suppliers' registry to Baraa's own number («🧪 تجربة»), only while his
+    // window is open, once a day each (?name=signup | offer | market — src/s65-trials.ts). What they write
+    // is flagged «محاكاة»; nobody else is reached.
+    if (request.method === "POST" && url.pathname === "/odoo/hook/s65-trial") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      try {
+        const { sendS65Trial } = await import("./s65-trials");
+        return json({ ok: true, ...(await sendS65Trial(env, url.searchParams.get("name") ?? "")) });
+      } catch (e) {
+        return json({ ok: false, error: (e as Error).message }, 500);
+      }
+    }
     // § 62 — Odoo → Worker, from «💲 التسعير ← 🧾 طلبات أسعار خاصة» (src/special-quote.ts):
     //   op=recalc — a save of the request (its automation) or «🔄 احسب»: its numbers again;
     //   op=accept — «اعتمد المقترح للكل»;
@@ -2694,6 +2755,21 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           const { handleSpecialAskReply } = await import("./special-ask");
           const r = await handleSpecialAskReply(env, msg, ctx);
           console.log(`[special-ask] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} ${r.action}${r.quoteId ? ` request=${r.quoteId}` : ""}${r.saved !== undefined ? ` saved=${r.saved}` : ""}`);
+        } else if ((await import("./supplier-registry")).isSignupToken(msg.flow.token ?? "")) {
+          // § 65 ب — «تسجيل مورد»: ONE card «بانتظار الاعتماد» (the card of his number, else a new one), and Baraa's one message
+          const { handleSignupReply } = await import("./supplier-registry");
+          const r = await handleSignupReply(env, msg, ctx);
+          console.log(`[supplier-registry] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} ${r.action}${r.partnerId ? ` partner=${r.partnerId}` : ""}${r.problems?.length ? ` (${r.problems.join(",")})` : ""}`);
+        } else if ((await import("./supplier-offer")).isOfferToken(msg.flow.token ?? "")) {
+          // § 65 ج — «عرض مورد»: ONE row outside the day's prices, and Baraa's one message
+          const { handleOfferReply } = await import("./supplier-offer");
+          const r = await handleOfferReply(env, msg, ctx);
+          console.log(`[supplier-offer] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} ${r.action}${r.rowId ? ` row=${r.rowId}` : ""}`);
+        } else if ((await import("./price-extra")).isExtraToken(msg.flow.token ?? "")) {
+          // § 65 د — «➕ صنف إضافي»: observations outside the day's list
+          const { handleExtraReply } = await import("./price-extra");
+          const r = await handleExtraReply(env, msg, ctx);
+          console.log(`[price-extra] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} ${r.action}${r.saved !== undefined ? ` saved=${r.saved}` : ""}`);
         } else if ((await import("./expense-form")).isExpenseToken(msg.flow.token ?? "")) {
           // § 57 و — Baraa's expense form: a posted vendor bill in EXP and its payment, from his number alone
           const { handleExpenseReply } = await import("./expense-form");
@@ -2709,6 +2785,26 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       }
       await markSeen(env, msg.messageId);
       continue;
+    }
+
+    // § 65 — the suppliers' registry, before any other routing: «تسجيل مورد» (typed, or the invitation's
+    // button) from a number that is neither the team nor a registered customer opens the registration
+    // form; an approved supplier's «📦 بضاعتي جاهزة» / «🚢 وصلت شحنة» / «عرض مورد» opens the offer form.
+    // A message that is none of these costs no read here.
+    if ((msg.type === "text" || msg.type === "button" || msg.type === "interactive") && !isOwnerNumber(env, msg.from)) {
+      try {
+        const { isSignupKeyword, answerSignupKeyword } = await import("./supplier-registry");
+        const { offerTrigger, answerOfferTrigger } = await import("./supplier-offer");
+        const answered = isSignupKeyword(msg.text) ? await answerSignupKeyword(env, msg, { team: !!teamMatch }, ctx)
+          : offerTrigger(msg) ? await answerOfferTrigger(env, msg, { team: !!teamMatch }, ctx) : false;
+        if (answered) {
+          console.log(`[supplier-registry] wamid=${msg.messageId.slice(-10)} from=${msg.from.slice(-4)} answered by the registry`);
+          await markSeen(env, msg.messageId);
+          continue;
+        }
+      } catch (e) {
+        console.warn("[supplier-registry] the keyword could not be answered — routed as any message", (e as Error)?.message);
+      }
     }
 
     // 2026-09-20 (inbox) — bot routing runs only on text / button / location.

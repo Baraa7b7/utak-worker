@@ -275,6 +275,11 @@ export interface OfferWrite {
   purchaseOutlier?: boolean;
   /** § 48 و — «نسبة السعر الشاذ» of the settings; PRICE_OUTLIER_RATIO when absent. */
   ratio?: number;
+  /** § 65 د — «المقاس» and «المنشأ» the source typed beside the price; kept on the observation. */
+  size?: string;
+  origin?: string;
+  /** § 65 — a trial's row: flagged «محاكاة», read by no number. */
+  simulation?: boolean;
 }
 /** One x_price_offer row, the outliers decided against the same source's last values. Returns [id, outlier]. */
 export async function saveOffer(env: Env, o: OfferWrite, day: string = riyadhDateKey()): Promise<{ id: number; outlier: boolean }> {
@@ -299,6 +304,9 @@ export async function saveOffer(env: Env, o: OfferWrite, day: string = riyadhDat
       x_daily_price_id: o.dailyPriceId || false,
       x_source_message_id: o.messageId ?? false,
       x_raw_text: String(o.text ?? "").slice(0, 2000),
+      ...(o.size ? { x_item_size: o.size } : {}),
+      ...(o.origin ? { x_item_origin: o.origin } : {}),
+      ...(o.simulation ? { [SIM_FIELD]: true } : {}),
     }],
   });
   return { id, outlier: pOut || mOut };
@@ -315,9 +323,17 @@ export async function saveOffer(env: Env, o: OfferWrite, day: string = riyadhDat
  * (src/purchase-accounting.ts).
  */
 export const VAT_REGISTERED_FIELD = "x_vat_registered";
+/** § 65 — «حالة المورد» (بانتظار الاعتماد / معتمد / موقوف) on the partner's card. */
+export const SUPPLIER_STATE_FIELD = "x_supplier_state";
 
 export interface EmployeeSource { employeeId: number; partnerId: number; name: string; whatsapp: string; vatRegistered: boolean; /** § 49 د — «دور الأسعار»; null = none (the keyword rule). */ role: PriceRole | null }
-export interface PartnerSource { partnerId: number; name: string; whatsapp: string; supplier: boolean; vatRegistered: boolean; /** § 49 د */ role: PriceRole | null }
+export interface PartnerSource {
+  partnerId: number; name: string; whatsapp: string; supplier: boolean; vatRegistered: boolean; /** § 49 د */ role: PriceRole | null;
+  /** § 65 — «حالة المورد» on his card: the daily market ask reaches an «معتمد» source alone. */
+  approved: boolean;
+  /** § 65 — the 02:00 purchase ask reaches him (a supplier with a number and «الأصناف التي يوفرها»): he is not asked again at 02:30. */
+  purchaseAsked: boolean;
+}
 export interface PriceSources {
   employees: EmployeeSource[];
   partners: PartnerSource[];
@@ -338,8 +354,8 @@ export async function loadPriceSources(env: Env): Promise<PriceSources> {
   const emps = await call<Array<{ id: number; name: string; work_contact_id: [number, string] | number | false; x_utak_whatsapp: string | false; x_vat_registered: boolean; x_price_role?: string | false }>>(env, "hr.employee", "search_read", {
     domain: [[SOURCE_FIELD, "=", true]], fields: ["id", "name", "work_contact_id", "x_utak_whatsapp", VAT_REGISTERED_FIELD, ROLE_FIELD], order: "id asc", limit: 100,
   });
-  const parts = await call<Array<{ id: number; name: string; x_whatsapp_number: string | false; supplier_rank: number; x_vat_registered: boolean; x_price_role?: string | false }>>(env, "res.partner", "search_read", {
-    domain: [[SOURCE_FIELD, "=", true]], fields: ["id", "name", "x_whatsapp_number", "supplier_rank", VAT_REGISTERED_FIELD, ROLE_FIELD], order: "id asc", limit: 200,
+  const parts = await call<Array<{ id: number; name: string; x_whatsapp_number: string | false; supplier_rank: number; x_vat_registered: boolean; x_price_role?: string | false; x_supplier_state?: string | false; x_supplied_product_ids?: number[] }>>(env, "res.partner", "search_read", {
+    domain: [[SOURCE_FIELD, "=", true]], fields: ["id", "name", "x_whatsapp_number", "supplier_rank", VAT_REGISTERED_FIELD, ROLE_FIELD, SUPPLIER_STATE_FIELD, "x_supplied_product_ids"], order: "id asc", limit: 200,
   });
   const employees = emps.map((e) => ({
     employeeId: e.id,
@@ -349,7 +365,13 @@ export async function loadPriceSources(env: Env): Promise<PriceSources> {
     vatRegistered: e.x_vat_registered === true,
     role: asRole(e.x_price_role),
   }));
-  const partners = parts.map((p) => ({ partnerId: p.id, name: p.name, whatsapp: waDigits(String(p.x_whatsapp_number || "")), supplier: (Number(p.supplier_rank) || 0) > 0, vatRegistered: p.x_vat_registered === true, role: asRole(p.x_price_role) }));
+  const partners = parts.map((p) => {
+    const supplier = (Number(p.supplier_rank) || 0) > 0, whatsapp = waDigits(String(p.x_whatsapp_number || ""));
+    return {
+      partnerId: p.id, name: p.name, whatsapp, supplier, vatRegistered: p.x_vat_registered === true, role: asRole(p.x_price_role),
+      approved: p[SUPPLIER_STATE_FIELD] === "approved", purchaseAsked: supplier && !!whatsapp && (p.x_supplied_product_ids ?? []).length > 0,
+    };
+  });
   return { employees, partners, partnerIds: new Set([...partners.map((p) => p.partnerId), ...employees.map((e) => e.partnerId).filter(Boolean)]) };
 }
 
@@ -409,13 +431,18 @@ async function readMarker(env: Env, digits: string): Promise<Marker | null> {
 
 export interface AskResult { name: string; action: "sent" | "queued" | "held" | "off" | "claimed_before" | "refused" | "no_number" }
 
-interface MarketTarget { partnerId: number; employeeId: number | null; name: string; whatsapp: string; role: PriceRole | null }
-/** Who the 02:30 ask and its 05:00 reminder go to: every source that is not a supplier — the flagged employees, and the outside partners. */
-function marketTargets(src: PriceSources): MarketTarget[] {
+export interface MarketTarget { partnerId: number; employeeId: number | null; name: string; whatsapp: string; role: PriceRole | null }
+/**
+ * Who the 02:30 ask and its 05:00 reminder go to: the flagged employees, and — § 65 — every APPROVED
+ * partner source («حالة المورد» = معتمد, no fixed number) that the 02:00 purchase ask does not cover: one
+ * that is not a supplier (as before), and a supplier whose «دور الأسعار» is «سوق» and who is not asked at
+ * 02:00. A source «بانتظار الاعتماد» or «موقوف», or one with no state, is not asked.
+ */
+export function marketTargets(src: PriceSources): MarketTarget[] {
   const emp = new Set(src.employees.map((e) => e.partnerId));
   return [
     ...src.employees.filter((e) => e.partnerId).map((e) => ({ partnerId: e.partnerId, employeeId: e.employeeId as number | null, name: e.name, whatsapp: e.whatsapp, role: e.role })),
-    ...src.partners.filter((p) => !p.supplier && !emp.has(p.partnerId)).map((p) => ({ partnerId: p.partnerId, employeeId: null, name: p.name, whatsapp: p.whatsapp, role: p.role })),
+    ...src.partners.filter((p) => p.approved && (!p.supplier || (p.role === "market" && !p.purchaseAsked)) && !emp.has(p.partnerId)).map((p) => ({ partnerId: p.partnerId, employeeId: null, name: p.name, whatsapp: p.whatsapp, role: p.role })),
   ];
 }
 

@@ -64,13 +64,15 @@ export function sameNumber(a: string, b: string): boolean {
  * price-bearing send it cannot verify).
  */
 export async function readClosedNumbers(env: Env): Promise<ClosedNumber[]> {
+  // § 65 — a supplier of the registry («حالة المورد»: بانتظار الاعتماد / معتمد / موقوف) is a supplier whatever his
+  // supplier_rank: his number never enters the customer path and is never sent a sale price
   const rows = await call<Array<{ id: number; name: string; phone: string | false; x_whatsapp_number: string | false; supplier_rank: number; x_price_source?: boolean }>>(env, "res.partner", "search_read", {
-    domain: ["|", ["x_price_source", "=", true], ["supplier_rank", ">", 0]],
+    domain: ["|", "|", ["x_price_source", "=", true], ["supplier_rank", ">", 0], ["x_supplier_state", "!=", false]],
     fields: ["id", "name", "phone", "x_whatsapp_number", "supplier_rank", "x_price_source"], order: "id asc", limit: 500,
   });
   const out: ClosedNumber[] = [];
   for (const r of rows) {
-    const kind: ClosedKind = (Number(r.supplier_rank) || 0) > 0 ? "supplier" : "source";
+    const kind: ClosedKind = (Number(r.supplier_rank) || 0) > 0 || r.x_price_source !== true ? "supplier" : "source";
     for (const n of new Set([r.x_whatsapp_number, r.phone].map((v) => waDigits(String(v || ""))).filter(Boolean))) {
       out.push({ digits: n, id: r.id, name: String(r.name || ""), kind });
     }

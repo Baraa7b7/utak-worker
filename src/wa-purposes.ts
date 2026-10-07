@@ -127,6 +127,26 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // § 57 ز — the one trial of that form to Baraa's own number («🧪 تجربة») and the answer to his
   // «إرسال» (what would have been written; nothing is). The gateway sends it to the owner alone.
   supplier_register_form_test: op("تجربة نموذج تسجيل المورد", false, { hours: 1 }),
+  // § 65 — the suppliers' registry. The registration form («تسجيل مورد») and the offer form («عرض مورد»)
+  // are WhatsApp Flows: inside the number's 24h window only, never a template and never held — each
+  // answers his own keyword or tap. Their answers («استلمنا طلبك», «وصل عرضك») are replies.
+  supplier_signup_form: { label: "نموذج تسجيل مورد", kind: "reply", important: false, ttl: { hours: 2 } },
+  supplier_offer_form: { label: "نموذج عرض مورد", kind: "reply", important: false, ttl: { hours: 2 } },
+  supplier_registry_reply: { label: "رد سجل الموردين", kind: "reply", important: false, ttl: { hours: 2 } },
+  // «📨 أرسل رابط التسجيل» outside the number's window: the lookup purpose of utak_supplier_invite_v1
+  // (UTILITY, no variable, «تسجيل مورد»). Template only: never held (Baraa gets the text to forward).
+  supplier_invite: op("رابط تسجيل مورد"),
+  // «✅ اعتماد»: the welcome with his type's buttons — inside his window, else held until it opens (a week).
+  supplier_welcome: op("ترحيب مورد معتمد", false, { hours: 168 }),
+  // The periodic check-in of an approved supplier (off by default: «تفعيل تواصل الموردين»): a short
+  // message with «عرض مورد» inside his window, and the lookup purpose of utak_supplier_checkin_v1
+  // (UTILITY, [the supplier's name]) outside it. Never held: a check-in is not owed.
+  supplier_checkin: op("تواصل دوري مع مورد"),
+  // § 65 د — «➕ صنف إضافي» after a price form: a Flow inside the source's window only, never held.
+  price_extra_form: { label: "نموذج صنف إضافي", kind: "reply", important: false, ttl: { hours: 2 } },
+  // The three trials of § 65 to Baraa's own number («🧪 تجربة»), inside his window only, and their
+  // answers: what they write is flagged «محاكاة».
+  supplier_registry_test: op("تجربة سجل الموردين", false, { hours: 1 }),
   // § 37 — the supplier's notice of a payment Baraa approved: critical
   // («مهمة»): text inside his window, utak_supplier_payment_sent (UTILITY)
   // outside it, else held three days with his «فتح المحادثة» when usable.

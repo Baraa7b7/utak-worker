@@ -217,7 +217,7 @@ const M = [
   ["د", "the employee's role is not read", [[PS,
     "    role: asRole(e.x_price_role),", "    role: null,"]], TS],
   ["د", "the partner's role is not read", [[PS,
-    "vatRegistered: p.x_vat_registered === true, role: asRole(p.x_price_role) }));", "vatRegistered: p.x_vat_registered === true, role: null }));"]], TS],
+    "vatRegistered: p.x_vat_registered === true, role: asRole(p.x_price_role),", "vatRegistered: p.x_vat_registered === true, role: null,"]], TS],
   ["د", "an employee's role is looked for on his Work Contact's card first", [[PS,
     "  return sources.employees.find((e) => e.partnerId === partnerId)?.role ?? sources.partners.find((p) => p.partnerId === partnerId)?.role ?? null;", "  return sources.partners.find((p) => p.partnerId === partnerId)?.role ?? null;"]], TS],
   ["د", "«أقل عرض» counts a «سوق» source's purchase number", [[EN,

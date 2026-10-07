@@ -16,7 +16,7 @@
 import { OWNER, ctx, graph, heldFor, inbound, odooLog, openWindow, quiet, rows, seed, sentTo, setRiyadh, signed, table } from "./wa-harness.mts";
 import { assert, done, ownerTexts, rejected } from "./s46-kit.mts";
 import {
-  AHMED, AHMED_PHONE, DAY, GARLIC, LETTUCE, LINE, MADARAT, MADARAT_PHONE, MUSHROOM, OMAR, OMAR_PHONE, ORANGE, QUOTE, RAED, RAED_PHONE, lineOf, linesOf, quote, recipientOf, recipientsOf,
+  AHMED, AHMED_PHONE, DAY, GARLIC, LETTUCE, LINE, MADARAT, MADARAT_PHONE, MUSHROOM, OMAR, OMAR_PHONE, ORANGE, QUOTE, RAED, RAED_PHONE, RECIPIENT, lineOf, linesOf, quote, recipientOf, recipientsOf,
   request, utc, world, writes,
 } from "./s62-kit.mts";
 
@@ -288,6 +288,19 @@ console.log("\n[ب1] what the button refuses, and who it asks on a second press"
   const ra = await reply(env, AHMED_PHONE, tokenOf(flowsTo(AHMED_PHONE).slice(-1)[0]), { p1: "3", p16: "10" });
   assert("a price for a line removed since the ask is not written: the line that stayed takes its price, the other is named back to the source", ra.action === "saved" && ra.saved === 1 && lineOf(id2, ORANGE).x_purchase_price === 3 && !table(LINE).has(gone) && bodyOf(flowsTo(AHMED_PHONE).slice(-1)[0]).includes("⚠️ ما انحفظ: ثوم."));
   assert("…and Baraa reads which line it was", ownerTexts().some((t) => t.startsWith("📨 وصلت أسعار الشراء لطلب شركة مدارات للاغذية: 1 من 6 صنف") && t.includes("أسطر حُذفت من الطلب بعد الإرسال: ثوم")));
+  // a source's row Baraa removed after the ask: his prices are still written on the lines, and nothing breaks
+  const omarRow = recipientOf(id2, OMAR).id;
+  table(RECIPIENT).delete(omarRow);
+  const rm = await reply(env, OMAR_PHONE, tokenOf(flowsTo(OMAR_PHONE).slice(-1)[0]), { p1: "5" });
+  assert("a source whose row was removed from the request since the ask: his price is still on its line, and he is answered", rm.action === "saved" && lineOf(id2, ORANGE).x_market_text === "5 (عمر 5)" && bodyOf(flowsTo(OMAR_PHONE).slice(-1)[0]).startsWith("وصلت ✅ برتقال 5."), JSON.stringify(rm));
+  // a request deleted in Odoo: the reply ends as a closed one's, nothing thrown
+  const gone2 = request();
+  for (const d of [AHMED_PHONE, OMAR_PHONE]) openWindow(env, d);
+  await quiet(() => ASK.sendSpecialAsk(env, gone2));
+  const tk = tokenOf(flowsTo(AHMED_PHONE).slice(-1)[0]);
+  table(QUOTE).delete(gone2);
+  const rg = await reply(env, AHMED_PHONE, tk, { p1: "3" });
+  assert("a reply to a request that was deleted: nothing written, the source told it is closed", rg.action === "closed" && textsTo(AHMED_PHONE).slice(-1)[0] === ASK.SPECIAL_CLOSED_TEXT);
 }
 
 console.log("\n[ب6] one reminder after three hours, inside the window only");

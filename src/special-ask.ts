@@ -658,12 +658,12 @@ export async function handleSpecialAskReply(env: Env, msg: Pick<NormalizedMessag
         if (rec.kind === "purchase") lv.x_purchase_price = lowestPurchase(obs);
         return [1, line.id, lv];
       });
-      const vals: Record<string, unknown> = {
-        x_recipient_ids: [[1, rec.recipientId, { x_replied_at: nowOdoo(now), x_priced: saved.length + kept.length }]],
-      };
+      const vals: Record<string, unknown> = {};
+      // his row on the request (Baraa may have removed it since the ask: his prices are kept all the same)
+      if (q.recipients.some((r) => r.id === rec.recipientId)) vals.x_recipient_ids = [[1, rec.recipientId, { x_replied_at: nowOdoo(now), x_priced: saved.length + kept.length }]];
       if (commands.length) vals.x_line_ids = commands;
       if (remark) vals.x_source_notes = [q.sourceNotes, `${rec.name} (${roleLabel(rec.kind)}): ${remark}`].filter(Boolean).join("\n").slice(-4000);
-      await call<boolean>(env, QUOTE_MODEL, "write", { ids: [q.id], vals });
+      if (Object.keys(vals).length) await call<boolean>(env, QUOTE_MODEL, "write", { ids: [q.id], vals });
       // «تعديل»: only what changed is a new observation in the history
       const fresh = saved.filter((s) => before[s.item.slot] !== s.price);
       try { await saveSpecialOffers(env, q, rec, fresh, msg.messageId, now); } catch (e) { console.warn("[special-ask] the «خاص» offer rows were not written", (e as Error)?.message); }

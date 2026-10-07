@@ -30,7 +30,12 @@ computes[QUOTE] = (r) => {
     if (!Array.isArray(cmds)) continue;
     for (const c of cmds as unknown[][]) {
       if (c[0] === 0) seed(model, { x_quote_id: r.id, ...(c[2] as Record<string, unknown>) });
-      else if (c[0] === 1) Object.assign(table(model).get(c[1] as number) ?? {}, c[2] as Record<string, unknown>);
+      else if (c[0] === 1) {
+        // a row that is not there: Odoo raises (MissingError), and so does this
+        const row = table(model).get(c[1] as number);
+        if (!row) throw new Error(`MissingError: ${model}(${c[1]})`);
+        Object.assign(row, c[2] as Record<string, unknown>);
+      }
     }
     delete r[field];
   }
@@ -38,10 +43,16 @@ computes[QUOTE] = (r) => {
 
 export const r2: string[] = [];
 export let gotenberg = 0;
+/** The PDF service answers 500 while this is set (a quotation's PDF that cannot be built). */
+export const pdfDown = { on: false };
+export const SALE_TAX = 77;
 const kitFetch = globalThis.fetch;
 globalThis.fetch = (async (input: unknown, init?: any) => {
   const url = typeof input === "string" ? input : (input as any)?.url ?? String(input);
-  if (url.startsWith("https://gotenberg.test/")) { gotenberg++; return new Response(new Uint8Array([0x25, 0x50, 0x44, 0x46]), { status: 200 }); }
+  if (url.startsWith("https://gotenberg.test/")) {
+    gotenberg++;
+    return pdfDown.on ? new Response("down", { status: 500 }) : new Response(new Uint8Array([0x25, 0x50, 0x44, 0x46]), { status: 200 });
+  }
   return kitFetch(input as any, init);
 }) as typeof fetch;
 
@@ -50,7 +61,8 @@ export function world(riyadh = `${DAY} 14:00`): any {
   const env = fresh(riyadh); cost(600);
   Object.assign(env, { UTAK_WA_NUMBER: "+966580000467", GOTENBERG_URL: "https://gotenberg.test", GOTENBERG_USER: "u", GOTENBERG_PASSWORD: "p", ADMIN_TOKEN: "ADM", ODOO_HOOK_TOKEN: "HOOK",
     INVOICES_BUCKET: { put: async (k: string) => { r2.push(k); return {}; }, head: async () => null, get: async () => null } });
-  seed("res.company", { id: 1, name: "شركة يوتاك", vat: "315022736600003" });
+  seed("res.company", { id: 1, name: "شركة يوتاك", vat: "315022736600003", account_sale_tax_id: [SALE_TAX, "15%"] });
+  seed("account.tax", { id: SALE_TAX, amount: 15, amount_type: "percent", type_tax_use: "sale", price_include: true, active: true });
   // Ahmed «شراء» (a supplier), Raed «سوق» (neither a supplier nor an employee), Omar «تسويق» alone
   Object.assign(table("res.partner").get(AHMED)!, { x_price_role: "purchase", customer_rank: 0, phone: "+" + AHMED_PHONE });
   seed("res.partner", { id: RAED, name: "رائد", phone: "+" + RAED_PHONE, x_whatsapp_number: "+" + RAED_PHONE, x_price_source: true, x_price_role: "market", customer_rank: 0, supplier_rank: 0 });
@@ -69,7 +81,7 @@ export function world(riyadh = `${DAY} 14:00`): any {
   for (const id of [1, 2]) seed("product.product", { id: id + 1000, product_tmpl_id: id });
   seed("x_whatsapp_template", { x_purpose: "price_ask_flow", x_meta_template_id: "utak_price_ask_flow_v2", x_language: "ar", x_meta_status: "APPROVED", x_param_count: 1, x_category: "UTILITY" });
   seed("x_whatsapp_template", { x_purpose: "customer_quotation_pdf_v2", x_meta_template_id: "utak_quotation_pdf_v2", x_language: "ar", x_meta_status: "APPROVED", x_param_count: 4, x_category: "UTILITY" });
-  gotenberg = 0; r2.length = 0; odooLog.length = 0;
+  gotenberg = 0; r2.length = 0; odooLog.length = 0; pdfDown.on = false;
   return env;
 }
 

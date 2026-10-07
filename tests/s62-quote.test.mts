@@ -131,7 +131,9 @@ console.log("\n[أ4] «اعتمد المقترح للكل», and the state");
     await quiet(() => SQ.recalcQuote(env, id));
     assert(`«${SQ.STATE_LABEL[st as "quoted"]}» is left as it is by a recalculation`, quote(id).x_state === st);
   }
-  assert("a request that is not there: null, nothing written", (await quiet(() => SQ.recalcQuote(env, 999999))) === null);
+  odooLog.length = 0;
+  assert("a request that is not there: null, nothing written", (await quiet(() => SQ.recalcQuote(env, 999999))) === null && writes().length === 0);
+  assert("…it is SEARCHED by its id, never `read`: Odoo's read of a deleted record throws, and a request Baraa deleted must end quietly", odooLog.some((l) => l.model === QUOTE && l.method === "search_read" && JSON.stringify(l.body.domain) === "[[\"id\",\"=\",999999]]") && !odooLog.some((l) => l.model === QUOTE && l.method === "read"));
   assert("the labels of the five states", JSON.stringify(SQ.STATE_LABEL) === JSON.stringify({ draft: "مسودة", sent: "أُرسل للمصادر", priced: "مُسعَّر", quoted: "صدر العرض", closed: "مغلق" }));
 }
 

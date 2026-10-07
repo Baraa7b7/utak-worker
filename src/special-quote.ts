@@ -134,10 +134,15 @@ const RECIPIENT_READ = ["id", "x_partner_id", "x_role", "x_asked_at", "x_via", "
 const asState = (v: unknown): QuoteState | null => (v === "draft" || v === "sent" || v === "priced" || v === "quoted" || v === "closed" ? v : null);
 const asRole = (v: unknown): PriceKind | null => (v === "purchase" || v === "market" ? v : null);
 
-/** The request with its lines and its sources (three reads). Null when it is not there. Throws on Odoo trouble. */
+/**
+ * The request with its lines and its sources (three reads). Null when it is not
+ * there — searched by its id, never `read`: Odoo's read of a deleted record
+ * throws, and a request Baraa deleted must end a late reply quietly. Throws on
+ * Odoo trouble.
+ */
 export async function readQuote(env: Env, id: number): Promise<SpecialQuote | null> {
   if (!(id > 0)) return null;
-  const [q] = await call<Array<Record<string, unknown>>>(env, QUOTE_MODEL, "read", { ids: [id], fields: QUOTE_READ });
+  const [q] = await call<Array<Record<string, unknown>>>(env, QUOTE_MODEL, "search_read", { domain: [["id", "=", id]], fields: QUOTE_READ, limit: 1 });
   if (!q) return null;
   const lines = await call<Array<Record<string, unknown>>>(env, LINE_MODEL, "search_read", { domain: [["x_quote_id", "=", id]], fields: LINE_READ, order: "x_sequence asc, id asc", limit: 200 });
   const recipients = await call<Array<Record<string, unknown>>>(env, RECIPIENT_MODEL, "search_read", { domain: [["x_quote_id", "=", id]], fields: RECIPIENT_READ, order: "id asc", limit: 30 });

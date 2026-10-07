@@ -91,6 +91,7 @@ let id = priced();
   assert("issued, to the customer inside his window", r.action === "issued" && r.to === "customer_session", JSON.stringify(r));
   assert("ONE draft sale.order of the customer, tied to the request, valid until the request's day", so.length === 1 && so[0].partner_id === MADARAT && so[0].state === "draft" && so[0].origin === SQ.quoteName(id) && so[0].validity_date === "2026-10-04", JSON.stringify(so));
   const sl = saleLines(so[0].id);
+  assert("…each line names the company's VAT-inclusive sale tax (the final price is VAT-inclusive), in the request's order", sl.every((l) => JSON.stringify(l.tax_ids) === JSON.stringify([[6, 0, [KIT.SALE_TAX]]])) && JSON.stringify(sl.map((l) => l.sequence)) === JSON.stringify([10, 20, 30, 40, 50, 60]), JSON.stringify(sl[0]));
   assert("its six lines: the product's variant, the quantity, the final price", sl.length === 6 && sl[0].product_id === ORANGE + 1000 && sl[0].product_uom_qty === 1464 && sl[0].price_unit === 4.75 && sl[0].name === "برتقال" && sl[3].product_id === 1001 && sl[3].price_unit === 3, JSON.stringify(sl.slice(0, 1)));
   assert("the quotation's number is that order's (the manual quotation's numbering)", r.number === so[0].name && /^S\d{5}$/.test(String(r.number)) && quote(id).x_quotation_number === so[0].name);
   assert("the request: «صدر العرض», its order, its PDF's link, when", quote(id).x_state === "quoted" && quote(id).x_sale_order_id === so[0].id && String(quote(id).x_pdf_url).startsWith("https://w.test/quotation-pdf/") && quote(id).x_issued_at === utc(`${DAY} 14:00`));
@@ -143,6 +144,27 @@ console.log("\n[ج] issued again: the same order, brought up to date in place");
   const r3 = await quiet(() => QT.issueSpecialQuotation(env, id));
   assert("an order confirmed in Odoo is left as it is: a new quotation with its own number", r3.action === "issued" && saleOrders().length === 2 && r3.number !== before.name && quote(id).x_sale_order_id === saleOrders()[1].id && saleLines(so[0].id).length === 7);
   void lid;
+}
+
+console.log("\n[ج] a PDF that cannot be built");
+{
+  env = world();
+  id = priced();
+  openWindow(env, MADARAT_PHONE);
+  KIT.pdfDown.on = true;
+  let threw = false;
+  try { await quiet(() => QT.issueSpecialQuotation(env, id)); } catch { threw = true; }
+  assert("the PDF service is down: nothing reaches the customer, the request is not «صدر العرض», and Baraa is told", threw && sentTo(MADARAT_PHONE).length === 0 && quote(id).x_state !== "quoted" && !quote(id).x_pdf_url && ownerTexts().some((t) => t.startsWith(`🚫 تعذّر إصدار عرض سعر الطلب الخاص ${SQ.quoteName(id)}`)) && String(quote(id).x_last_result).startsWith("🚫 تعذّر إصدار عرض السعر"));
+  assert("…the order it recorded is on the request already", saleOrders().length === 1 && quote(id).x_sale_order_id === saleOrders()[0].id && quote(id).x_quotation_number === saleOrders()[0].name);
+  KIT.pdfDown.on = false;
+  const r = await quiet(() => QT.issueSpecialQuotation(env, id));
+  assert("…so the next press finishes THAT quotation: no second order, the same number, the file to the customer (the failed press did not keep the lock)", r.action === "issued" && saleOrders().length === 1 && r.number === saleOrders()[0].name && docsTo(MADARAT_PHONE).length === 1 && quote(id).x_state === "quoted");
+  // an order deleted in Odoo: searched, not read — a new quotation is made
+  table("sale.order").delete(saleOrders()[0].id);
+  unlock(env, id);
+  odooLog.length = 0;
+  const r2q = await quiet(() => QT.issueSpecialQuotation(env, id));
+  assert("the request's order was deleted in Odoo: a new one is made (it is searched by its id, never `read`)", r2q.action === "issued" && saleOrders().length === 1 && quote(id).x_sale_order_id === saleOrders()[0].id && odooLog.some((l) => l.model === "sale.order" && l.method === "search_read"));
 }
 
 console.log("\n[ج] outside the customer's window");

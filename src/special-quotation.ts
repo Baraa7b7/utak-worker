@@ -99,7 +99,7 @@ export function specialQuotationData(q: SpecialQuote, number: string, customer: 
  * sale.order. Returns its id and its number. Throws on Odoo trouble (nothing is
  * sent with a quotation that is not on record).
  */
-export async function recordSaleQuotation(env: Env, q: SpecialQuote): Promise<{ id: number; number: string; created: boolean }> {
+export async function recordSaleQuotation(env: Env, q: SpecialQuote, now: number = Date.now()): Promise<{ id: number; number: string; created: boolean }> {
   const tmplIds = [...new Set(q.lines.map((l) => l.productId).filter((id) => id > 0))];
   const variants = await call<Array<{ id: number; product_tmpl_id: M2O }>>(env, "product.product", "search_read", {
     domain: [["product_tmpl_id", "in", tmplIds]], fields: ["id", "product_tmpl_id"], order: "id asc", limit: 500, context: { active_test: false },
@@ -110,10 +110,23 @@ export async function recordSaleQuotation(env: Env, q: SpecialQuote): Promise<{ 
   if (lost.length) throw new Error(`لا منتج في Odoo للصنف: ${lost.join("، ")}`);
   const validMs = odooMs(q.validUntil);
   const head: Record<string, unknown> = { origin: quoteName(q.id), ...(Number.isFinite(validMs) ? { validity_date: riyadhDateKey(new Date(validMs)) } : {}) };
-  const lineVals = (l: SpecialQuote["lines"][number]) => ({ product_id: variantOf.get(l.productId)!, name: l.productName || "صنف", product_uom_qty: l.qty, price_unit: l.finalPrice });
+  // the final price is VAT-inclusive: the company's own price-included sale tax, named on every line (as the day's orders do)
+  let taxIds: number[] | null = null;
+  try {
+    const { resolveSaleTaxForDate } = await import("./accounting");
+    const tax = await resolveSaleTaxForDate(env, riyadhDateKey(new Date(now)));
+    taxIds = tax ? [tax.id] : null;
+  } catch (e) {
+    console.warn(`[special-quotation] ${q.id}: the sale tax could not be resolved — the product's own taxes apply`, (e as Error)?.message);
+  }
+  const lineVals = (l: SpecialQuote["lines"][number]) => ({
+    product_id: variantOf.get(l.productId)!, name: l.productName || "صنف", product_uom_qty: l.qty, price_unit: l.finalPrice, sequence: l.sequence || 10,
+    ...(taxIds ? { tax_ids: [[6, 0, taxIds]] } : {}),
+  });
 
   if (q.saleOrderId) {
-    const [so] = await call<Array<{ id: number; name: string; state: string; order_line: number[] }>>(env, "sale.order", "read", { ids: [q.saleOrderId], fields: ["id", "name", "state", "order_line"] });
+    // searched, not read: an order deleted in Odoo is simply not there (a new quotation is made)
+    const [so] = await call<Array<{ id: number; name: string; state: string; order_line: number[] }>>(env, "sale.order", "search_read", { domain: [["id", "=", q.saleOrderId]], fields: ["id", "name", "state", "order_line"], limit: 1 });
     // still a quotation: the same order, its lines brought up to date in place
     if (so && (so.state === "draft" || so.state === "sent")) {
       const old = so.order_line?.length ? await call<Array<{ id: number; product_id: M2O }>>(env, "sale.order.line", "read", { ids: so.order_line, fields: ["id", "product_id"] }) : [];
@@ -130,7 +143,9 @@ export async function recordSaleQuotation(env: Env, q: SpecialQuote): Promise<{ 
       return { id: so.id, number: String(so.name), created: false };
     }
   }
-  const [id] = await call<number[]>(env, "sale.order", "create", { vals_list: [{ partner_id: q.partnerId, ...head, order_line: q.lines.map((l) => [0, 0, lineVals(l)]) }] });
+  // a create Odoo may have run before a 5xx is probed for, never sent twice (src/odoo.ts)
+  const [id] = await call<number[]>(env, "sale.order", "create", { vals_list: [{ partner_id: q.partnerId, ...head, order_line: q.lines.map((l) => [0, 0, lineVals(l)]) }] },
+    { probe: [["origin", "=", quoteName(q.id)], ["partner_id", "=", q.partnerId], ["state", "=", "draft"], ["id", ">", q.saleOrderId || 0]] });
   const [made] = await call<Array<{ id: number; name: string }>>(env, "sale.order", "read", { ids: [id], fields: ["id", "name"] });
   return { id, number: String(made?.name || `S-${id}`), created: true };
 }
@@ -189,7 +204,9 @@ export async function issueSpecialQuotation(env: Env, quoteId: number, opts: { n
     if (miss.noPrice.length) return refuse(`أسطر بلا سعر نهائي: ${miss.noPrice.join("، ")}`, true);
     if (miss.noQty.length) return refuse(`أسطر بلا كمية: ${miss.noQty.join("، ")}`, true);
 
-    const so = await recordSaleQuotation(env, q);
+    const so = await recordSaleQuotation(env, q, now);
+    // on the request at once: a PDF that fails after this never leaves an order nobody points at (the next press finds it)
+    await call<boolean>(env, QUOTE_MODEL, "write", { ids: [quoteId], vals: { x_sale_order_id: so.id, x_quotation_number: so.number } });
     const [partner] = await call<Array<{ id: number; name: string | false; phone: string | false; x_whatsapp_number: string | false; street: string | false; city: string | false }>>(env, "res.partner", "read", {
       ids: [q.partnerId], fields: ["id", "name", "phone", "x_whatsapp_number", "street", "city"],
     });
@@ -203,9 +220,7 @@ export async function issueSpecialQuotation(env: Env, quoteId: number, opts: { n
     const { generateQuotationPDF, uploadQuotationToR2, quotationTemplateParams, QUOTATION_PDF_V2_PURPOSE } = await import("./quotation");
     const pdf = await generateQuotationPDF(data, env);
     const uploaded = await uploadQuotationToR2(env, pdf, so.number, env.WORKER_ORIGIN);
-    await call<boolean>(env, QUOTE_MODEL, "write", { ids: [quoteId], vals: {
-      x_sale_order_id: so.id, x_quotation_number: so.number, x_pdf_url: uploaded.publicUrl, x_issued_at: nowOdoo(now), x_state: "quoted",
-    } });
+    await call<boolean>(env, QUOTE_MODEL, "write", { ids: [quoteId], vals: { x_pdf_url: uploaded.publicUrl, x_issued_at: nowOdoo(now), x_state: "quoted" } });
 
     const caption = customerCaption(so.number, q.validUntil);
     const total = `الإجمالي ${money(data.grandTotal)} ريال شامل الضريبة`;

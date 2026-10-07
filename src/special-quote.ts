@@ -27,7 +27,7 @@ import type { Env } from "./config";
 import { call, stripRef } from "./odoo";
 import { riyadhDateKey } from "./hours";
 import {
-  DEFAULT_MARGIN_PCT, DEFAULT_PRICE_MODE, DEFAULT_UNIT, grossOf, lineNumbers, money, netOf, orderNumbers, profitText, round2, suggestedFor, summaryText,
+  DEFAULT_MARGIN_PCT, DEFAULT_PRICE_MODE, DEFAULT_UNIT, grossOf, lineNumbers, lineTotal, money, netOf, orderNumbers, profitText, round2, suggestedFor, summaryText,
   type OrderNumbers, type PriceMode,
 } from "./special-quote-math";
 import type { PriceKind } from "./price-sources";
@@ -130,6 +130,12 @@ export interface SpecialQuote {
   modeChosen: boolean;
   /** «خيارات بديلة»: printed under the quotation's table as it is. */
   alternatives: string;
+  /**
+   * § 64 — «وضع آخر حساب»: the mode the request was last calculated in (null: never since § 64). While it is
+   * «الأسعار في العرض» itself, the typed price of a line is that mode's (the screen lets no other be typed); once
+   * the mode has changed since, a line's pair is read by which of its two prices moved (finalsAfterModeChange).
+   */
+  calcMode: PriceMode | null;
   /** § 62 د — «شكل العرض»; a request that carries none is «تلقائي». */
   layout: QuoteLayout;
   prepared: boolean;
@@ -144,7 +150,7 @@ export interface SpecialQuote {
   recipients: QuoteRecipient[];
 }
 
-const QUOTE_READ = ["id", "x_name", "x_partner_id", "x_date", "x_state", "x_waste_pct", "x_min_margin_pct", "x_delivery_cost", "x_valid_until", "x_note", "x_price_mode", "x_layout", "x_alternatives", "x_prepared", SIM_FIELD,
+const QUOTE_READ = ["id", "x_name", "x_partner_id", "x_date", "x_state", "x_waste_pct", "x_min_margin_pct", "x_delivery_cost", "x_valid_until", "x_note", "x_price_mode", "x_calc_mode", "x_layout", "x_alternatives", "x_prepared", SIM_FIELD,
   "x_asked_at", "x_sale_order_id", "x_quotation_number", "x_pdf_url", "x_source_notes", "x_order_profit", "x_profit_text", "x_missing_purchase", "x_missing_final", "x_total", "x_summary"];
 const LINE_READ = ["id", "x_sequence", "x_product_tmpl_id", "x_qty", "x_unit", "x_purchase_price", "x_market_text", "x_market_median", "x_no_loss_price", "x_suggested_price", "x_suggested_net", "x_final_price", "x_final_net", "x_total", "x_profit", "x_obs", "x_item_origin", "x_item_size"];
 const RECIPIENT_READ = ["id", "x_partner_id", "x_role", "x_asked_at", "x_via", "x_replied_at", "x_priced", "x_reminded_at"];
@@ -182,6 +188,7 @@ export async function readQuote(env: Env, id: number): Promise<SpecialQuote | nu
     id, name: str(q.x_name), partnerId: m2oId(q.x_partner_id as M2O), partnerName: m2oName(q.x_partner_id as M2O), date: str(q.x_date), state: asState(q.x_state),
     wastePct: num(q.x_waste_pct), marginPct: num(q.x_min_margin_pct), deliveryCost: num(q.x_delivery_cost), validUntil: str(q.x_valid_until), note: str(q.x_note),
     priceMode: asPriceMode(q.x_price_mode), modeChosen: q.x_price_mode === "net" || q.x_price_mode === "gross", alternatives: str(q.x_alternatives).trim(), layout: asLayout(q.x_layout),
+    calcMode: q.x_calc_mode === "net" || q.x_calc_mode === "gross" ? q.x_calc_mode : null,
     prepared: q.x_prepared === true, simulation: q[SIM_FIELD] === true, askedAt: str(q.x_asked_at), saleOrderId: m2oId(q.x_sale_order_id as M2O),
     quotationNumber: str(q.x_quotation_number), pdfUrl: str(q.x_pdf_url), sourceNotes: str(q.x_source_notes),
     header: { orderProfit: num(q.x_order_profit), profitText: str(q.x_profit_text), missingPurchase: num(q.x_missing_purchase), missingFinal: num(q.x_missing_final), total: num(q.x_total), summary: str(q.x_summary) },
@@ -195,6 +202,37 @@ export async function readQuote(env: Env, id: number): Promise<SpecialQuote | nu
       repliedAt: str(r.x_replied_at), priced: num(r.x_priced), remindedAt: str(r.x_reminded_at),
     })),
   };
+}
+
+/**
+ * § 64 — a line's two final prices when «الأسعار في العرض» is NOT the mode the request was last calculated in (it
+ * changed since; or that calculation is older than § 64). A line's edit asks Odoo for no recalculation (the lines'
+ * ids do not change), so one price of the pair may be stale — and Baraa may have typed the old mode's price before
+ * he changed the mode, or the new mode's after it, in one save. The TYPED price is the one that MOVED since the
+ * last calculation:
+ *   • the pair agrees (the price before VAT is the other ÷ 1.15): nothing moved, both are kept (finalsOf);
+ *   • the VAT-inclusive price moved when the line's total as last written (quantity × that price) no longer
+ *     holds; the price before VAT moved when it is no longer that old price ÷ 1.15;
+ *   • both moved, or the line has no quantity to tell by: the mode's own price is the typed one.
+ * A typed price is never rewritten from the stale one beside it.
+ */
+export function finalsAfterModeChange(l: Pick<QuoteLine, "finalPrice" | "finalNet" | "qty" | "total">, mode: PriceMode): { finalPrice: number; finalNet: number } {
+  if (!(l.qty > 0)) return finalsOf(l, mode);
+  const grossMoved = lineTotal(l.qty, l.finalPrice) !== round2(l.total);
+  if (!grossMoved) return finalsOf(l, "net");
+  if (mode === "gross") return finalsOf(l, "gross");
+  const netMoved = l.finalNet !== netOf(round2(l.total / l.qty));
+  return finalsOf(l, netMoved ? "net" : "gross");
+}
+/**
+ * The typed price of every line is the mode's own: the request was last calculated in this very mode, or it was
+ * never calculated at all (a new request: the screen lets only the mode's price be typed). Otherwise the mode
+ * changed since the last calculation — or that calculation is older than § 64 and its mode unknown.
+ */
+export const modeSettled = (q: Pick<SpecialQuote, "priceMode" | "calcMode" | "prepared">): boolean => q.calcMode === q.priceMode || (q.calcMode === null && !q.prepared);
+/** A line's two final prices as the next calculation will leave them (what recalcQuote writes; the preview reads them without writing). */
+export function lineFinals(q: Pick<SpecialQuote, "priceMode" | "calcMode" | "prepared">, l: Pick<QuoteLine, "finalPrice" | "finalNet" | "qty" | "total">): { finalPrice: number; finalNet: number } {
+  return modeSettled(q) ? finalsOf(l, q.priceMode) : finalsAfterModeChange(l, q.priceMode);
 }
 
 /** «صالح حتى» of a new request: the end of tomorrow in Riyadh (23:59:59), as Odoo keeps it (UTC). */
@@ -301,7 +339,9 @@ export async function recalcQuote(env: Env, id: number, opts: { now?: number; ac
     const market = Object.values(l.obs.market).map((v) => v.p);
     // the final price Baraa types is the one of «الأسعار في العرض»; the other follows it (× or ÷ 1.15).
     // The formulas read the VAT-inclusive one either way.
-    let { finalNet, finalPrice } = finalsOf(l, net ? "net" : "gross");
+    // § 64 — while the mode is the one of the last calculation the typed price is the mode's own; once it has
+    // changed since (or the request was never calculated), the typed price is the one that moved (lineFinals)
+    let { finalNet, finalPrice } = modeSettled(q) ? finalsOf(l, net ? "net" : "gross") : finalsAfterModeChange(l, net ? "net" : "gross");
     let n = lineNumbers({ qty: l.qty, purchase: l.purchase, market, finalPrice }, wastePct, marginPct);
     // § 62 د — «المقترح» as the mode rounds it: on the price before VAT while the quotation prints that one
     const sug = suggestedFor(l.purchase, n.marketMedian, wastePct, marginPct, q.priceMode);
@@ -334,6 +374,8 @@ export async function recalcQuote(env: Env, id: number, opts: { now?: number; ac
     state = numbers.lines > 0 && numbers.missingFinal === 0 ? "priced" : q.askedAt ? "sent" : "draft";
   }
   if (state !== q.state) vals.x_state = state;
+  // § 64 — the mode this pass calculated in: what the next pass reads the typed price by
+  if (q.calcMode !== q.priceMode) vals.x_calc_mode = q.priceMode;
   const pt = profitText(numbers), st = summaryText(numbers);
   if (differs(q.header.orderProfit, numbers.profit)) vals.x_order_profit = numbers.profit;
   if (q.header.profitText !== pt) vals.x_profit_text = pt;

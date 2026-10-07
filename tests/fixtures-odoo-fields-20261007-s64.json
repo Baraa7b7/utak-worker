@@ -1,5 +1,5 @@
 {
- "_source": "fields_get on utakfresh.odoo.com, 2026-10-07T18:36Z (read-only), § 64 (sale.order.line.x_pack_text; x_preview_ticket.x_active; every model of § 62 د again)",
+ "_source": "fields_get on utakfresh.odoo.com, 2026-10-07T19:21Z (read-only), § 64 (sale.order.line.x_pack_text; x_preview_ticket.x_active; every model of § 62 د again)",
  "_selections": {
   "x_pricing_config.x_above_suggested": [
    "market",
@@ -2955,6 +2955,10 @@
    "x_supplier_due",
    "x_official_doc"
   ],
+  "x_special_quote.x_calc_mode": [
+   "net",
+   "gross"
+  ],
   "x_special_quote.x_layout": [
    "auto",
    "unit",
@@ -5258,6 +5262,7 @@
   "write_uid",
   "x_alternatives",
   "x_asked_at",
+  "x_calc_mode",
   "x_date",
   "x_delivery_cost",
   "x_issued_at",

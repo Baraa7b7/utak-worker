@@ -1,7 +1,7 @@
 // Mutation check for § 64 (2026-10-07) — «💬 المحادثات» by date (م: scripts/lib/s64-odoo.mjs — the Python Odoo runs
 // and its JS twin), the worker's «📈 تاريخ الأسعار» page (ت: src/price-history.ts, src/quote-preview.ts) and § 62 د's
-// leftovers (ب: the old download's 410, «التعبئة» as text, a typed price under a change of mode, the second
-// sheet's padding, the ticket's archive). Each mutation disables ONE guard, runs the test file named with it, and
+// leftovers (ب: the old download's 410, «التعبئة» as text, a typed price under a change of mode — the pair's stale
+// price never taken for the typed one — the second sheet's padding, the ticket's archive). Each mutation disables ONE guard, runs the test file named with it, and
 // must make it fail. The source is restored in `finally` after every run; a pattern that is not found exactly
 // once stops the script.
 //
@@ -22,6 +22,8 @@ const PREV = ".filter((r) => r.day < lastMarket.day && price(r.market) > 0).pop(
 const KEPT = "l.finalPrice > 0 && netOf(l.finalPrice) === l.finalNet ? l.finalPrice : grossOf(l.finalNet)";
 const FLOW = ".utak-page { -webkit-box-decoration-break: clone; box-decoration-break: clone; padding-bottom: 0 !important; }";
 const GONE = "    if (url.pathname === SALE_PDF_GONE_PATH) {\n      return new Response(null, { status: 410, headers: { \"Cache-Control\": \"no-store\" } });\n    }\n";
+const CHANGED = "modeSettled(q) ? finalsOf(l, net ? \"net\" : \"gross\") : finalsAfterModeChange(l, net ? \"net\" : \"gross\")";
+const MOVED = "  const grossMoved = lineTotal(l.qty, l.finalPrice) !== round2(l.total);";
 const PY_BUCKET_LINE = "\n        'x_date_bucket': wa_bucket(last, now, channel.x_pinned),";
 
 // [part, name, [[file, find, replace], …], test file]
@@ -136,6 +138,19 @@ const M = [
   ["ب", "«📄 أصدر عرض السعر» does not copy «التعبئة»", [[QT, "    x_pack_text: l.unit || false,\n", ""]], TB],
   ["ب", "a typed VAT-inclusive price is rewritten when the mode changes", [[SQ, KEPT, "grossOf(l.finalNet)"]], TB],
   ["ب", "a price typed before VAT does not move the one with it", [[SQ, KEPT, "l.finalPrice > 0 ? l.finalPrice : grossOf(l.finalNet)"]], TB],
+  ["ب", "after a change of mode the mode's own price is always the typed one (a stale pair wipes or rewrites the typed price)", [[SQ, CHANGED, "finalsOf(l, net ? \"net\" : \"gross\")"]], TB],
+  ["ب", "the mode of a calculation is never recorded on the request", [[SQ, "  if (q.calcMode !== q.priceMode) vals.x_calc_mode = q.priceMode;\n", ""]], TB],
+  ["ب", "the recorded mode is never read", [[SQ, "calcMode: q.x_calc_mode === \"net\" || q.x_calc_mode === \"gross\" ? q.x_calc_mode : null,", "calcMode: null,"]], TB],
+  ["ب", "a NEW request is read by which price moved (a price of the other kind alone becomes its final price)", [[SQ, " || (q.calcMode === null && !q.prepared);", ";"]], TB],
+  ["ب", "a request calculated before § 64 is read by its mode alone", [[SQ, "(q.calcMode === null && !q.prepared)", "q.calcMode === null"]], TB],
+  ["ب", "a line with no quantity: the price before VAT is always taken for the typed one", [[SQ, "  if (!(l.qty > 0)) return finalsOf(l, mode);\n", ""]], TB],
+  ["ب", "the VAT-inclusive price is never seen to move", [[SQ, MOVED, "  const grossMoved = false;"]], TB],
+  ["ب", "the VAT-inclusive price is always seen to move", [[SQ, MOVED, "  const grossMoved = true;"]], TB],
+  ["ب", "both moved in «شاملة الضريبة»: the price before VAT wins", [[SQ, "  if (mode === \"gross\") return finalsOf(l, \"gross\");\n", ""]], TB],
+  ["ب", "both moved in «قبل الضريبة»: the price with VAT wins", [[SQ, "  return finalsOf(l, netMoved ? \"net\" : \"gross\");", "  return finalsOf(l, \"gross\");"]], TB],
+  ["ب", "in «قبل الضريبة» the price before VAT wins though it never moved", [[SQ, "  return finalsOf(l, netMoved ? \"net\" : \"gross\");", "  return finalsOf(l, \"net\");"]], TB],
+  ["ب", "the preview reads the mode's own price after a change of mode", [[SQ, "  return modeSettled(q) ? finalsOf(l, q.priceMode) : finalsAfterModeChange(l, q.priceMode);", "  return finalsOf(l, q.priceMode);"]], TB],
+  ["ب", "«وضع آخر حساب» is free text in Odoo", [[LIB, "{ name: \"x_calc_mode\", ttype: \"selection\",", "{ name: \"x_calc_mode\", ttype: \"char\","]], TB],
   ["ب", "the page's padding is not repeated at a sheet's break", [[PT, FLOW, ".utak-page { padding-bottom: 0 !important; }"]], TB],
   ["ب", "the bottom padding is repeated too (the first sheet loses room)", [[PT, FLOW, ".utak-page { -webkit-box-decoration-break: clone; box-decoration-break: clone; }"]], TB],
   ["ب", "no room under the page's foot", [[PT, "\n  ${PAGE_FOOT_SELECTOR} { margin-bottom: ${BRAND_TYPE.pagePadding}; }`;", "`;"]], TB],

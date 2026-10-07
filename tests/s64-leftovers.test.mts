@@ -3,8 +3,9 @@
 //   [أ] the old fixed-token download of a sale order's quotation is GONE: 410, no content, whatever is sent
 //   [ب] a sale order's line prints its pack in this order: «التعبئة» as text (x_pack_text) ← «العبوة»
 //       (x_packaging_id) ← the product's default packaging; «📄 أصدر عرض السعر» copies the request's «التعبئة»
-//   [ج] a change of «الأسعار في العرض» never rewrites a final price Baraa typed; a new automation of its own
-//       recalculates the request when the mode or «شكل العرض» changes
+//   [ج] a change of «الأسعار في العرض» never rewrites a final price Baraa typed — whichever of a line's two prices
+//       he typed, and whether or not it was followed before the change (a line's edit asks for no recalculation);
+//       a new automation of its own recalculates the request when the mode or «شكل العرض» changes
 //   [د] a long document's second sheet starts under the same top padding as the first — and the first sheet's
 //       budget is what it was
 //   [هـ] a used ticket is archived; the six tickets § 62 د's checks left are
@@ -140,6 +141,70 @@ console.log("\n[ج] a typed final price survives a change of «الأسعار ف
   quote(id).x_layout = "qty"; odooLog.length = 0;
   await quiet(() => SQ.recalcQuote(env, id));
   assert("a change of «شكل العرض»: the recalculation writes no final price", !JSON.stringify(writesOf().map((l) => l.body.vals)).includes("x_final"));
+  // ---- a line's edit asks Odoo for no recalculation: when the mode changes, one price of the pair may be stale
+  {
+    const env2 = world();
+    const rid = request([[ORANGE, 1, { x_purchase_price: 6 }], [GARLIC, 2, { x_purchase_price: 6 }], [LETTUCE, 1, { x_purchase_price: 5 }]], { x_price_mode: "gross" });
+    const pass = () => quiet(() => SQ.recalcQuote(env2, rid));
+    const pair = (p: number) => [lineOf(rid, p).x_final_price || 0, lineOf(rid, p).x_final_net || 0];
+    await pass();
+    assert("the first calculation records its mode on the request («وضع آخر حساب»), once: a second pass writes nothing", quote(rid).x_calc_mode === "gross" && quote(rid).x_prepared === true && (await pass())!.wrote === false);
+    // (a) what the live probe found: 11.00 typed with VAT and never followed (0 before it), then the mode changed
+    lineOf(rid, ORANGE).x_final_price = 11; quote(rid).x_price_mode = "net";
+    await pass();
+    assert("(a) a price typed with VAT and not yet followed (0 before it), then the mode changed: 11.00 is KEPT and 9.57 follows — never wiped", JSON.stringify(pair(ORANGE)) === "[11,9.57]" && quote(rid).x_calc_mode === "net", JSON.stringify(pair(ORANGE)));
+    // (b) a newer price typed with VAT over a followed one (its pair stale), then the mode changed
+    quote(rid).x_price_mode = "gross"; await pass();
+    lineOf(rid, ORANGE).x_final_price = 12; quote(rid).x_price_mode = "net";
+    await pass();
+    assert("(b) 12.00 typed with VAT over 11.00 (9.57 beside it is stale), then «قبل الضريبة»: 12.00 stays, 10.43 follows", JSON.stringify(pair(ORANGE)) === "[12,10.43]", JSON.stringify(pair(ORANGE)));
+    // (c) the other way round
+    lineOf(rid, ORANGE).x_final_net = 10; quote(rid).x_price_mode = "gross";
+    await pass();
+    assert("(c) 10.00 typed before VAT (12.00 beside it is stale), then «شاملة الضريبة»: 10.00 stays, 11.50 follows", JSON.stringify(pair(ORANGE)) === "[11.5,10]" && quote(rid).x_calc_mode === "gross", JSON.stringify(pair(ORANGE)));
+    // (d) in ONE save: the mode changed AND the new mode's price typed (a line of two cartons)
+    quote(rid).x_price_mode = "net"; lineOf(rid, GARLIC).x_final_net = 5;
+    await pass();
+    assert("(d) the mode changed and the NEW mode's price typed in the same save: 5.00 before VAT stays, 5.75 follows; the untouched pair stays", JSON.stringify(pair(GARLIC)) === "[5.75,5]" && JSON.stringify(pair(ORANGE)) === "[11.5,10]", JSON.stringify([pair(GARLIC), pair(ORANGE)]));
+    // (e) both prices of a line moved across the change: the mode's own is the last one he could type
+    lineOf(rid, GARLIC).x_final_net = 30; quote(rid).x_price_mode = "gross"; lineOf(rid, GARLIC).x_final_price = 20;
+    await pass();
+    assert("(e) both moved, now «شاملة الضريبة»: the price with VAT (20.00) is the typed one", JSON.stringify(pair(GARLIC)) === "[20,17.39]", JSON.stringify(pair(GARLIC)));
+    lineOf(rid, GARLIC).x_final_price = 40; quote(rid).x_price_mode = "net"; lineOf(rid, GARLIC).x_final_net = 30;
+    await pass();
+    assert("…both moved, now «قبل الضريبة»: the price before VAT (30.00) is the typed one", JSON.stringify(pair(GARLIC)) === "[34.5,30]", JSON.stringify(pair(GARLIC)));
+    // (f) a line with no quantity has no total to tell by: the mode's own price
+    lineOf(rid, LETTUCE).x_qty = 0; await pass();
+    lineOf(rid, LETTUCE).x_final_net = 3; quote(rid).x_price_mode = "gross"; lineOf(rid, LETTUCE).x_final_price = 7;
+    await pass();
+    assert("(f) no quantity on the line: the mode's own price is the typed one (7.00 with VAT, 6.09 before it)", JSON.stringify(pair(LETTUCE)) === "[7,6.09]", JSON.stringify(pair(LETTUCE)));
+    // the mode settled: the screen lets only the mode's price be typed — a price of the other kind written from outside is not one
+    quote(rid).x_price_mode = "net"; await pass();
+    lineOf(rid, ORANGE).x_final_price = 99;
+    await pass();
+    assert("the mode as last calculated («قبل الضريبة»): a price with VAT written from outside the screen is no typed price — the one before VAT stands", quote(rid).x_calc_mode === "net" && JSON.stringify(pair(ORANGE)) === "[11.5,10]", JSON.stringify(pair(ORANGE)));
+    // a request calculated before § 64 (prepared, its last mode unknown): its first change of mode is read the same way
+    const old = request([[ORANGE, 1, { x_purchase_price: 6, x_final_price: 12, x_final_net: 9.57, x_total: 11 }], [GARLIC, 1, { x_purchase_price: 6, x_final_price: 139.49, x_final_net: 121.3, x_total: 139.49 }]], { x_price_mode: "net", x_prepared: true, x_name: "SQ-0900" });
+    await quiet(() => SQ.recalcQuote(env2, old));
+    assert("a request calculated before § 64, 12.00 typed over 11.00 and then the mode changed: 12.00 / 10.43, its other pair untouched", lineOf(old, ORANGE).x_final_price === 12 && lineOf(old, ORANGE).x_final_net === 10.43 && lineOf(old, GARLIC).x_final_price === 139.49 && lineOf(old, GARLIC).x_final_net === 121.3 && quote(old).x_calc_mode === "net");
+    // a NEW request (never calculated) is read by its own mode: a price of the other kind alone is not a final price (§ 62)
+    const fresh = request([[ORANGE, 1, { x_purchase_price: 6, x_final_price: 14.25 }]], { x_price_mode: "net" });
+    const fr = (await quiet(() => SQ.recalcQuote(env2, fresh)))!;
+    assert("a new request in «قبل الضريبة» with a VAT-inclusive price alone: no final price (the screen never lets it be typed)", fr.numbers.missingFinal === 1 && !(lineOf(fresh, ORANGE).x_final_price > 0) && SQ.modeSettled({ priceMode: "net", calcMode: null, prepared: false }) && !SQ.modeSettled({ priceMode: "net", calcMode: null, prepared: true }) && !SQ.modeSettled({ priceMode: "net", calcMode: "gross", prepared: true }) && SQ.modeSettled({ priceMode: "gross", calcMode: "gross", prepared: true }));
+    // the preview reads the pair the same way, and writes nothing
+    const pv = request([[ORANGE, 1, { x_purchase_price: 6 }]], { x_price_mode: "gross" });
+    await quiet(() => SQ.recalcQuote(env2, pv));
+    lineOf(pv, ORANGE).x_final_price = 11; quote(pv).x_price_mode = "net";
+    odooLog.length = 0;
+    const shown = await quiet(() => QT.previewSpecialQuotation(env2, pv));
+    assert("«👁️ معاينة PDF» right after such a change (before any recalculation): the draft, not «أسطر بلا سعر نهائي» — and nothing written", !!shown && "pdf" in shown && writesOf().length === 0 && !(lineOf(pv, ORANGE).x_final_net > 0), JSON.stringify(shown && "refused" in shown ? shown : writesOf().map((l) => l.model)));
+    assert("finalsAfterModeChange, case by case", JSON.stringify([
+      SQ.finalsAfterModeChange({ finalPrice: 11, finalNet: 0, qty: 1, total: 0 }, "net"), SQ.finalsAfterModeChange({ finalPrice: 12, finalNet: 9.57, qty: 1, total: 11 }, "net"),
+      SQ.finalsAfterModeChange({ finalPrice: 12, finalNet: 10, qty: 3, total: 36 }, "gross"), SQ.finalsAfterModeChange({ finalPrice: 0, finalNet: 5, qty: 2, total: 0 }, "net"),
+      SQ.finalsAfterModeChange({ finalPrice: 11, finalNet: 9.57, qty: 1, total: 11 }, "net"), SQ.finalsAfterModeChange({ finalPrice: 11, finalNet: 0, qty: 1, total: 11 }, "gross"),
+    ]) === JSON.stringify([{ finalPrice: 11, finalNet: 9.57 }, { finalPrice: 12, finalNet: 10.43 }, { finalPrice: 11.5, finalNet: 10 }, { finalPrice: 5.75, finalNet: 5 }, { finalPrice: 11, finalNet: 9.57 }, { finalPrice: 0, finalNet: 0 }]));
+    assert("in Odoo: «وضع آخر حساب» is the worker's field, with the two modes of «الأسعار في العرض»", L.QUOTE_FIELDS[0].name === "x_calc_mode" && L.QUOTE_FIELDS[0].ttype === "selection" && L.QUOTE_FIELDS[0].selection === "[('net', 'قبل الضريبة'), ('gross', 'شاملة الضريبة')]" && rejected.length === 0, rejected.join(" | "));
+  }
   // Odoo's side
   assert("a NEW automation of its own: on a write of «الأسعار في العرض» or «شكل العرض» alone (§ 62's save automation is not changed)", L.MODE_AUTOMATION.name !== L62.AUTOMATION_NAME && L.MODE_AUTOMATION.trigger === "on_write" && L.MODE_AUTOMATION.model === "x_special_quote" && JSON.stringify(L.MODE_AUTOMATION.fields) === JSON.stringify(["x_price_mode", "x_layout"])
     && !L62.AUTOMATION_FIELDS.includes("x_price_mode") && !L62.AUTOMATION_FIELDS.includes("x_layout"));

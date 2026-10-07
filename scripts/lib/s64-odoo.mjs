@@ -245,6 +245,14 @@ export const SALE_PACK_ARCH = `<data>
   </xpath>
 </data>`;
 export const QUOTE_MODEL = S62.QUOTE_MODEL;
+/**
+ * «وضع آخر حساب»: the mode («الأسعار في العرض») the worker last calculated the request in. The price Baraa typed is
+ * THAT mode's — a line's edit does not ask Odoo for a recalculation (its ids do not change), so when the mode is
+ * changed the other price of the pair may be stale or empty: the worker reads the pair the old mode's way first.
+ */
+export const QUOTE_FIELDS = [
+  { name: "x_calc_mode", ttype: "selection", selection: sel(S62.PRICE_MODES), field_description: "وضع آخر حساب (تقني)", help: "«الأسعار في العرض» كما كان عند آخر حساب أجراه الوركر: السعر النهائي المكتوب هو سعر ذلك الوضع. يكتبه الوركر؛ لا يُعدَّل باليد." },
+];
 export const RECALC_HOOK_ACTION = "utak.special_quote.recalc_webhook"; // § 62's: the worker's recalc, the one «🔄 احسب» presses
 /** A change of «الأسعار في العرض» or «شكل العرض»: the request's own recalc webhook, pressed for it. */
 export const MODE_ACTION = {

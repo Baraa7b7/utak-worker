@@ -37,7 +37,7 @@ import { riyadhDateKey } from "./hours";
 import { readWindow, waDigits } from "./wa-window";
 import { arabicDate } from "./wa-params";
 import { money, round2, VAT_FACTOR, VAT_RATE, type PriceMode } from "./special-quote-math";
-import { QUOTE_MODEL, finalsOf, nowOdoo, quoteName, readQuote, recalcQuote, writeResult, type SpecialQuote } from "./special-quote";
+import { QUOTE_MODEL, lineFinals, nowOdoo, quoteName, readQuote, recalcQuote, writeResult, type SpecialQuote } from "./special-quote";
 import { itemDetail, type QuotationPDFData } from "./quotation";
 
 export const OWNER_SPECIAL_PURPOSE = "owner_special_quote";
@@ -257,7 +257,7 @@ export async function previewSpecialQuotation(env: Env, quoteId: number, now: nu
   const read = await readQuote(env, quoteId);
   if (!read) return null;
   // the two final prices of every line as a save would leave them (the typed one, and the other following it)
-  const q: SpecialQuote = { ...read, lines: read.lines.map((l) => ({ ...l, ...finalsOf(l, read.priceMode) })) };
+  const q: SpecialQuote = { ...read, lines: read.lines.map((l) => ({ ...l, ...lineFinals(read, l) })) };
   if (!q.partnerId) return { refused: "لا عميل على الطلب" };
   if (!q.lines.length) return { refused: "لا أصناف في الطلب" };
   const miss = missingLines(q);

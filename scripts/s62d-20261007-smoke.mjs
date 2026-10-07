@@ -49,7 +49,7 @@ const ticket = m[1];
 const hop = await get(`${PREVIEW_PATH}${ticket}`);
 const where = hop.headers.get("location") ?? "";
 check(`the ticket: 302 to the worker's signed link for this record`, hop.status === 302 && new RegExp(`^/preview/doc/${kind === "quote" ? "sq" : "so"}/${rec.id}/\\d+/[a-f0-9]{16}\\.pdf$`).test(where), `${hop.status} ${where.replace(/[a-f0-9]{16}\.pdf$/, "<signature>.pdf")}`);
-const [row] = await call(TICKET_MODEL, "search_read", { domain: [["x_name", "=", ticket]], fields: ["id", "x_used", "x_model", "x_res_id"], limit: 1 });
+const [row] = await call(TICKET_MODEL, "search_read", { domain: [["x_name", "=", ticket]], fields: ["id", "x_used", "x_model", "x_res_id"], limit: 1, context: { active_test: false } }); // § 64: a burnt ticket is archived
 check("the ticket is burnt in Odoo", row?.x_used === true && row.x_res_id === rec.id, JSON.stringify(row));
 
 if (where) {

@@ -4,7 +4,7 @@
 //   schema (--only=schema, BEFORE the worker's code: it reads x_pack_text and x_active)
 //     1  discuss.channel: x_pinned, x_last_msg_at, x_last_msg_preview, x_date_bucket, x_last_msg_label;
 //        sale.order.line.x_pack_text «التعبئة»; x_preview_ticket.x_active (its default True, the six tickets of
-//        § 62 د's checks archived)
+//        § 62 د's checks archived); x_special_quote.x_calc_mode «وضع آخر حساب» (the worker writes it)
 //     2  the conversations' three code actions, the NEW automation on mail.message (#12 and #979 are not touched)
 //        and the scheduled action 00:05 Riyadh; the code actions of the price-history page and of the request's
 //        recalculation on a change of mode (both on no screen and under no automation yet)
@@ -120,7 +120,7 @@ if (ROLLBACK) {
 if (VERIFY) {
   const { check, done } = checker();
   if (ONLY === "schema") {
-    for (const [model, defs] of [[L.CHANNEL_MODEL, L.CHANNEL_FIELDS], [L.SALE_LINE_MODEL, L.SALE_LINE_FIELDS], [L.TICKET_MODEL, L.TICKET_FIELDS]]) {
+    for (const [model, defs] of [[L.CHANNEL_MODEL, L.CHANNEL_FIELDS], [L.SALE_LINE_MODEL, L.SALE_LINE_FIELDS], [L.TICKET_MODEL, L.TICKET_FIELDS], [L.QUOTE_MODEL, L.QUOTE_FIELDS]]) {
       const f = await call(model, "fields_get", { attributes: ["type", "string", "selection", "store"] });
       const bad = defs.filter((d) => !(f[d.name]?.type === d.ttype && f[d.name].string === d.field_description && f[d.name].store !== false));
       check(`${model}: ${defs.map((d) => `${d.name} «${d.field_description}»`).join(", ")}`, !bad.length, JSON.stringify(bad.map((d) => [d.name, f[d.name]])));
@@ -157,7 +157,10 @@ if (VERIFY) {
     let how = "";
     const s = await call(L.SALE_LINE_MODEL, "search_read", { domain: [], fields: ["id", "x_pack_text", "x_packaging_id"], limit: 2 }).catch((e) => { how = String(e?.message ?? e).slice(0, 160); return null; });
     const t = await call(L.TICKET_MODEL, "search_read", { domain: [["x_name", "=", "none"]], fields: ["id", "x_model", "x_res_id", "x_used", "x_active", "create_date"], limit: 1, context: ALL }).catch((e) => { how = String(e?.message ?? e).slice(0, 160); return null; });
-    check("the worker's reads of the new fields answer", Array.isArray(s) && Array.isArray(t), how);
+    const qm = await call(L.QUOTE_MODEL, "search_read", { domain: [], fields: ["id", "x_price_mode", "x_calc_mode"], limit: 5, order: "id asc" }).catch((e) => { how = String(e?.message ?? e).slice(0, 160); return null; });
+    check("the worker's reads of the new fields answer", Array.isArray(s) && Array.isArray(t) && Array.isArray(qm), how);
+    const fq = await call(L.QUOTE_MODEL, "fields_get", { attributes: ["selection"] });
+    check("«وضع آخر حساب» takes the two modes of «الأسعار في العرض», by the same keys", JSON.stringify((fq.x_calc_mode?.selection ?? []).map((x) => x[0])) === JSON.stringify((fq.x_price_mode?.selection ?? []).map((x) => x[0])), JSON.stringify(fq.x_calc_mode?.selection));
   } else if (ONLY === "chats") {
     const rows = await expectedChats();
     const off = rows.filter((r) => Object.entries(r.want).some(([k, v]) => (r.have[k] || false) !== v));
@@ -247,6 +250,8 @@ if (ONLY === "schema") {
   await ensureFields(ctx, L.CHANNEL_MODEL, await modelId(L.CHANNEL_MODEL), L.CHANNEL_FIELDS);
   await pause();
   await ensureFields(ctx, L.SALE_LINE_MODEL, await modelId(L.SALE_LINE_MODEL), L.SALE_LINE_FIELDS);
+  await pause();
+  await ensureFields(ctx, L.QUOTE_MODEL, await modelId(L.QUOTE_MODEL), L.QUOTE_FIELDS);
   await pause();
   const hadActive = !!(await fieldRow(L.TICKET_MODEL, "x_active"));
   await ensureFields(ctx, L.TICKET_MODEL, await modelId(L.TICKET_MODEL), L.TICKET_FIELDS);

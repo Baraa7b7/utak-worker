@@ -301,7 +301,7 @@ export async function recalcQuote(env: Env, id: number, opts: { now?: number; ac
     const market = Object.values(l.obs.market).map((v) => v.p);
     // the final price Baraa types is the one of «الأسعار في العرض»; the other follows it (× or ÷ 1.15).
     // The formulas read the VAT-inclusive one either way.
-    let { finalNet, finalPrice } = finalsOf(l, q.priceMode);
+    let { finalNet, finalPrice } = finalsOf(l, net ? "net" : "gross");
     let n = lineNumbers({ qty: l.qty, purchase: l.purchase, market, finalPrice }, wastePct, marginPct);
     // § 62 د — «المقترح» as the mode rounds it: on the price before VAT while the quotation prints that one
     const sug = suggestedFor(l.purchase, n.marketMedian, wastePct, marginPct, q.priceMode);

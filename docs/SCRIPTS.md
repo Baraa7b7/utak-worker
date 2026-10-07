@@ -60,6 +60,9 @@
 | `cutover-prod.mts`، `s42-20260927-prelaunch-mark.mts`، `s45-…-{omar-friday,mark-quotes}` | التحويل sim ← prod وتراجعه، ووسم سجلات المحاكاة |
 | `brand-20260924-{render-samples,render-docs,paper-scan,qr-cream-read}` | بعد أي تعديل في PDF: الختم و QR والتذييل ولون الورق، **وعدد الصفحات** (الصادر صفحة واحدة؛ مسودة عرض السعر صفحتان منذ قبل § 62 ج) |
 | `s62c-20261007-from-samples.mjs` | § 62 ج (إصلاح): ثلاث عيّنات PDF بالمولّدات الحقيقية (عرض خاص قبل الضريبة، وعرض يدوي، وفاتورة ضريبية) ← `scripts/artifacts/fix-from-20261007-*.pdf` وصورها؛ يفحص «من» من الشركة و«إلى / TO» والرقم الضريبي وعدد الصفحات. قراءة فقط من Odoo (يرفض أي طلب ليس قراءة)، بلا إرسال |
+| `s62d-20261007-odoo.mjs --only=schema\|ui` (+ `lib/s62d-odoo.mjs`) | § 62 د: **schema** (قبل الكود) «شكل العرض»، و«المنشأ» / «المقاس» / «المقترح قبل الضريبة»، ونموذج `x_preview_ticket`، وإجراءا «👁️ معاينة PDF»؛ **ui** (بعد النشر) نموذج الطلب الخاص وامتداد نموذج أمر البيع. `--verify`، و`--probe --apply` (ضغطة لكل إجراء عبر API على سجل غير محمي)، و`--rollback` (الشاشات وحدها) |
+| `s62d-20261007-fields-fixture.mjs` | بصمة المخطط الكاملة بعد § 62 د ← `tests/fixtures-odoo-fields-20261007-s62d.json` (آخر ما يُقرأ في البوابة) |
+| `s62d-20261007-samples.mjs` | § 62 د: ثماني عيّنات PDF بالمولّدات الحقيقية (SQ-0002 معاينة وصادر، و12 و27 سطراً، و S00015 صادر ومعاينة، وعرض يومي، وفاتورة ضريبية) ← `scripts/artifacts/q62d-20261007-*.pdf` وصورها؛ قراءة فقط من Odoo، وعدد الصفحات والتذييل لكل واحدة. **تُشغَّل بعد أي تعديل في شكل عرض السعر** |
 | `s41-full-day-sim.mts` (+ `sim-report`، `sim-snapshot`، `sim-mark`) | المحاكاة الشاملة ليوم كامل (`--odoo=fake`) |
 | `wa-templates-…-{new-eight,migrate-when-approved,purpose-contract}`، `s34-…-opener-templates`، `s37-…-{odoo,supplier-payment-template}` | تعريفات قوالب وعقود تستوردها الاختبارات |
 | `apply-english-names.mjs` | بعد مراجعة براء للأسماء الإنجليزية |

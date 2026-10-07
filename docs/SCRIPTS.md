@@ -57,7 +57,8 @@
 | `s62-20261007-trial.mjs <purchase\|market\|quotation\|recalc> [--id=N]` | تجارب § 62 الثلاث إلى رقم براء من prod المنشور (جاف افتراضياً، `--send` مرة في اليوم)؛ و`recalc`: يطلب أرقام طلب من الوركر (لا يرسل شيئاً) |
 | `s62-20261007-diag.mjs`، `s62-20261007-fields-fixture.mjs` | قراءة حالة Odoo قبل الأمر، وبصمة المخطط بعد التطبيق (النماذج الثلاثة لأول مرة) |
 | `cutover-prod.mts`، `s42-20260927-prelaunch-mark.mts`، `s45-…-{omar-friday,mark-quotes}` | التحويل sim ← prod وتراجعه، ووسم سجلات المحاكاة |
-| `brand-20260924-{render-samples,render-docs,paper-scan,qr-cream-read}` | بعد أي تعديل في PDF: الختم و QR والتذييل ولون الورق |
+| `brand-20260924-{render-samples,render-docs,paper-scan,qr-cream-read}` | بعد أي تعديل في PDF: الختم و QR والتذييل ولون الورق، **وعدد الصفحات** (الصادر صفحة واحدة؛ مسودة عرض السعر صفحتان منذ قبل § 62 ج) |
+| `s62c-20261007-from-samples.mjs` | § 62 ج (إصلاح): ثلاث عيّنات PDF بالمولّدات الحقيقية (عرض خاص قبل الضريبة، وعرض يدوي، وفاتورة ضريبية) ← `scripts/artifacts/fix-from-20261007-*.pdf` وصورها؛ يفحص «من» من الشركة و«إلى / TO» والرقم الضريبي وعدد الصفحات. قراءة فقط من Odoo (يرفض أي طلب ليس قراءة)، بلا إرسال |
 | `s41-full-day-sim.mts` (+ `sim-report`، `sim-snapshot`، `sim-mark`) | المحاكاة الشاملة ليوم كامل (`--odoo=fake`) |
 | `wa-templates-…-{new-eight,migrate-when-approved,purpose-contract}`، `s34-…-opener-templates`، `s37-…-{odoo,supplier-payment-template}` | تعريفات قوالب وعقود تستوردها الاختبارات |
 | `apply-english-names.mjs` | بعد مراجعة براء للأسماء الإنجليزية |

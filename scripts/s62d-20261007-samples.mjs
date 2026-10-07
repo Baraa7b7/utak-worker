@@ -7,8 +7,9 @@
 //   3  qty-12           twelve lines by quantities, issued (sample data)
 //   4  s00015-issued    the sale order S00015 as «إرسال واتساب (UTAK)» would print it (read from Odoo; not sent)
 //   5  s00015-preview   its «👁️ معاينة PDF» (buildPreviewPdf)
-//   6  invoice          a tax invoice (sample data): only its page-foot block and the page number's place changed
-//   7  qty-27           twenty-seven lines: more than a sheet, «صفحة X من Y» on each
+//   6  day-6            the day's customer quotation (sample data, by quantities): its foot and its sheet alone changed
+//   7  invoice          a tax invoice (sample data): only its page-foot block and the page number's place changed
+//   8  qty-27           twenty-seven lines: more than a sheet, «صفحة X من Y» on each
 //
 // READ-ONLY on Odoo: any request that is not a read is refused before it leaves; any graph.facebook.com
 // request throws. Nothing is sent, nothing is uploaded, nothing is issued.
@@ -104,7 +105,6 @@ const invoice = {
   customer: { name: "مطعم العيّنة", contactPerson: "أ. محمد", address: "العليا، الرياض", phone: "+966 50 000 0000", vat: "300000000000003" },
   items, subtotal: round2(gross - tax), discount: 0, vatAmount: tax, grandTotal: gross, issued: true, zatcaQr: { base64: qr.base64, fields: qr.fields, source: qr.source },
 };
-void TEST_QUOTATION_DATA;
 
 const so15data = await buildQuotationPDFDataFromSaleOrder(env, so15.id);
 await pause();
@@ -115,6 +115,7 @@ const cases = [
   { key: "qty-12", what: "12 سطراً بالكميات — الصادر", pdf: () => generateQuotationPDF(byQty(12, "S-SAMPLE-12"), env), pages: 1, quotation: true, rows: 12, number: "S-SAMPLE-12", detail: "جنوب أفريقيا · مقاس 66" },
   { key: "s00015-issued", what: "S00015 من أمر البيع — كما يُرسل", pdf: () => generateQuotationPDF({ ...so15data, issued: true }, env), pages: 1, quotation: true, unit: so15data?.layout === "unit", rows: so15data?.items.length, number: "S00015", noItemWord: true },
   { key: "s00015-preview", what: "S00015 من أمر البيع — معاينة", pdf: async () => { const r = await buildPreviewPdf(env, "so", so15.id, now); if (!r || !("pdf" in r)) throw new Error(`preview: ${JSON.stringify(r)}`); return r.pdf; }, pages: 1, quotation: true, draft: true, unit: so15data?.layout === "unit", rows: so15data?.items.length, noItemWord: true },
+  { key: "day-6", what: "عرض العميل اليومي (6 أصناف، بالكميات) — الصادر", pdf: () => generateQuotationPDF({ ...TEST_QUOTATION_DATA, quotationNumber: "UTAK-Q-SAMPLE", quotationDate: new Date(now), vatInclusive: true, issued: true }, env), pages: 1, quotation: true, rows: 6, number: "UTAK-Q-SAMPLE" },
   { key: "invoice", what: "فاتورة ضريبية", pdf: () => generateInvoicePDF(invoice, env), pages: 1, quotation: false },
   { key: "qty-27", what: "27 سطراً بالكميات — أكثر من صفحة", pdf: () => generateQuotationPDF(byQty(27, "S-SAMPLE-27"), env), pages: 2, quotation: true, rows: 27, number: "S-SAMPLE-27" },
 ];

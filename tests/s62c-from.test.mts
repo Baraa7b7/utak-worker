@@ -126,6 +126,9 @@ console.log("\n[ب] the fallback: no company reached the renderer");
 
 console.log("\n[ج] «إلى / TO» on a quotation, «فاتورة إلى / BILL TO» on the rest");
 {
+  // § 62 د — the quotation's page is the additive one now; the plain Arabic page still prints the label it is handed
+  const plain = PT.renderPDFShell({ documentTitle: "مستند", documentNumber: "X-1", documentDate: new Date("2026-10-07T09:00:00Z"), billTo: { name: "عميل" }, bodyHTML: "", pageMetrics: PT.computePageMetrics(1), billToLabel: "إلى / TO" });
+  assert("the plain Arabic page (no additive option) prints the party label it is handed, not «فاتورة إلى»", parties(plain).toLabel === "إلى / TO" && !plain.includes("فاتورة إلى") && !plain.includes("utak-fit") && plain.includes('data-utak="page-foot"'), parties(plain).toLabel);
   for (const [name, data] of QUOTATIONS) {
     for (const company of [COMPANY, undefined]) {
       const html = Q.renderQuotationHTML(data, company as any);

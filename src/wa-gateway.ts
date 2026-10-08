@@ -505,7 +505,8 @@ export async function sendViaGateway(env: Env, req: GatewayRequest): Promise<Res
   // ---- § 67 أ: a trial («تجربة …», the sim worker's test send) reaches Baraa's number alone, always ----
   if (isTrialPurpose(req.purpose) && !isOwnerRecipient(env, to)) {
     console.warn(`[gateway] blocked purpose=${req.purpose} to=${maskPhone(to)} — a trial goes to the owner alone`);
-    return refused(`trial: purpose=${req.purpose} goes to the owner alone`, "TrialOwnerOnly", 403);
+    // the same refusal the owner's other purposes get («OwnerOnlyPurpose»), said first and for every trial
+    return refused(`trial: purpose=${req.purpose} goes to the owner alone`, "OwnerOnlyPurpose", 403);
   }
 
   // ---- owner guard (allowlist by purpose), never bypassed ----

@@ -284,7 +284,7 @@ console.log("\n[أ6] a trial reaches Baraa's number alone — frozen or not");
     const toOther = [];
     for (const p of trials) toOther.push(await gw(env, text(CUST_PHONE, "🧪 تجربة", p)));
     assert(`${frozen ? "frozen" : "not frozen"}: no trial is sent to another number, whatever its purpose`, toOther.every((d) => d?.action === "refused") && sentTo(CUST_PHONE).length === 0, JSON.stringify(toOther.filter((d) => d?.action !== "refused")));
-    assert(`${frozen ? "frozen" : "not frozen"}: the refusal says why`, toOther.every((d: any) => /^TrialOwnerOnly: trial: purpose=\w+_test goes to the owner alone$/.test(d.reason)), JSON.stringify(toOther.find((d: any) => !/^TrialOwnerOnly/.test(d.reason))));
+    assert(`${frozen ? "frozen" : "not frozen"}: the refusal says why`, toOther.every((d: any) => /^OwnerOnlyPurpose: trial: purpose=\w+_test goes to the owner alone$/.test(d.reason)), JSON.stringify(toOther.find((d: any) => !/^OwnerOnlyPurpose: trial/.test(d.reason))));
     const toOwner = [];
     for (const p of trials) toOwner.push(await gw(env, text(OWNER, `🧪 تجربة ${p}`, p)));
     assert(`${frozen ? "frozen" : "not frozen"}: every trial reaches Baraa`, toOwner.every((d) => d?.action === "session") && sentTo(OWNER).length === trials.length, JSON.stringify(toOwner.filter((d) => d?.action !== "session")));

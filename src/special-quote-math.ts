@@ -36,7 +36,6 @@ const pos = (n: unknown): number => (typeof n === "number" && Number.isFinite(n)
  */
 export type PriceMode = "net" | "gross";
 export const DEFAULT_PRICE_MODE: PriceMode = "net";
-export const VAT_RATE = 0.15;
 /** The price before VAT of a VAT-inclusive one (final ÷ 1.15), to the halala. */
 export const netOf = (gross: number): number => round2(pos(gross) / VAT_FACTOR);
 /** The VAT-inclusive price of one before VAT (× 1.15), to the halala. */

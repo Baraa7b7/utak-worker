@@ -34,7 +34,7 @@ const M = [
   ["أ", "a request with no lines prints unit prices", [[QT, AUTO, "  return q.lines.every((l) => l.qty === 1) ? \"unit\" : \"qty\";"]], TL],
   ["أ", "«شكل العرض» is ignored", [[QT, "  if (q.layout === \"unit\" || q.layout === \"qty\") return q.layout;\n", ""]], TL],
   ["أ", "«بالكميات» is ignored", [[QT, "  if (q.layout === \"unit\" || q.layout === \"qty\") return q.layout;", "  if (q.layout === \"unit\") return q.layout;"]], TL],
-  ["أ", "the unit's VAT is 15 % of the price before it again (not the two prices' difference)", [[QT, UNIT_NUMBERS, "      ...(unit ? { net: l.finalNet, vat: round2(l.finalNet * VAT_RATE), gross: l.finalPrice } : {}),"]], TL],
+  ["أ", "the unit's VAT is 15 % of the price before it again (not the two prices' difference)", [[QT, UNIT_NUMBERS, "      ...(unit ? { net: l.finalNet, vat: round2(l.finalNet * 0.15), gross: l.finalPrice } : {}),"]], TL],
   ["أ", "the unit's price with VAT is recomputed from the one before it", [[QT, UNIT_NUMBERS, "      ...(unit ? { net: l.finalNet, vat: round2(l.finalPrice - l.finalNet), gross: round2(l.finalNet * VAT_FACTOR) } : {}),"]], TL],
   ["أ", "the unit's price before VAT is the one with it", [[QT, UNIT_NUMBERS, "      ...(unit ? { net: l.finalPrice, vat: round2(l.finalPrice - l.finalNet), gross: l.finalPrice } : {}),"]], TL],
   ["أ", "the request's data never says «unit»", [[QT, "    ...(unit ? { layout: \"unit\" as const } : {}),\n", ""]], TL],

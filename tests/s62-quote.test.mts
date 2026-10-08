@@ -170,7 +170,7 @@ console.log("\n[ج+] «الأسعار في العرض»: the final price Baraa t
   Object.assign(lineOf(kept, ORANGE), { x_purchase_price: 3, x_final_price: 4.75, x_final_net: 99 });
   await quiet(() => SQ.recalcQuote(env, kept));
   assert("«شاملة الضريبة»: the final he typed (4.75) stays, and the price before VAT is 4.75 ÷ 1.15 = 4.13 whatever stood there", lineOf(kept, ORANGE).x_final_price === 4.75 && lineOf(kept, ORANGE).x_final_net === 4.13);
-  assert("the two conversions, to the halala: ÷ 1.15 and × 1.15 — and a typed price before VAT always comes back from its own final", M.netOf(4.75) === 4.13 && M.grossOf(5) === 5.75 && M.grossOf(12.39) === 14.25 && M.netOf(0) === 0 && [0.01, 0.03, 4.13, 9.99, 68, 16.5, 152, 1234.56].every((n) => M.netOf(M.grossOf(n)) === n) && M.VAT_RATE === 0.15);
+  assert("the two conversions, to the halala: ÷ 1.15 and × 1.15 — and a typed price before VAT always comes back from its own final", M.netOf(4.75) === 4.13 && M.grossOf(5) === 5.75 && M.grossOf(12.39) === 14.25 && M.netOf(0) === 0 && [0.01, 0.03, 4.13, 9.99, 68, 16.5, 152, 1234.56].every((n) => M.netOf(M.grossOf(n)) === n) && M.VAT_FACTOR === 1.15);
   assert("the schema gate let every field through", rejected.length === 0, rejected.join(" | "));
 }
 

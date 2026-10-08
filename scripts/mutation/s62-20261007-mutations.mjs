@@ -434,7 +434,7 @@ const M = [
   ["ج+", "the price before VAT is not rounded to the halala", [[MATH,
     "export const netOf = (gross: number): number => round2(pos(gross) / VAT_FACTOR);", "export const netOf = (gross: number): number => pos(gross) / VAT_FACTOR;"]], TQ],
   ["ج+", "the VAT is 5 %", [[MATH,
-    "export const VAT_RATE = 0.15;", "export const VAT_RATE = 0.05;"]], TP],
+    "export const VAT_FACTOR = 1.15;", "export const VAT_FACTOR = 1.05;"]], TP],
   ["ج+", "a before-VAT quotation prints the VAT-inclusive prices", [[QT,
     "    const price = net ? l.finalNet : l.finalPrice;", "    const price = l.finalPrice;"]], TP],
   ["ج+", "a VAT-inclusive quotation prints the prices before VAT", [[QT,

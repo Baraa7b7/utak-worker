@@ -270,9 +270,9 @@ const M = [
   ["هـ", "131042 blocks the purpose for 24h", [[GW,
     "  } else if (isPaymentIssue(code)) {", "  } else if (false) {"]], TE],
   ["هـ", "a stored 131042 block still blocks", [[GW,
-    "    return !isPaymentIssue((JSON.parse(stored) as { code?: unknown })?.code);", "    return true;"]], TE],
+    "    return metaErrorClass((JSON.parse(stored) as { code?: number | string | null })?.code) === \"permanent\";", "    return true;"]], TE],
   ["هـ", "no stored block blocks any more", [[GW,
-    "    return !isPaymentIssue((JSON.parse(stored) as { code?: unknown })?.code);", "    return false;"]], TE],
+    "    return metaErrorClass((JSON.parse(stored) as { code?: number | string | null })?.code) === \"permanent\";", "    return false;"]], TE],
   ["هـ", "131042 as a string not recognised", [[SF,
     "export const isPaymentIssue = (code: unknown): boolean => Number(code) === META_PAYMENT_ISSUE;", "export const isPaymentIssue = (code: unknown): boolean => code === META_PAYMENT_ISSUE;"]], TE],
 ];

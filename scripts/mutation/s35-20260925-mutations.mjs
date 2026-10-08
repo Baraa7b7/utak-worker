@@ -80,7 +80,7 @@ const M = [
     "  if (m >= dl + DEADLINE_WINDOW_MIN) return { action: \"after_window\", day };", ""]], T],
   // ---- tick / hook / quotes
   ["tick: publishes an approval at once (no wait for the webhook)", [[PR,
-    "    if (rec?.x_state === \"approved\" && approvedAt && now - approvedAt >= PUBLISH_RETRY_AFTER_MS) {", "    if (rec?.x_state === \"approved\") {"]], T],
+    "    if (rec?.x_state === \"approved\" && approvedAt && now - approvedAt >= PUBLISH_RETRY_AFTER_MS && !fz.missed(approvedAt)) {", "    if (rec?.x_state === \"approved\") {"]], T],
   ["hook: no token check", [["src/index.ts",
     "    if (request.method === \"POST\" && url.pathname === \"/odoo/hook/prices\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (!expected || !timingSafeEqual(providedToken, expected)) {",
     "    if (request.method === \"POST\" && url.pathname === \"/odoo/hook/prices\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (false && !timingSafeEqual(providedToken, expected)) {"]], T],

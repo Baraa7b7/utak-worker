@@ -15,8 +15,8 @@
 //
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/s67-freeze.test.mts
 
-import { CUST, CUST_PHONE, OWNER, computes, ctx, graph, heldFor, inbound, odooLog, openWindow, quiet, rows, seed, sentTo, setRiyadh, signed, table } from "./wa-harness.mts";
-import { AHMED_PHONE, DAY, DRIVER_PHONE, assert, done, fresh, ownerTexts, rejected } from "./s46-kit.mts";
+import { CUST, CUST_PHONE, OWNER, computes, ctx, employee, graph, heldFor, inbound, odooLog, openWindow, quiet, rows, seed, sentTo, setRiyadh, signed, table, workSchedule } from "./wa-harness.mts";
+import { AHMED, AHMED_PHONE, ALL_WEEK, DAY, DRIVER_PHONE, assert, done, fresh, ownerTexts, rejected } from "./s46-kit.mts";
 
 const worker = (await import("../src/index.ts")).default;
 const FZ = await import("../src/freeze.ts");
@@ -118,6 +118,10 @@ console.log("\n[أ2] every scheduled job: not run, «مجمّد» once a day, ne
   assert("not frozen (the control): the 02:00 ask reaches the supplier", sentTo(AHMED_PHONE).length === 1 && frozenRows().length === 0, JSON.stringify(bodies(AHMED_PHONE)));
 
   const env = world(`${DAY} 02:00`, { on: true, since: "2026-10-02 18:00" });
+  // an ask of before the freeze, still unanswered: the 05:00 cron would remind him
+  seed("x_supplier_price_request_log", { x_supplier_id: AHMED, x_sent_at: utc(`${DAY} 00:30`), x_status: "sent", x_replied_at: false });
+  openWindow(env, AHMED_PHONE, 30);
+  odooLog.length = 0;
   const writes0 = () => odooLog.filter((l) => l.method === "create" || l.method === "write").map((l) => l.model);
   await cron(env, "0 23 * * *");
   assert("frozen: the 02:00 cron sends nothing and writes nothing (no ask log, no price day)", graph.length === 0 && writes0().length === 0, JSON.stringify([graph.length, writes0()]));
@@ -138,12 +142,19 @@ console.log("\n[أ2] every scheduled job: not run, «مجمّد» once a day, ne
   const all = frozenRows().map((r) => String(r.x_body));
   assert("each of the day's fourteen jobs is «مجمّد» exactly once", all.length === FZ.FROZEN_JOBS.length && FZ.FROZEN_JOBS.every((j) => all.filter((b) => b === FZ.frozenJobText(j.label)).length === 1), JSON.stringify(all));
   assert("the list of what the freeze steps over names each of the command's: the asks, their reminders, the publication, the collection, the team, the day's alerts", ["طلب أسعار الشراء", "طلب أسعار السوق", "تذكير الموردين", "نشر أسعار اليوم", "تذكير الدفع", "ملخص التحصيل", "بدء الدوام", "ملخص اليوم"].every((w) => FZ.FROZEN_JOBS.some((j) => j.label.includes(w))));
-  assert("no price day was built, no order closed, no purchase list made: the jobs did not run", rows("x_price_day").length === 0 && rows("x_purchase_list").length === 0 && rows("x_supplier_price_request_log").length === 0);
+  assert("no price day was built, no order closed, no purchase list made: the jobs did not run", rows("x_price_day").length === 0 && rows("x_purchase_list").length === 0 && rows("x_supplier_price_request_log").length === 1);
   assert("nothing is held for anyone", [OWNER, CUST_PHONE, AHMED_PHONE, DRIVER_PHONE].every((d) => heldFor(env, d).length === 0));
   // the next day: its own rows
   setRiyadh(`${NEXT} 02:00`);
   await cron(env, "0 23 * * *"); await cron(env, TICK);
   assert("the next day's 02:00 is recorded «مجمّد» in its turn", frozenRows().length === FZ.FROZEN_JOBS.length + 2 && msgs().length === 0);
+  // a freeze turned on at 10:00: what ran before it is not «مجمّد» — only what comes due after
+  const mid = world(`${DAY} 10:05`, { on: true, since: `${DAY} 10:00` });
+  await cron(mid, TICK);
+  assert("turned on at 10:00: the jobs of 02:00–08:00 ran before it — none of them is recorded «مجمّد»", frozenRows().length === 0);
+  setRiyadh(`${DAY} 17:00`);
+  await cron(mid, TICK);
+  assert("…and at 17:00 the one that has come due since is", frozenRows().length === 1 && String(frozenRows()[0].x_body).includes("تذكير الطلب المعتاد"));
   assert("the crons the freeze stops are the ten of the day's work — not the 05:00 one (the template sync) nor the */5 tick (the upkeep)", FZ.FROZEN_CRONS.size === 10 && !FZ.FROZEN_CRONS.has("0 2 * * *") && !FZ.FROZEN_CRONS.has(TICK) && FZ.FROZEN_CRONS.has(TICK2));
   // a job started by hand while frozen (/sim/trigger): its own row, once
   const n = frozenRows().length;
@@ -247,6 +258,7 @@ console.log("\n[أ5] what Baraa does by hand");
   const res = await quiet(() => worker.fetch(new Request("https://w.test/odoo/hook/s67-trial?token=HOOK&op=state", { method: "POST" }), env, ctx));
   const state = (await res.json() as any).state;
   assert("the worker reads the switch the moment a route of Odoo's asks (no wait for the tick)", res.status === 200 && state.frozen === true && state.switchOn === true && state.until === null && state.retriesWaiting === 0 && state.ownerBlocks.owner_alert === false);
+  assert("a request of Odoo's is marked as Baraa's own act for everything it sends", state.ownerAct === "odoo");
   assert("…and the route is closed without the hook token", (await quiet(() => worker.fetch(new Request("https://w.test/odoo/hook/s67-trial?token=nope&op=alert", { method: "POST" }), env, ctx))).status === 401 && graph.length === 0);
   // his own tap on WhatsApp is his act: «🔁 أعد طلب الأسعار» reaches the supplier while frozen
   seed("x_supplier_price_request_log", { x_supplier_id: 801, x_sent_at: utc(`${DAY} 02:00`), x_status: "sent", x_replied_at: false });
@@ -271,7 +283,7 @@ console.log("\n[أ6] a trial reaches Baraa's number alone — frozen or not");
     const toOther = [];
     for (const p of trials) toOther.push(await gw(env, text(CUST_PHONE, "🧪 تجربة", p)));
     assert(`${frozen ? "frozen" : "not frozen"}: no trial is sent to another number, whatever its purpose`, toOther.every((d) => d?.action === "refused") && sentTo(CUST_PHONE).length === 0, JSON.stringify(toOther.filter((d) => d?.action !== "refused")));
-    assert(`${frozen ? "frozen" : "not frozen"}: the refusal says why`, toOther.every((d: any) => /TrialOwnerOnly|OwnerOnlyPurpose/.test(d.reason)));
+    assert(`${frozen ? "frozen" : "not frozen"}: the refusal says why`, toOther.every((d: any) => /^TrialOwnerOnly: trial: purpose=\w+_test goes to the owner alone$/.test(d.reason)), JSON.stringify(toOther.find((d: any) => !/^TrialOwnerOnly/.test(d.reason))));
     const toOwner = [];
     for (const p of trials) toOwner.push(await gw(env, text(OWNER, `🧪 تجربة ${p}`, p)));
     assert(`${frozen ? "frozen" : "not frozen"}: every trial reaches Baraa`, toOwner.every((d) => d?.action === "session") && sentTo(OWNER).length === trials.length, JSON.stringify(toOwner.filter((d) => d?.action !== "session")));
@@ -317,6 +329,15 @@ console.log("\n[أ8] turned off: everything from its next time, nothing late");
   setRiyadh(`${NEXT} 06:00`);
   await cron(env, TICK);
   assert("the next day's 06:00: the publication's tick runs («لم تُنشر», there being no price)", ownerTexts().some((t) => t.includes("لم تُنشر حتى 06:00")), ownerTexts().join(" | "));
+  // 05:25 is INSIDE the windows of the market ask, «مصدر لم يرسل», the 05:00 reminder and the review: the control sends, the thawed tick does not
+  const silentAsk = () => { seed("x_supplier_price_request_log", { x_supplier_id: AHMED, x_sent_at: utc(`${DAY} 00:30`), x_status: "sent", x_replied_at: false }); };
+  const free2 = world(`${DAY} 05:25`); silentAsk();
+  await cron(free2, TICK);
+  const due = msgs().length;
+  assert("never frozen (the control): the 05:25 tick sends what 04:30 owes («مصادر لم ترسل», with its button)", due >= 1 && sentTo(OWNER).some((b: any) => b?.interactive?.action?.buttons?.[0]?.reply?.id === `rsk_${DAY}`), JSON.stringify(msgs().map((b: any) => [b.to, b.type])));
+  const thaw = world(`${DAY} 05:25`, { since: `${DAY} 01:00`, ended: `${DAY} 05:20` }); silentAsk();
+  await cron(thaw, TICK);
+  assert("turned off at 05:20: the 05:25 tick sends none of it — the asks, «مصدر لم يرسل», the reminder and the review were due while frozen", msgs().length === 0, JSON.stringify(msgs().map((b: any) => [b.to, b?.text?.body ?? b?.interactive?.body?.text ?? b.type])));
   // a start of shift that fell inside the freeze gets nothing after it; the next one does
   const AT = await import("../src/attendance.ts");
   const ctl = await quiet(() => AT.runAttendanceTick(world(`${DAY} 06:10`)));
@@ -327,6 +348,18 @@ console.log("\n[أ8] turned off: everything from its next time, nothing late");
   setRiyadh(`${NEXT} 06:00`);
   const r2 = await quiet(() => AT.runAttendanceTick(env2));
   assert("the next day's: as always", r2.owner.action === ctl.owner.action, JSON.stringify(r2.owner));
+  // a member whose shift began while frozen; and a freeze that began after the shift did
+  const member = (env: any) => { seed("res.partner", { id: 604, name: "سائق الدينة", x_whatsapp_number: "+966500000604" }); employee(604, [72], { x_utak_attendance: true, resource_calendar_id: workSchedule(ALL_WEEK, { name: "UTAK — سائق" }) }); return env; };
+  const mctl = await quiet(() => AT.runAttendanceTick(member(world(`${DAY} 02:10`))));
+  const menv = member(world(`${DAY} 02:10`, { since: `${DAY} 01:00`, ended: `${DAY} 02:05` }));
+  await known(menv);
+  const mr = await quiet(() => AT.runAttendanceTick(menv));
+  const of = (r: any) => r.members.find((m: any) => m.name === "سائق الدينة")?.action;
+  assert("a member whose 02:00 shift began while frozen: no «بدء الدوام» at 02:10, the freeze off (the control acts on it)", of(mr) === AT.FROZEN_MISSED_STEP && of(mctl) !== AT.FROZEN_MISSED_STEP && of(mctl) !== "before_shift" && sentTo("966500000604").length === 0, JSON.stringify([of(mctl), of(mr)]));
+  const late = member(world(`${DAY} 02:15`, { on: true, since: `${DAY} 02:10` }));
+  await known(late);
+  const lr = await quiet(() => AT.runAttendanceTick(late));
+  assert("a freeze that began at 02:10, after the 02:00 shift: frozen NOW — nothing at 02:15 either, for the member or for Baraa", of(lr) === AT.FROZEN_MISSED_STEP && lr.owner.action === AT.FROZEN_MISSED_STEP);
   // a day approved while frozen is not published by itself after the freeze
   const env3 = world(`${DAY} 06:10`, { since: `${DAY} 01:00`, ended: `${DAY} 06:05` });
   seed("x_price_day", { id: 70, x_date: DAY, x_state: "approved", x_approved_at: utc(`${DAY} 05:00`), x_name: DAY });
@@ -345,8 +378,9 @@ console.log("\n[أ9] the day's list while frozen");
   const r = await quiet(() => PR.publishPriceDay(FZ.withOwnerAct(env, "odoo"), 71));
   assert("«نشر المعتمد الآن» while frozen: the list goes to NOBODY — not even as Baraa's own act", r.action === "frozen" && notOwner().length === 0 && (table("x_price_day").get(71) as any).x_state === "approved", JSON.stringify(r));
   assert("…and Baraa is told why, and what to do", ownerTexts().length === 1 && ownerTexts()[0].startsWith("🧊 أسعار") && ownerTexts()[0].includes("وضع التجميد مُشغَّل") && ownerTexts()[0].includes("نشر المعتمد الآن"), ownerTexts().join(" | "));
+  setRiyadh(`${DAY} 07:00`);
   const again = await quiet(() => PR.publishPriceDay(env, 71));
-  assert("pressed again: refused again, and not said twice", again.action === "frozen" && ownerTexts().length === 1);
+  assert("pressed again half an hour later: refused again, and not said twice in a day", again.action === "frozen" && ownerTexts().length === 1);
 }
 
 // ================================================================ أ10

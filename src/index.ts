@@ -192,8 +192,8 @@ export default {
         // («بدء الدوام» at each shift time, the +30 reminder, +60 absence,
         // and Baraa's window-opening template at OWNER_WINDOW_OPEN_AT).
         case "*/5 * * * *": {
-          // § 67 أ — frozen: no «بدء الدوام», no reminder, no «غائب»
-          if (!frozen) {
+          // § 67 أ — frozen: no «بدء الدوام», no reminder, no «غائب» (the tick stops itself: src/attendance.ts)
+          {
           const { runAttendanceTick } = await import("./attendance");
           const r = await runAttendanceTick(env);
           const acted = r.members.filter((m) => !["no_time", "before_shift", "waiting", "reminded", "frozen_missed"].includes(m.action) && !m.action.startsWith("tapped") && !m.action.startsWith("already"));
@@ -223,8 +223,8 @@ export default {
           }
           // 2026-09-25 (STATUS § 35) — today's prices: the record follows the
           // prices received, the approval deadline, and a lost approval webhook.
-          // § 67 أ — frozen: no ask, no review, no publication, no «لم تُنشر»
-          if (!frozen) try {
+          // § 67 أ — frozen: no ask, no review, no publication, no «لم تُنشر» (the tick stops itself: src/prices.ts)
+          try {
             const { runPricesTick } = await import("./prices");
             const p = await runPricesTick(env, Date.now(), ctx);
             const quiet = (!p.marketAsk || ("action" in p.marketAsk && ["before", "after", "frozen_missed"].includes(p.marketAsk.action)))
@@ -246,7 +246,7 @@ export default {
           }
           // § 41 هـ — 12:00: a confirmed purchase list still without its
           // purchase tax invoice → one line to Baraa that day.
-          if (!frozen) try {
+          try {
             const { checkPurchaseInvoices, PINV_JOB } = await import("./purchase-invoice");
             const { withAutoSendJob } = await import("./auto-send-guard");
             const pi = await checkPurchaseInvoices(withAutoSendJob(rawEnv, PINV_JOB), Date.now());
@@ -333,7 +333,7 @@ export default {
           }
           // § 65 هـ — the approved suppliers' periodic check-in (OFF unless «تفعيل تواصل الموردين» is on;
           // 09:00–18:00, on a Sunday or the first of the month), and their cards' numbers once a day.
-          if (!frozen) try {
+          try {
             const { runSupplierOutreachTick, runSupplierIndicatorsTick, OUTREACH_JOB } = await import("./supplier-outreach");
             const { withAutoSendJob } = await import("./auto-send-guard");
             const so = await runSupplierOutreachTick(withAutoSendJob(rawEnv, OUTREACH_JOB), Date.now(), ctx);

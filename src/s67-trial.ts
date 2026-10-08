@@ -49,6 +49,8 @@ export async function runS67Trial(env: Env, op: string, now: number = Date.now()
       replyLength: v.state.reply.length,
       retriesWaiting: (await readRetries(env)).length,
       ownerBlocks: blocks,
+      // a request of Odoo's is Baraa's own act (src/freeze.ts withOwnerAct): what it sends is not the system's
+      ownerAct: env.OWNER_ACT ?? null,
     },
   };
 }

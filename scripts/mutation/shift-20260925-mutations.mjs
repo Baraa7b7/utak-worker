@@ -29,7 +29,7 @@ const M = [
   ["window: no default when unset (00:00)", "src/attendance.ts",
     `    ? { minutes: parseHHMM(OWNER_WINDOW_DEFAULT) as number, source: "default" }`, `    ? { minutes: 0, source: "default" }`, R],
   ["window: skipped on a day nobody works", "src/attendance.ts",
-    `    report.owner.action = await ownerWindowStep(env, day, nowMs, plan.minutes);`,
+    `    report.owner.action = fz.on || fz.missed(riyadhDayMinuteMs(day, plan.minutes)) ? FROZEN_MISSED_STEP : await ownerWindowStep(env, day, nowMs, plan.minutes);`,
     `    report.owner.action = plans.some((p) => p.plan.kind === "work") ? await ownerWindowStep(env, day, nowMs, plan.minutes) : "skipped";`, S],
   // the rules the real schedules lean on
   ["Friday (no line) treated as a work day", "src/team-roster.ts",

@@ -218,7 +218,7 @@ const M = [
   ["و", "05:00: a text reply after the reminder is not read as prices", [[PS,
     "        if (action === \"flow\" || action === \"template\" || action === \"old_template\") await writeMarketAskMarker(env, t.whatsapp, day, nowMs);\n", ""]], T],
   ["و", "the tick never runs the reminder", [[PR,
-    "    out.marketNudge = await runMarketNudge(env, now, dl);\n", ""]], T],
+    "    out.marketNudge = fz.missedToday(MARKET_NUDGE_MINUTE) ? FROZEN_MISSED : await runMarketNudge(env, now, dl);\n", ""]], T],
   // ---------------------------------------------------------------- ز the trial
   ["ز", "v1's trial of the same day uses up v2's", [[PF,
     "`pflow_test:${PRICE_FLOW_ID}:${riyadhDateKey(new Date(now))}`", "`pflow_test:${riyadhDateKey(new Date(now))}`"]], T],

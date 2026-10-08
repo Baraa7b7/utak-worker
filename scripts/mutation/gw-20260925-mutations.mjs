@@ -76,7 +76,7 @@ const M = [
   ["131049: the template goes again the same day", [[GW,
     "      await kvPut(env, templateBlockKey(to, m.t, now), new Date(now).toISOString(), (riyadhDayEndMs(now) - now) / 1000 + 3600);\n", ""]], G],
   ["other refusal: the purpose goes again within 24h", [[GW,
-    "    await kvPut(env, purposeBlockKey(to, m.p), JSON.stringify({ code: f.code, at: new Date(now).toISOString() }), 24 * 3600);\n", ""]], G],
+    "    await kvPut(env, purposeBlockKey(to, m.p), JSON.stringify({ code: f.code, at: new Date(now).toISOString(), until: new Date(now + ttl * 1000).toISOString() }), ttl);\n", ""]], G],
   ["other refusal: bot replies blocked for 24h too", [[GW,
     '  return k === "operational" || k === "marketing";', '  return k !== "manual";']], G],
   ["a status delivered twice is handled twice", [[GW,

@@ -206,6 +206,15 @@ console.log("\n[د6] an important alert is never blocked and never dropped");
   await cron(env2, TICK2);
   assert("…and when Meta takes it, it reaches him: six tries in all — the send, four refused retries, and the one Meta took", sentTo(OWNER).filter((b: any) => b?.text?.body === "✅ العميل يبدو موافقاً على العرض").length === 6, String(sentTo(OWNER).length));
   assert("…the queue is empty and its ONE row is «sent»", (await quiet(() => RT.readRetries(env2))).length === 0 && rowOf("✅ العميل يبدو موافقاً على العرض").length === 1 && rowOf("✅ العميل يبدو موافقاً على العرض")[0].x_status === "sent");
+  // one that expires while it waits is marked so, and not sent
+  const env5 = fresh(`${DAY} 10:00`);
+  failNext.push(131056);
+  await quiet(() => sendOwnerCritical(env5, "تنبيه ينتهي", { kind: "exp" }));
+  const before = sentTo(OWNER).length;
+  setRiyadh("2026-10-05 10:00"); // past the 36 hours of an alert
+  const ran = await quiet(() => GW.runRetryQueue(env5, Date.now()));
+  assert("a retry whose message expired while it waited: marked «expired», never sent, the queue empty", ran.expired === 1 && ran.sent === 0 && sentTo(OWNER).length === before && rowOf("تنبيه ينتهي")[0]?.x_status === "expired" && (await quiet(() => RT.readRetries(env5))).length === 0, JSON.stringify(ran));
+  setRiyadh(`${DAY} 10:00`);
   // outside his window: held for it, with the opener — the queue of his important alerts
   const env3 = fresh(`${DAY} 10:00`);
   closeOwnerWindow(env3);

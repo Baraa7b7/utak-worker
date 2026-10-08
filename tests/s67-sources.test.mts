@@ -83,7 +83,7 @@ console.log("\n[و1] 04:30: one alert with every silent source");
   const env6 = world(`${DAY} 04:30`);
   closeOwnerWindow(env6);
   const held = await quiet(() => SM.runSourcesMissing(env6));
-  assert("outside Baraa's window: held for his next message, with its button", held.action === "alerted" && heldFor(env6, OWNER).length === 1 && heldFor(env6, OWNER)[0].body?.interactive?.action?.buttons?.[0]?.reply?.id === `rsk_${DAY}`);
+  assert("outside Baraa's window: held for his next message, with its button", held.action === "alerted" && heldFor(env6, OWNER).length === 1 && heldFor(env6, OWNER)[0].purpose === "owner_critical" && heldFor(env6, OWNER)[0].body?.interactive?.action?.buttons?.[0]?.reply?.id === `rsk_${DAY}`);
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }
 

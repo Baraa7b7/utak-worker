@@ -96,9 +96,11 @@ const M = [
   ["ب", "a day of time off has no row", [[ATT, LEAVE_IF, "      if (false) {"]], TA],
   ["ب", "the time off's row is written before the shift's hour", [[ATT, LEAVE_IF, "      if (dp.kind === \"leave\" && dp.startMin !== undefined) {"]], TA],
   ["ب", "the time off's row is written again after a KV wipe", [[ATT, "    if (await findRow(env, m.employeeId, day)) return \"leave\";\n", ""]], TA],
+  ["ب", "the time off's row is nobody's", [[ATT, "x_name: `${m.name} · ${day}`, x_employee_id: m.employeeId, x_partner_id: m.partnerId || false, x_date: day,\n      x_shift_at: toOdooUtc(riyadhDayMinuteMs(day, dp.startMin as number)), x_status: \"leave\"", "x_name: `${m.name} · ${day}`, x_partner_id: m.partnerId || false, x_date: day,\n      x_shift_at: toOdooUtc(riyadhDayMinuteMs(day, dp.startMin as number)), x_status: \"leave\""]], TA],
   ["ب", "the time off's row does not carry its name", [[ATT, "      x_source: SOURCE_MANUAL, x_note: `إجازة: ${dp.leave || \"إجازة\"}`,", "      x_source: SOURCE_MANUAL,"]], TA],
   // off attendance
   ["ب", "a member off attendance is not recorded", [[ATT, "  if (plan.kind !== \"work\") return freeEntry(env, roster, m, day, tapMs);", "  if (plan.kind !== \"work\") return { kind: \"not_on_attendance\" };"]], TA],
+  ["ب", "the entry of a member off attendance is nobody's", [[ATT, "x_name: `${m.name} · ${day}`, x_employee_id: m.employeeId, x_partner_id: m.partnerId || false, x_date: day,\n        x_shift_at: shiftMs === null ? false : toOdooUtc(shiftMs)", "x_name: `${m.name} · ${day}`, x_partner_id: m.partnerId || false, x_date: day,\n        x_shift_at: shiftMs === null ? false : toOdooUtc(shiftMs)"]], TA],
   ["ب", "a member off attendance is never late", [[ATT, "    if (shiftMs !== null) status = statusForTap(tapMs, shiftMs);\n", ""]], TA],
   ["ب", "his own schedule is not read", [[ATT, "    if (lines.some((l) => !l.durationBased && l.hourTo > l.hourFrom)) return daySpan(lines, m.calendarId, day);\n", ""]], TA],
   ["ب", "the company's working days are not read", [[ATT, "  return co ? daySpan(co.lines, co.calendarId, day) : null;", "  return null;"]], TA],

@@ -47,7 +47,8 @@ const M = [
   ["roster cache longer than 5 minutes", "src/team-roster.ts", `export const ROSTER_TTL = 300; `, `export const ROSTER_TTL = 3600; `, T],
   ["the Odoo hook does not drop the cache", "src/index.ts", `      await invalidateRoster(env);\n      console.log("[team-roster hook]"`, `      console.log("[team-roster hook]"`, T],
   ["attendance row without the employee link", "src/attendance.ts",
-    "x_name: `${m.name} · ${day}`, x_employee_id: m.employeeId, x_partner_id", "x_name: `${m.name} · ${day}`, x_partner_id", A],
+    // § 68 — the row of «بدء الدوام» (a day of time off and an entry off attendance make their own rows: scripts/mutation/s68-…)
+    "x_name: `${m.name} · ${day}`, x_employee_id: m.employeeId, x_partner_id: m.partnerId || false,\n      x_date: day, x_shift_at: toOdooUtc(shiftMs)", "x_name: `${m.name} · ${day}`, x_partner_id: m.partnerId || false,\n      x_date: day, x_shift_at: toOdooUtc(shiftMs)", A],
   // after the shift
   ["after the shift: not held", "src/attendance.ts",
     `    if (nowMs >= riyadhDayMinuteMs(day, plan.endMin as number)) return { hold: true, onAttendance: true, shift, phase: "after", sent: true, ...who, ...later() };\n`, ``, T],

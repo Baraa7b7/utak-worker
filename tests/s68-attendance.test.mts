@@ -77,7 +77,7 @@ console.log("\n[ح1] the words");
 {
   for (const t of ["بدأت الدوام", "✅ بدأت الدوام", "بدات الدوام", "بَدَأْتُ الدَّوَام", "بدء الدوام", "  بدأت   الدوام. ", "بدأت دوامي", "بداية الدوام", "سجل حضوري"]) assert(`«${t}» is the entry`, ATT.shiftInCommand(t) && !ATT.shiftOutCommand(t));
   for (const t of ["انتهى دوامي", "🏁 انتهى دوامي", "انتهي دوامي", "انتهى الدوام", "نهاية الدوام", "خلصت دوامي", "تسجيل خروج"]) assert(`«${t}» is the exit`, ATT.shiftOutCommand(t) && !ATT.shiftInCommand(t));
-  for (const t of ["بدأت الدوام يا شباب", "الدوام", "متى بدء الدوام؟ الساعة كم", "حمولة", "نهاية الحمولة", "انتهى", "خلاص", "", "عهدة"]) assert(`«${t}» is neither (only the whole message counts)`, !ATT.shiftInCommand(t) && !ATT.shiftOutCommand(t));
+  for (const t of ["بدأت الدوام يا شباب", "الدوام", "متى بدء الدوام؟ الساعة كم", "حمولة", "نهاية الحمولة", "انتهى", "انتهى دوامي بدري اليوم", "متى انتهى الدوام أمس", "خلاص", "", "عهدة"]) assert(`«${t}» is neither (only the whole message counts)`, !ATT.shiftInCommand(t) && !ATT.shiftOutCommand(t));
   assert("the minutes late: 0 up to a quarter of an hour, the whole minutes after it", ATT.lateMinutes(15 * 60_000, 0) === 0 && ATT.lateMinutes(16 * 60_000, 0) === 16 && ATT.lateMinutes(16 * 60_000 + 59_000, 0) === 16 && ATT.lateMinutes(-5 * 60_000, 0) === 0);
   assert("«غائب» is two hours after the start", ATT.ABSENT_AFTER_MIN === 120 && ATT.LATE_AFTER_MIN === 15 && ATT.REMIND_AFTER_MIN === 30);
   assert("the titles of the two buttons", ATT.SHIFT_START_TITLE === "✅ بدأت الدوام" && ATT.SHIFT_END_TITLE === "🏁 انتهى دوامي" && ATT.shiftEndButton().id === "shift_end" && ATT.shiftStartButton().id === "shift_start");

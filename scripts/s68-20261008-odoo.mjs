@@ -77,6 +77,7 @@ if (ROLLBACK) {
   if (ONLY === "ui") { log(APPLY ? "the screens are as before — now roll the worker's code back, then run --rollback again for the rest" : "dry-run: nothing written (add --apply)"); process.exit(0); }
   for (const [lang, label] of Object.entries(b.tappedLabel ?? {})) await act(`${L.ATT_MODEL}.x_tapped_at (${lang}): title ← «${label}»`, async () => call("ir.model.fields", "write", { ids: [await fieldId(L.ATT_MODEL, "x_tapped_at")], vals: { field_description: label }, context: { lang } }));
   if ((b.attBackfill ?? []).length) await act(`${L.ATT_MODEL}: ${b.attBackfill.length} row(s) of before — source and minutes empty again`, () => call(L.ATT_MODEL, "write", { ids: b.attBackfill, vals: { x_source: false, x_late_min: 0 } }));
+  for (const [id, was] of Object.entries(b.compute ?? {})) await act(`ir.model.fields #${id}: its formula of before`, () => call("ir.model.fields", "write", { ids: [Number(id)], vals: { compute: was.compute, depends: was.depends } }));
   for (const [id, vals] of Object.entries(b.states ?? {})) await act(`hr.employee #${id}: the papers' states as they were (${Object.keys(vals).length} empty again)`, () => call(L.EMP_MODEL, "write", { ids: [Number(id)], vals }));
   log("the fields, the model, the status «إجازة», the defaults and the action stay (nothing is deleted)");
   log(APPLY ? "rollback done" : "dry-run: nothing written (add --apply)");
@@ -111,6 +112,9 @@ if (VERIFY) {
     await pause();
     const ef = await call(L.EMP_MODEL, "fields_get", { attributes: ["type", "string", "relation", "store", "readonly", "selection"] });
     for (const f of L.EMP_FIELDS) check(`${L.EMP_MODEL}.${f.name}: ${f.ttype}${f.relation ? ` → ${f.relation}` : ""}${f.compute ? (f.store ? ", computed and stored" : ", computed") : ""}`, ef[f.name]?.type === f.ttype && ef[f.name].string === f.field_description && (!f.relation || ef[f.name].relation === f.relation) && (!f.compute || (ef[f.name].readonly === true && (f.store ? ef[f.name].store !== false : ef[f.name].store === false))), JSON.stringify(ef[f.name]));
+    const formulas = await call("ir.model.fields", "search_read", { domain: [["model", "in", [L.ATT_MODEL, L.EMP_MODEL]], ["name", "in", [...L.ATT_FIELDS, ...L.EMP_FIELDS].filter((d) => d.compute).map((d) => d.name)]], fields: ["name", "compute"] });
+    const stale = [...L.ATT_FIELDS, ...L.EMP_FIELDS].filter((d) => d.compute && String(formulas.find((f) => f.name === d.name)?.compute || "").trim() !== d.compute.trim()).map((d) => d.name);
+    check("every computed field runs the formula written here (the percentage rounds a half up, as the worker does)", stale.length === 0, stale.join(", "));
     for (const d of L.DOCS) {
       check(`the paper «${d.title}»: its number, its end, its attachment and its state are fields of the card`, [d.number, d.expiry, d.file, d.fileName, d.state].every((f) => !!ef[f]), [d.number, d.expiry, d.file, d.fileName, d.state].filter((f) => !ef[f]).join(", "));
       check(`…its state: ناقص / قيد الإجراء / مكتمل / لا ينطبق`, JSON.stringify(ef[d.state]?.selection) === JSON.stringify(L.DOC_STATES), JSON.stringify(ef[d.state]?.selection));
@@ -218,6 +222,17 @@ if (on("schema")) {
   await pause();
   // 4 — the card
   await ensureFields(ctx, L.EMP_MODEL, await modelId(L.EMP_MODEL), L.EMP_FIELDS);
+  // a formula changed here reaches Odoo's field (a field made before the change keeps its old code otherwise)
+  for (const [model, defs] of [[L.ATT_MODEL, L.ATT_FIELDS], [L.EMP_MODEL, L.EMP_FIELDS]]) {
+    const computed = defs.filter((d) => d.compute);
+    const have = await call("ir.model.fields", "search_read", { domain: [["model", "=", model], ["name", "in", computed.map((d) => d.name)]], fields: ["id", "name", "compute", "depends"] });
+    for (const d of computed) {
+      const f = have.find((h) => h.name === d.name);
+      if (!f || (String(f.compute || "").trim() === d.compute.trim() && String(f.depends || "") === String(d.depends || ""))) continue;
+      log(`✎ ${model}.${d.name}: its formula as written here`);
+      if (APPLY) { b.compute ??= {}; b.compute[f.id] ??= { compute: f.compute, depends: f.depends }; save(); await call("ir.model.fields", "write", { ids: [f.id], vals: { compute: d.compute, depends: d.depends } }); await pause(400); }
+    }
+  }
   for (const f of L.DOC_STATE_FIELDS) await setDefault(L.EMP_MODEL, f, "missing", f);
   // 5 — the three active cards
   const haveStates = !!(await fieldId(L.EMP_MODEL, L.DOC_STATE_FIELDS[0]));

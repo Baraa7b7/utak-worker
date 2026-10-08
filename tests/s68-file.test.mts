@@ -127,12 +127,12 @@ console.log("\n[و2] a paper's end");
 console.log("\n[و3] the month");
 {
   const f = EF.monthFigures([
-    { x_employee_id: 1, x_status: "present", x_tapped_at: "2026-09-01 03:00:00", x_out_at: "2026-09-01 11:30:00" },
+    { x_employee_id: 1, x_status: "present", x_late_min: 7, x_tapped_at: "2026-09-01 03:00:00", x_out_at: "2026-09-01 11:30:00" },
     { x_employee_id: 1, x_status: "late", x_late_min: 20, x_tapped_at: "2026-09-02 03:20:00", x_out_at: "2026-09-02 11:00:00" },
     { x_employee_id: 1, x_status: "late", x_late_min: 45, x_tapped_at: "2026-09-03 03:45:00", x_out_at: false },
     { x_employee_id: 1, x_status: "absent" }, { x_employee_id: 1, x_status: "leave" }, { x_employee_id: 1, x_status: false },
   ]);
-  assert("an employee's month: present 3 (the late days among them), late 2 with 65 minutes, absent 1, time off 1", f.rows === 6 && f.present === 3 && f.late === 2 && f.lateMin === 65 && f.absent === 1 && f.leave === 1, JSON.stringify(f));
+  assert("an employee's month: present 3 (the late days among them), late 2 with their 65 minutes (a day in time adds none, whatever its row holds), absent 1, time off 1", f.rows === 6 && f.present === 3 && f.late === 2 && f.lateMin === 65 && f.absent === 1 && f.leave === 1, JSON.stringify(f));
   assert("…the hours are of the days with an entry AND an exit: 8.5 + 7.67", f.hours === 16.17, String(f.hours));
   assert("the line", EF.monthLine({ name: "خالد", jobName: "محصّل" }, f, EF.askedPapers({ x_doc_id_state: "done" }, [])) === "• خالد (محصّل): حضر 3 يوماً (منها 2 متأخراً، 65 دقيقة) · غاب 1 · إجازة 1 · 16.17 ساعة — الأوراق 17٪، ناقص: جواز السفر، تصريح العمل، عقد العمل، التأمينات، الشهادة الصحية");
   assert("…no row at all: «لا حضور مسجّل»; every paper complete: no «ناقص»", EF.monthLine({ name: "براء", jobName: "" }, EF.monthFigures([]), []) === "• براء: لا حضور مسجّل — الأوراق 100٪");

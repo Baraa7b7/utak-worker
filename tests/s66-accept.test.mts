@@ -468,14 +468,20 @@ console.log("\n[ج] a large order: at the conversion, and on the morning of its 
   const [o3] = ordersOf(q3);
   assert("the alert of the conversion did not reach him: «آخر نتيجة» says to arrange the vehicle all the same", !ownerSaid().some((t) => t.startsWith("🚚")) && result(q3).includes("طلب كبير 60 كرتون (تنبيه واتساب لم يصلك الآن: رتّب المركبة)") && o3.x_state === "confirmed");
   const tick3 = () => quiet(() => ACC.runLargeOrderMorning(env3, now()));
+  // (the harness's KV keeps no clock: how long the morning's claim holds is read from what the lock is written with)
+  const held3: Array<number | undefined> = [];
+  const put3 = env3.MSG_DEDUP.put.bind(env3.MSG_DEDUP);
+  env3.MSG_DEDUP.put = async (k: string, v: string, o?: { expirationTtl?: number }) => { if (k === `btnlock:v1:sq_large_morning:${o3.id}` && String(v).startsWith("done:")) held3.push(o?.expirationTtl); return put3(k, v); };
   setRiyadh("2026-10-04 02:05");
   assert("its morning alert is skipped too — and told so", JSON.stringify(await tick3()) === JSON.stringify([{ orderId: o3.id, action: "not_delivered" }]) && !ownerSaid().some((t) => t.startsWith("🚚")));
+  assert("…its claim holds half an hour, not the two days of an alert that went", JSON.stringify(held3) === JSON.stringify([1800]), JSON.stringify(held3));
   setRiyadh("2026-10-04 02:10");
   assert("…not tried at every tick", JSON.stringify(await tick3()) === JSON.stringify([{ orderId: o3.id, action: "alerted_before" }]) && ACC.LARGE_RETRY_SECONDS === 1800);
   unblockOwnerAlerts(env3);
   env3.MSG_DEDUP.store.delete(`btnlock:v1:sq_large_morning:${o3.id}`);   // (the harness's KV keeps no clock: the half hour has passed)
   setRiyadh("2026-10-04 02:40");
   assert("…and half an hour later, the gateway taking it: ONE «🚚 … اليوم تسليم الطلب …»", JSON.stringify(await tick3()) === JSON.stringify([{ orderId: o3.id, action: "alerted" }]) && ownerSaid().filter((t) => t.startsWith("🚚 طلب كبير 60 كرتون: رتّب المركبة — اليوم تسليم الطلب")).length === 1);
+  assert("…and the alert that went holds its claim for the two days", JSON.stringify(held3) === JSON.stringify([1800, 2 * 24 * 3600]), JSON.stringify(held3));
 }
 
 // ============================================================================

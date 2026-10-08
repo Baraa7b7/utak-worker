@@ -220,8 +220,10 @@ console.log("\n[ج] a day the market won the item: the special lines on its pack
   const data = sentTo(WH_PHONE).filter((b: any) => b?.interactive?.type === "flow").slice(-1)[0]?.interactive?.action?.parameters?.flow_action_payload?.data ?? {};
   const hints = Object.entries(data).filter(([k]) => /^h\d+$/.test(k)).map(([, v]) => String(v)).filter(Boolean);
   assert("the receipt names the day's tomato «مشتريات السوق النقدية» — and the special line on the same packaging its own supplier", hints.some((h) => h.startsWith("كرتون ·") && h.includes(CM.CASH_MARKET_NAME)) && hints.some((h) => h.startsWith("14 كيلو -مخمر") && h.includes("أحمد حسان") && !h.includes(CM.CASH_MARKET_NAME)), JSON.stringify(hints));
+  // (the list itself names no supplier here: each line answers for its own)
+  table("x_purchase_list").get(list.id)!.x_supplier_id = false;
   const who = await quiet(() => SP.todaysSuppliers(env, now()));
-  assert("today's suppliers to pay: the cash market for the day's tomato, AND Ahmed for the special line", JSON.stringify(who.map((w: any) => w.id).sort()) === JSON.stringify([AHMED, cash].sort()), JSON.stringify(who));
+  assert("today's suppliers to pay: the cash market for the day's tomato, AND Ahmed for the special line — by the line's own source", JSON.stringify(who.map((w: any) => w.id).sort()) === JSON.stringify([AHMED, cash].sort()), JSON.stringify(who));
   void orderId;
 }
 

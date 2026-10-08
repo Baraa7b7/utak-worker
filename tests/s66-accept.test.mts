@@ -17,7 +17,7 @@
 //
 //   node --experimental-strip-types --experimental-loader=./tests/loader.mjs tests/s66-accept.test.mts
 
-import { OWNER, closeOwnerWindow, ctx, inbound, odooLog, openWindow, quiet, rows, seed, sentTo, setRiyadh, signed, table, workSchedule } from "./wa-harness.mts";
+import { OWNER, closeOwnerWindow, ctx, heldFor, inbound, odooLog, openWindow, quiet, rows, seed, sentTo, setRiyadh, signed, table, workSchedule } from "./wa-harness.mts";
 import { assert, done, rejected } from "./s46-kit.mts";
 import {
   AHMED, CONFIRM_TEMPLATE, DAY, GARLIC, LETTUCE, MADARAT, MADARAT_PHONE, MUSHROOM, ORANGE, QUOTE, SERVICE, SIX,
@@ -136,6 +136,13 @@ console.log("\n[أ] «✅ العميل وافق» on a unit-price quotation");
   await approve(env, id);
   assert("pressed again: the time, the date, the terms and a quantity Baraa typed all stay", quote(id).x_accepted_at === utc(`${DAY} 14:00`) && quote(id).x_delivery_date === "2026-10-07" && quote(id).x_pay_terms === "cash" && linesOf(id)[0].x_confirmed_qty === "9" && result(id).includes("3 بلا كمية"));
   assert("…and «إجمالي الطلب المؤكد» follows the quantities typed so far", quote(id).x_confirmed_total === round(9 * M.grossOf(121.3)));
+  // a save of the lines in Odoo asks the worker for the numbers again («🔄 احسب», the line's automation): the total follows
+  confirm(id, ["9", "5", "0", "2"]);
+  const n1 = writes().length;
+  await quiet(() => SQ.recalcQuote(env, id, { now: now() }));
+  assert("a recalculation after Baraa typed more quantities: «إجمالي الطلب المؤكد» follows them (9 + 5 + 2 of their lines)", quote(id).x_confirmed_total === round(9 * M.grossOf(121.3) + 5 * M.grossOf(63.7) + round(2 * M.grossOf(12.83))) && writes().length === n1 + 1);
+  await quiet(() => SQ.recalcQuote(env, id, { now: now() }));
+  assert("…and a second pass writes nothing (no loop with the save that asked for it)", writes().length === n1 + 1);
   assert("no call was refused by the schema gate", rejected.length === 0, rejected.join(" | "));
 }
 
@@ -149,6 +156,10 @@ console.log("\n[أ] «✅ العميل وافق» on a quotation by quantities, 
   assert("the customer's card has no terms: «طريقة الدفع» stays empty", !quote(id).x_pay_terms);
   assert("«إجمالي الطلب المؤكد» = the quotation's total", quote(id).x_confirmed_total === 14625 && quote(id).x_total === 14625);
   assert("an expired quotation: the result says to tick «أعتمد الأسعار رغم انتهاء الصلاحية»", result(id).includes("⚠️ انتهت صلاحية العرض (3 أكتوبر 2026 الساعة 21:00)") && result(id).includes(`«${ACC.EXPIRED_BOX}»`));
+  // the customer confirmed less of one line: Baraa types it, and a second press leaves it
+  linesOf(id)[0].x_confirmed_qty = "1000";
+  await approve(env, id);
+  assert("pressed again: the quantity Baraa typed (1000 of 1464) stays, and the confirmed total follows it", linesOf(id)[0].x_confirmed_qty === "1000" && linesOf(id)[1].x_confirmed_qty === "494" && quote(id).x_confirmed_total === round(14625 - 464 * 4.75));
 }
 
 // ============================================================================
@@ -319,7 +330,7 @@ console.log("\n[ب] the customer's confirmation outside his window");
   const r2 = await convert(env2, id2);
   const [o2] = ordersOf(id2);
   const mine = ownerSaid().find((t) => t.startsWith(`📨 تأكيد الطلب #${o2.id} لم يصل`));
-  assert("neither his window nor a usable template: the text reaches Baraa to send himself, nothing is held", r2.to === "owner_instead" && !!mine && mine!.includes("أرسله له بنفسك:") && mine!.includes(ACC.customerConfirmText(o2.id, "2026-10-04", 14625, String(quote(id2).x_quotation_number))) && tplTo(MADARAT_PHONE, CONFIRM_TEMPLATE).length === 0 && textsTo(MADARAT_PHONE).length === 0 && (env2.MSG_DEDUP.store.get(`wa_held:v1:${MADARAT_PHONE}`) ?? null) === null);
+  assert("neither his window nor a usable template: the text reaches Baraa to send himself, nothing is held", r2.to === "owner_instead" && !!mine && mine!.includes("أرسله له بنفسك:") && mine!.includes(ACC.customerConfirmText(o2.id, "2026-10-04", 14625, String(quote(id2).x_quotation_number))) && tplTo(MADARAT_PHONE, CONFIRM_TEMPLATE).length === 0 && textsTo(MADARAT_PHONE).length === 0 && heldFor(env2, MADARAT_PHONE).length === 0);
   assert("…the order stands all the same", o2.x_state === "confirmed" && quote(id2).x_state === "accepted" && result(id2).includes("التأكيد لم يصل العميل"));
 }
 

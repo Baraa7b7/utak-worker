@@ -37,6 +37,13 @@ const textsTo = (d: string) => sentTo(d).filter((b: any) => b?.type === "text").
 const par = (b: any) => b?.interactive?.action?.parameters ?? {};
 const dataOf = (b: any) => par(b).flow_action_payload?.data ?? b?.template?.components?.find((c: any) => c.sub_type === "flow")?.parameters?.[0]?.action?.flow_action_data ?? {};
 const bodyOf = (b: any) => String(b?.interactive?.body?.text ?? b?.text?.body ?? "");
+/**
+ * § 66 ز — a message as its recipient READS it: its JSON without the flow_token. The token is «sq1.<request>.<partner>.<18
+ * random hex digits>» — and a search of the raw JSON for a quantity («494») or a price («3.33») matched that random part
+ * about once in fifty runs (Omar's token «….603.33…» reads «3.33»): the test failed for no leak at all.
+ */
+const TOKEN_RE = /sq1\.\d+\.\d+\.[0-9a-f]+/g;
+const seen = (b: unknown): string => JSON.stringify(b).replace(TOKEN_RE, "sq1.<token>");
 const tokenOf = (b: any): string => par(b).flow_token ?? b?.template?.components?.find((c: any) => c.sub_type === "flow")?.parameters?.[0]?.action?.flow_token ?? "";
 let wamid = 0;
 const reply = (env: any, from: string, token: string, values: Record<string, unknown>) => {
@@ -111,10 +118,14 @@ let id = request();
   assert("the data keys are the form's own (every key Meta's JSON declares, no other)", JSON.stringify(Object.keys(da).sort()) === JSON.stringify(Object.keys(LIB.flowDataModel()).sort()));
   // § 53 — the role decides what a source reads
   assert("Ahmed «شراء»: «سعرك بالكيلو بدون ضريبة.», and each item's quantity in its hint", da.note.startsWith("سعرك بالكيلو بدون ضريبة.") && da.h1 === "الكمية: 1464 كيلو" && da.h31 === "الكمية: 494 كيلو" && da.h16 === "الكمية: 194 كيلو" && bodyOf(a[0]).includes("بكمياتها") && bodyOf(a[0]).includes("بدون ضريبة"));
-  assert("Raed and Omar «سوق»: «سعر البيع في السوق بالكيلو شامل الضريبة.», and no quantity anywhere", [dr, dom].every((d) => d.note.startsWith("سعر البيع في السوق بالكيلو شامل الضريبة.") && [1, 16, 17, 18, 31, 46].every((n) => d[`h${n}`] === "السعر بالريال")) && [JSON.stringify(rt[0]), JSON.stringify(o[0])].every((j) => !/1464|494|194|الكمية/.test(j)) && bodyOf(o[0]).includes("شامل الضريبة"));
-  const all = [a[0], o[0], rt[0]].map((b) => JSON.stringify(b));
+  assert("Raed and Omar «سوق»: «سعر البيع في السوق بالكيلو شامل الضريبة.», and no quantity anywhere", [dr, dom].every((d) => d.note.startsWith("سعر البيع في السوق بالكيلو شامل الضريبة.") && [1, 16, 17, 18, 31, 46].every((n) => d[`h${n}`] === "السعر بالريال")) && [seen(rt[0]), seen(o[0])].every((j) => !/1464|494|194|الكمية/.test(j)) && bodyOf(o[0]).includes("شامل الضريبة"));
+  const all = [a[0], o[0], rt[0]].map(seen);
   assert("nobody reads the customer's name or number", all.every((j) => !j.includes("مدارات") && !j.includes(MADARAT_PHONE) && !j.includes("شركة")));
   assert("nobody reads a price of ours: not the purchase price, not the final price, not another source's observation", all.every((j) => !/3\.33|7\.77|6\.66/.test(j)));
+  // § 66 ز — the cause of this file's rare failure, pinned: a token whose random part reads «33…» (after Omar's «603.») or
+  // «494…» is no price and no quantity — the raw JSON holds both strings, what the source reads holds neither
+  const raw = JSON.stringify({ interactive: { action: { parameters: { flow_token: ASK.newSpecialToken(id, OMAR).replace(/[0-9a-f]+$/, "33494a7c1f000000ab") } } } });
+  assert("a token's random digits are not what a source reads («….603.33494…» is no «3.33» and no «494»)", OMAR === 603 && /3\.33/.test(raw) && /494/.test(raw) && !/3\.33|494/.test(seen(JSON.parse(raw))) && [a[0], o[0]].every((b) => TOKEN_RE.test(JSON.stringify(b)) || (TOKEN_RE.lastIndex = 0, TOKEN_RE.test(JSON.stringify(b)))));
   assert("the greeting names the source himself, and nobody else", bodyOf(a[0]).startsWith("مرحبا أحمد 🌿") && bodyOf(o[0]).startsWith("مرحبا عمر 🌿") && !bodyOf(a[0]).includes("رائد"));
   // the request and its sources
   const q = quote(id);
@@ -150,7 +161,7 @@ console.log("\n[ب5] the replies: on the request's lines alone, at any hour");
   assert("Baraa: «📨 وصلت أسعار الشراء لطلب شركة مدارات للاغذية: 4 من 6 صنف», the source, his remark, the field that was not a price", ownerTexts().some((t) => t.startsWith("📨 وصلت أسعار الشراء لطلب شركة مدارات للاغذية: 4 من 6 صنف\n") && t.includes("المصدر: أحمد حسان") && t.includes("ملاحظته: الفطر بالكرتون 2 كيلو") && t.includes("خانات ليست سعراً: خس أمريكي")), ownerTexts().slice(-1)[0]);
   const ack = flowsTo(AHMED_PHONE).slice(-1)[0];
   assert("Ahmed reads back his own numbers, under «تعديل»", bodyOf(ack).startsWith("وصلت ✅ برتقال 3، ثوم 10، طماطم 2.5، فطر أبيض 20.") && bodyOf(ack).includes("⚠️ ما انحفظ (السعر رقم أكبر من صفر): خس أمريكي.") && par(ack).flow_cta === "تعديل" && dataOf(ack).i1 === "3" && dataOf(ack).i46 === "20" && dataOf(ack).i18 === "");
-  assert("…and nothing of ours in it: no «المقترح», no market price, no customer", !/13\.5|3\.62|12\.08|مدارات|6\.66/.test(JSON.stringify(ack)));
+  assert("…and nothing of ours in it: no «المقترح», no market price, no customer", !/13\.5|3\.62|12\.08|مدارات|6\.66/.test(seen(ack)));
   // the day is untouched: no day's price, no refresh, no supplier log, no «آخر تسليم أسعار» on his card
   assert("no day's price is written: no x_daily_price row, nothing on x_price_day or its lines, no ask log", !odooLog.some((l) => dayModels.includes(l.model)) && rows("x_daily_price").length === 0 && JSON.stringify(table("x_price_day").get(dayId)) === dayBefore, JSON.stringify(odooLog.filter((l) => dayModels.includes(l.model)).map((l) => `${l.model}.${l.method}`)));
   assert("a purchase price is no market observation: no offer row for it, and his card is not stamped", offers().length === 1 && !odooLog.some((l) => l.model === "res.partner" && l.method === "write" && "x_last_price_submission" in (l.body?.vals ?? {})));
@@ -176,7 +187,7 @@ console.log("\n[ب5] the replies: on the request's lines alone, at any hour");
   assert("each observation is also a row of «عروض المصادر», flagged «خاص» with the request and the unit", special.length === 3 && special.every((x) => x.x_special_quote_id === id && x.x_special_unit === "كيلو" && x.x_source_partner_id === RAED && x.x_date === "2026-10-04" && x.x_purchase_price === 0 && x.x_status === "valid" && String(x.x_raw_text).startsWith(`طلب أسعار خاص ${SQ.quoteName(id)}: `)) && special.find((x) => x.x_product_tmpl_id === ORANGE).x_market_price === 4.5 && special.find((x) => x.x_product_tmpl_id === ORANGE).x_packaging_id === ORANGE * 10);
   assert("…written in ONE create", odooLog.filter((l) => l.model === "x_price_offer" && l.method === "create").length === 1);
   assert("Baraa: «📨 وصلت أسعار السوق لطلب شركة مدارات للاغذية: 3 من 6 صنف»", ownerTexts().some((t) => t.startsWith("📨 وصلت أسعار السوق لطلب شركة مدارات للاغذية: 3 من 6 صنف\nالمصدر: رائد")));
-  assert("Raed reads back his own three numbers and nothing else", (() => { const b = flowsTo(RAED_PHONE).slice(-1)[0]; return bodyOf(b).startsWith("وصلت ✅ برتقال 4.5، خس أمريكي 9، فطر أبيض 24.") && !/1464|494|الكمية|مدارات|3\.62|26\.75/.test(JSON.stringify(b)); })());
+  assert("Raed reads back his own three numbers and nothing else", (() => { const b = flowsTo(RAED_PHONE).slice(-1)[0]; return bodyOf(b).startsWith("وصلت ✅ برتقال 4.5، خس أمريكي 9، فطر أبيض 24.") && !/1464|494|الكمية|مدارات|3\.62|26\.75/.test(seen(b)); })());
   // Omar's second observation, a quarter of an hour later: the median of the two
   setRiyadh("2026-10-04 09:45");
   const ro = await reply(env, OMAR_PHONE, tokenOf(flowsTo(OMAR_PHONE)[0]), { p1: "5.5", p16: "15", p31: "8" });
@@ -320,7 +331,7 @@ console.log("\n[ب6] one reminder after three hours, inside the window only");
   const t = await quiet(() => ASK.runSpecialNudgeTick(env));
   const nudge = flowsTo(OMAR_PHONE).slice(-1)[0];
   assert("Omar (no answer, window open): ONE reminder with the form again", t.find((x) => x.recipientId === recipientOf(id, OMAR).id)?.action === "sent" && flowsTo(OMAR_PHONE).length === nO + 1 && bodyOf(nudge).startsWith("تذكير من يو تاك: طلب الأسعار الخاص (6 صنف)") && bodyOf(nudge).includes("سعر السوق بالكيلو شامل الضريبة") && recipientOf(id, OMAR).x_reminded_at === utc(`${DAY} 13:01`));
-  assert("…a «سوق» source's reminder shows no quantity either", !/1464|الكمية|مدارات/.test(JSON.stringify(nudge)));
+  assert("…a «سوق» source's reminder shows no quantity either", !/1464|الكمية|مدارات/.test(seen(nudge)));
   assert("Raed (window closed): no reminder, no template, nothing held", t.find((x) => x.recipientId === recipientOf(id, RAED).id)?.action === "window_closed" && tplTo(RAED_PHONE, "utak_price_ask_flow_v2").length === 0 && heldFor(env, RAED_PHONE).length === 0 && !recipientOf(id, RAED).x_reminded_at);
   assert("Ahmed answered: no reminder for him (his was dropped with his reply)", !t.some((x) => x.recipientId === recipientOf(id, AHMED).id) && flowsTo(AHMED_PHONE).every((b: any) => !bodyOf(b).startsWith("تذكير")));
   setRiyadh(`${DAY} 18:00`);

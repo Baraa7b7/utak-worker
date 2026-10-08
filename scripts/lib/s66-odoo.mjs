@@ -87,6 +87,10 @@ action = {
     'target': 'current',
 }`;
 
+/** § 65's automation on a request's line (a price or a quantity typed → «🔄 احسب»): it watches «الكمية المؤكدة» too, so «إجمالي الطلب المؤكد» follows what Baraa types. */
+export const LINE_AUTOMATION = "utak.special_quote_line.recalc (on price edit)";
+export const LINE_AUTOMATION_FIELD = "x_confirmed_qty";
+
 export const APPROVE_LABEL = "✅ العميل وافق";
 export const CONVERT_LABEL = "📦 حوّل لطلب";
 export const CONVERT_CONFIRM = "ينشئ طلباً يومياً بتاريخ التسليم والكميات المؤكدة، ويؤكد أمر البيع، ويرسل التأكيد للعميل. متأكد؟";

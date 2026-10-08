@@ -395,6 +395,13 @@ export async function recalcQuote(env: Env, id: number, opts: { now?: number; ac
   if (q.header.missingFinal !== numbers.missingFinal) vals.x_missing_final = numbers.missingFinal;
   if (differs(q.header.total, numbers.total)) vals.x_total = numbers.total;
   if (q.header.summary !== st) vals.x_summary = st;
+  // § 66 — once the customer accepted: «إجمالي الطلب المؤكد» follows the confirmed quantities as Baraa types them
+  // (what the customer will be told, and what the invoice adds up to delivered whole)
+  if (q.accept.at && state !== "accepted") {
+    const { confirmedPlan, confirmedTotal } = await import("./special-accept");
+    const confirmed = confirmedTotal(confirmedPlan(q).lines.map((x) => ({ qty: x.qty, line: { ...x.line, ...lineFinals(q, x.line) } })));
+    if (differs(q.accept.total, confirmed)) vals.x_confirmed_total = confirmed;
+  }
   if (commands.length) vals.x_line_ids = commands;
 
   const wrote = Object.keys(vals).length > 0;

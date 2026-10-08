@@ -7,7 +7,8 @@
 //     2  «الحالة» of a request: «مقبول — تحوّل لطلب» (accepted) before «مغلق»
 //     3  the two webhooks «✅ العميل وافق» / «📦 حوّل لطلب» (to the PROD worker's special-quote hook) and the sale order's
 //        code action «✅ العميل وافق» — on no screen yet; «↩️ أعد فتحه» brings a converted request back «مقبول»
-//     4  «حد الطلب الكبير» = 50 on the settings that hold none
+//     4  «حد الطلب الكبير» = 50 on the settings that hold none; § 65's automation on a request's line watches
+//        «الكمية المؤكدة» too (typed and saved → «🔄 احسب» → «إجمالي الطلب المؤكد» follows)
 //   ui (--only=ui, AFTER the worker's code is deployed: the buttons call ops the worker of before answers 400)
 //     5  six extension views: the request's form (the two buttons, the acceptance group, «الكمية المؤكدة», the status bar),
 //        its list («مقبول», the delivery date, the order) and its search («مقبول», «بانتظار رد العميل», «انتهت صلاحيته»),
@@ -62,6 +63,12 @@ async function buttonIds() {
   const rows = await call("ir.actions.server", "search_read", { domain: [["name", "in", Object.values(names)]], fields: ["id", "name"], context: ALL });
   return Object.fromEntries(Object.entries(names).map(([k, n]) => [k, rows.find((r) => r.name === n)?.id]));
 }
+/** § 65's automation on a request's line, and the field row of «الكمية المؤكدة». */
+async function lineAutomation() {
+  const [auto] = await call("base.automation", "search_read", { domain: [["name", "=", L.LINE_AUTOMATION]], fields: ["id", "name", "active", "trigger", "trigger_field_ids"], context: ALL });
+  const [field] = await call("ir.model.fields", "search_read", { domain: [["model", "=", L.LINE_MODEL], ["name", "=", L.LINE_AUTOMATION_FIELD]], fields: ["id"] });
+  return { auto: auto ?? null, fieldId: field?.id ?? 0 };
+}
 if (!ROLLBACK && !PROBE && ONLY !== "schema" && ONLY !== "ui") { console.log("say which part: --only=schema (before the code) or --only=ui (after the deploy)"); process.exit(2); }
 
 // ---------------------------------------------------------------- rollback (the screens, and «أعد فتحه»)
@@ -77,6 +84,11 @@ if (ROLLBACK) {
   const before = b.reopenCode ?? L.REOPEN_CODE_BEFORE;
   if (reopen && reopen.code !== before) { log(`✎ server action ${L.REOPEN_ACTION} #${reopen.id}: its code of before § 66`); if (APPLY) await call("ir.actions.server", "write", { ids: [reopen.id], vals: { code: before } }); }
   else log(`= server action ${L.REOPEN_ACTION}: as before`);
+  {
+    const { auto, fieldId } = await lineAutomation();
+    if (auto && fieldId && auto.trigger_field_ids.includes(fieldId)) { log(`✎ automation «${L.LINE_AUTOMATION}» #${auto.id}: «الكمية المؤكدة» out of its watched fields`); if (APPLY) await call("base.automation", "write", { ids: [auto.id], vals: { trigger_field_ids: [[3, fieldId]] } }); }
+    else log(`= automation «${L.LINE_AUTOMATION}»: as before`);
+  }
   log("the fields, the state «مقبول», the three actions and «حد الطلب الكبير» stay (nothing is deleted)");
   log(APPLY ? "rollback done" : "dry-run: nothing written (add --apply)");
   process.exit(0);
@@ -157,6 +169,10 @@ if (VERIFY) {
     check(`action ${L.REOPEN_ACTION} #${reopen?.id}: a converted request comes back «مقبول»`, reopen?.state === "code" && reopen.code === L.REOPEN_CODE, JSON.stringify(reopen?.code));
     const cfgs = await call(L.CONFIG_MODEL, "search_read", { domain: [], fields: ["id", "x_is_active", "x_large_order_cartons"], limit: 20 });
     check(`«حد الطلب الكبير» = ${L.LARGE_ORDER_DEFAULT} on the active settings (${cfgs.filter((c) => c.x_is_active).map((c) => `#${c.id}`).join(" ")})`, cfgs.some((c) => c.x_is_active) && cfgs.filter((c) => c.x_is_active).every((c) => c.x_large_order_cartons === L.LARGE_ORDER_DEFAULT), JSON.stringify(cfgs));
+    {
+      const { auto, fieldId } = await lineAutomation();
+      check(`automation «${L.LINE_AUTOMATION}» #${auto?.id}: active, on write, and «الكمية المؤكدة» (#${fieldId}) among the fields it watches`, !!auto?.active && auto.trigger === "on_write" && !!fieldId && auto.trigger_field_ids.includes(fieldId), JSON.stringify(auto));
+    }
     // the worker's reads and its domain answer
     let how = "";
     const q = await call(L.QUOTE_MODEL, "search_read", { domain: [["x_state", "=", "quoted"], ["x_daily_order_id", "=", false]], fields: ["id", ...L.QUOTE_FIELDS.map((d) => d.name)], limit: 2 }).catch((e) => { how = String(e?.message ?? e).slice(0, 160); return null; });
@@ -257,6 +273,16 @@ if (ONLY === "schema") {
       log(`✎ settings #${c.id} «${c.x_name}»: «حد الطلب الكبير» ← ${L.LARGE_ORDER_DEFAULT}`);
       b.largeOrder ??= {}; b.largeOrder[c.id] ??= c.x_large_order_cartons; save();
       if (APPLY) await call(L.CONFIG_MODEL, "write", { ids: [c.id], vals: { x_large_order_cartons: L.LARGE_ORDER_DEFAULT } });
+    }
+  }
+  {
+    const { auto, fieldId } = await lineAutomation();
+    if (!auto) throw new Error(`the automation «${L.LINE_AUTOMATION}» is not there — stop`);
+    if (fieldId && auto.trigger_field_ids.includes(fieldId)) log(`= automation «${L.LINE_AUTOMATION}» #${auto.id}: watches «الكمية المؤكدة»`);
+    else {
+      log(`✎ automation «${L.LINE_AUTOMATION}» #${auto.id}: «الكمية المؤكدة» added to the fields it watches (${auto.trigger_field_ids.join(", ")})`);
+      b.lineAutomationFields ??= auto.trigger_field_ids; save();
+      if (APPLY && fieldId) await call("base.automation", "write", { ids: [auto.id], vals: { trigger_field_ids: [[4, fieldId]] } });
     }
   }
   save();

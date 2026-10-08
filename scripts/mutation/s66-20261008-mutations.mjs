@@ -63,6 +63,8 @@ const M = [
   ["أ", "a quotation by quantities confirms nothing by itself", [[ACC, "(!l.confirmedQty && l.qty > 0 && (l.qty > 1 || !unit) ?", "(!l.confirmedQty && l.qty > 0 && unit ?"]], TA],
   ["أ", "a quantity Baraa typed is replaced", [[ACC, "(!l.confirmedQty && l.qty > 0 && (l.qty > 1 || !unit) ?", "(l.qty > 0 && (l.qty > 1 || !unit) ?"]], TA],
   ["أ", "«إجمالي الطلب المؤكد» is not written with the acceptance", [[ACC, "  if (Math.abs(total - q.accept.total) > 0.004) vals.x_confirmed_total = total;\n", ""]], TA],
+  ["أ", "a recalculation leaves «إجمالي الطلب المؤكد» stale", [[SQ, "    if (differs(q.accept.total, confirmed)) vals.x_confirmed_total = confirmed;\n", ""]], TA],
+  ["أ", "a recalculation writes «إجمالي الطلب المؤكد» every time", [[SQ, "    if (differs(q.accept.total, confirmed)) vals.x_confirmed_total = confirmed;", "    vals.x_confirmed_total = confirmed;"]], TA],
   ["أ", "the expired quotation is not warned of", [[ACC, "    isExpired(q.validUntil, now) ? `⚠️ انتهت صلاحية العرض (${validUntilText(q.validUntil)}): أشّر «${EXPIRED_BOX}» ليتحوّل` : \"\",\n", ""]], TA],
   ["أ", "the missing quantities are not counted for Baraa", [[ACC, "    plan.missing.length ? `اكتب «الكمية المؤكدة» لكل سطر (0 = خارج الطلب): ${plan.missing.length} بلا كمية` : \"\",\n", ""]], TA],
 

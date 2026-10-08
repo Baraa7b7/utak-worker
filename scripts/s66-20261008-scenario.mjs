@@ -20,6 +20,7 @@
 //
 //   node scripts/s66-20261008-scenario.mjs                      dry-run: the plan, nothing written, nothing pressed
 //   node scripts/s66-20261008-scenario.mjs --apply              runs it once (the rollback file first)
+//   node scripts/s66-20261008-scenario.mjs --check              read-only: what the run left in Odoo, checked again
 //   node scripts/s66-20261008-scenario.mjs --rollback [--apply] the request closed, the order cancelled, the customer
 //                                                               archived (nothing is deleted)
 // Rollback file: scripts/artifacts/s66-20261008-scenario-rollback.json. SQ-0002 and S00016 are never read or written.
@@ -71,6 +72,24 @@ if (ROLLBACK) {
 }
 
 const { check, done } = checker();
+if (process.argv.includes("--check")) {
+  log("CHECK — read-only: what the scenario left in Odoo");
+  if (!c.quote || !c.order) { check("the scenario has run", false); done(); }
+  const q = await quoteRow(c.quote);
+  const [o] = await call(L.ORDER_MODEL, "search_read", { domain: [["id", "=", c.order]], fields: ["id", "x_state", "x_order_date", "x_customer_id", "x_utak_simulation", "x_total_amount", "x_delivery_notes", "x_sale_order_id", "x_special_quote_id"], context: ALL });
+  const ol = await call(L.ORDER_LINE_MODEL, "search_read", { domain: [["x_order_id", "=", c.order]], fields: ["id", "x_quantity", "x_unit_price", "x_price_unit_manual", "x_status", "x_utak_simulation", ...L.ORDER_LINE_FIELDS.map((d) => d.name)], order: "id asc" });
+  const total = round2(LINES.reduce((s, l) => s + round2(Number(l[4]) * grossOf(l[3])), 0));
+  check(`the request #${q.id} ${q.x_name}: «مقبول — تحوّل لطلب», pointing at the order #${o?.id}, its confirmed total ${q.x_confirmed_total}`, q.x_state === "accepted" && q.x_daily_order_id?.[0] === o?.id && !!q.x_converted_at && Math.abs(q.x_confirmed_total - total) < 0.005 && q.x_utak_simulation === true && !q.x_sale_order_id, JSON.stringify([q.x_state, q.x_daily_order_id]));
+  check(`«آخر نتيجة»: ${String(q.x_last_result)}`, String(q.x_last_result).startsWith(`📦 تحوّل إلى الطلب #${o?.id}: 2 صنف`) && String(q.x_last_result).includes(`الإجمالي ${total} ر.س`) && String(q.x_last_result).includes("خارج الطلب (كميتها 0)") && String(q.x_last_result).includes("طلب كبير 52 كرتون") && String(q.x_last_result).includes("محاكاة: التأكيد وصلك أنت، ولا أمر بيع ولا رسالة للعميل"));
+  check(`the order #${o?.id}: a simulation, ${o?.x_state}, of ${o?.x_order_date} (the eve of ${q.x_delivery_date}), this request's, no sale order, ${o?.x_total_amount}`, o?.x_utak_simulation === true && o.x_special_quote_id?.[0] === q.id && !o.x_sale_order_id && Math.abs(o.x_total_amount - total) < 0.005 && o.x_order_date === new Date(Date.parse(`${q.x_delivery_date}T12:00:00Z`) - 86400_000).toISOString().slice(0, 10));
+  check("its two lines: «سعر خاص», the confirmed quantities at the VAT-inclusive finals (price and manual price), «التعبئة», the purchase price and Ahmed", ol.length === 2 && ol.every((l, i) => l.x_special_price === true && l.x_quantity === Number(LINES[i][4]) && l.x_unit_price === grossOf(LINES[i][3]) && l.x_price_unit_manual === l.x_unit_price && l.x_pack_text === LINES[i][1] && l.x_special_purchase === LINES[i][2] && l.x_special_supplier_id?.[0] === AHMED && l.x_utak_simulation === true), JSON.stringify(ol.map((l) => [l.x_quantity, l.x_unit_price, l.x_pack_text])));
+  check("ONE order of this request", (await call(L.ORDER_MODEL, "search_count", { domain: [["x_special_quote_id", "=", q.id]], context: ALL })) === 1);
+  const msgs = await call("x_wa_message", "search_read", { domain: [["x_direction", "=", "out"], "|", ["x_body", "like", `#${o?.id} `], ["x_body", "like", q.x_name]], fields: ["id", "x_partner_id", "x_body", "x_status", "x_meta_error"], order: "id asc", limit: 50, context: ALL });
+  for (const m of msgs) log(`  → #${m.id} ${JSON.stringify(m.x_partner_id)} [${m.x_status}] ${String(m.x_body).replace(/\n/g, " ⏎ ").slice(0, 130)}${m.x_meta_error ? ` — ${String(m.x_meta_error).slice(0, 110)}` : ""}`);
+  check(`every message of it is Baraa's own number's (#45), marked «🧪 محاكاة»: ${msgs.length}`, msgs.length >= 2 && msgs.every((m) => m.x_partner_id?.[0] === 45 && String(m.x_body).includes("🧪 محاكاة")));
+  check("nothing was written to the simulated customer", (await call("x_wa_message", "search_count", { domain: [["x_partner_id", "=", c.partner]], context: ALL })) === 0);
+  done();
+}
 log(APPLY ? "SCENARIO — apply" : "scenario dry-run (nothing is written or pressed; add --apply)");
 const products = await call("product.template", "search_read", { domain: [["default_code", "in", [...new Set(LINES.map((l) => l[0]))]]], fields: ["id", "name", "default_code", "x_is_active_for_sale"], context: ALL });
 const pid = (ref) => products.find((p) => p.default_code === ref)?.id;
@@ -117,7 +136,8 @@ check("  the request is «صدر العرض» with no sale order (a simulation r
 
 // ---- 3: «✅ العميل وافق»
 await press(L.HOOKS.approve.name, id);
-q = await until(id, (r) => !!r?.x_accepted_at);
+// (the worker writes the acceptance, then its result line: both are waited for)
+q = await until(id, (r) => !!r?.x_accepted_at && String(r.x_last_result).includes("سُجّل قبول العميل"));
 lines = await lineRows(id);
 check(`3 «✅ العميل وافق»: the acceptance on the request — its time, «تاريخ التسليم» ${q.x_delivery_date}, «طريقة الدفع» the customer's (آجل)`, !!q.x_accepted_at && /^\d{4}-\d{2}-\d{2}$/.test(String(q.x_delivery_date)) && q.x_pay_terms === "credit" && q.x_state === "quoted", JSON.stringify([q.x_accepted_at, q.x_delivery_date, q.x_pay_terms]));
 check("  a unit-price quotation: no confirmed quantity is written for Baraa", lines.every((l) => !l.x_confirmed_qty) && String(q.x_last_result).includes("اكتب «الكمية المؤكدة» لكل سطر"), String(q.x_last_result).slice(0, 160));
@@ -130,7 +150,7 @@ check(`4 «إجمالي الطلب المؤكد» follows the quantities typed (
 
 // ---- 5: «📦 حوّل لطلب»
 await press(L.HOOKS.convert.name, id);
-q = await until(id, (r) => r?.x_state === "accepted");
+q = await until(id, (r) => r?.x_state === "accepted" && String(r.x_last_result).startsWith("📦"));
 const orders = await call(L.ORDER_MODEL, "search_read", { domain: [["x_special_quote_id", "=", id]], fields: ["id", "x_state", "x_order_date", "x_customer_id", "x_utak_simulation", "x_total_amount", "x_delivery_notes", "x_sale_order_id", "x_created_via", "x_confirmed_at"], context: ALL });
 const o = orders[0];
 c.order = o?.id; save();

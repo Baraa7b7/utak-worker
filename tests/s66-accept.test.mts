@@ -29,7 +29,11 @@ const ACC = await import("../src/special-accept.ts");
 const SQ = await import("../src/special-quote.ts");
 const QT = await import("../src/special-quotation.ts");
 const M = await import("../src/special-quote-math.ts");
+const GW = await import("../src/wa-gateway.ts");
 const worker = (await import("../src/index.ts")).default;
+/** The gateway's 24-hour stop of a purpose Meta refused for a number (here: Baraa's alerts, after a burst — Meta 131056). */
+const blockOwnerAlerts = (env: any) => env.MSG_DEDUP.store.set(GW.purposeBlockKey(OWNER, "owner_alert"), JSON.stringify({ code: 131056, at: "2026-10-03T02:02:29.719Z" }));
+const unblockOwnerAlerts = (env: any) => env.MSG_DEDUP.store.delete(GW.purposeBlockKey(OWNER, "owner_alert"));
 
 const now = () => Date.now();
 const at = (riyadh: string) => Date.parse(riyadh.replace(" ", "T") + ":00+03:00");
@@ -423,7 +427,7 @@ console.log("\n[ج] a large order: at the conversion, and on the morning of its 
   const r = await convert(env, id);
   const [order] = ordersOf(id);
   const alert = ownerSaid().filter((t) => t.startsWith("🚚 طلب كبير"));
-  assert("74 cartons against a limit of 50: «🚚 طلب كبير 74 كرتون و30 كيلو: رتّب المركبة» with the order and its delivery morning", r.cartons === 74 && alert.length === 1 && alert[0] === `🚚 طلب كبير 74 كرتون و30 كيلو: رتّب المركبة — الطلب #${order.id} (${quote(id).x_name}، شركة مدارات للاغذية)، التسليم صباح الأحد 4 أكتوبر 2026` && result(id).includes("طلب كبير 74 كرتون"));
+  assert("74 cartons against a limit of 50: «🚚 طلب كبير 74 كرتون و30 كيلو: رتّب المركبة» with the order and its delivery morning", r.cartons === 74 && alert.length === 1 && alert[0] === `🚚 طلب كبير 74 كرتون و30 كيلو: رتّب المركبة — الطلب #${order.id} (${quote(id).x_name}، شركة مدارات للاغذية)، التسليم صباح الأحد 4 أكتوبر 2026` && result(id).includes("طلب كبير 74 كرتون") && !result(id).includes("تنبيه واتساب"));
   const tick = () => quiet(() => ACC.runLargeOrderMorning(env, now()));
   setRiyadh(`${DAY} 23:00`);
   assert("the evening before: nothing", (await tick()).length === 0);
@@ -454,6 +458,24 @@ console.log("\n[ج] a large order: at the conversion, and on the morning of its 
   setRiyadh("2026-10-04 02:05");
   const gone = await quiet(() => ACC.runLargeOrderMorning(env2, now()));
   assert("…cancelled before its morning: no second alert", JSON.stringify(gone) === JSON.stringify([{ orderId: bo.id, action: "gone" }]) && ownerSaid().filter((t) => t.startsWith("🚚")).length === 1);
+
+  // the gateway is not taking Baraa's alerts: the screen says so at the conversion, and the morning alert is tried again
+  const env3 = world();
+  blockOwnerAlerts(env3);
+  const q3 = await qtyQuote(env3, [[ORANGE, 60, 100, 133, "18 كيلو"]]);
+  await approve(env3, q3);
+  await convert(env3, q3);
+  const [o3] = ordersOf(q3);
+  assert("the alert of the conversion did not reach him: «آخر نتيجة» says to arrange the vehicle all the same", !ownerSaid().some((t) => t.startsWith("🚚")) && result(q3).includes("طلب كبير 60 كرتون (تنبيه واتساب لم يصلك الآن: رتّب المركبة)") && o3.x_state === "confirmed");
+  const tick3 = () => quiet(() => ACC.runLargeOrderMorning(env3, now()));
+  setRiyadh("2026-10-04 02:05");
+  assert("its morning alert is skipped too — and told so", JSON.stringify(await tick3()) === JSON.stringify([{ orderId: o3.id, action: "not_delivered" }]) && !ownerSaid().some((t) => t.startsWith("🚚")));
+  setRiyadh("2026-10-04 02:10");
+  assert("…not tried at every tick", JSON.stringify(await tick3()) === JSON.stringify([{ orderId: o3.id, action: "alerted_before" }]) && ACC.LARGE_RETRY_SECONDS === 1800);
+  unblockOwnerAlerts(env3);
+  env3.MSG_DEDUP.store.delete(`btnlock:v1:sq_large_morning:${o3.id}`);   // (the harness's KV keeps no clock: the half hour has passed)
+  setRiyadh("2026-10-04 02:40");
+  assert("…and half an hour later, the gateway taking it: ONE «🚚 … اليوم تسليم الطلب …»", JSON.stringify(await tick3()) === JSON.stringify([{ orderId: o3.id, action: "alerted" }]) && ownerSaid().filter((t) => t.startsWith("🚚 طلب كبير 60 كرتون: رتّب المركبة — اليوم تسليم الطلب")).length === 1);
 }
 
 // ============================================================================
@@ -490,6 +512,18 @@ console.log("\n[أ] «موافق» from the customer: one alert to Baraa, nothin
   const out = await quiet(() => ACC.noticeAcceptance(env2, { id: MADARAT, name: "شركة مدارات للاغذية" }, now()));
   assert("Odoo has no action of that name: the alert still goes, its link Odoo's own door", out.length === 1 && out[0].action === "alerted" && out[0].quoteId === live && ACC.acceptanceAlertText("أ", "S1", "u").split("\n").length === 3);
   assert("another customer's «موافق» is not this one's", (await quiet(() => ACC.noticeAcceptance(env2, { id: 501, name: "مطعم الوادي" }, now()))).length === 0);
+  // the gateway is not taking Baraa's alerts (Meta refused the purpose for his number within 24 hours): the alert is NOT lost
+  const env3 = world();
+  const q3 = await unitQuote(env3);
+  blockOwnerAlerts(env3);
+  const skipped = await quiet(() => ACC.noticeAcceptance(env3, { id: MADARAT, name: "شركة مدارات للاغذية" }, now()));
+  assert("an alert the gateway skipped is told so, and reaches nobody", skipped.length === 1 && skipped[0].action === "not_delivered" && skipped[0].quoteId === q3 && !ownerSaid().some((t) => t.includes("يبدو موافقاً")));
+  const still = await quiet(() => ACC.noticeAcceptance(env3, { id: MADARAT, name: "شركة مدارات للاغذية" }, now()));
+  assert("…it does not use up the quotation's one alert: his next «موافق» tries again (still skipped)", still.length === 1 && still[0].action === "not_delivered");
+  unblockOwnerAlerts(env3);
+  const went = await quiet(() => ACC.noticeAcceptance(env3, { id: MADARAT, name: "شركة مدارات للاغذية" }, now()));
+  const once = await quiet(() => ACC.noticeAcceptance(env3, { id: MADARAT, name: "شركة مدارات للاغذية" }, now()));
+  assert("…and once the gateway takes it again: ONE alert, then no more", went[0]?.action === "alerted" && once[0]?.action === "alerted_before" && ownerSaid().filter((t) => t.includes("يبدو موافقاً")).length === 1);
 }
 
 // ============================================================================

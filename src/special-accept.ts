@@ -44,7 +44,7 @@ import { QUOTE_MODEL, nowOdoo, readQuote, recalcQuote, writeResult, type QuoteLi
 import { OWNER_SPECIAL_PURPOSE, odooMs, quotationLayout, validUntilText } from "./special-quotation";
 import { dayLabel, notifyOwnerConfirmed } from "./order-flow";
 import { itemDetail } from "./quotation";
-import { T, sendOwnerAlert } from "./templates";
+import { T, sendOwnerAlert, sendOwnerMessage } from "./templates";
 
 export const ORDER_MODEL = "x_daily_order";
 export const ORDER_LINE_MODEL = "x_daily_order_line";
@@ -217,7 +217,16 @@ export async function quoteUrl(env: Env, quoteId: number): Promise<string> {
 export const acceptanceAlertText = (customer: string, number: string, url: string): string =>
   [`✅ ${customer || "العميل"} يبدو موافقاً على ${number}`, url, `لو وافق: افتح الطلب واضغط «${APPROVE_BUTTON}» ثم «${CONVERT_BUTTON}». (لم يتحوّل شيء، ولم يُرد عليه بغير الرد المعتاد.)`].join("\n");
 
-export interface AcceptanceNotice { quoteId: number; number: string; action: "alerted" | "alerted_before" }
+/**
+ * An alert to Baraa that must not be lost: true when it went to his chat or is held for his window; false when the
+ * gateway did not take it (a purpose Meta refused for his number is skipped for 24 hours — the caller tries again).
+ */
+async function ownerAlerted(env: Env, text: string): Promise<boolean> {
+  const d = gatewayDecision(await sendOwnerMessage({ ...env, AUTO_SEND_JOB: undefined } as Env, text));
+  return d?.action === "session" || d?.action === "template" || d?.action === "held";
+}
+
+export interface AcceptanceNotice { quoteId: number; number: string; action: "alerted" | "alerted_before" | "not_delivered" }
 /**
  * A customer wrote what reads as an acceptance: every quotation issued to him that is still valid and not
  * accepted yet gets ONE alert to Baraa (a KV claim a quotation). Nothing is converted, nothing is answered.
@@ -238,9 +247,14 @@ export async function noticeAcceptance(env: Env, partner: { id: number; name: st
       const number = String(r.x_quotation_number || r.x_name || `#${id}`);
       const claim = await claimButton(env, `sq_accept_notice:${id}`, 14 * 24 * 3600);
       if (!claim.claimed) { out.push({ quoteId: id, number, action: "alerted_before" }); continue; }
-      await sendOwnerAlert({ ...env, AUTO_SEND_JOB: undefined } as Env, acceptanceAlertText(partner.name, number, await quoteUrl(env, id)));
-      await finishButton(env, claim, 14 * 24 * 3600);
-      out.push({ quoteId: id, number, action: "alerted" });
+      // the quotation's ONE alert is used up only when it reached him: one the gateway skipped is tried again at his next «موافق»
+      if (await ownerAlerted(env, acceptanceAlertText(partner.name, number, await quoteUrl(env, id)))) {
+        await finishButton(env, claim, 14 * 24 * 3600);
+        out.push({ quoteId: id, number, action: "alerted" });
+      } else {
+        await releaseButton(env, claim);
+        out.push({ quoteId: id, number, action: "not_delivered" });
+      }
     }
   } catch (e) {
     console.warn(`[special-accept] the acceptance notice of partner ${partner.id} failed`, (e as Error)?.message);
@@ -551,9 +565,10 @@ export async function convertSpecialQuote(env: Env, quoteId: number, opts: { now
     const size = orderCartons(plan.lines.map((x) => ({ qty: x.qty, unit: x.line.unit, packKg: packs.get(x.line.productId)?.kg ?? 0 })));
     const limit = await largeOrderLimit(env, riyadhDateKey(new Date(now)));
     const large = size.cartons >= limit;
+    let told = false;
     if (large) {
       const tail = `الطلب #${orderId} (${q.name}، ${q.partnerName || "—"})، التسليم صباح ${dayLabel(deliveryDate)}`;
-      await sendOwnerAlert(penv, `${q.simulation ? `${SIM_MARK} — ` : ""}${largeOrderText(size.cartons, size.kilos, tail)}`).catch(() => {});
+      told = await ownerAlerted(penv, `${q.simulation ? `${SIM_MARK} — ` : ""}${largeOrderText(size.cartons, size.kilos, tail)}`).catch(() => false);
       await rememberLargeOrder(env, deliveryDate, { orderId, quote: q.name, customer: q.partnerName, cartons: size.cartons, kilos: size.kilos, simulation: q.simulation });
     }
 
@@ -562,7 +577,7 @@ export async function convertSpecialQuote(env: Env, quoteId: number, opts: { now
       plan.out.length ? `خارج الطلب (كميتها 0): ${plan.out.join("، ")}` : "",
       expired ? "اعتُمدت الأسعار بعد انتهاء الصلاحية" : "",
       saleLine, sentLine,
-      large ? `طلب كبير ${size.cartons} كرتون` : "",
+      large ? `طلب كبير ${size.cartons} كرتون${told ? "" : " (تنبيه واتساب لم يصلك الآن: رتّب المركبة)"}` : "",
     ].filter(Boolean).join(" · ");
     await writeResult(env, quoteId, line, now);
     await finishButton(env, lock, CONVERT_LOCK_SECONDS);
@@ -592,7 +607,9 @@ async function rememberLargeOrder(env: Env, deliveryDate: string, entry: LargeEn
   }
 }
 
-export interface LargeMorningStep { orderId: number; action: "alerted" | "alerted_before" | "gone" }
+export interface LargeMorningStep { orderId: number; action: "alerted" | "alerted_before" | "gone" | "not_delivered" }
+/** A morning alert the gateway did not take is tried again after this long (not at every tick). */
+export const LARGE_RETRY_SECONDS = 30 * 60;
 /**
  * The every-5-minutes tick: on the morning of a large order's delivery (from 02:00 Riyadh), ONE
  * «🚚 طلب كبير {N} كرتون: رتّب المركبة» an order — while it still stands and is not delivered yet. KV alone
@@ -614,9 +631,9 @@ export async function runLargeOrderMorning(env: Env, now: number = Date.now()): 
         out.push({ orderId: e.orderId, action: "gone" });
         continue;
       }
-      await sendOwnerAlert({ ...env, AUTO_SEND_JOB: undefined } as Env, `${e.simulation ? `${SIM_MARK} — ` : ""}${largeOrderText(e.cartons, e.kilos, `اليوم تسليم الطلب #${e.orderId} (${e.quote}، ${e.customer || "—"})`)}`);
-      await finishButton(env, claim, 2 * 24 * 3600);
-      out.push({ orderId: e.orderId, action: "alerted" });
+      const went = await ownerAlerted(env, `${e.simulation ? `${SIM_MARK} — ` : ""}${largeOrderText(e.cartons, e.kilos, `اليوم تسليم الطلب #${e.orderId} (${e.quote}، ${e.customer || "—"})`)}`);
+      await finishButton(env, claim, went ? 2 * 24 * 3600 : LARGE_RETRY_SECONDS);
+      out.push({ orderId: e.orderId, action: went ? "alerted" : "not_delivered" });
     }
   } catch (e) {
     console.warn("[special-accept] the large orders' morning failed", (e as Error)?.message);

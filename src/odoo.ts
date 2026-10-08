@@ -104,6 +104,12 @@ const TRANSIENT_WIZARD_MODELS: ReadonlySet<string> = new Set([
 export interface CallOptions {
   /** create only: domain that finds the record this create would make. */
   probe?: unknown[];
+  /**
+   * § 67 ب — a failure of this call is not worth an alert to Baraa by itself (Meta's status callbacks looking
+   * their row up, the freeze switch): it still throws, and the caller decides. An alert about a failure must
+   * never be what feeds the next failure (the storm of 2026-10-08 05:02).
+   */
+  quiet?: boolean;
 }
 
 type RetryHooks = {
@@ -114,9 +120,11 @@ type RetryHooks = {
 const defaultHooks: RetryHooks = {
   sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
   random: Math.random,
+  // § 67 هـ — buffered: nothing goes at once; ONE message at the end of ten minutes, «⚠️ Odoo لم يستجب N مرة
+  // بين … و… — آخر خطأ: …» (src/owner-alerts.ts). Important: never blocked, never dropped.
   alert: async (env, text) => {
     const { sendOwnerAlert } = await import("./templates");
-    await sendOwnerAlert(env, text);
+    await sendOwnerAlert(env, text, { kind: ODOO_DOWN_KIND, critical: true, buffer: { title: ODOO_DOWN_TITLE } });
   },
 };
 let hooks: RetryHooks = defaultHooks;
@@ -183,12 +191,22 @@ function describeTarget(body: Record<string, unknown>, opts: CallOptions): strin
 // One alert per model.method per 10 min per isolate, so a rate-limit storm
 // does not flood the owner. alertDepth stops the alert path (which itself
 // can reach Odoo) from alerting about its own failures.
+// § 67 ب — this memory is one isolate's: on 2026-10-08 Meta's status callbacks ran in many, and each one
+// alerted. What holds across them is in KV (src/owner-alerts.ts): every exhausted call of ten minutes is ONE
+// message, sent at their end.
+export const ODOO_DOWN_KIND = "odoo_down";
+export const ODOO_DOWN_TITLE = "⚠️ Odoo لم يستجب";
 const ALERT_THROTTLE_MS = 10 * 60 * 1000;
 const alertedAt = new Map<string, number>();
 let alertDepth = 0;
 
-async function alertExhausted(env: Env, model: string, method: string, target: string, err: Error, attempts: number): Promise<void> {
-  if (alertDepth > 0) return;
+/** An error's first words: an HTML page of Odoo's limiter («429 Too Many Requests») is its title, not its markup. */
+export function briefError(message: string): string {
+  return String(message ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 160);
+}
+
+async function alertExhausted(env: Env, model: string, method: string, target: string, err: Error, attempts: number, quiet = false): Promise<void> {
+  if (quiet || alertDepth > 0) return;
   const key = `${model}.${method}`;
   const now = Date.now();
   const last = alertedAt.get(key);
@@ -196,8 +214,7 @@ async function alertExhausted(env: Env, model: string, method: string, target: s
   alertedAt.set(key, now);
   alertDepth++;
   try {
-    await hooks.alert(env,
-      `⚠️ Odoo لم يستجب بعد ${attempts} محاولات — العملية ${key}، السجل ${target} — ${err.message.slice(0, 200)}`);
+    await hooks.alert(env, `بعد ${attempts} محاولات — العملية ${key}، السجل ${target} — ${briefError(err.message)}`);
   } catch (e) {
     console.error("[odoo] retry-exhausted alert failed", (e as Error)?.message);
   } finally {
@@ -244,7 +261,7 @@ export async function call<T = unknown>(
         }
       }
       if (attempt >= ODOO_MAX_RETRIES) {
-        await alertExhausted(env, model, method, describeTarget(body, opts), err, attempt + 1);
+        await alertExhausted(env, model, method, describeTarget(body, opts), err, attempt + 1, opts.quiet === true);
         throw err;
       }
       console.warn(`[odoo] ${model}.${method} ${failure.kind === "http" ? `HTTP ${failure.status}` : "network error"} — retry ${attempt + 1}/${ODOO_MAX_RETRIES}${decision === "probe-then-retry" ? " (probe empty)" : ` in ${wait}ms`}`);

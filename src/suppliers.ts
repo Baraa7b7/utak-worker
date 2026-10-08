@@ -580,7 +580,7 @@ export const supplierNudgeText = (needBy: string): string =>
   `تذكير من يو تاك: ما وصلتنا أسعارك اليوم للحين، نحتاجها قبل الساعة ${needBy} لو سمحت (الأسعار بدون ضريبة).`;
 
 /** Today's (Riyadh) ask logs still waiting for a reply. «no_reply» = the ask never reached him (ت13). */
-async function silentAskLogs(env: Env): Promise<SupplierLogRow[]> {
+export async function silentAskLogs(env: Env): Promise<SupplierLogRow[]> {
   const hours = riyadhMinutes() / 60 + 0.1;
   return (await getRecentSupplierLogs(env, hours)).filter((l) => l.x_status === "sent" && !l.x_replied_at && Array.isArray(l.x_supplier_id));
 }

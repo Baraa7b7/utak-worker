@@ -223,6 +223,8 @@ console.log("\n[أ] the customers' price list: never a price source, never a sup
   const toRaedForm = await gw(env, "customer_order_form", "+" + RAED_PHONE, "نموذج الطلب");
   assert("the gateway refuses the day's list, a quotation, its PDF and the order form to their numbers, their windows open", [toRaed, toAhmed, toAhmedLocal, toRaedForm].every((d) => d?.action === "refused" && /PricePrivacy/.test(String((d as any).reason))), JSON.stringify([toRaed, toAhmed, toAhmedLocal, toRaedForm]));
   assert("…nothing reached them", sentTo(RAED_PHONE).length === 0 && sentTo(AHMED_PHONE).length === 0 && heldFor(env, RAED_PHONE).length === 0 && heldFor(env, AHMED_PHONE).length === 0);
+  // § 67 هـ — the second «🔒 حُجبت رسالة …» within ten minutes goes in the one merged message of its kind
+  await quiet(async () => (await import("../src/owner-alerts.ts")).flushOwnerAlerts(env, Date.now() + 11 * 60_000));
   assert("…Baraa is told once per number («🔒 حُجبت رسالة … عن مصدر أسعار / مورد»), with no price in it", ownerTexts().filter((t) => /🔒 حُجبت رسالة/.test(t)).length === 2 && ownerTexts().some((t) => /مصدر أسعار «رائد»/.test(t)) && ownerTexts().some((t) => /مورد «أحمد حسان»/.test(t)) && !ownerTexts().some((t) => /🔒/.test(t) && has(t, 31)), ownerTexts().join(" | "));
   const toCust = await gw(env, "customer_prices", "+" + CUST_PHONE, "• طماطم (كرتون): 31 ر.س");
   assert("a customer gets it as before", toCust?.action === "session" && sentTo(CUST_PHONE).length === 1, JSON.stringify(toCust));

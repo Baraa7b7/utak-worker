@@ -39,6 +39,11 @@ export interface Env {
   /** Phase 1+: shared token for /odoo/hook/* routes (template sync, manual WA send). */
   ODOO_HOOK_TOKEN?: string;
   /**
+   * § 67 أ — set on a copy of env (never in wrangler.toml) for a request Odoo's buttons made and for a
+   * message of Baraa's own: the sends inside it are his acts, which the freeze does not stop (src/freeze.ts).
+   */
+  OWNER_ACT?: string;
+  /**
    * § 37 — a live trial's tag («🧪 تجربة § 37»): set only in a trial script's
    * environment (never in wrangler.toml). Supplier payments created under it
    * carry it (x_trial_tag), and every text about them starts with it.

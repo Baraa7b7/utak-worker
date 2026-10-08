@@ -74,12 +74,33 @@ interface OdooTemplateRow {
   x_label_ar?: string | false;
   x_name?: string | false;
   x_purpose?: string | false;
+  /** § 67 ب — the synced values as Odoo holds them (absent when this Odoo could not be read for them). */
+  [synced: string]: unknown;
+}
+
+// § 67 ب — the sync used to write EVERY row, one call after another with no pause: 77 writes in 8 seconds
+// on 2026-10-08 (02:01:19–02:01:26 UTC), after which Odoo's limiter answered 429 to the worker for minutes.
+// Now a row is written only when Meta's values differ from Odoo's, the writes are spaced, and the rows that
+// did not change get «آخر مزامنة» in ONE call.
+export const SYNC_WRITE_SPACING_MS = 400;
+let syncSleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms));
+/** Tests only: replace the pause between two writes. */
+export function setSyncSleepForTests(fn: ((ms: number) => Promise<void>) | null): void {
+  syncSleep = fn ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
+}
+const SYNCED_FIELDS = ["x_meta_id", "x_meta_status", "x_category", "x_body", "x_param_count", "x_buttons", "x_body_text", "x_buttons_text"];
+const same = (a: unknown, b: unknown): boolean => String(a === false || a == null ? "" : a) === String(b === false || b == null ? "" : b);
+/** Does this row already hold what Meta says? False when Odoo's values were not read. */
+export function rowInSync(row: Record<string, unknown>, synced: Record<string, unknown>): boolean {
+  return Object.entries(synced).every(([k, v]) => k in row && same(row[k], v));
 }
 
 export interface TemplateSyncReport {
   fetched: number;
   by_status: Record<string, number>;
   updated: number;
+  /** § 67 ب — of `updated`: the rows that needed a write of their own (the rest got «آخر مزامنة» in one call). */
+  written?: number;
   created: number;
   missing_in_meta: number;
   missing_in_meta_names: string[];
@@ -210,11 +231,14 @@ export async function syncOneTemplate(env: Env, name: string): Promise<"changed"
 }
 
 async function loadOdooTemplates(env: Env): Promise<OdooTemplateRow[]> {
-  return await call<OdooTemplateRow[]>(env, "x_whatsapp_template", "search_read", {
-    domain: [],
-    fields: ["id", "x_meta_template_id", "x_language", "x_missing_in_meta", "x_label_ar", "x_name", "x_purpose"],
-    limit: 2000,
-  });
+  const base = ["id", "x_meta_template_id", "x_language", "x_missing_in_meta", "x_label_ar", "x_name", "x_purpose"];
+  try {
+    return await call<OdooTemplateRow[]>(env, "x_whatsapp_template", "search_read", { domain: [], fields: [...base, ...SYNCED_FIELDS], limit: 2000 });
+  } catch (e) {
+    // an Odoo without the § 36 text fields: every row counts as changed, as before § 67
+    if (!missingTextField(e)) throw e;
+    return await call<OdooTemplateRow[]>(env, "x_whatsapp_template", "search_read", { domain: [], fields: base, limit: 2000 });
+  }
 }
 
 function keyOf(name: string, lang: string): string {
@@ -281,6 +305,8 @@ export async function syncTemplates(env: Env): Promise<TemplateSyncReport> {
     }
   };
 
+  const unchanged: number[] = [];
+  let wrote = 0;
   for (const t of metaTemplates) {
     const key = keyOf(t.name, t.language);
     seenKeys.add(key);
@@ -309,11 +335,19 @@ export async function syncTemplates(env: Env): Promise<TemplateSyncReport> {
         // pointless writes but ensures the display column is always Arabic.
         const currentName = typeof existing.x_name === "string" ? existing.x_name.trim() : "";
         if (currentName !== finalLabel) vals.x_name = finalLabel;
+        // § 67 ب — nothing to say about this row: no call of its own (its «آخر مزامنة» goes with the others below)
+        if (rowInSync(existing, synced) && existing.x_missing_in_meta !== true && !("x_label_ar" in vals) && !("x_name" in vals)) {
+          unchanged.push(existing.id);
+          report.updated++;
+          continue;
+        }
+        if (wrote++ > 0) await syncSleep(SYNC_WRITE_SPACING_MS);
         await write([existing.id], vals);
         report.updated++;
       } else {
         // New — x_purpose left unset so fetchMapping never picks it.
         const desired = pickArabicLabel(t.name);
+        if (wrote++ > 0) await syncSleep(SYNC_WRITE_SPACING_MS);
         await create({
           x_meta_template_id: t.name,
           x_language: t.language,
@@ -331,13 +365,27 @@ export async function syncTemplates(env: Env): Promise<TemplateSyncReport> {
     }
   }
 
+  report.written = wrote;
+  // § 67 ب — the rows Meta and Odoo agree on: «آخر مزامنة» for all of them in ONE call
+  if (unchanged.length) {
+    try {
+      if (wrote > 0) await syncSleep(SYNC_WRITE_SPACING_MS);
+      await call<boolean>(env, "x_whatsapp_template", "write", { ids: unchanged, vals: { x_last_synced: nowOdoo() } });
+    } catch (e) {
+      report.errors.push(`last-synced of ${unchanged.length} unchanged rows: ${(e as Error).message}`);
+    }
+  }
+
   // Odoo rows the syncer has not seen this run: flag as missing_in_meta.
   // Rows already flagged in a prior run stay flagged — no delete, ever.
   for (const r of odooRows) {
     if (typeof r.x_meta_template_id !== "string" || !r.x_meta_template_id) continue;
     const lang = typeof r.x_language === "string" ? r.x_language : "";
     if (seenKeys.has(keyOf(r.x_meta_template_id, lang))) continue;
+    // already flagged in an earlier run: nothing new to write
+    if (r.x_missing_in_meta === true) { report.missing_in_meta++; report.missing_in_meta_names.push(`${r.x_meta_template_id}/${lang}`); continue; }
     try {
+      await syncSleep(SYNC_WRITE_SPACING_MS);
       await call<boolean>(env, "x_whatsapp_template", "write", {
         ids: [r.id],
         vals: { x_missing_in_meta: true, x_last_synced: nowOdoo() },

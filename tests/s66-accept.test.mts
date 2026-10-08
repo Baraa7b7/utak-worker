@@ -32,8 +32,11 @@ const M = await import("../src/special-quote-math.ts");
 const GW = await import("../src/wa-gateway.ts");
 const worker = (await import("../src/index.ts")).default;
 /** The gateway's 24-hour stop of a purpose Meta refused for a number (here: Baraa's alerts, after a burst — Meta 131056). */
-const blockOwnerAlerts = (env: any) => env.MSG_DEDUP.store.set(GW.purposeBlockKey(OWNER, "owner_alert"), JSON.stringify({ code: 131056, at: "2026-10-03T02:02:29.719Z" }));
-const unblockOwnerAlerts = (env: any) => env.MSG_DEDUP.store.delete(GW.purposeBlockKey(OWNER, "owner_alert"));
+// § 67 د — a refusal by Meta no longer stops an important alert (the block of 2026-10-08, 131056 on owner_alert, counts
+// for nothing now, and «✅ يبدو موافقاً» / «🚚 طلب كبير» go under owner_critical, which is never blocked). What is left
+// of «the gateway did not take it» is its last gate: here, an allowlist that does not hold Baraa's number.
+const blockOwnerAlerts = (env: any) => { env.SIM_ALLOWLIST = "+96653,+9665000005,+9665000006,+9665000008"; };
+const unblockOwnerAlerts = (env: any) => { env.SIM_ALLOWLIST = "+9665"; };
 
 const now = () => Date.now();
 const at = (riyadh: string) => Date.parse(riyadh.replace(" ", "T") + ":00+03:00");

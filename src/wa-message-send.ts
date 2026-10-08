@@ -607,6 +607,9 @@ export async function updateWaStatusByWamid(
         fields: ["id", "x_status", "x_body", "x_debug_payload"],
         limit: 1,
       },
+      // § 67 ب — a status callback that cannot reach Odoo is logged, never an alert: on 2026-10-08 each
+      // alert's own callbacks alerted again (41 alerts in 65 seconds)
+      { quiet: true },
     );
     if (rows.length === 0) return null;
     const { statusVerdict, withIgnoredNote } = await import("./wa-status");
@@ -618,7 +621,7 @@ export async function updateWaStatusByWamid(
       await call<boolean>(env, "x_wa_message", "write", {
         ids: [rows[0].id],
         vals,
-      });
+      }, { quiet: true });
     } else if (v.why === "failed_after_delivery") {
       console.warn(`[status] wamid=${wamid.slice(-10)} row=${rows[0].id} failed after ${previous} — not written (technical log)`);
       await call<boolean>(env, "x_wa_message", "write", {

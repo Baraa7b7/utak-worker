@@ -164,6 +164,7 @@ console.log("\n[0] critical purposes, openers, owner guard");
   const expected = [
     "customer_invoice", "customer_invoice_pdf", "customer_order_confirm", "customer_order_remind", "customer_order_update",
     "customer_payment_received", "customer_receipt", "owner_alert", "owner_team_note",
+    "owner_critical", // § 67 د — his important alerts: held with the opener as an alert is, and never blocked
     ...(PURPOSES.customer_prices ? ["customer_prices", "owner_prices"] : []),
     // § 37 — the supplier's notice of an approved payment («رسالة مهمة محفوظة بقواعد § 34»)
     ...(PURPOSES.supplier_payment_sent ? ["supplier_payment_sent"] : []),
@@ -279,14 +280,15 @@ console.log("\n[3] «عرض التحديث» flushes everything held, in order")
 
   const env3 = fresh("2026-09-26 12:00");
   closeOwnerWindow(env3);
-  await quiet(() => sendOwnerAlert(env3, "تنبيه 1"));
-  await quiet(() => sendOwnerAlert(env3, "تنبيه 2"));
+  // two alerts of two kinds (the same kind within ten minutes is one message — § 67 هـ)
+  await quiet(() => sendOwnerAlert(env3, "تنبيه أول"));
+  await quiet(() => sendOwnerAlert(env3, "ملاحظة ثانية"));
   assert("Baraa: two alerts held, one opener", heldFor(env3, OWNER).length === 2 && openers(OWNER).length === 1);
   const b0 = graph.length;
   setRiyadh("2026-09-26 12:05");
   await tap(env3, OWNER);
   const got = graph.slice(b0).filter((b) => b.to === OWNER).map((b) => b.text?.body ?? `[${b.type}]`);
-  assert("Baraa's tap: the alerts in order, then «✅ تم»", got.length === 3 && got[0] === "تنبيه 1" && got[1] === "تنبيه 2" && got[2] === ownerWindowAck(), JSON.stringify(got));
+  assert("Baraa's tap: the alerts in order, then «✅ تم»", got.length === 3 && got[0] === "تنبيه أول" && got[1] === "ملاحظة ثانية" && got[2] === ownerWindowAck(), JSON.stringify(got));
 }
 
 // ================================================================ 4. who never gets an opener

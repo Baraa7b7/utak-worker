@@ -72,7 +72,8 @@ console.log("\nthe one trial of § 60: Baraa's number alone, inside his window, 
   let failed: any;
   try { failed = await quiet(() => TR.sendSummaryTrial(env2)); } finally { globalThis.fetch = real; }
   const retry = await quiet(() => TR.sendSummaryTrial(env2));
-  assert("a send Meta refused does not spend the day's trial: the next call is the gateway's to answer, not «already_today»", failed.sent === false && failed.reason === "rejected" && retry.sent === false && retry.reason !== "already_today" && String(retry.reason).startsWith("skipped"), JSON.stringify([failed, retry]));
+  // § 67 د — 131000 is neither a passing fault the gateway retries nor a permanent one it blocks: the trial is not spent, and the next call goes
+  assert("a send Meta refused does not spend the day's trial, and blocks nothing: the next call goes", failed.sent === false && failed.reason === "rejected" && retry.sent === true, JSON.stringify([failed, retry]));
   const noOwner = fresh(`${DAY} 12:00`); noOwner.OWNER_WHATSAPP = "";
   assert("no owner's number: nothing", (await quiet(() => TR.sendSummaryTrial(noOwner))).reason === "no_owner");
 }

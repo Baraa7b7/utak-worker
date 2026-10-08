@@ -695,7 +695,7 @@ export async function priceRecipients(env: Env): Promise<PriceRecipient[]> {
 // ---------------------------------------------------------------- publish
 
 export interface PublishReport {
-  action: "published" | "already" | "not_approved" | "in_progress" | "blocked" | "mismatch" | "not_found" | "unapproved_meanwhile" | "nothing";
+  action: "published" | "already" | "not_approved" | "in_progress" | "blocked" | "mismatch" | "not_found" | "unapproved_meanwhile" | "nothing" | "frozen";
   day?: string;
   dayId?: number;
   items?: number;
@@ -751,6 +751,9 @@ function approvedByHand(day: DayRecord & { x_approved_by?: [number, string] | fa
   return Array.isArray(day.x_approved_by);
 }
 
+/** § 67 د — «أسعار اليوم لم تُنشر» is an important alert: never blocked, never dropped (src/owner-alerts.ts). */
+export const UNPUBLISHED_ALERT = { kind: "prices_unpublished", critical: true } as const;
+
 /**
  * Publish an approved day, once (KV claim + the record's state). Never
  * publishes a draft, missed or published record. The customers' sends go
@@ -763,6 +766,20 @@ export async function publishPriceDay(env: Env, dayId: number, opts: { ctx?: Exe
   if (!day) return { action: "not_found", dayId };
   if (day.x_state === "published") return { action: "already", day: day.x_date, dayId };
   if (day.x_state !== "approved") return { action: "not_approved", day: day.x_date, dayId, detail: day.x_state };
+  // § 67 أ — frozen: the day's list goes to nobody, whoever asked for it (the 06:00 tick, a button of the
+  // review, «نشر المعتمد الآن»): a list sent to every customer while orders are stopped cannot be taken back.
+  // Baraa is told once a day; he turns the freeze off, then publishes.
+  {
+    const { freezeView } = await import("./freeze");
+    if ((await freezeView(env, now)).on) {
+      const told = await claimButton(env, `prices_pub_frozen:${dayId}`, 20 * 3600);
+      if (told.claimed) {
+        await sendOwnerAlert({ ...env, AUTO_SEND_JOB: undefined } as Env, `🧊 أسعار ${arabicDate(day.x_date)} لم تُنشر: وضع التجميد مُشغَّل. أطفئه من ${PLACE_TODAY} ثم اضغط «نشر المعتمد الآن».`, { kind: "freeze_publish" });
+        await finishButton(env, told, 20 * 3600);
+      }
+      return { action: "frozen", day: day.x_date, dayId };
+    }
+  }
   const claim = await claimButton(env, `prices_pub:${dayId}`, 7 * 24 * 3600);
   if (!claim.claimed) return { action: "in_progress", day: day.x_date, dayId, detail: claim.state };
   const penv = { ...env, AUTO_SEND_JOB: undefined } as Env;
@@ -771,7 +788,7 @@ export async function publishPriceDay(env: Env, dayId: number, opts: { ctx?: Exe
     const blocked = lines.filter((l) => l.x_blocked);
     if (blocked.length) {
       await releaseButton(penv, claim);
-      await sendOwnerAlert(penv, `⚠️ أسعار ${day.x_date} لم تُنشر: أسعار شاذة لم تُعالج (${blocked.map(lineName).join("، ")}).`);
+      await sendOwnerAlert(penv, `⚠️ أسعار ${day.x_date} لم تُنشر: أسعار شاذة لم تُعالج (${blocked.map(lineName).join("، ")}).`, UNPUBLISHED_ALERT);
       return { action: "blocked", day: day.x_date, dayId, detail: blocked.map(lineName).join("، ") };
     }
     // § 40 ج — a line goes out only approved (automatically or by Baraa), at
@@ -781,12 +798,12 @@ export async function publishPriceDay(env: Env, dayId: number, opts: { ctx?: Exe
     const mismatch = publishable.filter((l) => !saleMatchesRule(l));
     if (mismatch.length) {
       await releaseButton(penv, claim);
-      await sendOwnerAlert(penv, `⚠️ أسعار ${day.x_date} لم تُنشر: سعر البيع في Odoo لا يطابق القاعدة (${mismatch.map((l) => `${lineName(l)} ${l.x_sale_price}≠${saleRule(l)}`).join("، ")}).`);
+      await sendOwnerAlert(penv, `⚠️ أسعار ${day.x_date} لم تُنشر: سعر البيع في Odoo لا يطابق القاعدة (${mismatch.map((l) => `${lineName(l)} ${l.x_sale_price}≠${saleRule(l)}`).join("، ")}).`, UNPUBLISHED_ALERT);
       return { action: "mismatch", day: day.x_date, dayId };
     }
     if (!publishable.length) {
       await releaseButton(penv, claim);
-      await sendOwnerAlert(penv, `⚠️ أسعار ${day.x_date} لم تُنشر: لا صنف معتمد (تلقائياً أو منك).`);
+      await sendOwnerAlert(penv, `⚠️ أسعار ${day.x_date} لم تُنشر: لا صنف معتمد (تلقائياً أو منك).`, UNPUBLISHED_ALERT);
       return { action: "nothing", day: day.x_date, dayId };
     }
     // an exception still without Baraa's decision is not published (never an old price)
@@ -955,7 +972,7 @@ export async function checkPricesDeadline(env: Env, now: number = Date.now()): P
     `⏰ أسعار اليوم (${arabicDate(day)}) لم تُنشر حتى ${hh}: لا صنف معتمد (تلقائياً أو منك).`,
     anyPrice ? `لم يُنشر (${inDay.length}): ${unpublishedList(inDay)}.` : "لم يصل سعر من المصادر اليوم.",
     `لا تُعاد أسعار أمس. «✅ نفّذ المقترح» أو «✏️ عدّل» من رسالة المراجعة ينشر فوراً، أو قرارك ثم «نشر المعتمد الآن» في ${PLACE_TODAY}.`,
-  ].join("\n"));
+  ].join("\n"), byOwner ? {} : UNPUBLISHED_ALERT);
   await finishButton(env, claim);
   return { action: "missed", day, dayId: target.id };
 }
@@ -990,7 +1007,13 @@ export interface PricesTick {
   decisions?: RefreshReport[] | { error: string };
   /** § 49 ب — the orders that waited for a valid list, quoted by this tick (a publication that could not quote them). */
   awaiting?: AwaitingReport[] | { error: string };
+  /** § 67 و — 04:30: the one alert with every source that has not sent, and «🔁 أعد طلب الأسعار». */
+  sourcesMissing?: { action: string } | { error: string };
+  /** § 67 و — 07:30: the one reminder of a day still «فائت». */
+  missedRemind?: { action: string } | { error: string };
 }
+/** § 67 أ — what was due while the system was frozen is not sent after the freeze is turned off. */
+export const FROZEN_MISSED = { action: "frozen_missed" } as const;
 
 /** A decision taken in Odoo is looked for on the days from this many days back (today, yesterday). */
 export const ODOO_DECISION_DAYS_BACK = 1;
@@ -1035,14 +1058,24 @@ export async function runPricesTick(env: Env, now: number = Date.now(), ctx?: Ex
   const out: PricesTick = {};
   const dl = pricesDeadlineMinutes(env).minutes;
   const m = riyadhMinutes(new Date(now));
+  // § 67 أ — the freeze was turned off today: everything resumes from its NEXT time. What was due while it
+  // was on (an ask, a reminder, the review, the publication) is not sent late.
+  const { freezeView } = await import("./freeze");
+  const fz = await freezeView(env, now);
+  if (fz.on) return out;
   try {
     const { runMarketAsk } = await import("./price-sources");
-    out.marketAsk = await runMarketAsk(env, now, dl);
+    out.marketAsk = fz.missedToday(MARKET_ASK_MINUTE) ? FROZEN_MISSED : await runMarketAsk(env, now, dl);
   } catch (e) { out.marketAsk = { error: (e as Error)?.message ?? String(e) }; }
+  // § 67 و — 04:30: the sources that have not sent, in ONE alert with «🔁 أعد طلب الأسعار»
+  try {
+    const { runSourcesMissing, SOURCES_MISSING_MINUTE } = await import("./sources-missing");
+    out.sourcesMissing = fz.missedToday(SOURCES_MISSING_MINUTE) ? FROZEN_MISSED : await runSourcesMissing(env, now);
+  } catch (e) { out.sourcesMissing = { error: (e as Error)?.message ?? String(e) }; }
   // § 52 و — 05:00: one reminder to a market source that sent no price today
   try {
-    const { runMarketNudge } = await import("./price-sources");
-    out.marketNudge = await runMarketNudge(env, now, dl);
+    const { runMarketNudge, MARKET_NUDGE_MINUTE } = await import("./price-sources");
+    out.marketNudge = fz.missedToday(MARKET_NUDGE_MINUTE) ? FROZEN_MISSED : await runMarketNudge(env, now, dl);
   } catch (e) { out.marketNudge = { error: (e as Error)?.message ?? String(e) }; }
   try {
     out.refresh = m >= ENGINE_FROM_MINUTE && m < dl + DEADLINE_WINDOW_MIN
@@ -1052,9 +1085,14 @@ export async function runPricesTick(env: Env, now: number = Date.now(), ctx?: Ex
   // § 54 ب — the day's review: one message with every item and its proposed decision
   try {
     const { notifyPriceReviewMessage } = await import("./price-review");
-    out.review = await notifyPriceReviewMessage(env, now);
+    out.review = fz.missedToday(exceptionsFromMinutes(env)) ? FROZEN_MISSED : await notifyPriceReviewMessage(env, now);
   } catch (e) { out.review = { error: (e as Error)?.message ?? String(e) }; }
-  try { out.deadline = await checkPricesDeadline(env, now); } catch (e) { out.deadline = { error: (e as Error)?.message ?? String(e) }; }
+  try { out.deadline = fz.missedToday(dl) ? { action: "after_window", day: riyadhDateKey(new Date(now)) } : await checkPricesDeadline(env, now); } catch (e) { out.deadline = { error: (e as Error)?.message ?? String(e) }; }
+  // § 67 و — 07:30: ONE reminder of a day still «فائت» after the 06:00 alert
+  try {
+    const { runMissedReminder, MISSED_REMIND_MINUTE } = await import("./sources-missing");
+    out.missedRemind = fz.missedToday(MISSED_REMIND_MINUTE) ? FROZEN_MISSED : await runMissedReminder(env, now);
+  } catch (e) { out.missedRemind = { error: (e as Error)?.message ?? String(e) }; }
   // § 48 د — a decision taken in Odoo and not yet seen by the engine (outside its hours, or «🔄 إعادة الحساب» not pressed)
   try { out.decisions = await applyOdooDecisions(env, now); } catch (e) { out.decisions = { error: (e as Error)?.message ?? String(e) }; }
   // § 41 ب — the daily «عدد المحطات اليومية المخطط فارغ» alert (§ 40 د) was
@@ -1062,7 +1100,8 @@ export async function runPricesTick(env: Env, now: number = Date.now(), ctx?: Ex
   try {
     const rec = await readDay(env, riyadhDateKey(new Date(now)));
     const approvedAt = typeof rec?.x_approved_at === "string" ? Date.parse(rec.x_approved_at.replace(" ", "T") + "Z") : 0;
-    if (rec?.x_state === "approved" && approvedAt && now - approvedAt >= PUBLISH_RETRY_AFTER_MS) {
+    // § 67 أ — a day approved while frozen is not published by itself after the freeze: «نشر المعتمد الآن» again
+    if (rec?.x_state === "approved" && approvedAt && now - approvedAt >= PUBLISH_RETRY_AFTER_MS && !fz.missed(approvedAt)) {
       out.publish = await publishPriceDay(env, rec.id, { ctx, now });
     }
   } catch (e) {

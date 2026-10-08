@@ -44,7 +44,7 @@ import { QUOTE_MODEL, nowOdoo, readQuote, recalcQuote, writeResult, type QuoteLi
 import { OWNER_SPECIAL_PURPOSE, odooMs, quotationLayout, validUntilText } from "./special-quotation";
 import { dayLabel, notifyOwnerConfirmed } from "./order-flow";
 import { itemDetail } from "./quotation";
-import { T, sendOwnerAlert, sendOwnerMessage } from "./templates";
+import { T, sendOwnerAlert, sendOwnerCritical, sendOwnerMessage } from "./templates";
 
 export const ORDER_MODEL = "x_daily_order";
 export const ORDER_LINE_MODEL = "x_daily_order_line";
@@ -222,8 +222,9 @@ export const acceptanceAlertText = (customer: string, number: string, url: strin
  * gateway did not take it (a purpose Meta refused for his number is skipped for 24 hours — the caller tries again).
  */
 async function ownerAlerted(env: Env, text: string): Promise<boolean> {
-  const d = gatewayDecision(await sendOwnerMessage({ ...env, AUTO_SEND_JOB: undefined } as Env, text));
-  return d?.action === "session" || d?.action === "template" || d?.action === "held";
+  // § 67 د — an important alert: Meta's refusal never blocks it and never drops it (queued and tried again);
+  // each one is its own kind (its text names its request), so two requests never fold into one line
+  return (await sendOwnerCritical({ ...env, AUTO_SEND_JOB: undefined } as Env, text, { kind: `special:${text.slice(0, 60)}` })).taken;
 }
 
 export interface AcceptanceNotice { quoteId: number; number: string; action: "alerted" | "alerted_before" | "not_delivered" }

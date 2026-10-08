@@ -302,7 +302,7 @@ console.log("\n[1] every send path writes an x_wa_message row and a Discuss line
   // i) a script run without ctx (scripts/lib/cf-live-env.mjs): awaited, both there when it returns
   env = fresh();
   openWindow(env, CUST_PHONE, 5);
-  await quiet(() => sendViaGateway(env, { purpose: "sim_test", to: "+" + CUST_PHONE, content: { kind: "session", body: { type: "text", text: { body: "🧪 تجربة" } } } }));
+  await quiet(() => sendViaGateway(env, { purpose: "wa_message_manual", to: "+" + CUST_PHONE, content: { kind: "session", body: { type: "text", text: { body: "🧪 تجربة" } } } }));
   r = onRecord("🧪 تجربة", CUST, CH_CUST);
   assert("script path (no ctx): row and line exist when the send returns", !!r.row && !!r.msg && r.row.x_source === "manual");
 

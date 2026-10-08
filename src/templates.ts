@@ -6,6 +6,7 @@ import type { Env } from "./config";
 import { ORDERING_HOURS_CLOSE } from "./config";
 import {
   clearTemplateCache,
+  gatewayDecision,
   sendViaGateway,
   type GwOption,
   type HeaderMedia,
@@ -246,9 +247,24 @@ export const T = {
 // ============================================================
 import { arabicDate, sanitizeTemplateParam } from "./wa-params";
 import { riyadhDateKey, riyadhMinutes } from "./hours";
+import { ownerAlert, type OwnerAlertOpts } from "./owner-alerts";
 
-export async function sendOwnerAlert(env: Env, text: string): Promise<void> {
-  await sendOwnerMessage(env, text, T.OWNER_ALERT);
+// § 67 هـ — every alert passes src/owner-alerts.ts: the same kind within ten minutes is one message, alerts
+// that are not important are six an hour, and an important one (`critical`) is never blocked or dropped.
+export async function sendOwnerAlert(env: Env, text: string, opts: OwnerAlertOpts = {}): Promise<void> {
+  await ownerAlert(env, text, opts);
+}
+
+/**
+ * § 67 د — an important alert whose fate the caller needs («✅ العميل يبدو موافقاً», «🚚 طلب كبير»): the
+ * gateway's response when it went now (or was held for his window), null when it was folded into the alert
+ * of its kind that went less than ten minutes ago — `taken` says whether it is on its way either way.
+ */
+export async function sendOwnerCritical(env: Env, text: string, opts: Omit<OwnerAlertOpts, "critical"> = {}): Promise<{ taken: boolean; response: Response | null }> {
+  const r = await ownerAlert(env, text, { ...opts, critical: true });
+  if (r.outcome === "merged" || r.outcome === "buffered") return { taken: true, response: null };
+  const d = gatewayDecision(r.response);
+  return { taken: d?.action === "session" || d?.action === "template" || d?.action === "held", response: r.response ?? null };
 }
 
 /**

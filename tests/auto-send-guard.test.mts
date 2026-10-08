@@ -207,15 +207,15 @@ console.log("\n[6] key written before the send (held even when Meta fails)");
   // 2026-09-24 (ح6): a failure also alerts the owner (+966500000001) once —
   // only the calls to the original recipient count here.
   const toRecipient = metaCalls.filter((b: any) => b?.to === "966500000002");
-  assert("first attempt reached Meta and failed", !r1.ok && toRecipient.length === 1, String(toRecipient.length));
-  assert("the failure alerted the owner", metaCalls.some((b: any) => b?.to === "966500000001"));
+  // § 67 د — HTTP 5xx with no code passes by itself: the same message is queued for its retry (a minute later),
+  // nobody is alerted about a failure, and the purpose is NOT blocked (it used to be, for 24 hours).
+  assert("first attempt reached Meta, which answered 500: queued for its retry, not a failure", r1.status === 202 && toRecipient.length === 1, `${r1.status} ${toRecipient.length}`);
+  assert("a passing refusal alerts nobody", !metaCalls.some((b: any) => b?.to === "966500000001"));
   assert("retry of the same template same job refused (409)", r2.status === 409, String(r2.status));
-  // STATUS § 33 — Meta refused the purpose: no automatic send of it to this
-  // number for 24h, not even the text fallback (it used to go once).
   const r3 = await sendTxt(env, "fallback", "collection_summary");
-  assert("text fallback of the refused purpose refused too", r3.status === 409, String(r3.status));
+  assert("the purpose is not blocked: its text goes", r3.status === 200, String(r3.status));
   const again = metaCalls.filter((b: any) => b?.to === "966500000002");
-  assert("Meta reached once for this recipient — no retry", again.length === 1, String(again.length));
+  assert("Meta reached twice for this recipient: the refused template, then the text", again.length === 2, String(again.length));
 }
 
 console.log("\n[7] request paths (no AUTO_SEND_JOB) are untouched");

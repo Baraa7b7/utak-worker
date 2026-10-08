@@ -66,10 +66,14 @@ export async function teamPurposeForOwner(env: Env, purpose: string): Promise<bo
  * the webhook, whatever role he holds? Its buttons and commands, in that
  * branch's order. «بدء الدوام» is not: as a member, his tap also releases his tasks.
  */
+/** § 67 و — «🔁 أعد طلب الأسعار» of the day's «مصدر لم يرسل» alert: rsk_<the day>. */
+export const REASK_PAYLOAD = /^rsk_(\d{4}-\d{2}-\d{2})$/;
+
 export function isOwnerOwnMessage(msg: Pick<NormalizedMessage, "type" | "text" | "buttonId">): boolean {
   const button = (msg.type === "interactive" || msg.type === "button") && msg.buttonId ? String(msg.buttonId) : "";
   if (button) {
     return isOwnerWindowPayload(button)                    // «تم الاطلاع» / «عرض الاستثناءات»
+      || REASK_PAYLOAD.test(button)                         // § 67 و — «🔁 أعد طلب الأسعار» under the 04:30 alert
       || /^prvt?_[arn]_\d+_\d+$/.test(button)               // the day's price review
       || /^pexc_[mspe]_\d+$/.test(button)                   // a per-item exception of before § 54
       || /^aftest_(transfer|note)$/.test(button)            // the trial of the two buttons after an invoice

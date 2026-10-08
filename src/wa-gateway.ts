@@ -61,7 +61,9 @@ import { claimAutoSend, noteManualSend, skippedDuplicateResponse } from "./auto-
 import { extractRealWamid, generateFakeWamid, recordOutbound, synthesizeMetaResponse } from "./sim";
 import { arabicDate, maskPhone, sanitizeTemplateBody } from "./wa-params";
 import { META_PAYMENT_ISSUE, isPaymentIssue, recordSendFailure, sendWhat } from "./send-failure";
-import { categoryAllowed, expiryFor, purposePolicy } from "./wa-purposes";
+import { categoryAllowed, expiryFor, isTrialPurpose, neverBlocked, purposePolicy } from "./wa-purposes";
+import { OWNER_BLOCK_MAX_SEC, PURPOSE_BLOCK_SEC, metaErrorClass, retryDelayMs } from "./meta-errors";
+import { retryItemId, scheduleRetry, takeDueRetries, type RetryItem } from "./wa-retry";
 import { CUSTOMER_PRICE_PURPOSES, closedKindLabel, priceClosedNumber, type ClosedNumber } from "./price-privacy";
 import { teamPurposeForOwner } from "./owner-team";
 import { markWindowClosed, readWindow, waDigits, type WindowState } from "./wa-window";
@@ -108,6 +110,8 @@ export interface GwTemplate {
   header?: HeaderMedia;
   /** § 51 — the template's FLOW button: this send's flow_token and the first screen's data. */
   flow?: { token: string; data: Record<string, unknown> };
+  /** internal (§ 67 د): a template Meta refused for a passing reason, sent again exactly as it was built. */
+  raw?: { name: string; body: Record<string, unknown> };
 }
 
 export type GwOption = GwSession | GwTemplate;
@@ -133,6 +137,8 @@ export interface GatewayRequest {
   queued?: QueueItem;
   /** internal: the window is already known (the flush) */
   window?: WindowState;
+  /** internal (§ 67 د): this send is a retry of a message Meta refused for a passing reason */
+  retry?: RetryItem;
   /**
    * § 34 — outside the window with nothing usable: skipped (logged), not held.
    * For a message another send already covers (the payment ack, which the
@@ -153,6 +159,7 @@ export type GatewayDecision =
   | { action: "template"; template: string; lookup?: string }
   | { action: "held"; reason: string; expiresAt: number; duplicate?: boolean }
   | { action: "skipped"; reason: string }
+  | { action: "frozen"; reason: string }
   | { action: "refused"; reason: string }
   | { action: "rejected"; code: number | string | null; template?: string };
 
@@ -227,6 +234,8 @@ for (const p of ["team_prices_test", "quotation_file_test", "shift_start_test"])
 for (const p of ["owner_special_quote", "special_quote_test"]) (OWNER_ALLOWED_PURPOSES as Set<string>).add(p);
 /** § 65 — the trials of the suppliers' registry (the registration form, the offer form, their answers): Baraa's number alone. */
 (OWNER_ALLOWED_PURPOSES as Set<string>).add("supplier_registry_test");
+/** § 67 د — his important alerts (never blocked, never dropped): his number alone, as every alert of his. */
+(OWNER_ALLOWED_PURPOSES as Set<string>).add("owner_critical");
 
 function ownerDigits(env: Env): string {
   return waDigits(String(env.OWNER_WHATSAPP ?? ""));
@@ -258,8 +267,12 @@ export function sentMetaKey(wamid: string): string {
 export function rejectionSeenKey(wamid: string): string {
   return `wa_rej:v1:${wamid}`;
 }
-/** Does a refusal (not 131047 / 131049) stop this purpose to that number for 24h? */
+/**
+ * May a PERMANENT refusal (src/meta-errors.ts) stop this purpose to that number — 24 hours, one hour for a
+ * purpose of Baraa's own number? Never an important alert (§ 67 د), a bot reply or a manual send.
+ */
 export function blocksOnRefusal(purpose: string): boolean {
+  if (neverBlocked(purpose)) return false;
   const k = purposePolicy(purpose)?.kind;
   return k === "operational" || k === "marketing";
 }
@@ -271,7 +284,8 @@ export function blocksOnRefusal(purpose: string): boolean {
 export function isPurposeBlock(stored: string | null): boolean {
   if (!stored) return false;
   try {
-    return !isPaymentIssue((JSON.parse(stored) as { code?: unknown })?.code);
+    // § 67 د — and one written before the policy for a code that passes by itself (131056) does not either
+    return metaErrorClass((JSON.parse(stored) as { code?: number | string | null })?.code) === "permanent";
   } catch {
     return true;
   }
@@ -301,6 +315,8 @@ interface SentMeta {
   a: number;       // attempts so far
   g?: string;      // guard purpose
   m?: boolean;     // manual
+  b?: Record<string, unknown>; // § 67 د — a template's body as it was sent (for a retry)
+  ra?: number;     // § 67 د — retries made so far
 }
 
 // ------------------------------------------------------------------ templates
@@ -561,12 +577,30 @@ export async function sendViaGateway(env: Env, req: GatewayRequest): Promise<Res
     return refused(simulation, "SimulationPayment", 409);
   }
 
-  // ---- a purpose Meta refused for this number (not 131047 / 131049): 24h ----
+  // ---- § 67 أ: a trial («تجربة …», the sim worker's test send) reaches Baraa's number alone, always ----
+  if (isTrialPurpose(req.purpose) && !isOwnerRecipient(env, to)) {
+    console.warn(`[gateway] blocked purpose=${req.purpose} to=${maskPhone(to)} — a trial goes to the owner alone`);
+    return refused(`trial: purpose=${req.purpose} goes to the owner alone`, "TrialOwnerOnly", 403);
+  }
+
+  // ---- § 67 أ: frozen — nothing automatic reaches anyone but Baraa (src/freeze.ts) ----
+  // Recorded «مجمّد» with its text and its recipient; never held, never sent later.
+  if (!isOwnerRecipient(env, to)) {
+    const { frozenSend, FROZEN_STATUS } = await import("./freeze");
+    const frozen = await frozenSend(env, req, policy.kind);
+    if (frozen) {
+      console.warn(`[gateway] frozen purpose=${req.purpose} to=${maskPhone(to)} — nothing automatic leaves while frozen`);
+      await logSkipped(env, req, to, frozen, FROZEN_STATUS);
+      return decided(jsonResponse({ error: { message: frozen, type: "GatewayFrozen" } }, 409), { action: "frozen", reason: frozen });
+    }
+  }
+
+  // ---- a purpose Meta refused for this number for a PERMANENT reason (§ 67 د) ----
   // Automatic purposes only: a bot reply answers a new message (not a retry of
   // the refused one), and a manual send is Baraa's own decision.
   if (blocksOnRefusal(req.purpose) && isPurposeBlock(await kvGet(env, purposeBlockKey(to, req.purpose)))) {
-    const reason = `Meta رفض الغرض ${req.purpose} لهذا الرقم خلال 24 ساعة، ولا إعادة تلقائية`;
-    console.warn(`[gateway] blocked purpose=${req.purpose} to=${maskPhone(to)} — refused by Meta within 24h`);
+    const reason = `Meta رفض الغرض ${req.purpose} لهذا الرقم رفضاً دائماً، ولا إعادة تلقائية حتى ينتهي الحجب`;
+    console.warn(`[gateway] blocked purpose=${req.purpose} to=${maskPhone(to)} — refused by Meta for a permanent reason`);
     await logSkipped(env, req, to, reason, "skipped");
     return decided(jsonResponse({ error: { message: reason, type: "GatewayBlocked" } }, 409), { action: "skipped", reason });
   }
@@ -578,6 +612,8 @@ export async function sendViaGateway(env: Env, req: GatewayRequest): Promise<Res
   const why: string[] = [];
   for (const opt of options) {
     if (opt.kind === "template") {
+      // § 67 د — a retry: the template exactly as it was built the first time
+      if (opt.raw) return dispatchToMeta(env, req, to, opt.raw.body, opt.raw.name);
       let r: Resolved;
       try {
         r = await resolveTemplate(env, req.purpose, opt, to);
@@ -740,7 +776,7 @@ async function logSkipped(
   req: GatewayRequest,
   to: string,
   reason: string,
-  status: "skipped" | "expired",
+  status: "skipped" | "expired" | "frozen",
   body?: Record<string, unknown>,
 ): Promise<void> {
   const b = body ?? (req.content.kind === "session" ? req.content.body : undefined);
@@ -883,6 +919,11 @@ async function dispatchToMeta(
   await dispatchFailureEcho(env, to, metaError?.message ?? `Meta ${resp.status}`, req.ctx);
   const meta = sentMetaFor(req, to, body, templateName);
   const handled = await handleRejection(env, { to, code, meta, message: metaError?.message ?? `HTTP ${resp.status}` });
+  // § 67 د — refused for a passing reason and queued: it is on its way, not a failure (no alert, no counter)
+  if (handled.retryAt) {
+    return decided(jsonResponse({ gateway: { decision: "held", retryAt: handled.retryAt, code } }, 202),
+      { action: "held", reason: `Meta ${code}: تُعاد ${riyadhLabel(handled.retryAt)}`, expiresAt: meta.e });
+  }
   await recordSendFailure(env, {
     to, what: sendWhat(body), code, message: metaError?.message ?? `HTTP ${resp.status}`,
     phase: "sync", body: (await outboundText(env, body).catch(() => ({ text: sessionEchoText(body) }))).text, hasRow: handled.rowHandled,
@@ -902,13 +943,15 @@ function sentMetaFor(req: GatewayRequest, to: string, body: Record<string, unkno
     d: to,
     t: templateName,
     s: session ? content : undefined,
-    c: req.queued?.createdAt ?? now,
-    e: req.expiresAt ?? req.queued?.expiresAt ?? expiryFor(req.purpose, now),
+    c: req.retry?.createdAt ?? req.queued?.createdAt ?? now,
+    e: req.expiresAt ?? req.retry?.expiresAt ?? req.queued?.expiresAt ?? expiryFor(req.purpose, now),
     i: req.important ?? policy?.important ?? false,
-    r: req.rowId ?? req.queued?.rowId,
+    r: req.rowId ?? req.retry?.rowId ?? req.queued?.rowId,
     a: req.queued?.attempts ?? 0,
     g: req.guardPurpose,
     m: req.manual,
+    b: session ? undefined : content,
+    ra: req.retry?.retries ?? 0,
   };
 }
 
@@ -936,11 +979,12 @@ async function afterAccepted(
 async function handleRejection(
   env: Env,
   f: { to: string; code: number | string | null; meta: SentMeta | null; message: string },
-): Promise<{ rowHandled: boolean }> {
+): Promise<{ rowHandled: boolean; retryAt?: number }> {
   const now = Date.now();
   const to = waDigits(f.to);
   const code = Number(f.code);
   const m = f.meta;
+  const cls = metaErrorClass(f.code);
   if (code === 131047) {
     await markWindowClosed(env, to, now);
     console.warn(`[gateway] 131047 to=${maskPhone(to)} — window marked closed`);
@@ -969,9 +1013,19 @@ async function handleRejection(
     // § 46 هـ — the account's payment problem, not this purpose or this number: nothing is blocked
     // (Baraa's one alert a day is recordSendFailure's), so sends resume the moment he pays.
     console.warn(`[gateway] Meta ${META_PAYMENT_ISSUE} (payment issue) purpose=${m?.p ?? "?"} to=${maskPhone(to)} — no block`);
-  } else if (m?.p && blocksOnRefusal(m.p)) {
-    await kvPut(env, purposeBlockKey(to, m.p), JSON.stringify({ code: f.code, at: new Date(now).toISOString() }), 24 * 3600);
-    console.warn(`[gateway] Meta ${f.code} purpose=${m.p} to=${maskPhone(to)} — no automatic send of this purpose to this number for 24h`);
+  } else if (m && (cls === "transient" || neverBlocked(m.p))) {
+    // § 67 د — a reason that passes by itself (131056 and its like): the same message again, spaced
+    // 1 → 5 → 15 minutes, and nothing is blocked. An important alert waits after ANY refusal: never dropped.
+    const retryAt = await queueRetry(env, to, m, f, now);
+    if (retryAt) return { rowHandled: true, retryAt };
+    console.warn(`[gateway] Meta ${f.code} purpose=${m.p} to=${maskPhone(to)} — no retry left (${m.ra ?? 0} made): failed, nothing blocked`);
+  } else if (m?.p && blocksOnRefusal(m.p) && cls === "permanent") {
+    // a reason that fails again whenever it is sent again: 24 hours — one hour for a purpose of Baraa's own number
+    const ttl = isOwnerRecipient(env, to) ? OWNER_BLOCK_MAX_SEC : PURPOSE_BLOCK_SEC;
+    await kvPut(env, purposeBlockKey(to, m.p), JSON.stringify({ code: f.code, at: new Date(now).toISOString(), until: new Date(now + ttl * 1000).toISOString() }), ttl);
+    console.warn(`[gateway] Meta ${f.code} (permanent) purpose=${m.p} to=${maskPhone(to)} — no automatic send of this purpose to this number for ${ttl / 3600}h`);
+  } else if (m?.p) {
+    console.warn(`[gateway] Meta ${f.code} (${cls}) purpose=${m.p} to=${maskPhone(to)} — failed, nothing blocked`);
   }
   // A held message that was flushed and then refused: its row says so.
   if (m?.r) {
@@ -983,6 +1037,70 @@ async function handleRejection(
     return { rowHandled: true };
   }
   return { rowHandled: false };
+}
+
+/**
+ * § 67 د — queue the refused message for its next try. Returns when that is, or null: no retry is left, the
+ * message would expire first, or nothing of it is on record (an old send without its body).
+ */
+async function queueRetry(env: Env, to: string, m: SentMeta, f: { code: number | string | null; message: string }, now: number): Promise<number | null> {
+  const body = m.s ?? m.b;
+  if (!body) return null;
+  const made = m.ra ?? 0;
+  const delay = retryDelayMs(made, neverBlocked(m.p));
+  if (delay === null || m.e <= now + delay) return null;
+  const nextAt = now + delay;
+  const item: RetryItem = {
+    id: retryItemId(to, m.p, body), to, purpose: m.p, guardPurpose: m.g, body, template: m.s ? undefined : m.t,
+    createdAt: m.c, expiresAt: m.e, important: m.i, rowId: m.r, manual: m.m, retries: made + 1, nextAt, code: f.code,
+  };
+  item.rowId = await upsertRow(env, m.r, to, {
+    x_status: "held",
+    x_meta_error: `Meta ${f.code ?? "?"}: ${f.message} — رفض مؤقت، تُعاد ${riyadhLabel(nextAt)} (الإعادة ${made + 1})`.slice(0, 2000),
+  }, { body: m.s ? sessionEchoText(m.s) : `📋 ${m.t ?? m.p}`, kind: m.s ? kindOf(m.s) : "template", manual: m.m, purpose: m.p });
+  await scheduleRetry(env, item);
+  console.warn(`[gateway] Meta ${f.code} purpose=${m.p} to=${maskPhone(to)} — retry ${made + 1} at ${new Date(nextAt).toISOString()}, nothing blocked`);
+  await recordStateChange(env, item.rowId, to);
+  return nextAt;
+}
+
+/**
+ * The two ticks: every retry that is due goes again — the same message, through every gate of the gateway.
+ * One Meta refuses again is queued by handleRejection for its next spacing; one that expired is marked so.
+ */
+export async function runRetryQueue(env: Env, now: number = Date.now(), ctx?: ExecutionContext): Promise<{ due: number; sent: number; again: number; expired: number; dropped: number }> {
+  const out = { due: 0, sent: 0, again: 0, expired: 0, dropped: 0 };
+  const due = await takeDueRetries(env, now);
+  out.due = due.length;
+  for (const item of due) {
+    if (item.expiresAt <= now) {
+      await upsertRow(env, item.rowId, item.to, {
+        x_status: "expired",
+        x_meta_error: `البوابة: انتهت صلاحيتها (${riyadhLabel(item.expiresAt)}) قبل أن يقبلها Meta (آخر رفض ${item.code ?? "?"})`,
+      }, { body: item.template ? `📋 ${item.template}` : sessionEchoText(item.body), kind: item.template ? "template" : kindOf(item.body), manual: item.manual, purpose: item.purpose });
+      await recordStateChange(env, item.rowId, item.to);
+      out.expired++;
+      continue;
+    }
+    const resp = await sendViaGateway(env, {
+      purpose: item.purpose,
+      to: item.to,
+      content: item.template ? { kind: "template", raw: { name: item.template, body: item.body } } : { kind: "session", body: item.body },
+      guardPurpose: item.guardPurpose,
+      manual: item.manual,
+      important: item.important,
+      expiresAt: item.expiresAt,
+      rowId: item.rowId,
+      retry: item,
+      ctx,
+    });
+    const d = gatewayDecision(resp);
+    if (d?.action === "session" || d?.action === "template") out.sent++;
+    else if (d?.action === "held") out.again++;
+    else out.dropped++;
+  }
+  if (due.length) console.log(`[gateway] retry queue ${JSON.stringify(out)}`);
+  return out;
 }
 
 /**
@@ -1026,6 +1144,8 @@ export async function handleStatusFailure(
   } catch { meta = null; }
   if (meta && row?.id && !meta.r) meta.r = row.id;
   const handled = await handleRejection(env, { to: s.recipient, code: s.code, meta, message: s.message });
+  // § 67 د — refused for a passing reason and queued for its next try: on its way, not a failure
+  if (handled.retryAt) return { duplicate: false };
   try {
     const { recordSendFailure, templateFromEcho } = await import("./send-failure");
     await recordSendFailure(env, {

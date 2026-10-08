@@ -183,6 +183,9 @@ export interface TickMemberReport {
 }
 export interface TickReport { day: string; at: string; owner: { at: string; source: string; action: string }; members: TickMemberReport[] }
 
+/** § 67 أ — this step fell inside the freeze: nothing is sent for it, now or later. */
+export const FROZEN_MISSED_STEP = "frozen_missed";
+
 export async function runAttendanceTick(env: Env, nowMs: number = Date.now()): Promise<TickReport> {
   const day = riyadhDateKey(new Date(nowMs));
   // Baraa is never on the attendance roster, even if he is an employee one day.
@@ -201,8 +204,12 @@ export async function runAttendanceTick(env: Env, nowMs: number = Date.now()): P
   const ownShift = ownerShiftStart(env, roster, day);
   if (ownShift !== null) plan.minutes = ownShift;
   const report: TickReport = { day, at: riyadhHHMM(new Date(nowMs)), owner: { at: hhmm(plan.minutes), source: ownShift === null ? plan.source : OWNER_OWN_SHIFT, action: "-" }, members: [] };
+  // § 67 أ — a shift that began while the system was frozen gets no «بدء الدوام» after the freeze is turned
+  // off (nor its reminder, nor «غائب»): everything resumes from the next shift.
+  const { freezeView } = await import("./freeze");
+  const fz = await freezeView(env, nowMs);
   try {
-    report.owner.action = await ownerWindowStep(env, day, nowMs, plan.minutes);
+    report.owner.action = fz.on || fz.missed(riyadhDayMinuteMs(day, plan.minutes)) ? FROZEN_MISSED_STEP : await ownerWindowStep(env, day, nowMs, plan.minutes);
   } catch (e) {
     report.owner.action = `error: ${(e as Error)?.message}`;
     console.error("[attendance] owner window failed", (e as Error)?.message);
@@ -216,6 +223,7 @@ export async function runAttendanceTick(env: Env, nowMs: number = Date.now()): P
       shift: dp.startMin === undefined ? null : hhmm(dp.startMin), end: dp.endMin === undefined ? null : hhmm(dp.endMin), roles: m.codes,
     };
     if (dp.kind !== "work") { report.members.push({ ...base, action: dp.kind }); continue; }
+    if (fz.on || fz.missed(riyadhDayMinuteMs(day, dp.startMin as number))) { report.members.push({ ...base, action: FROZEN_MISSED_STEP }); continue; }
     try {
       report.members.push({ ...base, action: await memberStep(env, m, day, dp.startMin as number, rows.get(m.employeeId) ?? null, nowMs) });
     } catch (e) {

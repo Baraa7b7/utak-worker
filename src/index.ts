@@ -76,6 +76,12 @@ import {
   handleSignatureFailure,
   readRecentSignatureFailures,
 } from "./webhook-alert";
+import { isOwnerActPath, withOwnerAct } from "./freeze";
+import { REASK_PAYLOAD } from "./owner-team";
+
+/** The two ticks (wrangler.toml): the attendance one and the driver's, two minutes after it. */
+const TICK_CRON = "*/5 * * * *";
+const TICK2_CRON = "2,7,12,17,22,27,32,37,42,47,52,57 * * * *";
 
 export default {
   async scheduled(event: ScheduledController, rawEnv: Env, ctx: ExecutionContext): Promise<void> {
@@ -86,16 +92,48 @@ export default {
     // KV key before sending. See src/auto-send-guard.ts.
     const { CRON_JOB, withAutoSendJob } = await import("./auto-send-guard");
     const env = withAutoSendJob(rawEnv, CRON_JOB[cron] ?? `cron:${cron}`);
+    // § 67 — the two ticks' upkeep, whatever the switch says: a message Meta refused for a passing reason
+    // goes again when its spacing is due, and a window of merged alerts that ended sends its one message.
+    // Then the freeze: its own tick on */5 (the switch read fresh, «حتى تاريخ», the «مجمّد» rows), and a
+    // cron the freeze stops does not run at all.
+    let frozen = false;
+    try {
+      const now = Date.now();
+      const fz = await import("./freeze");
+      if (cron === TICK_CRON) {
+        const ft = await fz.runFreezeTick(rawEnv, now);
+        frozen = ft.on;
+        if (ft.action === "ended" || ft.noted?.length) console.log("[freeze tick]", JSON.stringify(ft));
+      } else {
+        frozen = (await fz.freezeView(rawEnv, now, { fresh: true })).on;
+      }
+      if (cron === TICK_CRON || cron === TICK2_CRON) {
+        const { runRetryQueue } = await import("./wa-gateway");
+        await runRetryQueue(rawEnv, now, ctx);
+        const { flushOwnerAlerts } = await import("./owner-alerts");
+        const fl = await flushOwnerAlerts(rawEnv, now);
+        if (fl.merged || fl.summaries) console.log("[owner-alerts flush]", JSON.stringify(fl));
+      }
+      if (frozen && fz.FROZEN_CRONS.has(cron)) {
+        console.log(`[scheduled] cron=${cron} frozen — skipped (🧊 وضع التجميد)`);
+        return;
+      }
+    } catch (e) {
+      console.error("[freeze] the gate or the upkeep failed", (e as Error)?.message);
+    }
     try {
       switch (cron) {
         case "0 23 * * *": await askAllSuppliersForPrices(env); break;
         case "0 2 * * *":
+          // § 67 أ — frozen: no reliability score moves and no reminder goes; the template sync stays
+          if (!frozen) {
           await updateSupplierReliabilityScores(env);
           // 2026-09-25 (م5) — one reminder to a supplier still silent 3h after the ask.
           try {
             await nudgeLateSuppliers(env);
           } catch (e) {
             console.error("[cron 05:00] supplier nudge failed", (e as Error)?.message);
+          }
           }
           // Phase 1 (2026-09-17): daily template sync appended to the 05:00
           // Riyadh handler after its existing work, in try/catch so a sync
@@ -154,11 +192,14 @@ export default {
         // («بدء الدوام» at each shift time, the +30 reminder, +60 absence,
         // and Baraa's window-opening template at OWNER_WINDOW_OPEN_AT).
         case "*/5 * * * *": {
+          // § 67 أ — frozen: no «بدء الدوام», no reminder, no «غائب»
+          if (!frozen) {
           const { runAttendanceTick } = await import("./attendance");
           const r = await runAttendanceTick(env);
-          const acted = r.members.filter((m) => !["no_time", "before_shift", "waiting", "reminded"].includes(m.action) && !m.action.startsWith("tapped") && !m.action.startsWith("already"));
-          if (acted.length || !["before", "passed", "sent_before"].includes(r.owner.action)) {
+          const acted = r.members.filter((m) => !["no_time", "before_shift", "waiting", "reminded", "frozen_missed"].includes(m.action) && !m.action.startsWith("tapped") && !m.action.startsWith("already"));
+          if (acted.length || !["before", "passed", "sent_before", "frozen_missed"].includes(r.owner.action)) {
             console.log(`[attendance ${r.at}]`, JSON.stringify({ owner: r.owner.action, acted: acted.map((m) => `${m.name}:${m.action}`) }));
+          }
           }
           // 2026-09-25 (STATUS § 33) — held messages past their expiry are
           // dropped and their x_wa_message rows marked «expired», even for a
@@ -182,11 +223,12 @@ export default {
           }
           // 2026-09-25 (STATUS § 35) — today's prices: the record follows the
           // prices received, the approval deadline, and a lost approval webhook.
-          try {
+          // § 67 أ — frozen: no ask, no review, no publication, no «لم تُنشر»
+          if (!frozen) try {
             const { runPricesTick } = await import("./prices");
             const p = await runPricesTick(env, Date.now(), ctx);
-            const quiet = (!p.marketAsk || ("action" in p.marketAsk && ["before", "after"].includes(p.marketAsk.action)))
-              && (!p.review || ("action" in p.review && ["outside", "no_day", "no_draft", "none", "decided", "sent_before"].includes(p.review.action)))
+            const quiet = (!p.marketAsk || ("action" in p.marketAsk && ["before", "after", "frozen_missed"].includes(p.marketAsk.action)))
+              && (!p.review || ("action" in p.review && ["outside", "no_day", "no_draft", "none", "decided", "sent_before", "frozen_missed"].includes(p.review.action)))
               && (p.refresh && "action" in p.refresh && ["no_prices", "unchanged", "locked", "outside"].includes(p.refresh.action))
               && (p.deadline && "action" in p.deadline && ["before", "after_window", "claimed_before"].includes(p.deadline.action)) && !p.publish;
             if (!quiet) console.log("[prices tick]", JSON.stringify(p));
@@ -204,7 +246,7 @@ export default {
           }
           // § 41 هـ — 12:00: a confirmed purchase list still without its
           // purchase tax invoice → one line to Baraa that day.
-          try {
+          if (!frozen) try {
             const { checkPurchaseInvoices, PINV_JOB } = await import("./purchase-invoice");
             const { withAutoSendJob } = await import("./auto-send-guard");
             const pi = await checkPurchaseInvoices(withAutoSendJob(rawEnv, PINV_JOB), Date.now());
@@ -291,7 +333,7 @@ export default {
           }
           // § 65 هـ — the approved suppliers' periodic check-in (OFF unless «تفعيل تواصل الموردين» is on;
           // 09:00–18:00, on a Sunday or the first of the month), and their cards' numbers once a day.
-          try {
+          if (!frozen) try {
             const { runSupplierOutreachTick, runSupplierIndicatorsTick, OUTREACH_JOB } = await import("./supplier-outreach");
             const { withAutoSendJob } = await import("./auto-send-guard");
             const so = await runSupplierOutreachTick(withAutoSendJob(rawEnv, OUTREACH_JOB), Date.now(), ctx);
@@ -328,8 +370,10 @@ export default {
     }
   },
 
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, baseEnv: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+    // § 67 أ — a request Odoo's buttons and automations make is Baraa's own act: the freeze does not stop its sends
+    const env = isOwnerActPath(url.pathname) ? withOwnerAct(baseEnv, "odoo") : baseEnv;
 
     if (request.method === "GET" && url.pathname === "/") {
       return new Response("UTAK Worker v2", { status: 200 });
@@ -2050,6 +2094,20 @@ export default {
         return json({ ok: false, error: (e as Error).message }, 500);
       }
     }
+    // § 67 — ONE trial alert to Baraa (after the block of `owner_alert` was lifted), and the freeze as the worker reads it
+    if (request.method === "POST" && url.pathname === "/odoo/hook/s67-trial") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      const expected = env.ODOO_HOOK_TOKEN ?? "";
+      if (!expected || !timingSafeEqual(providedToken, expected)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      try {
+        const { runS67Trial } = await import("./s67-trial");
+        return json({ ok: true, ...(await runS67Trial(env, url.searchParams.get("op") ?? "state")) });
+      } catch (e) {
+        return json({ ok: false, error: (e as Error).message }, 500);
+      }
+    }
     if (request.method === "POST" && url.pathname === "/odoo/hook/transfer-form-test") {
       const providedToken = url.searchParams.get("token") ?? "";
       const expected = env.ODOO_HOOK_TOKEN ?? "";
@@ -2290,6 +2348,13 @@ async function runSimJob(rawEnv: Env, job: string): Promise<unknown> {
   // a manual trigger after the cron (or vice versa) cannot double-send.
   const { withAutoSendJob } = await import("./auto-send-guard");
   const env = withAutoSendJob(rawEnv, job);
+  // § 67 أ — a job the freeze stops does not run by hand either: its «مجمّد» row, once a day
+  {
+    const fz = await import("./freeze");
+    if (fz.FROZEN_JOB_NAMES.has(job) && (await fz.freezeView(rawEnv, Date.now(), { fresh: true })).on) {
+      return `frozen: ${job} skipped — ${await fz.noteFrozenRun(rawEnv, job)}`;
+    }
+  }
   switch (job) {
     case "ask_suppliers":
       await askAllSuppliersForPrices(env);
@@ -2426,6 +2491,10 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
   const messages = parseWebhook(payload);
 
   for (const msg of messages) {
+    // § 67 أ — a message of Baraa's own is his act: the freeze does not stop what it sends. Each message has
+    // its own env (the one-pass loop shadows the function's for the whole body; `continue` leaves it).
+    const actEnv = isOwnerNumber(env, msg.from) ? withOwnerAct(env, "owner") : env;
+    for (const env of [actEnv]) {
     // 2026-09-20 (inbox) — the type filter used to short-circuit ALL non-bot
     // types (image, audio, video, document, sticker) before the dedup check.
     // We now still gate the bot on those types below, but the inbox mirror
@@ -2663,6 +2732,18 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         flushed = await flushHeld(env, msg.from, inboundWindow, ctx);
       } catch (e) {
         console.warn("[gateway] flush failed", (e as Error)?.message);
+      }
+    }
+
+    // § 67 أ — frozen: the message is in the inbox above, and for anyone but Baraa the bot stops here. A
+    // customer gets the settings' reply (once in six hours a number), and Baraa is told who wrote and what.
+    if (!isOwnerNumber(env, msg.from)) {
+      const { frozenInbound } = await import("./freeze");
+      const who = teamMatch ? "team" : supplierMatch ? "supplier" : sourceMatch ? "source" : "customer";
+      const what = msg.text || (msg.flow ? "رد نموذج" : msg.buttonId ? `زر ${msg.buttonId}` : `[${msg.type}]`);
+      if (await frozenInbound(env, { from: msg.from, name: ingestPartnerName || msg.profileName || "", who, what, partnerId: ingestPartnerId }, ctx)) {
+        await markSeen(env, msg.messageId);
+        continue;
       }
     }
 
@@ -3127,7 +3208,12 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
         // window (the inbound itself did that); one line says so. Nothing is
         // recorded about him.
         const { isOwnerWindowPayload, ownerWindowButtonReply, ownerWindowReplyButtons } = await import("./owner-window");
-        if ((msg.type === "interactive" || msg.type === "button") && msg.buttonId === "shift_start") {
+        if ((msg.type === "interactive" || msg.type === "button") && REASK_PAYLOAD.test(msg.buttonId ?? "")) {
+          // § 67 و — «🔁 أعد طلب الأسعار» under the 04:30 alert: the ask again to every source still silent, and one line back
+          const { handleReaskButton } = await import("./sources-missing");
+          const r = await handleReaskButton(env, msg.buttonId!, Date.now()).catch((e) => `تعذّر إعادة الطلب الآن: ${(e as Error)?.message ?? e}`);
+          await sendText(env, msg.from, r, { ctx, purpose: "owner_alert" });
+        } else if ((msg.type === "interactive" || msg.type === "button") && msg.buttonId === "shift_start") {
           const { ownerWindowAck } = await import("./attendance");
           await sendText(env, msg.from, ownerWindowAck(), { ctx, purpose: "owner_alert" });
         } else if ((msg.type === "interactive" || msg.type === "button") && isOwnerWindowPayload(msg.buttonId)) {
@@ -3508,6 +3594,7 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       }
     }
     await markSeen(env, msg.messageId);
+    }
   }
 }
 

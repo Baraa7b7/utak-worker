@@ -160,8 +160,13 @@ console.log("\n[م5] one reminder at 05:00, then one owner alert per silent supp
   const before = ownerAlerts().length;
   await quiet(() => worker.scheduled({ cron: "15 18 * * *" } as any, ENV, ctx));
   const alerts = ownerAlerts().slice(before);
-  assert("21:15: one owner alert PER silent supplier (not batched)", alerts.filter((a) => a.includes("لم يرسل أسعار اليوم")).length === 2, alerts.join("\n"));
-  assert("the alert names the supplier, the ask time and the one reminder", alerts.some((a) => a.includes("أحمد حسان") && a.includes("02:00") && a.includes("ذُكّر مرة واحدة الساعة 05:00")), alerts.join("\n"));
+  // § 67 هـ — the same kind within ten minutes is one message: the first silent supplier's alert goes at once,
+  // the other waits in the window of its kind and goes whole at its end
+  assert("21:15: the first silent supplier's alert goes at once, the other is not a message of its own", alerts.filter((a) => a.includes("لم يرسل أسعار اليوم")).length === 1, alerts.join("\n"));
+  await quiet(async () => (await import("../src/owner-alerts.ts")).flushOwnerAlerts(ENV, Date.now() + 11 * 60_000));
+  const merged = ownerAlerts().slice(before);
+  assert("21:15: every silent supplier is named (the second in the one merged message of the kind)", merged.filter((a) => a.includes("لم يرسل أسعار اليوم")).length === 2 && merged.some((a) => a.includes("من النوع نفسه") && a.includes("لم يرسل أسعار اليوم")), merged.join("\n"));
+  assert("the alert names the supplier, the ask time and the one reminder", merged.some((a) => a.includes("أحمد حسان") && a.includes("02:00") && a.includes("ذُكّر مرة واحدة الساعة 05:00")), alerts.join("\n"));
   await quiet(() => sup.alertSuppliersWithoutPrices(ENV));
   assert("21:15 alert once per ask (a re-run adds none)", ownerAlerts().slice(before).filter((a) => a.includes("لم يرسل أسعار اليوم")).length === 2);
 }
@@ -252,7 +257,8 @@ console.log("\n[outlier] saved, marked for review, owner alerted; never refused"
   seed("x_daily_price", { x_supplier_id: SUP, x_product_tmpl_id: 2, x_packaging_id: 21, x_date: "2026-09-24", x_price_sar: 15, x_extraction_status: "extracted" });
   supplierExtract = { prices: [{ product_id: 1, packaging_id: 11, cost_price: 5 }, { product_id: 2, packaging_id: 21, cost_price: 40 }], unrecognized: [] };
   await reply("طماطم 5، خيار 40");
-  assert("two outliers in one message → two separate alerts", ownerAlerts().filter((a) => a.includes("سعر شاذ")).length === 2);
+  await quiet(async () => (await import("../src/owner-alerts.ts")).flushOwnerAlerts(ENV, Date.now() + 11 * 60_000)); // § 67 هـ — the second «سعر شاذ» of the ten minutes goes in the kind's one merged message
+  assert("two outliers in one message → both reach Baraa (the second in the merged message)", ownerAlerts().filter((a) => a.includes("سعر شاذ")).length === 2);
   seed("x_daily_price", { x_supplier_id: SUP2, x_product_tmpl_id: 1, x_packaging_id: 11, x_date: "2026-09-24", x_price_sar: 100, x_extraction_status: "extracted" });
   supplierExtract = { prices: [{ product_id: 1, packaging_id: 11, cost_price: 26 }], unrecognized: [] };
   await reply("طماطم 26", SUP2);
@@ -319,6 +325,7 @@ console.log("\n[owner] alerts: session text inside the owner's 24h window (no #1
   const last = ownerSends().at(-1);
   assert("inside the window: a session text, the whole alert kept (lines too)", last?.type === "text" && last?.text?.body === "تنبيه تجريبي داخل النافذة\nسطر ثانٍ", JSON.stringify(last));
   await quiet(() => sup.alertSuppliersWithoutPrices(ENV));
+  await quiet(async () => (await import("../src/owner-alerts.ts")).flushOwnerAlerts(ENV, Date.now() + 11 * 60_000));
   assert("a batch-2 alert inside the window goes as text too", ownerSends().filter((b) => b?.type === "text" && String(b.text?.body).includes("لم يرسل أسعار اليوم")).length === 2);
 }
 

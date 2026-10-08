@@ -675,6 +675,7 @@ function noticeLabel(d: ReturnType<typeof gatewayDecision>, at: number): string 
   if (d.action === "held") return "محفوظ حتى رسالته (خارج نافذة 24 ساعة ولا قالب معتمد)";
   if (d.action === "refused") return `محجوب: ${d.reason.slice(0, 120)}`;
   if (d.action === "skipped") return `لم يُرسل: ${d.reason.slice(0, 120)}`;
+  if (d.action === "frozen") return "لم يُرسل: وضع التجميد مُشغَّل";
   return `رفضه Meta (${d.code ?? "?"})`;
 }
 

@@ -39,6 +39,8 @@ export interface PurposePolicy {
   critical?: boolean;
   /** The opener's {{2}} for a critical purpose (two or three words). */
   update?: string;
+  /** § 67 د — a refusal by Meta never stops this purpose to a number: it is queued and tried again. */
+  neverBlock?: boolean;
 }
 
 const op = (label: string, important = false, ttl: PurposeTtl = "day"): PurposePolicy =>
@@ -241,6 +243,10 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // alerts wait for his next tap (the 06:00 «بدء الدوام» opens his window);
   // § 34: critical — held, they also send utak_update_owner once a day.
   owner_alert: crit(op("تنبيه المالك", false, { hours: 36 }), "تنبيه تشغيلي"),
+  // § 67 د — Baraa's important alerts («أسعار اليوم لم تُنشر», «🚚 طلب كبير», «✅ العميل يبدو موافقاً»,
+  // «مصدر لم يرسل», Odoo not answering): held outside his window with the opener, as an alert is — and a
+  // refusal by Meta never blocks the purpose and never drops the message (it is queued and tried again).
+  owner_critical: { ...crit(op("تنبيه مهم للمالك", false, { hours: 36 }), "تنبيه مهم"), neverBlock: true },
   // § 34 — the collector's / driver's note (delivery or collection) to Baraa,
   // with the customer and the order.
   owner_team_note: crit(op("ملاحظة من الفريق", false, { hours: 36 }), "ملاحظة من الفريق"),
@@ -332,6 +338,9 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   conv_open_owner: op("فتح المحادثة (المالك)"),
   // ---- replies and manual sends
   bot_reply: { label: "رد البوت", kind: "reply", important: false, ttl: { hours: 2 } },
+  // § 67 أ — the settings' reply to a customer who writes while the system is frozen (src/freeze.ts):
+  // the one automatic message the freeze lets out to another number. Inside his window only.
+  freeze_reply: { label: "رد التجميد", kind: "reply", important: false, ttl: { hours: 2 } },
   inbox_reply: { label: "رد من الصندوق", kind: "manual", important: false, ttl: { hours: 48 } },
   wa_message_manual: { label: "رسالة يدوية من Odoo", kind: "manual", important: false, ttl: { hours: 48 } },
   sim_test: { label: "اختبار sim", kind: "manual", important: false, ttl: { hours: 1 } },
@@ -339,6 +348,18 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
 
 export function purposePolicy(purpose: string): PurposePolicy | null {
   return Object.prototype.hasOwnProperty.call(PURPOSES, purpose) ? PURPOSES[purpose] : null;
+}
+/** § 67 د — a purpose Meta's refusal never blocks and never drops. */
+export function neverBlocked(purpose: string): boolean {
+  return purposePolicy(purpose)?.neverBlock === true;
+}
+/** § 67 أ — a trial («تجربة …») or the sim worker's test send: Baraa's number alone, always. */
+export function isTrialPurpose(purpose: string): boolean {
+  return /_test$/.test(purpose);
+}
+/** Every purpose the gateway knows (the tests read it). */
+export function allPurposes(): string[] {
+  return Object.keys(PURPOSES);
 }
 
 /**

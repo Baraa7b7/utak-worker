@@ -9,7 +9,8 @@
 //   · Odoo: the server actions whose URL token IS the key (the hook token of before § 68), and the user's own keys
 //   · this checkout: every file (tracked, untracked, ignored — backups/ and scripts/artifacts/ among them)
 //   · git: every commit of every branch (the patch text)
-//   · this machine: the shell's history and rc files, wrangler's and Claude's settings and transcripts, Composio's
+//   · this machine: the shell's history (and its per-session files) and rc files, wrangler's and Claude's settings
+//     and transcripts, Composio's
 //   · GitHub: workflows in the repo (a repo secret's name needs `gh`, or the repo's Settings page)
 //
 // Out: scripts/artifacts/s68-20261008-key-inventory.json (paths and tags only).
@@ -140,6 +141,7 @@ out.machine = [];
 const single = [".zsh_history", ".bash_history", ".zshrc", ".zprofile", ".zshenv", ".profile", ".bashrc", ".netrc", ".npmrc", ".claude.json", ".mcp.json"].map((f) => join(home, f));
 for (const p of single) if (existsSync(p) && (await fileHas(p))) out.machine.push(p.replace(home, "~"));
 const dirs = [
+  ["~/.zsh_sessions", join(home, ".zsh_sessions"), new Set()],
   ["~/.claude", join(home, ".claude"), new Set(["node_modules"])],
   ["~/.config", join(home, ".config"), new Set(["node_modules"])],
   ["~/.wrangler", join(home, ".wrangler"), new Set()],

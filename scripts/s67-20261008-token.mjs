@@ -79,6 +79,40 @@ async function probe(key, token) {
   return r.status === 200 && String(r.headers.get("content-type")).includes("pdf") ? "taken" : r.status === 404 ? "refused" : `HTTP ${r.status}`;
 }
 
+/**
+ * Every route of a secret, with its token: «taken» when the worker went past the token check (it then refuses the
+ * probe's model, or renders a real document, read-only). Nothing is issued, sent or written.
+ */
+async function routes(key, token) {
+  const out = [];
+  const post = async (path, body) => {
+    const r = await fetch(`https://${PROD_HOST}${path}?token=${token}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    return r.status === 400 ? "taken" : r.status === 401 ? "refused" : `HTTP ${r.status}`;
+  };
+  if (key === "internal") {
+    for (const path of ["/internal/quotation-issue", "/internal/receipt-issue", "/internal/official-doc/preview", "/internal/official-doc/issue", "/internal/official-doc/ai-draft"]) {
+      out.push([path, await post(path, { _model: "x_probe", _id: 1 })]);
+      await pause(400);
+    }
+  } else if (key === "pdf") {
+    const pdf = async (path, model, domain) => {
+      const [rec] = await call(model, "search_read", { domain, fields: ["id"], order: "id desc", limit: 1 });
+      if (!rec) return "no record to probe with";
+      const r = await fetch(`https://${PROD_HOST}${path}?id=${rec.id}&token=${token}`);
+      await r.arrayBuffer().catch(() => null);
+      return r.status === 200 && String(r.headers.get("content-type")).includes("pdf") ? "taken" : r.status === 404 ? "refused" : `HTTP ${r.status}`;
+    };
+    out.push(["/internal/invoice-pdf", await pdf("/internal/invoice-pdf", "account.move", [["move_type", "=", "out_invoice"], ["state", "=", "posted"]])]);
+    await pause();
+    out.push(["/internal/purchase-order-pdf", await pdf("/internal/purchase-order-pdf", "purchase.order", [["state", "in", ["purchase", "done"]]])]);
+    const gone = await fetch(`https://${PROD_HOST}/internal/sale-quotation-pdf?id=1&token=${token}`);
+    out.push(["/internal/sale-quotation-pdf", gone.status === 410 ? "gone (410, since § 64)" : `HTTP ${gone.status}`]);
+  } else {
+    out.push(["/odoo/hook/s67-trial", await probe("hook", token)]);
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------- rollback
 if (ROLLBACK) {
   if (!existsSync(RB)) { say("✗ no rollback file (backups/s67-20261008-token-rollback.json)"); process.exit(1); }
@@ -107,7 +141,7 @@ if (VERIFY) {
     say(`## ${key} (${SECRETS[key].name}): ${mine.length} action(s) — ${mine.map((a) => `#${a.id}`).join(" ")}`);
     check("its actions carry ONE token", !!token, `${tokens.length} different tokens: ${tokens.map(tag).join(", ")}`);
     if (!token) continue;
-    check(`the live prod worker takes it (tag ${tag(token)})`, (await probe(key, token)) === "taken");
+    for (const [path, got] of await routes(key, token)) check(`${path} takes it (tag ${tag(token)})`, got === "taken" || got.startsWith("gone"), got);
     await pause();
     check("…and refuses a token that is not it", (await probe(key, newToken())) === "refused");
     await pause();

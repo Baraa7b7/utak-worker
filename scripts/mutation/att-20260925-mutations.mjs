@@ -20,11 +20,11 @@ const M = [
   ["gate: never holds", "src/attendance.ts", `return { hold: true, onAttendance: true, shift, sent: !!row?.x_sent_at, phase: "before",`, `return { hold: false, onAttendance: true, shift, sent: !!row?.x_sent_at, phase: "before",`],
   ["reminder: Odoo flag ignored", "src/attendance.ts", `return row.x_reminder_sent ? "reminded" : sendReminder(`, `return sendReminder(`],
   ["reminder: KV claim ignored", "src/attendance.ts", `if (!claim.claimed) return "remind_claimed";`, `if (false) return "remind_claimed";`],
-  ["absent at +90 instead of +60", "src/attendance.ts", `export const ABSENT_AFTER_MIN = 60;`, `export const ABSENT_AFTER_MIN = 90;`],
+  ["absent at +150 instead of +120 (§ 68: two hours)", "src/attendance.ts", `export const ABSENT_AFTER_MIN = 120;`, `export const ABSENT_AFTER_MIN = 150;`],
   ["late only after +60", "src/attendance.ts", `return tapMs - shiftMs > LATE_AFTER_MIN * MIN ? "late" : "present";`, `return tapMs - shiftMs > ABSENT_AFTER_MIN * MIN ? "late" : "present";`],
   ["Baraa on the roster", "src/attendance.ts", `.filter((m) => !isOwnerNumber(env, m.whatsapp));`, `;`],
   // b4a9bd4 (§ 31): the rows are keyed by the employee (§ 39 ج)
-  ["start: today's Odoo row ignored", "src/attendance.ts", `rows.get(m.employeeId) ?? null, nowMs)`, `null, nowMs)`],
+  ["start: today's Odoo row ignored", "src/attendance.ts", `rows.get(m.employeeId) ?? null, nowMs, absent)`, `null, nowMs, absent)`],
   ["start: KV claim ignored", "src/attendance.ts", `if (!claim.claimed) return "start_claimed";`, `if (false) return "start_claimed";`],
   ["tap after absent: no owner alert", "src/attendance.ts", `if (afterAbsent) {`, `if (false) {`],
   ["late inbound acted on", "src/index.ts", `if (lateH !== null) {`, `if (false && lateH !== null) {`],

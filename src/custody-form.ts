@@ -135,7 +135,7 @@ const m2oId = (v: M2O | number | undefined): number => (Array.isArray(v) ? v[0] 
 export interface ExpectedCash { total: number; count: number }
 
 /** The invoices among `ids` that are simulation — their own flag, or their order's (as the day's summaries read them). */
-async function simulationInvoices(env: Env, ids: number[]): Promise<Set<number>> {
+export async function simulationInvoices(env: Env, ids: number[]): Promise<Set<number>> {
   const unique = [...new Set(ids.filter(Boolean))];
   if (!unique.length) return new Set();
   const invs = await call<Array<{ id: number; x_order_id: M2O } & Record<string, unknown>>>(env, "x_invoice", "read", { ids: unique, fields: ["id", "x_order_id", SIM_FIELD] });

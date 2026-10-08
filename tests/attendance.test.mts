@@ -4,8 +4,8 @@
 //     to a member without a time (00:00) or without a team role;
 //   • no task reaches a member before today's tap (route, collection request,
 //     purchase list, a text from them); after the tap they all arrive;
-//   • +30: ONE reminder (same template) and one owner alert; +60: «غائب» and
-//     one owner alert; a tap after +15 is «متأخر», after +60 «متأخر» + alert;
+//   • +30: ONE reminder (same template) and one owner alert; +120 (two hours — § 68; it was +60):
+//     «غائب» and one owner alert; a tap after +15 is «متأخر», after +120 «متأخر» + alert;
 //   • Baraa: the same template daily through the owner guard's owner_window
 //     purpose, at the fixed OWNER_WINDOW_OPEN_AT (STATUS § 32; the team's
 //     shifts do not move it), never attendance/absence/alerts about him;
@@ -55,12 +55,14 @@ const REAL: Record<string, string[]> = { ...F1, ...F2, ...F3, ...F4, ...F5, ...F
 const SELECTIONS: Record<string, string[]> = { ...F1._selections, ...F2._selections, ...F3._selections, ...F4._selections, ...F5._selections, ...F6._selections, ...F7._selections, ...F8._selections, ...F9._selections, ...F10._selections };
 // § 53 — the tenant's fields now for the models § 53 touched (x_market_uplift_pct, x_uplift_pct, the purpose customer_pay_remind_iban): read last, they win
 {
-  const f53 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261008-s67.json", import.meta.url), "utf8")); // § 59 (after § 58: the company's working days, the two purposes) — § 58 (after § 56: the screen's fields): the plan, the actual and the tabs on the day and its lines
+  const f53 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261008-s68.json", import.meta.url), "utf8")); // § 59 (after § 58: the company's working days, the two purposes) — § 58 (after § 56: the screen's fields): the plan, the actual and the tabs on the day and its lines
   for (const m of ["x_pricing_config", "x_price_day", "x_price_day_line"]) REAL[m] = f53[m];
   for (const m of ["x_operating_cost", "hr.employee", "hr.job"]) REAL[m] = f53[m]; // § 61: the job and the employee of a cost line, the job's own fields
   for (const m of ["x_price_offer", "x_special_quote", "x_special_quote_line", "x_special_quote_recipient"]) REAL[m] = f53[m]; // § 62: «خاص» on a source's offer (the day's readers leave it out), the three models of a special request
   for (const m of ["res.partner", "x_daily_price"]) REAL[m] = f53[m]; // § 65: «حالة المورد» on the card (the 02:00 ask, the closed numbers, the market sources read it), the size and the origin on a daily price
   for (const m of ["x_daily_order", "x_daily_order_line"]) REAL[m] = f53[m]; // § 66: the request an order came from, and «سعر خاص» / «التعبئة» / «الشراء» on its line (the order readers ask for them)
+  for (const m of ["x_team_attendance", "resource.calendar.leaves", "x_delivery_route", "x_delivery_stop"]) REAL[m] = f53[m]; // § 68: the attendance record (the exit, the minutes late, the source, the place), the kind of a time off
+  SELECTIONS["x_team_attendance.x_status"] = f53._selections["x_team_attendance.x_status"]; // § 68: «إجازة»
   SELECTIONS["x_whatsapp_template.x_purpose"] = f53._selections["x_whatsapp_template.x_purpose"];
 }
 const rejected: string[] = [];
@@ -220,13 +222,16 @@ console.log("\n[2] no task before the tap; all of them after it");
   assert("a text before the tap: told when his shift starts, still no task, queue untouched", early.length === 1 && early[0].includes("05:00") && JSON.parse(ENV.MSG_DEDUP.store.get(`pending_loc:+${OMAR_PHONE}`) ?? "[]").length === 6, JSON.stringify(early));
   await tick(`${DAY} 05:00`);
   await say(OMAR_PHONE, `${DAY} 05:02`, "وصلت");
-  assert("after the template, before the tap: «اضغط بدء الدوام»", texts(OMAR_PHONE).at(-1)?.includes("اضغط «بدء الدوام»"), JSON.stringify(texts(OMAR_PHONE)));
+  // § 68 — the hint carries «✅ بدأت الدوام» itself (a session button with the template's own payload)
+  const hint = sentTo(OMAR_PHONE).at(-1);
+  assert("after the template, before the tap: «اضغط بدء الدوام», with the button «✅ بدأت الدوام»", String(hint?.interactive?.body?.text ?? "").includes("اضغط «بدء الدوام»") && JSON.stringify(hint?.interactive?.action?.buttons ?? []).includes('"id":"shift_start"') && JSON.stringify(hint?.interactive?.action?.buttons ?? []).includes(att.SHIFT_START_TITLE), JSON.stringify(hint));
   // the tap releases everything
   const before = sentTo(OMAR_PHONE).length;
   await tap(OMAR_PHONE, `${DAY} 05:04`);
   const after = sentTo(OMAR_PHONE).slice(before);
   const bodies = after.map((b) => JSON.stringify(b));
-  assert("tap: «تم تسجيل حضورك» first", String(after[0]?.text?.body ?? "").includes("تم تسجيل حضورك الساعة 05:04"), bodies[0]);
+  // § 68 — the entry's answer carries «🏁 انتهى دوامي»
+  assert("tap: «تم تسجيل حضورك» first, with «🏁 انتهى دوامي» under it", String(after[0]?.interactive?.body?.text ?? "").includes("تم تسجيل حضورك الساعة 05:04") && bodies[0].includes('"id":"shift_end"') && bodies[0].includes(att.SHIFT_END_TITLE), bodies[0]);
   assert("tap: the route list, the location, both stops with their buttons", bodies.some((b) => b.includes("مسارك اليوم")) && after.some((b) => b.type === "location") && bodies.some((b) => b.includes("dlv_1")) && bodies.some((b) => b.includes("delivery_issue_2")));
   // § 55 د — the session form of the open list confirms the purchase by «📥 استلام المشتريات» (prc_<list>), in place of «تم الشراء ✅»
   assert("tap: warehouse → the open purchase list #950 with «📥 استلام المشتريات»", bodies.some((b) => b.includes("قائمة الشراء #950") && b.includes("prc_950") && !b.includes("purchase_done_950")));
@@ -251,8 +256,8 @@ console.log("\n[2] no task before the tap; all of them after it");
   assert("schema gate: nothing rejected", rejected.length === 0, rejected.join(" / "));
 }
 
-// ================================================================ 3. +30 reminder, +60 absent, late
-console.log("\n[3] +30: one reminder + one alert; +60: absent + one alert; late taps");
+// ================================================================ 3. +30 reminder, +120 absent, late
+console.log("\n[3] +30: one reminder + one alert; +120: absent + one alert; late taps");
 {
   ENV = fresh(`${DAY} 05:00`);
   await tick(`${DAY} 05:00`);
@@ -265,28 +270,30 @@ console.log("\n[3] +30: one reminder + one alert; +60: absent + one alert; late 
   await tick(`${DAY} 05:35`); await tick(`${DAY} 05:40`); await tick(`${DAY} 05:55`);
   assert("+35…+55: no second reminder, no second alert", tpl(OMAR_PHONE).length === 2 && ownerSays("لم يسجّل حضوره").length === 1);
   assert("+55: not absent yet", !row(OMAR).x_status);
-  await tick(`${DAY} 06:00`);
-  assert("+60: «غائب» in Odoo", row(OMAR).x_status === "absent");
-  assert("+60: one owner alert «سُجّل غائباً»", ownerSays("عمر المجهلي سُجّل غائباً").length === 1);
-  await tick(`${DAY} 06:05`); await tick(`${DAY} 07:00`); await tick(`${DAY} 12:00`);
-  assert("after: no more templates, alerts or writes", tpl(OMAR_PHONE).length === 2 && ownerSays("غائباً").length === 1 && ownerSays("لم يسجّل").length === 1);
-  // tap after +60 → late, tasks, owner alert
+  await tick(`${DAY} 06:00`); await tick(`${DAY} 06:55`);
+  assert("+60…+115: not absent yet (§ 68: two hours), and nothing more is sent", !row(OMAR).x_status && tpl(OMAR_PHONE).length === 2 && ownerSays("غائباً").length === 0);
+  await tick(`${DAY} 07:00`);
+  assert("+120: «غائب» in Odoo", row(OMAR).x_status === "absent");
+  assert("+120: one owner alert «سُجّل غائباً … خلال ساعتين»", ownerSays("عمر المجهلي سُجّل غائباً").length === 1 && ownerSays("خلال ساعتين من بداية دوامه (05:00)").length === 1);
+  await tick(`${DAY} 07:05`); await tick(`${DAY} 08:00`); await tick(`${DAY} 12:00`);
+  assert("after: no more templates, alerts or writes", tpl(OMAR_PHONE).length === 2 && ownerSays("غائباً").length === 1 && ownerSays("لم يسجّل حضوره").length === 1);
+  // tap after +120 → late, tasks, owner alert
   const before = sentTo(OMAR_PHONE).length;
-  await tap(OMAR_PHONE, `${DAY} 06:15`);
-  assert("tap at +75 after absent: «متأخر» (not absent), tapped 06:15", row(OMAR).x_status === "late" && row(OMAR).x_tapped_at === "2026-09-26 03:15:00", JSON.stringify(row(OMAR)));
-  assert("…he is told «متأخر» and gets his tasks (none → «ما عندك مهام»)", sentTo(OMAR_PHONE).slice(before).some((b) => String(b.text?.body ?? "").includes("متأخر")) && texts(OMAR_PHONE).includes(att.NO_TASKS_TEXT));
-  assert("…owner alert «سجّل حضوره متأخراً … بعد تسجيله غائباً»", ownerSays("عمر المجهلي سجّل حضوره متأخراً الساعة 06:15").length === 1 && ownerSays("بعد تسجيله غائباً").length === 1);
+  await tap(OMAR_PHONE, `${DAY} 07:15`);
+  assert("tap at +135 after absent: «متأخر» (not absent), tapped 07:15, 135 minutes late, from WhatsApp", row(OMAR).x_status === "late" && row(OMAR).x_tapped_at === "2026-09-26 04:15:00" && row(OMAR).x_late_min === 135 && row(OMAR).x_source === "whatsapp", JSON.stringify(row(OMAR)));
+  assert("…he is told «متأخر» and gets his tasks (none → «ما عندك مهام»)", sentTo(OMAR_PHONE).slice(before).some((b) => String(b.text?.body ?? b.interactive?.body?.text ?? "").includes("متأخر")) && texts(OMAR_PHONE).includes(att.NO_TASKS_TEXT));
+  assert("…owner alert «سجّل حضوره متأخراً … بعد تسجيله غائباً»", ownerSays("عمر المجهلي سجّل حضوره متأخراً الساعة 07:15").length === 1 && ownerSays("بعد تسجيله غائباً").length === 1);
   const nT = texts(OMAR_PHONE).length;
-  await tap(OMAR_PHONE, `${DAY} 06:20`);
+  await tap(OMAR_PHONE, `${DAY} 07:20`);
   const again = texts(OMAR_PHONE).slice(nT);
-  assert("second tap: «مسجّل من 06:15» (then his tasks again), no second alert, status and tap time kept", again[0]?.includes("مسجّل من 06:15") && ownerSays("سجّل حضوره متأخراً").length === 1 && row(OMAR).x_status === "late" && row(OMAR).x_tapped_at === "2026-09-26 03:15:00", JSON.stringify(again));
+  assert("second tap: «مسجّل من 07:15» (then his tasks again), no second alert, status and tap time kept", again[0]?.includes("مسجّل من 07:15") && ownerSays("سجّل حضوره متأخراً").length === 1 && row(OMAR).x_status === "late" && row(OMAR).x_tapped_at === "2026-09-26 04:15:00", JSON.stringify(again));
 
   // +20 → late (no alert); +10 → present; +15 exactly → present
-  for (const [at, want] of [["05:10", "present"], ["05:15", "present"], ["05:20", "late"], ["05:59", "late"]] as const) {
+  for (const [at, want] of [["05:10", "present"], ["05:15", "present"], ["05:20", "late"], ["05:59", "late"], ["06:59", "late"]] as const) {
     ENV = fresh(`${DAY} 05:00`);
     await tick(`${DAY} 05:00`);
     await tap(OMAR_PHONE, `${DAY} ${at}`);
-    assert(`tap at ${at}: «${want}»${want === "late" ? ", no owner alert before +60" : ""}`, row(OMAR).x_status === want && ownerSays("متأخراً").length === 0, JSON.stringify(row(OMAR)));
+    assert(`tap at ${at}: «${want}»${want === "late" ? ", its minutes, no owner alert before +120" : ", 0 minutes late"}`, row(OMAR).x_status === want && ownerSays("متأخراً").length === 0 && row(OMAR).x_late_min === (want === "late" ? (Number(at.slice(0, 2)) - 5) * 60 + Number(at.slice(3)) : 0), JSON.stringify(row(OMAR)));
   }
   // a tap on today's button uses Meta's tap time, not the arrival time
   ENV = fresh(`${DAY} 05:00`);
@@ -298,11 +305,12 @@ console.log("\n[3] +30: one reminder + one alert; +60: absent + one alert; late 
   ENV = fresh(`${DAY} 04:00`);
   await tap(OMAR_PHONE, `${DAY} 04:10`);
   assert("tap before today's template: «دوامك اليوم يبدأ 05:00», no row", texts(OMAR_PHONE).at(-1)?.includes("دوامك اليوم يبدأ 05:00") && !row(OMAR));
-  // a member without a working schedule taps a route's «بدء الدوام»: the 09-17 behaviour
+  // a member without a working schedule taps a route's «بدء الدوام»: his locations as on 09-17 — and (§ 68) his entry is recorded
   ENV = fresh(`${DAY} 10:00`);
   ENV.MSG_DEDUP.store.set(`pending_loc:+${NOTIME_PHONE}`, JSON.stringify([{ latitude: 24.7, longitude: 46.6, name: "#9" }]));
   await tap(NOTIME_PHONE, `${DAY} 10:00`);
-  assert("no-time driver's tap: «تم بدء الدوام» + his locations, no attendance row", texts(NOTIME_PHONE).at(0)?.includes("تم بدء الدوام") && sentTo(NOTIME_PHONE).some((b) => b.type === "location") && rows("x_team_attendance").length === 0);
+  const free = rows("x_team_attendance");
+  assert("no-time driver's tap: «تم تسجيل حضورك» with «🏁 انتهى دوامي», his locations, and his row («حاضر», from WhatsApp, no shift time)", String(sentTo(NOTIME_PHONE).at(0)?.interactive?.body?.text ?? "").includes("تم تسجيل حضورك الساعة 10:00") && sentTo(NOTIME_PHONE).some((b) => b.type === "location") && free.length === 1 && free[0].x_status === "present" && free[0].x_source === "whatsapp" && free[0].x_late_min === 0 && !free[0].x_shift_at && !free[0].x_sent_at, JSON.stringify(free));
   assert("schema gate: nothing rejected", rejected.length === 0, rejected.join(" / "));
 }
 
@@ -391,9 +399,9 @@ console.log("\n[5] re-running the job repeats nothing");
   wipeKV();
   await tick(`${DAY} 05:45`);
   assert("KV wiped after the reminder: no second reminder or alert (x_reminder_sent)", tpl(OMAR_PHONE).length === 2 && ownerSays("لم يسجّل حضوره").length === 1);
-  await Promise.all([tick(`${DAY} 06:00`), tick(`${DAY} 06:00`)]);
+  await Promise.all([tick(`${DAY} 07:00`), tick(`${DAY} 07:00`)]);
   wipeKV();
-  await tick(`${DAY} 06:10`);
+  await tick(`${DAY} 07:10`);
   assert("absent: one alert across parallel ticks and a KV wipe (x_status)", ownerSays("سُجّل غائباً").length === 1 && row(OMAR).x_status === "absent");
   // start: two ticks at once
   ENV = fresh(`${DAY} 05:00`);
@@ -404,7 +412,8 @@ console.log("\n[5] re-running the job repeats nothing");
   assert("Baraa ×2 at 06:00: once", tpl(OWNER).length === 1);
   // and the next day starts clean
   await tick(`2026-09-27 05:00`);
-  assert("next day: a new start and a new row", tpl(OMAR_PHONE).length === 2 && rows("x_team_attendance").filter((r) => r.x_partner_id === OMAR).length === 2);
+  // (the 06:00 ticks above were his +60: since § 68 that is the reminder's hour, not «غائب» — one more template)
+  assert("next day: a new start and a new row", tpl(OMAR_PHONE).length === 3 && rows("x_team_attendance").filter((r) => r.x_partner_id === OMAR).length === 2, `${tpl(OMAR_PHONE).length} templates`);
 }
 
 // ================================================================ 6. (ب) late re-delivered inbound

@@ -66,7 +66,7 @@ const M = [
   ["21:15 purchase list sent after the shift", "src/team.ts",
     `    if ((await holdForTask(env, wh.id, { kind: "purchase_list", label:`, `    if (false && (await holdForTask(env, wh.id, { kind: "purchase_list", label:`, T],
   ["a tap after the end of the shift releases the tasks", "src/index.ts",
-    `            if (!tap.afterEnd) await deliverTasksOnTap(env, teamMember, msg.from);`, `            await deliverTasksOnTap(env, teamMember, msg.from);`, T],
+    `            else if (!tap.afterEnd) await deliverTasksOnTap(env, teamMember, msg.from);`, `            else await deliverTasksOnTap(env, teamMember, msg.from);`, T],
   ["a tap on a day off releases the tasks", "src/index.ts",
     `          } else if (tap.kind === "not_started" || tap.kind === "off_today") {`, `          } else if (tap.kind === "not_started") {`, T],
   // Baraa's window — 2026-09-26 (STATUS § 39 ج): three mutations removed («an employee on time off counts»,

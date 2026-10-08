@@ -9,7 +9,7 @@
 // (§ 31), which would have been 01:45 every working day.
 //
 //   [1] Saturday 26/09, nobody taps: the whole day, minute by minute, exactly;
-//   [2] the dawn alerts (02:30 / 03:00) reach Baraa as text inside the 24h
+//   [2] the dawn alerts (02:30 / 04:00 — «غائب» is two hours after the start since § 68) reach Baraa as text inside the 24h
 //       window his tap on the previous day's 06:00 template opened; without
 //       that tap, as the approved template;
 //   [3] Friday 02/10: a weekly day off for both — nothing to them, no row, no
@@ -51,12 +51,14 @@ const REAL: Record<string, string[]> = Object.assign({}, ...FX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FX.map((f) => f._selections));
 // § 53 — the tenant's fields now for the models § 53 touched (x_market_uplift_pct, x_uplift_pct, the purpose customer_pay_remind_iban): read last, they win
 {
-  const f53 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261008-s67.json", import.meta.url), "utf8")); // § 59 (after § 58: the company's working days, the two purposes) — § 58 (after § 56: the screen's fields): the plan, the actual and the tabs on the day and its lines
+  const f53 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261008-s68.json", import.meta.url), "utf8")); // § 59 (after § 58: the company's working days, the two purposes) — § 58 (after § 56: the screen's fields): the plan, the actual and the tabs on the day and its lines
   for (const m of ["x_pricing_config", "x_price_day", "x_price_day_line"]) REAL[m] = f53[m];
   for (const m of ["x_operating_cost", "hr.employee", "hr.job"]) REAL[m] = f53[m]; // § 61: the job and the employee of a cost line, the job's own fields
   for (const m of ["x_price_offer", "x_special_quote", "x_special_quote_line", "x_special_quote_recipient"]) REAL[m] = f53[m]; // § 62: «خاص» on a source's offer (the day's readers leave it out), the three models of a special request
   for (const m of ["res.partner", "x_daily_price"]) REAL[m] = f53[m]; // § 65: «حالة المورد» on the card (the 02:00 ask, the closed numbers, the market sources read it), the size and the origin on a daily price
   for (const m of ["x_daily_order", "x_daily_order_line"]) REAL[m] = f53[m]; // § 66: the request an order came from, and «سعر خاص» / «التعبئة» / «الشراء» on its line (the order readers ask for them)
+  for (const m of ["x_team_attendance", "resource.calendar.leaves", "x_delivery_route", "x_delivery_stop"]) REAL[m] = f53[m]; // § 68: the attendance record (the exit, the minutes late, the source, the place), the kind of a time off
+  SELECTIONS["x_team_attendance.x_status"] = f53._selections["x_team_attendance.x_status"]; // § 68: «إجازة»
   SELECTIONS["x_whatsapp_template.x_purpose"] = f53._selections["x_whatsapp_template.x_purpose"];
 }
 const rejected: string[] = [];
@@ -175,13 +177,14 @@ console.log("\n[1] Saturday 26/09 — عمر 02:00–12:00, عثمان 06:00–1
   assert("02:00 عمر: utak_shift_start_v2 [عمر المجهلي], alone", JSON.stringify(at("02:00")) === JSON.stringify(["02:00 عمر: utak_shift_start_v2 [عمر المجهلي]"]), JSON.stringify(at("02:00")));
   assert("02:30 عمر: the reminder (same template), and one alert to Baraa «عمر المجهلي لم يسجّل حضوره: دوامه 02:00»",
     at("02:30").length === 2 && at("02:30")[0] === "02:30 عمر: utak_shift_start_v2 [عمر المجهلي]" && at("02:30")[1].includes("براء") && ownerSays("عمر المجهلي لم يسجّل حضوره: دوامه 02:00").length === 1, JSON.stringify(at("02:30")));
-  assert("03:00: one alert «عمر المجهلي سُجّل غائباً … (02:00)», nothing to عمر", at("03:00").length === 1 && ownerSays("عمر المجهلي سُجّل غائباً").length === 1 && ownerSays("(02:00)").length >= 1, JSON.stringify(at("03:00")));
+  assert("03:00 (+60): nothing — «غائب» is two hours after the start (§ 68)", at("03:00").length === 0, JSON.stringify(at("03:00")));
+  assert("04:00: one alert «عمر المجهلي سُجّل غائباً … (02:00)», nothing to عمر", at("04:00").length === 1 && ownerSays("عمر المجهلي سُجّل غائباً").length === 1 && ownerSays("(02:00)").length >= 1, JSON.stringify(at("04:00")));
   assert("06:00: Baraa's window template [براء] and عثمان's [عثمان عبدالوهاب], once each",
     at("06:00").includes("06:00 براء: utak_shift_start_v2 [براء]") && at("06:00").includes("06:00 عثمان: utak_shift_start_v2 [عثمان عبدالوهاب]") && at("06:00").length === 2, JSON.stringify(at("06:00")));
   assert("06:30 عثمان: the reminder, and one alert «عثمان عبدالوهاب لم يسجّل حضوره: دوامه 06:00»",
     at("06:30").length === 2 && at("06:30").includes("06:30 عثمان: utak_shift_start_v2 [عثمان عبدالوهاب]") && ownerSays("عثمان عبدالوهاب لم يسجّل حضوره: دوامه 06:00").length === 1, JSON.stringify(at("06:30")));
-  assert("07:00: one alert «عثمان عبدالوهاب سُجّل غائباً»", at("07:00").length === 1 && ownerSays("عثمان عبدالوهاب سُجّل غائباً").length === 1, JSON.stringify(at("07:00")));
-  assert("the whole day: exactly those 9 sends, nothing after 07:00", t.length === 9 && t.every((x) => x.slice(0, 5) <= "07:00"), t.join(" / "));
+  assert("08:00: one alert «عثمان عبدالوهاب سُجّل غائباً»", at("08:00").length === 1 && ownerSays("عثمان عبدالوهاب سُجّل غائباً").length === 1, JSON.stringify(at("08:00")));
+  assert("the whole day: exactly those 9 sends, nothing after 08:00", t.length === 9 && t.every((x) => x.slice(0, 5) <= "08:00"), t.join(" / "));
   assert("x_team_attendance: عمر absent, shift 02:00 (23:00 UTC the day before), reminder sent", attRow(OMAR, SAT1)?.x_status === "absent" && attRow(OMAR, SAT1)?.x_shift_at === "2026-09-25 23:00:00" && attRow(OMAR, SAT1)?.x_reminder_sent === true, JSON.stringify(attRow(OMAR, SAT1)));
   assert("x_team_attendance: عثمان absent, shift 06:00 (03:00 UTC)", attRow(OTHMAN, SAT1)?.x_status === "absent" && attRow(OTHMAN, SAT1)?.x_shift_at === "2026-09-26 03:00:00", JSON.stringify(attRow(OTHMAN, SAT1)));
   assert("no row and nothing for Baraa himself", !rows("x_team_attendance").some((r) => r.x_partner_id === OWNER_PID));
@@ -204,23 +207,23 @@ console.log("\n[2] the dawn alerts reach Baraa as text inside the window his 06:
   assert("his tap: «✅ تم…», nothing recorded, no new partner for his number", (texts(OWNER).at(-1) ?? "").startsWith("✅ تم. تنبيهات يو تاك") && rows("x_team_attendance").length === 0
     && rows("res.partner").filter((r) => r.x_whatsapp_number === "+" + OWNER).length === 1);
   const n = sentTo(OWNER).length;
-  for (const a of ["02:00", "02:30", "03:00"]) await tick(`${SAT1} ${a}`);
+  for (const a of ["02:00", "02:30", "03:00", "04:00"]) await tick(`${SAT1} ${a}`);
   const dawn = sentTo(OWNER).slice(n);
-  assert("Saturday 02:30 and 03:00: two alerts, both as session text (inside the window, no marketing template)",
+  assert("Saturday 02:30 and 04:00: two alerts, both as session text (inside the window, no marketing template)",
     dawn.length === 2 && dawn.every((b) => b.type === "text") && String(dawn[0].text?.body).includes("لم يسجّل حضوره") && String(dawn[1].text?.body).includes("سُجّل غائباً"), JSON.stringify(dawn.map(describe)));
-  // (b) Saturday: the 06:00 template again, and a tap at 06:01 covers عثمان's 06:30 / 07:00 alerts too
+  // (b) Saturday: the 06:00 template again, and a tap at 06:01 covers عثمان's 06:30 / 08:00 alerts too
   for (const a of ["05:55", "06:00"]) await tick(`${SAT1} ${a}`);
   assert("Saturday 06:00: his template again (once)", tpl(OWNER).length === 2);
   await tap(OWNER, `${SAT1} 06:01`);
   const m = sentTo(OWNER).length;
-  for (const a of ["06:30", "07:00"]) await tick(`${SAT1} ${a}`);
+  for (const a of ["06:30", "07:00", "08:00"]) await tick(`${SAT1} ${a}`);
   const morning = sentTo(OWNER).slice(m);
-  assert("Saturday 06:30 and 07:00 (عثمان): text as well", morning.length === 2 && morning.every((b) => b.type === "text"), JSON.stringify(morning.map(describe)));
+  assert("Saturday 06:30 and 08:00 (عثمان): text as well", morning.length === 2 && morning.every((b) => b.type === "text"), JSON.stringify(morning.map(describe)));
   // (c) no tap the day before → STATUS § 33: the dawn alerts wait for him (the
   //     MARKETING utak_owner_alert is never used), and his 06:00 tap brings them
   ENV = fresh(`${SAT1} 01:55`);
   closeOwnerWindow(ENV);
-  for (const a of ["01:55", "02:00", "02:30", "03:00"]) await tick(`${SAT1} ${a}`);
+  for (const a of ["01:55", "02:00", "02:30", "03:00", "04:00"]) await tick(`${SAT1} ${a}`);
   const cold = sentTo(OWNER);
   assert("without the tap: nothing to him at dawn — no utak_owner_alert, no free text Meta would drop",
     cold.length === 0, JSON.stringify(cold.map(describe)));
@@ -292,7 +295,7 @@ console.log("\n[3] Friday 02/10: a weekly day off for both; tasks wait for Satur
   assert("06:00: Baraa's template and عثمان's", s2.includes("06:00 براء: utak_shift_start_v2 [براء]") && s2.includes("06:00 عثمان: utak_shift_start_v2 [عثمان عبدالوهاب]"), s2.join(" / "));
   await tap(OTHMAN_PHONE, `${SAT2} 06:20`);
   assert("عثمان taps 06:20 (+20): «متأخر», then «ما عندك مهام الآن» (مدير: no role tasks)",
-    attRow(OTHMAN, SAT2)?.x_status === "late" && texts(OTHMAN_PHONE).some((x) => x.includes("متأخر")) && texts(OTHMAN_PHONE).some((x) => x.includes("ما عندك مهام الآن")), JSON.stringify(texts(OTHMAN_PHONE)));
+    attRow(OTHMAN, SAT2)?.x_status === "late" && attRow(OTHMAN, SAT2)?.x_late_min === 20 && sentTo(OTHMAN_PHONE).some((b) => String(b.interactive?.body?.text ?? "").includes("متأخر")) && texts(OTHMAN_PHONE).some((x) => x.includes("ما عندك مهام الآن")), JSON.stringify(sentTo(OTHMAN_PHONE).map(describe)));
   setRiyadh(`${SAT2} 12:30`);
   const h2 = await quiet(() => att.holdForTask(ENV, OMAR, { kind: "probe2", label: "مهمة السبت" }));
   assert("Saturday 12:30 (after 12:00): held «after», next «الأحد 02:00», one alert", h2.hold && h2.phase === "after" && h2.next === "الأحد 02:00" && ownerSays("مهمة لـعمر المجهلي بعد دوامه: مهمة السبت").length === 1, JSON.stringify(h2));

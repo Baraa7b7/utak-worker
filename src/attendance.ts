@@ -13,8 +13,9 @@
 //     messages inside the 24h window the tap opened.
 //   • +30 min without a tap: ONE reminder (the same template) and an owner
 //     alert «{name} لم يسجّل حضوره».
-//   • +60 min without a tap: status «غائب» in Odoo, and an owner alert.
-//   • A tap before +60: «حاضر», or «متأخر» after +15. A tap after +60:
+//   • +120 min without a tap (two hours — § 68; it was +60): status «غائب» in Odoo, and ONE owner
+//     alert, merged with the others of its kind (src/owner-alerts.ts).
+//   • A tap before +120: «حاضر», or «متأخر» after +15. A tap after +120:
 //     «متأخر» (not absent), the tasks, and an owner alert.
 //   • After the end of the last period (and on a day off / time off): no new
 //     task reaches the employee. It waits for the start of their next shift
@@ -38,10 +39,21 @@
 //   • Nothing is sent twice to the same person on the same day, even if the
 //     job runs again.
 //
+//   • § 68 (2026-10-08) — the row is the employee's attendance RECORD: the entry (x_tapped_at, «الدخول»:
+//     the tap on «بدء الدوام», or its words written by the member — «بدأت الدوام»), the exit (x_out_at:
+//     «🏁 انتهى دوامي», the button under the entry's answer, or its words), the minutes late (x_late_min,
+//     only when the status is «متأخر»), the source («واتساب»; a row Baraa makes or edits in Odoo is
+//     «يدوي»), and the place of each when the member sends one in the quarter of an hour after it. A day
+//     of time off gets its own row («إجازة») when the shift would have started. A member who is not on
+//     attendance (no «مشمول بالتحضير», or no schedule of his own) may still write «بدأت الدوام»: his
+//     row is made then, late by his own schedule's hours, else by the company's «جدول أيام العمل» — no
+//     message, no reminder and no «غائب» ever follow him. Nothing of this is Baraa's (§ 59 أ).
+//
 // Records: x_team_attendance (one row per employee per Riyadh day):
 // x_employee_id (the old x_partner_id is still written — the Work Contact —
 // so a rollback of the worker reads the same rows), x_date, x_shift_at,
-// x_sent_at, x_tapped_at, x_status (present|late|absent), x_reminder_sent.
+// x_sent_at, x_tapped_at, x_out_at, x_status (present|late|absent|leave), x_late_min, x_source,
+// x_note, x_in_map / x_out_map, x_reminder_sent.
 //
 // Scheduling: ONE cron every 5 minutes (runAttendanceTick) handles whatever
 // is due. Idempotency has two layers: a KV claim per (day, employee, step)
@@ -55,21 +67,37 @@ import { call } from "./odoo";
 import { sendOwnerAlert, sendTemplateByPurpose, T } from "./templates";
 import { withAutoSendJob } from "./auto-send-guard";
 import { claimButton, releaseButton } from "./button-lock";
-import { odooUtcToRiyadhHHMM, riyadhDateKey, riyadhDayMinuteMs, riyadhHHMM, toOdooUtc } from "./hours";
+import { addDaysYmd, odooUtcMs, odooUtcToRiyadhHHMM, riyadhDateKey, riyadhDayMinuteMs, riyadhHHMM, toOdooUtc } from "./hours";
 import { flushTeamQueue, TEAM_QUEUE_TTL } from "./team-queue";
 import { sendText } from "./meta";
+import { waDigits } from "./wa-window";
 import { gatewayDecision } from "./wa-gateway";
 import { arabicDate } from "./wa-params";
 import {
-  dayPlan, loadRoster, memberByPartner, nextShiftStart,
-  type DayPlan, type Roster, type RosterMember,
+  LINE_FIELDS, dayPlan, linesOn, loadRoster, memberByPartner, nextShiftStart, toCalendarLine,
+  type CalendarLine, type DayPlan, type Roster, type RosterMember,
 } from "./team-roster";
 
 export const ATT_MODEL = "x_team_attendance";
 export const SHIFT_START_PAYLOAD = "shift_start";
 export const LATE_AFTER_MIN = 15;
 export const REMIND_AFTER_MIN = 30;
-export const ABSENT_AFTER_MIN = 60;
+/** § 68 — a work day with no entry two hours after its start is «غائب» (it was one hour). */
+export const ABSENT_AFTER_MIN = 120;
+/** § 68 — every «غائب» alert is one kind: several inside ten minutes reach Baraa as one message. */
+export const ABSENT_ALERT_KIND = "shift_absent";
+/** § 68 — «🏁 انتهى دوامي»: the button under the entry's answer (a session button, inside the window the entry opened). */
+export const SHIFT_END_PAYLOAD = "shift_end";
+export const SHIFT_END_TITLE = "🏁 انتهى دوامي";
+/** § 68 — «✅ بدأت الدوام»: the session button under «اضغط بدء الدوام» (the template's own button stays «بدء الدوام»). */
+export const SHIFT_START_TITLE = "✅ بدأت الدوام";
+/** § 68 — x_source of a row the worker writes; a row made or edited in Odoo is «manual» (Odoo's default). */
+export const SOURCE_WHATSAPP = "whatsapp";
+export const SOURCE_MANUAL = "manual";
+/** § 68 — a place sent this long after an entry or an exit is kept with it. */
+export const LOCATION_WINDOW_SEC = 15 * 60;
+/** § 68 — an exit closes the entry of today, or yesterday's still open when it is this recent (a shift past midnight). */
+export const OPEN_ENTRY_MAX_MS = 18 * 60 * 60 * 1000;
 export const OWNER_WINDOW_DEFAULT = "06:00";
 /** The send gateway's owner guard lets this purpose reach OWNER_WHATSAPP (the window-opening template only). */
 export const OWNER_WINDOW_PURPOSE = "owner_window";
@@ -80,7 +108,7 @@ const MIN = 60_000;
 export const OFFSHIFT_ALERT_PREFIX = "مهمة لـ";
 const MAX_QUEUE_TTL = 30 * 24 * 60 * 60;
 
-export type AttStatus = "present" | "late" | "absent";
+export type AttStatus = "present" | "late" | "absent" | "leave";
 export interface AttRow {
   id: number;
   x_date: string;
@@ -90,8 +118,10 @@ export interface AttRow {
   x_status: AttStatus | false;
   x_reminder_sent: boolean;
   x_employee_id: [number, string] | number | false;
+  x_out_at?: string | false;
+  x_late_min?: number | false;
 }
-const ROW_FIELDS = ["id", "x_employee_id", "x_date", "x_shift_at", "x_sent_at", "x_tapped_at", "x_status", "x_reminder_sent"];
+const ROW_FIELDS = ["id", "x_employee_id", "x_date", "x_shift_at", "x_sent_at", "x_tapped_at", "x_status", "x_reminder_sent", "x_out_at", "x_late_min"];
 
 // ---------------------------------------------------------------- time
 /** 330 → «05:30». */
@@ -126,6 +156,27 @@ export const OWNER_OWN_SHIFT = "own_shift";
 /** «حاضر» up to +15 min after the shift start, «متأخر» after. */
 export function statusForTap(tapMs: number, shiftMs: number): "present" | "late" {
   return tapMs - shiftMs > LATE_AFTER_MIN * MIN ? "late" : "present";
+}
+/** § 68 — «التأخير (دقيقة)»: the whole minutes after the shift start when the entry is «متأخر», else 0. */
+export function lateMinutes(tapMs: number, shiftMs: number): number {
+  return statusForTap(tapMs, shiftMs) === "late" ? Math.floor((tapMs - shiftMs) / MIN) : 0;
+}
+
+// ---------------------------------------------------------------- § 68: the words
+/** A message as its letters alone: no marks, no emoji, one spelling of the alef, the yaa and the taa marbuta. */
+function plainWords(text: unknown): string {
+  return String(text ?? "").normalize("NFKC").replace(/[\u064B-\u0652\u0640]/g, "").replace(/[أإآ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه")
+    .replace(/[^\u0621-\u064A0-9a-zA-Z ]+/g, " ").replace(/\s+/g, " ").trim();
+}
+const IN_WORDS: ReadonlySet<string> = new Set(["بدات الدوام", "بدا الدوام", "بدء الدوام", "بدات دوامي", "بدايه الدوام", "ابدا الدوام", "ابدا دوامي", "سجل حضوري", "تسجيل حضور", "تسجيل دخول", "سجل دخولي"]);
+const OUT_WORDS: ReadonlySet<string> = new Set(["انتهي دوامي", "انتهي الدوام", "نهايه الدوام", "نهايه دوامي", "خلص دوامي", "خلصت الدوام", "خلصت دوامي", "انهيت الدوام", "انهيت دوامي", "تسجيل خروج", "سجل خروجي"]);
+/** The WHOLE message is «بدأت الدوام» (or one of its like): the member's entry, as the tap on «بدء الدوام». */
+export function shiftInCommand(text: unknown): boolean {
+  return IN_WORDS.has(plainWords(text));
+}
+/** The WHOLE message is «انتهى دوامي» (or one of its like): the member's exit. */
+export function shiftOutCommand(text: unknown): boolean {
+  return OUT_WORDS.has(plainWords(text));
 }
 
 const digits = (s: string) => String(s ?? "").replace(/\D/g, "");
@@ -217,24 +268,41 @@ export async function runAttendanceTick(env: Env, nowMs: number = Date.now()): P
   if (teamError) throw teamError;
   const due = plans.filter((p) => p.plan.kind === "work");
   const rows = due.length ? await readRows(env, day, due.map((p) => p.m.employeeId)) : new Map<number, AttRow>();
+  // § 68 — everyone this tick marks «غائب» reaches Baraa in ONE alert
+  const absent: AbsentNow[] = [];
   for (const { m, plan: dp } of plans) {
     const base = {
       id: m.employeeId, partnerId: m.partnerId, name: m.name, to: m.whatsapp ? tail(m.whatsapp) : "-",
       shift: dp.startMin === undefined ? null : hhmm(dp.startMin), end: dp.endMin === undefined ? null : hhmm(dp.endMin), roles: m.codes,
     };
-    if (dp.kind !== "work") { report.members.push({ ...base, action: dp.kind }); continue; }
+    if (dp.kind !== "work") {
+      // § 68 — a day of time off has its row («إجازة») from the hour the shift would have started: no message
+      let action: string = dp.kind;
+      if (dp.kind === "leave" && dp.startMin !== undefined && nowMs >= riyadhDayMinuteMs(day, dp.startMin)) {
+        try { action = await leaveRow(env, m, day, dp); } catch (e) { action = `leave_error: ${(e as Error)?.message}`; }
+      }
+      report.members.push({ ...base, action });
+      continue;
+    }
     if (fz.on || fz.missed(riyadhDayMinuteMs(day, dp.startMin as number))) { report.members.push({ ...base, action: FROZEN_MISSED_STEP }); continue; }
     try {
-      report.members.push({ ...base, action: await memberStep(env, m, day, dp.startMin as number, rows.get(m.employeeId) ?? null, nowMs) });
+      report.members.push({ ...base, action: await memberStep(env, m, day, dp.startMin as number, rows.get(m.employeeId) ?? null, nowMs, absent) });
     } catch (e) {
       report.members.push({ ...base, action: `error: ${(e as Error)?.message}` });
       console.error(`[attendance] ${m.name} failed`, (e as Error)?.message);
     }
   }
+  if (absent.length) {
+    try {
+      await sendOwnerAlert(withAutoSendJob(env, "shift_absent"), absentText(absent), { kind: ABSENT_ALERT_KIND });
+    } catch (e) {
+      console.error("[attendance] the «غائب» alert failed", (e as Error)?.message);
+    }
+  }
   return report;
 }
 
-async function memberStep(env: Env, m: RosterMember, day: string, min: number, row: AttRow | null, nowMs: number): Promise<string> {
+async function memberStep(env: Env, m: RosterMember, day: string, min: number, row: AttRow | null, nowMs: number, absent: AbsentNow[]): Promise<string> {
   const shiftMs = riyadhDayMinuteMs(day, min);
   const since = nowMs - shiftMs;
   if (since < 0) return "before_shift";
@@ -244,7 +312,7 @@ async function memberStep(env: Env, m: RosterMember, day: string, min: number, r
     if (since >= REMIND_AFTER_MIN * MIN) return "start_window_missed";
     return sendStart(env, m, day, shiftMs, nowMs);
   }
-  if (since >= ABSENT_AFTER_MIN * MIN) return row.x_status ? `already:${row.x_status}` : markAbsent(env, m, day, min, row);
+  if (since >= ABSENT_AFTER_MIN * MIN) return row.x_status ? `already:${row.x_status}` : markAbsent(env, m, day, min, row, absent);
   if (since >= REMIND_AFTER_MIN * MIN) return row.x_reminder_sent ? "reminded" : sendReminder(env, m, day, min, row);
   return "waiting";
 }
@@ -288,15 +356,38 @@ async function sendReminder(env: Env, m: RosterMember, day: string, min: number,
   return ok ? "reminded_now" : "remind_failed";
 }
 
-async function markAbsent(env: Env, m: RosterMember, day: string, min: number, row: AttRow): Promise<string> {
+async function markAbsent(env: Env, m: RosterMember, day: string, min: number, row: AttRow, absent: AbsentNow[]): Promise<string> {
   const claim = await claimButton(env, claimKey(day, m, "absent"), CLAIM_TTL);
   if (!claim.claimed) return "absent_claimed";
   const fresh = await findRow(env, m.employeeId, day); // a tap may have landed since the tick read the rows
   if (fresh?.x_tapped_at || fresh?.x_status) return `tapped:${fresh.x_status || "-"}`;
   await writeRow(env, row.id, { x_status: "absent" });
-  await sendOwnerAlert(withAutoSendJob(env, "shift_absent"),
-    `❌ ${m.name} سُجّل غائباً اليوم: لم يضغط «بدء الدوام» خلال ${ABSENT_AFTER_MIN} دقيقة من دوامه (${hhmm(min)}).`);
+  absent.push({ name: m.name, shiftMin: min }); // the tick tells Baraa of all of them at once
   return "absent_now";
+}
+export interface AbsentNow { name: string; shiftMin: number }
+/** § 68 — Baraa's «غائب» alert: one message for everyone a tick marked. */
+export function absentText(who: AbsentNow[]): string {
+  if (who.length === 1) return `❌ ${who[0].name} سُجّل غائباً اليوم: لم يسجّل دخوله خلال ساعتين من بداية دوامه (${hhmm(who[0].shiftMin)}).`;
+  return `❌ سُجّلوا غائبين اليوم (لم يسجّلوا دخولهم خلال ساعتين من بداية الدوام): ${who.map((w) => `${w.name} (${hhmm(w.shiftMin)})`).join("، ")}.`;
+}
+
+/** § 68 — the row of a day of time off: «إجازة», once, with the time off's name. Nothing is sent. */
+async function leaveRow(env: Env, m: RosterMember, day: string, dp: DayPlan): Promise<string> {
+  const claim = await claimButton(env, claimKey(day, m, "leave"), CLAIM_TTL);
+  if (!claim.claimed) return "leave";
+  try {
+    if (await findRow(env, m.employeeId, day)) return "leave";
+    await call<number[]>(env, ATT_MODEL, "create", { vals_list: [{
+      x_name: `${m.name} · ${day}`, x_employee_id: m.employeeId, x_partner_id: m.partnerId || false, x_date: day,
+      x_shift_at: toOdooUtc(riyadhDayMinuteMs(day, dp.startMin as number)), x_status: "leave", x_reminder_sent: false,
+      x_source: SOURCE_MANUAL, x_note: `إجازة: ${dp.leave || "إجازة"}`,
+    }] });
+    return "leave_row";
+  } catch (e) {
+    await releaseButton(env, claim);
+    throw e;
+  }
 }
 
 async function ownerWindowStep(env: Env, day: string, nowMs: number, windowMinutes: number): Promise<string> {
@@ -333,7 +424,7 @@ export type TapResult =
   | { kind: "owner"; text: string }
   | { kind: "not_started"; text: string }
   | { kind: "off_today"; text: string }
-  | { kind: "first" | "again"; status: AttStatus; text: string; afterEnd?: boolean };
+  | { kind: "first" | "again"; status: AttStatus; text: string; afterEnd?: boolean; rowId?: number; /** § 68 — a member who is not on attendance: his row, no tasks held for it */ free?: boolean };
 
 /**
  * A team member tapped «بدء الدوام» (payload shift_start) at tapMs (Meta's
@@ -351,7 +442,8 @@ export async function recordShiftTap(env: Env, partnerId: number, tapMs: number)
   const day = riyadhDateKey(new Date(tapMs));
   const plan = dayPlan(roster, m, day);
   if (plan.kind === "day_off" || plan.kind === "leave") return { kind: "off_today", text: offText(roster, m, plan, tapMs) };
-  if (plan.kind !== "work") return { kind: "not_on_attendance" };
+  // § 68 — not on attendance (no «مشمول بالتحضير», or no schedule with hours): his entry is recorded all the same
+  if (plan.kind !== "work") return freeEntry(env, roster, m, day, tapMs);
   const min = plan.startMin as number;
   const shiftMs = riyadhDayMinuteMs(day, min);
   const endMs = riyadhDayMinuteMs(day, plan.endMin as number);
@@ -362,7 +454,7 @@ export async function recordShiftTap(env: Env, partnerId: number, tapMs: number)
   const again = (r: AttRow): TapResult => ({
     kind: "again", status: (r.x_status || "present") as AttStatus,
     text: `دوامك اليوم مسجّل من ${odooUtcToRiyadhHHMM(r.x_tapped_at || undefined)} ✅`,
-    afterEnd: tapMs >= endMs,
+    afterEnd: tapMs >= endMs, rowId: r.id,
   });
   if (row.x_tapped_at) return again(row);
   const claim = await claimButton(env, claimKey(day, m, "tap"), CLAIM_TTL);
@@ -370,7 +462,8 @@ export async function recordShiftTap(env: Env, partnerId: number, tapMs: number)
   const status = statusForTap(tapMs, shiftMs);
   const afterAbsent = row.x_status === "absent" || tapMs - shiftMs >= ABSENT_AFTER_MIN * MIN;
   const afterEnd = tapMs >= endMs;
-  await writeRow(env, row.id, { x_tapped_at: toOdooUtc(tapMs), x_status: status });
+  await writeRow(env, row.id, { x_tapped_at: toOdooUtc(tapMs), x_status: status, x_late_min: lateMinutes(tapMs, shiftMs), x_source: SOURCE_WHATSAPP });
+  await rememberForPlace(env, m.whatsapp, row.id, "in", tapMs);
   const at = riyadhHHMM(new Date(tapMs));
   if (afterAbsent) {
     await sendOwnerAlert(env,
@@ -378,11 +471,148 @@ export async function recordShiftTap(env: Env, partnerId: number, tapMs: number)
   }
   const next = afterEnd ? nextShiftStart(roster, m, tapMs) : null;
   return {
-    kind: "first", status, afterEnd,
+    kind: "first", status, afterEnd, rowId: row.id,
     text: afterEnd
       ? `تم تسجيل حضورك الساعة ${at} (متأخر، دوامك ${hhmm(min)}–${hhmm(plan.endMin as number)}). دوامك انتهى، ومهامك توصلك مع بداية دوامك القادم${next ? ` (${shiftLabel(next.day, next.startMin)})` : ""}.`
       : status === "present" ? `تم تسجيل حضورك الساعة ${at} ✅` : `تم تسجيل حضورك الساعة ${at} ✅ (متأخر، دوامك ${hhmm(min)})`,
   };
+}
+
+// ---------------------------------------------------------------- § 68: an entry without a shift message
+/** The hours `day` has in these lines (first start, last end), or null: a day with no clock hours. */
+function daySpan(lines: CalendarLine[], calendarId: number, day: string): { startMin: number; endMin: number } | null {
+  const timed = linesOn(lines, calendarId, day).filter((l) => !l.durationBased && l.hourTo > l.hourFrom);
+  if (!timed.length) return null;
+  return { startMin: Math.round(Math.min(...timed.map((l) => l.hourFrom)) * 60), endMin: Math.round(Math.max(...timed.map((l) => l.hourTo)) * 60) };
+}
+/**
+ * The hours a member who is not on attendance is measured by on `day`: his own schedule's when it has clock
+ * hours (a day it gives none is a day off: null), else the company's «جدول أيام العمل» (the settings).
+ */
+export async function freeShift(env: Env, roster: Roster, m: RosterMember, day: string, nowMs: number): Promise<{ startMin: number; endMin: number } | null> {
+  if (m.calendarId) {
+    let lines = roster.lines.filter((l) => l.calendarId === m.calendarId);
+    if (!lines.length) {
+      const raw = await call<Array<Record<string, unknown>>>(env, "resource.calendar.attendance", "search_read", { domain: [["calendar_id", "=", m.calendarId]], fields: [...LINE_FIELDS], limit: 200 });
+      lines = raw.map(toCalendarLine);
+    }
+    if (lines.some((l) => !l.durationBased && l.hourTo > l.hourFrom)) return daySpan(lines, m.calendarId, day);
+  }
+  const { companySchedule } = await import("./operating-cost");
+  const co = await companySchedule(env, day, nowMs);
+  return co ? daySpan(co.lines, co.calendarId, day) : null;
+}
+
+async function freeEntry(env: Env, roster: Roster, m: RosterMember, day: string, tapMs: number): Promise<TapResult> {
+  const row = await findRow(env, m.employeeId, day);
+  const again = (r: Pick<AttRow, "id" | "x_status" | "x_tapped_at">): TapResult => ({
+    kind: "again", status: (r.x_status || "present") as AttStatus, free: true, rowId: r.id,
+    text: `دوامك اليوم مسجّل من ${odooUtcToRiyadhHHMM(r.x_tapped_at || undefined)} ✅`,
+  });
+  if (row?.x_tapped_at) return again(row);
+  const claim = await claimButton(env, claimKey(day, m, "tap"), CLAIM_TTL);
+  if (!claim.claimed) return again({ id: row?.id ?? 0, x_status: row?.x_status ?? false, x_tapped_at: toOdooUtc(tapMs) });
+  let rowId: number, status: "present" | "late" = "present", shift: { startMin: number; endMin: number } | null = null;
+  try {
+    shift = await freeShift(env, roster, m, day, tapMs);
+    const shiftMs = shift ? riyadhDayMinuteMs(day, shift.startMin) : null;
+    if (shiftMs !== null) status = statusForTap(tapMs, shiftMs);
+    const vals = { x_tapped_at: toOdooUtc(tapMs), x_status: status, x_late_min: shiftMs === null ? 0 : lateMinutes(tapMs, shiftMs), x_source: SOURCE_WHATSAPP };
+    if (row) { await writeRow(env, row.id, vals); rowId = row.id; }
+    else {
+      rowId = (await call<number[]>(env, ATT_MODEL, "create", { vals_list: [{
+        x_name: `${m.name} · ${day}`, x_employee_id: m.employeeId, x_partner_id: m.partnerId || false, x_date: day,
+        x_shift_at: shiftMs === null ? false : toOdooUtc(shiftMs), x_reminder_sent: false, ...vals,
+      }] }))[0];
+    }
+  } catch (e) {
+    await releaseButton(env, claim); // nothing recorded: his next message may try again
+    throw e;
+  }
+  await rememberForPlace(env, m.whatsapp, rowId, "in", tapMs);
+  const at = riyadhHHMM(new Date(tapMs));
+  return {
+    kind: "first", status, free: true, rowId,
+    text: status === "present" || !shift ? `تم تسجيل حضورك الساعة ${at} ✅` : `تم تسجيل حضورك الساعة ${at} ✅ (متأخر، دوامك ${hhmm(shift.startMin)})`,
+  };
+}
+
+/** What follows an entry's answer: how to end the shift, and the place (optional). */
+export const ENTRY_HINT = "عند نهاية دوامك اضغط «🏁 انتهى دوامي» أو اكتبها. (اختياري: أرسل موقعك الآن ليُحفظ مع الدخول)";
+export const EXIT_HINT = "(اختياري: أرسل موقعك الآن ليُحفظ مع الخروج)";
+export const shiftEndButton = (): { id: string; title: string } => ({ id: SHIFT_END_PAYLOAD, title: SHIFT_END_TITLE });
+export const shiftStartButton = (): { id: string; title: string } => ({ id: SHIFT_START_PAYLOAD, title: SHIFT_START_TITLE });
+
+// ---------------------------------------------------------------- § 68: the exit
+export type EndResult =
+  | { kind: "not_member" }
+  | { kind: "owner" | "no_entry"; text: string }
+  | { kind: "again" | "done"; text: string; rowId: number; minutes?: number };
+export const NO_ENTRY_TEXT = "ما عندك دخول مسجّل اليوم، فلم يُسجَّل خروج. اكتب «بدأت الدوام» أولاً.";
+export const OWNER_NO_ATTENDANCE_TEXT = "دوامك لا يُسجَّل: الدخول والخروج لتسجيل دوام الفريق.";
+/** 598 → «9 س 58 د». */
+export function durationAr(minutes: number): string {
+  return `${Math.floor(minutes / 60)} س ${minutes % 60} د`;
+}
+
+/** The entry an exit at `outMs` closes: today's, else yesterday's when it is still open and recent. */
+async function openEntry(env: Env, employeeId: number, day: string, outMs: number): Promise<AttRow | null> {
+  const rows = await call<AttRow[]>(env, ATT_MODEL, "search_read", {
+    domain: [["x_employee_id", "=", employeeId], ["x_date", "in", [addDaysYmd(day, -1), day]], ["x_utak_simulation", "!=", true], ["x_tapped_at", "!=", false]],
+    fields: ROW_FIELDS, order: "x_date desc, id asc", limit: 4,
+  });
+  const today = rows.find((r) => r.x_date === day);
+  if (today) return today;
+  const before = rows.find((r) => r.x_date !== day && !r.x_out_at);
+  return before && outMs - odooUtcMs(before.x_tapped_at as string) <= OPEN_ENTRY_MAX_MS ? before : null;
+}
+
+/**
+ * A member's «🏁 انتهى دوامي» (the button, or its words) at outMs: the exit is written on his open entry, once.
+ * No entry: nothing is written. Nothing of Baraa's is recorded. Throws on Odoo trouble.
+ */
+export async function recordShiftEnd(env: Env, partnerId: number, outMs: number): Promise<EndResult> {
+  const roster = await loadRoster(env, outMs);
+  const m = memberByPartner(roster, partnerId);
+  if (!m) return { kind: "not_member" };
+  if (isOwnerNumber(env, m.whatsapp)) return { kind: "owner", text: OWNER_NO_ATTENDANCE_TEXT };
+  const row = await openEntry(env, m.employeeId, riyadhDateKey(new Date(outMs)), outMs);
+  if (!row) return { kind: "no_entry", text: NO_ENTRY_TEXT };
+  const again = (at: string | false | undefined): EndResult => ({ kind: "again", rowId: row.id, text: `خروجك مسجّل من ${odooUtcToRiyadhHHMM(at || undefined)} ✅` });
+  if (row.x_out_at) return again(row.x_out_at);
+  const claim = await claimButton(env, `att:${row.x_date}:e${m.employeeId}:out`, CLAIM_TTL);
+  if (!claim.claimed) return again(toOdooUtc(outMs));
+  try {
+    await writeRow(env, row.id, { x_out_at: toOdooUtc(outMs) });
+  } catch (e) {
+    await releaseButton(env, claim);
+    throw e;
+  }
+  await rememberForPlace(env, m.whatsapp, row.id, "out", outMs);
+  const minutes = Math.max(0, Math.floor((outMs - odooUtcMs(row.x_tapped_at as string)) / MIN));
+  return { kind: "done", rowId: row.id, minutes, text: `تم تسجيل خروجك الساعة ${riyadhHHMM(new Date(outMs))} ✅ — مدة دوامك ${durationAr(minutes)}.` };
+}
+
+// ---------------------------------------------------------------- § 68: the place (optional)
+const placeKey = (number: string): string => `att_loc:v1:${waDigits(number)}`;
+/** The entry or exit just recorded waits a quarter of an hour for a place from this number. */
+async function rememberForPlace(env: Env, number: string, rowId: number, which: "in" | "out", atMs: number): Promise<void> {
+  try { await env.MSG_DEDUP.put(placeKey(number), JSON.stringify({ rowId, which, at: atMs }), { expirationTtl: LOCATION_WINDOW_SEC }); } catch { /* the place is optional */ }
+}
+export const mapUrl = (latitude: number, longitude: number): string => `https://maps.google.com/?q=${latitude},${longitude}`;
+export const placeSavedText = (which: "in" | "out"): string => `📍 حُفظ موقع ${which === "out" ? "الخروج" : "الدخول"} مع دوامك ✅`;
+/**
+ * A place a member sent: kept with the entry or the exit he recorded in the last quarter of an hour («in» /
+ * «out»), else null — the message is then whatever it was before § 68. Throws on Odoo trouble.
+ */
+export async function saveShiftPlace(env: Env, from: string, place: { latitude: number; longitude: number }, nowMs: number = Date.now()): Promise<"in" | "out" | null> {
+  let rec: { rowId: number; which: "in" | "out"; at: number } | null = null;
+  try { const raw = await env.MSG_DEDUP.get(placeKey(from)); rec = raw ? JSON.parse(raw) : null; } catch { return null; }
+  if (!rec || !(rec.rowId > 0) || nowMs < rec.at || nowMs - rec.at > LOCATION_WINDOW_SEC * 1000) return null;
+  if (!Number.isFinite(place.latitude) || !Number.isFinite(place.longitude)) return null;
+  await writeRow(env, rec.rowId, { [rec.which === "out" ? "x_out_map" : "x_in_map"]: mapUrl(place.latitude, place.longitude) });
+  try { await env.MSG_DEDUP.delete(placeKey(from)); } catch { /* it expires */ }
+  return rec.which;
 }
 
 function offText(roster: Roster, m: RosterMember, plan: DayPlan, nowMs: number): string {

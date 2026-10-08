@@ -46,7 +46,7 @@ const FIX = [
   "fixtures-odoo-fields-20260925-gateway.json", "fixtures-odoo-fields-20260925-s36.json", "fixtures-odoo-fields-20260925-s37.json",
   "fixtures-odoo-fields-20260926-b3.json", "fixtures-odoo-fields-20260926-s39.json", "fixtures-odoo-fields-20260926-s40.json",
   "fixtures-odoo-fields-20260926-s41.json", "fixtures-odoo-fields-20260927-s42.json", "fixtures-odoo-fields-20260928-s44.json",
-  "fixtures-odoo-fields-20261001-s49.json", "fixtures-odoo-fields-20261005-s54.json", "fixtures-odoo-fields-20261005-s55.json", "fixtures-odoo-fields-20261005-s56.json", "fixtures-odoo-fields-20261008-s67.json", // § 46 + § 47: the pricing board's fields on x_price_day / x_price_day_line, x_expected_cartons, product.template.x_utak_new, x_min_margin_pct, x_break_even / x_suggested_price, x_decision «profit» (last: it wins)
+  "fixtures-odoo-fields-20261001-s49.json", "fixtures-odoo-fields-20261005-s54.json", "fixtures-odoo-fields-20261005-s55.json", "fixtures-odoo-fields-20261005-s56.json", "fixtures-odoo-fields-20261008-s68.json", // § 46 + § 47: the pricing board's fields on x_price_day / x_price_day_line, x_expected_cartons, product.template.x_utak_new, x_min_margin_pct, x_break_even / x_suggested_price, x_decision «profit» (last: it wins)
 ].map((f) => JSON.parse(readFileSync(new URL(`./${f}`, import.meta.url), "utf8")));
 const REAL: Record<string, string[]> = Object.assign({}, ...FIX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FIX.map((f) => f._selections ?? {}));

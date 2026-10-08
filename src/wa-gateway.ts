@@ -238,6 +238,8 @@ for (const p of ["owner_special_quote", "special_quote_test"]) (OWNER_ALLOWED_PU
 (OWNER_ALLOWED_PURPOSES as Set<string>).add("owner_critical");
 /** § 67 أ — the sim worker's test send is a trial as every other: Baraa's number, and his alone. */
 (OWNER_ALLOWED_PURPOSES as Set<string>).add("sim_test");
+// § 68 — the trial of the attendance record on Baraa's own card (src/s68-trial.ts): his number alone
+(OWNER_ALLOWED_PURPOSES as Set<string>).add("attendance_test");
 
 function ownerDigits(env: Env): string {
   return waDigits(String(env.OWNER_WHATSAPP ?? ""));

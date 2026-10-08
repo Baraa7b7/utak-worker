@@ -56,12 +56,14 @@ const REAL: Record<string, string[]> = Object.assign({}, ...FX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FX.map((f) => f._selections));
 // § 53 — the tenant's fields now for the models § 53 touched (x_market_uplift_pct, x_uplift_pct, the purpose customer_pay_remind_iban): read last, they win
 {
-  const f53 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261008-s67.json", import.meta.url), "utf8")); // § 59 (after § 58: the company's working days, the two purposes) — § 58 (after § 56: the screen's fields): the plan, the actual and the tabs on the day and its lines
+  const f53 = JSON.parse(readFileSync(new URL("./fixtures-odoo-fields-20261008-s68.json", import.meta.url), "utf8")); // § 59 (after § 58: the company's working days, the two purposes) — § 58 (after § 56: the screen's fields): the plan, the actual and the tabs on the day and its lines
   for (const m of ["x_pricing_config", "x_price_day", "x_price_day_line"]) REAL[m] = f53[m];
   for (const m of ["x_operating_cost", "hr.employee", "hr.job"]) REAL[m] = f53[m]; // § 61: the job and the employee of a cost line, the job's own fields
   for (const m of ["x_price_offer", "x_special_quote", "x_special_quote_line", "x_special_quote_recipient"]) REAL[m] = f53[m]; // § 62: «خاص» on a source's offer (the day's readers leave it out), the three models of a special request
   for (const m of ["res.partner", "x_daily_price"]) REAL[m] = f53[m]; // § 65: «حالة المورد» on the card (the 02:00 ask, the closed numbers, the market sources read it), the size and the origin on a daily price
   for (const m of ["x_daily_order", "x_daily_order_line"]) REAL[m] = f53[m]; // § 66: the request an order came from, and «سعر خاص» / «التعبئة» / «الشراء» on its line (the order readers ask for them)
+  for (const m of ["x_team_attendance", "resource.calendar.leaves", "x_delivery_route", "x_delivery_stop"]) REAL[m] = f53[m]; // § 68: the attendance record (the exit, the minutes late, the source, the place), the kind of a time off
+  SELECTIONS["x_team_attendance.x_status"] = f53._selections["x_team_attendance.x_status"]; // § 68: «إجازة»
   SELECTIONS["x_whatsapp_template.x_purpose"] = f53._selections["x_whatsapp_template.x_purpose"];
 }
 const rejected: string[] = [];
@@ -221,7 +223,9 @@ console.log("\n[1] the working schedule: work day, weekly day off, time off, two
   leave({ name: "إجازة عمر", resource_id: RES(OMAR), date_from: utc(`${SUN} 00:00`), date_to: utc(`${SUN} 23:59`) });
   for (const at of ["06:30", "07:00", "07:30", "08:00", "09:00"]) await tick(`${SUN} ${at}`);
   const rl = await tick(`${SUN} 10:00`);
-  assert("عمر's time off: no template, no row, no absence; reported «leave»", tpl(OMAR_PHONE).length === 0 && !attRow(OMAR, SUN) && ownerSays("عمر المجهلي").length === 0 && rl.members.find((m: any) => m.partnerId === OMAR)?.action === "leave", JSON.stringify(rl.members));
+  // § 68 — the day of time off has its own row («إجازة», with the time off's name), written once; nothing is sent
+  const lr = attRow(OMAR, SUN) as any;
+  assert("عمر's time off: no template, no absence; ONE row «إجازة» with its name; reported «leave»", tpl(OMAR_PHONE).length === 0 && lr?.x_status === "leave" && lr.x_note === "إجازة: إجازة عمر" && !lr.x_sent_at && !lr.x_tapped_at && rows("x_team_attendance").filter((r: any) => r.x_date === SUN && (r.x_partner_id === OMAR)).length === 1 && ownerSays("عمر المجهلي").length === 0 && rl.members.find((m: any) => m.partnerId === OMAR)?.action === "leave", JSON.stringify({ lr, members: rl.members }));
   assert("…خالد works as usual that day (start 06:30, then his +30 reminder)", tpl(KHALID_PHONE).length === 2 && !!attRow(KHALID, SUN)?.x_sent_at);
   await tick(`${MON} 07:00`);
   assert("…and عمر is back the next day", tpl(OMAR_PHONE).length === 1);
@@ -230,7 +234,7 @@ console.log("\n[1] the working schedule: work day, weekly day off, time off, two
   ENV = fresh(`${SUN} 05:00`);
   leave({ name: "اليوم الوطني", date_from: utc(`${SUN} 00:00`), date_to: utc(`${SUN} 23:59`) });
   for (const at of ["06:30", "07:00", "08:00", "09:00"]) await tick(`${SUN} ${at}`);
-  assert("company time off: nobody gets «بدء الدوام», nobody absent", tpl(OMAR_PHONE).length === 0 && tpl(KHALID_PHONE).length === 0 && rows("x_team_attendance").length === 0);
+  assert("company time off: nobody gets «بدء الدوام», nobody absent — every row of the day is «إجازة»", tpl(OMAR_PHONE).length === 0 && tpl(KHALID_PHONE).length === 0 && rows("x_team_attendance").length > 0 && rows("x_team_attendance").every((r: any) => r.x_status === "leave" && r.x_note === "إجازة: اليوم الوطني"), JSON.stringify(rows("x_team_attendance")));
 
   // time off that does not apply: another schedule, «working time», another company, partial after the start
   ENV = fresh(`${SUN} 05:00`);
@@ -530,7 +534,7 @@ console.log("\n[7] the roster: one read per 5 minutes, no N+1, dropped by the Od
   leave({ resource_id: RES(KHALID), date_from: utc(`${MON} 00:00`), date_to: utc(`${MON} 23:59`) });
   await hook("HOOK-0123456789abcdef0123456789abcdef", { _model: "resource.calendar.leaves", _id: 99 });
   const r = await tick(`${MON} 06:30`);
-  assert("…خالد's new time off applies on the next tick", r.members.find((m: any) => m.partnerId === KHALID)?.action === "leave" && tpl(KHALID_PHONE).length === 1 /* Sunday's only */, JSON.stringify(r.members.find((m: any) => m.partnerId === KHALID)));
+  assert("…خالد's new time off applies on the next tick (its row «إجازة» is written then)", r.members.find((m: any) => m.partnerId === KHALID)?.action === "leave_row" && tpl(KHALID_PHONE).length === 1 /* Sunday's only */, JSON.stringify(r.members.find((m: any) => m.partnerId === KHALID)));
 }
 
 // ================================================================ 8. «Customer» roles

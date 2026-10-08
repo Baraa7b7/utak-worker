@@ -344,6 +344,15 @@ export default {
           } catch (e) {
             console.error("[supplier-outreach tick] failed", (e as Error)?.message);
           }
+          // § 68 — the employee's file, once a day from 08:10: the papers that end within 30 days (then 7), the
+          // month's summary on its first day, and the two texts of every card. Baraa's alone: the freeze does not stop it.
+          try {
+            const { runEmployeeFileTick } = await import("./employee-file");
+            const ef = await runEmployeeFileTick(rawEnv, Date.now());
+            if (ef.action === "ran" || ef.action === "roster_unreadable") console.log("[employee-file tick]", JSON.stringify(ef));
+          } catch (e) {
+            console.error("[employee-file tick] failed", (e as Error)?.message);
+          }
           break;
         }
         // 2026-09-26 (STATUS § 38, م12) — the driver's end of shift, from his
@@ -2075,6 +2084,41 @@ export default {
       }
     }
     // § 67 — ONE trial alert to Baraa (after the block of `owner_alert` was lifted), and the freeze as the worker reads it
+    // § 68 — Odoo → Worker, «🔄 حدّث الأرقام» on an employee's card: «العهدة والمستحقات» and «الأداء» are
+    // computed again and written, with the hour (src/employee-file.ts). Nothing is sent.
+    if (request.method === "POST" && url.pathname === "/odoo/hook/employee-file") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      if (!hookTokenOk(env, providedToken)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      let body: { _model?: string; _id?: number; id?: number } = {};
+      try {
+        body = (await request.json()) as typeof body;
+      } catch {
+        return json({ error: "bad json" }, 400);
+      }
+      const id = Number(body._id ?? body.id);
+      if (url.searchParams.get("op") !== "refresh" || body._model !== "hr.employee" || !Number.isInteger(id) || id <= 0) {
+        return json({ error: "op=refresh on an hr.employee record" }, 400);
+      }
+      const { refreshEmployeeFile } = await import("./employee-file");
+      const r = await refreshEmployeeFile(env, { employeeId: id, stamp: true });
+      console.log("[employee-file hook]", JSON.stringify({ id, staff: r.staff, written: r.written.length, errors: r.errors.length }));
+      return json({ ok: r.errors.length === 0, ...r }, r.errors.length ? 500 : 200);
+    }
+    // § 68 — the trial of the attendance record on Baraa's own card (a simulation row), to his number alone.
+    if (request.method === "POST" && url.pathname === "/odoo/hook/s68-trial") {
+      const providedToken = url.searchParams.get("token") ?? "";
+      if (!hookTokenOk(env, providedToken)) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      try {
+        const { runS68Trial } = await import("./s68-trial");
+        return json({ ok: true, ...(await runS68Trial(env, url.searchParams.get("op") ?? "state")) });
+      } catch (e) {
+        return json({ ok: false, error: (e as Error).message }, 500);
+      }
+    }
     if (request.method === "POST" && url.pathname === "/odoo/hook/s67-trial") {
       const providedToken = url.searchParams.get("token") ?? "";
       if (!hookTokenOk(env, providedToken)) {
@@ -2955,8 +2999,45 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       // used to ignore the template ones: «تم الشراء» and «بدء الدوام» from
       // a template did nothing).
       const isButton = (msg.type === "interactive" || msg.type === "button") && !!msg.buttonId;
-      const isShiftStart = isButton && msg.buttonId === "shift_start";
+      // § 68 — the member's own words are his tap: «بدأت الدوام» the entry, «انتهى دوامي» the exit (a session
+      // button under the entry's answer too). A place he sends in the quarter of an hour after either is kept with it.
+      const AT = await import("./attendance");
+      const isShiftStart = (isButton && msg.buttonId === "shift_start") || (msg.type === "text" && AT.shiftInCommand(msg.text));
+      const isShiftEnd = (isButton && msg.buttonId === AT.SHIFT_END_PAYLOAD) || (msg.type === "text" && AT.shiftOutCommand(msg.text));
       const { flushTeamQueue } = await import("./team-queue");
+      if (isButton && msg.buttonId === (await import("./s68-trial")).S68_TRIAL_END_PAYLOAD) {
+        // the trial's own exit (Baraa's card, a simulation row): his number alone
+        try {
+          if (isOwnerNumber(env, msg.from)) await (await import("./s68-trial")).runS68Trial(env, "out");
+        } catch (e) {
+          console.warn("[s68 trial] the exit failed", (e as Error)?.message);
+        }
+        await markSeen(env, msg.messageId);
+        continue;
+      }
+      if (msg.type === "location" && msg.location) {
+        try {
+          const which = await AT.saveShiftPlace(env, msg.from, msg.location);
+          if (which) {
+            await sendText(env, msg.from, AT.placeSavedText(which), { ctx, purpose: "shift_ack" });
+            await markSeen(env, msg.messageId);
+            continue;
+          }
+        } catch (e) {
+          console.warn("[shift place] failed", (e as Error)?.message);
+        }
+      }
+      if (isShiftEnd) {
+        try {
+          const { parseMetaTimestampMs } = await import("./wa-inbox");
+          const end = await AT.recordShiftEnd(env, teamMember.id, parseMetaTimestampMs(msg.timestamp) ?? Date.now());
+          if (end.kind !== "not_member") await sendText(env, msg.from, end.kind === "done" ? `${end.text}\n${AT.EXIT_HINT}` : end.text, { ctx, purpose: "shift_ack" });
+        } catch (e) {
+          console.warn("[shift_end] failed", (e as Error)?.message);
+        }
+        await markSeen(env, msg.messageId);
+        continue;
+      }
       if (isShiftStart) {
         try {
           // 2026-09-25 (STATUS § 29) — attendance: the tap is recorded (present /
@@ -2977,10 +3058,14 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
             // STATUS § 31 — a day off / time off: nothing recorded, nothing released.
             await sendText(env, msg.from, tap.text, { ctx, purpose: "shift_ack" });
           } else {
-            await sendText(env, msg.from, tap.text, { ctx, purpose: "shift_ack" });
+            // § 68 — the first entry's answer carries «🏁 انتهى دوامي» (and says the place is welcome)
+            if (tap.kind === "first" && !tap.afterEnd) await sendButtons(env, msg.from, `${tap.text}\n${AT.ENTRY_HINT}`, [AT.shiftEndButton()], { ctx, purpose: "shift_ack" });
+            else await sendText(env, msg.from, tap.text, { ctx, purpose: "shift_ack" });
             // STATUS § 31 — a tap after the end of the shift: recorded (late),
             // and the tasks wait for the next shift.
-            if (!tap.afterEnd) await deliverTasksOnTap(env, teamMember, msg.from);
+            // § 68 — a member who is not on attendance: no task was held for his tap; what was kept for his window goes
+            if (tap.free) { if (tap.kind === "first") await flushTeamQueue(env, msg.from); }
+            else if (!tap.afterEnd) await deliverTasksOnTap(env, teamMember, msg.from);
           }
         } catch (e) {
           console.warn("[shift_start] failed", (e as Error)?.message);
@@ -3116,7 +3201,9 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
           .catch((e) => { console.warn("[market-reply] failed", (e as Error)?.message); return null; }))) {
           await sendText(env, msg.from, marketReply, { ctx, purpose: "bot_reply" });
         } else if (att.hold) {
-          await sendText(env, msg.from, holdText(att), { ctx, purpose: "bot_reply" });
+          // § 68 — today's «بدء الدوام» went and he has not tapped: the hint carries «✅ بدأت الدوام» itself
+          if (att.phase === "before" && att.sent) await sendButtons(env, msg.from, holdText(att), [AT.shiftStartButton()], { ctx, purpose: "bot_reply" });
+          else await sendText(env, msg.from, holdText(att), { ctx, purpose: "bot_reply" });
         } else {
           // ح1 — the purchase-list template carries a one-line (possibly cut)
           // list; any message from the warehouse gets the full open list(s).

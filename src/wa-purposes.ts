@@ -296,6 +296,9 @@ export const PURPOSES: Readonly<Record<string, PurposePolicy>> = {
   // § 55 هـ — the one trial of the custody form to Baraa's own number («🧪 تجربة»), inside his
   // window only, and the answers to his trial reply (nothing is kept).
   custody_form_test: op("تجربة نموذج العهدة", false, { hours: 1 }),
+  // § 68 — the trial of the attendance record («بدأت الدوام» / «انتهى دوامي») on Baraa's own card: to his
+  // number alone, inside his window (a simulation row; nothing is kept for later).
+  attendance_test: op("تجربة تسجيل الدوام", false, { hours: 1 }),
   // § 57 د — the one trial of the transfer-notice form to Baraa's own number («🧪 تجربة»), inside
   // his window only, and the answers to his trial reply (nothing written, nobody else told).
   transfer_form_test: op("تجربة نموذج إشعار التحويل", false, { hours: 1 }),

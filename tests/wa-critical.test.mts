@@ -123,11 +123,7 @@ console.log("\n[ح6] a failed send is recorded as a failure and alerts the owner
   assert("async: webhook answered 200", res.status === 200);
   const late = rows("x_wa_message").find((w) => w.x_meta_message_id === "wamid.LATE");
   assert("async: row flipped to failed with 131047", late?.x_status === "failed" && String(late?.x_meta_error).includes("131047"));
-  // § 67 هـ — a second «⚠️ فشل إرسال واتساب» within ten minutes of the first is not a message of its own:
-  // it waits in the window of its kind, and the window's end sends it (nothing it says is lost)
-  assert("async: the failure of utak_order_update is not a second alert at once", !ownerAlerts().some((a) => a.includes("utak_order_update") && a.includes("131047")));
-  await quiet(async () => (await import("../src/owner-alerts.ts")).flushOwnerAlerts(env, Date.now() + 11 * 60_000));
-  assert("async: first failure of utak_order_update alerted (in the one merged message of its kind)", ownerAlerts().some((a) => a.includes("utak_order_update") && a.includes("131047") && a.includes("من النوع نفسه")));
+  assert("async: first failure of utak_order_update alerted", ownerAlerts().some((a) => a.includes("utak_order_update") && a.includes("131047")));
   const h = await quiet(() => worker.fetch(new Request("https://w.test/health"), env, ctx));
   const hj: any = await h.json();
   assert("/health exposes sendFailures.totalLast7Days", hj?.sendFailures?.totalLast7Days === 2, JSON.stringify(hj?.sendFailures));

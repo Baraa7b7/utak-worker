@@ -240,6 +240,10 @@ globalThis.fetch = (async (input: unknown, init?: any) => {
   return new Response("{}", { status: 200 });
 }) as typeof fetch;
 
+// § 67 هـ — the tests of before read each alert to Baraa as it is sent (its own guard is what they check): the
+// merge of ten minutes and the hourly cap are off here, and on in the tests that are about them (tests/s67-*).
+(await import("../src/owner-alerts.ts")).setOwnerAlertShapingForTests(false);
+
 // ---------------------------------------------------------------- env
 export class KV {
   store = new Map<string, string>();

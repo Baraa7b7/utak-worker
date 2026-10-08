@@ -74,7 +74,7 @@ console.log("\n[هـ-3] Meta 131042 (the account's payment problem): one clear a
 {
   const env = fresh(`${DAY} 02:30`);
   await quiet(() => SF.recordSendFailure(env, { to: "+" + DRIVER_PHONE, what: "utak_shift_start_v2", code: 131042, message: "Business eligibility payment issue", phase: "async", hasRow: true }));
-  await quiet(() => SF.recordSendFailure(env, { to: "+" + AHMED_PHONE, what: "utak_supplier_price_nudge", code: 131042, message: "Business eligibility payment issue", phase: "sync", hasRow: true }));
+  await quiet(() => SF.recordSendFailure(env, { to: "+" + AHMED_PHONE, what: "utak_supplier_price_nudge", code: "131042", message: "Business eligibility payment issue", phase: "sync", hasRow: true }));
   await quiet(() => SF.recordSendFailure(env, { to: "+" + OWNER, what: "utak_shift_start_v2", code: "131042", message: "Business eligibility payment issue", phase: "async", hasRow: true }));
   const t = ownerTexts();
   assert("three templates refused with 131042 in a day (one of them Baraa's own): ONE alert", t.length === 1, JSON.stringify(t));

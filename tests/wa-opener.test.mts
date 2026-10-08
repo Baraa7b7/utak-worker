@@ -280,15 +280,14 @@ console.log("\n[3] «عرض التحديث» flushes everything held, in order")
 
   const env3 = fresh("2026-09-26 12:00");
   closeOwnerWindow(env3);
-  // two alerts of two kinds (the same kind within ten minutes is one message — § 67 هـ)
-  await quiet(() => sendOwnerAlert(env3, "تنبيه أول"));
-  await quiet(() => sendOwnerAlert(env3, "ملاحظة ثانية"));
+  await quiet(() => sendOwnerAlert(env3, "تنبيه 1"));
+  await quiet(() => sendOwnerAlert(env3, "تنبيه 2"));
   assert("Baraa: two alerts held, one opener", heldFor(env3, OWNER).length === 2 && openers(OWNER).length === 1);
   const b0 = graph.length;
   setRiyadh("2026-09-26 12:05");
   await tap(env3, OWNER);
   const got = graph.slice(b0).filter((b) => b.to === OWNER).map((b) => b.text?.body ?? `[${b.type}]`);
-  assert("Baraa's tap: the alerts in order, then «✅ تم»", got.length === 3 && got[0] === "تنبيه أول" && got[1] === "ملاحظة ثانية" && got[2] === ownerWindowAck(), JSON.stringify(got));
+  assert("Baraa's tap: the alerts in order, then «✅ تم»", got.length === 3 && got[0] === "تنبيه 1" && got[1] === "تنبيه 2" && got[2] === ownerWindowAck(), JSON.stringify(got));
 }
 
 // ================================================================ 4. who never gets an opener

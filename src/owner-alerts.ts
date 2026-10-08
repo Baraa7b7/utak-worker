@@ -153,6 +153,15 @@ async function closeKind(env: Env, h: string, r: KindRecord, now: number): Promi
   return true;
 }
 
+let shaping = true;
+/**
+ * Tests only (a function, never an env var: nothing on the worker can turn it off). The tests of before § 67
+ * check each alert's OWN guard — «مرة في اليوم», «مرة لكل طلب» — by the alerts that reach Meta; with the merge
+ * on, a repeat inside ten minutes would hide behind it and those guards would be checked by nothing. They
+ * run with it off (tests/wa-harness.mts); the merge and the cap have their own tests (tests/s67-gateway).
+ */
+export function setOwnerAlertShapingForTests(on: boolean): void { shaping = on; }
+
 /**
  * One alert to Baraa. Returns what became of it; `response` is the gateway's when it was sent now.
  * Never throws.
@@ -160,6 +169,10 @@ async function closeKind(env: Env, h: string, r: KindRecord, now: number): Promi
 export async function ownerAlert(env: Env, text: string, opts: OwnerAlertOpts = {}): Promise<{ outcome: OwnerAlertOutcome; response?: Response | null }> {
   const now = opts.now ?? Date.now();
   const critical = opts.critical === true;
+  if (!shaping) {
+    const response = await deliver(env, opts.buffer ? `${opts.buffer.title} — ${text}` : text, critical);
+    return { outcome: taken(response) ? "sent" : "failed", response };
+  }
   try {
     const kind = opts.kind ?? alertKind(text);
     const h = fnv1a(kind);

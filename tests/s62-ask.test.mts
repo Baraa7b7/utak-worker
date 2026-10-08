@@ -298,9 +298,7 @@ console.log("\n[ب1] what the button refuses, and who it asks on a second press"
   table(LINE).delete(gone);
   const ra = await reply(env, AHMED_PHONE, tokenOf(flowsTo(AHMED_PHONE).slice(-1)[0]), { p1: "3", p16: "10" });
   assert("a price for a line removed since the ask is not written: the line that stayed takes its price, the other is named back to the source", ra.action === "saved" && ra.saved === 1 && lineOf(id2, ORANGE).x_purchase_price === 3 && !table(LINE).has(gone) && bodyOf(flowsTo(AHMED_PHONE).slice(-1)[0]).includes("⚠️ ما انحفظ: ثوم."));
-  // § 67 هـ — the second «📨 وصلت أسعار الشراء …» within ten minutes waits in the window of its kind: its end sends it, whole
-  await quiet(async () => (await import("../src/owner-alerts.ts")).flushOwnerAlerts(env, Date.now() + 11 * 60_000));
-  assert("…and Baraa reads which line it was", ownerTexts().some((t) => t.includes("📨 وصلت أسعار الشراء لطلب شركة مدارات للاغذية: 1 من 6 صنف") && t.includes("أسطر حُذفت من الطلب بعد الإرسال: ثوم")));
+  assert("…and Baraa reads which line it was", ownerTexts().some((t) => t.startsWith("📨 وصلت أسعار الشراء لطلب شركة مدارات للاغذية: 1 من 6 صنف") && t.includes("أسطر حُذفت من الطلب بعد الإرسال: ثوم")));
   // a source's row Baraa removed after the ask: his prices are still written on the lines, and nothing breaks
   const omarRow = recipientOf(id2, OMAR).id;
   table(RECIPIENT).delete(omarRow);

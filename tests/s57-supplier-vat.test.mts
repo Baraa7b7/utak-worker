@@ -274,10 +274,7 @@ console.log("\n[ز4] a picture a supplier sends: his own invoice, maybe");
   assert("the same pair again (the invoice's next page): read, and not said twice", vatCalls().length === 2 && vatLines().length === 1 && card(AHMED).vat === VAT_B);
   setExtract(INVOICE({ vat: VAT_C }));
   await hook(env, AHMED_PHONE, image("SVAT_A6"));
-  // § 67 هـ — the same kind within ten minutes: not a message of its own at once, and whole in the window's one message
-  assert("yet another number is not a second message at once (§ 67 هـ)", vatLines().length === 1);
-  await quiet(async () => (await import("../src/owner-alerts.ts")).flushOwnerAlerts(env, Date.now() + 11 * 60_000));
-  assert("yet another number is another alert (in the one merged message of its kind)", vatLines().length === 2 && vatLines()[1].includes(VAT_C) && card(AHMED).vat === VAT_B && flowsTo(AHMED_PHONE).length === 0);
+  assert("yet another number is another alert", vatLines().length === 2 && vatLines()[1].includes(VAT_C) && card(AHMED).vat === VAT_B && flowsTo(AHMED_PHONE).length === 0);
 }
 {
   const env = world(); setExtract(NOT_INVOICE);

@@ -65,7 +65,7 @@ const M = [
   // ---- Baraa
   ["owner: an opener in the half hour before 06:00", [[OP,
     "      if (until >= 0 && until <= OWNER_MORNING_QUIET_MIN) {", "      if (false) {"]], O],
-  ["owner: utak_owner_alert back as a fallback", [["src/templates.ts",
+  ["owner: utak_owner_alert back as a fallback", [["src/owner-alerts.ts",
     "      content: { kind: \"session\", body: { type: \"text\", text: { body: String(text ?? \"\") } } },\n    });",
     "      content: { kind: \"session\", body: { type: \"text\", text: { body: String(text ?? \"\") } } },\n      fallback: [{ kind: \"template\", purpose: \"owner_alert\", params: (n) => n === \"utak_owner_alert_v3\" ? [\"t\", String(text)] : [String(text)] }],\n    });"]], O],
   ["owner: no utak_update_owner backup at 06:00", [["src/attendance.ts",

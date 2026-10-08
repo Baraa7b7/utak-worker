@@ -23,6 +23,8 @@ import { CUST, CUST_PHONE, OWNER, closeOwnerWindow, ctx, failNext, graph, heldFo
 import { DAY, assert, done, fresh, ownerTexts, rejected } from "./s46-kit.mts";
 
 const worker = (await import("../src/index.ts")).default;
+// § 67 هـ — these tests are about the alerts as Baraa gets them: the merge and the cap are ON (the harness turns them off for the tests of before)
+(await import("../src/owner-alerts.ts")).setOwnerAlertShapingForTests(true);
 const GW = await import("../src/wa-gateway.ts");
 const ME = await import("../src/meta-errors.ts");
 const RT = await import("../src/wa-retry.ts");
@@ -240,6 +242,10 @@ console.log("\n[د6] an important alert is never blocked and never dropped");
 // ================================================================ هـ1
 console.log("\n[هـ1] the same kind within ten minutes is one message");
 {
+  // the merge is ON on the worker: only a test can turn it off, and no file of src/ does
+  const { readdirSync } = await import("node:fs");
+  const srcFiles = readdirSync(new URL("../src/", import.meta.url)).filter((f) => f.endsWith(".ts"));
+  assert("the merge and the cap are on by default, and nothing in src/ turns them off (the switch is the tests' alone)", /^let shaping = true;$/m.test(srcOf("owner-alerts.ts")) && srcFiles.filter((f) => /setOwnerAlertShapingForTests\(/.test(srcOf(f))).join() === "owner-alerts.ts" && !/OWNER_ALERT[A-Z_]*\b.*env\./.test(srcOf("owner-alerts.ts")));
   assert("a kind is the alert's first words: digits out, and what follows «:» «—» a bracket or a quote", OA.alertKind("⚠️ المورد \"أحمد\" لم يرسل أسعار اليوم") === OA.alertKind("⚠️ المورد \"رائد\" لم يرسل أسعار اليوم") && OA.alertKind("📥 رسالة «الفاتورة» إلى …501 محفوظة") === "📥 رسالة" && OA.alertKind("رقم جديد راسل: أحمد (9665…)") === "رقم جديد راسل" && OA.alertKind("تنبيه 1") === OA.alertKind("تنبيه 2") && OA.alertKind("☀️ صباح الخير براء\nسطر") === "☀️ صباح الخير براء");
   assert("two different alerts are two kinds", OA.alertKind("⚠️ فشل إرسال واتساب — القالب x") !== OA.alertKind("⚠️ المورد \"أحمد\" لم يرسل") && OA.alertKind("") === "تنبيه");
   const env = fresh(`${DAY} 10:00`);

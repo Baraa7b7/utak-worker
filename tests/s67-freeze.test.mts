@@ -19,6 +19,8 @@ import { CUST, CUST_PHONE, OWNER, computes, ctx, employee, graph, heldFor, inbou
 import { AHMED, AHMED_PHONE, ALL_WEEK, DAY, DRIVER_PHONE, assert, done, fresh, ownerTexts, rejected } from "./s46-kit.mts";
 
 const worker = (await import("../src/index.ts")).default;
+// § 67 هـ — these tests are about the alerts as Baraa gets them: the merge and the cap are ON (the harness turns them off for the tests of before)
+(await import("../src/owner-alerts.ts")).setOwnerAlertShapingForTests(true);
 const FZ = await import("../src/freeze.ts");
 const GW = await import("../src/wa-gateway.ts");
 const PR = await import("../src/prices.ts");

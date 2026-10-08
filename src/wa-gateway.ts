@@ -60,7 +60,7 @@ import { isRecipientAllowed, parseAllowlist, runtimeMode } from "./config";
 import { claimAutoSend, noteManualSend, skippedDuplicateResponse } from "./auto-send-guard";
 import { extractRealWamid, generateFakeWamid, recordOutbound, synthesizeMetaResponse } from "./sim";
 import { arabicDate, maskPhone, sanitizeTemplateBody } from "./wa-params";
-import { META_PAYMENT_ISSUE, isPaymentIssue, recordSendFailure, sendWhat } from "./send-failure";
+import { recordSendFailure, sendWhat } from "./send-failure";
 import { categoryAllowed, expiryFor, isTrialPurpose, neverBlocked, purposePolicy } from "./wa-purposes";
 import { OWNER_BLOCK_MAX_SEC, PURPOSE_BLOCK_SEC, metaErrorClass, retryDelayMs } from "./meta-errors";
 import { retryItemId, scheduleRetry, takeDueRetries, type RetryItem } from "./wa-retry";
@@ -1012,10 +1012,6 @@ async function handleRejection(
       await kvPut(env, templateBlockKey(to, m.t, now), new Date(now).toISOString(), (riyadhDayEndMs(now) - now) / 1000 + 3600);
       console.warn(`[gateway] 131049 template=${m.t} to=${maskPhone(to)} — not sent to this number again today`);
     }
-  } else if (isPaymentIssue(code)) {
-    // § 46 هـ — the account's payment problem, not this purpose or this number: nothing is blocked
-    // (Baraa's one alert a day is recordSendFailure's), so sends resume the moment he pays.
-    console.warn(`[gateway] Meta ${META_PAYMENT_ISSUE} (payment issue) purpose=${m?.p ?? "?"} to=${maskPhone(to)} — no block`);
   } else if (m && (cls === "transient" || neverBlocked(m.p))) {
     // § 67 د — a reason that passes by itself (131056 and its like): the same message again, spaced
     // 1 → 5 → 15 minutes, and nothing is blocked. An important alert waits after ANY refusal: never dropped.
@@ -1028,6 +1024,8 @@ async function handleRejection(
     await kvPut(env, purposeBlockKey(to, m.p), JSON.stringify({ code: f.code, at: new Date(now).toISOString(), until: new Date(now + ttl * 1000).toISOString() }), ttl);
     console.warn(`[gateway] Meta ${f.code} (permanent) purpose=${m.p} to=${maskPhone(to)} — no automatic send of this purpose to this number for ${ttl / 3600}h`);
   } else if (m?.p) {
+    // an unknown code — or § 46 هـ's 131042: the account's payment problem, not this purpose or this number
+    // (Baraa's one alert a day is recordSendFailure's), so sends resume the moment he pays
     console.warn(`[gateway] Meta ${f.code} (${cls}) purpose=${m.p} to=${maskPhone(to)} — failed, nothing blocked`);
   }
   // A held message that was flushed and then refused: its row says so.

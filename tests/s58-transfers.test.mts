@@ -384,14 +384,9 @@ console.log("\n[ب7] the last guard before any payment, transfer or cash — and
   assert("cash 500 on A (300 left): 300 is recorded — the excess is never put on the invoice", cut.amount === 300 && cut.fullyPaid && paysOn(INV_A).length === 1 && paysOn(INV_A)[0].x_amount === 300);
   assert("…and Baraa is told the invoice and the two amounts", JSON.stringify(ownerAlerts()) === JSON.stringify([`⚠️ دفعة أكبر من المتبقي — الفاتورة ${N_A} (نقد 💵): المبلغ 500 ر.س والمتبقي 300 ر.س. سُجّل 300 ر.س فقط، والزيادة لم تُسجَّل على الفاتورة.`]), JSON.stringify(ownerAlerts()));
   graph.length = 0;
-  // § 67 هـ — each of these is the first alert of its kind in its ten minutes (a second inside them would wait
-  // for the kind's one merged message): the window of before is over
-  const laterWindow = () => { for (const k of [...env.MSG_DEDUP.store.keys()]) if (k.startsWith("oa_")) env.MSG_DEDUP.store.delete(k); };
-  laterWindow();
   const paid = await quiet(() => INVOICE.recordCollection(env, { invoiceId: INV_A, method: "transfer", amount: 50 }));
   assert("a payment on a paid invoice: nothing recorded, and Baraa is told «المتبقي 0 … لم يُسجَّل شيء»", paid.paymentId === null && paysOn(INV_A).length === 1 && JSON.stringify(ownerAlerts()) === JSON.stringify([`⚠️ دفعة أكبر من المتبقي — الفاتورة ${N_A} (تحويل 🏦): المبلغ 50 ر.س والمتبقي 0 ر.س. لم يُسجَّل شيء.`]), JSON.stringify(ownerAlerts()));
   graph.length = 0;
-  laterWindow();
   const typed = await quiet(() => INVOICE.recordCollection(env, { invoiceId: INV_C, method: "cash", amount: 150, exact: true }));
   const typedAgain = await quiet(() => INVOICE.recordCollection(env, { invoiceId: INV_C, method: "cash", amount: 150, exact: true }));
   assert("an amount typed above what is left (150 on C's 120): refused whole as it was — and ONE alert, not one a try", typed.overLimit?.remaining === 120 && typedAgain.overLimit?.remaining === 120 && paysOn(INV_C).length === 0

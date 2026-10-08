@@ -149,6 +149,7 @@ const M = [
   ["د", "the deadline's «لم تُنشر» does not carry it", [[PR, "  ].join(\"\\n\"), byOwner ? {} : UNPUBLISHED_ALERT);", "  ].join(\"\\n\"));"]], TG],
 
   // ---------------------------------------------------------------- هـ: the merge and the cap
+  ["هـ", "the merge is off on the worker", [[OA, "let shaping = true;", "let shaping = false;"]], TG],
   ["هـ", "no window: every alert goes", [[OA, "export const MERGE_WINDOW_MS = 10 * 60_000;", "export const MERGE_WINDOW_MS = 0;"]], TG],
   ["هـ", "the window is an hour", [[OA, "export const MERGE_WINDOW_MS = 10 * 60_000;", "export const MERGE_WINDOW_MS = 60 * 60_000;"]], TG],
   ["هـ", "seven an hour", [[OA, "export const HOURLY_CAP = 6;", "export const HOURLY_CAP = 7;"]], TG],

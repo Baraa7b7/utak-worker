@@ -236,6 +236,8 @@ for (const p of ["owner_special_quote", "special_quote_test"]) (OWNER_ALLOWED_PU
 (OWNER_ALLOWED_PURPOSES as Set<string>).add("supplier_registry_test");
 /** § 67 د — his important alerts (never blocked, never dropped): his number alone, as every alert of his. */
 (OWNER_ALLOWED_PURPOSES as Set<string>).add("owner_critical");
+/** § 67 أ — the sim worker's test send is a trial as every other: Baraa's number, and his alone. */
+(OWNER_ALLOWED_PURPOSES as Set<string>).add("sim_test");
 
 function ownerDigits(env: Env): string {
   return waDigits(String(env.OWNER_WHATSAPP ?? ""));

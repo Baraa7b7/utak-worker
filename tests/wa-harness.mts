@@ -208,12 +208,24 @@ export const graph: any[] = [];
 export const failTemplates: Record<string, number> = {};
 export const claudeItems: unknown[] = [];
 export const OWNER = "966500000001";
+/**
+ * § 67 — the next sends to Meta (of any type) are refused with these codes, in order. A bare number refuses
+ * the next send whoever it is for; {to, code} the next send to that number; `status` is the HTTP status (400).
+ */
+export const failNext: Array<number | { to: string; code: number | null; status?: number }> = [];
 
 globalThis.fetch = (async (input: unknown, init?: any) => {
   const url = typeof input === "string" ? input : (input as any)?.url ?? String(input);
   const body = init?.body ? JSON.parse(init.body) : null;
   if (url.includes("graph.facebook.com")) {
     graph.push(body);
+    const fi = failNext.findIndex((f) => typeof f === "number" || f.to === body?.to);
+    if (fi >= 0) {
+      const f = failNext.splice(fi, 1)[0];
+      const code = typeof f === "number" ? f : f.code;
+      const status = typeof f === "number" ? 400 : f.status ?? 400;
+      return new Response(code === null ? "upstream error" : JSON.stringify({ error: { message: `(#${code}) refused`, code } }), { status });
+    }
     const tpl = body?.template?.name;
     if (tpl && failTemplates[tpl]) {
       return new Response(JSON.stringify({ error: { message: `(#${failTemplates[tpl]}) Invalid parameter`, code: failTemplates[tpl] } }), { status: 400 });
@@ -270,6 +282,7 @@ export function reset(): any {
   db.clear(); nextId = 10000; odooLog.length = 0; graph.length = 0;
   for (const k of Object.keys(serverActions)) delete serverActions[Number(k)];
   for (const k of Object.keys(failTemplates)) delete failTemplates[k];
+  failNext.length = 0;
   claudeItems.length = 0;
   seed("res.partner", { id: CUST, name: "مطعم الوادي", x_whatsapp_number: "+" + CUST_PHONE, customer_rank: 1 });
   seed("res.partner", { id: CUST2, name: "بقالة النخيل", x_whatsapp_number: "+" + CUST2_PHONE, customer_rank: 1 });

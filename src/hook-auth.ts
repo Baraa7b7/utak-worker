@@ -39,8 +39,8 @@ export function hookSecret(env: Env): string {
 
 /** PHASE 1 — is the window of the token of before open at `now`? */
 export function legacyWindowOpen(env: Env, now: number): boolean {
-  const until = Number(env.HOOK_LEGACY_UNTIL);
-  if (!Number.isFinite(until) || until <= 0) return false;
+  // not set, or not a time: NaN — and nothing is before NaN
+  const until = Number(env.HOOK_LEGACY_UNTIL ?? Number.NaN);
   return now < until && until - now <= LEGACY_WINDOW_MS;
 }
 

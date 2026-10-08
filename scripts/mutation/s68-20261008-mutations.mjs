@@ -35,7 +35,6 @@ const M = [
   ["أ", "a far end opens a long window", [[HA, "  return now < until && until - now <= LEGACY_WINDOW_MS;", "  return now < until;"]], TH],
   ["أ", "the window is an hour", [[HA, "export const LEGACY_WINDOW_MS = 30 * 60_000;", "export const LEGACY_WINDOW_MS = 60 * 60_000;"]], TH],
   ["أ", "a window with no token of before: the empty token opens", [[HA, "  return before.length > 0 && legacyWindowOpen(env, now) && tokensEqual(provided, before);", "  return legacyWindowOpen(env, now) && tokensEqual(provided, before);"]], TH],
-  ["أ", "a window that is not a time is open", [[HA, "  if (!Number.isFinite(until) || until <= 0) return false;\n", ""]], TH],
   // the routes
   ["أ", "the two quotation sends are not behind the secret", [[HA, "  return pathname.startsWith(\"/odoo/hook/\") || pathname === \"/internal/quotation-wa-send\" || pathname === \"/internal/sale-quotation-wa-send\";", "  return pathname.startsWith(\"/odoo/hook/\");"]], TH],
   ["أ", "probe=1 answers without checking the token", [[IDX, "      if (!hookTokenOk(env, url.searchParams.get(\"token\") ?? \"\")) return json({ error: \"unauthorized\" }, 401);\n", ""]], TH],

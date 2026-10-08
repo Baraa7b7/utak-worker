@@ -245,6 +245,14 @@ console.log("\n[ح6] a day of time off");
   openWindow(ENV, OWNER);
   await tick(`${DAY} 10:15`);
   assert("the KV wiped: still one row for the day", real().filter((x) => x.x_employee_id === EMP(KHALID) && x.x_date === DAY).length === 1);
+  // frozen: the day of time off still has its row (it is the record of a fact, not a message)
+  world(`${DAY} 05:00`);
+  seed("resource.calendar.leaves", { name: "سفر", resource_id: (table("hr.employee").get(EMP(KHALID)) as any).resource_id, calendar_id: false, company_id: 1, date_from: utc(`${DAY} 00:00`), date_to: utc(`${DAY} 23:59`), count_as: "absence", x_leave_type: "sick" });
+  Object.assign(cfg(), { x_freeze_on: true, x_freeze_since: utc(`${DAY} 01:00`) });
+  setRiyadh(`${DAY} 05:55`);
+  await quiet(() => FZ.readFreeze(ENV, Date.now(), { fresh: true }));
+  for (const at of ["06:00", "08:00"]) await tick(`${DAY} ${at}`);
+  assert("frozen: the time off's row is written all the same — and nobody is «غائب», nothing is sent", row(KHALID)?.x_status === "leave" && real().length === 1 && graph.filter((b: any) => b?.to).length === 0, JSON.stringify(real()));
   assert("schema gate: nothing rejected", rejected.length === 0, rejected.join(" / "));
 }
 

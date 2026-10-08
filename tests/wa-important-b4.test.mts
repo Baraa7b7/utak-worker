@@ -127,7 +127,7 @@ function fresh(riyadh = `${DAY} 16:00`): any {
   });
   Object.assign(env, {
     GOTENBERG_URL: "https://gotenberg.test", GOTENBERG_USER: "u", GOTENBERG_PASSWORD: "p",
-    ADMIN_TOKEN: "ADM", INTERNAL_WEBHOOK_SECRET: "HOOK",
+    ADMIN_TOKEN: "ADM", INTERNAL_WEBHOOK_SECRET: "HOOK-0123456789abcdef0123456789abcdef",
     INVOICES_BUCKET: { put: async () => ({}), get: async () => null },
   });
   return env;
@@ -300,7 +300,7 @@ console.log("\n[م10] the collection button sends the customer nothing of its ow
 console.log("\n[م10] the receipt pipeline: /internal/receipt-issue, /admin/test-receipt");
 const receiptIssue = async (env: any, pid: number) => {
   const c = liveCtx();
-  const req = new Request("https://w.test/internal/receipt-issue?token=HOOK", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ _model: "x_payment", _id: pid }) });
+  const req = new Request("https://w.test/internal/receipt-issue?token=HOOK-0123456789abcdef0123456789abcdef", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ _model: "x_payment", _id: pid }) });
   const r = await quiet(() => worker.fetch(req, env, c));
   await quiet(() => c.flush());
   return r;

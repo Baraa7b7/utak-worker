@@ -36,8 +36,15 @@ export interface Env {
   GOTENBERG_PASSWORD?: string;
   /** HMAC-SHA256 shared secret for Odoo → Worker internal webhooks (e.g. /internal/quotation-issue). */
   INTERNAL_WEBHOOK_SECRET?: string;
-  /** Phase 1+: shared token for /odoo/hook/* routes (template sync, manual WA send). */
+  /**
+   * § 68 أ — the token of Odoo's buttons (`/odoo/hook/*`, the two `/internal/*-wa-send` routes): a random secret
+   * of its own, never the Odoo API key (src/hook-auth.ts).
+   */
+  HOOK_SECRET?: string;
+  /** § 68 أ, PHASE 1 only — the token of before (it was the Odoo API key): accepted inside HOOK_LEGACY_UNTIL's window alone. */
   ODOO_HOOK_TOKEN?: string;
+  /** § 68 أ, PHASE 1 only — epoch ms: the end of the window of the token of before (`wrangler deploy --var`, thirty minutes at most). */
+  HOOK_LEGACY_UNTIL?: string;
   /**
    * § 67 أ — set on a copy of env (never in wrangler.toml) for a request Odoo's buttons made and for a
    * message of Baraa's own: the sends inside it are his acts, which the freeze does not stop (src/freeze.ts).
@@ -51,7 +58,7 @@ export interface Env {
   TRIAL_TAG?: string;
   /**
    * 2026-09-19 — token gating GET /internal/sale-quotation-pdf.
-   * Independent of INTERNAL_WEBHOOK_SECRET and ODOO_HOOK_TOKEN so this
+   * Independent of INTERNAL_WEBHOOK_SECRET and HOOK_SECRET so this
    * browser-facing URL (Odoo Server Action → ir.actions.act_url) can be
    * rotated on its own if it leaks into a shared screen or browser history.
    */

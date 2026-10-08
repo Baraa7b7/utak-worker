@@ -214,7 +214,7 @@ const M = [
   ["ز", "the trials' purposes are not Baraa's alone", [["src/wa-gateway.ts",
     "for (const p of [\"team_prices_test\", \"quotation_file_test\", \"shift_start_test\"]) (OWNER_ALLOWED_PURPOSES as Set<string>).add(p);", "for (const p of [] as string[]) (OWNER_ALLOWED_PURPOSES as Set<string>).add(p);"]], "tests/s59-trials.test.mts"],
   ["ز", "the hook answers without the token", [["src/index.ts",
-    "url.pathname === \"/odoo/hook/s59-trial\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (!expected || !timingSafeEqual(providedToken, expected)) {", "url.pathname === \"/odoo/hook/s59-trial\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (false && providedToken && expected) {"]], "tests/s59-trials.test.mts"],
+    "url.pathname === \"/odoo/hook/s59-trial\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      if (!hookTokenOk(env, providedToken)) {", "url.pathname === \"/odoo/hook/s59-trial\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      if (false) {"]], "tests/s59-trials.test.mts"],
   ["ز", "the unavailable trial spends the form trial's turn", [["src/order-form.ts",
     "${kind === \"unavailable\" ? \"unavailable:\" : \"\"}", ""]], "tests/s59-trials.test.mts"],
   ["ز", "an example list is not said to be one", [["src/s59-trials.ts",

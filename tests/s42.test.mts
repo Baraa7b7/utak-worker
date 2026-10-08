@@ -151,7 +151,7 @@ const odooTs = () => new Date(Date.now()).toISOString().replace("T", " ").slice(
 function fresh(riyadh = `${DAY} 10:00`, opts: { cash?: boolean } = {}): any {
   const env = reset(); clearTemplateCache(); setRiyadh(riyadh);
   rejected.length = 0; seqN = 0;
-  env.ODOO_HOOK_TOKEN = "HOOKTOKEN";
+  env.HOOK_SECRET = "HOOKTOKEN-0123456789abcdef0123456789abcdef";
   seed("res.partner", { id: BOT, name: "UTAK بوت" });
   seed("res.partner", { id: 3, name: "albaraa abdulwahab" });
   seed("res.users", { id: 2, login: "admin", partner_id: 3, name: "albaraa abdulwahab" });

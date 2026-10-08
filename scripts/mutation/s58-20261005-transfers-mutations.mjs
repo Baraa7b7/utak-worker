@@ -198,7 +198,7 @@ const M = [
   ["تجربة", "the webhook does not route a trial button", [[IDX,
     "/^aftest_(transfer|note)$/.test(msg.buttonId ?? \"\")", "/^aftest_never$/.test(msg.buttonId ?? \"\")"]], T],
   ["تجربة", "the two trial hooks need no token", [[IDX,
-    "      if (!expected || !timingSafeEqual(providedToken, expected)) {\n        return json({ error: \"unauthorized\" }, 401);\n      }\n      try {\n        if (url.pathname === \"/odoo/hook/after-delivery-test\") {", "      if (false) {\n        return json({ error: \"unauthorized\" }, 401);\n      }\n      try {\n        if (url.pathname === \"/odoo/hook/after-delivery-test\") {"]], T],
+    "      if (!hookTokenOk(env, providedToken)) {\n        return json({ error: \"unauthorized\" }, 401);\n      }\n      try {\n        if (url.pathname === \"/odoo/hook/after-delivery-test\") {", "      if (false) {\n        return json({ error: \"unauthorized\" }, 401);\n      }\n      try {\n        if (url.pathname === \"/odoo/hook/after-delivery-test\") {"]], T],
   ["تجربة", "the hook of the ONE message sends the buttons' trial", [[IDX,
     "        const { sendTransferConfirmedTest } = await import(\"./transfer-form\");\n        return json({ ok: true, ...(await sendTransferConfirmedTest(env)) });", "        const { sendAfterDeliveryTest } = await import(\"./after-delivery\");\n        return json({ ok: true, ...(await sendAfterDeliveryTest(env)) });"]], T],
   ["تجربة", "the message's trial goes while Baraa's window is closed", [[TR,

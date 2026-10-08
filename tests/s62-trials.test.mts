@@ -26,7 +26,7 @@ const dataOf = (b: any) => par(b).flow_action_payload?.data ?? {};
 const bodyOf = (b: any) => String(b?.interactive?.body?.text ?? b?.text?.body ?? "");
 const others = () => [AHMED_PHONE, RAED_PHONE, OMAR_PHONE, MADARAT_PHONE].reduce((n, d) => n + sentTo(d).length + heldFor(globalEnv, d).length, 0);
 let globalEnv: any;
-const post = (env: any, name: string, token = "HOOK", id?: number) => quiet(() => worker.fetch(new Request(`https://w.test/odoo/hook/s62-trial?name=${name}&token=${token}${id ? `&id=${id}` : ""}`, { method: "POST" }), env, ctx));
+const post = (env: any, name: string, token = "HOOK-0123456789abcdef0123456789abcdef", id?: number) => quiet(() => worker.fetch(new Request(`https://w.test/odoo/hook/s62-trial?name=${name}&token=${token}${id ? `&id=${id}` : ""}`, { method: "POST" }), env, ctx));
 
 console.log("\n[هـ] the trials are Baraa's alone");
 {
@@ -90,7 +90,7 @@ console.log("\n[هـ3] the quotation's PDF with illustrative prices");
   const id = request();
   lineOf(id, ORANGE).x_final_price = 4.75;                        // a real price of Baraa's: it must not be the one shown
   const before = JSON.stringify([quote(id), linesOf(id)]);
-  const a = (await (await post(env, "quotation", "HOOK", id)).json()) as any;
+  const a = (await (await post(env, "quotation", "HOOK-0123456789abcdef0123456789abcdef", id)).json()) as any;
   const d = docsTo(OWNER);
   assert("ONE attached file to Baraa, named «SQ-TRIAL-…» — never a real quotation's number", a.sent === true && a.items === 6 && d.length === 1 && a.number === TR.trialQuotationNumber(id) && /^SQ-TRIAL-\d{4,}$/.test(a.number) && d[0].document.filename === `${a.number}.pdf`);
   assert("its caption says it is a trial with illustrative prices, and that nothing was recorded", d[0].document.caption.startsWith(`🧪 تجربة — هكذا يصل عرض سعر الطلب الخاص ${SQ.quoteName(id)}`) && d[0].document.caption.includes("الأسعار فيه توضيحية ومكتوب عليه «تجربة»") && d[0].document.caption.includes(TR.S62_TRIAL_TAIL));
@@ -104,7 +104,7 @@ console.log("\n[هـ3] the quotation's PDF with illustrative prices");
   assert("…it is marked «تجربة» in the customer's name and in its note, and carries no seal (not issued)", data.customer.name === "🧪 تجربة — شركة مدارات للاغذية" && data.footerNote === TR.TRIAL_NOTE && data.issued === false && data.quotationNumber === TR.trialQuotationNumber(id));
   assert("the illustrative prices are plainly not real ones (5, 6.25, 7.5, …), whatever the line holds", TR.illustrativePrice(0) === 5 && TR.illustrativePrice(1) === 6.25 && TR.illustrativePrice(8) === 5 && TR.TRIAL_NOTE.includes("تجربة") && TR.TRIAL_NOTE.includes("توضيحية"));
   assert("nothing reaches the customer or a source", others() === 0);
-  assert("once a day", (await (await post(env, "quotation", "HOOK", id)).json() as any).reason === "already_today" && docsTo(OWNER).length === 1);
+  assert("once a day", (await (await post(env, "quotation", "HOOK-0123456789abcdef0123456789abcdef", id)).json() as any).reason === "already_today" && docsTo(OWNER).length === 1);
 }
 
 done();

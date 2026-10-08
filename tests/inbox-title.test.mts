@@ -35,7 +35,7 @@ function fresh(): any {
   seed("res.users", { id: 2, login: "x", partner_id: 3 });
   seed("res.partner", { id: 3, name: "براء" });
   seed("res.partner", { id: 42, name: "UTAK بوت" });
-  env.ODOO_HOOK_TOKEN = "HOOK";
+  env.HOOK_SECRET = "HOOK-0123456789abcdef0123456789abcdef";
   return env;
 }
 
@@ -166,10 +166,10 @@ console.log("\n[5] /odoo/hook/wa-inbox-partner");
   const hook = (token: string, body: unknown) => worker.fetch(new Request(`https://w.test/odoo/hook/wa-inbox-partner?token=${token}`, { method: "POST", body: JSON.stringify(body) }), env, ctx);
   const bad = await quiet(() => hook("nope", { _id: 50, _model: "res.partner" }));
   assert("wrong token → 401, nothing renamed", bad.status === 401 && channel(33).name === "واتساب · Not Book");
-  const wrongModel = await quiet(() => hook("HOOK", { _id: 50, _model: "mail.message" }));
+  const wrongModel = await quiet(() => hook("HOOK-0123456789abcdef0123456789abcdef", { _id: 50, _model: "mail.message" }));
   assert("other model → 400", wrongModel.status === 400);
   table("res.partner").get(50)!.name = "بقالة الريان";
-  const ok = await quiet(() => hook("HOOK", { _id: 50, _model: "res.partner" }));
+  const ok = await quiet(() => hook("HOOK-0123456789abcdef0123456789abcdef", { _id: 50, _model: "res.partner" }));
   await quiet(() => Promise.all(pending));
   assert("202 accepted", ok.status === 202);
   assert("title rebuilt from the renamed partner", channel(33).name === `واتساب · بقالة الريان · ${num("+967700036370")}`, channel(33).name as string);

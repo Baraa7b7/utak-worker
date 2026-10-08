@@ -474,15 +474,15 @@ console.log("\n[هـ10] the trial to Baraa, its hook, and the purposes");
   try { zero = await quiet(() => CU.sendCustodyFormTest(env)); } finally { globalThis.fetch = real; }
   assert("the collections cannot be read: the trial still goes, showing 0", zero.sent === true && zero.expected === 0 && dataOf(flowsTo(OWNER).at(-1)).exp === "الكاش المتوقع معك اليوم: 0 ر.س — لا تحصيلات");
   // the hook
-  const hookEnv = { ...env, ODOO_HOOK_TOKEN: "HOOK" };
+  const hookEnv = { ...env, HOOK_SECRET: "HOOK-0123456789abcdef0123456789abcdef" };
   const post = (q: string, e: any = hookEnv) => quiet(() => worker.fetch(new Request(`https://w.test/odoo/hook/custody-form-test${q}`, { method: "POST" }), e, ctx));
   const no = await post("?token=nope"), none = await post(""), unset = await post("?token=", env);
   assert("POST /odoo/hook/custody-form-test without the hook's token: 401, nothing sent", no.status === 401 && none.status === 401 && unset.status === 401);
-  const yes = await post("?token=HOOK");
+  const yes = await post("?token=HOOK-0123456789abcdef0123456789abcdef");
   const body = await yes.json() as any;
   assert("…with it: the worker's own answer (today's trial already went)", yes.status === 200 && body.ok === true && body.sent === false && body.reason === "already_today", JSON.stringify(body));
   setRiyadh("2026-10-05 16:00"); openWindow(env, OWNER);
-  const next = await (await post("?token=HOOK")).json() as any;
+  const next = await (await post("?token=HOOK-0123456789abcdef0123456789abcdef")).json() as any;
   assert("…and the next day it sends one", next.ok === true && next.sent === true && flowsTo(OWNER).length === 3, JSON.stringify(next));
   assert("the trial script knows the hook", /custody: "custody-form-test"/.test(readFileSync(new URL("../scripts/s55-20261005-trial.mjs", import.meta.url), "utf8")));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));

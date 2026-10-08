@@ -116,7 +116,7 @@ const TODAY = "2026-09-26", YESTERDAY = "2026-09-25";
 function fresh(riyadh = "2026-09-26 04:00", opts: { openerUsable?: boolean } = {}): any {
   const env = reset(); clearTemplateCache(); setRiyadh(riyadh);
   rejected.length = 0;
-  env.ODOO_HOOK_TOKEN = "HOOK";
+  env.HOOK_SECRET = "HOOK-0123456789abcdef0123456789abcdef";
   seed("res.partner", { id: 42, name: "UTAK بوت" });
   seed("res.users", { id: 2, login: "x", partner_id: 3 });
   // § 40 ب — the sources: two suppliers and an observer, «مصدر أسعار» ticked
@@ -166,7 +166,7 @@ function approveInOdoo(id: number): string | null {
 }
 const waits: Promise<unknown>[] = [];
 const ctxW = { waitUntil: (p: Promise<unknown>) => { waits.push(p); }, passThroughOnException: () => {} } as any;
-async function hook(env: any, op: string, id: number, token = "HOOK"): Promise<Response> {
+async function hook(env: any, op: string, id: number, token = "HOOK-0123456789abcdef0123456789abcdef"): Promise<Response> {
   waits.length = 0;
   const r = await quiet(() => worker.fetch(new Request(`https://w.test/odoo/hook/prices?token=${token}&op=${op}`, {
     method: "POST", body: JSON.stringify({ _model: "x_price_day", _id: id, x_date: table("x_price_day").get(id)?.x_date }), headers: { "Content-Type": "application/json" },

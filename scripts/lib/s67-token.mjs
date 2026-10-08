@@ -4,7 +4,9 @@
 // token-inventory.mjs found them, 2026-10-08):
 //   pdf       SALE_PDF_DOWNLOAD_TOKEN   the browser-facing PDF links (Odoo code actions build the URL)
 //   internal  INTERNAL_WEBHOOK_SECRET   /internal/quotation-issue, /internal/receipt-issue, /internal/official-doc/*
-//   hook      ODOO_HOOK_TOKEN           /odoo/hook/*, /internal/quotation-wa-send, /internal/sale-quotation-wa-send
+//   hook      HOOK_SECRET               /odoo/hook/*, /internal/quotation-wa-send, /internal/sale-quotation-wa-send
+//             (§ 68: a secret of its own — until then ODOO_HOOK_TOKEN, whose value was the Odoo API key;
+//             scripts/s68-20261008-hook-secret.mjs made the switch, in two phases)
 // A token is shown only as its tag (the first 6 hex of its SHA-256): two places with the same tag carry the
 // same token, and nothing can be read back from a tag.
 import { createHash, randomBytes } from "node:crypto";
@@ -15,7 +17,7 @@ export const SIM_HOST = "utak-worker-sim.utak-business.workers.dev";
 export const SECRETS = {
   pdf: { name: "SALE_PDF_DOWNLOAD_TOKEN", routes: ["/internal/sale-quotation-pdf", "/internal/invoice-pdf", "/internal/purchase-order-pdf"] },
   internal: { name: "INTERNAL_WEBHOOK_SECRET", routes: ["/internal/quotation-issue", "/internal/receipt-issue", "/internal/official-doc/"] },
-  hook: { name: "ODOO_HOOK_TOKEN", routes: ["/odoo/hook/", "/internal/quotation-wa-send", "/internal/sale-quotation-wa-send"] },
+  hook: { name: "HOOK_SECRET", routes: ["/odoo/hook/", "/internal/quotation-wa-send", "/internal/sale-quotation-wa-send"] },
 };
 
 export const tag = (t) => createHash("sha256").update(String(t)).digest("hex").slice(0, 6);

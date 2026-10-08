@@ -213,8 +213,8 @@ const M = [
   ["د", "the owner guard refuses the trial", [[GW,
     "new Set([\"price_flow_test\", \"order_flow_test\", \"register_flow_test\", \"owner_alert\",", "new Set([\"order_flow_test\", \"register_flow_test\", \"owner_alert\","]], T],
   ["د", "the trial route needs no token", [[IX,
-    "url.pathname === \"/odoo/hook/price-flow-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (!expected || !timingSafeEqual(providedToken, expected)) {",
-    "url.pathname === \"/odoo/hook/price-flow-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (false) {"]], T],
+    "url.pathname === \"/odoo/hook/price-flow-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      if (!hookTokenOk(env, providedToken)) {",
+    "url.pathname === \"/odoo/hook/price-flow-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      if (false) {"]], T],
   // ---------------------------------------------------------------- هـ the guide
   ["هـ", "the guide does not name the Flow's template", [[DOC,
     "القالب الجديد `utak_price_ask_flow_v1` **صنّفه", "القالب الجديد **صنّفه"]], T],

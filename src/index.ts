@@ -77,6 +77,7 @@ import {
   readRecentSignatureFailures,
 } from "./webhook-alert";
 import { isOwnerActPath, withOwnerAct } from "./freeze";
+import { hookTokenOk, isHookGated } from "./hook-auth";
 import { REASK_PAYLOAD } from "./owner-team";
 
 /** The two ticks (wrangler.toml): the attendance one and the driver's, two minutes after it. */
@@ -374,6 +375,13 @@ export default {
     const url = new URL(request.url);
     // § 67 أ — a request Odoo's buttons and automations make is Baraa's own act: the freeze does not stop its sends
     const env = isOwnerActPath(url.pathname) ? withOwnerAct(baseEnv, "odoo") : baseEnv;
+
+    // § 68 أ — «does this button's URL pass?»: the token alone is checked and nothing runs (the check of the
+    // 24 Odoo actions after their token is rewritten). A wrong token gets the 401 every route gives it.
+    if (url.searchParams.get("probe") === "1" && isHookGated(url.pathname)) {
+      if (!hookTokenOk(env, url.searchParams.get("token") ?? "")) return json({ error: "unauthorized" }, 401);
+      return json({ ok: true, probe: true });
+    }
 
     if (request.method === "GET" && url.pathname === "/") {
       return new Response("UTAK Worker v2", { status: 200 });
@@ -1225,8 +1233,7 @@ export default {
         return json({ error: "unauthorized — token must be in X-Admin-Token header, not query" }, 401);
       }
       const providedToken = request.headers.get("x-admin-token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       try {
@@ -1248,8 +1255,7 @@ export default {
     // sends {type:'document', document:{id, filename}}.
     if (request.method === "POST" && url.pathname === "/internal/quotation-wa-send") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       let body: { id?: number; _id?: number; _model?: string } = {};
@@ -1344,8 +1350,7 @@ export default {
     // x_quotation route is touched; both routes coexist.
     if (request.method === "POST" && url.pathname === "/internal/sale-quotation-wa-send") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       let body: { id?: number; _id?: number; _model?: string } = {};
@@ -1522,8 +1527,7 @@ export default {
     // window → send → x_wa_message log) lives in handleInboxReplyHook.
     if (request.method === "POST" && url.pathname === "/odoo/hook/wa-inbox") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       let body: { id?: number; _id?: number; _model?: string } = {};
@@ -1564,8 +1568,7 @@ export default {
     // rebuilds the titles of that partner's numbers.
     if (request.method === "POST" && url.pathname === "/odoo/hook/wa-inbox-partner") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       let body: { id?: number; _id?: number; _model?: string } = {};
@@ -1604,8 +1607,7 @@ export default {
     // comes from Odoo. Nothing else happens here.
     if (request.method === "POST" && url.pathname === "/odoo/hook/team-roster") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       let body: { _model?: string; _id?: number; id?: number } = {};
@@ -1631,8 +1633,7 @@ export default {
     // 202 at once (Odoo's webhook waits one second); the work runs in waitUntil.
     if (request.method === "POST" && url.pathname === "/odoo/hook/prices") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       let body: { _model?: string; _id?: number; id?: number; x_date?: string } = {};
@@ -1663,8 +1664,7 @@ export default {
     // 202 at once (Odoo's webhook waits one second); the work runs in waitUntil.
     if (request.method === "POST" && url.pathname === "/odoo/hook/supplier-pay") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       let body: { _model?: string; _id?: number; id?: number } = {};
@@ -1694,8 +1694,7 @@ export default {
     // Async response (202 + ctx.waitUntil) so Odoo's row lock releases fast.
     if (request.method === "POST" && url.pathname === "/odoo/hook/wa") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       let body: { id?: number; _id?: number; _model?: string } = {};
@@ -1735,8 +1734,7 @@ export default {
     // in ctx.waitUntil so Odoo's row lock releases immediately.
     if (request.method === "POST" && url.pathname === "/odoo/hook/wa-template-sync") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       ctx.waitUntil(
@@ -1758,8 +1756,7 @@ export default {
     // reply writes nothing in Odoo (src/price-flow.ts sendFlowTest).
     if (request.method === "POST" && url.pathname === "/odoo/hook/price-flow-test") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       try {
@@ -1774,8 +1771,7 @@ export default {
     // open, once a day. His reply writes nothing in Odoo (src/register-form.ts sendRegisterFormTest).
     if (request.method === "POST" && url.pathname === "/odoo/hook/register-form-test") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       try {
@@ -1790,8 +1786,7 @@ export default {
     // open, once a day. His reply creates no order (src/order-form.ts sendOrderFormTest).
     if (request.method === "POST" && url.pathname === "/odoo/hook/order-form-test") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       try {
@@ -1807,8 +1802,7 @@ export default {
     // publish nothing (src/price-review.ts sendPriceReviewTest).
     if (request.method === "POST" && url.pathname === "/odoo/hook/price-review-test") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       try {
@@ -1825,8 +1819,7 @@ export default {
     // payment (src/delivery-form.ts sendDeliveryFormTest).
     if (request.method === "POST" && url.pathname === "/odoo/hook/delivery-form-test") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       try {
@@ -1842,8 +1835,7 @@ export default {
     // nothing and downloads nothing (src/receipt-form.ts sendReceiptFormTest).
     if (request.method === "POST" && url.pathname === "/odoo/hook/receipt-form-test") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       try {
@@ -1859,8 +1851,7 @@ export default {
     // (src/car-load.ts sendCarLoadFormTest).
     if (request.method === "POST" && url.pathname === "/odoo/hook/carload-form-test") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       try {
@@ -1877,8 +1868,7 @@ export default {
     // (src/complaint-form.ts sendComplaintFormTest).
     if (request.method === "POST" && url.pathname === "/odoo/hook/complaint-form-test") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       try {
@@ -1894,8 +1884,7 @@ export default {
     // nothing (src/custody-form.ts sendCustodyFormTest).
     if (request.method === "POST" && url.pathname === "/odoo/hook/custody-form-test") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       try {
@@ -1911,8 +1900,7 @@ export default {
     // nothing in Odoo (src/expense-form.ts sendExpenseFormTest).
     if (request.method === "POST" && url.pathname === "/odoo/hook/expense-form-test") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       try {
@@ -1931,8 +1919,7 @@ export default {
     // message of «✅ وصل» for two invoices (src/transfer-form.ts). Nothing is written.
     if (request.method === "POST" && (url.pathname === "/odoo/hook/after-delivery-test" || url.pathname === "/odoo/hook/transfer-confirmed-test")) {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       try {
@@ -1951,8 +1938,7 @@ export default {
     // Nothing is written in Odoo, and nobody else is reached.
     if (request.method === "POST" && url.pathname === "/odoo/hook/s59-trial") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       try {
@@ -1970,8 +1956,7 @@ export default {
     // 202 at once; the work runs in waitUntil a moment later (the button's write is committed by then).
     if (request.method === "POST" && url.pathname === "/odoo/hook/supplier") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       let body: { _model?: string; _id?: number; id?: number } = {};
@@ -2000,8 +1985,7 @@ export default {
     // is flagged «محاكاة»; nobody else is reached.
     if (request.method === "POST" && url.pathname === "/odoo/hook/s65-trial") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       try {
@@ -2021,8 +2005,7 @@ export default {
     // the save that fired the webhook is committed by then, so the worker reads what was saved.
     if (request.method === "POST" && url.pathname === "/odoo/hook/special-quote") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       let body: { _model?: string; _id?: number; id?: number } = {};
@@ -2051,8 +2034,7 @@ export default {
     // src/s62-trials.ts). Nothing is written in Odoo, and no source and no customer is reached.
     if (request.method === "POST" && url.pathname === "/odoo/hook/s62-trial") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       try {
@@ -2067,8 +2049,7 @@ export default {
     // in Odoo, no task is moved, and nobody else is reached.
     if (request.method === "POST" && url.pathname === "/odoo/hook/s61-trial") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       try {
@@ -2083,8 +2064,7 @@ export default {
     // while his window is open, once a day. Nothing is written in Odoo (src/s60-trial.ts).
     if (request.method === "POST" && url.pathname === "/odoo/hook/s60-trial") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       try {
@@ -2097,8 +2077,7 @@ export default {
     // § 67 — ONE trial alert to Baraa (after the block of `owner_alert` was lifted), and the freeze as the worker reads it
     if (request.method === "POST" && url.pathname === "/odoo/hook/s67-trial") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       try {
@@ -2110,8 +2089,7 @@ export default {
     }
     if (request.method === "POST" && url.pathname === "/odoo/hook/transfer-form-test") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       try {
@@ -2127,8 +2105,7 @@ export default {
     // supplier's card, and writes nothing in Odoo (src/supplier-vat.ts sendSupplierRegisterFormTest).
     if (request.method === "POST" && url.pathname === "/odoo/hook/supplier-register-form-test") {
       const providedToken = url.searchParams.get("token") ?? "";
-      const expected = env.ODOO_HOOK_TOKEN ?? "";
-      if (!expected || !timingSafeEqual(providedToken, expected)) {
+      if (!hookTokenOk(env, providedToken)) {
         return json({ error: "unauthorized" }, 401);
       }
       try {

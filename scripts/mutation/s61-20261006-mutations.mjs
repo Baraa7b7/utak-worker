@@ -207,7 +207,7 @@ const M = [
   ["و", "the trials' purpose is refused for Baraa's number", [["src/wa-gateway.ts",
     "(OWNER_ALLOWED_PURPOSES as Set<string>).add(\"staffing_test\");", "void 0;"]], T],
   ["و", "the trials' hook opens without the token", [["src/index.ts",
-    "url.pathname === \"/odoo/hook/s61-trial\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (!expected || !timingSafeEqual(providedToken, expected)) {", "url.pathname === \"/odoo/hook/s61-trial\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (!expected && !providedToken) {"]], T],
+    "url.pathname === \"/odoo/hook/s61-trial\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      if (!hookTokenOk(env, providedToken)) {", "url.pathname === \"/odoo/hook/s61-trial\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      if (false) {"]], T],
 
   // ---------------------------------------------------------------- ج — the data of the Odoo script and the template
   ["ج", "the operating job does not carry «محصّل»", [[LIB,

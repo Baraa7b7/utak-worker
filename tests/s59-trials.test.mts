@@ -33,7 +33,7 @@ const r2: string[] = [];
 
 function world(riyadh = `${DAY} 10:00`, list: "published" | "none" = "published"): any {
   const env = fresh(riyadh); cost(500);
-  Object.assign(env, { UTAK_WA_NUMBER: "+966580000467", GOTENBERG_URL: "https://gotenberg.test", GOTENBERG_USER: "u", GOTENBERG_PASSWORD: "p", ADMIN_TOKEN: "ADM", ODOO_HOOK_TOKEN: "HOOK",
+  Object.assign(env, { UTAK_WA_NUMBER: "+966580000467", GOTENBERG_URL: "https://gotenberg.test", GOTENBERG_USER: "u", GOTENBERG_PASSWORD: "p", ADMIN_TOKEN: "ADM", HOOK_SECRET: "HOOK-0123456789abcdef0123456789abcdef",
     INVOICES_BUCKET: { put: async (k: string) => { r2.push(k); return {}; }, head: async () => null, get: async () => null } });
   seed("res.company", { id: 1, name: "شركة يوتاك", vat: "315022736600003" });
   seed("x_whatsapp_template", { x_purpose: "team_shift_start", x_meta_template_id: "utak_shift_start_v2", x_language: "ar", x_meta_status: "APPROVED", x_param_count: 1, x_category: "UTILITY" });
@@ -46,7 +46,7 @@ function world(riyadh = `${DAY} 10:00`, list: "published" | "none" = "published"
   gotenberg = 0; r2.length = 0; odooLog.length = 0;
   return env;
 }
-const post = (env: any, name: string, token = "HOOK") => quiet(() => worker.fetch(new Request(`https://w.test/odoo/hook/s59-trial?name=${name}&token=${token}`, { method: "POST" }), env, ctx));
+const post = (env: any, name: string, token = "HOOK-0123456789abcdef0123456789abcdef") => quiet(() => worker.fetch(new Request(`https://w.test/odoo/hook/s59-trial?name=${name}&token=${token}`, { method: "POST" }), env, ctx));
 
 console.log("\n[ز] the trials are Baraa's alone");
 {

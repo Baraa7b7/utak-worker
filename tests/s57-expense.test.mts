@@ -970,16 +970,16 @@ console.log("\n[و13] the trial to Baraa, its hook, and the purposes");
     && EX.expenseTestText({ ...({} as any), supplier: "x", date: TODAY, note: "" }, { type: { title: "وقود" }, account: { code: "400077", name: "Fuel" }, pay: { title: "البنك (BNK1)" }, tax: null, net: 50, vat: 0, total: 50, supplier: { id: 55, name: "مصروفات نقدية متنوعة" } } as any, { badVat: "77", photo: false })
       === ["🧪 تجربة — كان سيُسجَّل: وقود", "الحساب: 400077 Fuel", "المورد: مصروفات نقدية متنوعة (موجود في Odoo)", "الإجمالي 50 ر.س — بلا ضريبة مدخلات", "الدفع: البنك (BNK1)", `التاريخ: ${LABEL}`, "بلا صورة.", EX.badVatText("77", true), "(تجربة: لم يُكتب شيء في Odoo — لا فاتورة ولا دفعة ولا مورد)"].join("\n"));
   // the hook
-  const hookEnv = { ...env, ODOO_HOOK_TOKEN: "HOOK" };
+  const hookEnv = { ...env, HOOK_SECRET: "HOOK-0123456789abcdef0123456789abcdef" };
   const post = (q: string, e: any = hookEnv) => quiet(() => worker.fetch(new Request(`https://w.test/odoo/hook/expense-form-test${q}`, { method: "POST" }), e, ctx));
   const no = await post("?token=nope"), none = await post(""), unset = await post("?token=", env);
   assert("POST /odoo/hook/expense-form-test without the hook's token: 401, nothing sent", no.status === 401 && none.status === 401 && unset.status === 401);
-  const yes = await post("?token=HOOK");
+  const yes = await post("?token=HOOK-0123456789abcdef0123456789abcdef");
   const body = await yes.json() as any;
   assert("…with it: the worker's own answer (today's trial already went)", yes.status === 200 && body.ok === true && body.sent === false && body.reason === "already_today", JSON.stringify(body));
   setRiyadh("2026-10-07 16:00"); openWindow(env, OWNER);
   const n = flowsTo(OWNER).length;
-  const next = await (await post("?token=HOOK")).json() as any;
+  const next = await (await post("?token=HOOK-0123456789abcdef0123456789abcdef")).json() as any;
   assert("…and the next day it sends one", next.ok === true && next.sent === true && flowsTo(OWNER).length === n + 1, JSON.stringify(next));
   clean();
 }

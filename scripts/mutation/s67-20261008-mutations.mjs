@@ -79,7 +79,7 @@ const M = [
   ["أ", "Baraa's own tap is the system's", [[IDX, "    const actEnv = isOwnerNumber(env, msg.from) ? withOwnerAct(env, \"owner\") : env;", "    const actEnv = env;"]], TF],
   ["أ", "a request of Odoo's is the system's", [[IDX, "    const env = isOwnerActPath(url.pathname) ? withOwnerAct(baseEnv, \"odoo\") : baseEnv;", "    const env = baseEnv;"]], TF],
   ["أ", "the /internal routes are not Baraa's acts", [[FZ, "  return pathname.startsWith(\"/odoo/hook/\") || pathname.startsWith(\"/internal/\");", "  return pathname.startsWith(\"/odoo/hook/\");"]], TF],
-  ["أ", "the trial's route is open without the token", [[IDX, "      if (!expected || !timingSafeEqual(providedToken, expected)) {\n        return json({ error: \"unauthorized\" }, 401);\n      }\n      try {\n        const { runS67Trial } = await import(\"./s67-trial\");", "      try {\n        const { runS67Trial } = await import(\"./s67-trial\");"]], TF],
+  ["أ", "the trial's route is open without the token", [[IDX, "      if (!hookTokenOk(env, providedToken)) {\n        return json({ error: \"unauthorized\" }, 401);\n      }\n      try {\n        const { runS67Trial } = await import(\"./s67-trial\");", "      try {\n        const { runS67Trial } = await import(\"./s67-trial\");"]], TF],
   ["أ", "the trial's «state» does not read the switch fresh", [[TR, "  const v = await freezeView(env, now, { fresh: true });", "  const v = await freezeView(env, now);"]], TF],
   // nothing late
   ["أ", "the market ask goes late after the freeze", [[PR, "fz.missedToday(MARKET_ASK_MINUTE) ? FROZEN_MISSED : await runMarketAsk(env, now, dl);", "await runMarketAsk(env, now, dl);"]], TF],

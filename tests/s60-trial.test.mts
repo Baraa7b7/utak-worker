@@ -78,11 +78,11 @@ console.log("\nthe one trial of § 60: Baraa's number alone, inside his window, 
   assert("no owner's number: nothing", (await quiet(() => TR.sendSummaryTrial(noOwner))).reason === "no_owner");
 }
 {
-  const env = fresh(`${DAY} 12:00`); env.ODOO_HOOK_TOKEN = "tok"; openWindow(env, OWNER);
+  const env = fresh(`${DAY} 12:00`); env.HOOK_SECRET = "tok-0123456789abcdef0123456789abcdef"; openWindow(env, OWNER);
   const hook = (token: string) => quiet(() => worker.fetch(new Request(`https://w.test/odoo/hook/s60-trial?token=${token}`, { method: "POST" }), env, { waitUntil() {}, passThroughOnException() {} } as any));
   const bad = await hook("nope");
   assert("the trial's hook is behind the Odoo hook token", bad.status === 401 && sentTo(OWNER).length === 0);
-  const ok = await hook("tok");
+  const ok = await hook("tok-0123456789abcdef0123456789abcdef");
   assert("…with it the trial goes, once", ok.status === 200 && (await ok.json() as any).sent === true && sentTo(OWNER).length === 1 && /url\.pathname === "\/odoo\/hook\/s60-trial"/.test(read("src/index.ts")));
   assert("the purpose is one of the owner's alone in the gateway", read("src/wa-gateway.ts").includes(`"target_lines_test"`) && read("src/wa-purposes.ts").includes("target_lines_test:"));
 }

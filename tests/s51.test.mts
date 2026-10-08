@@ -485,15 +485,15 @@ console.log("\n[د] the one trial to Baraa: inside his window, once a day, nothi
 {
   const env = world(`${DAY} 23:00`, ["APPROVED", "UTILITY"]);
   seed("x_daily_price", { x_product_tmpl_id: 1, x_packaging_id: 11, x_supplier_id: AHMED, x_price_sar: 21, x_date: "2026-10-02", x_extraction_status: "extracted", x_source_message_id: "wamid.SENT" });
-  const hook = { ...env, ODOO_HOOK_TOKEN: "HOOK" };
+  const hook = { ...env, HOOK_SECRET: "HOOK-0123456789abcdef0123456789abcdef" };
   const denied = await quiet(() => worker.fetch(new Request("https://w.test/odoo/hook/price-flow-test?token=nope", { method: "POST" }), hook, ctx));
   assert("the trial route needs the hook token", denied.status === 401 && graph.length === 0);
-  const res = await quiet(() => worker.fetch(new Request("https://w.test/odoo/hook/price-flow-test?token=HOOK", { method: "POST" }), hook, ctx));
+  const res = await quiet(() => worker.fetch(new Request("https://w.test/odoo/hook/price-flow-test?token=HOOK-0123456789abcdef0123456789abcdef", { method: "POST" }), hook, ctx));
   const out = await res.json() as any;
   const f = flowsTo(OWNER);
   assert("his window open: ONE Flow to Baraa's number — to nobody else, and never a template", out.sent === true && f.length === 1 && graph.length === 1 && graph[0].to === OWNER, JSON.stringify(out));
   assert("…marked «🧪 تجربة» in its heading and its text, with today's items and the purchase source's last prices", String(dataOf(f[0]).t1).startsWith("🧪 تجربة") && bodyOf(f[0]).startsWith("🧪 تجربة") && dataOf(f[0]).v4 === true && dataOf(f[0]).h1 === "آخر سعر: 21", `${dataOf(f[0]).t1} | ${dataOf(f[0]).h1}`);
-  const second = await (await quiet(() => worker.fetch(new Request("https://w.test/odoo/hook/price-flow-test?token=HOOK", { method: "POST" }), hook, ctx))).json() as any;
+  const second = await (await quiet(() => worker.fetch(new Request("https://w.test/odoo/hook/price-flow-test?token=HOOK-0123456789abcdef0123456789abcdef", { method: "POST" }), hook, ctx))).json() as any;
   assert("a second call the same day: nothing sent", second.sent === false && second.reason === "already_today" && graph.length === 1, JSON.stringify(second));
   const before = JSON.stringify([dpRows(), offerRows(), askLogs(), rows("x_price_day")]);
   await quiet(() => worker.fetch(signed(inbound(OWNER, nfm(tokenOf(f[0]), { p1: "22", p4: "22.5" }))), env, ctx));

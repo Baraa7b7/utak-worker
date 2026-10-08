@@ -102,8 +102,8 @@ const M = [
     "    return { bodyBeforeButtons: text, buttons: [startButton()] };", "    return { text, buttons: startButton ? [] : [] };"]], T],
   // ---- the hook and the tick
   ["the hook without its token check", [["src/index.ts",
-    "    if (request.method === \"POST\" && url.pathname === \"/odoo/hook/supplier-pay\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (!expected || !timingSafeEqual(providedToken, expected)) {",
-    "    if (request.method === \"POST\" && url.pathname === \"/odoo/hook/supplier-pay\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (false && providedToken !== expected) {"]], T],
+    "    if (request.method === \"POST\" && url.pathname === \"/odoo/hook/supplier-pay\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      if (!hookTokenOk(env, providedToken)) {",
+    "    if (request.method === \"POST\" && url.pathname === \"/odoo/hook/supplier-pay\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      if (false) {"]], T],
   ["the tick settles at once (races the webhook)", [[SP,
     "export const SETTLE_RETRY_AFTER_MS = 3 * 60_000;", "export const SETTLE_RETRY_AFTER_MS = 0;"]], T],
   ["the tick never settles a lost webhook", [[SP,

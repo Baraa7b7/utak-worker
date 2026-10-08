@@ -924,9 +924,9 @@ console.log("\n[د13] the trial to Baraa: the form itself, marked — nothing wr
   // the hook
   const env3 = world(`${DAY} 10:00`);
   listOf();
-  env3.ODOO_HOOK_TOKEN = "HOOK";
+  env3.HOOK_SECRET = "HOOK-0123456789abcdef0123456789abcdef";
   const no = await quiet(() => worker.fetch(new Request("https://w.test/odoo/hook/receipt-form-test?token=WRONG", { method: "POST" }), env3, collectingCtx()));
-  const yes = await quiet(() => worker.fetch(new Request("https://w.test/odoo/hook/receipt-form-test?token=HOOK", { method: "POST" }), env3, collectingCtx()));
+  const yes = await quiet(() => worker.fetch(new Request("https://w.test/odoo/hook/receipt-form-test?token=HOOK-0123456789abcdef0123456789abcdef", { method: "POST" }), env3, collectingCtx()));
   const body: any = await yes.json().catch(() => ({}));
   assert("POST /odoo/hook/receipt-form-test: refused without the hook's token, and with it the trial goes", no.status === 401 && yes.status === 200 && body.ok === true && body.sent === true && flowsTo(OWNER).length === 1, JSON.stringify(body));
   const trial = readFileSync(new URL("../scripts/s55-20261005-trial.mjs", import.meta.url), "utf8");

@@ -352,13 +352,13 @@ console.log("\n[ب10] the webhook, the hook's route, the trial");
   await say(env, NEW, { type: "text", text: { body: "ابي طماطم ٣ كراتين" } });
   assert("his later message never enters the customers' path: no order, no quotation, no order form", rows("x_daily_order").length === 0 && !sentTo(NEW).slice(n).some((b: any) => b?.interactive?.type === "flow" || /عرض سعر|طلبك/.test(bodyOf(b))), JSON.stringify(sentTo(NEW).slice(n).map(bodyOf)));
   // the route
-  const hookEnv = { ...env, ODOO_HOOK_TOKEN: "HOOK" };
+  const hookEnv = { ...env, HOOK_SECRET: "HOOK-0123456789abcdef0123456789abcdef" };
   const waits: Promise<unknown>[] = [];
   const hctx = { waitUntil: (p: Promise<unknown>) => { waits.push(p); }, passThroughOnException: () => {} } as any;
   const post = (q: string, body: unknown = { _model: "res.partner", _id: card.id }) => quiet(() => worker.fetch(new Request(`https://w.test/odoo/hook/supplier${q}`, { method: "POST", body: JSON.stringify(body) }), hookEnv, hctx));
-  assert("the hook refuses a wrong token (401), an op it does not know and another model (400)", (await post("?token=NO&op=welcome")).status === 401 && (await post("?token=HOOK&op=delete")).status === 400 && (await post("?token=HOOK&op=welcome", { _model: "x_special_quote", _id: 1 })).status === 400 && (await post("?token=HOOK&op=welcome", { _model: "res.partner" })).status === 400);
+  assert("the hook refuses a wrong token (401), an op it does not know and another model (400)", (await post("?token=NO&op=welcome")).status === 401 && (await post("?token=HOOK-0123456789abcdef0123456789abcdef&op=delete")).status === 400 && (await post("?token=HOOK-0123456789abcdef0123456789abcdef&op=welcome", { _model: "x_special_quote", _id: 1 })).status === 400 && (await post("?token=HOOK-0123456789abcdef0123456789abcdef&op=welcome", { _model: "res.partner" })).status === 400);
   Object.assign(card, { x_supplier_state: "approved", x_contact_cadence: "monthly" });
-  const ok = await post("?token=HOOK&op=welcome");
+  const ok = await post("?token=HOOK-0123456789abcdef0123456789abcdef&op=welcome");
   await quiet(() => Promise.all(waits));
   assert("«✅ اعتماد» through the hook: 202 at once, then the welcome with his button", ok.status === 202 && (sentTo(NEW).at(-1) as any)?.interactive?.type === "button" && !!partner(card.id).x_supplier_welcomed_at);
   // the trial

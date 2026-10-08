@@ -747,21 +747,21 @@ console.log("\n[ب15] Baraa delivers from the car: the form under his own purpos
 console.log("\n[ب16] the trial to Baraa: his number alone, his window open, once a day — and its reply writes nothing, delivers nothing, records nothing");
 {
   const env = world(`${DAY} 14:00`);
-  env.ODOO_HOOK_TOKEN = "HOOK";
+  env.HOOK_SECRET = "HOOK-0123456789abcdef0123456789abcdef";
   const call = (token: string) => quiet(async () => { const r = await worker.fetch(new Request(`https://w.test/odoo/hook/delivery-form-test?token=${token}`, { method: "POST" }), env, ctx); return { status: r.status, body: await r.json() as any }; });
   const bad = await call("nope");
   assert("the hook without Odoo's token: 401, nothing sent", bad.status === 401 && sentTo(OWNER).length === 0);
-  const none = await call("HOOK");
+  const none = await call("HOOK-0123456789abcdef0123456789abcdef");
   assert("no order to show: nothing sent, and the day's trial is not used up", none.body.sent === false && none.body.reason === "no_order" && sentTo(OWNER).length === 0, JSON.stringify(none.body));
   const real = onTheWay(TWO, { x_state: "delivered" });            // the latest real order — already delivered: read only
   onTheWay([[3, 31, 9, 99]], { x_utak_simulation: true });          // a newer simulation order, and a newer one without a line: neither is shown
   onTheWay([]);
   const n0 = odooLog.length;
-  const sent = await call("HOOK");
+  const sent = await call("HOOK-0123456789abcdef0123456789abcdef");
   const f = flowsTo(OWNER);
   assert("ONE form to Baraa, marked «🧪 تجربة», from the latest real order that has lines", sent.status === 200 && sent.body.sent === true && sent.body.orderId === real && f.length === 1 && sentTo(OWNER).length === 1 && bodyOf(f[0]).startsWith(`🧪 تجربة — 📦 تسليم الطلب #${real} — مطعم الوادي`) && dataOf(f[0]).head === `🧪 تجربة — طلب #${real} — مطعم الوادي` && dataOf(f[0]).l1 === "طماطم" && dataOf(f[0]).v3 === false, JSON.stringify(sent.body));
   assert("…under the trial's own purpose, and nothing was written to build it", purposes().at(-1) === "delivery_form_test" && odooLog.slice(n0).every((c: any) => !["write", "create", "unlink"].includes(c.method) || ["x_wa_message", "mail.message", "discuss.channel"].includes(c.model)));
-  const twice = await call("HOOK");
+  const twice = await call("HOOK-0123456789abcdef0123456789abcdef");
   assert("a second call the same day: nothing", twice.body.sent === false && twice.body.reason === "already_today" && flowsTo(OWNER).length === 1);
   graph.length = 0;
   const w0 = odooLog.filter((c: any) => ["write", "create", "unlink"].includes(c.method) && !["x_wa_message", "mail.message", "discuss.channel"].includes(c.model)).length;

@@ -11,7 +11,7 @@
 //
 //   --which   pdf       SALE_PDF_DOWNLOAD_TOKEN  (the token § 66's facts script printed to a local log)
 //             internal  INTERNAL_WEBHOOK_SECRET
-//             hook      ODOO_HOOK_TOKEN          (27 actions, #979 among them — only with Baraa's word)
+//             hook      HOOK_SECRET              (24 actions, #979 among them — since § 68 a secret of its own)
 //
 // Rollback file: backups/s67-20261008-token-rollback.json — it holds the tokens of before (the actions' own text),
 // so it lives in backups/ (outside git), never in scripts/artifacts. Each `wrangler secret put` deploys a new

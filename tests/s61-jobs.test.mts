@@ -63,7 +63,7 @@ interface World { env: any; cal: number; calOthman: number; calOmar: number; cal
 /** The tenant after § 59, before the jobs: Baraa سائق + شراء + محصّل, Omar تسويق, Othman مدير — on their cards. */
 function before61(riyadh = `${D6} 22:00`): World {
   const env = fresh(riyadh);
-  env.ODOO_HOOK_TOKEN = "HOOK";
+  env.HOOK_SECRET = "HOOK-0123456789abcdef0123456789abcdef";
   seed("x_employee_role", { id: MARKETING, x_code: "marketing", x_name: "تسويق", x_active: true });
   seed("x_employee_role", { id: ADMIN, x_code: "admin", x_name: "مدير", x_active: true });
   emp(7000 + WH).x_utak_role_ids = [];
@@ -603,7 +603,7 @@ console.log("\n[و] the three trials: Baraa's number alone, «🧪 تجربة»,
   const no = await quiet(() => worker.fetch(new Request("https://w/odoo/hook/s61-trial?name=entry&token=wrong", { method: "POST" }), w.env, ctx));
   assert("the hook without the token: 401, nothing sent", no.status === 401 && textsTo(OWNER).length === 3);
   setRiyadh("2026-10-07 23:30"); openWindow(w.env, OWNER);
-  const ok = await quiet(() => worker.fetch(new Request(`https://w/odoo/hook/s61-trial?name=welcome&token=${w.env.ODOO_HOOK_TOKEN}`, { method: "POST" }), w.env, ctx));
+  const ok = await quiet(() => worker.fetch(new Request(`https://w/odoo/hook/s61-trial?name=welcome&token=${w.env.HOOK_SECRET}`, { method: "POST" }), w.env, ctx));
   const okBody: any = await ok.json();
   assert("the hook with it (the next day): the trial goes", ok.status === 200 && okBody.ok === true && okBody.sent === true && textsTo(OWNER).length === 4, JSON.stringify(okBody));
   assert("the schema gate saw no field or value the tenant does not have", rejected.length === 0, rejected.join(" | "));

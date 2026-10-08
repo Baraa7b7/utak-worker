@@ -140,7 +140,7 @@ const odooTs = () => new Date(Date.now()).toISOString().replace("T", " ").slice(
 function fresh(riyadh = `${DAY} 10:00`): any {
   const env = reset(); clearTemplateCache(); setRiyadh(riyadh);
   rejected.length = 0; seqN = 0;
-  env.ODOO_HOOK_TOKEN = "HOOKTOKEN";
+  env.HOOK_SECRET = "HOOKTOKEN-0123456789abcdef0123456789abcdef";
   seed("res.partner", { id: BOT, name: "UTAK بوت" });
   seed("res.partner", { id: 3, name: "albaraa abdulwahab" });
   seed("res.users", { id: 2, login: "admin", partner_id: 3, name: "albaraa abdulwahab" });
@@ -597,13 +597,13 @@ console.log("\n[8] the hook (401 / 400 / 202) and the tick");
   const pend = payment({ x_supplier_id: SUP, x_amount: 40, x_channel: "whatsapp", x_method: "cash", x_recorded_by: WH });
   assert("no token → 401", await hook(`op=decided`, { _model: "x_supplier_payment", _id: pend }) === 401);
   assert("an unknown op → 400; no id → 400; another model → 400",
-    await hook("token=HOOKTOKEN&op=paid", { _id: pend }) === 400 && await hook("token=HOOKTOKEN&op=decided", {}) === 400 && await hook("token=HOOKTOKEN&op=decided", { _model: "x_price_day", _id: pend }) === 400);
+    await hook("token=HOOKTOKEN-0123456789abcdef0123456789abcdef&op=paid", { _id: pend }) === 400 && await hook("token=HOOKTOKEN-0123456789abcdef0123456789abcdef&op=decided", {}) === 400 && await hook("token=HOOKTOKEN-0123456789abcdef0123456789abcdef&op=decided", { _model: "x_price_day", _id: pend }) === 400);
   const n0 = sentTo(SUP_PHONE).length;
-  assert("op=created on Omar's pending payment → 202, nothing sent", await hook("token=HOOKTOKEN&op=created", { _model: "x_supplier_payment", _id: pend }) === 202 && sentTo(SUP_PHONE).length === n0);
+  assert("op=created on Omar's pending payment → 202, nothing sent", await hook("token=HOOKTOKEN-0123456789abcdef0123456789abcdef&op=created", { _model: "x_supplier_payment", _id: pend }) === 202 && sentTo(SUP_PHONE).length === n0);
   decide(pend, "approved");
-  assert("op=decided after «اعتماد» → 202, the notice goes", await hook("token=HOOKTOKEN&op=decided", { _model: "x_supplier_payment", _id: pend }) === 202 && sentTo(SUP_PHONE).length === n0 + 1);
+  assert("op=decided after «اعتماد» → 202, the notice goes", await hook("token=HOOKTOKEN-0123456789abcdef0123456789abcdef&op=decided", { _model: "x_supplier_payment", _id: pend }) === 202 && sentTo(SUP_PHONE).length === n0 + 1);
   const own = payment({ x_supplier_id: SUP, x_amount: 5 });
-  assert("op=created on Baraa's own (approved at once) → the notice goes", await hook("token=HOOKTOKEN&op=created", { _model: "x_supplier_payment", _id: own }) === 202 && sentTo(SUP_PHONE).length === n0 + 2);
+  assert("op=created on Baraa's own (approved at once) → the notice goes", await hook("token=HOOKTOKEN-0123456789abcdef0123456789abcdef&op=created", { _model: "x_supplier_payment", _id: own }) === 202 && sentTo(SUP_PHONE).length === n0 + 2);
   // a lost webhook: the tick settles it 3 minutes after the decision, not before
   const lost = payment({ x_supplier_id: SUP, x_amount: 7, x_channel: "whatsapp", x_method: "cash", x_recorded_by: WH });
   decide(lost, "approved");
@@ -615,7 +615,7 @@ console.log("\n[8] the hook (401 / 400 / 202) and the tick");
   assert("…settled after 3 minutes (a lost webhook)", Array.isArray(t2.settled) && t2.settled.some((r) => r.id === lost && r.action === "approved") && !!table("x_supplier_payment").get(lost)?.x_settled_at);
   const t3 = await quiet(() => runSupplierPayTick(ENV));
   assert("…once", Array.isArray(t3.settled) && t3.settled.length === 0);
-  assert("op=refresh → 202 (the dues of the last 7 days)", await hook("token=HOOKTOKEN&op=refresh", { _model: "res.partner", _id: SUP }) === 202);
+  assert("op=refresh → 202 (the dues of the last 7 days)", await hook("token=HOOKTOKEN-0123456789abcdef0123456789abcdef&op=refresh", { _model: "res.partner", _id: SUP }) === 202);
   const r = await quiet(() => onPaymentHook(ENV, 99999, { waitMs: 1 }));
   assert("a payment Odoo has not committed yet: read again, then «not_found»", r.action === "not_found");
 }

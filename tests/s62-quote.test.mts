@@ -187,7 +187,7 @@ console.log("\n[أ4] the hook from Odoo");
 {
   const env = world();
   const id = request();
-  const post = (op: string, body: unknown = { _model: QUOTE, _id: id }, token = "HOOK") => quiet(() => worker.fetch(new Request(`https://w.test/odoo/hook/special-quote?op=${op}&token=${token}`, { method: "POST", body: JSON.stringify(body) }), env, ctx));
+  const post = (op: string, body: unknown = { _model: QUOTE, _id: id }, token = "HOOK-0123456789abcdef0123456789abcdef") => quiet(() => worker.fetch(new Request(`https://w.test/odoo/hook/special-quote?op=${op}&token=${token}`, { method: "POST", body: JSON.stringify(body) }), env, ctx));
   assert("no token, or a wrong one: 401", (await post("recalc", undefined, "x")).status === 401);
   assert("another model's record: 400", (await post("recalc", { _model: "x_price_day", _id: id })).status === 400);
   assert("an op that is not one of the five, or no id: 400", (await post("delete")).status === 400 && (await post("recalc", { _model: QUOTE })).status === 400);

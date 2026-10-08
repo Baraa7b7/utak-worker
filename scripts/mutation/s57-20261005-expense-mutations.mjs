@@ -406,8 +406,8 @@ const M = [
   ["التجربة", "the trial's answer does not say nothing was written", [[EF,
     "    \"(تجربة: لم يُكتب شيء في Odoo — لا فاتورة ولا دفعة ولا مورد)\",\n", ""]], T],
   ["التجربة", "the trial's hook asks for no token", [[IDX,
-    "url.pathname === \"/odoo/hook/expense-form-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (!expected || !timingSafeEqual(providedToken, expected)) {",
-    "url.pathname === \"/odoo/hook/expense-form-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (false) {"]], T],
+    "url.pathname === \"/odoo/hook/expense-form-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      if (!hookTokenOk(env, providedToken)) {",
+    "url.pathname === \"/odoo/hook/expense-form-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      if (false) {"]], T],
   // ---------------------------------------------------------------- the documents
   ["الدليل", "the table of docs/ODOO-IDS.md puts fuel on another account", [[IDS,
     "| وقود (`fuel`) | 400077 | Fuel | #211 |", "| وقود (`fuel`) | 400028 | Others | #163 |"]], T],

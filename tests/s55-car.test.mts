@@ -674,15 +674,15 @@ console.log("\n[ج9] the trial to Baraa, its hook, and the purposes");
   const twice = await reply(env, OWNER, tokenOf(f), { a1: "10" });
   assert("the trial's token is read once too", twice.action === "duplicate");
   // the hook
-  const hookEnv = { ...env, ODOO_HOOK_TOKEN: "HOOK" };
+  const hookEnv = { ...env, HOOK_SECRET: "HOOK-0123456789abcdef0123456789abcdef" };
   const post = (q: string, e: any = hookEnv) => quiet(() => worker.fetch(new Request(`https://w.test/odoo/hook/carload-form-test${q}`, { method: "POST" }), e, ctx));
   const no = await post("?token=nope"), none = await post(""), unset = await post("?token=", env);
   assert("POST /odoo/hook/carload-form-test without the hook's token: 401, nothing sent", no.status === 401 && none.status === 401 && unset.status === 401);
-  const yes = await post("?token=HOOK");
+  const yes = await post("?token=HOOK-0123456789abcdef0123456789abcdef");
   const body = await yes.json() as any;
   assert("…with it: the worker's own answer (today's trial already went)", yes.status === 200 && body.ok === true && body.sent === false && body.reason === "already_today", JSON.stringify(body));
   setRiyadh(`${NEXT} 10:00`); openWindow(env, OWNER);
-  const next = await (await post("?token=HOOK")).json() as any;
+  const next = await (await post("?token=HOOK-0123456789abcdef0123456789abcdef")).json() as any;
   assert("…and the next day it sends one", next.ok === true && next.sent === true && flowsTo(OWNER).length === 2, JSON.stringify(next));
   assert("the trial script knows the hook", /carload: "carload-form-test"/.test(readFileSync(new URL("../scripts/s55-20261005-trial.mjs", import.meta.url), "utf8")));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));

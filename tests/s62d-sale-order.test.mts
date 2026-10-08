@@ -101,7 +101,7 @@ console.log("\n[ز2] a line with no product and no description stops the quotati
   assert("a named line with no price is named too: «صنف بلا سعر: جزر»", (data.problems ?? []).includes("صنف بلا سعر: جزر") && JSON.stringify(data.missing_products) === JSON.stringify(["جزر"]));
   // the «إرسال واتساب» route tells Baraa why, in those words, and sends nothing
   const waits: Promise<unknown>[] = [];
-  const res = await quiet(() => worker.fetch(new Request("https://w.test/internal/sale-quotation-wa-send?token=HOOK", { method: "POST", body: JSON.stringify({ _model: "sale.order", _id: 21 }) }), env, { ...ctx, waitUntil: (p: Promise<unknown>) => { waits.push(p); } } as any));
+  const res = await quiet(() => worker.fetch(new Request("https://w.test/internal/sale-quotation-wa-send?token=HOOK-0123456789abcdef0123456789abcdef", { method: "POST", body: JSON.stringify({ _model: "sale.order", _id: 21 }) }), env, { ...ctx, waitUntil: (p: Promise<unknown>) => { waits.push(p); } } as any));
   await quiet(() => Promise.all(waits));
   assert("«إرسال واتساب (UTAK)» on it: accepted, nothing queued, and Baraa reads both reasons", res.status === 202 && queued().length === 0 && ownerTexts().some((x) => x.includes("S00021") && x.includes("السطر 3 بلا منتج ولا وصف") && x.includes("صنف بلا سعر: جزر")), ownerTexts().join(" / "));
   // the nameless line alone stops it, and its place counts the lines that are items (a title and a note are not)
@@ -203,7 +203,7 @@ console.log("\n[ز5] «إرسال واتساب (UTAK)» issues it as it did: num
     return kitFetch(input as any, init);
   }) as typeof fetch;
   const waits: Promise<unknown>[] = [];
-  const res = await quiet(() => worker.fetch(new Request("https://w.test/internal/sale-quotation-wa-send?token=HOOK", { method: "POST", body: JSON.stringify({ _model: "sale.order", _id: 50 }) }), env, { ...ctx, waitUntil: (p: Promise<unknown>) => { waits.push(p); } } as any));
+  const res = await quiet(() => worker.fetch(new Request("https://w.test/internal/sale-quotation-wa-send?token=HOOK-0123456789abcdef0123456789abcdef", { method: "POST", body: JSON.stringify({ _model: "sale.order", _id: 50 }) }), env, { ...ctx, waitUntil: (p: Promise<unknown>) => { waits.push(p); } } as any));
   await quiet(() => Promise.all(waits));
   globalThis.fetch = kitFetch;
   const msg = queued()[0] as any;

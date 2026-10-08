@@ -254,8 +254,8 @@ const M = [
   ["ج", "Baraa's messages go under a purpose that is not his", [[CL,
     "export const CARLOAD_OWNER_PURPOSE = T.OWNER_TEAM_NOTE;", "export const CARLOAD_OWNER_PURPOSE = \"bot_reply\";"]], TC],
   ["ج", "the trial's hook asks for no token", [[IDX,
-    "url.pathname === \"/odoo/hook/carload-form-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (!expected || !timingSafeEqual(providedToken, expected)) {",
-    "url.pathname === \"/odoo/hook/carload-form-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (false) {"]], TC],
+    "url.pathname === \"/odoo/hook/carload-form-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      if (!hookTokenOk(env, providedToken)) {",
+    "url.pathname === \"/odoo/hook/carload-form-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      if (false) {"]], TC],
   ["ج", "the trial script does not know the car-load hook", [[TRIAL,
     ", carload: \"carload-form-test\"", ""]], TC],
 
@@ -444,8 +444,8 @@ const M = [
   ["هـ", "Baraa's message goes under a purpose that is not his", [[CU,
     "export const CUSTODY_OWNER_PURPOSE = T.OWNER_TEAM_NOTE;", "export const CUSTODY_OWNER_PURPOSE = \"bot_reply\";"]], TU],
   ["هـ", "the trial's hook asks for no token", [[IDX,
-    "url.pathname === \"/odoo/hook/custody-form-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (!expected || !timingSafeEqual(providedToken, expected)) {",
-    "url.pathname === \"/odoo/hook/custody-form-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (false) {"]], TU],
+    "url.pathname === \"/odoo/hook/custody-form-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      if (!hookTokenOk(env, providedToken)) {",
+    "url.pathname === \"/odoo/hook/custody-form-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      if (false) {"]], TU],
   ["هـ", "the trial script does not know the custody hook", [[TRIAL,
     ", custody: \"custody-form-test\"", ""]], TU],
 ];

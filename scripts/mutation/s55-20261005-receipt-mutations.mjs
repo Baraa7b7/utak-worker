@@ -325,8 +325,8 @@ const M = [
   ["د", "the trial's hook is not there", [[IX,
     "url.pathname === \"/odoo/hook/receipt-form-test\"", "url.pathname === \"/odoo/hook/receipt-form-test-x\""]], T],
   ["د", "the trial's hook asks for no token", [[IX,
-    "url.pathname === \"/odoo/hook/receipt-form-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (!expected || !timingSafeEqual(providedToken, expected)) {",
-    "url.pathname === \"/odoo/hook/receipt-form-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (false) {\n        void providedToken; void expected;"]], T],
+    "url.pathname === \"/odoo/hook/receipt-form-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      if (!hookTokenOk(env, providedToken)) {",
+    "url.pathname === \"/odoo/hook/receipt-form-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      if (false) {\n        void providedToken; void expected;"]], T],
 ];
 
 const want = new Set(process.argv.slice(2));

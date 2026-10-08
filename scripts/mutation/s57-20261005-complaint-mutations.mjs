@@ -437,7 +437,7 @@ const M = [
   ["trial", "the trial's token can be sent again", [[CF,
     "    if (rec.test) {\n      await used();\n      await say(trialText(", "    if (rec.test) {\n      await say(trialText("]], T],
   ["trial", "the trial's hook asks for no token", [[IDX,
-    "url.pathname === \"/odoo/hook/complaint-form-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (!expected || !timingSafeEqual(providedToken, expected)) {", "url.pathname === \"/odoo/hook/complaint-form-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (false) {"]], T],
+    "url.pathname === \"/odoo/hook/complaint-form-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      if (!hookTokenOk(env, providedToken)) {", "url.pathname === \"/odoo/hook/complaint-form-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      if (false) {"]], T],
   ["trial", "the guide does not carry the customer's fixed text of «إرسال»", [[GUIDE,
     "يصل العميل: «وصلت ملاحظتك رقم #N ونرد عليك اليوم».", "يصل العميل رد بأنها وصلت."]], T],
   ["trial", "the guide does not carry the customer's fixed text of «إشعار دائن»", [[GUIDE,

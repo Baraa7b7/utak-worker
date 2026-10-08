@@ -520,15 +520,15 @@ console.log("\n[7] the roster: one read per 5 minutes, no N+1, dropped by the Od
   assert("…only the fields needed", JSON.stringify(e.body.fields) === JSON.stringify(roster.EMPLOYEE_FIELDS), JSON.stringify(e.body.fields));
   await tick(`${SUN} 06:36`);
   assert("after 5 minutes: read again (the cache is ≤ 5 min)", n("hr.employee") === 2, String(n("hr.employee")));
-  const hook = (token: string, body: unknown) => worker.fetch(new Request(`https://w.test/odoo/hook/team-roster?token=${token}`, { method: "POST", body: JSON.stringify(body) }), { ...ENV, ODOO_HOOK_TOKEN: "HOOK" }, ctx);
+  const hook = (token: string, body: unknown) => worker.fetch(new Request(`https://w.test/odoo/hook/team-roster?token=${token}`, { method: "POST", body: JSON.stringify(body) }), { ...ENV, HOOK_SECRET: "HOOK-0123456789abcdef0123456789abcdef" }, ctx);
   assert("hook: a wrong token → 401", (await hook("x", { _model: "hr.employee", _id: 1 })).status === 401);
-  assert("hook: another model → 400", (await hook("HOOK", { _model: "res.partner", _id: 1 })).status === 400);
-  const ok = await hook("HOOK", { _model: "resource.calendar.leaves", _id: 3 });
+  assert("hook: another model → 400", (await hook("HOOK-0123456789abcdef0123456789abcdef", { _model: "res.partner", _id: 1 })).status === 400);
+  const ok = await hook("HOOK-0123456789abcdef0123456789abcdef", { _model: "resource.calendar.leaves", _id: 3 });
   await odoo.findTeamMemberByWhatsApp(ENV, "+" + OMAR_PHONE);
   assert("hook: 202, and the next lookup reads Odoo again (the change is seen at once)", ok.status === 202 && n("hr.employee") === 3, `${ok.status} ${n("hr.employee")}`);
   // a change seen through the hook: a time off added in Odoo
   leave({ resource_id: RES(KHALID), date_from: utc(`${MON} 00:00`), date_to: utc(`${MON} 23:59`) });
-  await hook("HOOK", { _model: "resource.calendar.leaves", _id: 99 });
+  await hook("HOOK-0123456789abcdef0123456789abcdef", { _model: "resource.calendar.leaves", _id: 99 });
   const r = await tick(`${MON} 06:30`);
   assert("…خالد's new time off applies on the next tick", r.members.find((m: any) => m.partnerId === KHALID)?.action === "leave" && tpl(KHALID_PHONE).length === 1 /* Sunday's only */, JSON.stringify(r.members.find((m: any) => m.partnerId === KHALID)));
 }

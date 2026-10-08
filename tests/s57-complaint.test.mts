@@ -916,14 +916,14 @@ console.log("\n[هـ11] the trial to Baraa, its hook, the purposes, and what the
   odooDown = "";
   assert("his orders cannot be read: the trial still goes, on the sample", down.sent === true && bodyOf(flowsTo(OWNER)[0]).endsWith(CF.COMPLAINT_TEST_SAMPLE_TEXT));
   // the hook
-  const hookEnv = { ...env, ODOO_HOOK_TOKEN: "HOOK" };
+  const hookEnv = { ...env, HOOK_SECRET: "HOOK-0123456789abcdef0123456789abcdef" };
   const post = (q: string, e2: any = hookEnv) => quiet(() => worker.fetch(new Request(`https://w.test/odoo/hook/complaint-form-test${q}`, { method: "POST" }), e2, ctx));
   const no = await post("?token=nope"), none = await post(""), unset = await post("?token=", env);
   assert("POST /odoo/hook/complaint-form-test without the hook's token: 401, nothing sent", no.status === 401 && none.status === 401 && unset.status === 401 && flowsTo(OWNER).length === 1);
-  const body = await (await post("?token=HOOK")).json() as any;
+  const body = await (await post("?token=HOOK-0123456789abcdef0123456789abcdef")).json() as any;
   assert("…with it: the worker's own answer (today's trial already went)", body.ok === true && body.sent === false && body.reason === "already_today", JSON.stringify(body));
   setRiyadh("2026-10-07 16:00"); openWindow(env, OWNER);
-  const next = await (await post("?token=HOOK")).json() as any;
+  const next = await (await post("?token=HOOK-0123456789abcdef0123456789abcdef")).json() as any;
   assert("…and the next day it sends one", next.ok === true && next.sent === true && flowsTo(OWNER).length === 2, JSON.stringify(next));
   const idx = srcOf("index.ts");
   assert("the hook stands right before the custody form's", idx.indexOf("url.pathname === \"/odoo/hook/complaint-form-test\"") > 0 && idx.indexOf("url.pathname === \"/odoo/hook/complaint-form-test\"") < idx.indexOf("url.pathname === \"/odoo/hook/custody-form-test\"") && idx.indexOf("url.pathname === \"/odoo/hook/complaint-form-test\"") > idx.indexOf("url.pathname === \"/odoo/hook/carload-form-test\""));

@@ -59,7 +59,7 @@ globalThis.fetch = (async (input: unknown, init?: any) => {
 /** The tenant: the three sources, the customer, the products and their categories; the day's cost 600; the waste 5 %. */
 export function world(riyadh = `${DAY} 14:00`): any {
   const env = fresh(riyadh); cost(600);
-  Object.assign(env, { UTAK_WA_NUMBER: "+966580000467", GOTENBERG_URL: "https://gotenberg.test", GOTENBERG_USER: "u", GOTENBERG_PASSWORD: "p", ADMIN_TOKEN: "ADM", ODOO_HOOK_TOKEN: "HOOK",
+  Object.assign(env, { UTAK_WA_NUMBER: "+966580000467", GOTENBERG_URL: "https://gotenberg.test", GOTENBERG_USER: "u", GOTENBERG_PASSWORD: "p", ADMIN_TOKEN: "ADM", HOOK_SECRET: "HOOK-0123456789abcdef0123456789abcdef",
     INVOICES_BUCKET: { put: async (k: string) => { r2.push(k); return {}; }, head: async () => null, get: async () => null } });
   seed("res.company", { id: 1, name: "شركة يوتاك", vat: "315022736600003", account_sale_tax_id: [SALE_TAX, "15%"] });
   seed("account.tax", { id: SALE_TAX, amount: 15, amount_type: "percent", type_tax_use: "sale", price_include: true, active: true });

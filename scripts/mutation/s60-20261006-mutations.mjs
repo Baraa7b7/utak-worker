@@ -178,7 +178,7 @@ const M = [
   ["هـ", "the trial goes under the summary's own purpose", [["src/s60-trial.ts",
     "export const SUMMARY_TEST_PURPOSE = \"target_lines_test\";", "export const SUMMARY_TEST_PURPOSE = \"owner_summary\";"]], "tests/s60-trial.test.mts"],
   ["هـ", "the trial's hook asks for no token", [["src/index.ts",
-    "    if (request.method === \"POST\" && url.pathname === \"/odoo/hook/s60-trial\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (!expected || !timingSafeEqual(providedToken, expected)) {", "    if (request.method === \"POST\" && url.pathname === \"/odoo/hook/s60-trial\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (false) {"]], "tests/s60-trial.test.mts"],
+    "    if (request.method === \"POST\" && url.pathname === \"/odoo/hook/s60-trial\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      if (!hookTokenOk(env, providedToken)) {", "    if (request.method === \"POST\" && url.pathname === \"/odoo/hook/s60-trial\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      if (false) {"]], "tests/s60-trial.test.mts"],
   ["هـ", "the trial's 🎯 line is not the order's example", [["src/s60-trial.ts",
     "wasteRecorded: 96 * 0.6 + 15 });", "wasteRecorded: 96 * 0.6 });"]], "tests/s60-trial.test.mts"],
   ["هـ", "the trial is marked spent although nothing went", [["src/s60-trial.ts",

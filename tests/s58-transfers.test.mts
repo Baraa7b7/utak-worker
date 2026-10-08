@@ -544,9 +544,9 @@ console.log("\n[هـ] the two trials to Baraa: his number alone, inside his wind
   // the two hooks, as scripts/s58-20261005-trial.mjs calls them on prod
   const env4 = world();
   openWindow(env4, OWNER);
-  env4.ODOO_HOOK_TOKEN = "HOOKTOK";
+  env4.HOOK_SECRET = "HOOKTOK-0123456789abcdef0123456789abcdef";
   graph.length = 0;
-  const hook = (path: string, token = "HOOKTOK", method = "POST") => quiet(() => worker.fetch(new Request(`https://w.test/odoo/hook/${path}?token=${token}`, { method }), env4, ctx));
+  const hook = (path: string, token = "HOOKTOK-0123456789abcdef0123456789abcdef", method = "POST") => quiet(() => worker.fetch(new Request(`https://w.test/odoo/hook/${path}?token=${token}`, { method }), env4, ctx));
   const noToken = await hook("after-delivery-test", "wrong"), noToken2 = await hook("transfer-confirmed-test", "");
   assert("a hook called without the Odoo hook token: 401, and nothing is sent", noToken.status === 401 && noToken2.status === 401 && sentTo(OWNER).length === 0);
   const h1 = await hook("after-delivery-test"), h2 = await hook("transfer-confirmed-test");

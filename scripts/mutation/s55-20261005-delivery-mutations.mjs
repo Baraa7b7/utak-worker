@@ -374,8 +374,8 @@ const M = [
   ["ب", "the trial's answer does not say that nothing was recorded", [[DF,
     "    TEST_TAIL,\n  ].filter(Boolean).join(\"\\n\");\n}\n\n/**\n * ONE delivery form", "  ].filter(Boolean).join(\"\\n\");\n}\n\n/**\n * ONE delivery form"]], T],
   ["ب", "the trial's hook takes any token", [[IX,
-    "    if (request.method === \"POST\" && url.pathname === \"/odoo/hook/delivery-form-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (!expected || !timingSafeEqual(providedToken, expected)) {",
-    "    if (request.method === \"POST\" && url.pathname === \"/odoo/hook/delivery-form-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      const expected = env.ODOO_HOOK_TOKEN ?? \"\";\n      if (false) {"]], T],
+    "    if (request.method === \"POST\" && url.pathname === \"/odoo/hook/delivery-form-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      if (!hookTokenOk(env, providedToken)) {",
+    "    if (request.method === \"POST\" && url.pathname === \"/odoo/hook/delivery-form-test\") {\n      const providedToken = url.searchParams.get(\"token\") ?? \"\";\n      if (false) {"]], T],
   // ---------------------------------------------------------------- the routes
   ["ب", "the form's reply goes to the price form's handler", [[IX,
     "        } else if ((await import(\"./delivery-form\")).isDeliveryFormToken(msg.flow.token ?? \"\")) {", "        } else if (false) {"]], T],

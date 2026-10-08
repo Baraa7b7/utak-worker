@@ -31,7 +31,7 @@ const NEXT = "2026-10-04";
 /** Odoo's webhook of a button of the request's form: 202 at once, the work a moment later (awaited here). */
 async function press(env: any, op: string, id: number): Promise<number> {
   const pending: Promise<unknown>[] = [];
-  const res = await quiet(() => worker.fetch(new Request(`https://w.test/odoo/hook/special-quote?op=${op}&token=HOOK`, { method: "POST", body: JSON.stringify({ _model: QUOTE, _id: id }) }), env, { waitUntil: (p: Promise<unknown>) => { pending.push(p); }, passThroughOnException: () => {} } as any));
+  const res = await quiet(() => worker.fetch(new Request(`https://w.test/odoo/hook/special-quote?op=${op}&token=HOOK-0123456789abcdef0123456789abcdef`, { method: "POST", body: JSON.stringify({ _model: QUOTE, _id: id }) }), env, { waitUntil: (p: Promise<unknown>) => { pending.push(p); }, passThroughOnException: () => {} } as any));
   await quiet(() => Promise.all(pending));
   return res.status;
 }

@@ -52,7 +52,7 @@ function world(riyadh: string, f: { on?: boolean; until?: string; since?: string
     x_freeze_on: f.on === true, x_freeze_until: f.until ?? false, x_freeze_reply: f.reply ?? false,
     x_freeze_since: f.since ? utc(f.since) : false, x_freeze_ended_at: f.ended ? utc(f.ended) : false,
   });
-  env.ODOO_HOOK_TOKEN = "HOOK";
+  env.HOOK_SECRET = "HOOK-0123456789abcdef0123456789abcdef";
   // the suppliers' ask and its reminder have their templates, as on the tenant
   for (const [purpose, name] of [["supplier_ask", "utak_supplier_ask_v2"], ["supplier_price_nudge", "utak_supplier_price_nudge"]]) {
     seed("x_whatsapp_template", { x_purpose: purpose, x_meta_template_id: name, x_language: "ar", x_meta_status: "APPROVED", x_param_count: 2, x_category: "UTILITY" });
@@ -258,7 +258,7 @@ console.log("\n[أ5] what Baraa does by hand");
   assert("Odoo's buttons and automations are Baraa's acts; Meta's webhook and the sim routes are not", ["/odoo/hook/wa", "/odoo/hook/special-quote", "/odoo/hook/supplier", "/internal/quotation-issue", "/internal/receipt-issue"].every(FZ.isOwnerActPath) && !["/webhook", "/sim/trigger", "/health", "/"].some(FZ.isOwnerActPath));
   const env = world(`${DAY} 04:40`, { on: true, since: `${DAY} 01:00` });
   // a route of Odoo's: the trial's «state» reads the switch fresh and answers
-  const res = await quiet(() => worker.fetch(new Request("https://w.test/odoo/hook/s67-trial?token=HOOK&op=state", { method: "POST" }), env, ctx));
+  const res = await quiet(() => worker.fetch(new Request("https://w.test/odoo/hook/s67-trial?token=HOOK-0123456789abcdef0123456789abcdef&op=state", { method: "POST" }), env, ctx));
   const state = (await res.json() as any).state;
   assert("the worker reads the switch the moment a route of Odoo's asks (no wait for the tick)", res.status === 200 && state.frozen === true && state.switchOn === true && state.until === null && state.retriesWaiting === 0 && state.ownerBlocks.owner_alert === false);
   assert("a request of Odoo's is marked as Baraa's own act for everything it sends", state.ownerAct === "odoo");

@@ -36,6 +36,7 @@ const FILES = [
   "s65-registry", "s65-offer", "s65-prices", "s65-outreach",
   "s66-accept", "s66-order", "s66-scenario",
   "s67-freeze", "s67-gateway", "s67-sources",
+  "s68-hook",
 ];
 
 const root = new URL("../", import.meta.url).pathname;

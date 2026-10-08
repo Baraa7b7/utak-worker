@@ -1089,14 +1089,14 @@ console.log("\n[د13] the trial to Baraa, its hook, the purposes, and what the f
   const sample = await reply(env, OWNER, tokenOf(flowsTo(OWNER)[0]), { ...good, inv: ["1", "3"], amt: "400" });
   assert("the samples' trial is answered from the rows it showed (none of them is in Odoo): 300 on «عيّنة 1», 100 of the 120 on «عيّنة 3»", sample.action === "test" && bodyOf(sentTo(OWNER).at(-1)).includes("• عيّنة 1: 300 ر.س (تُسدَّد كاملة)") && bodyOf(sentTo(OWNER).at(-1)).includes("• عيّنة 3: 100 ر.س (جزئي)") && notices(env).length === 0, bodyOf(sentTo(OWNER).at(-1)));
   // the hook
-  const hookEnv = { ...env, ODOO_HOOK_TOKEN: "HOOK" };
+  const hookEnv = { ...env, HOOK_SECRET: "HOOK-0123456789abcdef0123456789abcdef" };
   const post = (q: string, e: any = hookEnv) => quiet(() => worker.fetch(new Request(`https://w.test/odoo/hook/transfer-form-test${q}`, { method: "POST" }), e, ctx));
   const no = await post("?token=nope"), none = await post(""), unset = await post("?token=", env);
   assert("POST /odoo/hook/transfer-form-test without the hook's token: 401, nothing sent", no.status === 401 && none.status === 401 && unset.status === 401 && flowsTo(OWNER).length === 1);
-  const body = await (await post("?token=HOOK")).json() as any;
+  const body = await (await post("?token=HOOK-0123456789abcdef0123456789abcdef")).json() as any;
   assert("…with it: the worker's own answer (today's trial already went)", body.ok === true && body.sent === false && body.reason === "already_today", JSON.stringify(body));
   setRiyadh("2026-10-05 16:00"); openWindow(env, OWNER);
-  const next = await (await post("?token=HOOK")).json() as any;
+  const next = await (await post("?token=HOOK-0123456789abcdef0123456789abcdef")).json() as any;
   assert("…and the next day it sends one", next.ok === true && next.sent === true && flowsTo(OWNER).length === 2, JSON.stringify(next));
   assert("no Odoo field or value outside the schema", rejected.length === 0, rejected.join(" | "));
 }

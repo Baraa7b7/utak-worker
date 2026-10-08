@@ -110,6 +110,13 @@ export async function freezeOrderPrices(env: Env, orderId: number, list: ValidLi
   const unavailable: string[] = [];
   const asked: UnavailableAsk[] = [];
   for (const l of order.lines) {
+    // § 66 ب — «سعر خاص»: the price of a line that came from a special quotation is that quotation's, locked. No
+    // list reprices it, and an item no list holds (not «نشط للبيع») stays in this order: the line is left as it is.
+    if (l.special) {
+      lines++;
+      total = round2(total + round2((l.unit_price ?? 0) * l.quantity));
+      continue;
+    }
     const manual = (l.price_unit_manual ?? 0) > 0 ? (l.price_unit_manual as number) : 0;
     const unit = manual || (await listPrice(env, list, l.product_id, l.packaging_id)).price;
     // § 59 ج — the list does not hold the item (not published today, or no line at all) and Baraa gave

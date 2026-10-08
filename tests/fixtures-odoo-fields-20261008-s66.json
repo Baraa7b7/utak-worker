@@ -1,5 +1,5 @@
 {
- "_source": "fields_get on utakfresh.odoo.com, 2026-10-08T07:40Z (read-only), § 66 (the acceptance of a special request and the order it becomes: x_special_quote, x_special_quote_line, x_daily_order, x_daily_order_line, x_pricing_config; every model of § 65 again)",
+ "_source": "fields_get on utakfresh.odoo.com, 2026-10-08T07:46Z (read-only), § 66 (the acceptance of a special request and the order it becomes: x_special_quote, x_special_quote_line, x_daily_order, x_daily_order_line, x_pricing_config; every model of § 65 again)",
  "_selections": {
   "x_pricing_config.x_above_suggested": [
    "market",
@@ -3611,6 +3611,7 @@
   "x_return_reason",
   "x_special_price",
   "x_special_purchase",
+  "x_special_supplier_id",
   "x_status",
   "x_substitute_product_id",
   "x_subtotal",

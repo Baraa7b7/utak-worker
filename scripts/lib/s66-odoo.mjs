@@ -48,6 +48,7 @@ export const ORDER_LINE_FIELDS = [
   { name: "x_special_price", ttype: "boolean", field_description: "سعر خاص", help: "سعر هذا السطر من عرض سعر خاص: لا يغيّره نشر أسعار اليوم ولا إعادة حساب." },
   { name: "x_pack_text", ttype: "char", field_description: "التعبئة (طلب خاص)", help: "التعبئة كما كُتبت في العرض الخاص: تُطبع بدل اسم العبوة." },
   { name: "x_special_purchase", ttype: "float", field_description: "الشراء (طلب خاص)", help: "سعر الشراء لوحدة السطر بدون ضريبة: المستهدف من العرض، ثم الفعلي بعد تأكيد قائمة الشراء. منه يُحسب ربح السطر." },
+  { name: "x_special_supplier_id", ttype: "many2one", relation: "res.partner", on_delete: "set null", field_description: "مورد الشراء (طلب خاص)", help: "صاحب أقل سعر شراء في العرض: عليه يُحسب مستحق هذا السطر وفاتورته. فارغ = مورد قائمة الشراء." },
 ];
 export const CONFIG_FIELDS = [
   { name: "x_large_order_cartons", ttype: "integer", field_description: "حد الطلب الكبير (كرتون)", help: "طلب خاص يبلغ هذا العدد من الكراتين: تنبيه «🚚 رتّب المركبة» عند التحويل وصباح يوم التسليم. فارغ أو 0 = 50." },
@@ -58,10 +59,14 @@ export const HOOKS = {
   approve: { name: "utak.special_quote.approve_webhook", op: "approve" },
   convert: { name: "utak.special_quote.convert_webhook", op: "convert" },
 };
-/** «↩️ أعد فتحه» (§ 62's code action): a request that became an order comes back «مقبول», never «صدر العرض». */
+/**
+ * «↩️ أعد فتحه» (§ 62's code action): a request that became an order comes back «مقبول», never «صدر العرض» —
+ * unless that order was cancelled: then it is «صدر العرض» again, and may be converted anew.
+ */
 export const REOPEN_ACTION = "utak.special_quote.reopen";
 export const REOPEN_CODE = `for rec in records:
-    rec.write({'x_state': 'accepted' if rec.x_daily_order_id else ('quoted' if rec.x_quotation_number else ('sent' if rec.x_asked_at else 'draft'))})`;
+    converted = rec.x_daily_order_id and rec.x_daily_order_id.x_state != 'cancelled'
+    rec.write({'x_state': 'accepted' if converted else ('quoted' if rec.x_quotation_number else ('sent' if rec.x_asked_at else 'draft'))})`;
 /** § 62's own code of it: what --rollback puts back when the rollback file holds none. */
 export const REOPEN_CODE_BEFORE = `for rec in records:
     rec.write({'x_state': 'quoted' if rec.x_quotation_number else ('sent' if rec.x_asked_at else 'draft')})`;
@@ -150,7 +155,7 @@ ${FILTERS.map(([name, string, domain]) => `    <filter name="${name}" string="${
 </data>`,
   },
   "x_daily_order.form.utak_s66": {
-    model: ORDER_MODEL, parent: "x_daily_order.form", type: "form", shows: ['name="x_special_quote_id"', 'name="x_special_price"', 'name="x_pack_text"', 'name="x_special_purchase"'],
+    model: ORDER_MODEL, parent: "x_daily_order.form", type: "form", shows: ['name="x_special_quote_id"', 'name="x_special_price"', 'name="x_pack_text"', 'name="x_special_purchase"', 'name="x_special_supplier_id"'],
     arch: `<data>
   <xpath expr="//field[@name='x_created_via']" position="after">
     <field name="x_special_quote_id" readonly="1" invisible="not x_special_quote_id"/>
@@ -159,6 +164,7 @@ ${FILTERS.map(([name, string, domain]) => `    <filter name="${name}" string="${
     <field name="x_special_price" optional="show" readonly="1"/>
     <field name="x_pack_text" optional="show" readonly="1"/>
     <field name="x_special_purchase" optional="show"/>
+    <field name="x_special_supplier_id" optional="show" options="{'no_create': True}"/>
   </xpath>
 </data>`,
   },

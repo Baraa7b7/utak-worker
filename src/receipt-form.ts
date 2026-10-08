@@ -194,6 +194,8 @@ export interface ReceiptList {
 /** What was ordered of a line: kept apart once a receipt was written on it. */
 export const orderedOf = (it: ReceivedListItem): number => round2(Number(it.ordered_quantity ?? it.total_quantity) || 0);
 const itemKey = (productId: number, packagingId: number): string => `${productId}:${packagingId}`;
+/** § 66 ج — a list's line by its item — and, for a special quotation's line, by that line alone (never told by another's quantity). */
+const lineKey = (productId: number, packagingId: number, special?: number): string => `${itemKey(productId, packagingId)}${special ? `:sq${special}` : ""}`;
 const itemName = (product: string, packaging: string): string => `${clean(product)}${clean(packaging) ? ` (${clean(packaging)})` : ""}`;
 
 /** A purchase list as the form needs it. The quantities and the names only: no price of its lines is read into the form. */
@@ -224,7 +226,8 @@ async function supplierNames(env: Env, list: ReceiptList): Promise<(it: Received
     const { CASH_MARKET_NAME, winnerKey } = await import("./cash-market");
     const plan = list.day ? await readMarketPlan(env, list.day) : null;
     if (plan?.cashSupplierId) {
-      market = new Set(list.items.filter((it) => plan.winners.has(winnerKey(it.product_id, it.packaging_id))).map((it) => itemKey(it.product_id, it.packaging_id)));
+      // § 66 ج — a special quotation's line is never the market's: its price and its source are the quotation's
+      market = new Set(list.items.filter((it) => !it.special_line && plan.winners.has(winnerKey(it.product_id, it.packaging_id))).map((it) => itemKey(it.product_id, it.packaging_id)));
       cashName = CASH_MARKET_NAME;
     }
   } catch (e) {
@@ -241,13 +244,15 @@ async function supplierNames(env: Env, list: ReceiptList): Promise<(it: Received
   } catch (e) {
     console.warn("[receipt-form] the suppliers' names could not be read — the hints go without them", (e as Error)?.message);
   }
-  return (it) => (market.has(itemKey(it.product_id, it.packaging_id)) ? cashName : names.get(idOf(it)) ?? "");
+  return (it) => (!it.special_line && market.has(itemKey(it.product_id, it.packaging_id)) ? cashName : names.get(idOf(it)) ?? "");
 }
 
 export interface ReceiptItem {
   slot: number;
   productId: number;
   packagingId: number;
+  /** § 66 ج — the order line of a special quotation's item (its key in the list); none for any other. */
+  special?: number;
   /** «طماطم (كرتون)», as the messages name a line. */
   name: string;
   label: string;
@@ -267,7 +272,7 @@ export function receiptSlotTexts(product: string, packaging: string, ordered: nu
 export function receiptItems(items: ReceivedListItem[], supplierOf: (it: ReceivedListItem) => string = () => ""): { shown: ReceiptItem[]; rest: string[] } {
   const shown = items.slice(0, RECEIPT_FLOW_SLOTS).map((it, i) => {
     const ordered = orderedOf(it), supplier = supplierOf(it);
-    return { slot: i + 1, productId: it.product_id, packagingId: it.packaging_id, name: itemName(it.product_name, it.packaging_name), ...receiptSlotTexts(it.product_name, it.packaging_name, ordered, supplier), ordered, supplier };
+    return { slot: i + 1, productId: it.product_id, packagingId: it.packaging_id, ...(it.special_line ? { special: it.special_line } : {}), name: itemName(it.product_name, it.packaging_name), ...receiptSlotTexts(it.product_name, it.packaging_name, ordered, supplier), ordered, supplier };
   });
   return { shown, rest: items.slice(RECEIPT_FLOW_SLOTS).map((it) => itemName(it.product_name, it.packaging_name)) };
 }
@@ -281,7 +286,8 @@ const option = (productId: number, packagingId: number, product: string, packagi
  */
 export async function receiptCatalog(env: Env, items: ReceivedListItem[]): Promise<ReceiptOption[]> {
   const out = new Map<string, ReceiptOption>();
-  for (const it of items) out.set(itemKey(it.product_id, it.packaging_id), option(it.product_id, it.packaging_id, it.product_name, it.packaging_name));
+  // § 66 ج — a special quotation's line is no option of a cash purchase: its packaging's name is not its item's
+  for (const it of items) if (!it.special_line) out.set(itemKey(it.product_id, it.packaging_id), option(it.product_id, it.packaging_id, it.product_name, it.packaging_name));
   try {
     const { readActiveItems } = await import("./pricing-engine");
     for (const a of await readActiveItems(env, [])) {
@@ -616,11 +622,11 @@ export function cashPaymentNote(listId: number, rows: ReceiptCashRow[]): string 
 
 /** The received quantities against the list as it stands now: a line of the form by its item, any other line as ordered. */
 export function receivedLines(items: ReceivedListItem[], received: ReceiptEntries["received"], supplierOf: (it: ReceivedListItem) => string = () => ""): { next: ReceivedListItem[]; lines: ReceivedLine[] } {
-  const got = new Map(received.map((r) => [itemKey(r.item.productId, r.item.packagingId), r.quantity]));
+  const got = new Map(received.map((r) => [lineKey(r.item.productId, r.item.packagingId, r.item.special), r.quantity]));
   const lines: ReceivedLine[] = [];
   const next = items.map((it) => {
     const ordered = orderedOf(it);
-    const quantity = got.get(itemKey(it.product_id, it.packaging_id)) ?? ordered;
+    const quantity = got.get(lineKey(it.product_id, it.packaging_id, it.special_line)) ?? ordered;
     lines.push({ name: itemName(it.product_name, it.packaging_name), ordered, received: quantity, supplier: supplierOf(it) });
     // what was ordered is written once; total_quantity is what the bill and the due are made from
     return { ...it, ordered_quantity: ordered, total_quantity: quantity };

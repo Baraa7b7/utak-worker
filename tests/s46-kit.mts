@@ -41,6 +41,7 @@ export const FIX = [
   "fixtures-odoo-fields-20261007-s62d.json",  // § 62 د: x_special_quote.x_layout, the line's x_item_origin / x_item_size / x_suggested_net; sale.order, sale.order.line and x_preview_ticket in the gate for the first time; every model of § 62 again (read last: it wins)
   "fixtures-odoo-fields-20261007-s64.json",   // § 64: sale.order.line.x_pack_text «التعبئة» (the pack as text), x_preview_ticket.x_active (a used ticket is archived); every model of § 62 د again (read last: it wins)
   "fixtures-odoo-fields-20261007-s65.json",   // § 65: the suppliers' registry — x_supplier_state and 22 more on res.partner, x_offer_kind / x_item_size / x_item_origin / x_ready_* on x_price_offer, the size and the origin on x_daily_price, x_pricing_config.x_supplier_outreach; x_supplier_season, x_supplier_capacity and res.country in the gate for the first time (read last: it wins)
+  "fixtures-odoo-fields-20261008-s66.json",   // § 66: the acceptance on x_special_quote (and its state «accepted»), x_special_quote_line.x_confirmed_qty, x_daily_order.x_special_quote_id, «سعر خاص» / «التعبئة» / «الشراء» and its supplier on x_daily_order_line, x_pricing_config.x_large_order_cartons; every model of § 65 again (read last: it wins)
 ].map((f) => JSON.parse(readFileSync(new URL(`./${f}`, import.meta.url), "utf8")));
 const REAL: Record<string, string[]> = Object.assign({}, ...FIX);
 const SELECTIONS: Record<string, string[]> = Object.assign({}, ...FIX.map((f) => f._selections ?? {}));

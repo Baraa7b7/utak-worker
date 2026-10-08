@@ -183,6 +183,14 @@ export interface PurchaseListItem {
   unit_price?: number | null;
   /** Supplier whose x_daily_price filled unit_price (informational). */
   price_supplier_id?: number | null;
+  /**
+   * § 66 ج — a line of an order that came from a special quotation: the request's name («SQ-0004») as the
+   * list marks it, and the x_daily_order_line it is. Such an item is ONE order line: never merged with another
+   * (purchaseItemKey), its packaging_name is the quotation's «التعبئة», and its unit_price starts as the
+   * quotation's «الشراء» — the target the buyer reads — never a price of the day.
+   */
+  special?: string;
+  special_line?: number;
 }
 
 // A confirmed order line as pulled for aggregation
@@ -196,6 +204,11 @@ export interface ConfirmedLine {
   packaging_id: number;
   packaging_name: string;
   quantity: number;
+  /** § 66 ج — the line came from a special quotation: its name, the line's id, its target purchase price and whose it is. */
+  special?: string;
+  special_line?: number;
+  special_purchase?: number | null;
+  special_supplier_id?: number | null;
 }
 
 // A stop assigned to a driver's route

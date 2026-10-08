@@ -109,7 +109,9 @@ console.log("\n[ب] by quantities: the page as it was");
   const html = Q.renderQuotationHTML(data, COMPANY), t = text(html);
   assert("الصنف | العبوة | الكمية | السعر | الإجمالي", JSON.stringify(heads(html)) === JSON.stringify(["الصنف", "العبوة", "الكمية", "السعر", "الإجمالي"]));
   const lines = Math.round(NINE.reduce((s, l, i) => s + Math.round((2 + i) * l[3] * 100) / 100, 0) * 100) / 100;
-  assert("«قبل الضريبة»: the price before VAT, then «المجموع قبل الضريبة», «ضريبة القيمة المضافة 15%», «الإجمالي»", data.subtotal === lines && data.vatAmount === Math.round(lines * 15) / 100 && t.includes(QT.NET_SUBTOTAL_LABEL) && t.includes(QT.NET_VAT_LABEL) && t.includes(UI.grandTotal.ar) && !t.includes("الأسعار لكل وحدة"));
+  // § 66 د — «الإجمالي» is each line at its VAT-inclusive final price × its quantity (what the invoice adds up to); the VAT row is the rest
+  const inclusive = Math.round(NINE.reduce((s, l, i) => s + Math.round((2 + i) * l[2] * 100) / 100, 0) * 100) / 100;
+  assert("«قبل الضريبة»: the price before VAT, then «المجموع قبل الضريبة», «ضريبة القيمة المضافة 15%», «الإجمالي» (§ 66: the invoice's total, the VAT row the rest)", data.subtotal === lines && data.grandTotal === inclusive && data.vatAmount === Math.round((inclusive - lines) * 100) / 100 && Math.abs(data.vatAmount - lines * 0.15) < 0.5 && t.includes(QT.NET_SUBTOTAL_LABEL) && t.includes(QT.NET_VAT_LABEL) && t.includes(UI.grandTotal.ar) && !t.includes("الأسعار لكل وحدة"));
   assert("the seal beside the totals, and no unit note", html.includes('data-utak="seal-signature"') && !html.includes('data-utak="unit-note"'));
 }
 

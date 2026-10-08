@@ -644,6 +644,8 @@ export async function findOrCreateTodayOrder(
     domain: [
       ["x_customer_id", "=", customerId],
       ["x_state", "in", ["draft", "waiting_confirmation"]],
+      // § 66 ب — an order being made from a special quotation is never the customer's open order of the day
+      ["x_special_quote_id", "=", false],
       "|", ["x_order_date", "=", today], ["x_awaiting_prices", "=", true],
     ],
     fields: ["id", "x_state"],
@@ -1403,9 +1405,10 @@ export async function getConfirmedLinesForToday(env: Env): Promise<ConfirmedLine
     id: number;
     x_customer_id: [number, string] | false;
     x_delivery_neighborhood: string | false;
+    x_special_quote_id?: [number, string] | false;
   }>>(env, "x_daily_order", "search_read", {
     domain: [["x_order_date", "=", today], ["x_state", "=", "confirmed"], ["x_utak_simulation", "!=", true]],
-    fields: ["id", "x_customer_id", "x_delivery_neighborhood"],
+    fields: ["id", "x_customer_id", "x_delivery_neighborhood", "x_special_quote_id"],
     limit: 500,
   });
   if (orders.length === 0) return [];
@@ -1420,9 +1423,13 @@ export async function getConfirmedLinesForToday(env: Env): Promise<ConfirmedLine
     x_packaging_id: [number, string] | false;
     x_quantity: number;
     x_status: string | false;
+    x_special_price?: boolean;
+    x_pack_text?: string | false;
+    x_special_purchase?: number | false;
+    x_special_supplier_id?: [number, string] | false;
   }>>(env, "x_daily_order_line", "search_read", {
     domain: [["x_order_id", "in", orderIds], ["x_status", "in", ["pending", "purchased"]]],
-    fields: ["id", "x_order_id", "x_product_tmpl_id", "x_packaging_id", "x_quantity", "x_status"],
+    fields: ["id", "x_order_id", "x_product_tmpl_id", "x_packaging_id", "x_quantity", "x_status", "x_special_price", "x_pack_text", "x_special_purchase", "x_special_supplier_id"],
     limit: 5000,
   });
 
@@ -1444,14 +1451,49 @@ export async function getConfirmedLinesForToday(env: Env): Promise<ConfirmedLine
         packaging_id: pk[0],
         packaging_name: stripRef(pk[1]),
         quantity: l.x_quantity,
+        ...specialOf(l, order.x_special_quote_id),
       };
     });
+}
+
+/**
+ * § 66 ج — a line «سعر خاص» of an order that came from a special quotation, as the purchase list takes it: the
+ * request's name, the line's own id (its key), the quotation's «التعبئة» for its packaging's name, its target
+ * purchase price and the source that gave it. Any other line: nothing.
+ */
+function specialOf(
+  l: { id: number; x_special_price?: boolean; x_pack_text?: string | false; x_special_purchase?: number | false; x_special_supplier_id?: [number, string] | false },
+  quote: [number, string] | false | undefined,
+): Partial<ConfirmedLine> {
+  if (l.x_special_price !== true) return {};
+  const pack = typeof l.x_pack_text === "string" ? l.x_pack_text.trim() : "";
+  return {
+    special: Array.isArray(quote) ? stripRef(quote[1]) || `#${quote[0]}` : "خاص",
+    special_line: l.id,
+    special_purchase: typeof l.x_special_purchase === "number" && l.x_special_purchase > 0 ? l.x_special_purchase : null,
+    special_supplier_id: Array.isArray(l.x_special_supplier_id) ? l.x_special_supplier_id[0] : null,
+    ...(pack ? { packaging_name: pack } : {}),
+  };
+}
+
+/** The key of a purchase list's item: its item and packaging — and, for a special quotation's line, that line alone. */
+export function purchaseItemKey(it: { product_id: number; packaging_id: number; special_line?: number }): string {
+  return `${it.product_id}::${it.packaging_id}${it.special_line ? `::sq${it.special_line}` : ""}`;
 }
 
 // ---- Aggregate confirmed lines by (product, packaging) ----
 export function aggregatePurchaseList(lines: ConfirmedLine[]): PurchaseListItem[] {
   const map = new Map<string, PurchaseListItem>();
   for (const l of lines) {
+    // § 66 ج — a special quotation's line is an item of its own: its «التعبئة», its target price, its mark
+    if (l.special_line) {
+      map.set(purchaseItemKey(l), {
+        product_id: l.product_id, product_name: l.product_name, packaging_id: l.packaging_id, packaging_name: l.packaging_name,
+        total_quantity: l.quantity, order_ids: [l.order_id], unit_price: l.special_purchase ?? null, price_supplier_id: l.special_supplier_id ?? null,
+        special: l.special ?? "خاص", special_line: l.special_line,
+      });
+      continue;
+    }
     const key = `${l.product_id}::${l.packaging_id}`;
     const cur = map.get(key);
     if (cur) {
@@ -1485,7 +1527,7 @@ export async function prefillPurchasePrices(
   keep: PurchaseListItem[] = [],
 ): Promise<{ items: PurchaseListItem[]; supplierId: number | null }> {
   const key = (p: number, k: number) => `${p}::${k}`;
-  const kept = new Map(keep.map((it) => [key(it.product_id, it.packaging_id), it]));
+  const kept = new Map(keep.map((it) => [purchaseItemKey(it), it]));
   const productIds = Array.from(new Set(items.map((it) => it.product_id)));
   type Row = { x_product_tmpl_id: [number, string] | false; x_packaging_id: [number, string] | false; x_supplier_id: [number, string] | false; x_price_sar: number | false };
   const rows = productIds.length
@@ -1503,10 +1545,13 @@ export async function prefillPurchasePrices(
     if (!latest.has(k)) latest.set(k, r);
   }
   const out = items.map((it) => {
-    const prev = kept.get(key(it.product_id, it.packaging_id));
+    const prev = kept.get(purchaseItemKey(it));
     if (prev && typeof prev.unit_price === "number" && prev.unit_price > 0) {
       return { ...it, unit_price: prev.unit_price, price_supplier_id: prev.price_supplier_id ?? null };
     }
+    // § 66 ج — a special quotation's line keeps the quotation's own purchase price and source: its unit is the
+    // quotation's «التعبئة», never the packaging a price of the day is for
+    if (it.special_line) return { ...it, unit_price: it.unit_price ?? null, price_supplier_id: it.price_supplier_id ?? null };
     const r = latest.get(key(it.product_id, it.packaging_id));
     return {
       ...it,
@@ -1576,6 +1621,13 @@ export async function markPurchaseListDone(env: Env, id: number): Promise<void> 
     ids: [id],
     vals: { x_status: "done", x_ahmad_confirmed_at: nowOdoo() },
   });
+  // § 66 ج — what each special quotation's line was really bought at goes back to its order line (the day's profit reads it)
+  try {
+    const brief = await getPurchaseListBrief(env, id);
+    if (brief?.items.some((it) => it.special_line)) await (await import("./special-accept")).syncSpecialPurchase(env, brief.items);
+  } catch (e) {
+    console.warn(`[purchase-list] ${id}: the special lines' purchase prices were not written back`, (e as Error)?.message);
+  }
   const orderIds = await getOrderIdsFromPurchaseList(env, id);
   if (orderIds.length === 0) return;
 
@@ -1736,9 +1788,11 @@ export async function buildAndCreateRoutesForDrivers(
     x_product_tmpl_id: [number, string] | false;
     x_packaging_id: [number, string] | false;
     x_quantity: number;
+    x_special_price?: boolean;
+    x_pack_text?: string | false;
   }>>(env, "x_daily_order_line", "search_read", {
     domain: [["x_order_id", "in", scopedOrderIds], ["x_status", "=", "purchased"]],
-    fields: ["x_order_id", "x_product_tmpl_id", "x_packaging_id", "x_quantity"],
+    fields: ["x_order_id", "x_product_tmpl_id", "x_packaging_id", "x_quantity", "x_special_price", "x_pack_text"],
     limit: 5000,
   });
   const summaryByOrder = new Map<number, string[]>();
@@ -1746,7 +1800,8 @@ export async function buildAndCreateRoutesForDrivers(
     if (!Array.isArray(l.x_order_id) || !Array.isArray(l.x_product_tmpl_id) || !Array.isArray(l.x_packaging_id)) continue;
     const oid = (l.x_order_id as [number, string])[0];
     const pname = stripRef((l.x_product_tmpl_id as [number, string])[1]);
-    const pkname = stripRef((l.x_packaging_id as [number, string])[1]);
+    // § 66 — a special quotation's line is named by its «التعبئة»
+    const pkname = l.x_special_price === true && l.x_pack_text ? String(l.x_pack_text).trim() : stripRef((l.x_packaging_id as [number, string])[1]);
     const arr = summaryByOrder.get(oid) ?? [];
     arr.push(`${pname} ${pkname} × ${l.x_quantity}`);
     summaryByOrder.set(oid, arr);
@@ -2455,6 +2510,8 @@ export async function getOrderForInvoicing(
    * order — priced by its own day as before.
    */
   price_date: string | null;
+  /** § 66 ب — the special request the order came from; 0 = an order of the day. */
+  special_quote_id: number;
   lines: Array<{
     id: number;
     product_id: number;
@@ -2462,6 +2519,13 @@ export async function getOrderForInvoicing(
     packaging_id: number;
     packaging_name: string;
     quantity: number;
+    /**
+     * § 66 ب — «سعر خاص»: the line came from a special quotation. Its price is that quotation's final one, locked:
+     * no price list and no recalculation changes it (src/order-flow.ts freezeOrderPrices), and its packaging_name
+     * is the quotation's «التعبئة» (pack_text) — whatever packaging the line had to name.
+     */
+    special: boolean;
+    pack_text: string;
     unit_price: number | null;
     // item3 (2026-09-17) — manual per-line override captured from
     // x_daily_order_line.x_price_unit_manual. Optional; when > 0 it takes
@@ -2477,10 +2541,11 @@ export async function getOrderForInvoicing(
     x_line_ids: number[];
     x_order_date: string | false;
     x_price_date?: string | false;
+    x_special_quote_id?: [number, string] | false;
   };
   const orders = await call<OrderRow[]>(env, "x_daily_order", "read", {
     ids: [orderId],
-    fields: ["id", "x_customer_id", "x_delivery_neighborhood", "x_line_ids", "x_order_date", "x_price_date"],
+    fields: ["id", "x_customer_id", "x_delivery_neighborhood", "x_line_ids", "x_order_date", "x_price_date", "x_special_quote_id"],
   });
   const order = orders[0];
   if (!order || !order.x_customer_id) return null;
@@ -2502,6 +2567,8 @@ export async function getOrderForInvoicing(
     x_unit_price: number | false;
     x_price_unit_manual: number | false;
     x_status: string;
+    x_special_price?: boolean;
+    x_pack_text?: string | false;
   };
   const lines = order.x_line_ids.length
     ? await call<LineRow[]>(env, "x_daily_order_line", "read", {
@@ -2514,6 +2581,8 @@ export async function getOrderForInvoicing(
           "x_unit_price",
           "x_price_unit_manual",
           "x_status",
+          "x_special_price",
+          "x_pack_text",
         ],
       })
     : [];
@@ -2529,12 +2598,15 @@ export async function getOrderForInvoicing(
     neighborhood: order.x_delivery_neighborhood || "",
     order_date: typeof order.x_order_date === "string" && order.x_order_date ? order.x_order_date : null,
     price_date: typeof order.x_price_date === "string" && order.x_price_date ? order.x_price_date : null,
+    special_quote_id: Array.isArray(order.x_special_quote_id) ? order.x_special_quote_id[0] : 0,
     lines: usable.map((l) => ({
       id: l.id,
       product_id: l.x_product_tmpl_id ? l.x_product_tmpl_id[0] : 0,
       product_name: l.x_product_tmpl_id ? stripRef(l.x_product_tmpl_id[1]) : "?",
       packaging_id: l.x_packaging_id ? l.x_packaging_id[0] : 0,
-      packaging_name: l.x_packaging_id ? stripRef(l.x_packaging_id[1]) : "",
+      packaging_name: specialPack(l) || (l.x_packaging_id ? stripRef(l.x_packaging_id[1]) : ""),
+      special: l.x_special_price === true,
+      pack_text: specialPack(l),
       quantity: l.x_quantity,
       unit_price: typeof l.x_unit_price === "number" && l.x_unit_price > 0 ? l.x_unit_price : null,
       price_unit_manual:
@@ -2543,6 +2615,11 @@ export async function getOrderForInvoicing(
           : null,
     })),
   };
+}
+
+/** § 66 ب — «التعبئة» of a line «سعر خاص», as its special quotation wrote it; "" for any other line. */
+function specialPack(l: { x_special_price?: boolean; x_pack_text?: string | false }): string {
+  return l.x_special_price === true && typeof l.x_pack_text === "string" ? l.x_pack_text.trim() : "";
 }
 
 // ---- Look up today's sale price (fallback to any recent price) ----

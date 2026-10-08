@@ -205,9 +205,9 @@ async function deliveredProfit(env: Env, orderDay: string, vatRatePct: number | 
   const orders = await ordersOf(env, orderDay, [...DELIVERED_STATES]);
   if (orders.length === 0) return 0;
   const ids = orders.map((o) => o.id);
-  const lines = await call<Array<{ x_order_id: M2O; x_product_tmpl_id: M2O; x_packaging_id: M2O; x_quantity: number; x_status: string | false; x_unit_price: number | false; x_price_unit_manual: number | false }>>(env, "x_daily_order_line", "search_read", {
+  const lines = await call<Array<{ x_order_id: M2O; x_product_tmpl_id: M2O; x_packaging_id: M2O; x_quantity: number; x_status: string | false; x_unit_price: number | false; x_price_unit_manual: number | false; x_special_price?: boolean; x_special_purchase?: number | false }>>(env, "x_daily_order_line", "search_read", {
     domain: [["x_order_id", "in", ids]],
-    fields: ["x_order_id", "x_product_tmpl_id", "x_packaging_id", "x_quantity", "x_status", "x_unit_price", "x_price_unit_manual"],
+    fields: ["x_order_id", "x_product_tmpl_id", "x_packaging_id", "x_quantity", "x_status", "x_unit_price", "x_price_unit_manual", "x_special_price", "x_special_purchase"],
     limit: 10000,
   });
   const costs = await call<Array<{ x_product_tmpl_id: M2O; x_packaging_id: M2O; x_cost_price: number | false }>>(env, "x_price_day_line", "search_read", {
@@ -224,9 +224,10 @@ async function deliveredProfit(env: Env, orderDay: string, vatRatePct: number | 
   for (const l of lines) {
     if (String(l.x_status) === "unavailable") continue; // short at delivery: not sold
     const sale = Number(l.x_price_unit_manual) > 0 ? Number(l.x_price_unit_manual) : Number(l.x_unit_price) || 0;
-    const buy = cost.get(`${m2oId(l.x_product_tmpl_id)}:${m2oId(l.x_packaging_id)}`);
+    // § 66 د — a special quotation's line: what it was really bought at («الشراء (طلب خاص)»), never the day's cost
+    const buy = l.x_special_price === true ? Number(l.x_special_purchase) || 0 : cost.get(`${m2oId(l.x_product_tmpl_id)}:${m2oId(l.x_packaging_id)}`);
     if (!(sale > 0)) throw new Error("a delivered line without a sale price");
-    if (!(buy && buy > 0)) throw new Error("a delivered line without its day's purchase price");
+    if (!(buy && buy > 0)) throw new Error(l.x_special_price === true ? "a special quotation's line without its purchase price" : "a delivered line without its day's purchase price");
     const qty = Number(l.x_quantity) || 0;
     profit += vatProfit(sale, buy, waste, vatRatePct) * qty;
     grossByOrder.set(m2oId(l.x_order_id), (grossByOrder.get(m2oId(l.x_order_id)) ?? 0) + round2(sale * qty));

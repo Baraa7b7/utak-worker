@@ -247,7 +247,7 @@ console.log("\n[ج2] an item the valid list does not hold: «هذا الصنف �
   {
     // a line that left the order before any quotation priced it never enters the sale order
     const src = readFileSync(new URL("../src/sale-accounting.ts", import.meta.url), "utf8");
-    assert("the sale order skips a line marked unavailable that carries no price (and keeps one short at the delivery, priced)", src.includes('if (r.x_status === "unavailable" && !unit) continue;') && /fields: \["id", "x_product_tmpl_id", "x_packaging_id", "x_quantity", "x_unit_price", "x_status"\]/.test(src));
+    assert("the sale order skips a line marked unavailable that carries no price (and keeps one short at the delivery, priced)", src.includes('if (r.x_status === "unavailable" && !unit) continue;') && /fields: \["id", "x_product_tmpl_id", "x_packaging_id", "x_quantity", "x_unit_price", "x_status", "x_special_price", "x_pack_text"\]/.test(src));
   }
   assert("schema gate: nothing rejected", rejected.length === 0, rejected.join(" / "));
 }

@@ -212,11 +212,13 @@ export async function buildDeliveryNotePDFDataFromOdoo(
     x_packaging_id: [number, string] | false;
     x_quantity: number;
     x_status: string;
+    x_special_price?: boolean;
+    x_pack_text?: string | false;
   };
   const lines = (order.x_line_ids && order.x_line_ids.length)
     ? await call<LineRow[]>(env, "x_daily_order_line", "read", {
         ids: order.x_line_ids,
-        fields: ["id", "x_product_tmpl_id", "x_packaging_id", "x_quantity", "x_status"],
+        fields: ["id", "x_product_tmpl_id", "x_packaging_id", "x_quantity", "x_status", "x_special_price", "x_pack_text"],
       })
     : [];
 
@@ -230,7 +232,8 @@ export async function buildDeliveryNotePDFDataFromOdoo(
   );
   const items: DeliveryNoteItem[] = usable.map((l, i) => ({
     name: l.x_product_tmpl_id ? stripRef(l.x_product_tmpl_id[1]) : "?",
-    pack: packagingNames[i],
+    // § 66 — a special quotation's line prints its own «التعبئة»
+    pack: l.x_special_price === true && l.x_pack_text ? String(l.x_pack_text).trim() : packagingNames[i],
     qty: l.x_quantity,
   }));
 

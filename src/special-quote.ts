@@ -35,8 +35,8 @@ import type { PriceKind } from "./price-sources";
 export const QUOTE_MODEL = "x_special_quote";
 export const LINE_MODEL = "x_special_quote_line";
 export const RECIPIENT_MODEL = "x_special_quote_recipient";
-export type QuoteState = "draft" | "sent" | "priced" | "quoted" | "closed";
-export const STATE_LABEL: Readonly<Record<QuoteState, string>> = { draft: "مسودة", sent: "أُرسل للمصادر", priced: "مُسعَّر", quoted: "صدر العرض", closed: "مغلق" };
+export type QuoteState = "draft" | "sent" | "priced" | "quoted" | "accepted" | "closed";
+export const STATE_LABEL: Readonly<Record<QuoteState, string>> = { draft: "مسودة", sent: "أُرسل للمصادر", priced: "مُسعَّر", quoted: "صدر العرض", accepted: "مقبول — تحوّل لطلب", closed: "مغلق" };
 const SIM_FIELD = "x_utak_simulation";
 
 type M2O = [number, string] | number | false | undefined;
@@ -99,6 +99,8 @@ export interface QuoteLine {
   total: number;
   profit: number;
   obs: LineObs;
+  /** § 66 — «الكمية المؤكدة» as Baraa typed it (text: empty is not zero — src/special-accept.ts reads it). */
+  confirmedQty: string;
 }
 export interface QuoteRecipient {
   id: number;
@@ -146,15 +148,18 @@ export interface SpecialQuote {
   pdfUrl: string;
   sourceNotes: string;
   header: { orderProfit: number; profitText: string; missingPurchase: number; missingFinal: number; total: number; summary: string };
+  /** § 66 — the customer's acceptance, as the request holds it (src/special-accept.ts): empty until «✅ العميل وافق». */
+  accept: { at: string; deliveryDate: string; payTerms: string; note: string; expiredOk: boolean; orderId: number; convertedAt: string; total: number };
   lines: QuoteLine[];
   recipients: QuoteRecipient[];
 }
 
 const QUOTE_READ = ["id", "x_name", "x_partner_id", "x_date", "x_state", "x_waste_pct", "x_min_margin_pct", "x_delivery_cost", "x_valid_until", "x_note", "x_price_mode", "x_calc_mode", "x_layout", "x_alternatives", "x_prepared", SIM_FIELD,
-  "x_asked_at", "x_sale_order_id", "x_quotation_number", "x_pdf_url", "x_source_notes", "x_order_profit", "x_profit_text", "x_missing_purchase", "x_missing_final", "x_total", "x_summary"];
-const LINE_READ = ["id", "x_sequence", "x_product_tmpl_id", "x_qty", "x_unit", "x_purchase_price", "x_market_text", "x_market_median", "x_no_loss_price", "x_suggested_price", "x_suggested_net", "x_final_price", "x_final_net", "x_total", "x_profit", "x_obs", "x_item_origin", "x_item_size"];
+  "x_asked_at", "x_sale_order_id", "x_quotation_number", "x_pdf_url", "x_source_notes", "x_order_profit", "x_profit_text", "x_missing_purchase", "x_missing_final", "x_total", "x_summary",
+  "x_accepted_at", "x_delivery_date", "x_pay_terms", "x_delivery_note", "x_accept_expired", "x_daily_order_id", "x_converted_at", "x_confirmed_total"];
+const LINE_READ = ["id", "x_sequence", "x_product_tmpl_id", "x_qty", "x_unit", "x_purchase_price", "x_market_text", "x_market_median", "x_no_loss_price", "x_suggested_price", "x_suggested_net", "x_final_price", "x_final_net", "x_total", "x_profit", "x_obs", "x_item_origin", "x_item_size", "x_confirmed_qty"];
 const RECIPIENT_READ = ["id", "x_partner_id", "x_role", "x_asked_at", "x_via", "x_replied_at", "x_priced", "x_reminded_at"];
-const asState = (v: unknown): QuoteState | null => (v === "draft" || v === "sent" || v === "priced" || v === "quoted" || v === "closed" ? v : null);
+const asState = (v: unknown): QuoteState | null => (v === "draft" || v === "sent" || v === "priced" || v === "quoted" || v === "accepted" || v === "closed" ? v : null);
 const asRole = (v: unknown): PriceKind | null => (v === "purchase" || v === "market" ? v : null);
 export const asPriceMode = (v: unknown): PriceMode => (v === "gross" || v === "net" ? v : DEFAULT_PRICE_MODE);
 /** § 62 د — «شكل العرض»: تلقائي (unit prices when every line's quantity is 1) / أسعار الوحدة / بالكميات. */
@@ -192,10 +197,15 @@ export async function readQuote(env: Env, id: number): Promise<SpecialQuote | nu
     prepared: q.x_prepared === true, simulation: q[SIM_FIELD] === true, askedAt: str(q.x_asked_at), saleOrderId: m2oId(q.x_sale_order_id as M2O),
     quotationNumber: str(q.x_quotation_number), pdfUrl: str(q.x_pdf_url), sourceNotes: str(q.x_source_notes),
     header: { orderProfit: num(q.x_order_profit), profitText: str(q.x_profit_text), missingPurchase: num(q.x_missing_purchase), missingFinal: num(q.x_missing_final), total: num(q.x_total), summary: str(q.x_summary) },
+    accept: {
+      at: str(q.x_accepted_at), deliveryDate: str(q.x_delivery_date), payTerms: str(q.x_pay_terms), note: str(q.x_delivery_note).trim(), expiredOk: q.x_accept_expired === true,
+      orderId: m2oId(q.x_daily_order_id as M2O), convertedAt: str(q.x_converted_at), total: num(q.x_confirmed_total),
+    },
     lines: lines.map((l) => ({
       id: Number(l.id), sequence: num(l.x_sequence), productId: m2oId(l.x_product_tmpl_id as M2O), productName: stripRef(m2oName(l.x_product_tmpl_id as M2O)).trim(),
       qty: num(l.x_qty), unit: str(l.x_unit).trim() || DEFAULT_UNIT, purchase: num(l.x_purchase_price), marketText: str(l.x_market_text), marketMedian: num(l.x_market_median),
       noLoss: num(l.x_no_loss_price), suggested: num(l.x_suggested_price), suggestedNet: num(l.x_suggested_net), origin: str(l.x_item_origin).trim(), size: str(l.x_item_size).trim(), finalPrice: num(l.x_final_price), finalNet: num(l.x_final_net), total: num(l.x_total), profit: num(l.x_profit), obs: parseObs(l.x_obs),
+      confirmedQty: str(l.x_confirmed_qty).trim(),
     })),
     recipients: recipients.map((r) => ({
       id: Number(r.id), partnerId: m2oId(r.x_partner_id as M2O), name: m2oName(r.x_partner_id as M2O), role: asRole(r.x_role), askedAt: str(r.x_asked_at), via: str(r.x_via),
@@ -373,6 +383,8 @@ export async function recalcQuote(env: Env, id: number, opts: { now?: number; ac
   if (state !== "quoted" && state !== "closed") {
     state = numbers.lines > 0 && numbers.missingFinal === 0 ? "priced" : q.askedAt ? "sent" : "draft";
   }
+  // § 66 — «مقبول — تحوّل لطلب» is left as it is, as an issued and a closed request are
+  if (q.state === "accepted") state = "accepted";
   if (state !== q.state) vals.x_state = state;
   // § 64 — the mode this pass calculated in: what the next pass reads the typed price by
   if (q.calcMode !== q.priceMode) vals.x_calc_mode = q.priceMode;
@@ -400,7 +412,7 @@ export async function writeResult(env: Env, id: number, text: string, now: numbe
   }
 }
 
-export const HOOK_OPS = ["recalc", "accept", "send", "issue", "pdf"] as const;
+export const HOOK_OPS = ["recalc", "accept", "send", "issue", "pdf", "approve", "convert"] as const;
 export const PDF_MOVED_TEXT = "👁️ المعاينة صارت تفتح في المتصفح: حدّث الصفحة واضغط «👁️ معاينة PDF» (لم يصدر شيء)";
 export type HookOp = (typeof HOOK_OPS)[number];
 export const isHookOp = (v: string): v is HookOp => (HOOK_OPS as readonly string[]).includes(v);
@@ -426,6 +438,12 @@ export async function handleSpecialQuoteHook(env: Env, id: number, op: HookOp, c
   if (op === "send") {
     const { sendSpecialAsk } = await import("./special-ask");
     const r = await sendSpecialAsk(env, id, { now, ctx });
+    return { op, id, action: r.action, detail: r.detail };
+  }
+  // § 66 — «✅ العميل وافق» and «📦 حوّل لطلب» (src/special-accept.ts): the acceptance on the request, then the day's order
+  if (op === "approve" || op === "convert") {
+    const { approveSpecialQuote, convertSpecialQuote } = await import("./special-accept");
+    const r = op === "approve" ? await approveSpecialQuote(env, id, { now }) : await convertSpecialQuote(env, id, { now, ctx });
     return { op, id, action: r.action, detail: r.detail };
   }
   // § 62 د — «⬇️ PDF لي فقط» gave its place to «👁️ معاينة PDF» (src/quote-preview.ts: a draft in the browser, nothing

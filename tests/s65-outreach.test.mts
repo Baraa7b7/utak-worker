@@ -193,4 +193,29 @@ console.log("\n[هـ7] the tick");
   void rows;
 }
 
+console.log("\n[§ 66 و] the check-in template again: utak_supplier_checkin_v2, its variable the day");
+{
+  // @ts-ignore — plain .mjs helper
+  const L66 = await import("../scripts/lib/s66-templates.mjs");
+  const v2 = L66.SUPPLIER_CHECKIN_V2;
+  assert("v2 is a request to update availability and price for a named day under the supply agreement: one variable, the «عرض مورد» button, no «دوري»", v2.name === "utak_supplier_checkin_v2" && v2.replaces === OUT.CHECKIN_TEMPLATE_V1 && v2.purpose === OUT.CHECKIN_PURPOSE && v2.params === 1 && v2.body.includes("ليوم {{1}}") && v2.body.includes("حسب اتفاق التوريد") && !/دوري|عرض خاص|جديد/.test(v2.body) && JSON.stringify(v2.buttons) === JSON.stringify([{ type: "QUICK_REPLY", text: "عرض مورد" }]) && (await import("../src/supplier-offer.ts")).offerTrigger({ text: v2.buttons[0].text, buttonId: "" } as any) === "ready");
+  assert("the variable: the day for v2 (and any later one), the supplier's name for v1", JSON.stringify(OUT.checkinParams("utak_supplier_checkin_v2", "موزع الفطر", "2026-10-04")) === '["4 أكتوبر 2026"]' && JSON.stringify(OUT.checkinParams(OUT.CHECKIN_TEMPLATE_V1, "موزع الفطر", "2026-10-04")) === '["موزع الفطر"]');
+  // as on the tenant once v2 is approved: v1 filed MARKETING (its row out of the purpose), v2 APPROVED and UTILITY
+  const env = fresh(`${SUNDAY} 10:00`);
+  table("x_pricing_config").get(1)!.x_supplier_outreach = true;
+  seed("res.partner", { id: DIST, name: "موزع الفطر", x_whatsapp_number: "+" + phone(DIST), x_supplier_state: "approved", x_contact_cadence: "weekly" });
+  seed("x_whatsapp_template", { id: 9652, x_purpose: "other", x_meta_template_id: "utak_supplier_checkin_v1", x_language: "ar", x_meta_status: "APPROVED", x_param_count: 1, x_category: "MARKETING" });
+  seed("x_whatsapp_template", { id: 9661, x_purpose: "supplier_checkin", x_meta_template_id: "utak_supplier_checkin_v2", x_language: "ar", x_meta_status: "APPROVED", x_param_count: 1, x_category: "UTILITY" });
+  const r = await run(env);
+  const t = sentTo(phone(DIST)) as any[];
+  assert("outside his window the engine sends v2 — with the DAY, not his name", (r.steps ?? [])[0]?.action === "template" && t.length === 1 && t[0].template.name === "utak_supplier_checkin_v2" && JSON.stringify(t[0].template.components.find((c: any) => c.type === "body").parameters.map((p: any) => p.text)) === '["4 أكتوبر 2026"]', JSON.stringify(t[0]?.template));
+  table("x_whatsapp_template").get(9661)!.x_category = "MARKETING";
+  const env2 = fresh(`${SUNDAY} 10:00`);
+  table("x_pricing_config").get(1)!.x_supplier_outreach = true;
+  seed("res.partner", { id: DIST, name: "موزع الفطر", x_whatsapp_number: "+" + phone(DIST), x_supplier_state: "approved", x_contact_cadence: "weekly" });
+  seed("x_whatsapp_template", { id: 9661, x_purpose: "supplier_checkin", x_meta_template_id: "utak_supplier_checkin_v2", x_language: "ar", x_meta_status: "APPROVED", x_param_count: 1, x_category: "MARKETING" });
+  const r2 = await run(env2);
+  assert("filed MARKETING again: v2 is never sent either (nothing goes, nothing is held)", (r2.steps ?? [])[0]?.action === "not_sent" && sentTo(phone(DIST)).length === 0 && heldFor(env2, phone(DIST)).length === 0);
+}
+
 done();

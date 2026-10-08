@@ -32,6 +32,7 @@ import { gatewayDecision, isOwnerRecipient, sendViaGateway } from "./wa-gateway"
 import { claimButton, finishButton, releaseButton } from "./button-lock";
 import { riyadhDateKey, riyadhMinutes } from "./hours";
 import { waDigits } from "./wa-window";
+import { arabicDate } from "./wa-params";
 import { STATE_FIELD, asCadence, type Cadence } from "./supplier-registry";
 
 export const OUTREACH_JOB = "supplier_outreach";
@@ -47,6 +48,9 @@ const SIM_FIELD = "x_utak_simulation";
 const VAT = 1.15;
 
 const firstName = (name: string): string => String(name || "").trim().split(/\s+/)[0] ?? "";
+/** § 66 و — the check-in template's one variable: the day for v2 (and any later one), the supplier's name for v1. */
+export const CHECKIN_TEMPLATE_V1 = "utak_supplier_checkin_v1";
+export const checkinParams = (template: string, name: string, day: string): string[] => [template === CHECKIN_TEMPLATE_V1 ? name : arabicDate(day)];
 export const checkinText = (name: string): string => `مرحبا ${firstName(name)} 🌿 تحديث يو تاك الدوري: عندك بضاعة جاهزة أو شحنة جديدة؟ اضغط «${CHECKIN_BUTTON.title}» وسجّلها.`;
 
 // ---------------------------------------------------------------- the calendar
@@ -137,7 +141,9 @@ async function checkIn(env: Env, s: { id: number; name: string; whatsapp: string
   try {
     const res = await sendViaGateway(env, {
       purpose: CHECKIN_PURPOSE, to: s.whatsapp, content: buttonsContent(checkinText(s.name), [CHECKIN_BUTTON]),
-      fallback: [{ kind: "template", purpose: CHECKIN_PURPOSE, params: [s.name] }], noHold: true, noHoldReason: "التواصل الدوري لا يُحفظ: يُعاد في موعده القادم", ctx,
+      // § 66 و — utak_supplier_checkin_v2 («طلب تحديث التوفر والأسعار ليوم {{1}} …»): its one variable is the day;
+      // v1 (the supplier's name; filed MARKETING by Meta, never used) takes his name still
+      fallback: [{ kind: "template", purpose: CHECKIN_PURPOSE, params: (template) => checkinParams(template, s.name, day) }], noHold: true, noHoldReason: "التواصل الدوري لا يُحفظ: يُعاد في موعده القادم", ctx,
     });
     const d = gatewayDecision(res);
     // one attempt a due day, whatever came of it

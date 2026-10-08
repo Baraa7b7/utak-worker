@@ -234,17 +234,19 @@ export async function deliveredOrders(env: Env, q: { partnerId?: number; sinceMs
     fields: ["id", "x_customer_id", "x_delivered_at"], order: "x_delivered_at desc, id desc", limit: q.limit ?? 200,
   });
   if (!orders.length) return [];
-  type Line = { id: number; x_order_id: M2O; x_product_tmpl_id: M2O; x_packaging_id: M2O; x_quantity: number | false; x_status: string | false };
+  type Line = { id: number; x_order_id: M2O; x_product_tmpl_id: M2O; x_packaging_id: M2O; x_quantity: number | false; x_status: string | false; x_pack_text?: string | false };
   const lines = await call<Line[]>(env, "x_daily_order_line", "search_read", {
     domain: [["x_order_id", "in", orders.map((o) => o.id)]],
-    fields: ["id", "x_order_id", "x_product_tmpl_id", "x_packaging_id", "x_quantity", "x_status"], order: "id asc", limit: 5000,
+    fields: ["id", "x_order_id", "x_product_tmpl_id", "x_packaging_id", "x_quantity", "x_status", "x_pack_text"], order: "id asc", limit: 5000,
   });
+  // § 66 — a line of a special quotation is named by that quotation's «التعبئة» (written on such a line alone)
+  const packOf = (l: Line): string => (typeof l.x_pack_text === "string" && l.x_pack_text.trim() ? l.x_pack_text.trim() : m2oName(l.x_packaging_id));
   const byOrder = new Map<number, DeliveredLine[]>();
   for (const l of lines) {
     // a line he did not get (§ 55: «unavailable», or nothing delivered of it) is not one to complain about
     if (l.x_status === "unavailable" || !(Number(l.x_quantity) > 0)) continue;
     const list = byOrder.get(m2oId(l.x_order_id)) ?? [];
-    list.push({ id: l.id, productId: m2oId(l.x_product_tmpl_id), product: m2oName(l.x_product_tmpl_id), packaging: m2oName(l.x_packaging_id), quantity: Number(l.x_quantity) });
+    list.push({ id: l.id, productId: m2oId(l.x_product_tmpl_id), product: m2oName(l.x_product_tmpl_id), packaging: packOf(l), quantity: Number(l.x_quantity) });
     byOrder.set(m2oId(l.x_order_id), list);
   }
   return [...orders]

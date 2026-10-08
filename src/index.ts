@@ -280,6 +280,15 @@ export default {
           } catch (e) {
             console.error("[special-nudge tick] failed", (e as Error)?.message);
           }
+          // § 66 ج — a large special order: «🚚 طلب كبير … رتّب المركبة» once, on the morning of its delivery
+          // (from 02:00). KV alone until a day has one.
+          try {
+            const { runLargeOrderMorning } = await import("./special-accept");
+            const lg = await runLargeOrderMorning(rawEnv, Date.now());
+            if (lg.length) console.log("[large-order tick]", JSON.stringify(lg));
+          } catch (e) {
+            console.error("[large-order tick] failed", (e as Error)?.message);
+          }
           // § 65 هـ — the approved suppliers' periodic check-in (OFF unless «تفعيل تواصل الموردين» is on;
           // 09:00–18:00, on a Sunday or the first of the month), and their cards' numbers once a day.
           try {
@@ -3245,6 +3254,17 @@ async function handleWebhook(env: Env, payload: unknown, ctx?: ExecutionContext)
       } catch (e) { console.warn("[welcome] send failed", (e as Error).message); }
     }
     const senderType: SenderType = "customer";
+
+    // § 66 أ — «موافق / نعتمد / أكدوا الطلب …» from a customer who holds a valid issued special quotation: ONE alert
+    // to Baraa with the request's link. Nothing is converted and nothing is answered here: his usual reply follows.
+    if (msg.type === "text" && msg.text) {
+      try {
+        const { looksLikeAcceptance, noticeAcceptance } = await import("./special-accept");
+        if (looksLikeAcceptance(msg.text)) await noticeAcceptance(env, { id: partner.id, name: partner.name });
+      } catch (e) {
+        console.warn("[special-accept] the acceptance notice failed", (e as Error)?.message);
+      }
+    }
 
     // 2026-09-25 (STATUS § 30) — screening. A partner held from customer
     // automation (waiting for review as wrong number / vendor pitch / personal /

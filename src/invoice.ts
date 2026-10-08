@@ -224,6 +224,8 @@ async function issueAndDispatchInvoice(
   } catch (e) {
     console.warn(`[invoice] order ${orderId}: discount check failed — none applied`, (e as Error).message);
   }
+  // § 66 د — an order that came from a special quotation is invoiced at that quotation's prices: no quantity discount
+  if (order.special_quote_id) { discount = 0; discountPct = 0; }
   const { discountedTotals } = await import("./order-pricing");
   const totals = discountedTotals(split, discount, saleTax?.rate ?? null);
   let tax = totals.tax;
@@ -1382,7 +1384,8 @@ export async function buildInvoicePDFDataFromOdoo(
     subtotal = round2(subtotal + total);
     items.push({
       name: l.product_name || 'صنف',
-      pack: packagingNames[lineIdx],
+      // § 66 — a special quotation's line prints its own «التعبئة»
+      pack: l.pack_text || packagingNames[lineIdx],
       qty: l.quantity,
       price: unit,
       total,

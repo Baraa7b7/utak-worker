@@ -32,6 +32,7 @@ import { profitVatRate } from "./config";
 import { call } from "./odoo";
 import { toOdooUtc, riyadhDayMinuteMs } from "./hours";
 import { dailyOperatingCost } from "./operating-cost";
+import { isKiloUnit } from "./special-quote-math";
 
 export const DAY_MODEL = "x_price_day";
 const SIM_FIELD = "x_utak_simulation";
@@ -315,7 +316,13 @@ export function planOfRecord(r: Record<string, unknown>): PlanStored {
 }
 
 /** A real line delivered: the cartons, the price it was sold at, its purchase price, and what came back. */
-export interface SoldLine { day: string; priceDay: string; key: string; quantity: number; sale: number; purchase: number; returned: number; reason: string }
+export interface SoldLine {
+  day: string; priceDay: string; key: string; quantity: number; sale: number; purchase: number; returned: number; reason: string;
+  /** § 66 د — a special quotation's line: counted in the day's margin by what it was really bought at; its key is no item's of the day. */
+  special?: boolean;
+  /** § 66 د — the line's cartons when they are not its quantity: 0 for a special line sold by the kilo (its kilos are no cartons). */
+  cartons?: number;
+}
 
 /**
  * The real order lines delivered on the Riyadh days [from, to] (the delivery time; an order or a line of
@@ -331,9 +338,9 @@ export async function readSoldLines(env: Env, from: string, to: string): Promise
   const real = orders.filter((o) => typeof o.x_delivered_at === "string");
   if (!real.length) return { lines: [], discount: new Map(), orders: 0 };
   const byId = new Map(real.map((o) => [o.id, { delivered: riyadhDay(o.x_delivered_at as string), priceDay: String(o.x_price_date || o.x_order_date || "") }]));
-  const rows = await call<Array<{ x_order_id: M2O; x_product_tmpl_id: M2O; x_packaging_id: M2O; x_quantity: number | false; x_status: string | false; x_unit_price: number | false; x_price_unit_manual: number | false; x_return_qty: number | false; x_return_reason: string | false }>>(env, "x_daily_order_line", "search_read", {
+  const rows = await call<Array<{ x_order_id: M2O; x_product_tmpl_id: M2O; x_packaging_id: M2O; x_quantity: number | false; x_status: string | false; x_unit_price: number | false; x_price_unit_manual: number | false; x_return_qty: number | false; x_return_reason: string | false; x_special_price?: boolean; x_special_purchase?: number | false; x_pack_text?: string | false }>>(env, "x_daily_order_line", "search_read", {
     domain: [["x_order_id", "in", [...byId.keys()]], [SIM_FIELD, "!=", true]],
-    fields: ["x_order_id", "x_product_tmpl_id", "x_packaging_id", "x_quantity", "x_status", "x_unit_price", "x_price_unit_manual", "x_return_qty", "x_return_reason"], limit: 20000,
+    fields: ["x_order_id", "x_product_tmpl_id", "x_packaging_id", "x_quantity", "x_status", "x_unit_price", "x_price_unit_manual", "x_return_qty", "x_return_reason", "x_special_price", "x_special_purchase", "x_pack_text"], limit: 20000,
   });
   const priceDays = [...new Set([...byId.values()].map((o) => o.priceDay).filter(Boolean))];
   // the purchase price of each line's price day: the real days first (their ids), then their lines
@@ -351,15 +358,18 @@ export async function readSoldLines(env: Env, from: string, to: string): Promise
   for (const l of rows) {
     const o = byId.get(m2oId(l.x_order_id));
     if (!o) continue;
-    const key = `${m2oId(l.x_product_tmpl_id)}:${m2oId(l.x_packaging_id)}`;
+    // § 66 د — a special quotation's line: its own key (no item of the day's list is it), and its own purchase price —
+    // what it was really bought at («الشراء (طلب خاص)»), never the day's cost of the packaging it had to name
+    const special = l.x_special_price === true;
+    const key = `${m2oId(l.x_product_tmpl_id)}:${m2oId(l.x_packaging_id)}${special ? ":sq" : ""}`;
     const delivered = String(l.x_status) === "unavailable" ? 0 : Number(l.x_quantity) || 0;
     const returned = WASTE_REASONS.has(String(l.x_return_reason)) ? Number(l.x_return_qty) || 0 : 0;
     if (!(delivered > 0) && !(returned > 0)) continue;
     const sale = Number(l.x_price_unit_manual) > 0 ? Number(l.x_price_unit_manual) : Number(l.x_unit_price) || 0;
-    const purchase = cost.get(`${o.priceDay}:${key}`) ?? 0;
+    const purchase = special ? Number(l.x_special_purchase) || 0 : cost.get(`${o.priceDay}:${key}`) ?? 0;
     if (delivered > 0 && !(sale > 0)) throw new Error("a delivered line without a sale price");
-    if (!(purchase > 0)) throw new Error("a delivered line without its day's purchase price");
-    lines.push({ day: o.delivered, priceDay: o.priceDay, key, quantity: delivered, sale, purchase, returned, reason: String(l.x_return_reason || "") });
+    if (!(purchase > 0)) throw new Error(special ? "a special quotation's line without its purchase price" : "a delivered line without its day's purchase price");
+    lines.push({ day: o.delivered, priceDay: o.priceDay, key, quantity: delivered, sale, purchase, returned, reason: String(l.x_return_reason || ""), ...(special ? { special: true, ...(isKiloUnit(String(l.x_pack_text || "")) ? { cartons: 0 } : {}) } : {}) });
     gross.set(m2oId(l.x_order_id), (gross.get(m2oId(l.x_order_id)) ?? 0) + round2(sale * delivered));
   }
   // an invoice's discount, as the customer saw it (the lines − the invoice's total), by the delivery day
@@ -378,7 +388,7 @@ export async function readSoldLines(env: Env, from: string, to: string): Promise
 export function actualInput(lines: SoldLine[], day: string, vatPct: number | null, discount = 0): ActualInput {
   const d = vatPct ? 1 + vatPct / 100 : 1;
   const of = lines.filter((l) => l.day === day);
-  const cartons = of.reduce((a, l) => a + l.quantity, 0);
+  const cartons = of.reduce((a, l) => a + (l.cartons ?? l.quantity), 0);
   const marginTotal = of.reduce((a, l) => a + l.quantity * (l.sale / d - l.purchase), 0) - discount / d;
   const lost = of.filter((l) => l.returned > 0);
   return { cartons, marginTotal, wasteRecorded: lost.length ? lost.reduce((a, l) => a + l.returned * l.purchase, 0) : null };

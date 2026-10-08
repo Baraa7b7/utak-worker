@@ -19,6 +19,7 @@ import { AHMED, DAY, GARLIC, LETTUCE, LINE, MADARAT, MUSHROOM, OMAR, ORANGE, QUO
 
 const SQ = await import("../src/special-quote.ts");
 const LIB = await import("../scripts/lib/s62-odoo.mjs");
+const LIB66 = await import("../scripts/lib/s66-odoo.mjs" as string); // § 66: the state «مقبول» and the two ops of the acceptance
 const M = await import("../src/special-quote-math.ts");
 const ASK_HOURS = (await import("../src/special-ask.ts")).NUDGE_AFTER_MS / 3600_000;
 const worker = (await import("../src/index.ts")).default;
@@ -134,7 +135,7 @@ console.log("\n[أ4] «اعتمد المقترح للكل», and the state");
   odooLog.length = 0;
   assert("a request that is not there: null, nothing written", (await quiet(() => SQ.recalcQuote(env, 999999))) === null && writes().length === 0);
   assert("…it is SEARCHED by its id, never `read`: Odoo's read of a deleted record throws, and a request Baraa deleted must end quietly", odooLog.some((l) => l.model === QUOTE && l.method === "search_read" && JSON.stringify(l.body.domain) === "[[\"id\",\"=\",999999]]") && !odooLog.some((l) => l.model === QUOTE && l.method === "read"));
-  assert("the labels of the five states", JSON.stringify(SQ.STATE_LABEL) === JSON.stringify({ draft: "مسودة", sent: "أُرسل للمصادر", priced: "مُسعَّر", quoted: "صدر العرض", closed: "مغلق" }));
+  assert("the labels of the five states — and § 66's «مقبول — تحوّل لطلب» before «مغلق»", JSON.stringify(SQ.STATE_LABEL) === JSON.stringify({ draft: "مسودة", sent: "أُرسل للمصادر", priced: "مُسعَّر", quoted: "صدر العرض", accepted: "مقبول — تحوّل لطلب", closed: "مغلق" }));
 }
 
 console.log("\n[ج+] «الأسعار في العرض»: the final price Baraa types is the one of the mode");
@@ -190,7 +191,7 @@ console.log("\n[أ4] the hook from Odoo");
   assert("no token, or a wrong one: 401", (await post("recalc", undefined, "x")).status === 401);
   assert("another model's record: 400", (await post("recalc", { _model: "x_price_day", _id: id })).status === 400);
   assert("an op that is not one of the five, or no id: 400", (await post("delete")).status === 400 && (await post("recalc", { _model: QUOTE })).status === 400);
-  assert("the five ops", JSON.stringify(SQ.HOOK_OPS) === JSON.stringify(["recalc", "accept", "send", "issue", "pdf"]) && SQ.isHookOp("send") && !SQ.isHookOp("drop"));
+  assert("the five ops — and § 66's two («✅ العميل وافق», «📦 حوّل لطلب»)", JSON.stringify(SQ.HOOK_OPS) === JSON.stringify(["recalc", "accept", "send", "issue", "pdf", "approve", "convert"]) && SQ.isHookOp("send") && SQ.isHookOp("convert") && !SQ.isHookOp("drop"));
   assert("a good call is accepted at once (202: Odoo's webhook waits a second)", (await post("recalc")).status === 202);
   const out = await quiet(() => SQ.handleSpecialQuoteHook(env, id, "recalc", ctx));
   assert("recalc through the hook: the request is prepared and its numbers written", out.action === "written" && quote(id).x_prepared === true && !quote(id).x_last_result, JSON.stringify(out));
@@ -204,7 +205,7 @@ console.log("\n[أ4] the hook from Odoo");
 console.log("\n[أ1–أ4] the screen's data (scripts/lib/s62-odoo.mjs)");
 {
   const names = (defs: Array<{ name: string }>) => defs.map((d) => d.name);
-  assert("the request: the customer, the date, the five states, the waste, the margin, the delivery cost, «صالح حتى», the note", ["x_partner_id", "x_date", "x_state", "x_waste_pct", "x_min_margin_pct", "x_delivery_cost", "x_valid_until", "x_note"].every((f) => names(LIB.QUOTE_FIELDS).includes(f)) && JSON.stringify(LIB.STATES.map((s: string[]) => s[0])) === JSON.stringify(["draft", "sent", "priced", "quoted", "closed"]) && JSON.stringify(LIB.STATES.map((s: string[]) => s[1])) === JSON.stringify(Object.values(SQ.STATE_LABEL)));
+  assert("the request: the customer, the date, the five states, the waste, the margin, the delivery cost, «صالح حتى», the note", ["x_partner_id", "x_date", "x_state", "x_waste_pct", "x_min_margin_pct", "x_delivery_cost", "x_valid_until", "x_note"].every((f) => names(LIB.QUOTE_FIELDS).includes(f)) && JSON.stringify(LIB.STATES.map((s: string[]) => s[0])) === JSON.stringify(["draft", "sent", "priced", "quoted", "closed"]) && JSON.stringify(LIB.STATES.map((s: string[]) => s[1])) === JSON.stringify(Object.entries(SQ.STATE_LABEL).filter(([k]) => k !== "accepted").map(([, v]) => v)) && JSON.stringify(LIB66.STATES) === JSON.stringify(Object.entries(SQ.STATE_LABEL)));
   assert("the line: the item, the quantity, the unit, the purchase price, the market's observations and median, «بدون خسارة», «المقترح», the final price, the total, the profit", ["x_product_tmpl_id", "x_qty", "x_unit", "x_purchase_price", "x_market_text", "x_market_median", "x_no_loss_price", "x_suggested_price", "x_final_price", "x_total", "x_profit"].every((f) => names(LIB.LINE_FIELDS).includes(f)));
   assert("the columns of a line, in Baraa's order: § 62 أ's eight, with «التعبئة» after the quantity and «النهائي قبل الضريبة» after the final price", JSON.stringify(LIB.LINE_COLUMNS) === JSON.stringify(["x_product_tmpl_id", "x_qty", "x_unit", "x_purchase_price", "x_market_text", "x_no_loss_price", "x_suggested_price", "x_final_price", "x_final_net", "x_profit"]));
   assert("«الأسعار في العرض»: قبل الضريبة / شاملة الضريبة, «قبل الضريبة» for a new request; and «خيارات بديلة»", JSON.stringify(LIB.PRICE_MODES) === JSON.stringify([["net", "قبل الضريبة"], ["gross", "شاملة الضريبة"]]) && LIB.ACTION_CONTEXT.includes("'default_x_price_mode': 'net'") && M.DEFAULT_PRICE_MODE === "net" && names(LIB.QUOTE_FIELDS).includes("x_alternatives") && names(LIB.LINE_FIELDS).includes("x_final_net"));
@@ -215,7 +216,7 @@ console.log("\n[أ1–أ4] the screen's data (scripts/lib/s62-odoo.mjs)");
   assert("above them: the order's profit with its sign, and the count of lines without a purchase price", arch.indexOf('name="x_profit_text"') < arch.indexOf("<notebook>") && arch.indexOf('name="x_missing_purchase"') < arch.indexOf("<notebook>"));
   assert("what the worker computes is read-only on the screen; the purchase price is Baraa's to type", ["x_market_text", "x_no_loss_price", "x_suggested_price", "x_profit", "x_profit_text", "x_missing_purchase"].every((f) => new RegExp(`name="${f}"[^>]*readonly="1"`).test(arch)) && !/name="x_purchase_price"[^>]*readonly/.test(arch));
   assert("the seven buttons: send, accept, recalc, issue, PDF for me, close, reopen", ["📨 أرسل طلب الأسعار", "اعتمد المقترح للكل", "🔄 احسب", "📄 أصدر عرض السعر", "⬇️ PDF لي فقط", "🔒 أغلق الطلب", "↩️ أعد فتحه"].every((s) => arch.includes(`string="${s}"`)));
-  assert("the hook's ops are the worker's, and its path", JSON.stringify(Object.values(LIB.HOOKS).map((h: any) => h.op).sort()) === JSON.stringify([...SQ.HOOK_OPS].sort()) && LIB.HOOK_PATH === "/odoo/hook/special-quote" && LIB.PROD_HOST === "utak-worker.utak-business.workers.dev");
+  assert("the hook's ops are the worker's, and its path", JSON.stringify([...Object.values(LIB.HOOKS), ...Object.values(LIB66.HOOKS)].map((h: any) => h.op).sort()) === JSON.stringify([...SQ.HOOK_OPS].sort()) && LIB66.HOOK_PATH === LIB.HOOK_PATH && LIB66.PROD_HOST === LIB.PROD_HOST && LIB.HOOK_PATH === "/odoo/hook/special-quote" && LIB.PROD_HOST === "utak-worker.utak-business.workers.dev");
   assert("the save's automation watches what the numbers are made of — and no field the worker writes alone", JSON.stringify(LIB.AUTOMATION_FIELDS) === JSON.stringify(["x_partner_id", "x_waste_pct", "x_min_margin_pct", "x_delivery_cost", "x_line_ids"]) && !LIB.AUTOMATION_FIELDS.some((f: string) => ["x_order_profit", "x_profit_text", "x_state", "x_summary", "x_recipient_ids", "x_last_result", "x_name", "x_prepared"].includes(f)));
   assert("the models and their names are the worker's", LIB.QUOTE_MODEL === SQ.QUOTE_MODEL && LIB.LINE_MODEL === SQ.LINE_MODEL && LIB.RECIPIENT_MODEL === SQ.RECIPIENT_MODEL);
   assert("the menu: «🧾 طلبات أسعار خاصة» under «💲 التسعير» (#582), the real requests alone", LIB.MENU_TITLE === "🧾 طلبات أسعار خاصة" && LIB.PRICING_MENU === 582 && LIB.ACTION_DOMAIN === "[('x_utak_simulation', '=', False)]");

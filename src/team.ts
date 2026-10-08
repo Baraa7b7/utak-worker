@@ -307,10 +307,21 @@ export function purchaseListButtons(listId: number): Array<{ id: string; title: 
   ];
 }
 
+/**
+ * § 66 ج — the mark of a special quotation's line in the purchase list: « (طلب خاص SQ-0004، الشراء المستهدف 55)».
+ * The price is the quotation's «الشراء» — the buyer's target for this line, per its «التعبئة», net of VAT — and
+ * nothing of the day's prices. "" for any other line.
+ */
+export function specialNote(it: Pick<PurchaseListItem, "special" | "unit_price">): string {
+  if (!it.special) return "";
+  const price = typeof it.unit_price === "number" && it.unit_price > 0 ? `، الشراء المستهدف ${formatQty(it.unit_price)}` : "";
+  return ` (طلب خاص ${it.special}${price})`;
+}
+
 /** "1. طماطم — كرتون × 3، 2. خيار — جرم × 5 … و 4 أخرى (…)" */
 export function purchaseListLine(items: PurchaseListItem[]): string {
   return joinCapped(
-    items.map((it, i) => `${i + 1}. ${it.product_name} — ${it.packaging_name} × ${formatQty(it.total_quantity)}`),
+    items.map((it, i) => `${i + 1}. ${it.product_name} — ${it.packaging_name} × ${formatQty(it.total_quantity)}${specialNote(it)}`),
     undefined,
     "، ",
     (n) => `و ${n} أصناف أخرى (أرسل أي رسالة لعرض القائمة كاملة)`,
@@ -320,7 +331,7 @@ export function purchaseListLine(items: PurchaseListItem[]): string {
 export function renderPurchaseListMessage(items: PurchaseListItem[]): string {
   const header = `🛒 قائمة شراء اليوم\nعدد الأصناف: ${items.length}`;
   const lines = items
-    .map((it, i) => `${i + 1}. ${it.product_name} — ${it.packaging_name} × ${formatQty(it.total_quantity)}`)
+    .map((it, i) => `${i + 1}. ${it.product_name} — ${it.packaging_name} × ${formatQty(it.total_quantity)}${specialNote(it)}`)
     .join("\n");
   const footer = `\nاضغط «${RECEIPT_BUTTON_TITLE}» لما تخلّص وأكّد اللي استلمته، عشان نجهّز مسارات السواقين.`;
   // Meta interactive body max 1024 chars — trim if we somehow overflow
@@ -342,7 +353,7 @@ export async function resendOpenPurchaseLists(env: Env, to: string): Promise<num
     const full = [
       `🛒 قائمة الشراء #${id} (${arabicDate(list.date)}) — ${list.items.length} صنف`,
       "",
-      ...list.items.map((it, i) => `${i + 1}. ${it.product_name} — ${it.packaging_name} × ${formatQty(it.total_quantity)}`),
+      ...list.items.map((it, i) => `${i + 1}. ${it.product_name} — ${it.packaging_name} × ${formatQty(it.total_quantity)}${specialNote(it)}`),
     ].join("\n");
     // Interactive bodies cap at 1024: long lists go as text chunks, then the buttons.
     if (full.length > 1000) {

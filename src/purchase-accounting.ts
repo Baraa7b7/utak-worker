@@ -116,7 +116,8 @@ export function planSupplierBills(
   const noSupplier: PurchaseListItem[] = [];
   for (const it of items) {
     if (!(Number(it.total_quantity) > 0)) continue;
-    const won = market?.winners.get(winnerKey(it.product_id, it.packaging_id));
+    // § 66 ج — a special quotation's line is never the market's: billed to its own supplier at the list's price of it
+    const won = it.special_line ? undefined : market?.winners.get(winnerKey(it.product_id, it.packaging_id));
     let sid: number | null;
     let line: PurchaseListItem = it;
     if (won) {

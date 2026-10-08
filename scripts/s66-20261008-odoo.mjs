@@ -3,7 +3,7 @@
 //   schema (--only=schema, BEFORE the worker's code: it reads and writes these fields)
 //     1  x_special_quote: the acceptance (x_accepted_at, x_delivery_date, x_pay_terms, x_delivery_note, x_accept_expired,
 //        x_daily_order_id, x_converted_at, x_confirmed_total); its line's x_confirmed_qty; x_daily_order.x_special_quote_id;
-//        x_daily_order_line.x_special_price / x_pack_text / x_special_purchase; x_pricing_config.x_large_order_cartons
+//        x_daily_order_line.x_special_price / x_pack_text / x_special_purchase / x_special_supplier_id; x_pricing_config.x_large_order_cartons
 //     2  «الحالة» of a request: «مقبول — تحوّل لطلب» (accepted) before «مغلق»
 //     3  the two webhooks «✅ العميل وافق» / «📦 حوّل لطلب» (to the PROD worker's special-quote hook) and the sale order's
 //        code action «✅ العميل وافق» — on no screen yet; «↩️ أعد فتحه» brings a converted request back «مقبول»
@@ -11,7 +11,7 @@
 //   ui (--only=ui, AFTER the worker's code is deployed: the buttons call ops the worker of before answers 400)
 //     5  six extension views: the request's form (the two buttons, the acceptance group, «الكمية المؤكدة», the status bar),
 //        its list («مقبول», the delivery date, the order) and its search («مقبول», «بانتظار رد العميل», «انتهت صلاحيته»),
-//        the day's order form (the request, «سعر خاص», «التعبئة», «الشراء»), the settings («حد الطلب الكبير»), and the
+//        the day's order form (the request, «سعر خاص», «التعبئة», «الشراء» and its supplier), the settings («حد الطلب الكبير»), and the
 //        sale order's form («✅ العميل وافق»)
 //
 //   node scripts/s66-20261008-odoo.mjs --only=schema|ui             dry-run: the plan, nothing written

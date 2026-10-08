@@ -2,7 +2,7 @@
 // fields_get (read-only) of every model tests/fixtures-odoo-fields-20261007-s65.json dumped. New since § 65: the
 // acceptance on x_special_quote (x_accepted_at, x_delivery_date, x_pay_terms, x_delivery_note, x_accept_expired,
 // x_daily_order_id, x_converted_at, x_confirmed_total) and its state «accepted», x_special_quote_line.x_confirmed_qty,
-// x_daily_order.x_special_quote_id, x_daily_order_line.x_special_price / x_pack_text / x_special_purchase,
+// x_daily_order.x_special_quote_id, x_daily_order_line.x_special_price / x_pack_text / x_special_purchase / x_special_supplier_id,
 // x_pricing_config.x_large_order_cartons. It is read AFTER the s65 fixture in the gate (the last one wins). Written
 // from the tenant after `scripts/s66-20261008-odoo.mjs --only=schema --apply`: run it again after any later change.
 //
@@ -46,7 +46,7 @@ const NEW = {
   x_special_quote: ["x_accepted_at", "x_delivery_date", "x_pay_terms", "x_delivery_note", "x_accept_expired", "x_daily_order_id", "x_converted_at", "x_confirmed_total"],
   x_special_quote_line: ["x_confirmed_qty"],
   x_daily_order: ["x_special_quote_id"],
-  x_daily_order_line: ["x_special_price", "x_pack_text", "x_special_purchase"],
+  x_daily_order_line: ["x_special_price", "x_pack_text", "x_special_purchase", "x_special_supplier_id"],
   x_pricing_config: ["x_large_order_cartons"],
 };
 for (const [m, names] of Object.entries(NEW)) log(`${names.every((n) => (out[m] ?? []).includes(n)) ? "✓" : "✗"} ${m}: ${names.filter((n) => !(out[m] ?? []).includes(n)).join(", ") || `${names.length} fields`}`);

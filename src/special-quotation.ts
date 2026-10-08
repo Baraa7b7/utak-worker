@@ -36,7 +36,7 @@ import { claimButton, finishButton, releaseButton } from "./button-lock";
 import { riyadhDateKey } from "./hours";
 import { readWindow, waDigits } from "./wa-window";
 import { arabicDate } from "./wa-params";
-import { money, round2, VAT_FACTOR, VAT_RATE, type PriceMode } from "./special-quote-math";
+import { money, round2, VAT_FACTOR, type PriceMode } from "./special-quote-math";
 import { QUOTE_MODEL, lineFinals, nowOdoo, quoteName, readQuote, recalcQuote, writeResult, type SpecialQuote } from "./special-quote";
 import { itemDetail, type QuotationPDFData } from "./quotation";
 
@@ -131,8 +131,12 @@ export function specialQuotationData(q: SpecialQuote, number: string, customer: 
     };
   });
   const lines = round2(items.reduce((s, i) => s + i.total, 0));
-  const vatAmount = net ? round2(lines * VAT_RATE) : round2(lines - lines / VAT_FACTOR);
-  const grandTotal = net ? round2(lines + vatAmount) : lines;
+  // § 66 د — «الإجمالي» of a before-VAT quotation is what its invoice will add up to: each line at its VAT-inclusive
+  // final price (the before-VAT one × 1.15, to the halala) × its quantity. The VAT row is that total less the lines
+  // before VAT — 15 % of them but for the halalas the per-unit rounding moves (one unit of each: none at all).
+  const inclusive = round2(q.lines.reduce((s, l) => s + round2(l.qty * l.finalPrice), 0));
+  const vatAmount = net ? round2(inclusive - lines) : round2(lines - lines / VAT_FACTOR);
+  const grandTotal = net ? inclusive : lines;
   return {
     quotationNumber: number, quotationDate: new Date(now), customer, items,
     subtotal: net ? lines : round2(lines - vatAmount), discount: 0, vatAmount, grandTotal, vatInclusive: !net,
@@ -288,6 +292,8 @@ export async function issueSpecialQuotation(env: Env, quoteId: number, opts: { n
     };
     if (q.simulation) return refuse("الطلب محاكاة");
     if (q.state === "closed") return refuse("الطلب مغلق");
+    // § 66 — a request that became an order: its confirmed sale order is not a quotation any more (a new one would be made)
+    if (q.state === "accepted") return refuse(`الطلب مقبول وتحوّل إلى الطلب #${q.accept.orderId}`);
     if (!q.partnerId) return refuse("لا عميل على الطلب");
     if (!q.lines.length) return refuse("لا أصناف في الطلب");
     const miss = missingLines(q);

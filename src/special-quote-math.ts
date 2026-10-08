@@ -22,6 +22,9 @@ export const VAT_FACTOR = 1.15;
 export const SUGGEST_STEP = 0.25;
 export const DEFAULT_MARGIN_PCT = 10;
 export const DEFAULT_UNIT = "كيلو";
+const KILO_UNIT = /^(?:كيلو|كيلوجرام|كيلوغرام|كجم|كغ|كغم|kg|kilo)$/i;
+/** § 66 — «التعبئة» is the kilo itself (the line is sold by weight): its quantity is kilos, not cartons. */
+export const isKiloUnit = (unit: string): boolean => KILO_UNIT.test(String(unit ?? "").trim());
 
 export const round2 = (n: number): number => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 const pos = (n: unknown): number => (typeof n === "number" && Number.isFinite(n) && n > 0 ? n : 0);

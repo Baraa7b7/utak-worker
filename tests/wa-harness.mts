@@ -42,6 +42,8 @@ const M2O: Record<string, string> = {
   job_id: "hr.job", x_default_calendar_id: "resource.calendar", x_job_id: "hr.job", x_employee_id: "hr.employee",
   // …and the card's own schedule comes back with its name, as on the tenant (the entry message names it)
   resource_calendar_id: "resource.calendar",
+  // 2026-10-08 (§ 66) — the request an order came from, the order a request became, and a special line's purchase source
+  x_special_quote_id: "x_special_quote", x_daily_order_id: "x_daily_order", x_special_supplier_id: "res.partner",
 };
 /**
  * 2026-09-25 (STATUS § 35) — a test may mirror a stored compute of the tenant

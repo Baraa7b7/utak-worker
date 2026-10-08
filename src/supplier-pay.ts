@@ -122,6 +122,10 @@ export interface ListItem {
   packaging_name: string;
   total_quantity: number;
   price_supplier_id?: number | null;
+  /** § 66 ج — a special quotation's line: owed at the list's own price of it (the quotation's, as Baraa left it), never a price of the day. */
+  unit_price?: number | null;
+  special?: string;
+  special_line?: number;
 }
 export interface PriceRow {
   id: number;
@@ -148,6 +152,8 @@ export interface DueLinePlan {
   noPrice: boolean;
   /** § 42 أ — the market source whose written purchase price won this line (owed to «مشتريات السوق النقدية»). */
   marketBy?: string;
+  /** § 66 ج — the special request the line belongs to («SQ-0004»). */
+  special?: string;
 }
 export interface DuePlan {
   supplierId: number;
@@ -225,7 +231,8 @@ export function planDues(
     // § 42 أ — the winning purchase price came from a source that is not a
     // supplier (Omar at the market): owed to «مشتريات السوق النقدية» at that
     // written price, never to the item's usual supplier.
-    const won = market?.winners.get(winnerKey(it.product_id, it.packaging_id));
+    // § 66 ج — a special quotation's line is never the market's (its price and its source are the quotation's)
+    const won = it.special_line ? undefined : market?.winners.get(winnerKey(it.product_id, it.packaging_id));
     if (won) {
       if (!market!.cashSupplierId) { noSupplier.push(it); continue; }
       const sid = market!.cashSupplierId;
@@ -241,6 +248,21 @@ export function planDues(
     }
     const sid = itemSupplier(it, list.listSupplierId);
     if (!sid) { noSupplier.push(it); continue; }
+    // § 66 ج — a special quotation's line: the list's own price of it (per its «التعبئة»), never the supplier's
+    // price of the day for the packaging the line had to name
+    if (it.special_line) {
+      const price = Number(it.unit_price) > 0 ? Number(it.unit_price) : 0;
+      const line: DueLinePlan = {
+        ...base, unitPrice: price || null, priceId: null, ...(price ? owed(sid, qty, price) : { subtotalH: 0, vatH: 0 }), noPrice: !price,
+        special: it.special || "خاص",
+      };
+      const d = by.get(sid) ?? { supplierId: sid, lines: [], amountH: 0, unpriced: 0 };
+      d.lines.push(line);
+      d.amountH += line.subtotalH;
+      if (line.noPrice) d.unpriced++;
+      by.set(sid, d);
+      continue;
+    }
     const p = supplierPriceFor(prices, sid, it, list.x_date);
     const line: DueLinePlan = {
       ...base,
@@ -436,13 +458,15 @@ export async function syncSupplierDues(env: Env, listId: number, opts: { force?:
         x_subtotal: toOdoo(l.subtotalH),
         x_no_price: l.noPrice,
         x_daily_price_id: l.priceId ?? false,
-        x_note: l.noPrice ? "بلا سعر: لا سعر من هذا المورد لهذا الصنف في ذلك اليوم"
+        x_note: l.noPrice ? (l.special ? `بلا سعر: طلب خاص ${l.special} (${l.packagingName}) بلا سعر شراء في قائمته` : "بلا سعر: لا سعر من هذا المورد لهذا الصنف في ذلك اليوم")
           : [
+              l.special ? `طلب خاص ${l.special} — ${l.packagingName}: سعر الشراء من العرض` : "",
               l.marketBy ? `سعر شراء ${l.marketBy} المكتوب من السوق (فاز بسعر الشراء في ${PLACE_TODAY})` : "",
               l.vatH > 0 ? `المستحق = الكمية × السعر + ضريبة ${VAT_RATE_PCT}% (${money(l.vatH)} ر.س): المورد مسجل والسعر بدون ضريبة` : "",
             ].filter(Boolean).join(" · ") || false,
       };
-      const old = oldLines.find((o) => o.x_due_id && o.x_due_id[0] === dueId && o.x_product_tmpl_id && o.x_product_tmpl_id[0] === l.productId
+      // § 66 ج — a line already kept is not taken twice: a special quotation's line may share its item and packaging with another
+      const old = oldLines.find((o) => !keptLines.has(o.id) && o.x_due_id && o.x_due_id[0] === dueId && o.x_product_tmpl_id && o.x_product_tmpl_id[0] === l.productId
         && o.x_packaging_id && o.x_packaging_id[0] === l.packagingId);
       if (old) {
         keptLines.add(old.id);
@@ -901,7 +925,7 @@ export async function todaysSuppliers(env: Env, now: number = Date.now()): Promi
       markets.set(day, market);
     }
     for (const it of parseItems(l.x_aggregated_items)) {
-      const won = market.winners.has(winnerKey(it.product_id, it.packaging_id));
+      const won = !it.special_line && market.winners.has(winnerKey(it.product_id, it.packaging_id));
       const s = won ? market.cashSupplierId : itemSupplier(it, ls);
       if (s && !ids.includes(s)) ids.push(s);
     }

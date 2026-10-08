@@ -244,10 +244,12 @@ async function readOrderedLines(env: Env, lineIds: number[], frozen = false): Pr
     x_quantity: number;
     x_unit_price: number | false;
     x_status?: string | false;
+    x_special_price?: boolean;
+    x_pack_text?: string | false;
   };
   const rows = await call<Row[]>(env, "x_daily_order_line", "read", {
     ids: lineIds,
-    fields: ["id", "x_product_tmpl_id", "x_packaging_id", "x_quantity", "x_unit_price", "x_status"],
+    fields: ["id", "x_product_tmpl_id", "x_packaging_id", "x_quantity", "x_unit_price", "x_status", "x_special_price", "x_pack_text"],
   });
   const out: SaleLineInput[] = [];
   for (const r of rows) {
@@ -262,7 +264,8 @@ async function readOrderedLines(env: Env, lineIds: number[], frozen = false): Pr
       unit = (await getLatestSalePrice(env, r.x_product_tmpl_id[0], r.x_packaging_id[0])).price;
     }
     const name = r.x_product_tmpl_id ? stripRef(r.x_product_tmpl_id[1]) : "صنف";
-    const pack = r.x_packaging_id ? stripRef(r.x_packaging_id[1]) : "";
+    // § 66 — a line «سعر خاص» is told by its special quotation's «التعبئة»
+    const pack = r.x_special_price === true && r.x_pack_text ? String(r.x_pack_text).trim() : r.x_packaging_id ? stripRef(r.x_packaging_id[1]) : "";
     out.push({ lineId: r.id, description: saleLineDescription(name, pack), quantity: r.x_quantity, priceUnit: unit });
   }
   return out;

@@ -8,18 +8,14 @@
 //   • equal to the Odoo API key: nothing is accepted — the two must never be one again. That is a check of the
 //     worker's own settings; no token that arrives is compared with the key.
 //
-// PHASE 1 (this file, for at most thirty minutes): the 24 Odoo actions still carry the token of before while
-// they are rewritten, so that token (ODOO_HOOK_TOKEN) is accepted too — only inside the window that ends at
-// HOOK_LEGACY_UNTIL (epoch ms, given to `wrangler deploy --var`), and only while that end is at most thirty
-// minutes away: a far end does not open a long window, and with none there is no window at all. The deploy
-// of phase 3 removes this path, the variable and the secret of before.
+// The switch was made in two phases (2026-10-08): for under thirty minutes the worker accepted the token of
+// before too, while Odoo's 24 actions were rewritten; this file is phase 3 — that token is refused, and
+// nothing here reads it. A later rotation: scripts/s67-20261008-token.mjs --which=hook.
 
 import type { Env } from "./config";
 
 /** A hook secret shorter than this is not a secret: nothing is accepted. */
 export const HOOK_SECRET_MIN = 32;
-/** PHASE 1 — the token of before is accepted for this long at most. */
-export const LEGACY_WINDOW_MS = 30 * 60_000;
 
 /** Equal, in time that does not depend on where they differ. */
 export function tokensEqual(a: string, b: string): boolean {
@@ -37,20 +33,10 @@ export function hookSecret(env: Env): string {
   return s;
 }
 
-/** PHASE 1 — is the window of the token of before open at `now`? */
-export function legacyWindowOpen(env: Env, now: number): boolean {
-  // not set, or not a time: NaN — and nothing is before NaN
-  const until = Number(env.HOOK_LEGACY_UNTIL ?? Number.NaN);
-  return now < until && until - now <= LEGACY_WINDOW_MS;
-}
-
 /** Does this token open the routes of Odoo's buttons? */
-export function hookTokenOk(env: Env, provided: string, now: number = Date.now()): boolean {
+export function hookTokenOk(env: Env, provided: string): boolean {
   const secret = hookSecret(env);
-  if (secret && tokensEqual(provided, secret)) return true;
-  // PHASE 1 — the token of before, inside its window alone
-  const before = String(env.ODOO_HOOK_TOKEN ?? "");
-  return before.length > 0 && legacyWindowOpen(env, now) && tokensEqual(provided, before);
+  return secret !== "" && tokensEqual(provided, secret);
 }
 
 /** The routes this secret gates: every `/odoo/hook/*`, and the two sends Odoo's quotation buttons make. */

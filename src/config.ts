@@ -41,10 +41,6 @@ export interface Env {
    * of its own, never the Odoo API key (src/hook-auth.ts).
    */
   HOOK_SECRET?: string;
-  /** § 68 أ, PHASE 1 only — the token of before (it was the Odoo API key): accepted inside HOOK_LEGACY_UNTIL's window alone. */
-  ODOO_HOOK_TOKEN?: string;
-  /** § 68 أ, PHASE 1 only — epoch ms: the end of the window of the token of before (`wrangler deploy --var`, thirty minutes at most). */
-  HOOK_LEGACY_UNTIL?: string;
   /**
    * § 67 أ — set on a copy of env (never in wrangler.toml) for a request Odoo's buttons made and for a
    * message of Baraa's own: the sends inside it are his acts, which the freeze does not stop (src/freeze.ts).

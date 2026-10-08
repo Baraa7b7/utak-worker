@@ -2,7 +2,8 @@
 //
 //   [أ1] the secret: unset, too short, or equal to the Odoo API key → nothing is accepted
 //   [أ2] a token: the secret opens, anything else does not — the Odoo API key among them
-//   [أ3] PHASE 1: the token of before is accepted inside its window alone (thirty minutes at most), then refused
+//   [أ3] PHASE 3: the token of before is refused, whatever the worker still holds (phase 1 — accepted for under
+//        thirty minutes while Odoo's 24 actions were rewritten — is commit 390c83c and its tests)
 //   [أ4] every route of Odoo's buttons is behind it: a wrong token, no token and the Odoo key get 401
 //   [أ5] «does this URL pass?» (probe=1): the token alone is checked, nothing runs
 //   [أ6] the worker compares what arrives with the hook secret alone, and no token reaches a log
@@ -25,7 +26,7 @@ const MIN = 60_000;
 const INDEX = readFileSync(new URL("../src/index.ts", import.meta.url), "utf8");
 /** Every route the hook secret gates, as the worker's source names them. */
 const ROUTES = [...new Set([...INDEX.matchAll(/url\.pathname === "(\/odoo\/hook\/[a-z0-9-]+)"/g)].map((m) => m[1])), "/internal/quotation-wa-send", "/internal/sale-quotation-wa-send"];
-/** The tenant's world at 12:00, with the worker's secrets as the phase gives them. */
+/** The tenant's world at 12:00; `before` / `until`: what phase 1 put on the worker (its secret of before, its window). */
 function world(o: { secret?: string | null; before?: string | null; until?: number | null } = {}): any {
   const env = fresh(`${DAY} 12:00`);
   env.ODOO_API_KEY = KEY;
@@ -55,7 +56,7 @@ console.log("\n[أ2] a token");
   assert("the secret opens", HA.hookTokenOk(env, SECRET));
   assert("a wrong token, an empty one, the secret cut short or made longer: refused", !HA.hookTokenOk(env, "nope") && !HA.hookTokenOk(env, "") && !HA.hookTokenOk(env, SECRET.slice(0, -1)) && !HA.hookTokenOk(env, SECRET + "x"));
   assert("a token of the secret's own length that differs in one character: refused", !HA.hookTokenOk(env, SECRET.slice(0, -1) + "X") && !HA.hookTokenOk(env, "X" + SECRET.slice(1)) && !HA.tokensEqual("abc", "abd") && HA.tokensEqual("abc", "abc"));
-  assert("the Odoo API key is not a token (no window is open)", !HA.hookTokenOk(env, KEY));
+  assert("the Odoo API key is not a token", !HA.hookTokenOk(env, KEY));
   const none = world({ secret: null });
   assert("a worker without its secret accepts nothing — not the empty token either", !HA.hookTokenOk(none, "") && !HA.hookTokenOk(none, SECRET) && !HA.hookTokenOk(none, "undefined"));
   const same = world({ secret: KEY });
@@ -66,24 +67,19 @@ console.log("\n[أ2] a token");
 }
 
 // ================================================================ أ3
-console.log("\n[أ3] PHASE 1 — the token of before, inside its window alone");
+console.log("\n[أ3] PHASE 3 — the token of before is refused");
 {
   const now = Date.now();
-  const open = world({ before: BEFORE, until: now + 28 * MIN });
-  assert("inside the window: the token of before opens, and so does the new one", HA.hookTokenOk(open, BEFORE, now) && HA.hookTokenOk(open, SECRET, now));
-  assert("…a wrong token is refused all the same", !HA.hookTokenOk(open, "nope", now) && !HA.hookTokenOk(open, "", now));
-  assert("the window's last moment opens; its end does not", HA.hookTokenOk(open, BEFORE, now + 28 * MIN - 1) && !HA.hookTokenOk(open, BEFORE, now + 28 * MIN));
-  assert("after the window: the token of before is refused, the new one opens", !HA.hookTokenOk(open, BEFORE, now + 29 * MIN) && !HA.hookTokenOk(open, BEFORE, now + 24 * 60 * MIN) && HA.hookTokenOk(open, SECRET, now + 29 * MIN));
-  assert("no window given: the token of before is refused", !HA.hookTokenOk(world({ before: BEFORE }), BEFORE, now));
-  assert("a window that is not a time: refused", !HA.hookTokenOk({ ...world({ before: BEFORE }), HOOK_LEGACY_UNTIL: "soon" }, BEFORE, now) && !HA.hookTokenOk({ ...world({ before: BEFORE }), HOOK_LEGACY_UNTIL: "0" }, BEFORE, now));
-  const far = world({ before: BEFORE, until: now + 5 * 60 * MIN });
-  assert(`thirty minutes at most: an end five hours away opens nothing now — only its last ${HA.LEGACY_WINDOW_MS / MIN} minutes`, !HA.hookTokenOk(far, BEFORE, now) && !HA.hookTokenOk(far, BEFORE, now + 4 * 60 * MIN + 29 * MIN) && HA.hookTokenOk(far, BEFORE, now + 4 * 60 * MIN + 30 * MIN) && !HA.hookTokenOk(far, BEFORE, now + 5 * 60 * MIN));
-  assert("exactly thirty minutes away opens; a millisecond more does not", HA.legacyWindowOpen(world({ until: now + 30 * MIN }), now) && !HA.legacyWindowOpen(world({ until: now + 30 * MIN + 1 }), now));
-  assert("a window with no token of before on the worker: the empty token opens nothing", !HA.hookTokenOk(world({ until: now + 10 * MIN }), "", now));
-  // on the routes
-  assert("on a route, inside the window: both tokens pass the gate", (await status(open, "/odoo/hook/prices", `?probe=1&token=${BEFORE}`)) === 200 && (await status(open, "/odoo/hook/prices", `?probe=1&token=${SECRET}`)) === 200);
-  const closed = world({ before: BEFORE, until: now - MIN });
-  assert("on a route, after the window: the token of before gets 401, the new one passes", (await status(closed, "/odoo/hook/prices", `?probe=1&token=${BEFORE}`)) === 401 && (await status(closed, "/odoo/hook/prices", `?probe=1&token=${SECRET}`)) === 200);
+  // the worker as phase 1 left it: the secret of before still on it, and a window that would be open
+  const left = world({ before: BEFORE, until: now + 20 * MIN });
+  assert("refused, even with phase 1's secret and its window still on the worker", !HA.hookTokenOk(left, BEFORE) && (await status(left, "/odoo/hook/prices", `?probe=1&token=${BEFORE}`)) === 401 && (await status(left, "/odoo/hook/s67-trial", `?token=${BEFORE}&op=state`)) === 401);
+  assert("…and the new one opens", HA.hookTokenOk(left, SECRET) && (await status(left, "/odoo/hook/prices", `?probe=1&token=${SECRET}`)) === 200);
+  const only = world({ secret: null, before: BEFORE, until: now + 20 * MIN });
+  assert("a worker that holds the secret of before ALONE accepts nothing", !HA.hookTokenOk(only, BEFORE) && !HA.hookTokenOk(only, "") && (await status(only, "/odoo/hook/prices", `?probe=1&token=${BEFORE}`)) === 401);
+  const SRC = new URL("../src/", import.meta.url);
+  const reads = readdirSync(SRC).filter((f) => f.endsWith(".ts")).filter((f) => /ODOO_HOOK_TOKEN|HOOK_LEGACY_UNTIL/.test(readFileSync(new URL(f, SRC), "utf8").replace(/\/\/.*$/gm, "")));
+  assert("nothing in the worker reads the secret of before, or a window for it", reads.length === 0, reads.join(", "));
+  assert("the hook's check has no window left in it", !("legacyWindowOpen" in HA) && !("LEGACY_WINDOW_MS" in HA) && HA.hookTokenOk.length === 2);
 }
 
 // ================================================================ أ4

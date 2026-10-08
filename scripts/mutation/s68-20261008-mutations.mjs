@@ -25,16 +25,12 @@ const M = [
   // ---------------------------------------------------------------- أ: the secret
   ["أ", "a short secret is a secret", [[HA, "  if (s.length < HOOK_SECRET_MIN) return \"\";\n", ""]], TH],
   ["أ", "the Odoo API key may be the hook secret", [[HA, "  if (s === env.ODOO_API_KEY) return \"\";\n", ""]], TH],
-  ["أ", "a worker without its secret accepts the empty token", [[HA, "  if (secret && tokensEqual(provided, secret)) return true;", "  if (tokensEqual(provided, secret)) return true;"]], TH],
+  ["أ", "a worker without its secret accepts the empty token", [[HA, "  return secret !== \"\" && tokensEqual(provided, secret);", "  return tokensEqual(provided, secret);"]], TH],
   ["أ", "a token of the right length opens", [[HA, "  return diff === 0;", "  return true;"]], TH],
   ["أ", "the start of the secret opens", [[HA, "  if (a.length !== b.length) return false;\n", ""]], TH],
   ["أ", "the secret's minimum is a character", [[HA, "export const HOOK_SECRET_MIN = 32;", "export const HOOK_SECRET_MIN = 1;"]], TH],
-  // PHASE 1 — the token of before
-  ["أ", "the token of before opens with no window", [[HA, "  return before.length > 0 && legacyWindowOpen(env, now) && tokensEqual(provided, before);", "  return before.length > 0 && tokensEqual(provided, before);"]], TH],
-  ["أ", "the window of the token of before never ends", [[HA, "  return now < until && until - now <= LEGACY_WINDOW_MS;", "  return until - now <= LEGACY_WINDOW_MS;"]], TH],
-  ["أ", "a far end opens a long window", [[HA, "  return now < until && until - now <= LEGACY_WINDOW_MS;", "  return now < until;"]], TH],
-  ["أ", "the window is an hour", [[HA, "export const LEGACY_WINDOW_MS = 30 * 60_000;", "export const LEGACY_WINDOW_MS = 60 * 60_000;"]], TH],
-  ["أ", "a window with no token of before: the empty token opens", [[HA, "  return before.length > 0 && legacyWindowOpen(env, now) && tokensEqual(provided, before);", "  return legacyWindowOpen(env, now) && tokensEqual(provided, before);"]], TH],
+  // PHASE 3 — the token of before
+  ["أ", "the token of before opens again", [[HA, "  return secret !== \"\" && tokensEqual(provided, secret);", "  return (secret !== \"\" && tokensEqual(provided, secret)) || tokensEqual(provided, String((env as unknown as Record<string, string>).ODOO_HOOK_TOKEN ?? \"-\"));"]], TH],
   // the routes
   ["أ", "the two quotation sends are not behind the secret", [[HA, "  return pathname.startsWith(\"/odoo/hook/\") || pathname === \"/internal/quotation-wa-send\" || pathname === \"/internal/sale-quotation-wa-send\";", "  return pathname.startsWith(\"/odoo/hook/\");"]], TH],
   ["أ", "probe=1 answers without checking the token", [[IDX, "      if (!hookTokenOk(env, url.searchParams.get(\"token\") ?? \"\")) return json({ error: \"unauthorized\" }, 401);\n", ""]], TH],

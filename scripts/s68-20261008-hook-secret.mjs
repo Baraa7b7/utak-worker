@@ -82,6 +82,19 @@ async function probe(host, path, token, query = "") {
   const j = await r.json().catch(() => ({}));
   return r.status === 200 && j.probe === true ? "taken" : r.status === 401 ? "refused" : `HTTP ${r.status}`;
 }
+/**
+ * The same answer six times in a row, a second apart — or the answer that broke the row. A deploy reaches
+ * Cloudflare's edge over some seconds: just after one, a request may still be served by the version of before
+ * (2026-10-08: the new token was «taken», then «refused» two seconds later, then «taken» for good).
+ */
+async function steady(ask, want, n = 6) {
+  for (let i = 0; i < n; i++) {
+    const got = await ask();
+    if (got !== want) return got;
+    await pause(1000);
+  }
+  return want;
+}
 const readRb = () => (existsSync(RB) ? JSON.parse(readFileSync(RB, "utf8")) : null);
 const writeRb = (rb) => { mkdirSync(new URL("../backups/", import.meta.url), { recursive: true }); writeFileSync(RB, JSON.stringify(rb, null, 2) + "\n", { mode: 0o600 }); };
 
@@ -136,11 +149,11 @@ if (STEP === "odoo") {
   const doneAlready = mine.filter((a) => a.text.includes(rb.after));
   say(`${mine.length} action(s): ${todo.length} carry the token of before (tag ${tag(rb.before)}), ${doneAlready.length} the new one (tag ${tag(rb.after)})`);
   // the worker must accept BOTH before Odoo is touched — else a button breaks between two writes
-  const know = await knowsProbe(PROD_HOST, rb.after);
-  const old = know === "yes" ? await probe(PROD_HOST, "/odoo/hook/prices", rb.before) : "?";
-  say(`the live prod worker: the new token ${know === "yes" ? "is taken (it runs § 68's code)" : `→ ${know}`}; the token of before → ${old}`);
+  const know = await steady(() => knowsProbe(PROD_HOST, rb.after), "yes");
+  const old = know === "yes" ? await steady(() => probe(PROD_HOST, "/odoo/hook/prices", rb.before), "taken") : "?";
+  say(`the live prod worker (six answers in a row): the new token ${know === "yes" ? "is taken (it runs § 68's code)" : `→ ${know}`}; the token of before → ${old}`);
   if (know !== "yes") { say("✗ the live prod worker does not accept the new token yet (deploy phase 1 first) — nothing is written"); process.exit(1); }
-  if (todo.length && old !== "taken") { say("✗ the window of the token of before is closed: Odoo's remaining actions are rewritten at once, each one a button back to work"); }
+  if (todo.length && old !== "taken") say("! the token of before is refused already (its window closed, or phase 3 is live): every action still carrying it is a button that does not work — rewriting them puts each one back to work");
   for (const a of todo) say(`  ✎ #${a.id} «${a.name}» ${a.field}: ${a.urls.map((u) => u.path).join(", ")}`);
   if (!APPLY) { say("dry-run: nothing written (add --apply)"); process.exit(0); }
   for (const a of todo) {
@@ -157,8 +170,8 @@ if (STEP === "odoo") {
 if (STEP === "retire") {
   say(APPLY ? `APPLY — step 3: ${OLD_NAME} off sim and prod` : "dry-run — step 3 (nothing is written; add --apply)");
   if (!rb?.after || token !== rb.after) { say("✗ Odoo's actions do not carry the new token: nothing is deleted"); process.exit(1); }
-  const before = await probe(PROD_HOST, "/odoo/hook/prices", rb.before);
-  say(`the live prod worker and the token of before: ${before}`);
+  const before = await steady(() => probe(PROD_HOST, "/odoo/hook/prices", rb.before), "refused");
+  say(`the live prod worker and the token of before (six answers in a row): ${before}`);
   if (before !== "refused") { say("✗ the live prod worker still accepts the token of before (deploy phase 3 first, or wait for the window's end) — nothing is deleted"); process.exit(1); }
   for (const env of ["sim", "prod"]) {
     say(`- wrangler secret delete ${OLD_NAME} (${env})`);

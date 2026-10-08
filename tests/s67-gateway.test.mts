@@ -112,6 +112,13 @@ console.log("\n[د2] 131056: the same message again, 1 → 5 → 15 minutes, not
   assert("refused at the send and at its three retries: four tries in all, then «failed»", sentTo(CUST_PHONE).length === 4 && (await retries(env2)).length === 0 && dead.length === 1 && dead[0].x_status === "failed" && String(dead[0].x_meta_error).includes("131056"), JSON.stringify(dead));
   assert("…a failure now: counted once, and Baraa told once", env2.MSG_DEDUP.store.get(`wa_send_fail:${DAY}`) === "1" && ownerTexts().filter((t) => t.includes("فشل إرسال واتساب") && t.includes("131056")).length === 1, ownerTexts().join(" | "));
   assert("…and the purpose is STILL not blocked: the next message of it goes", block(env2, CUST_PHONE, "customer_delivery_done") === null && (await gw(env2, text(CUST_PHONE, "طلب آخر وصل", "customer_delivery_done")))?.action === "session");
+  // the very same message refused twice waits once
+  const envS = fresh(`${DAY} 10:00`);
+  openWindow(envS, CUST_PHONE, 5);
+  failNext.push(131056, 131056);
+  await gw(envS, text(CUST_PHONE, "الرسالة نفسها", "customer_delivery_incoming"));
+  await gw(envS, text(CUST_PHONE, "الرسالة نفسها", "customer_delivery_incoming"));
+  assert("the very same message refused twice waits ONCE", (await retries(envS)).length === 1);
   // a message that would expire before its retry is not queued
   const env3 = fresh(`${DAY} 10:00`);
   openWindow(env3, CUST_PHONE, 5);
@@ -239,6 +246,9 @@ console.log("\n[هـ1] the same kind within ten minutes is one message");
   await quiet(() => sendOwnerAlert(env, "⚠️ المورد \"أحمد حسان\" لم يرسل أسعار اليوم"));
   setRiyadh(`${DAY} 10:03`);
   await quiet(() => sendOwnerAlert(env, "⚠️ المورد \"مزرعة حمد\" لم يرسل أسعار اليوم"));
+  setRiyadh(`${DAY} 10:05`);
+  await cron(env, TICK);
+  assert("a tick inside the window does not close it: the folded alert still waits", ownerTexts().length === 1);
   setRiyadh(`${DAY} 10:09`);
   await quiet(() => sendOwnerAlert(env, "⚠️ المورد \"سوق الجملة\" لم يرسل أسعار اليوم"));
   await quiet(() => sendOwnerAlert(env, "📥 رسالة «الفاتورة» إلى …501 محفوظة"));

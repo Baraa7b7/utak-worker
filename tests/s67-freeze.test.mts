@@ -220,6 +220,7 @@ console.log("\n[أ4] an incoming message while frozen");
   assert("the message is recorded in Odoo as it is", !!inRow && inRow.x_status === "received" && inRow.x_partner_id === CUST);
   assert("the customer gets the settings' reply — and nothing else (no quotation, no menu)", JSON.stringify(bodies(CUST_PHONE)) === JSON.stringify(["نشكر تواصلك 🌿 نرجع السبت بإذن الله"]), JSON.stringify(bodies(CUST_PHONE)));
   assert("no order is made of it", rows("x_daily_order").length === 0 && rows("x_daily_order_line").length === 0);
+  assert("the bot does not even try to answer: nothing of its own was stopped at the gateway («مجمّد» rows: none)", frozenRows().length === 0, JSON.stringify(frozenRows().map((r) => r.x_body)));
   assert("Baraa is told who wrote and what", ownerTexts().length === 1 && ownerTexts()[0] === FZ.frozenInboundAlert("customer", "مطعم الوادي", CUST_PHONE, "أبغى 5 كرتون طماطم و3 خيار", true), ownerTexts().join(" | "));
   // again inside six hours: recorded, no second reply
   setRiyadh(`${DAY} 12:00`);
@@ -360,6 +361,9 @@ console.log("\n[أ8] turned off: everything from its next time, nothing late");
   await known(late);
   const lr = await quiet(() => AT.runAttendanceTick(late));
   assert("a freeze that began at 02:10, after the 02:00 shift: frozen NOW — nothing at 02:15 either, for the member or for Baraa", of(lr) === AT.FROZEN_MISSED_STEP && lr.owner.action === AT.FROZEN_MISSED_STEP);
+  const late2 = world(`${DAY} 06:15`, { on: true, since: `${DAY} 06:10` });
+  await known(late2);
+  assert("a freeze that began at 06:10, after Baraa's 06:00 «بدء الدوام» was due: nothing at 06:15 (frozen NOW)", (await quiet(() => AT.runAttendanceTick(late2))).owner.action === AT.FROZEN_MISSED_STEP);
   // a day approved while frozen is not published by itself after the freeze
   const env3 = world(`${DAY} 06:10`, { since: `${DAY} 01:00`, ended: `${DAY} 06:05` });
   seed("x_price_day", { id: 70, x_date: DAY, x_state: "approved", x_approved_at: utc(`${DAY} 05:00`), x_name: DAY });

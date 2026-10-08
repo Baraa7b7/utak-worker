@@ -240,7 +240,7 @@ const M = [
     "  const profit = await attempt(\"coverage_profit\", () => deliveredProfit(env, yesterday, profitVatRate(day)));", "  const profit = await attempt(\"coverage_profit\", () => deliveredProfit(env, day, profitVatRate(day)));"]], T],
   ["هـ", "a line without its day's purchase price counted at 0", [[SM,
     // § 47 أ: the cost row is the net purchase price alone
-    "    if (!(buy && buy > 0)) throw new Error(\"a delivered line without its day's purchase price\");\n", "    if (!buy) continue;\n"]], T],
+    "    if (!(buy && buy > 0)) throw new Error(l.x_special_price === true ? \"a special quotation's line without its purchase price\" : \"a delivered line without its day's purchase price\");\n", "    if (!buy) continue;\n"]], T],
   ["هـ", "a line without a sale price counted at 0", [[SM,
     "    if (!(sale > 0)) throw new Error(\"a delivered line without a sale price\");\n", ""]], T],
   ["هـ", "the purchase price of any day, not the order's", [[SM,

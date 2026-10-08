@@ -26,7 +26,7 @@ const CF = "src/config.ts";
 const M = [
   // ---------------------------------------------------------------- أ «مشتريات السوق النقدية»
   ["أ", "the market winner ignored (Omar's lines back under Ahmed)", [[SP,
-    "    const won = market?.winners.get(winnerKey(it.product_id, it.packaging_id));",
+    "    const won = it.special_line ? undefined : market?.winners.get(winnerKey(it.product_id, it.packaging_id));",
     "    const won = undefined as { price: number; sourceName: string } | undefined;"]], T],
   ["أ", "a market line owed to the item's supplier (Ahmed), not the cash market", [[SP,
     "      const sid = market!.cashSupplierId;",

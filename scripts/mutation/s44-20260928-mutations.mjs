@@ -120,7 +120,7 @@ const M = [
     "    },\n    items,\n    subtotal: vatAmount > 0 ? netSubtotal : subtotal,"]], T],
   // ---------------------------------------------------------------- هـ one bill per supplier
   ["هـ", "the market winners ignored (Omar's line back on Ahmed's bill)", [[PA,
-    "    const won = market?.winners.get(winnerKey(it.product_id, it.packaging_id));",
+    "    const won = it.special_line ? undefined : market?.winners.get(winnerKey(it.product_id, it.packaging_id));",
     "    const won = undefined as { price: number } | undefined; void winnerKey;"]], T],
   ["هـ", "a market line at the list's price (Ahmed's 13), not Omar's written one", [[PA,
     "      line = { ...it, unit_price: won.price };", "      line = it;"]], T],

@@ -123,7 +123,7 @@ const M = [
   ["orders", "the customer's own options name him", [[CF,
     "...(o.withCustomer && order.customer ? [order.customer] : []),", "...(order.customer ? [order.customer] : []),"]], T],
   ["orders", "a line's sale price is read with his orders", [[CF,
-    "fields: [\"id\", \"x_order_id\", \"x_product_tmpl_id\", \"x_packaging_id\", \"x_quantity\", \"x_status\"], order: \"id asc\"", "fields: [\"id\", \"x_order_id\", \"x_product_tmpl_id\", \"x_packaging_id\", \"x_quantity\", \"x_status\", \"x_unit_price\"], order: \"id asc\""]], T],
+    "fields: [\"id\", \"x_order_id\", \"x_product_tmpl_id\", \"x_packaging_id\", \"x_quantity\", \"x_status\", \"x_pack_text\"], order: \"id asc\"", "fields: [\"id\", \"x_order_id\", \"x_product_tmpl_id\", \"x_packaging_id\", \"x_quantity\", \"x_status\", \"x_pack_text\", \"x_unit_price\"], order: \"id asc\""]], T],
   ["orders", "the purchase prices are read with his orders", [[CF,
     "  if (!orders.length) return [];\n  type Line", "  await call(env, \"x_daily_price\", \"search_read\", { domain: [], fields: [\"x_price_sar\"], limit: 1 });\n  if (!orders.length) return [];\n  type Line"]], T],
   // ---------------------------------------------------------------- the three doors
